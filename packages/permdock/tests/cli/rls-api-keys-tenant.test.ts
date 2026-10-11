@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { apiKeysPlan } from "../../src/cli/rls-api-keys.ts";
-import { compileGrants } from "../../src/cli/rls-compile.ts";
-import { compileConditionSql } from "../../src/cli/rls-conditions.ts";
-import { helpersSql } from "../../src/cli/rls-helpers.ts";
+import { apiKeysPlan } from "../../src/cli/rls/api-keys.ts";
+import { helpersSql } from "../../src/cli/rls/helpers.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
+import { compileConditionSql } from "../../src/cli/sql/conditions.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { fromJunction, fromTable } from "../../src/supabase/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
 import { createPermDock } from "../../src/orpc/index.ts";
+import { channel } from "../fakes/channel.ts";
 import {
   memberUser,
   otherPost,
@@ -13,32 +14,6 @@ import {
 } from "../fixtures/quick-start.ts";
 
 type Ctx = { readonly user: typeof memberUser | null };
-
-function channel<T>() {
-  const queue: T[] = [];
-  let wake: (() => void) | undefined;
-  const nextPush = async (): Promise<void> => {
-    await new Promise<void>((resolve) => {
-      wake = resolve;
-    });
-  };
-  return {
-    push(...items: T[]): void {
-      queue.push(...items);
-      wake?.();
-    },
-    async *drain(): AsyncGenerator<T> {
-      for (;;) {
-        const next = queue.shift();
-        if (next === undefined) {
-          await nextPush();
-        } else {
-          yield next;
-        }
-      }
-    },
-  };
-}
 
 describe("permdock/orpc event iterators", () => {
   it("drops unreadable items and ends on session revocation", async () => {

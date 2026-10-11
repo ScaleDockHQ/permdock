@@ -1,5 +1,5 @@
 import type { RowPair } from "./permdock.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
 
 export function isRowPair(value: unknown): value is RowPair<unknown> {
   return (

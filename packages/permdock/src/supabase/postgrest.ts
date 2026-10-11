@@ -3,7 +3,7 @@ import type {
   MembershipSource,
   RoleSource,
 } from "../core/interfaces.ts";
-import type { Policy } from "../core/policy.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type {
   CustomRole,
   CustomRoleGrant,
@@ -11,7 +11,7 @@ import type {
   Subject,
 } from "../core/subject.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { HOOK_API_SCHEMA, hookApiNames, PERMDOCK_SCHEMA } from "./sources.ts";
 import { readMemberships } from "./subject.ts";
 
@@ -110,10 +110,6 @@ export type PostgrestSources = {
   /** The raw record, `undefined` for an unknown user. */
   record(userId: string): Promise<SubjectRecord | undefined>;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function strings(value: unknown): readonly string[] {
   return Array.isArray(value)

@@ -2,11 +2,8 @@ import type { ReactNode } from "react";
 
 import type { ClientStoreOptions } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";
-import type {
-  Snapshot,
-  SnapshotSource,
-  TokenVerifier,
-} from "../core/interfaces.ts";
+import type { SnapshotSource, TokenVerifier } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockDefaults } from "../react/types.ts";
 
 export type PermDockStorage = {

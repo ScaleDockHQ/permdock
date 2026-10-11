@@ -1,9 +1,6 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { countHolders, createPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { type SupabaseRpcClient, postgrestSources } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -11,6 +8,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/named-scopes/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { generated, jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/subject-for");
@@ -56,40 +54,26 @@ create table organization (id text primary key, disabled_at timestamptz);
 insert into organization values ('T', null), ('B', null), ('X', now());
 `;
 
-async function generate(): Promise<string[]> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-subject-for-"));
-  try {
-    const result = await run(
-      [
-        "rls",
-        "generate",
-        "--target",
-        "sql",
-        "--split",
-        "helpers,hook",
-        "--out",
-        join(dir, "{part}.sql"),
-      ],
-      { cwd: FIXTURE },
-    );
-    if (result.code !== 0) {
-      throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
-    }
-    return ["helpers.sql", "hook.sql"].map((file) =>
-      readFileSync(join(dir, file), "utf8"),
-    );
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
 describe("subject_for and postgrestSources against Postgres", () => {
   let db: Postgres | undefined;
 
   beforeAll(async () => {
     db = await startPostgres([
       SETUP,
-      ...(await generate()),
+      ...(await generated(
+        [
+          "rls",
+          "generate",
+          "--target",
+          "sql",
+          "--split",
+          "helpers,hook",
+          "--out",
+          "{dir}/{part}.sql",
+        ],
+        ["helpers.sql", "hook.sql"],
+        { cwd: FIXTURE },
+      )),
       `insert into permdock.user_roles values ('${OWNER}', 'platform-support');
 select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization', null, 'mechanic', array['asset.read'], array[]::text[], array[]::text[]);`,
     ]);
@@ -276,12 +260,7 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
         await target.as(
           {
             role: "authenticated",
-            settings: {
-              "request.jwt.claims": JSON.stringify({
-                sub: OWNER,
-                role: "authenticated",
-              }),
-            },
+            settings: jwtClaims(OWNER),
           },
           async () => {
             const one = await target.tester.query<{ key: string }>(

@@ -1,13 +1,13 @@
 import type { MetaValue } from "./app-data.ts";
 import type { Grantee } from "./grantee.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
 import type {
   ApprovalRequirement,
   Grant,
   GrantMeta,
   GrantValidity,
   HostedGrantRef,
-} from "./policy.ts";
+} from "./policy-types.ts";
 import type { Membership, Subject } from "./subject.ts";
 
 export type DenialReason =

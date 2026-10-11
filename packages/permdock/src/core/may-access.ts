@@ -1,15 +1,14 @@
-import type { AuthEvent } from "./interfaces.ts";
-import type { Permission } from "./permissions.ts";
-import type { Policy } from "./policy.ts";
+import type { AuthEvent } from "./event-types.ts";
+import type { Permission } from "./permission-types.ts";
+import type { Policy } from "./policy-types.ts";
 import type { Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
-import { declaredRoleNames } from "./evaluate.ts";
 import { flattenGrantee } from "./grantee.ts";
-import { collectSnapshotGrants } from "./instance.ts";
-import { grantList } from "./policy.ts";
+import { declaredRoleNames, grantList } from "./policy.ts";
 import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList, tenantOf } from "./scopes.ts";
+import { collectSnapshotGrants } from "./snapshot-grants.ts";
 import { isThenable } from "./thenable.ts";
 import { listPlans } from "./vocabulary.ts";
 

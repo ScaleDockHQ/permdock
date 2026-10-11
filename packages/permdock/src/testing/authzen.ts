@@ -1,10 +1,13 @@
 import { expect, it } from "vitest";
 
-import type { InferPermissionTree, ResourceInit } from "../core/permissions.ts";
-import type { Policy } from "../index.ts";
+import type {
+  InferPermissionTree,
+  ResourceInit,
+} from "../core/permission-types.ts";
 
 import { byCodePoint } from "../core/compare.ts";
 import {
+  type Policy,
   allow,
   definePermissions,
   definePolicy,

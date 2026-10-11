@@ -1,5 +1,5 @@
 import type { RoleSource } from "./interfaces.ts";
-import type { Policy } from "./policy.ts";
+import type { Policy } from "./policy-types.ts";
 import type { CustomRole } from "./subject.ts";
 
 import { declaredRoleNames } from "./policy.ts";

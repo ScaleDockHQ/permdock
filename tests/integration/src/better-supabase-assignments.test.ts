@@ -7,6 +7,8 @@ import { authorizationProvider } from "permdock/better-supabase";
 import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { ask, askAs } from "./support/pglite.ts";
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/assignments-provider");
 
@@ -84,24 +86,6 @@ describe("authorizationProvider canAssign with custom roles", () => {
     return lite;
   };
 
-  const askAs = async (user: string, sql: string): Promise<unknown> => {
-    const db = database();
-    await db.exec("begin; set local role authenticated;");
-    try {
-      await db.query("select set_config('request.jwt.claims', $1, true)", [
-        JSON.stringify({ sub: user, role: "authenticated" }),
-      ]);
-      return (await db.query<{ ok: unknown }>(`select ${sql} as ok`)).rows[0]
-        ?.ok;
-    } finally {
-      await db.exec("rollback");
-    }
-  };
-
-  const ask = async (sql: string): Promise<unknown> =>
-    (await database().query<{ ok: unknown }>(`select ${sql} as ok`)).rows[0]
-      ?.ok;
-
   it("answers declared and custom roles through the templates", async () => {
     const provider = authorizationProvider({ manifest });
     const { canAssign, canAssignFor } = provider.functions;
@@ -116,9 +100,16 @@ describe("authorizationProvider canAssign with custom roles", () => {
         .replaceAll("{user}", `'${user}'::uuid`);
     const answers: Record<string, unknown> = {};
     for (const role of ["member", "admin", "reader", "editor"]) {
-      answers[role] = await askAs(ADMIN, fill(canAssign, role));
-      answers[`${role} for`] = await ask(fill(canAssignFor, role, ADMIN));
-      answers[`${role} by member`] = await askAs(MEMBER, fill(canAssign, role));
+      answers[role] = await askAs(database(), ADMIN, fill(canAssign, role));
+      answers[`${role} for`] = await ask(
+        database(),
+        fill(canAssignFor, role, ADMIN),
+      );
+      answers[`${role} by member`] = await askAs(
+        database(),
+        MEMBER,
+        fill(canAssign, role),
+      );
     }
     expect(answers).toEqual({
       member: true,
@@ -135,7 +126,11 @@ describe("authorizationProvider canAssign with custom roles", () => {
       "editor by member": false,
     });
     expect(
-      await askAs(ADMIN, "permdock.permdock_can_assign('reader', 'acme')"),
+      await askAs(
+        database(),
+        ADMIN,
+        "permdock.permdock_can_assign('reader', 'acme')",
+      ),
     ).toBe(false);
   });
 
@@ -150,7 +145,10 @@ describe("authorizationProvider canAssign with custom roles", () => {
     ]);
     for (const { function: fn, args } of assigning) {
       expect(
-        await ask(`to_regprocedure('${fn}(${args ?? ""})') is not null`),
+        await ask(
+          database(),
+          `to_regprocedure('${fn}(${args ?? ""})') is not null`,
+        ),
       ).toBe(true);
     }
   });

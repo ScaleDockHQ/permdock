@@ -8,10 +8,9 @@ import type {
   SimulateOptions,
   WhereResult,
 } from "../core/permdock.ts";
-import type { Permission, PermissionTree } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
-import type { Principal } from "../core/subject.ts";
-import type { Membership, Subject } from "../core/subject.ts";
+import type { Permission, PermissionTree } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Principal, Membership, Subject } from "../core/subject.ts";
 
 export type RemotePdpAuth = {
   readonly bearer: string | (() => string | Promise<string>);

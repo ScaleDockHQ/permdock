@@ -12,7 +12,10 @@ import {
 import { createRequire } from "node:module";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
+import type { CommandResult } from "./shared/result.ts";
+
 import { byCodePoint } from "../core/compare.ts";
+import { readJsonFile } from "./files.ts";
 import { packageRoot } from "./package-root.ts";
 
 const SKILL_NAMES = [
@@ -42,17 +45,12 @@ export function detectedAgents(cwd: string): readonly string[] {
     .map(([agent]) => agent);
 }
 
-export type SkillsResult = {
-  readonly code: 0 | 1 | 2;
-  readonly output: string;
-};
-
 export function runSkills(input: {
   readonly cwd: string;
   readonly action: string | undefined;
   readonly agents: readonly string[];
   readonly check?: boolean;
-}): SkillsResult {
+}): CommandResult {
   switch (input.action) {
     case undefined:
     case "install":
@@ -75,7 +73,7 @@ export function runSkillsInstall(input: {
   readonly agents: readonly string[];
   /** The skills shipped with this CLI, used when the project resolves no permdock package. */
   readonly bundled?: string;
-}): SkillsResult {
+}): CommandResult {
   const source = resolveSkillsRoot(
     input.cwd,
     input.bundled ?? join(packageRoot(), "skills"),
@@ -119,7 +117,7 @@ export function runSkillsCheck(input: {
   readonly cwd: string;
   readonly agents: readonly string[];
   readonly bundled?: string;
-}): SkillsResult {
+}): CommandResult {
   const source = resolveSkillsRoot(
     input.cwd,
     input.bundled ?? join(packageRoot(), "skills"),
@@ -241,11 +239,11 @@ function filesOf(root: string, folder = root): string[] {
     });
 }
 
-function listSkills(cwd: string): SkillsResult {
+function listSkills(cwd: string): CommandResult {
   const lockPath = join(cwd, ".permdock/skills-lock.json");
   // SAFETY: the lock file is written by permdock skills; version is only interpolated into text.
   const lock = existsSync(lockPath)
-    ? (JSON.parse(readFileSync(lockPath, "utf8")) as {
+    ? (readJsonFile(lockPath) as {
         readonly version?: string;
       })
     : {};
@@ -298,7 +296,7 @@ function readPermdockVersion(skillsRoot: string): string {
     return "0.0.0";
   }
   // SAFETY: the package.json next to the skills folder is permdock's own, which has a version.
-  const raw = JSON.parse(readFileSync(pkg, "utf8")) as {
+  const raw = readJsonFile(pkg) as {
     readonly version: string;
   };
   return raw.version;

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { Permission } from "../../src/core/permissions.ts";
+import type { Permission } from "../../src/core/permission-types.ts";
 
+import { resource } from "../../src/core/permission-leaf.ts";
 import {
-  definePermissions,
   getResource,
   listPermissions,
-  resource,
-} from "../../src/core/permissions.ts";
+} from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { crud, readable, writable } from "../../src/core/presets.ts";
 
 const Post = z.object({ id: z.string(), authorId: z.string() });

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { helpersSql } from "../../src/cli/rls-helpers.ts";
-import { rbacScaffold } from "../../src/cli/rls-rbac.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { helpersSql } from "../../src/cli/rls/helpers.ts";
+import { rbacScaffold } from "../../src/cli/rls/rbac.ts";
+import { allow } from "../../src/core/grant-builders.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 
 const base: RlsSqlContext = {

@@ -1,5 +1,5 @@
 import type { PermDock } from "./permdock.ts";
-import type { PolicyVocabulary } from "./policy.ts";
+import type { PolicyVocabulary } from "./policy-types.ts";
 
 /** A wrapper an adapter applies to each instance it builds, as `withOtel` does. */
 export type PermDockWrap = <V extends PolicyVocabulary>(

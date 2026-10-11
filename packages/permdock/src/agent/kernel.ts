@@ -1,8 +1,8 @@
 import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
-import type { Delegation, Principal } from "../core/subject.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Principal } from "../core/subject.ts";
 import type { Boundary } from "../core/validation.ts";
 import type {
   AgentKernelOptions,
@@ -15,12 +15,11 @@ import type {
 
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { actorFrom, tenantScope } from "../core/adapter-context.ts";
+import { resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import {
-  errorChannel,
+  buildReportingInstance,
   requestContext,
   type Report,
 } from "../core/request-context.ts";
@@ -126,21 +125,13 @@ export function createAgentKernel<
       }
     }
     const built = (async (): Promise<PermDock<V>> => {
-      let user: TUser | null = null;
-      try {
-        user = await options.subject(context);
-      } catch {
-        user = null;
-      }
+      const user = await resolveOrNull(() => options.subject(context));
       const actor = await actorFrom(options.actor, context);
-      let delegation: Delegation | undefined;
-      if (options.delegation !== undefined) {
-        try {
-          delegation = await options.delegation(context);
-        } catch {
-          delegation = undefined;
-        }
-      }
+      const delegate = options.delegation;
+      const delegation =
+        delegate === undefined
+          ? undefined
+          : ((await resolveOrNull(() => delegate(context))) ?? undefined);
       const { tenant } = await tenantScope(options.tenant, context);
       const errors: unknown[] = [];
       const requestValues = await requestContext(
@@ -148,24 +139,20 @@ export function createAgentKernel<
         context,
         errors,
       );
-      const channel = errorChannel(errors);
-      const created = channel.attach(
-        await createCorePermDock(
-          policy,
-          user,
-          compact({
-            tenant,
-            actor,
-            delegation,
-            context: requestValues,
-            ...instanceOptions(options),
-          }),
-        ),
-      );
-      // SAFETY: wrap returns the instance it was given, decorated; the vocabulary is unchanged.
-      const wrapped = (options.wrap?.(created) ?? created) as PermDock<V>;
-      reporters.set(wrapped, channel.report);
-      return wrapped;
+      const wrap = options.wrap;
+      const typedWrap = (created: PermDock<V>): PermDock<V> =>
+        // SAFETY: wrap returns the instance it was given, decorated; the vocabulary is unchanged.
+        wrap === undefined ? created : (wrap(created) as PermDock<V>);
+      const { permdock, report: reportTo } = await buildReportingInstance({
+        policy,
+        user,
+        sources: options,
+        scope: { tenant, actor, delegation, context: requestValues },
+        errors,
+        wrap: typedWrap,
+      });
+      reporters.set(permdock, reportTo);
+      return permdock;
     })();
     if (typeof context === "object" && context !== null) {
       cache.set(context, built);

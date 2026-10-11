@@ -1,7 +1,10 @@
 export { catalogPath } from "./catalog-path.ts";
 export { defineConfig } from "./config.ts";
-export { parseGrantsMarker, parseHookMarker } from "./markers.ts";
-export type { SupabaseGrantsMarker, SupabaseHookMarker } from "./markers.ts";
+export { parseGrantsMarker, parseHookMarker } from "./sql/markers.ts";
+export type {
+  SupabaseGrantsMarker,
+  SupabaseHookMarker,
+} from "./sql/markers.ts";
 export { run } from "./run.ts";
 export type {
   CatalogActivation,

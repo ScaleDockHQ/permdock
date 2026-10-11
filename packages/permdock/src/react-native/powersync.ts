@@ -1,10 +1,7 @@
-import type {
-  LocalSnapshotManifest,
-  SnapshotSource,
-} from "../core/interfaces.ts";
-import type { LocalSnapshotData } from "./local.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
+import type { LocalSnapshotManifest } from "../core/snapshot-types.ts";
 
-import { localSnapshot } from "./local.ts";
+import { type LocalSnapshotData, localSnapshot } from "./local.ts";
 
 /** The `PowerSyncDatabase` methods `powersyncSource` calls. */
 export type PowerSyncWatchable = {

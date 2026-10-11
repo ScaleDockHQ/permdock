@@ -1,4 +1,4 @@
-import type { Snapshot } from "./interfaces.ts";
+import type { Snapshot } from "./snapshot-types.ts";
 import type { Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";

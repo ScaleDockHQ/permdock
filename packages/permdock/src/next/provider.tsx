@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 
-import type { Snapshot } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { ServerPermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";

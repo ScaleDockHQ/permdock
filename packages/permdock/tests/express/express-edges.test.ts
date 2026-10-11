@@ -1,42 +1,9 @@
-import type { Server } from "node:http";
-
 import express from "express";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { createPermDock } from "../../src/express/index.ts";
+import { listen } from "../fakes/server.ts";
 import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
-
-const servers: Server[] = [];
-
-afterEach(async () => {
-  await Promise.all(
-    servers.splice(0).map(
-      (server) =>
-        new Promise<void>((resolve) => {
-          server.close(() => {
-            resolve();
-          });
-        }),
-    ),
-  );
-});
-
-async function listen(
-  app: ReturnType<typeof express>,
-): Promise<(path: string, init?: RequestInit) => Promise<Response>> {
-  const server = await new Promise<Server>((resolve) => {
-    const next = app.listen(0, "127.0.0.1", () => {
-      resolve(next);
-    });
-  });
-  servers.push(server);
-  const address = server.address();
-  if (address === null || typeof address === "string") {
-    throw new Error("expected tcp address");
-  }
-  const base = `http://127.0.0.1:${String(address.port)}`;
-  return (path, init) => fetch(`${base}${path}`, init);
-}
 
 describe("permdock/express edge cases", () => {
   it("protects a collection route without a loader", async () => {

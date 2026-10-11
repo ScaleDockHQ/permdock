@@ -11,14 +11,14 @@ import { afterAll, describe, expect, it } from "vitest";
 import type {
   MigrateReport,
   MigrateTarget,
-} from "../../src/cli/rls-migrate.ts";
+} from "../../src/cli/rls/migrate.ts";
 import type { RlsMigrateConfig } from "../../src/cli/types.ts";
 
 import {
   mapKey,
   migrateTarget,
   runRlsMigrate,
-} from "../../src/cli/rls-migrate.ts";
+} from "../../src/cli/rls/migrate.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });

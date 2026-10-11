@@ -1,19 +1,18 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
-import type { ServerAdapterOptions } from "../server/bind.ts";
+import type { TenantScope } from "../server/create.ts";
 import type {
   Guard,
   OpenApiHooks,
   ProtectOptions,
   ScopeGuard,
-  TenantScope,
-} from "../server/create.ts";
+} from "../server/server-types.ts";
 
-import { bindKernel } from "../server/bind.ts";
+import { type ServerAdapterOptions, bindKernel } from "../server/bind.ts";
 import {
   fromResponse,
   sendResponse,
@@ -79,14 +78,13 @@ export function createPermDock<
     loadData?: (req: NodeRequest) => unknown,
     protectOptions?: ProtectOptions,
   ): ((req: IncomingMessage) => Promise<Guard | ScopeGuard>) =>
-    async (req: IncomingMessage): Promise<Guard | ScopeGuard> =>
-      kernel.protect(
+    (req: IncomingMessage): Promise<Guard | ScopeGuard> =>
+      bound.guard(
         permission,
-        loadData === undefined
-          ? undefined
-          : (): unknown => loadData(nodeRequest(req)),
+        loadData,
+        nodeRequest(req),
         protectOptions,
-      )(bind(req), await scopeOf(req))) as NodeProtect;
+      )) as NodeProtect;
 
   const permdockHandler = (): ((
     req: IncomingMessage,

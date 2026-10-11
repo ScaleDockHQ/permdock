@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { runDoctor, type DoctorReport } from "../../src/cli/doctor.ts";
+import { runDoctor, type DoctorReport } from "../../src/cli/doctor/doctor.ts";
 import {
   NOW,
   PERMISSIONS,

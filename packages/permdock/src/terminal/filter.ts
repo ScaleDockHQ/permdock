@@ -1,5 +1,5 @@
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { CommandEntry, FilterCommandsOptions } from "./types.ts";
 
 function snapshotAllows(permdock: PermDock, permission: Permission): boolean {

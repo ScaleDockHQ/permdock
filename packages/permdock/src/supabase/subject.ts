@@ -1,12 +1,4 @@
-import type { StandardSchemaV1 } from "@standard-schema/spec";
-
-import type { AuthEvent } from "../core/interfaces.ts";
-import type {
-  Actor,
-  Delegation,
-  Membership,
-  Subject,
-} from "../core/subject.ts";
+import type { AuthEvent } from "../core/event-types.ts";
 import type { SupabaseActClaim } from "./claims.ts";
 import type {
   SupabaseActor,
@@ -18,10 +10,16 @@ import type {
 } from "./types.ts";
 
 import { clientNameOf } from "../core/clients.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { anonymousSubject } from "../core/subject.ts";
-import { ignoreRejection } from "../core/thenable.ts";
+import {
+  type Actor,
+  type Delegation,
+  type Membership,
+  type Subject,
+  anonymousSubject,
+} from "../core/subject.ts";
+import { validateRecord } from "../core/thenable.ts";
 import { supabaseTenantClaim } from "./budget.ts";
 
 const REGISTERED = new Set([
@@ -45,10 +43,6 @@ const REGISTERED = new Set([
   "client_id",
   "scope",
 ]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /** Top-level first, then `app_metadata`. `null` counts as absent: the RBAC hook writes `null` for a user with no role row. */
 function readClaim(claims: Record<string, unknown>, name: string): unknown {
@@ -392,23 +386,6 @@ function emit(
   }
 }
 
-function validateClaims(
-  extra: Record<string, unknown>,
-  schema: StandardSchemaV1,
-): Record<string, unknown> | undefined {
-  const result = schema["~standard"].validate(extra);
-  if (result instanceof Promise) {
-    ignoreRejection(result);
-    return undefined;
-  }
-  if ("issues" in result && result.issues !== undefined) {
-    return undefined;
-  }
-  // SAFETY: a synchronous result without issues is the Standard Schema success result, which has value.
-  const value = (result as { readonly value: unknown }).value;
-  return isRecord(value) ? value : undefined;
-}
-
 function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
   const extra: Record<string, unknown> = {};
   const meta = claims["app_metadata"];
@@ -469,7 +446,7 @@ function mapClaims(
   const membershipsClaim = options.memberships ?? "memberships";
   let extra = extraClaims(claims);
   if (options.schema !== undefined) {
-    extra = validateClaims(extra, options.schema) ?? {};
+    extra = validateRecord(options.schema, extra) ?? {};
   }
   const include = new Set(options.include ?? []);
   const tenantValue = readClaim(claims, tenantClaim);

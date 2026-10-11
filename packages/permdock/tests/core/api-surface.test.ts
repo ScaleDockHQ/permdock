@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { principal } from "../../src/conditions/refs.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
+import { matchGrantee } from "../../src/core/grantee-match.ts";
 import {
   actor,
   anyone,
@@ -10,20 +12,18 @@ import {
   authenticated,
   flattenGrantee,
   hasAnyone,
-  matchGrantee,
   plan,
   relation,
   roleNameOf,
   roleScopeOf,
 } from "../../src/core/grantee.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import {
-  definePermissions,
-  getResource,
-  resource,
-} from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { getResource } from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
 import { crud } from "../../src/core/presets.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { isActor } from "../../src/core/subject.ts";
 import {

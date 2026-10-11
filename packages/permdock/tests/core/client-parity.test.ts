@@ -4,11 +4,14 @@ import type { Principal } from "../../src/core/subject.ts";
 
 import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { memoryRoleSource } from "../../src/core/interfaces.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
+import { memoryRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
 import { crud } from "../../src/core/presets.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import { reasonOf } from "../fixtures/decisions.ts";

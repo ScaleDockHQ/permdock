@@ -2,7 +2,7 @@ import { flushSync, mount, unmount } from "svelte";
 import { get, writable } from "svelte/store";
 import { describe, expect, it } from "vitest";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { ProtectedProps } from "../../src/svelte/runtime.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";

@@ -1,13 +1,21 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
-import { assignmentSql, ownershipRules } from "../../src/cli/rls-ownership.ts";
-import { supabaseHookSql } from "../../src/cli/supabase-hook.ts";
+import { CliError } from "../../src/cli/errors.ts";
+import { assignmentSql } from "../../src/cli/rls/assignments.ts";
+import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
+import { ownershipRules } from "../../src/cli/rls/ownership.ts";
+import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { fromJunction } from "../../src/supabase/index.ts";
 import { policy as namedScopes } from "../fixtures/named-scopes.ts";
@@ -72,6 +80,52 @@ function generate(rls: NonNullable<PermDockConfig["rls"]>) {
 }
 
 describe("rls generate options", () => {
+  it("exits 1, not 2, when --db cannot be reached", async () => {
+    const outcome = await runRlsGenerate({
+      cwd,
+      config: { policy: "./manage.ts", rls: { memberships } },
+      target: "sql",
+      dialect: "supabase",
+      rbac: false,
+      check: false,
+      skipClosures: false,
+      inlineFunctions: false,
+      io,
+      write: false,
+      db: "postgres://unreachable.invalid/app",
+      connect: () =>
+        Promise.reject(
+          new CliError(
+            "unavailable",
+            "PermDock CLI: rls generate could not connect",
+          ),
+        ),
+    });
+    expect(outcome.code).toBe(1);
+    expect(outcome.output).toBe("PermDock CLI: rls generate could not connect");
+  });
+
+  it("writes --out and prints nothing else when every part goes to a file", async () => {
+    const outcome = await runRlsGenerate({
+      cwd,
+      config: { policy: "./manage.ts", rls: { memberships } },
+      target: "sql",
+      dialect: "supabase",
+      rbac: false,
+      check: false,
+      skipClosures: false,
+      inlineFunctions: false,
+      io,
+      write: true,
+      out: "out/permdock.sql",
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.output.split("\n")[0]).toBe("wrote out/permdock.sql");
+    expect(readFileSync(path.join(cwd, "out/permdock.sql"), "utf8")).toBe(
+      outcome.text,
+    );
+  });
+
   it("reads manageRoles for the write requirement and the hand-out lift", async () => {
     const outcome = await generate({
       customRoleWrites: { requires: "manageRoles" },

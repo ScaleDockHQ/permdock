@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { PermissionTree } from "../../src/core/permissions.ts";
+import type { PermissionTree } from "../../src/core/permission-types.ts";
 
+import { resource } from "../../src/core/permission-leaf.ts";
 import {
-  definePermissions,
-  expandRelation,
   findPermission,
   getRegistry,
   getResource,
   isPermission,
   listPermissions,
   mergePermissions,
-  resource,
-} from "../../src/core/permissions.ts";
+} from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { expandRelation } from "../../src/core/resource-relations.ts";
 
 const Post = z.object({ id: z.string() });
 

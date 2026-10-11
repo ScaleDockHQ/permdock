@@ -1,22 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import type { Credential } from "../../src/core/credential.ts";
-import type { DecisionEvent } from "../../src/core/interfaces.ts";
+import type { DecisionEvent } from "../../src/core/event-types.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { parseCloudEvent } from "../../src/cloud/webhook.ts";
 import { capabilitySubject } from "../../src/core/capability.ts";
 import {
+  type Credential,
   credentialDelegation,
   credentialPolicyViolation,
   credentialSubject,
   decideCredential,
   parseCredential,
 } from "../../src/core/credential.ts";
-import { memorySettings } from "../../src/core/interfaces.ts";
+import { allow } from "../../src/core/grant-builders.ts";
+import { memorySettings } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { credentialEvent, toCloudEvent } from "../../src/core/sink.ts";
 
 const org = { organization: { field: "orgId", memberOf: "organization" } };

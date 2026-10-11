@@ -1,15 +1,17 @@
 import type { ToolMap } from "../agent/types.ts";
 import type { ApprovalRequest, ApprovalStore } from "../approvals/types.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Delegation, Principal } from "../core/subject.ts";
 
 import { approvalTokenOf, createAgentKernel } from "../agent/kernel.ts";
 import { memoryApprovalStore } from "../approvals/store.ts";
 import { compact } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
+import {
+  type InstanceOptions,
+  instanceOptions,
+} from "../core/instance-options.ts";
 
 /** The app context passed to `run(agent, input, { context })`. */
 export type OpenAiContext = {

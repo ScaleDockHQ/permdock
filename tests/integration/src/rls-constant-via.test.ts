@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/constant-via/policy.ts";
-import { startPostgres } from "./support/postgres.ts";
+import { startPostgres, databaseUri } from "./support/postgres.ts";
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -38,12 +38,6 @@ const SHAPES = [
   { name: "staff_table", cwd: FIXTURE, via: "staff" },
   { name: "contact_table", cwd: join(FIXTURE, "contact"), via: "contact" },
 ] as const;
-
-function databaseUri(uri: string, database: string): string {
-  const url = new URL(uri);
-  url.pathname = `/${database}`;
-  return url.toString();
-}
 
 describe("a constant via on an rls.memberships table", () => {
   let db: Postgres | undefined;

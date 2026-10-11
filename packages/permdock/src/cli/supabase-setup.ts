@@ -2,15 +2,14 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import type { SupabaseHookManifest } from "../supabase/manifest.ts";
-import type { DoctorFinding } from "./doctor-types.ts";
-import type { SqlConnect } from "./pg.ts";
+import type { DoctorFinding } from "./shared/doctor-types.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { readMemberships } from "../supabase/subject.ts";
-import { MIGRATION_DIRS } from "./doctor-project.ts";
 import { sqlFiles } from "./files.ts";
-import { connectPg } from "./pg.ts";
-import { partPath } from "./sql-files.ts";
+import { partPath } from "./output-files.ts";
+import { type SqlConnect, pgConnector } from "./pg.ts";
+import { MIGRATION_DIRS } from "./shared/constants.ts";
 
 const HELPER_NAME =
   /^(?:permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(?:_for)?)$/u;
@@ -92,8 +91,7 @@ export function missingHelpersInFiles(
 export async function missingHelpersInDb(
   db: string,
   manifest: SupabaseHookManifest,
-  connect: SqlConnect = (url) =>
-    connectPg(url, "permdock supabase hook generate --db"),
+  connect: SqlConnect = pgConnector("permdock supabase hook generate --db"),
 ): Promise<readonly string[]> {
   const client = await connect(db);
   try {

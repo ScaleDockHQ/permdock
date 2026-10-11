@@ -10,15 +10,15 @@ import {
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type {
   PermDockConfig,
   RlsCustomRolesFrom,
 } from "../../src/cli/types.ts";
 
-import { backfillSql, legacyKeySql } from "../../src/cli/rls-backfill.ts";
-import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
-import { mapKey } from "../../src/cli/rls-migrate.ts";
+import { backfillSql, legacyKeySql } from "../../src/cli/rls/backfill.ts";
+import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
+import { mapKey } from "../../src/cli/rls/migrate.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 

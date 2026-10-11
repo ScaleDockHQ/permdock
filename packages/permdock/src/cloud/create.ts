@@ -7,12 +7,8 @@ import type {
   ApprovalStore,
   ApprovalVerdict,
 } from "../approvals/types.ts";
-import type { PolicyDocument, PolicySource } from "../core/hosted.ts";
-import type {
-  DecisionSink,
-  SinkEvent,
-  SnapshotSource,
-} from "../core/interfaces.ts";
+import type { SinkEvent } from "../core/event-types.ts";
+import type { DecisionSink, SnapshotSource } from "../core/interfaces.ts";
 import type {
   CloudClient,
   CloudEndpointOptions,
@@ -21,9 +17,13 @@ import type {
 } from "./types.ts";
 
 import { ApprovalError, isApprovalErrorCode } from "../approvals/errors.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { parsePolicyDocument } from "../core/hosted.ts";
+import {
+  type PolicyDocument,
+  type PolicySource,
+  parsePolicyDocument,
+} from "../core/hosted.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 
 /** Milliseconds a PermDock Cloud request may take; a slower one fails like an unreachable Cloud. */
@@ -49,10 +49,6 @@ function firstNonEmpty(...values: readonly (string | undefined)[]): string {
 
 function trimSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function asApproval(value: unknown): ApprovalRequest | null {

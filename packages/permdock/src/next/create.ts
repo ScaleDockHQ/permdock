@@ -3,11 +3,11 @@ import { cacheLife, cacheTag, io } from "next/cache.js";
 import { after } from "next/server.js";
 import { cache, type ReactElement } from "react";
 
-import type { Decision } from "../core/decision.ts";
-import type { DecisionSink, Snapshot } from "../core/interfaces.ts";
+import type { DecisionSink } from "../core/interfaces.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type {
   GetPermDockQuery,
@@ -20,10 +20,9 @@ import type {
   ServerPermDockProviderProps,
 } from "./types.ts";
 
+import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
-import { NO_GRANT } from "../core/decision.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { type Decision, NO_GRANT } from "../core/decision.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
 import { wrapPermDock } from "../core/wrap.ts";
 import { createEvaluationsHandler } from "../server/evaluations.ts";
@@ -138,14 +137,16 @@ export function createPermDock<
   const sink =
     options.sink === undefined ? undefined : afterResponse(options.sink);
 
-  const resolveSubject = cache(async (): Promise<TUser | null> => {
-    try {
-      return await options.subject();
-    } catch (error) {
-      unstable_rethrow(error);
-      return null;
-    }
-  });
+  const resolveSubject = cache((): Promise<TUser | null> =>
+    resolveOrNull(() => options.subject(), unstable_rethrow),
+  );
+
+  const decorate = (permdock: PermDock<V>): PermDock<V> => {
+    const traced =
+      options.otel === undefined ? permdock : options.otel(permdock);
+    const wrapped = options.wrap === undefined ? traced : options.wrap(traced);
+    return wrapInstance(wrapped, options.onDenied);
+  };
 
   const resolveFallbackTenant = cache((): Promise<string | undefined> =>
     readTenant(options.tenant),
@@ -157,17 +158,14 @@ export function createPermDock<
     // Decisions read the clock (membership and token expiry), so the instance
     // is created past a dynamic boundary; inside a cache scope this resolves at once.
     await io();
-    const built = await createCorePermDock(
+    const built = await buildInstance({
       policy,
       user,
-      compact({
-        tenant,
-        ...instanceOptions(options),
-        sink,
-      }),
-    );
-    const instance = options.otel === undefined ? built : options.otel(built);
-    return wrapInstance(instance, options.onDenied);
+      sources: options,
+      scope: { tenant, sink },
+      wrap: decorate,
+    });
+    return built.permdock;
   });
 
   const getPermDock = async (

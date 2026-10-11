@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { ScanResult } from "../../src/cli/types.ts";
 
 import { buildCatalog } from "../../src/cli/catalog-doc.ts";
-import { diffCatalogs } from "../../src/cli/diff.ts";
+import { diffCatalogs } from "../../src/cli/diff/diff.ts";
 import { run } from "../../src/cli/run.ts";
 import {
   customRoleClaim,
@@ -14,14 +14,15 @@ import {
   validateCustomRole,
 } from "../../src/core/custom-roles.ts";
 import { coveredByDelegation } from "../../src/core/delegation.ts";
+import { allow } from "../../src/core/grant-builders.ts";
+import { formerKeys, resource } from "../../src/core/permission-leaf.ts";
 import {
-  definePermissions,
   findPermission,
-  formerKeys,
   mergePermissions,
-  resource,
-} from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+} from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 
 const shape = {

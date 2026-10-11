@@ -1,20 +1,20 @@
 import { type Middleware, defineMiddleware } from "@supabase/middleware";
 
-import type { Credential } from "../core/credential.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission, PermissionTree } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Permission, PermissionTree } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal, Subject } from "../core/subject.ts";
-import type { ServerAdapterServices } from "../server/bind.ts";
-import type { OpenApiHooks, RequestContext } from "../server/create.ts";
+import type { OpenApiHooks } from "../server/server-types.ts";
 
 import { compact } from "../core/compact.ts";
-import { credentialSubject } from "../core/credential.ts";
-import { instanceOptions } from "../core/instance-options.ts";
+import { type Credential, credentialSubject } from "../core/credential.ts";
+import {
+  type InstanceOptions,
+  instanceOptions,
+} from "../core/instance-options.ts";
 import { composeWraps } from "../core/wrap.ts";
-import { attached } from "../server/bind.ts";
-import { createServerKernel } from "../server/create.ts";
+import { type ServerAdapterServices, attached } from "../server/bind.ts";
+import { type RequestContext, createServerKernel } from "../server/create.ts";
 import { methodNotAllowed } from "../server/problem.ts";
 
 /**

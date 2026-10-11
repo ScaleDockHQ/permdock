@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { CatalogDiff } from "../../src/cli/diff.ts";
+import type { CatalogDiff } from "../../src/cli/diff/diff.ts";
 import type { CatalogDocument } from "../../src/cli/types.ts";
 
 import { run } from "../../src/cli/run.ts";

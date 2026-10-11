@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { SubjectRef } from "../../src/conditions/refs.ts";
 
-import { compileGrants } from "../../src/cli/rls-compile.ts";
+import { arrayColumnsOf, columnTypesOf } from "../../src/cli/sql/columns.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import {
   claimPath,
   compileConditionSql,
   contextRefs,
-} from "../../src/cli/rls-conditions.ts";
-import { arrayColumnsOf, columnTypesOf } from "../../src/cli/rls-sql.ts";
+} from "../../src/cli/sql/conditions.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

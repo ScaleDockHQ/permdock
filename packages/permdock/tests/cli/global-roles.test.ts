@@ -9,8 +9,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { globalRoleSource } from "../../src/cli/global-roles.ts";
 import { run } from "../../src/cli/run.ts";
+import { globalRoleSource } from "../../src/cli/sql/global-roles.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");

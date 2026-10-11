@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { RoleSource } from "../core/interfaces.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { RemotePdpCache } from "../pdp/types.ts";
 

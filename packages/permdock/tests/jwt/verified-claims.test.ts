@@ -2,12 +2,13 @@ import { SignJWT, importJWK } from "jose";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { SubjectRef } from "../../src/conditions/refs.ts";
-
-import { principal } from "../../src/conditions/refs.ts";
+import { type SubjectRef, principal } from "../../src/conditions/refs.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { subjectFromJwt } from "../../src/jwt/subject.ts";
 
 const PRIVATE_JWK = {

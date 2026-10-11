@@ -12,6 +12,7 @@ import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { permissions } from "../fixtures/permission-denies/permissions.ts";
+import { ask, askAs } from "./support/pglite.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/permission-denies");
@@ -108,24 +109,6 @@ describe("better-supabase SQL against a deny of the same permission", () => {
     return lite;
   };
 
-  const askAs = async (user: string, sql: string): Promise<unknown> => {
-    const db = database();
-    await db.exec("begin; set local role authenticated;");
-    try {
-      await db.query("select set_config('request.jwt.claims', $1, true)", [
-        JSON.stringify({ sub: user, role: "authenticated" }),
-      ]);
-      return (await db.query<{ ok: unknown }>(`select ${sql} as ok`)).rows[0]
-        ?.ok;
-    } finally {
-      await db.exec("rollback");
-    }
-  };
-
-  const ask = async (sql: string): Promise<unknown> =>
-    (await database().query<{ ok: unknown }>(`select ${sql} as ok`)).rows[0]
-      ?.ok;
-
   const fill = (template: string, user = ""): string =>
     template
       .replaceAll("{scope}", "tenant")
@@ -141,14 +124,18 @@ describe("better-supabase SQL against a deny of the same permission", () => {
     const inAcme = (template: string): string =>
       `'acme' in (select ${template})`;
     expect({
-      reader: await askAs(READER, inAcme(fill(functions.idsWith))),
-      blocked: await askAs(BLOCKED, inAcme(fill(functions.idsWith))),
-      "reader for": await ask(inAcme(fill(idsWithFor, READER))),
-      "blocked for": await ask(inAcme(fill(idsWithFor, BLOCKED))),
-      staff: await askAs(STAFF, fill(functions.isPlatform)),
-      suspended: await askAs(SUSPENDED, fill(functions.isPlatform)),
-      "staff for": await ask(fill(isPlatformFor, STAFF)),
-      "suspended for": await ask(fill(isPlatformFor, SUSPENDED)),
+      reader: await askAs(database(), READER, inAcme(fill(functions.idsWith))),
+      blocked: await askAs(
+        database(),
+        BLOCKED,
+        inAcme(fill(functions.idsWith)),
+      ),
+      "reader for": await ask(database(), inAcme(fill(idsWithFor, READER))),
+      "blocked for": await ask(database(), inAcme(fill(idsWithFor, BLOCKED))),
+      staff: await askAs(database(), STAFF, fill(functions.isPlatform)),
+      suspended: await askAs(database(), SUSPENDED, fill(functions.isPlatform)),
+      "staff for": await ask(database(), fill(isPlatformFor, STAFF)),
+      "suspended for": await ask(database(), fill(isPlatformFor, SUSPENDED)),
     }).toEqual({
       reader: true,
       blocked: false,
@@ -175,18 +162,33 @@ describe("better-supabase SQL against a deny of the same permission", () => {
     const inAcme = (template: string): string =>
       `'acme' in (select ${fill(template)})`;
     expect({
-      bucketReader: await askAs(READER, inAcme(inlineSql(bucket.sql).idsWith)),
+      bucketReader: await askAs(
+        database(),
+        READER,
+        inAcme(inlineSql(bucket.sql).idsWith),
+      ),
       bucketBlocked: await askAs(
+        database(),
         BLOCKED,
         inAcme(inlineSql(bucket.sql).idsWith),
       ),
-      topicReader: await askAs(READER, inAcme(inlineSql(topic.sql).idsWith)),
-      topicBlocked: await askAs(BLOCKED, inAcme(inlineSql(topic.sql).idsWith)),
+      topicReader: await askAs(
+        database(),
+        READER,
+        inAcme(inlineSql(topic.sql).idsWith),
+      ),
+      topicBlocked: await askAs(
+        database(),
+        BLOCKED,
+        inAcme(inlineSql(topic.sql).idsWith),
+      ),
       platformStaff: await askAs(
+        database(),
         STAFF,
         fill(inlineSql(platform.sql).isPlatform),
       ),
       platformSuspended: await askAs(
+        database(),
         SUSPENDED,
         fill(inlineSql(platform.sql).isPlatform),
       ),

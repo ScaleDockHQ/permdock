@@ -3,6 +3,8 @@ import { renderToString } from "react-dom/server";
 import { prerender } from "react-dom/static";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import type { Decision } from "../../src/core/decision.ts";
+
 import {
   memoryApprovalStore,
   resolveApproval,
@@ -32,6 +34,30 @@ function subjectState(user: typeof memberUser | null = memberUser) {
 
 async function json(response: Response): Promise<unknown> {
   return response.json();
+}
+
+/** A member factory whose `onDenied` appends `entry(decision)` to `seen`. */
+function recordingMember(entry: (decision: Decision) => string) {
+  const seen: string[] = [];
+  const factory = createPermDock(policy, {
+    subject: () => memberUser,
+    onDenied: (decision) => {
+      seen.push(entry(decision));
+    },
+  });
+  return { ...factory, seen };
+}
+
+/** A POST to the decision endpoint; a string body is sent as is. */
+function evaluationRequest(
+  body: unknown,
+  headers: Readonly<Record<string, string>> = {},
+): Request {
+  return new Request("https://app.example/api/permdock", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
 }
 
 describe("permdock/next", () => {
@@ -117,13 +143,9 @@ describe("permdock/next", () => {
   });
 
   it("runs the factory onDenied after a per-call handler is omitted", async () => {
-    const seen: string[] = [];
-    const { getPermDock } = createPermDock(policy, {
-      subject: () => memberUser,
-      onDenied: (decision) => {
-        seen.push(decision.outcome);
-      },
-    });
+    const { seen, getPermDock } = recordingMember(
+      (decision) => decision.outcome,
+    );
 
     const permdock = await getPermDock();
     expect(() => permdock.assert(permissions.post.publish, ownPost)).toThrow(
@@ -144,13 +166,8 @@ describe("permdock/next", () => {
   });
 
   it("interrupts a denial with forbidden for a subject and unauthorized for anonymous", async () => {
-    const seen: string[] = [];
-    const member = createPermDock(policy, {
-      subject: () => memberUser,
-      onDenied: () => {
-        seen.push("factory");
-      },
-    });
+    const member = recordingMember(() => "factory");
+    const { seen } = member;
     const anonymous = createPermDock(policy, { subject: () => null });
 
     await expect(
@@ -166,13 +183,8 @@ describe("permdock/next", () => {
   });
 
   it("runs the call's onDenied before the factory's, and lets it replace the interrupt", async () => {
-    const seen: string[] = [];
-    const member = createPermDock(policy, {
-      subject: () => memberUser,
-      onDenied: () => {
-        seen.push("factory");
-      },
-    });
+    const member = recordingMember(() => "factory");
+    const { seen } = member;
     const replaced = new Error("redirect");
     await expect(
       member.requireAccess({
@@ -242,22 +254,18 @@ describe("permdock/next", () => {
     const { POST } = permdockHandler();
 
     const forged = await POST(
-      new Request("https://app.example/api/permdock", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          subject: { type: "user", id: "u2" },
-          evaluations: [
-            {
-              resource: { type: "post", id: "p1", properties: ownPost },
-              action: { name: "publish" },
-            },
-            {
-              resource: { type: "post", id: "p1", properties: ownPost },
-              action: { name: "post.update" },
-            },
-          ],
-        }),
+      evaluationRequest({
+        subject: { type: "user", id: "u2" },
+        evaluations: [
+          {
+            resource: { type: "post", id: "p1", properties: ownPost },
+            action: { name: "publish" },
+          },
+          {
+            resource: { type: "post", id: "p1", properties: ownPost },
+            action: { name: "post.update" },
+          },
+        ],
       }),
     );
 
@@ -283,14 +291,10 @@ describe("permdock/next", () => {
     const { POST } = permdockHandler();
 
     const unknown = await POST(
-      new Request("https://app.example/api/permdock", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          evaluations: [
-            { resource: { type: "post" }, action: { name: "explode" } },
-          ],
-        }),
+      evaluationRequest({
+        evaluations: [
+          { resource: { type: "post" }, action: { name: "explode" } },
+        ],
       }),
     );
     // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
@@ -303,13 +307,7 @@ describe("permdock/next", () => {
     expect(unknownBody.evaluations[0]?.decision).toBe(false);
     expect(unknownBody.evaluations[0]?.context.permdock.outcome).toBe("denied");
 
-    const bad = await POST(
-      new Request("https://app.example/api/permdock", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: "not-json",
-      }),
-    );
+    const bad = await POST(evaluationRequest("not-json"));
     expect(bad.status).toBe(400);
     expect(bad.headers.get("content-type")).toContain(
       "application/problem+json",
@@ -362,17 +360,13 @@ describe("permdock/next", () => {
 
     const { POST } = permdockHandler();
     const pending = await POST(
-      new Request("https://app.example/api/permdock", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          evaluations: [
-            {
-              resource: { type: "post", id: ownPost.id, properties: ownPost },
-              action: { name: "delete" },
-            },
-          ],
-        }),
+      evaluationRequest({
+        evaluations: [
+          {
+            resource: { type: "post", id: ownPost.id, properties: ownPost },
+            action: { name: "delete" },
+          },
+        ],
       }),
     );
     // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
@@ -395,21 +389,17 @@ describe("permdock/next", () => {
     });
 
     const resumed = await POST(
-      new Request("https://app.example/api/permdock", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          [APPROVAL_HEADER]: required.token,
-        },
-        body: JSON.stringify({
+      evaluationRequest(
+        {
           evaluations: [
             {
               resource: { type: "post", id: ownPost.id, properties: ownPost },
               action: { name: "delete" },
             },
           ],
-        }),
-      }),
+        },
+        { [APPROVAL_HEADER]: required.token },
+      ),
     );
     // SAFETY: AuthZEN response JSON produced by permdockHandler under test.
     const resumedBody = (await json(resumed)) as {
@@ -533,13 +523,9 @@ describe("permdock/next", () => {
   });
 
   it("keeps the factory onDenied on a frozen instance and its tenant views", async () => {
-    const seen: string[] = [];
-    const { getPermDock } = createPermDock(policy, {
-      subject: () => memberUser,
-      onDenied: (decision) => {
-        seen.push(decision.outcome);
-      },
-    });
+    const { seen, getPermDock } = recordingMember(
+      (decision) => decision.outcome,
+    );
     const permdock = await getPermDock();
     expect(Object.isFrozen(permdock)).toBe(true);
     const scoped = permdock.tenant("acme");
@@ -569,6 +555,23 @@ describe("permdock/next", () => {
         alternatives: [],
       },
     });
+  });
+
+  it("applies wrap after otel", async () => {
+    const order: string[] = [];
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+      otel: (permdock) => {
+        order.push("otel");
+        return permdock;
+      },
+      wrap: (permdock) => {
+        order.push("wrap");
+        return permdock;
+      },
+    });
+    await getPermDock();
+    expect(order).toEqual(["otel", "wrap"]);
   });
 
   it("checks requireAccess in the requested tenant", async () => {

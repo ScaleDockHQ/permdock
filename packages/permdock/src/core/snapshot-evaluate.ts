@@ -6,9 +6,9 @@ import type {
   TraceSkip,
   TraceSkipReason,
 } from "./decision.ts";
-import type { Snapshot, SnapshotGrant } from "./interfaces.ts";
 import type { DecideOptions, WhereResult } from "./permdock.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
+import type { Snapshot, SnapshotGrant } from "./snapshot-types.ts";
 import type { Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
@@ -17,7 +17,7 @@ import { compact } from "./compact.ts";
 import { coveredByDelegation } from "./delegation.ts";
 import { grantCoversField } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
-import { matchGrantee } from "./grantee.ts";
+import { matchGrantee } from "./grantee-match.ts";
 import { resourceIdOf } from "./resource-ref.ts";
 import { rowIdOf, rowValues } from "./row-pair.ts";
 import { type Scope, scopeList } from "./scopes.ts";

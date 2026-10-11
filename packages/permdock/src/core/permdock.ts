@@ -1,14 +1,10 @@
 import type { Condition } from "../conditions/ast.ts";
-import type {
-  ApprovalPolicySource,
-  LoadedApprovalPolicies,
-} from "./approval-policies.ts";
 import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { ActivateInput } from "./elevated.ts";
+import type { AuthEvent, DecisionEvent } from "./event-types.ts";
+import type { InstanceEnv } from "./instance-env.ts";
 import type {
-  AuthEvent,
-  DecisionEvent,
   DecisionSink,
   LimitStore,
   EntitlementSource,
@@ -16,7 +12,6 @@ import type {
   RelationSource,
   RoleSource,
   RoleSourceFactory,
-  Snapshot,
   TokenSigner,
 } from "./interfaces.ts";
 import type {
@@ -24,9 +19,9 @@ import type {
   RoleChangeDecision,
   RoleChangeOptions,
 } from "./ownership.ts";
-import type { Permission, ResourceNode } from "./permissions.ts";
-import type { Policy, PolicyVocabulary } from "./policy.ts";
-import type { Scope } from "./scopes.ts";
+import type { Permission, ResourceNode } from "./permission-types.ts";
+import type { Policy, PolicyVocabulary } from "./policy-types.ts";
+import type { Snapshot } from "./snapshot-types.ts";
 import type {
   Actor,
   CustomRole,
@@ -39,13 +34,12 @@ import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 import type { WhoCan } from "./who-can.ts";
 
-import { approvalPoliciesFor } from "./approval-policies.ts";
-import { compact } from "./compact.ts";
 import {
-  assignableNamesFor,
-  customRolesFor,
-  roleSourceFor,
-} from "./evaluate.ts";
+  type ApprovalPolicySource,
+  type LoadedApprovalPolicies,
+  approvalPoliciesFor,
+} from "./approval-policies.ts";
+import { compact } from "./compact.ts";
 import {
   type PolicyDocument,
   type PolicySource,
@@ -54,7 +48,12 @@ import {
 import { buildInstance } from "./instance.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { resolveSubject } from "./resolve-subject.ts";
-import { scopeList } from "./scopes.ts";
+import {
+  assignableNamesFor,
+  customRolesFor,
+  roleSourceFor,
+} from "./role-loading.ts";
+import { type Scope, scopeList } from "./scopes.ts";
 import { parseSnapshot } from "./snapshot.ts";
 import { heldRoleNamesIn, tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
@@ -424,7 +423,7 @@ function instantiate(
     buildInstance(
       policy,
       subject,
-      compact<Parameters<typeof buildInstance>[2]>({
+      compact<InstanceEnv>({
         customRoles: roles,
         sink: options.sink,
         limits: options.limits,

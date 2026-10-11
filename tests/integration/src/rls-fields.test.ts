@@ -17,7 +17,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions } from "../fixtures/rls-fields/permissions.ts";
 import { policy } from "../fixtures/rls-fields/policy.ts";
-import { startPostgres } from "./support/postgres.ts";
+import { startPostgres, databaseUri, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/rls-fields");
@@ -162,19 +162,6 @@ const SHAPES: readonly Shape[] = (["supabase", "neon", "guc"] as const).flatMap(
 
 function shapeName(shape: Shape): string {
   return `fields_${shape.dialect}${shape.revoke ? "_revoke" : ""}`;
-}
-
-function databaseUri(uri: string, database: string): string {
-  const url = new URL(uri);
-  url.pathname = `/${database}`;
-  return url.toString();
-}
-
-function testerUri(uri: string, database: string): string {
-  const url = new URL(databaseUri(uri, database));
-  url.username = "tester";
-  url.password = "tester";
-  return url.toString();
 }
 
 function configFor(shape: Shape): string {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
 import {
   cacheLifeFor as nextCacheLifeFor,

@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from "./support/postgres.ts";
+import { startPostgres, databaseUri, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/rls-matrix");
@@ -209,19 +209,6 @@ function shapeFlags(shape: Shape): readonly string[] {
     shape.mode,
     ...(shape.perRole ? ["--policy-per-role"] : []),
   ];
-}
-
-function databaseUri(uri: string, database: string): string {
-  const url = new URL(uri);
-  url.pathname = `/${database}`;
-  return url.toString();
-}
-
-function testerUri(uri: string, database: string): string {
-  const url = new URL(databaseUri(uri, database));
-  url.username = "tester";
-  url.password = "tester";
-  return url.toString();
 }
 
 describe("rls verify matrix (admin, member, viewer, non-member, global role)", () => {

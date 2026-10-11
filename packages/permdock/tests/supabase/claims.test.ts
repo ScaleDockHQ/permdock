@@ -272,3 +272,48 @@ describe("supabaseClaims().extend", () => {
     expect(() => supabaseClaims().extend(notSchema)).toThrow(/Standard Schema/);
   });
 });
+
+describe("subjectFromSupabase and the hook claims", () => {
+  it("keeps via, expiresAt, owner and seats, and reads truncation and authz_ver", () => {
+    const subject = subjectFromSupabase({
+      sub: "u_1",
+      role: "authenticated",
+      memberships: [
+        {
+          scope: "organization",
+          id: "T",
+          roles: ["member"],
+          via: "staff",
+          expiresAt: 1_900_000_000,
+          managedBy: "idp",
+          entitlements: ["dev-mode"],
+        },
+      ],
+      memberships_truncated: true,
+      authz_ver: 4,
+    });
+    expect(subject.principal).toMatchObject({
+      memberships: [
+        {
+          scope: "organization",
+          id: "T",
+          roles: ["member"],
+          via: "staff",
+          expiresAt: 1_900_000_000,
+          managedBy: "idp",
+          entitlements: ["dev-mode"],
+        },
+      ],
+      membershipsTruncated: true,
+      authzVersion: 4,
+    });
+    const plain = subjectFromSupabase({
+      sub: "u_1",
+      role: "authenticated",
+      memberships_truncated: "yes",
+      authz_ver: 1.5,
+    });
+    expect(plain.principal?.membershipsTruncated).toBeUndefined();
+    expect(plain.principal?.authzVersion).toBeUndefined();
+  });
+});

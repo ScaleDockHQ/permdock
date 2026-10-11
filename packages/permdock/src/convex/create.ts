@@ -1,5 +1,5 @@
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type {
   ConvexCtxLike,
@@ -10,14 +10,13 @@ import type {
 } from "./types.ts";
 
 import { actorFrom, tenantScope } from "../core/adapter-context.ts";
+import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   PermDockValidationError,
 } from "../core/errors.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { createPermDock as createCore } from "../core/permdock.ts";
 
 /** Convex's runtime sends `data` to the client only for an error carrying this symbol. */
 const CONVEX_ERROR = Symbol.for("ConvexError");
@@ -59,21 +58,16 @@ export function createPermDock<
     handler: ConvexHandler<TCtx, TArgs, TResult, V>,
   ): ((ctx: TCtx, args: TArgs) => Promise<TResult>) => {
     return async (ctx: TCtx, args: TArgs): Promise<TResult> => {
-      let user: TUser | null = null;
-      try {
-        user = await options.subject(ctx);
-      } catch {
-        user = null;
-      }
-      const permdock = await createCore(
+      const user = await resolveOrNull(() => options.subject(ctx));
+      const { permdock } = await buildInstance({
         policy,
         user,
-        compact({
+        sources: options,
+        scope: {
           tenant: (await tenantScope(options.tenant, ctx)).tenant,
-          ...instanceOptions(options),
           actor: await actorFrom(options.actor, ctx),
-        }),
-      );
+        },
+      });
       // SAFETY: the spread keeps every TCtx field and adds the permdock instance built above.
       const next = { ...ctx, permdock } as ConvexPermDockCtx<TCtx, V>;
       try {

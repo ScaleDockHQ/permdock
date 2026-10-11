@@ -1,10 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { PermissionTree } from "../index.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type { PermDockConfig } from "./types.ts";
 
-import { arazzoFindings } from "../index.ts";
+import { type PermissionTree, arazzoFindings } from "../index.ts";
+import { readJsonFile } from "./files.ts";
 import { asPermissionTree, loadModule, pickNamed } from "./load.ts";
 
 export async function runArazzo(input: {
@@ -16,7 +17,7 @@ export async function runArazzo(input: {
   readonly workflow: string | undefined;
   readonly from: string | undefined;
   readonly json: boolean;
-}): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+}): Promise<CommandResult> {
   const action = input.rest[0];
   if (action !== "check") {
     return {
@@ -40,8 +41,8 @@ export async function runArazzo(input: {
   let arazzo: unknown;
   let openapi: unknown;
   try {
-    arazzo = JSON.parse(readFileSync(arazzoFile, "utf8"));
-    openapi = JSON.parse(readFileSync(openapiFile, "utf8"));
+    arazzo = readJsonFile(arazzoFile);
+    openapi = readJsonFile(openapiFile);
   } catch {
     return { code: 2, output: "arazzo check: unreadable JSON" };
   }

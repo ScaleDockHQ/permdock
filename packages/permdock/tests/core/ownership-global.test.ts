@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { RoleChange } from "../../src/core/ownership.ts";
-import type { PermDock } from "../../src/core/permdock.ts";
 import type { Principal } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { allow } from "../../src/core/grant-builders.ts";
+import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 
 const permissions = definePermissions({
   ticket: resource({ actions: ["read", "write"] }),

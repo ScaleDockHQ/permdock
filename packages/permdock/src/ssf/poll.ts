@@ -1,8 +1,8 @@
 import type { PollOptions, SsfAuditEvent } from "./types.ts";
+import type { IngestResult } from "./wire.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { timeoutSignal } from "../core/timeout.ts";
-import { isRecord, type IngestResult } from "./wire.ts";
 
 /** Milliseconds a poll or acknowledgement request may take. */
 const POLL_TIMEOUT_MS = 30_000;

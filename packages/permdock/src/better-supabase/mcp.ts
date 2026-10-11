@@ -3,7 +3,7 @@ import type { ToolDecision, ToolRef } from "better-supabase/mcp";
 import type { PermDock } from "../core/permdock.ts";
 
 import { mayUse } from "../core/may-use.ts";
-import { isPermission } from "../core/permissions.ts";
+import { isPermission } from "../core/permission-registry.ts";
 
 /** What better-supabase's `createMcp` hooks see of a tool. */
 export type McpToolRef = Pick<ToolRef, "meta">;

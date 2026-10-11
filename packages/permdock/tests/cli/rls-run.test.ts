@@ -2,13 +2,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { RlsRunInput } from "../../src/cli/rls.ts";
+import type { RlsRunInput } from "../../src/cli/rls/rls.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlCall, SqlReply } from "../fakes/sql.ts";
 
-import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
-import { expectedRls } from "../../src/cli/rls-introspect.ts";
-import { RLS_HELP, runRls } from "../../src/cli/rls.ts";
+import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
+import { expectedRls } from "../../src/cli/rls/introspect.ts";
+import { RLS_HELP, runRls } from "../../src/cli/rls/rls.ts";
 import { fakeSql } from "../fakes/sql.ts";
 
 const POLICY = path.join(

@@ -1,7 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { assertSafeKey } from "./paths.ts";
-import { ignoreRejection, isThenable } from "./thenable.ts";
+import { validateSync } from "./thenable.ts";
 
 /** A JSON value in an app `x` field. */
 export type MetaValue =
@@ -80,19 +80,17 @@ function runSchema(
   schema: AppDataSchema<unknown>,
   value: unknown,
 ): SchemaResult {
-  const result = schema["~standard"].validate(value);
-  if (isThenable(result)) {
-    ignoreRejection(result);
-    return { ok: false, message: "schema must validate synchronously" };
+  const result = validateSync(schema, value);
+  if (result.ok) {
+    return result;
   }
-  if ("issues" in result && result.issues !== undefined) {
-    return {
-      ok: false,
-      message: result.issues.map((issue) => issue.message).join("; "),
-    };
-  }
-  // SAFETY: a Standard Schema result without issues is a success result, which carries value.
-  return { ok: true, value: (result as { readonly value: unknown }).value };
+  return {
+    ok: false,
+    message:
+      result.issues === undefined
+        ? "schema must validate synchronously"
+        : result.issues.map((issue) => issue.message).join("; "),
+  };
 }
 
 /**

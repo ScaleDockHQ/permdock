@@ -1,4 +1,4 @@
-import type { ActionMeta } from "./permissions.ts";
+import type { ActionMeta } from "./permission-types.ts";
 
 import {
   type AppDataSchema,

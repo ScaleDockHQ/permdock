@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -71,12 +72,7 @@ describe("permission-key helpers", () => {
     return target.as(
       {
         role: "authenticated",
-        settings: {
-          "request.jwt.claims": JSON.stringify({
-            sub: user,
-            role: "authenticated",
-          }),
-        },
+        settings: jwtClaims(user),
       },
       async () => {
         const result = await target.tester.query<{ id: string }>(sql);

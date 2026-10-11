@@ -4,7 +4,7 @@ import type {
   ResourceParent,
   ResourceRelationInput,
   ResourceRestricted,
-} from "./permissions.ts";
+} from "./permission-types.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";

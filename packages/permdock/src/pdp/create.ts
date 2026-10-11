@@ -1,15 +1,8 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { Decision, ExplainedDecision } from "../core/decision.ts";
 import type { DecisionProvider } from "../core/interfaces.ts";
-import type {
-  PermDockOptions,
-  DecideOptions,
-  PermDock,
-  SimulateOptions,
-  WhereResult,
-} from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership, Principal, Subject } from "../core/subject.ts";
 import type { PdpPermDock } from "./types.ts";
 
@@ -23,8 +16,15 @@ import {
   deniedMessage,
 } from "../core/errors.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { createPermDock as createCore } from "../core/permdock.ts";
-import { getResource } from "../core/permissions.ts";
+import {
+  type PermDockOptions,
+  type DecideOptions,
+  type PermDock,
+  type SimulateOptions,
+  type WhereResult,
+  createPermDock as createCore,
+} from "../core/permdock.ts";
+import { getResource } from "../core/permission-registry.ts";
 import { isThenable } from "../core/thenable.ts";
 import { denied, resourceIdOf } from "./shared.ts";
 

@@ -1,7 +1,6 @@
 import type { Accessor } from "solid-js";
 
 import type { PermissionBoundaryState } from "../client/boundary.ts";
-import type { ClientStoreOptions } from "../client/store.ts";
 import type {
   ApprovalHandle,
   ApprovalState,
@@ -10,6 +9,7 @@ import type {
   FilterResult,
   PermissionSet,
   PermissionState,
+  ProviderOptionsBase,
   SubjectView,
   TenantView,
   UseRolesOptions,
@@ -19,9 +19,9 @@ import type {
   Decision,
   GrantedDecision,
 } from "../core/decision.ts";
-import type { DescribeMessages } from "../core/describe.ts";
-import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { TokenVerifier } from "../core/interfaces.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 /** Structural `JSX.Element`: text, a DOM node or a list of children. */
 export type SolidChild =
@@ -33,7 +33,7 @@ export type SolidChild =
   | { readonly nodeType: number }
   | readonly SolidChild[];
 
-export type PermDockProviderProps = {
+export type PermDockProviderProps = ProviderOptionsBase & {
   /**
    * An accessor re-hydrates the store when it changes and keeps it `pending`
    * while it returns `undefined` (a loading `createResource`); a promise keeps
@@ -44,31 +44,13 @@ export type PermDockProviderProps = {
     | string
     | Accessor<Snapshot | string | undefined>
     | PromiseLike<Snapshot | string>;
-  /**
-   * The AuthZEN evaluations endpoint for checks the snapshot cannot answer.
-   * `false` never calls one: such a check is denied with reason `server-only`.
-   */
-  readonly endpoint?: string | false;
-  /** Where `refresh()` fetches a fresh snapshot. Defaults to `endpoint`. */
-  readonly snapshotUrl?: string;
-  readonly approvals?: string;
   /** A change switches the active tenant (`refresh({ tenant })`). */
   readonly tenant?: string;
-  /** `headers`, `fetch` and `verifier` are read on every request, so a rotated token applies without a new store. */
-  readonly fetch?: typeof fetch;
+  /** Read on every request, with `verifier`, so a rotated token applies without a new store. */
   readonly headers?: Readonly<Record<string, string>>;
-  readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
   /** What every `<Protected>` below renders for a slot it leaves out. */
   readonly defaults?: PermDockDefaults;
-  /** Localised text for `useDescribe()`. */
-  readonly messages?: DescribeMessages;
-  /** Called with each snapshot the store accepts. */
-  readonly onSnapshot?: NonNullable<ClientStoreOptions["onSnapshot"]>;
-  /** Called when the store drops its snapshot. */
-  readonly onClear?: () => void;
-  /** Milliseconds between approval status polls. Defaults to 2000. */
-  readonly approvalInterval?: number;
   readonly children: unknown;
 };
 

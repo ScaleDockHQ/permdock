@@ -2,14 +2,14 @@ import { mkdirSync, symlinkSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { DoctorSource } from "../../src/cli/doctor-types.ts";
+import type { DoctorSource } from "../../src/cli/shared/doctor-types.ts";
 
+import { runDoctor } from "../../src/cli/doctor/doctor.ts";
 import {
   pd001,
   resolverFor,
   runtimeSpecifiers,
-} from "../../src/cli/doctor-source.ts";
-import { runDoctor } from "../../src/cli/doctor.ts";
+} from "../../src/cli/doctor/source.ts";
 import { NOW, project, quietIo, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);

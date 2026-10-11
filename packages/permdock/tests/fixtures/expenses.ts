@@ -1,7 +1,10 @@
+import { allow } from "../../src/core/grant-builders.ts";
 import { relation } from "../../src/core/grantee.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
-import { memoryRelations } from "../../src/core/relations.ts";
+import { memoryRelations } from "../../src/core/memory-relations.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 
 export const permissions = definePermissions({
   report: resource({

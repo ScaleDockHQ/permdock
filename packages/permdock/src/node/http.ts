@@ -1,14 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { firstHeader, headersFrom, parsedBody } from "../server/http.ts";
+import { fetchRequest, firstHeader, headersFrom } from "../server/http.ts";
 
 export type NodeRequest = IncomingMessage & {
   readonly originalUrl?: string;
   readonly protocol?: string;
   readonly body?: unknown;
 };
-
-type StreamRequestInit = RequestInit & { readonly duplex: "half" };
 
 export function toRequest(
   req: NodeRequest,
@@ -18,25 +16,13 @@ export function toRequest(
   const protocol = req.protocol ?? "http";
   const path = req.originalUrl ?? req.url ?? "/";
   const url = `${protocol}://${host}${path}`;
-  const headers = headersFrom(req.headers);
-  const method = req.method ?? "GET";
-  if (method === "GET" || method === "HEAD") {
-    return new Request(url, { method, headers });
-  }
-  const parsed = parsedBody(req.body, headers);
-  if (parsed !== undefined) {
-    return new Request(url, { method, headers, body: parsed });
-  }
-  if (stream === null) {
-    return new Request(url, { method, headers });
-  }
-  const init: StreamRequestInit = {
-    method,
-    headers,
-    body: incomingBody(stream),
-    duplex: "half",
-  };
-  return new Request(url, init);
+  return fetchRequest(
+    url,
+    req.method ?? "GET",
+    headersFrom(req.headers),
+    req.body,
+    stream === null ? undefined : () => incomingBody(stream),
+  );
 }
 
 function chunkOf(chunk: string | Buffer): Uint8Array {

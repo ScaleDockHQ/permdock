@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { pd055 } from "../../src/cli/doctor-collect.ts";
-import { pd056, pd066 } from "../../src/cli/doctor-sql.ts";
+import { pd055 } from "../../src/cli/doctor/fixtures.ts";
+import { pd056, pd066 } from "../../src/cli/doctor/sql.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);

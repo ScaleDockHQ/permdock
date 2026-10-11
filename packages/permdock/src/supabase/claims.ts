@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import { isRecord } from "../core/compact.ts";
 import { supabaseTenantClaim } from "./budget.ts";
 
 /** One entry of the `memberships` claim, as `schemas/supabase-claims-v1.json` defines it. */
@@ -103,10 +104,6 @@ const KNOWN = new Set([
   "act",
   "app_metadata",
 ]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function own(record: Record<string, unknown>, key: string): unknown {
   return Object.hasOwn(record, key) ? record[key] : undefined;

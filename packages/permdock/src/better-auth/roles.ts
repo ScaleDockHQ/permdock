@@ -1,6 +1,6 @@
 import type { DecisionSink, RoleSource } from "../core/interfaces.ts";
-import type { PermissionTree } from "../core/permissions.ts";
-import type { RoleBinding } from "../core/policy.ts";
+import type { PermissionTree } from "../core/permission-types.ts";
+import type { RoleBinding } from "../core/policy-types.ts";
 import type { CustomRole } from "../core/subject.ts";
 import type {
   BetterAuthAccessControl,
@@ -13,8 +13,9 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { listPermissions } from "../core/permissions.ts";
-import { allow, role } from "../core/policy.ts";
+import { allow } from "../core/grant-builders.ts";
+import { listPermissions } from "../core/permission-registry.ts";
+import { role } from "../core/role-builder.ts";
 import { membershipEvent } from "../core/sink.ts";
 import {
   asStatements,

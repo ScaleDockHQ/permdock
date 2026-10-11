@@ -4,10 +4,11 @@ import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision, DenialReason } from "../core/decision.ts";
 import type { DescribeMessages } from "../core/describe.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
-import type { Snapshot } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { PolicyVocabulary } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
+import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
 
 // oxlint-disable-next-line anti-slop/no-unknown-type-aliases -- public alias; the resolver parses it
@@ -22,6 +23,8 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = InstanceOptions & {
   readonly store?: ApprovalStore;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
+  /** Wraps each instance after `otel`; build it with `wrapPermDock` to cover derived instances. */
+  readonly wrap?: PermDockWrap;
   /**
    * Where `PermDockProvider` sends checks the snapshot cannot answer; default `/api/permdock`.
    * `false` is snapshot-only: no `permdockHandler` route, and those checks are denied with

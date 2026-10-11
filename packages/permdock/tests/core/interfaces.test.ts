@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { memoryEntitlementSource } from "../../src/core/interfaces.ts";
+import { memoryEntitlementSource } from "../../src/core/memory-sources.ts";
 
 describe("memoryEntitlementSource", () => {
   const source = memoryEntitlementSource({ acme: ["sso"] });

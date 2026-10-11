@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import type { AuthEvent } from "../../src/core/interfaces.ts";
+import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { signCapability } from "../../src/core/capability.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { subjectFromCapability } from "../../src/jwt/capability.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { subjectFromJwt } from "../../src/jwt/subject.ts";

@@ -1,11 +1,11 @@
-import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
-import type { AdapterStoreOptions } from "./store-options.ts";
+import type { TokenVerifier } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { ClientStore } from "./store.ts";
 
 import { compact } from "../core/compact.ts";
 import { emptySnapshot } from "../core/from-snapshot.ts";
 import { isPromiseLike } from "./source.ts";
-import { adapterStore } from "./store-options.ts";
+import { type AdapterStoreOptions, adapterStore } from "./store-options.ts";
 
 type Headers = Readonly<Record<string, string>>;
 

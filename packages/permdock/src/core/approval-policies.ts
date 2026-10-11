@@ -1,22 +1,25 @@
 import type { Condition } from "../conditions/ast.ts";
-import type { AuthEvent } from "./interfaces.ts";
+import type { AuthEvent } from "./event-types.ts";
 import type {
   ApprovalOption,
   ApprovalRequirement,
   ApprovalStage,
   Grant,
   Policy,
-} from "./policy.ts";
+} from "./policy-types.ts";
 import type { Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
 import { normalizeWhere } from "../conditions/normalize.ts";
-import { compact } from "./compact.ts";
+import {
+  assertApprovalRelations,
+  normalizeApproval,
+} from "./approval-normalize.ts";
+import { compact, isRecord } from "./compact.ts";
 import { parseDuration } from "./duration.ts";
 import { authenticated } from "./grantee.ts";
 import { isPortableCondition } from "./hosted.ts";
-import { findPermission } from "./permissions.ts";
-import { assertApprovalRelations, normalizeApproval } from "./policy.ts";
+import { findPermission } from "./permission-registry.ts";
 import { type Scope, rootMembershipId } from "./scopes.ts";
 import { isThenable } from "./thenable.ts";
 
@@ -85,10 +88,6 @@ export type LoadedApprovalPolicy = {
 
 /** `"failed"`: the source threw or returned something that cannot be applied. */
 export type LoadedApprovalPolicies = readonly LoadedApprovalPolicy[] | "failed";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function isStringList(value: unknown): value is readonly string[] {
   return (

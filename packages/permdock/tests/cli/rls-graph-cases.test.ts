@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { GraphPlan, GraphResource } from "../../src/cli/rls-graph.ts";
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls-graph.ts";
+import {
+  type GraphPlan,
+  type GraphResource,
+  closureDepths,
+  graphPlan,
+  graphSql,
+} from "../../src/cli/rls/graph.ts";
 import {
   allow,
   definePermissions,

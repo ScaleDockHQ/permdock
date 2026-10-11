@@ -3,16 +3,17 @@ import { SignJWT, exportJWK, generateKeyPair, importJWK } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { DecisionEvent } from "../../src/core/interfaces.ts";
-import type { OcsfClass } from "./fixtures.ts";
+import type { DecisionEvent } from "../../src/core/event-types.ts";
 
+import { allow } from "../../src/core/grant-builders.ts";
 import { accessToOcsf, toOcsf } from "../../src/core/ocsf.ts";
 import { createPermDock as createServerKernel } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
 import { accessEvent, toCloudEvent } from "../../src/core/sink.ts";
 import { createPermDock } from "../../src/ssf/index.ts";
-import { standardsFixture } from "./fixtures.ts";
+import { type OcsfClass, standardsFixture } from "./fixtures.ts";
 
 const ISSUER = "https://idp.example.com";
 const AUDIENCE = "https://app.example.com/ssf";

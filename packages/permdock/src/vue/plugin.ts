@@ -1,6 +1,6 @@
 import { effectScope, isRef, toValue, watch, type App, type Plugin } from "vue";
 
-import type { Snapshot } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockPluginOptions } from "./types.ts";
 
 import { providerStore, switchTenant } from "../client/provider-store.ts";

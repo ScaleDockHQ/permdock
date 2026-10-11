@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { ConvexError, createPermDock } from "../../src/convex/index.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { allow } from "../../src/core/grant-builders.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 
 const Post = z.object({
   id: z.string(),

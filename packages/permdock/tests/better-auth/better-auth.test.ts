@@ -7,12 +7,13 @@ import {
   rolesFromAccessControl,
   subjectFromBetterAuth,
 } from "../../src/better-auth/index.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { memorySink } from "../../src/core/sink.ts";
 import {
   testRoleSource,
   testSubjectResolver,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/identity.ts";
 
 const Post = z.object({ id: z.string(), authorId: z.string() });
 

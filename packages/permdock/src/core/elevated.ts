@@ -1,31 +1,34 @@
 import type { Obligation, Decision, Denial, DenialReason } from "./decision.ts";
-import type { AssuranceGrantee } from "./grantee.ts";
-import type { Permission, PermissionTree } from "./permissions.ts";
-import type { Grant, Policy, SupportSpec } from "./policy.ts";
-import type { AssuranceRequirement } from "./policy.ts";
-import type { Scope } from "./scopes.ts";
+import type { Permission, PermissionTree } from "./permission-types.ts";
+import type {
+  AssuranceRequirement,
+  BreakGlassOptions,
+  BreakGlassSpec,
+  Grant,
+  Policy,
+  RoleBinding,
+  SupportAccessOptions,
+  SupportSpec,
+} from "./policy-types.ts";
 import type { Membership, Subject } from "./subject.ts";
-import type { Role } from "./vocabulary.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
 import { compact, isReadonlyArray, sole } from "./compact.ts";
 import { parseDuration } from "./duration.ts";
 import { freezeDeep } from "./freeze.ts";
-import { asGrantee, assurance, authenticated } from "./grantee.ts";
-import { sameId } from "./ids.ts";
-import { listPermissions } from "./permissions.ts";
 import {
-  type BreakGlassOptions,
-  type BreakGlassSpec,
-  type RoleBinding,
-  type SupportAccessOptions,
-  normalizeAssurance,
-  role,
-} from "./policy.ts";
-import { resolveScope, scopeList } from "./scopes.ts";
+  type AssuranceGrantee,
+  asGrantee,
+  assurance,
+  authenticated,
+} from "./grantee.ts";
+import { sameId } from "./ids.ts";
+import { listPermissions } from "./permission-registry.ts";
+import { normalizeAssurance, role } from "./role-builder.ts";
+import { type Scope, resolveScope, scopeList } from "./scopes.ts";
 import { isMembershipExpired, nowSeconds } from "./tenancy.ts";
 import { decisionToken } from "./token.ts";
-import { isRole } from "./vocabulary.ts";
+import { type Role, isRole } from "./vocabulary.ts";
 
 function flattenPermissions(
   input: Permission | readonly Permission[] | PermissionTree,

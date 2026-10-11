@@ -1,14 +1,18 @@
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Policy } from "../index.ts";
-import type { DoctorInput, DoctorSource } from "./doctor-types.ts";
+import type {
+  DoctorFiles,
+  DoctorInput,
+  DoctorSource,
+} from "./shared/doctor-types.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { type CollectOutcome, runCollect } from "./collect.ts";
 import { describeError } from "./errors.ts";
 import { doctorSrcPath, listSourceFiles, rel } from "./files.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
+import { nodeFiles } from "./shared/doctor-files.ts";
 
 export type PolicyLoad =
   | { readonly status: "unset" }
@@ -37,8 +41,10 @@ export function loadProject(input: {
   readonly config: PermDockConfig;
   readonly now: Date;
   readonly io: CliIo;
+  readonly files?: DoctorFiles;
 }): Project {
   const { cwd, config } = input;
+  const files = input.files ?? nodeFiles;
   let sources: readonly DoctorSource[] | undefined;
   let policyLoad: Promise<PolicyLoad> | undefined;
   let collected: Promise<CollectOutcome> | undefined;
@@ -55,12 +61,13 @@ export function loadProject(input: {
   return {
     cwd,
     config,
+    files,
     now: input.now,
     io: input.io,
     sources: () => {
       sources ??= listSourceFiles(cwd, doctorSrcPath(config)).map((file) => ({
         file: rel(cwd, file),
-        text: readFileSync(file, "utf8"),
+        text: files.read(file),
       }));
       return sources;
     },

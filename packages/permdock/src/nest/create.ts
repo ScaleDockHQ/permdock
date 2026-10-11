@@ -1,13 +1,10 @@
-import type {
-  ArgumentsHost,
-  CanActivate,
-  DynamicModule,
-  ExceptionFilter,
-  ExecutionContext,
-  Type,
-} from "@nestjs/common";
-
 import {
+  type ArgumentsHost,
+  type CanActivate,
+  type DynamicModule,
+  type ExceptionFilter,
+  type ExecutionContext,
+  type Type,
   Catch,
   Controller,
   Get,
@@ -22,17 +19,13 @@ import {
 import { APP_FILTER, APP_GUARD, Reflector } from "@nestjs/core";
 
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
-import type {
-  OpenApiHooks,
-  ProtectOptions,
-  TenantScope,
-} from "../server/create.ts";
+import type { TenantScope } from "../server/create.ts";
+import type { OpenApiHooks, ProtectOptions } from "../server/server-types.ts";
 
 import { compact } from "../core/compact.ts";
 import {
@@ -41,7 +34,12 @@ import {
   PermDockRevokedError,
   PermDockValidationError,
 } from "../core/errors.ts";
-import { bindKernel, socketConnection } from "../server/bind.ts";
+import {
+  type ServerAdapterOptions,
+  bindKernel,
+  socketConnection,
+} from "../server/bind.ts";
+import { hasCredentials } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
 import { InvalidSignatureError } from "../server/web-bot-auth.ts";
@@ -375,8 +373,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           : problemFromError(exception, {
               credentials:
                 host.getType() === "http" &&
-                host.switchToHttp().getRequest<NestRequest>().headers
-                  .authorization !== undefined,
+                hasCredentials(host.switchToHttp().getRequest<NestRequest>()),
             });
       if (problem === undefined) {
         throw new TypeError("unhandled permdock exception");

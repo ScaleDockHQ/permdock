@@ -54,7 +54,7 @@ export function powersync(ctx: CliContext): Command {
       const fixtures = stringArg(parsed.fixtures);
       const from = stringArg(parsed.from);
       // Lazy: the implementation loads only when this command runs, not for --help.
-      const { runPowerSync } = await import("../powersync.ts");
+      const { runPowerSync } = await import("../powersync/powersync.ts");
       ctx.report(
         await runPowerSync({
           cwd: ctx.cwd,

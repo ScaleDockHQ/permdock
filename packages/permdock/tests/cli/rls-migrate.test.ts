@@ -9,9 +9,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { MigrateReport } from "../../src/cli/rls-migrate.ts";
+import type { MigrateReport } from "../../src/cli/rls/migrate.ts";
 
-import { mapKey } from "../../src/cli/rls-migrate.ts";
+import { mapKey } from "../../src/cli/rls/migrate.ts";
 import { run } from "../../src/cli/run.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));

@@ -2,6 +2,7 @@ import type { TokenSigner } from "../core/interfaces.ts";
 import type { JsonWebKeyLike } from "../core/subject.ts";
 import type { JoseTokenSignerOptions, JwtAlgorithm } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { loadJose } from "./load-jose.ts";
 
 const SIGNING_ALGS: ReadonlySet<JwtAlgorithm> = new Set([
@@ -10,10 +11,6 @@ const SIGNING_ALGS: ReadonlySet<JwtAlgorithm> = new Set([
   "Ed25519",
   "RS256",
 ]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function publicJwk(key: Record<string, unknown>): JsonWebKeyLike {
   const { d: _d, p: _p, q: _q, dp: _dp, dq: _dq, qi: _qi, k: _k, ...pub } = key;

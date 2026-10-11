@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { ToolBinding } from "../../src/agent/types.ts";
+
 import {
   allow,
   definePermissions,
@@ -75,3 +77,20 @@ export const otherPost = {
 
 export const memberUser: User = { id: "u1", orgId: "o1", roles: ["member"] };
 export const adminUser: User = { id: "u2", orgId: "o1", roles: ["admin"] };
+
+function postFromArgs(args: unknown): typeof ownPost {
+  // SAFETY: every tool call in the agent tests passes an object args with an optional id.
+  const id = (args as { readonly id?: string }).id;
+  return id === "p1" ? ownPost : otherPost;
+}
+
+/** The agent tool map: `{ id: "p1" }` loads `ownPost`, any other args `otherPost`. */
+export function postTools(): Readonly<
+  Record<"delete_post" | "list_posts" | "publish_post", ToolBinding>
+> {
+  return {
+    delete_post: { permission: permissions.post.delete, data: postFromArgs },
+    list_posts: { permission: permissions.post.list },
+    publish_post: { permission: permissions.post.publish, data: postFromArgs },
+  };
+}

@@ -1,8 +1,10 @@
 import type { Decision } from "../core/decision.ts";
+import type { DescribeMessages } from "../core/describe.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { PolicyVocabulary } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Actor, Delegation, Principal } from "../core/subject.ts";
+import type { ClientStoreOptions } from "./store.ts";
 
 export type ClientStatus = "ready" | "pending" | "stale" | "server-only";
 
@@ -60,4 +62,27 @@ export type FilterResult<T> = readonly T[] & { readonly partial: boolean };
 export type UseRolesOptions = {
   readonly tenant?: string;
   readonly team?: string;
+};
+
+/** The provider options Vue, Svelte and Solid share; each adds its own reactive `snapshot`, `tenant`, `headers`, `verifier` and `defaults`. */
+export type ProviderOptionsBase = {
+  /**
+   * The AuthZEN evaluations endpoint for checks the snapshot cannot answer.
+   * `false` never calls one: such a check is denied with reason `server-only`.
+   */
+  readonly endpoint?: string | false;
+  /** Where `refresh()` fetches a fresh snapshot. Defaults to `endpoint`. */
+  readonly snapshotUrl?: string;
+  readonly approvals?: string;
+  /** Read on every request, so a new `fetch` applies without a new store. */
+  readonly fetch?: typeof fetch;
+  readonly maxAge?: number;
+  /** Localised text for the describe helper. */
+  readonly messages?: DescribeMessages;
+  /** Called with each snapshot the store accepts. */
+  readonly onSnapshot?: NonNullable<ClientStoreOptions["onSnapshot"]>;
+  /** Called when the store drops its snapshot. */
+  readonly onClear?: () => void;
+  /** Milliseconds between approval status polls. Defaults to 2000. */
+  readonly approvalInterval?: number;
 };

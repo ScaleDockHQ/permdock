@@ -1,9 +1,8 @@
-import type { ProblemDetails } from "../core/errors.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Connection } from "./connection.ts";
-import type { ProtectOptions } from "./create.ts";
+import type { ProtectOptions } from "./server-types.ts";
 
-import { PermDockRevokedError } from "../core/errors.ts";
+import { PermDockRevokedError, type ProblemDetails } from "../core/errors.ts";
 
 export function isAsyncIterable(
   value: unknown,
@@ -70,6 +69,8 @@ export async function* guardIterable(
       }
       const row =
         options.unwrap === undefined ? next.value : options.unwrap(next.value);
+      // oxlint-disable-next-line no-await-in-loop -- each item waits for a pending revalidation
+      await Promise.race([connection.settled(), aborted]);
       if (
         options.items === undefined ||
         connection.check(options.items, row).outcome === "granted"

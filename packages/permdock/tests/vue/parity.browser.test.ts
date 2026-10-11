@@ -8,7 +8,7 @@ import {
   shallowRef,
 } from "vue";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";
 import {

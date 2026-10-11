@@ -11,7 +11,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlCall, SqlReply } from "../fakes/sql.ts";
 
-import { runRlsImport } from "../../src/cli/rls-import.ts";
+import { runRlsImport } from "../../src/cli/rls/import.ts";
 import { fakeSql } from "../fakes/sql.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");

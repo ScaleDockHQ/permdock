@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { ScanResult } from "../../src/cli/types.ts";
 
 import { buildCatalog } from "../../src/cli/catalog-doc.ts";
-import { helpersSql } from "../../src/cli/rls-helpers.ts";
-import { ownershipRules, ownershipSql } from "../../src/cli/rls-ownership.ts";
+import { helpersSql } from "../../src/cli/rls/helpers.ts";
+import { ownershipRules, ownershipSql } from "../../src/cli/rls/ownership.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { fromJunction, fromTable } from "../../src/supabase/sources.ts";
 import { permissions, policy } from "../fixtures/named-scopes.ts";

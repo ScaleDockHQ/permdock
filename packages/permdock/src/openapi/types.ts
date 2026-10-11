@@ -1,6 +1,6 @@
 import type { Condition } from "../conditions/ast.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 
 export type OpenApiTarget = "3.1" | "3.2" | "3.3";

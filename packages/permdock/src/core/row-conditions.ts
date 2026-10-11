@@ -1,4 +1,4 @@
-import type { Grant, Policy } from "./policy.ts";
+import type { Grant, Policy } from "./policy-types.ts";
 
 const ROW_GRANTEES = new Set([
   "relation",

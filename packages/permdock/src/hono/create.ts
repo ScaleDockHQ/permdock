@@ -4,17 +4,16 @@ import type { WSEvents } from "hono/ws";
 import { Hono, type Context, type MiddlewareHandler, type Next } from "hono";
 
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
-import type { OpenApiHooks, ProtectOptions } from "../server/create.ts";
+import type { OpenApiHooks, ProtectOptions } from "../server/server-types.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockRevokedError } from "../core/errors.ts";
-import { bindKernel } from "../server/bind.ts";
+import { type ServerAdapterOptions, bindKernel } from "../server/bind.ts";
 import { problemFromError } from "../server/map-error.ts";
 import {
   POLICY_VIOLATION,
@@ -175,12 +174,14 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: HonoPermDockOptions<TUser>,
 ): HonoPermDock<V> {
-  const { kernel, bind, scopeOf, handlerScope, attach } = bindKernel(
-    policy,
-    options,
-    "hono",
-    (c: Context) => c.req.raw,
-  );
+  const {
+    kernel,
+    bind,
+    scopeOf,
+    handlerScope,
+    attach,
+    guard: runGuard,
+  } = bindKernel(policy, options, "hono", (c: Context) => c.req.raw);
 
   const permdock =
     (): MiddlewareHandler<PermDockEnv<unknown, V>> => async (c, next: Next) => {
@@ -201,11 +202,7 @@ export function createPermDock<
       protectOptions?: ProtectOptions,
     ): MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>> =>
     async (c, next: Next): Promise<Response | undefined> => {
-      const guard = await kernel.protect(
-        permission,
-        loadData === undefined ? undefined : (): unknown => loadData(c),
-        protectOptions,
-      )(bind(c), await scopeOf(c));
+      const guard = await runGuard(permission, loadData, c, protectOptions);
       if (!guard.ok) {
         return guard.response;
       }

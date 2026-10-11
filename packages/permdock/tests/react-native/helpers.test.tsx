@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { Permission } from "../../src/core/permissions.ts";
+import type { Permission } from "../../src/core/permission-types.ts";
 import type { PermDockStorage } from "../../src/react-native/types.ts";
 
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";

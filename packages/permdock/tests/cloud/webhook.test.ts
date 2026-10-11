@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { SinkEvent } from "../../src/core/interfaces.ts";
+import type { SinkEvent } from "../../src/core/event-types.ts";
 
 import { parseCloudEvent, verifyWebhook } from "../../src/cloud/webhook.ts";
 import {

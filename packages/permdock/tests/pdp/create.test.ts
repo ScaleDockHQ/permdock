@@ -9,8 +9,11 @@ import {
   PermDockDeniedError,
   PermDockValidationError,
 } from "../../src/core/errors.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { createPermDock } from "../../src/pdp/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 

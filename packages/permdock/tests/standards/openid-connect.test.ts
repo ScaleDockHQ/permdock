@@ -5,10 +5,12 @@ import { z } from "zod";
 import type { JwtSubjectOptions } from "../../src/jwt/index.ts";
 
 import { compact } from "../../src/core/compact.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { assurance } from "../../src/core/grantee.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
 import {
   createJwtSubjectResolver,
   subjectFromJwt,

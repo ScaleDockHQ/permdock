@@ -1,7 +1,8 @@
 import { describe, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { crud, readable, writable } from "../../src/core/presets.ts";
 
 const Post = z.object({ id: z.string() });

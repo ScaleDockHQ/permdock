@@ -1,11 +1,9 @@
 import type { OnDeniedText } from "../agent/denied-text.ts";
-import type { ToolMap } from "../agent/types.ts";
-import type { ToolVerdict } from "../agent/types.ts";
+import type { ToolMap, ToolVerdict } from "../agent/types.ts";
 import type { ApprovalStore } from "../approvals/types.ts";
-import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type { RequestContext } from "../core/request-context.ts";
 import type { Delegation, Principal } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
@@ -16,7 +14,10 @@ import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from "../core/errors.ts";
-import { instanceOptions } from "../core/instance-options.ts";
+import {
+  type InstanceOptions,
+  instanceOptions,
+} from "../core/instance-options.ts";
 
 export type AiSdkContext = {
   readonly runtimeContext?: unknown;

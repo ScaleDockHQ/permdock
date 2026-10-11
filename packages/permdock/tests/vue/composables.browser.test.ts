@@ -11,7 +11,7 @@ import {
 } from "vue";
 
 import type { Decision } from "../../src/core/decision.ts";
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { PermDockPluginOptions } from "../../src/vue/types.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";

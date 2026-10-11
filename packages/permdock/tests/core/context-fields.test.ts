@@ -3,9 +3,12 @@ import { z } from "zod";
 
 import { context } from "../../src/conditions/refs.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { unsigned } from "../fixtures/snapshots.ts";
 
 const Post = z.object({

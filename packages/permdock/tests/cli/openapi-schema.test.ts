@@ -15,7 +15,7 @@ import {
   patchOas33,
   validateOpenapi,
   validateOverlay,
-} from "../../src/cli/openapi-schema.ts";
+} from "../../src/cli/openapi/schema.ts";
 import { run } from "../../src/cli/run.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));

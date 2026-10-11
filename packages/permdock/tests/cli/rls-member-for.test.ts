@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { compileGrants } from "../../src/cli/rls-compile.ts";
-import { helpersSql } from "../../src/cli/rls-helpers.ts";
-import { supabaseHookSql } from "../../src/cli/supabase-hook.ts";
+import { helpersSql } from "../../src/cli/rls/helpers.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
+import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { fromJunction, fromTable } from "../../src/supabase/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";

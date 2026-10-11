@@ -1,8 +1,7 @@
 import type { JwtClaims } from "../core/interfaces.ts";
 import type { SetSubject, SsfSubject } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
-import { isRecord } from "./wire.ts";
+import { compact, isRecord } from "../core/compact.ts";
 
 export function asSubject(
   mapped: string | SsfSubject,

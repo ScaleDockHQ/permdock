@@ -3,12 +3,9 @@ import type { Permission, Principal, WhereResult } from "permdock";
 import { PGlite } from "@electric-sql/pglite";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { toWhere } from "permdock/drizzle";
 import {
   type SqlQuery,
@@ -28,6 +25,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/named-scopes/policy.ts";
+import { rlsAndHook } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/named-scopes/disabled");
@@ -124,28 +122,6 @@ function tableOf(permission: { readonly key: string }): Table {
   return found[1];
 }
 
-async function generate(cwd: string): Promise<readonly string[]> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-disabled-"));
-  const out = join(dir, "rls.sql");
-  const hookOut = join(dir, "hook.sql");
-  const rls = await run(
-    ["rls", "generate", "--target", "sql", "--rbac", "supabase", "--out", out],
-    { cwd },
-  );
-  if (rls.code !== 0) {
-    throw new Error(`rls generate: ${rls.stdout}${rls.stderr}`);
-  }
-  const hook = await run(["supabase", "hook", "generate", "--out", hookOut], {
-    cwd,
-  });
-  if (hook.code !== 0) {
-    throw new Error(`hook generate: ${hook.stdout}${hook.stderr}`);
-  }
-  const sql = [readFileSync(out, "utf8"), readFileSync(hookOut, "utf8")];
-  rmSync(dir, { recursive: true, force: true });
-  return sql;
-}
-
 describe.each([
   { mode: "jwt", cwd: FIXTURE, keep: suspension },
   { mode: "database", cwd: join(FIXTURE, "database"), keep: suspension },
@@ -165,7 +141,7 @@ describe.each([
   beforeAll(async () => {
     lite = new PGlite();
     await lite.exec(SETUP);
-    for (const sql of await generate(cwd)) {
+    for (const sql of await rlsAndHook(cwd)) {
       await lite.exec(sql);
     }
   });

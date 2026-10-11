@@ -1,13 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { generated, jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/supabase-sources");
@@ -66,28 +64,11 @@ create function billing.feature_claims(uid uuid) returns jsonb language sql stab
 $$;
 `;
 
-async function generate(
-  args: readonly string[],
-  files: readonly string[],
-): Promise<string[]> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-member-for-"));
-  const placed = args.map((arg) => arg.replaceAll("{dir}", dir));
-  try {
-    const result = await run(placed, { cwd: FIXTURE });
-    if (result.code !== 0) {
-      throw new Error(`${args.join(" ")}: ${result.stdout}${result.stderr}`);
-    }
-    return files.map((file) => readFileSync(join(dir, file), "utf8"));
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
 describe("member_<scope>_ids_for against Postgres", () => {
   let db: Postgres | undefined;
 
   const rls = (authorize: string, schema: string): Promise<string[]> =>
-    generate(
+    generated(
       [
         "rls",
         "generate",
@@ -107,13 +88,14 @@ describe("member_<scope>_ids_for against Postgres", () => {
         "{dir}/{part}.sql",
       ],
       ["helpers.sql"],
+      { cwd: FIXTURE },
     );
 
   beforeAll(async () => {
     const [jwt, database, hook] = await Promise.all([
       rls("jwt", "permdock"),
       rls("database", "pd_db"),
-      generate(
+      generated(
         [
           "supabase",
           "hook",
@@ -124,6 +106,7 @@ describe("member_<scope>_ids_for against Postgres", () => {
           "{dir}/grants.sql",
         ],
         ["hook.sql", "grants.sql"],
+        { cwd: FIXTURE },
       ),
     ]);
     db = await startPostgres([
@@ -183,12 +166,7 @@ describe("member_<scope>_ids_for against Postgres", () => {
       const own = await db.as(
         {
           role: "authenticated",
-          settings: {
-            "request.jwt.claims": JSON.stringify({
-              sub: user,
-              role: "authenticated",
-            }),
-          },
+          settings: jwtClaims(user),
         },
         async () =>
           (

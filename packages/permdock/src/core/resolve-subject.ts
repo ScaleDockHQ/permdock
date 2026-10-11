@@ -1,5 +1,7 @@
-import type { AuthEvent, MembershipSource } from "./interfaces.ts";
+import type { AuthEvent } from "./event-types.ts";
+import type { MembershipSource } from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
+import type { Policy } from "./policy-types.ts";
 
 import { type AppDataSchema, readAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
@@ -8,7 +10,7 @@ import { freezeCopy } from "./freeze.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { expandOAuthScopes } from "./oauth-scopes.ts";
 import { applyRoleKinds } from "./ownership.ts";
-import { type Policy, policyX } from "./policy.ts";
+import { policyX } from "./policy-fingerprint.ts";
 import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
 import {
   type Actor,

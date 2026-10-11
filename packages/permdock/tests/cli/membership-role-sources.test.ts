@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type {
   PermDockConfig,
   RlsMembershipTable,
 } from "../../src/cli/types.ts";
 
-import { decidingColumns } from "../../src/cli/deciding-columns.ts";
-import { compileGrants } from "../../src/cli/rls-compile.ts";
-import { compileConditionSql } from "../../src/cli/rls-conditions.ts";
-import { helpersSql } from "../../src/cli/rls-helpers.ts";
-import { ownershipRules, ownershipSql } from "../../src/cli/rls-ownership.ts";
+import { helpersSql } from "../../src/cli/rls/helpers.ts";
+import { ownershipRules, ownershipSql } from "../../src/cli/rls/ownership.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
+import { compileConditionSql } from "../../src/cli/sql/conditions.ts";
+import { decidingColumns } from "../../src/cli/sql/deciding-columns.ts";
 import {
   supabaseHookManifest,
   supabaseHookSql,
-} from "../../src/cli/supabase-hook.ts";
+} from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { fromJunction, fromTable } from "../../src/supabase/index.ts";
 import { roleColumn } from "../../src/supabase/roles.ts";

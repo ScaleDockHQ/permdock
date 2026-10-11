@@ -1,14 +1,13 @@
 import type { Decision, ExplainedDecision } from "./decision.ts";
-import type { Snapshot, SnapshotAssignable } from "./interfaces.ts";
 import type {
   DecideOptions,
   PermDock,
   SimulateOptions,
   SnapshotOptions,
 } from "./permdock.ts";
-import type { Permission } from "./permissions.ts";
+import type { Permission } from "./permission-types.ts";
+import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
 import type { Membership } from "./subject.ts";
-import type { Role } from "./vocabulary.ts";
 
 import { isArazzoSimulateInput, simulateArazzo } from "./arazzo.ts";
 import { compact } from "./compact.ts";
@@ -20,13 +19,18 @@ import {
 } from "./errors.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
-import { listPermissions } from "./permissions.ts";
+import { listPermissions } from "./permission-registry.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
 import { evaluateSnapshot, whereFromSnapshot } from "./snapshot-evaluate.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { heldRoleNames, subjectFromSnapshot } from "./snapshot-subject.ts";
-import { findRole, listRoles, synthesiseRole } from "./vocabulary.ts";
+import {
+  type Role,
+  findRole,
+  listRoles,
+  synthesiseRole,
+} from "./vocabulary.ts";
 
 function resourceRef(
   snapshot: Snapshot,

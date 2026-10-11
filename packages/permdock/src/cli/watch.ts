@@ -43,6 +43,8 @@ export type CollectSettings = {
   /** A `--config` path; the default is the first `permdock.config.*` in `cwd`. */
   readonly configFile?: string;
   readonly report?: (message: string | undefined) => void;
+  /** The time each collect stamps; defaults to the system clock. */
+  readonly now?: () => Date;
 };
 
 export async function collectOnce(
@@ -51,6 +53,7 @@ export async function collectOnce(
   check: boolean,
   fresh: boolean,
   configFile?: string,
+  now: () => Date = () => new Date(),
 ): Promise<CollectRun> {
   const config = await loadConfig(cwd, configFile, { fresh });
   const collect = { ...config.collect, ...options?.collect };
@@ -59,7 +62,7 @@ export async function collectOnce(
     config,
     collect,
     check,
-    now: new Date(),
+    now: now(),
     fresh,
   });
   const inputs = [configFile, config.permissions, config.policy]
@@ -114,6 +117,7 @@ export function createCollectScheduler(
       check,
       fresh,
       settings?.configFile,
+      settings?.now,
     );
     ignored = new Set(result.written);
     inputs = result.inputs;

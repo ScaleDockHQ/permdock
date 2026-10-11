@@ -20,7 +20,7 @@ import {
   subjectFromJwt,
 } from "../../src/jwt/subject.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
-import { testSubjectResolver } from "../../src/testing/conformance.ts";
+import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
 import { memberUser, policy } from "../fixtures/quick-start.ts";
 
 const PRIVATE_JWK = {

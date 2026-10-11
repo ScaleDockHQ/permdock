@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { SqlMembershipSource } from "../../src/supabase/sources.ts";
 
-import { activeFromSql } from "../../src/cli/supabase-hook-sql.ts";
+import { activeFromSql } from "../../src/cli/supabase-hook/memberships.ts";
 import {
   loadScopes,
   runSupabase,
   supabaseHookSql,
-} from "../../src/cli/supabase-hook.ts";
+} from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { fromJunction, fromTable } from "../../src/supabase/index.ts";
 
 const scopes = [

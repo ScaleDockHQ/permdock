@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import type { PermDock } from "../../src/core/permdock.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { PermDockDeniedError } from "../../src/core/errors.ts";
 import { memoryLimitStore } from "../../src/core/limits.ts";
-import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
+import {
+  type PermDock,
+  createPermDock as createCorePermDock,
+} from "../../src/core/permdock.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import {
   allow,
   assurance,

@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -78,12 +79,7 @@ describe("rls.assignments on the global-roles table", () => {
     await target.as(
       {
         role: "authenticated",
-        settings: {
-          "request.jwt.claims": JSON.stringify({
-            sub: user,
-            role: "authenticated",
-          }),
-        },
+        settings: jwtClaims(user),
       },
       async () => {
         await target.tester.query(sql);
@@ -179,12 +175,7 @@ describe("rls.assignments on the global-roles table", () => {
     return target.as(
       {
         role: "authenticated",
-        settings: {
-          "request.jwt.claims": JSON.stringify({
-            sub: user,
-            role: "authenticated",
-          }),
-        },
+        settings: jwtClaims(user),
       },
       async () => {
         for (const statement of statements) {

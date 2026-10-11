@@ -1,6 +1,6 @@
 import type { RelationSource, TokenSigner } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { PermissionTree } from "../core/permissions.ts";
+import type { PermissionTree } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type {
   ApprovalRequest,

@@ -3,22 +3,22 @@ import { crc32 } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
 import type { Credential } from "../../src/core/credential.ts";
-import type { AuthEvent } from "../../src/core/interfaces.ts";
+import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
-import type { ApiKeySubjectOptions } from "../../src/server/credentials.ts";
 
 import { compact } from "../../src/core/compact.ts";
-import { memorySettings } from "../../src/core/interfaces.ts";
+import { allow } from "../../src/core/grant-builders.ts";
+import { memorySettings } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import {
-  definePermissions,
-  listPermissions,
-  resource,
-} from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { listPermissions } from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { memorySink } from "../../src/core/sink.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/index.ts";
 import {
+  type ApiKeySubjectOptions,
   apiKeyVerifier,
   generateApiKey,
   hashApiKey,
@@ -27,10 +27,8 @@ import {
   subjectFromApiKey,
 } from "../../src/server/credentials.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
-import {
-  testCredentialVerifier,
-  testSubjectResolver,
-} from "../../src/testing/conformance.ts";
+import { testCredentialVerifier } from "../../src/testing/conformance/credentials.ts";
+import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
 
 const org = { organization: { field: "orgId", memberOf: "organization" } };
 const permissions = definePermissions({

@@ -1,4 +1,5 @@
 export { createPermDock, createServerKernel, tenantScope } from "./create.ts";
+export type { RequestContext, TenantOption, TenantScope } from "./create.ts";
 export type {
   Guard,
   OnDenied,
@@ -6,16 +7,13 @@ export type {
   OpenApiHooks,
   OperationScopes,
   ProtectOptions,
-  RequestContext,
   ScopeGuard,
   ServerKernel,
   ServerKernelOptions,
   ServerPermDock,
   ServerPermDockOptions,
   SnapshotQuery,
-  TenantOption,
-  TenantScope,
-} from "./create.ts";
+} from "./server-types.ts";
 export type {
   Connection,
   ConnectionData,

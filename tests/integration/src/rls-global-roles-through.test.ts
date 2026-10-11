@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -131,12 +132,7 @@ describe("global roles through a roles table that also holds tenant roles", () =
       target.as(
         {
           role: "authenticated",
-          settings: {
-            "request.jwt.claims": JSON.stringify({
-              sub: user,
-              role: "authenticated",
-            }),
-          },
+          settings: jwtClaims(user),
         },
         async () => {
           const rows = await target.tester.query<{ has: boolean }>(

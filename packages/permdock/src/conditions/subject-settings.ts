@@ -1,5 +1,7 @@
 import type { Subject } from "../core/subject.ts";
 
+import { isRecord } from "../core/compact.ts";
+
 export type WithSubjectOptions = {
   /** Which settings the generated policies read; match `rls.dialect`. Default `supabase`. */
   readonly dialect?: "supabase" | "guc" | "neon";
@@ -53,10 +55,6 @@ type HeldCredential = {
   readonly roles: readonly string[];
   readonly scopes: readonly string[];
 };
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function strings(value: unknown): readonly string[] {
   return Array.isArray(value)
@@ -210,12 +208,17 @@ export function statementText(statement: SubjectStatement): string {
   return text;
 }
 
+/** Strings as a template-strings array, for calling a `sql` tag directly. */
+export function templateOf(parts: readonly string[]): TemplateStringsArray {
+  // SAFETY: a string array with a matching `raw` array is the shape a template tag reads.
+  return Object.assign([...parts], {
+    raw: [...parts],
+  }) as unknown as TemplateStringsArray;
+}
+
 /** A statement as a template-strings array, for `sql` tags. */
 export function statementTemplate(
   statement: SubjectStatement,
 ): TemplateStringsArray {
-  // SAFETY: a string array with a matching `raw` array is the shape a template tag reads.
-  return Object.assign([...statement.strings], {
-    raw: [...statement.strings],
-  }) as unknown as TemplateStringsArray;
+  return templateOf(statement.strings);
 }

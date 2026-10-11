@@ -5,16 +5,14 @@ import {
 } from "@trpc/server";
 
 import type { PermDockRevokedError } from "../core/errors.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
-import type { OpenApiHooks } from "../server/create.ts";
-import type { StreamProtectOptions } from "../server/stream.ts";
+import type { OpenApiHooks } from "../server/server-types.ts";
 
-import { attached } from "../server/bind.ts";
+import { type ServerAdapterOptions, attached } from "../server/bind.ts";
 import { problemMessage } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import {
@@ -23,7 +21,11 @@ import {
   problemBody,
   rpcCode,
 } from "../server/rpc.ts";
-import { isAsyncIterable, reloadAfter } from "../server/stream.ts";
+import {
+  type StreamProtectOptions,
+  isAsyncIterable,
+  reloadAfter,
+} from "../server/stream.ts";
 
 export type TrpcMiddlewareOpts<TCtx = object, TInput = unknown> = {
   readonly ctx: TCtx;
@@ -155,7 +157,15 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal>,
   options: TrpcPermDockOptions<TCtx, TUser>,
 ): TrpcPermDock<TCtx> {
-  const { kernel, bind, attach, scopeOf, connection, evaluate } = bindRpcKernel(
+  const {
+    kernel,
+    bind,
+    attach,
+    scopeOf,
+    connection,
+    evaluate,
+    guard: runGuard,
+  } = bindRpcKernel(
     policy,
     options,
     "trpc",
@@ -220,12 +230,12 @@ export function createPermDock<
   ): TrpcMiddleware =>
     // SAFETY: the function has tRPC's middleware call shape; its generics cannot be inferred from it.
     (async (opts: TrpcMiddlewareOpts<TCtx>): Promise<unknown> => {
-      const request = bind(opts);
-      const guard = await kernel.protect(
+      const { request, guard } = await runGuard(
         permission,
-        loadData === undefined ? undefined : (): unknown => loadData(opts),
+        loadData,
+        opts,
         protectOptions,
-      )(request, await scopeOf(opts));
+      );
       if (guard.ok) {
         const nextCtx = {
           ...opts.ctx,

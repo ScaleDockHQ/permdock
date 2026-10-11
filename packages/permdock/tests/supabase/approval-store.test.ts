@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ApprovalRequest } from "../../src/approvals/types.ts";
 import type { SupabaseRpcClient } from "../../src/supabase/index.ts";
 
-import { approvalStoreSql } from "../../src/cli/rls-approvals.ts";
+import { approvalStoreSql } from "../../src/cli/rls/approvals.ts";
 import { supabaseApprovalStore } from "../../src/supabase/index.ts";
 
 const request: ApprovalRequest = {

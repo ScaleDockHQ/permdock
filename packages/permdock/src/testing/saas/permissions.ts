@@ -3,7 +3,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type {
   InferPermissionTree,
   ResourceInit,
-} from "../../core/permissions.ts";
+} from "../../core/permission-types.ts";
 import type { Plan, Role } from "../../core/vocabulary.ts";
 
 import {

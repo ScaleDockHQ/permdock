@@ -1,5 +1,6 @@
 import type { ClientStore } from "../client/store.ts";
-import type { Snapshot, SnapshotSource } from "../core/interfaces.ts";
+import type { SnapshotSource } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type {
   NativePermDockProviderProps,
   SubscribeForeground,

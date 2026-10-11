@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   ADAPTER_SPECIFIERS,
   SERVER_SPECIFIERS,
-} from "../../src/cli/doctor-source.ts";
+} from "../../src/cli/doctor/source.ts";
 
 /** Entries a client component may import: the definitions, client stores, wire readers and the condition lowering. */
 const CLIENT_SAFE = new Set([

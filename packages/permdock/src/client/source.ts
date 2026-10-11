@@ -1,4 +1,4 @@
-import type { Snapshot } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 /** A compact JWS: three non-empty dot-separated parts. */
 export function isJws(value: string): boolean {

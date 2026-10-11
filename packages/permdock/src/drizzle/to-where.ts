@@ -15,10 +15,12 @@ import {
   compileWhere,
   escapeLike,
 } from "../conditions/compile.ts";
+import { loadPeer } from "../conditions/peer.ts";
 import { type RowCheck, rowCheckFrom } from "../conditions/row-check.ts";
 import {
   statementTemplate,
   subjectStatements,
+  templateOf,
 } from "../conditions/subject-settings.ts";
 import { compact } from "../core/compact.ts";
 import { assertSafeKey } from "../core/paths.ts";
@@ -27,32 +29,10 @@ function loadOperators(injected?: DrizzleOperators): DrizzleOperators {
   if (injected !== undefined) {
     return injected;
   }
-  // Feature-detected so the entry loads on runtimes without a Node module
-  // loader; there, pass `operators` (`import * as operators from 'drizzle-orm'`).
-  // SAFETY: optional chaining guards a missing process; node:module is Node's createRequire module.
-  const loader = (
-    globalThis as {
-      readonly process?: {
-        readonly getBuiltinModule?: (id: string) => unknown;
-      };
-    }
-  ).process?.getBuiltinModule?.("node:module") as
-    | {
-        readonly createRequire: (
-          from: string,
-        ) => (id: string) => DrizzleOperators;
-      }
-    | undefined;
-  try {
-    if (loader === undefined) {
-      throw new Error("no module loader");
-    }
-    return loader.createRequire(import.meta.url)("drizzle-orm");
-  } catch {
-    throw new Error(
-      "PermDock: permdock/drizzle requires the drizzle-orm peer; pass `operators` on runtimes without require",
-    );
-  }
+  return loadPeer<DrizzleOperators>(
+    "drizzle-orm",
+    "PermDock: permdock/drizzle requires the drizzle-orm peer; pass `operators` on runtimes without require",
+  );
 }
 
 function ident(name: string): string {
@@ -113,10 +93,7 @@ function tagged(parts: readonly SqlPart[], ops: DrizzleOperators): unknown {
       strings.push("");
     }
   }
-  // SAFETY: a string array becomes a TemplateStringsArray once raw is defined on the next line.
-  const template = strings as unknown as TemplateStringsArray;
-  Object.defineProperty(template, "raw", { value: strings });
-  return ops.sql(template, ...values);
+  return ops.sql(templateOf(strings), ...values);
 }
 
 function existsSql(

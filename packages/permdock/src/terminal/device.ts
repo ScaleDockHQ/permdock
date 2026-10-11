@@ -4,7 +4,7 @@ import type {
   TerminalRuntime,
 } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 
 /** Milliseconds an authorization server request may take. */
@@ -18,10 +18,6 @@ type DeviceAuthorization = {
   readonly expires_in: number;
   readonly interval?: number;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 async function readJson(
   response: Response,

@@ -6,7 +6,7 @@ import type { SqlClient } from "../../src/cli/pg.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlCall, SqlReply } from "../fakes/sql.ts";
 
-import { runRlsVerify } from "../../src/cli/rls-verify.ts";
+import { runRlsVerify } from "../../src/cli/rls/verify.ts";
 import { fakeSql } from "../fakes/sql.ts";
 
 const FIXTURE = path.join(import.meta.dirname, "fixtures/mini-app");

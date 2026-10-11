@@ -1,22 +1,23 @@
 import type { Denial } from "./decision.ts";
 import type { SettingsSource } from "./interfaces.ts";
 import type { PermDock } from "./permdock.ts";
-import type { Permission, PermissionTree } from "./permissions.ts";
-import type {
-  AuthorizationDetail,
-  Delegation,
-  Membership,
-  Principal,
-  Subject,
-} from "./subject.ts";
+import type { Permission, PermissionTree } from "./permission-types.ts";
 
 import { idList, isId, ownRecord } from "./capability.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { coveredByDelegation } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
-import { formerKeys, listPermissions } from "./permissions.ts";
+import { formerKeys } from "./permission-leaf.ts";
+import { listPermissions } from "./permission-registry.ts";
 import { bytesToBase64Url, sha256 } from "./sha256.ts";
-import { anonymousSubject } from "./subject.ts";
+import {
+  type AuthorizationDetail,
+  type Delegation,
+  type Membership,
+  type Principal,
+  type Subject,
+  anonymousSubject,
+} from "./subject.ts";
 
 export type CredentialKind = "user" | "service";
 

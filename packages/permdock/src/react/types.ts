@@ -7,8 +7,9 @@ import type {
   GrantedDecision,
 } from "../core/decision.ts";
 import type { DescribeMessages } from "../core/describe.ts";
-import type { Snapshot, TokenVerifier } from "../core/interfaces.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { TokenVerifier } from "../core/interfaces.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 export type {
   ApprovalHandle,

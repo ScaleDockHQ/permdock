@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import type { Decision } from "../../src/core/decision.ts";
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type {
   ModelContext,
   RegisterToolsOptions,
@@ -380,7 +380,7 @@ describe("registerTools execution", () => {
     });
     const numeric = await toolOf(tools, "post_update").execute(ownPost);
     expect(numeric.content[0]?.text).toBe(
-      "Denied: post.update. You may: post.read.",
+      "Denied: post.update on p1. You may: post.read.",
     );
     expect(numeric.structuredContent).toMatchObject({
       resource: { type: "post", id: "p1" },

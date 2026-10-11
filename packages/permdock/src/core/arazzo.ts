@@ -1,9 +1,9 @@
 import type { Decision } from "./decision.ts";
-import type { Permission, PermissionTree } from "./permissions.ts";
+import type { Permission, PermissionTree } from "./permission-types.ts";
 
-import { compact } from "./compact.ts";
+import { compact, isRecord } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
-import { findPermission } from "./permissions.ts";
+import { findPermission } from "./permission-registry.ts";
 
 export type ArazzoSimulateInput = {
   readonly arazzo: unknown;
@@ -96,10 +96,6 @@ const denied = (
     denials: [{ role: null, reason }],
     alternatives: [],
   });
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;

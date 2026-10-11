@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { pd044, pd065 } from "../../src/cli/doctor-next.ts";
+import { pd044, pd065 } from "../../src/cli/doctor/next.ts";
 import { NOW, project, quietIo, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);

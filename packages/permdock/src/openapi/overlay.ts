@@ -1,4 +1,4 @@
-import type { Policy } from "../core/policy.ts";
+import type { Policy } from "../core/policy-types.ts";
 import type {
   OpenApiOverlayOptions,
   OpenApiPermDockOptions,
@@ -6,7 +6,7 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
-import { listPermissions } from "../core/permissions.ts";
+import { listPermissions } from "../core/permission-registry.ts";
 import { sha256 } from "../core/sha256.ts";
 import {
   catalogOf,

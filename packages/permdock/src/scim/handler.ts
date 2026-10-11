@@ -1,12 +1,6 @@
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { authenticateScim } from "./auth.ts";
-import {
-  groupFromBody,
-  isRecord,
-  readJson,
-  schemasOk,
-  userFromBody,
-} from "./body.ts";
+import { groupFromBody, readJson, schemasOk, userFromBody } from "./body.ts";
 import { resourceTypes, schemas, serviceProviderConfig } from "./discovery.ts";
 import {
   directoryEvent,

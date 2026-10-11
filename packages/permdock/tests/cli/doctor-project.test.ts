@@ -2,7 +2,7 @@ import { symlinkSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { DoctorFinding } from "../../src/cli/doctor-types.ts";
+import type { DoctorFinding } from "../../src/cli/shared/doctor-types.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import {
@@ -12,7 +12,7 @@ import {
   pd012,
   pd022,
   pd028,
-} from "../../src/cli/doctor-project.ts";
+} from "../../src/cli/doctor/project.ts";
 import { sqlFiles } from "../../src/cli/files.ts";
 import { fromJunction } from "../../src/supabase/sources.ts";
 import { project, removeProjects } from "./doctor-kit.ts";

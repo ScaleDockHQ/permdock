@@ -7,12 +7,12 @@ import {
 } from "citty";
 import { stripVTControlCharacters } from "node:util";
 
+import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, RunResult } from "./types.ts";
 
 import {
   type CliContext,
   type Command,
-  type CommandResult,
   globalArgs,
   resolveArgs,
   stringArg,

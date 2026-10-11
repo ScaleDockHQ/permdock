@@ -20,3 +20,22 @@ export function isReadonlyArray(value: unknown): value is readonly unknown[] {
 export function sole<T>(items: readonly T[]): T | undefined {
   return items.length === 1 ? items[0] : undefined;
 }
+
+/** A plain object: not `null` and not an array. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** The own entries of `record` whose key is not in `reserved`. */
+export function omitKeys(
+  record: Readonly<Record<string, unknown>>,
+  reserved: ReadonlySet<string>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (!reserved.has(key)) {
+      out[key] = value;
+    }
+  }
+  return out;
+}

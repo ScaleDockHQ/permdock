@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 
 import { storeOf } from "../client/store.ts";
 import { usePermDock } from "../react/hooks.ts";

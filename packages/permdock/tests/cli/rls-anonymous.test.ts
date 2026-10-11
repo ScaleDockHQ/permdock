@@ -1,8 +1,8 @@
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { compileGrants } from "../../src/cli/rls-compile.ts";
 import { run } from "../../src/cli/run.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

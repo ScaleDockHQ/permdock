@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { adoptedApprovalStoreSql } from "../../src/cli/rls-approvals.ts";
+import { adoptedApprovalStoreSql } from "../../src/cli/rls/approvals.ts";
 
 const ctx: RlsSqlContext = {
   dialect: "supabase",

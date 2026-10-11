@@ -1,4 +1,4 @@
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { OpenApiSecurityRequirement } from "./types.ts";
 
 export type SecurityForOptions = {

@@ -1,21 +1,19 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
-import type { Approver } from "../core/approvers.ts";
 import type { RelationGrantee } from "../core/grantee.ts";
 import type { RelationSource } from "../core/interfaces.ts";
-import type { PermissionTree, ResourceNode } from "../core/permissions.ts";
+import type { PermissionTree, ResourceNode } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
-import type { ApprovalRequest } from "./types.ts";
 
-import { approverLeaves } from "../core/approvers.ts";
-import { getRegistry } from "../core/permissions.ts";
+import { type Approver, approverLeaves } from "../core/approvers.ts";
+import { getRegistry } from "../core/permission-registry.ts";
+import { resolveRelated } from "../core/relation-walk.ts";
 import {
   type RelationCache,
   type RelationReader,
   pendingRelations,
   relationReader,
-  resolveRelated,
 } from "../core/relations.ts";
-import { approverRelationKey } from "./types.ts";
+import { type ApprovalRequest, approverRelationKey } from "./types.ts";
 
 export type ApproverRelationsOptions = {
   /** The object graph relation approvers are read from; without it they match nobody. */

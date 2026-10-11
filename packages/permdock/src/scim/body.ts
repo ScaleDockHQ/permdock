@@ -1,14 +1,10 @@
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import {
   PATCH_SCHEMA,
   ROLES_EXTENSION,
   type DirectoryGroup,
   type DirectoryUser,
 } from "./types.ts";
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 export async function readJson(request: Request): Promise<unknown> {
   const text = await request.text();

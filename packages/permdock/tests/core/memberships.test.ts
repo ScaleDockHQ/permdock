@@ -4,23 +4,26 @@ import type { MembershipSource } from "../../src/core/interfaces.ts";
 import type { Principal } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { plan } from "../../src/core/grantee.ts";
-import { memoryEntitlementSource } from "../../src/core/interfaces.ts";
 import {
   claimsFirst,
   composeMemberships,
   isExternallyManaged,
   mergeMemberships,
 } from "../../src/core/memberships.ts";
+import { memoryEntitlementSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { fromStripeEntitlements } from "../../src/core/stripe-entitlements.ts";
 import {
   testEntitlementSource,
   testMembershipSource,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/identity.ts";
 
 const Doc = {
   "~standard": {

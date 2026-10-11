@@ -1,4 +1,4 @@
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
 /** The plain snapshot `permdock.snapshot()` returns without a `signer`. */
 export function unsigned(snapshot: Snapshot | Promise<string>): Snapshot {

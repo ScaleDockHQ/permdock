@@ -11,7 +11,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CliIo } from "../../src/cli/types.ts";
 
-import { runOpenapiImport } from "../../src/cli/openapi-import.ts";
+import { runOpenapiImport } from "../../src/cli/openapi/import.ts";
 import { listPermissions } from "../../src/index.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");

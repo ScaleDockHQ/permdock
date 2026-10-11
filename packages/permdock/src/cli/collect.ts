@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
 import type { Policy } from "../index.ts";
@@ -17,7 +17,12 @@ import {
 } from "./catalog-doc.ts";
 import { catalogPath } from "./catalog-path.ts";
 import { describeError } from "./errors.ts";
-import { defaultSrcPath, listSourceFiles, rel } from "./files.ts";
+import {
+  defaultSrcPath,
+  listSourceFiles,
+  rel,
+  writeFileEnsuringDir,
+} from "./files.ts";
 import {
   asPermissionTree,
   leavesOf,
@@ -146,8 +151,7 @@ export async function runCollect(input: {
       message: `catalog up to date: ${rel(input.cwd, outPath)}`,
     };
   }
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, next);
+  writeFileEnsuringDir(outPath, next);
   const written = [outPath];
   const barrel = input.collect.barrel ?? input.config.collect?.barrel;
   if (barrel !== undefined && barrel !== false) {
@@ -196,6 +200,5 @@ import { permissions as collected } from '${specifier.startsWith(".") ? specifie
 
 export const permissions = mergePermissions(collected)
 `;
-  mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, body);
+  writeFileEnsuringDir(abs, body);
 }

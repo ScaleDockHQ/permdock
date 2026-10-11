@@ -1,5 +1,6 @@
 import type { RelationGrantee } from "../core/grantee.ts";
-import type { Approver, ApprovalMode, ApprovalStage } from "../core/policy.ts";
+import type { ApprovalMode, ApprovalStage } from "../core/policy-types.ts";
+import type { Approver } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 
 import { parseDuration } from "../core/duration.ts";

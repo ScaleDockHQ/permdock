@@ -57,11 +57,15 @@ function unreachable(command: string, cause: unknown): CliError {
   );
 }
 
-/** One connection, for commands that run a transaction. */
-export async function connectPg(
-  db: string,
+/** The default `connect` of a command: one connection, failing with a message that names `command`. */
+export function pgConnector(
   command: string,
-): Promise<SqlClient> {
+): (db: string) => Promise<SqlClient> {
+  return (db) => connectPg(db, command);
+}
+
+/** One connection, for commands that run a transaction. */
+async function connectPg(db: string, command: string): Promise<SqlClient> {
   const pg = await loadPg(command);
   const client = new pg.Client(options(db));
   try {

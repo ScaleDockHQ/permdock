@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { globalRolesSql } from "../../src/cli/rls-global-roles.ts";
+import { globalRolesSql } from "../../src/cli/rls/global-roles.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 

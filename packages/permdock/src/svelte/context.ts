@@ -3,7 +3,7 @@ import { toStore, type Readable } from "svelte/store";
 
 import type { ClientStore } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";
-import type { Snapshot } from "../core/interfaces.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockDefaults, PermDockSvelteOptions } from "./types.ts";
 
 import { providerStore, switchTenant } from "../client/provider-store.ts";

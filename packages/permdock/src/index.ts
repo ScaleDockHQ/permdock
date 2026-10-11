@@ -67,7 +67,7 @@ export {
   memoryRoleSource,
   memorySnapshotSource,
   memorySettings,
-} from "./core/interfaces.ts";
+} from "./core/memory-sources.ts";
 export {
   APPROVAL_POLICY_UNAVAILABLE,
   memoryApprovalPolicies,
@@ -88,8 +88,11 @@ export {
 export { fromStripeEntitlements } from "./core/stripe-entitlements.ts";
 export type { StripeEntitlementsClient } from "./core/stripe-entitlements.ts";
 export { memoryLimitStore } from "./core/limits.ts";
-export { memoryRelations } from "./core/relations.ts";
-export type { MemoryEdge, MemoryRelationsData } from "./core/relations.ts";
+export { memoryRelations } from "./core/memory-relations.ts";
+export type {
+  MemoryEdge,
+  MemoryRelationsData,
+} from "./core/memory-relations.ts";
 export type { Holder, HoldingVia, WhoCan } from "./core/who-can.ts";
 export {
   isPortableCondition,
@@ -105,21 +108,12 @@ export type {
   PolicySource,
 } from "./core/hosted.ts";
 export type {
-  AccessEvent,
-  AuthEvent,
-  CredentialEvent,
   CredentialVerifier,
-  DecisionEvent,
   DecisionProvider,
   DecisionSink,
-  DirectoryEvent,
-  MembershipEvent,
   LimitConsumeInput,
   LimitRemaining,
-  LocalCustomRoleTable,
-  LocalSnapshotManifest,
   LimitStore,
-  SinkEvent,
   EntitlementSource,
   MemberEntry,
   MembershipSource,
@@ -130,11 +124,6 @@ export type {
   RoleSource,
   RoleSourceFactory,
   SettingsSource,
-  Snapshot,
-  SnapshotAssignable,
-  SnapshotGrant,
-  SnapshotNotEntitled,
-  SnapshotScope,
   SnapshotSource,
   SubjectResolver,
   TenantSettings,
@@ -145,6 +134,24 @@ export type {
   VerifiedToken,
   WhereCompiler,
 } from "./core/interfaces.ts";
+export type {
+  LocalCustomRoleTable,
+  LocalSnapshotManifest,
+  Snapshot,
+  SnapshotAssignable,
+  SnapshotGrant,
+  SnapshotNotEntitled,
+  SnapshotScope,
+} from "./core/snapshot-types.ts";
+export type {
+  AccessEvent,
+  AuthEvent,
+  CredentialEvent,
+  DecisionEvent,
+  DirectoryEvent,
+  MembershipEvent,
+  SinkEvent,
+} from "./core/event-types.ts";
 export { arazzoFindings, simulateArazzo } from "./core/arazzo.ts";
 export type {
   ArazzoFinding,
@@ -192,27 +199,25 @@ export type {
   SnapshotOptions,
   WhereResult,
 } from "./core/permdock.ts";
+export { definePermissions } from "./core/permissions.ts";
 export {
-  definePermissions,
   findPermission,
-  formerKeys,
   getResource,
   isPermission,
   listPermissions,
   mergePermissions,
-  resource,
-} from "./core/permissions.ts";
+} from "./core/permission-registry.ts";
+export { formerKeys, resource } from "./core/permission-leaf.ts";
 export { crud, readable, writable } from "./core/presets.ts";
+export type { MetaValue } from "./core/permissions.ts";
 export type {
   ActionMeta,
   DefinePermissionsOptions,
-  MetaValue,
   Permission,
   PermissionKind,
   PermissionTree,
   ResourceInit,
   ResourceLevel,
-  RESOURCE_X,
   ResourceMeta,
   ResourceXTree,
   ResourceNode,
@@ -229,20 +234,26 @@ export type {
   ResourceRelation,
   ResourceRelationInput,
   ResourceRestricted,
-} from "./core/permissions.ts";
+} from "./core/permission-types.ts";
+export type { RESOURCE_X } from "./core/brands.ts";
 export {
   allOf,
-  allow,
   anyOf,
   definePolicy,
-  deny,
   holder,
-  normalizeApproval,
-  normalizeAssurance,
   requiresApproval,
-  role,
   separationConflicts,
   user,
+} from "./core/policy.ts";
+export { normalizeAssurance, role } from "./core/role-builder.ts";
+export { allow, deny } from "./core/grant-builders.ts";
+export { normalizeApproval } from "./core/approval-normalize.ts";
+export type {
+  AnyOfApprover,
+  Approver,
+  ApproverInput,
+  PermissionApprover,
+  UserApprover,
 } from "./core/policy.ts";
 export type {
   ActivationOption,
@@ -251,11 +262,6 @@ export type {
   ApprovalOption,
   ApprovalRequirement,
   ApprovalStage,
-  AnyOfApprover,
-  Approver,
-  ApproverInput,
-  PermissionApprover,
-  UserApprover,
   AssuranceRequirement,
   BreakGlassOptions,
   BreakGlassRequirements,
@@ -288,7 +294,7 @@ export type {
   SupportAccessOptions,
   SupportConsent,
   ValidateMode,
-} from "./core/policy.ts";
+} from "./core/policy-types.ts";
 export { breakGlass, supportAccess } from "./core/elevated.ts";
 export type { ActivateInput } from "./core/elevated.ts";
 export { parseDuration } from "./core/duration.ts";

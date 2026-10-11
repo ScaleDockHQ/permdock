@@ -3,10 +3,7 @@ export const SQL_IDENT: RegExp = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 
 /** A validated, double-quoted identifier; anything outside `SQL_IDENT` throws. */
 export function quoteSqlIdent(name: string, prefix = "PermDock"): string {
-  if (!SQL_IDENT.test(name)) {
-    throw new TypeError(`${prefix}: unsafe SQL identifier '${name}'`);
-  }
-  return `"${name}"`;
+  return `"${assertSqlIdent(name, prefix)}"`;
 }
 
 /** A schema-qualified name, each part validated by `quoteSqlIdent`. */
@@ -32,4 +29,29 @@ const PLAIN_IDENT = /^[a-z_][a-z0-9_]*$/u;
 /** An identifier left bare when it is already lower snake case, otherwise quoted by `escapeSqlIdent`. */
 export function sqlIdent(name: string): string {
   return PLAIN_IDENT.test(name) ? name : escapeSqlIdent(name);
+}
+
+/** The plain-identifier check behind `quoteSqlIdent`, returning the name unquoted. */
+function assertSqlIdent(name: string, prefix = "PermDock"): string {
+  if (!SQL_IDENT.test(name)) {
+    throw new TypeError(`${prefix}: unsafe SQL identifier '${name}'`);
+  }
+  return name;
+}
+
+/** `name` with `public.` added when it names no schema; generated functions run with `search_path = ''`. */
+export function qualifySqlTable(name: string): string {
+  return name.includes(".") ? name : `public.${name}`;
+}
+
+/** `qualifySqlTable`, then each part quoted by `quoteSqlIdent`. */
+export function quoteQualifiedTable(name: string, prefix = "PermDock"): string {
+  return quoteSqlTable(qualifySqlTable(name), prefix);
+}
+
+/** A `text[]` literal of `values`, each quoted by `quoteSqlLiteral`. */
+export function sqlTextArray(values: readonly string[]): string {
+  return values.length === 0
+    ? `'{}'::text[]`
+    : `array[${values.map(quoteSqlLiteral).join(", ")}]::text[]`;
 }

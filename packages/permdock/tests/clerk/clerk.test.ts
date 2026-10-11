@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { subjectFromClerk } from "../../src/clerk/index.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { plan } from "../../src/core/grantee.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 
 const permissions = definePermissions({
   billing: resource(z.object({ id: z.string() }), {

@@ -1,14 +1,12 @@
 import { describe } from "vitest";
 
-import { memorySettings } from "../../src/core/interfaces.ts";
+import { memorySettings } from "../../src/core/memory-sources.ts";
 import {
   generateApiKey,
   memoryCredentials,
 } from "../../src/server/credentials.ts";
-import {
-  testCredentialVerifier,
-  testSettingsSource,
-} from "../../src/testing/conformance.ts";
+import { testCredentialVerifier } from "../../src/testing/conformance/credentials.ts";
+import { testSettingsSource } from "../../src/testing/conformance/identity.ts";
 
 const NOW = Math.floor(Date.now() / 1000);
 

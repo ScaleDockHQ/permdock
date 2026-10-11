@@ -4,17 +4,20 @@ import { z } from "zod";
 import type { RelationSource } from "../../src/core/interfaces.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import { relation } from "../../src/core/grantee.ts";
 import {
   mergeHostedGrants,
   parsePolicyDocument,
 } from "../../src/core/hosted.ts";
 import { mayAccess } from "../../src/core/may-access.ts";
+import { memoryRelations } from "../../src/core/memory-relations.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
-import { memoryRelations } from "../../src/core/relations.ts";
-import { testRelationSource } from "../../src/testing/conformance.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
+import { testRelationSource } from "../../src/testing/conformance/relations.ts";
 
 const Folder = z.object({
   id: z.string(),

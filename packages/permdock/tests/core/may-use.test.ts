@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import type { Snapshot, SnapshotGrant } from "../../src/core/interfaces.ts";
 import type { PermDock } from "../../src/core/permdock.ts";
+import type { Snapshot, SnapshotGrant } from "../../src/core/snapshot-types.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import { mayAccess } from "../../src/core/may-access.ts";
 import { mayUse } from "../../src/core/may-use.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
 import { alice, policy as saas } from "../fixtures/saas.ts";
 

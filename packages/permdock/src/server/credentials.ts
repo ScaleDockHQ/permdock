@@ -1,16 +1,16 @@
-import type { Credential, CredentialPrincipal } from "../core/credential.ts";
+import type { AuthEvent } from "../core/event-types.ts";
 import type {
-  AuthEvent,
   CredentialVerifier,
   DecisionSink,
   SettingsSource,
   SubjectResolver,
 } from "../core/interfaces.ts";
-import type { PermissionTree } from "../core/permissions.ts";
-import type { Principal, Subject } from "../core/subject.ts";
+import type { PermissionTree } from "../core/permission-types.ts";
 
 import { compact } from "../core/compact.ts";
 import {
+  type Credential,
+  type CredentialPrincipal,
   credentialPolicyViolation,
   credentialSubject,
   credentialTenant,
@@ -18,7 +18,11 @@ import {
 } from "../core/credential.ts";
 import { bytesToBase64Url } from "../core/sha256.ts";
 import { credentialEvent } from "../core/sink.ts";
-import { anonymousSubject } from "../core/subject.ts";
+import {
+  type Principal,
+  type Subject,
+  anonymousSubject,
+} from "../core/subject.ts";
 import { isThenable } from "../core/thenable.ts";
 
 const PREFIX = "pdk_";

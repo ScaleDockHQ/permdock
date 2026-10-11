@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RelationSource } from "../../src/core/interfaces.ts";
 
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import {
   actor,
   anyone,
@@ -10,10 +11,12 @@ import {
   plan,
   relation,
 } from "../../src/core/grantee.ts";
+import { memoryRelations } from "../../src/core/memory-relations.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
-import { memoryRelations } from "../../src/core/relations.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import {
   permissions as graph,
   policy as graphPolicy,

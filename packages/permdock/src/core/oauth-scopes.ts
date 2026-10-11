@@ -1,8 +1,8 @@
-import type { Permission } from "./permissions.ts";
-import type { Policy } from "./policy.ts";
+import type { Permission } from "./permission-types.ts";
+import type { Policy } from "./policy-types.ts";
 import type { Delegation } from "./subject.ts";
 
-import { formerScopes } from "./permissions.ts";
+import { formerScopes } from "./permission-leaf.ts";
 
 type ScopedPolicy = Pick<Policy, "oauthScopes">;
 type ScopedPermission = Pick<Permission, "key" | "scope">;
@@ -71,4 +71,12 @@ export function challengeScope(
   permission: ScopedPermission,
 ): string {
   return coarseScopesFor(policy, permission)[0] ?? permission.scope;
+}
+
+/** Whether a token holding `granted` carries any of `scopes`. */
+export function hasScope(
+  granted: readonly string[] | undefined,
+  scopes: readonly string[],
+): boolean {
+  return scopes.some((scope) => granted?.includes(scope) === true);
 }

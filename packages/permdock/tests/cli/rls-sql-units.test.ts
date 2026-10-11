@@ -1,35 +1,43 @@
 import { describe, expect, it } from "vitest";
 
-import type { RlsSqlContext } from "../../src/cli/rls-sql.ts";
 import type { Condition } from "../../src/index.ts";
 
+import {
+  activeInstancesSql,
+  activeRowSql,
+  checkSuspension,
+} from "../../src/cli/sql/active.ts";
+import {
+  arrayColumnsOf,
+  columnTypesOf,
+  scopeTypeOf,
+  tenantTypeOf,
+} from "../../src/cli/sql/columns.ts";
 import {
   andConditions,
   claimPath,
   compileConditionSql,
   contextRefs,
   sqlFunctionNames,
-} from "../../src/cli/rls-conditions.ts";
+} from "../../src/cli/sql/conditions.ts";
 import {
-  activeInstancesSql,
-  activeRowSql,
-  arrayColumnsOf,
-  checkSuspension,
-  columnTypesOf,
+  type RlsSqlContext,
+  parseMembershipsFlag,
+} from "../../src/cli/sql/context.ts";
+import {
   graphHelper,
   graphSqlName,
   graphSqlText,
   linkHelper,
   memberIdsHelper,
-  parseMembershipsFlag,
   permittedIdsHelper,
-  qualifiedTable,
   scopeTable,
-  scopeTypeOf,
+} from "../../src/cli/sql/names.ts";
+import {
   subjectClaimJsonSql,
   subjectClaimSql,
-  tenantTypeOf,
-} from "../../src/cli/rls-sql.ts";
+} from "../../src/cli/sql/subject.ts";
+import { qualifySqlTable } from "../../src/core/sql.ts";
 
 const scopes = [
   { name: "org", key: "org_id" },
@@ -235,8 +243,8 @@ describe("types and names", () => {
   });
 
   it("qualifies tables and renders graph parts", () => {
-    expect(qualifiedTable("docs")).toBe("public.docs");
-    expect(qualifiedTable("app.docs")).toBe("app.docs");
+    expect(qualifySqlTable("docs")).toBe("public.docs");
+    expect(qualifySqlTable("app.docs")).toBe("app.docs");
     expect(
       graphSqlText(
         [

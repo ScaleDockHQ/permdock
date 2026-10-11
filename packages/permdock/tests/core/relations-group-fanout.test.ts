@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { memoryRelations } from "../../src/core/memory-relations.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { memoryRelations } from "../../src/core/relations.ts";
 import { permissions, policy, rows } from "../fixtures/graph.ts";
 
 const WIDTH = 3;

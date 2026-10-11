@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { Condition, Policy } from "../index.ts";
+import type { CommandResult } from "./shared/result.ts";
 import type {
   CatalogUsage,
   CliIo,
@@ -9,10 +9,10 @@ import type {
   ScanResult,
 } from "./types.ts";
 
-import { getResource } from "../index.ts";
+import { type Condition, type Policy, getResource } from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import { type CollectOutcome, runCollect } from "./collect.ts";
-import { isClientSource } from "./doctor-source.ts";
+import { isClientSource } from "./doctor/source.ts";
 import { usageResult } from "./errors.ts";
 import { listSourceFiles, rel } from "./files.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
@@ -55,7 +55,7 @@ export async function runUsage(input: {
   readonly collected?: () => Promise<CollectOutcome>;
   /** The configured policy already loaded, or `undefined` when it failed to load. */
   readonly policy?: () => Promise<Policy | undefined>;
-}): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+}): Promise<CommandResult> {
   const collected =
     input.collected === undefined
       ? await runCollect({

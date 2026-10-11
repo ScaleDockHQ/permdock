@@ -1,20 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { CustomRole, Principal } from "../../src/core/subject.ts";
-import type { LocalSnapshotData } from "../../src/react-native/local.ts";
 
 import { principal } from "../../src/conditions/refs.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { allow, deny } from "../../src/core/grant-builders.ts";
 import { authenticated, relation } from "../../src/core/grantee.ts";
-import { memoryRoleSource } from "../../src/core/interfaces.ts";
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
+import { memoryRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, deny, role } from "../../src/core/policy.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import {
+  type LocalSnapshotData,
   buildLocalSnapshot,
   localSnapshot,
 } from "../../src/react-native/local.ts";
@@ -23,7 +26,7 @@ import {
   connectSource,
   createNativeStore,
 } from "../../src/react-native/store.ts";
-import { testSnapshotSource } from "../../src/testing/conformance.ts";
+import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
 const permissions = definePermissions({
   job: resource({

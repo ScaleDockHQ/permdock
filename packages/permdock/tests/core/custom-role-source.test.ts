@@ -4,7 +4,7 @@ import type { CustomRole } from "../../src/index.ts";
 
 import { customRoleSource } from "../../src/core/custom-role-source.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { testRoleSource } from "../../src/testing/conformance.ts";
+import { testRoleSource } from "../../src/testing/conformance/identity.ts";
 import { customRoles, personas, policy } from "../fixtures/named-scopes.ts";
 
 const stored: readonly CustomRole[] = [

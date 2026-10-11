@@ -1,21 +1,17 @@
 import type { IncomingMessage } from "node:http";
 
 import type { NodeRequest } from "../node/http.ts";
+import type { ReplyLike } from "../server/http.ts";
 
 import {
   isServerResponse,
   sendResponse,
   toRequest as nodeToRequest,
 } from "../node/http.ts";
+import { writeReply } from "../server/http.ts";
 
 export type { NodeRequest as NestHttpRequest } from "../node/http.ts";
 export { sendResponse };
-
-type FastifyReplyLike = {
-  code(status: number): unknown;
-  header(key: string, value: string): unknown;
-  send(body: string): unknown;
-};
 
 function isReadable(value: unknown): value is IncomingMessage {
   // SAFETY: checked to be a non-null object first; read is only typeof-checked.
@@ -26,7 +22,7 @@ function isReadable(value: unknown): value is IncomingMessage {
   );
 }
 
-function isFastifyReply(value: unknown): value is FastifyReplyLike {
+function isFastifyReply(value: unknown): value is ReplyLike {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -61,11 +57,7 @@ export async function sendNestResponse(
     return;
   }
   if (isFastifyReply(res)) {
-    res.code(response.status);
-    for (const [key, value] of response.headers.entries()) {
-      res.header(key, value);
-    }
-    await res.send(await response.text());
+    await writeReply(res, response);
     return;
   }
   throw new TypeError(

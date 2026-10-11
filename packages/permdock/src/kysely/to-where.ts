@@ -15,10 +15,12 @@ import {
   compileWhere,
   escapeLike,
 } from "../conditions/compile.ts";
+import { loadPeer } from "../conditions/peer.ts";
 import { type RowCheck, rowCheckFrom } from "../conditions/row-check.ts";
 import {
   statementTemplate,
   subjectStatements,
+  templateOf,
 } from "../conditions/subject-settings.ts";
 import { compact } from "../core/compact.ts";
 import { assertSafeKey } from "../core/paths.ts";
@@ -106,30 +108,10 @@ function loadSql(injected?: KyselySql): KyselySql {
   if (injected !== undefined) {
     return injected;
   }
-  // SAFETY: optional chaining guards a missing process; node:module is Node's createRequire module.
-  const loader = (
-    globalThis as {
-      readonly process?: {
-        readonly getBuiltinModule?: (id: string) => unknown;
-      };
-    }
-  ).process?.getBuiltinModule?.("node:module") as
-    | {
-        readonly createRequire: (
-          from: string,
-        ) => (id: string) => { readonly sql: KyselySql };
-      }
-    | undefined;
-  try {
-    if (loader === undefined) {
-      throw new Error("no module loader");
-    }
-    return loader.createRequire(import.meta.url)("kysely").sql;
-  } catch {
-    throw new Error(
-      "PermDock: graph grants and withSubject in permdock/kysely need the kysely peer; pass `sql` on runtimes without require",
-    );
-  }
+  return loadPeer<{ readonly sql: KyselySql }>(
+    "kysely",
+    "PermDock: graph grants and withSubject in permdock/kysely need the kysely peer; pass `sql` on runtimes without require",
+  ).sql;
 }
 
 function graphExpr(
@@ -154,10 +136,7 @@ function graphExpr(
     );
     strings.push("");
   }
-  // SAFETY: a string array becomes a TemplateStringsArray once raw is defined on the next line.
-  const template = strings as unknown as TemplateStringsArray;
-  Object.defineProperty(template, "raw", { value: strings });
-  return sql(template, ...values);
+  return sql(templateOf(strings), ...values);
 }
 
 function render(

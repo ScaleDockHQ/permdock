@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { verifyTree } from "../../src/cli/rls-verify-tree.ts";
+import { verifyTree } from "../../src/cli/rls/verify-tree.ts";
 import { insertedRows } from "../fakes/sql.ts";
 import { policy } from "../fixtures/graph.ts";
 
@@ -60,6 +60,45 @@ describe("verifyTree", () => {
     expect(bound.length).toBeGreaterThanOrEqual(3);
     expect(result.checked).toBeGreaterThan(0);
     expect(db.selects.some((sql) => sql.endsWith('"id" = any($1)'))).toBe(true);
+  });
+
+  it("draws ids and timestamps from the entropy it is given", async () => {
+    const db = database("none", {
+      '"public"."folder"': [
+        {
+          name: "createdAt",
+          type: "timestamp with time zone",
+          refTable: null,
+          refColumn: null,
+        },
+      ],
+    });
+    let next = 0;
+    const bound = new Set<string>();
+    await verifyTree({
+      policy,
+      config: {},
+      query: db.query,
+      bind: async (subject) => {
+        bound.add(subject);
+      },
+      entropy: {
+        now: () => Date.UTC(2026, 0, 1),
+        randomUUID: () => {
+          next += 1;
+          return `00000000-0000-4000-8000-${String(next).padStart(12, "0")}`;
+        },
+      },
+    });
+    expect([...bound].toSorted()).toEqual([
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000003",
+    ]);
+    const folders = db.inserts.find(
+      (insert) => insert.table === '"public"."folder"',
+    );
+    expect(folders?.rows[0]?.["createdAt"]).toBe("2026-01-01T00:00:00.000Z");
   });
 
   it("counts agreement on visible rows and reports every row the database shows but decide denies", async () => {

@@ -10,15 +10,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { MigrateReport } from "../../src/cli/rls-migrate.ts";
+import type { MigrateReport } from "../../src/cli/rls/migrate.ts";
 
 import {
   legacyHelperCalls,
   retirePlan,
   retireSql,
-} from "../../src/cli/rls-retire.ts";
+} from "../../src/cli/rls/retire.ts";
 import { run } from "../../src/cli/run.ts";
-import { sqlStatements } from "../../src/cli/sql-statements.ts";
+import { sqlStatements } from "../../src/cli/sql/statements.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");

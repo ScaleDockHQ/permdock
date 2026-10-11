@@ -1,9 +1,12 @@
-import type { Snapshot } from "../core/interfaces.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { ClientStore, ClientStoreOptions } from "./store.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 import { compact } from "../core/compact.ts";
-import { createClientStore } from "./store.ts";
+import {
+  type ClientStore,
+  type ClientStoreOptions,
+  createClientStore,
+} from "./store.ts";
 
 /** The provider options every UI adapter forwards to its client store. */
 export type AdapterStoreOptions = Pick<

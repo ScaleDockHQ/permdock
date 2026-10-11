@@ -42,7 +42,7 @@ export function doctor(ctx: CliContext): Command {
       }
       // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
-        await import("../doctor.ts")
+        await import("../doctor/doctor.ts")
       ).runDoctor({
         cwd: ctx.cwd,
         config: ctx.config,

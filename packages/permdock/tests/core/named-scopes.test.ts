@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import type { PermDock } from "../../src/core/permdock.ts";
-import type { Permission } from "../../src/core/permissions.ts";
+import type { Permission } from "../../src/core/permission-types.ts";
 import type { Membership, Principal } from "../../src/core/subject.ts";
 
 import { pushedPolicy } from "../../src/cli/cloud.ts";
 import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { memoryRoleSource } from "../../src/core/interfaces.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
-import { definePermissions, resource } from "../../src/core/permissions.ts";
-import { allow, definePolicy, role } from "../../src/core/policy.ts";
+import { allow } from "../../src/core/grant-builders.ts";
+import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {

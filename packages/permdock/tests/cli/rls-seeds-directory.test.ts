@@ -9,11 +9,11 @@ import {
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
 import {
   migrationVersion,
   nextMigrationVersion,
-} from "../../src/cli/sql-files.ts";
+} from "../../src/cli/output-files.ts";
+import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });

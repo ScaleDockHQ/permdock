@@ -1,18 +1,20 @@
 import type { PermDockRevokedError } from "../core/errors.ts";
-import type { Permission } from "../core/permissions.ts";
-import type { Policy, PolicyVocabulary } from "../core/policy.ts";
+import type { Permission } from "../core/permission-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
-import type { ServerAdapterOptions } from "./bind.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";
-import type { ServerKernel, TenantScope } from "./create.ts";
-import type { StreamProtectOptions } from "./stream.ts";
+import type { ServerKernel } from "./server-types.ts";
 
 import { compact } from "../core/compact.ts";
-import { adapterKernel } from "./bind.ts";
-import { tenantScope } from "./create.ts";
+import {
+  type AnyGuard,
+  type ServerAdapterOptions,
+  adapterKernel,
+} from "./bind.ts";
+import { type TenantScope, tenantScope } from "./create.ts";
 import { requestFromContext } from "./http.ts";
-import { guardIterable } from "./stream.ts";
+import { type StreamProtectOptions, guardIterable } from "./stream.ts";
 
 export type RpcCode =
   | "UNAUTHORIZED"
@@ -78,6 +80,17 @@ export type RpcKernel<TOpts, V extends PolicyVocabulary> = {
   ) => Promise<Connection>;
   /** Answers the decision endpoint outside the router, with `opts` as the only context. */
   readonly evaluate: (request: Request, opts: TOpts) => Promise<Response>;
+  /** `protect` for one procedure call, with the `Request` and tenant scope it resolved. */
+  readonly guard: (
+    permission: Permission | null,
+    loadData: ((opts: TOpts) => unknown) | undefined,
+    opts: TOpts,
+    protectOptions?: StreamProtectOptions,
+  ) => Promise<{
+    readonly request: Request;
+    readonly scope: TenantScope;
+    readonly guard: AnyGuard<V>;
+  }>;
 };
 
 /**
@@ -149,6 +162,29 @@ export function bindRpcKernel<
     return opts === undefined ? { tenant: undefined } : scopeOf(opts);
   });
 
+  const guard = async (
+    permission: Permission | null,
+    loadData: ((opts: TOpts) => unknown) | undefined,
+    opts: TOpts,
+    protectOptions?: StreamProtectOptions,
+  ): Promise<{
+    readonly request: Request;
+    readonly scope: TenantScope;
+    readonly guard: AnyGuard<V>;
+  }> => {
+    const request = bind(opts);
+    const scope = await scopeOf(opts);
+    return {
+      request,
+      scope,
+      guard: await kernel.protect(
+        permission,
+        loadData === undefined ? undefined : (): unknown => loadData(opts),
+        protectOptions,
+      )(request, scope),
+    };
+  };
+
   const evaluate = (request: Request, opts: TOpts): Promise<Response> => {
     bind(opts);
     return request.method === "GET"
@@ -165,6 +201,7 @@ export function bindRpcKernel<
     scopeOf,
     connection,
     evaluate,
+    guard,
   };
 }
 

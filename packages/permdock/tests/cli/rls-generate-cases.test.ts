@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { runRlsGenerate } from "../../src/cli/rls-generate.ts";
+import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
 import { fromTable } from "../../src/supabase/index.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");

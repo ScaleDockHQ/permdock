@@ -194,7 +194,7 @@ export function rls(ctx: CliContext): Command {
     async run({ args: parsed }) {
       // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
-        await import("../rls.ts")
+        await import("../rls/rls.ts")
       ).runRls({
         cwd: ctx.cwd,
         config: ctx.config,

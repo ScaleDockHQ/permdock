@@ -1,12 +1,12 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { Decision } from "../core/decision.ts";
-import type { Snapshot } from "../core/interfaces.ts";
 import type {
   Permission,
   PermissionTree,
   ResourceNode,
-} from "../core/permissions.ts";
+} from "../core/permission-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type {
   ModelContext,
   PermissionGroup,
@@ -16,26 +16,26 @@ import type {
   WebMcpToolResult,
 } from "./types.ts";
 
-import { compact } from "../core/compact.ts";
-import { describe } from "../core/describe.ts";
+import { compact, isRecord } from "../core/compact.ts";
+import { resourceOfNode } from "../core/materialise-resource.ts";
+import { annotationsFor } from "../core/permission-leaf.ts";
 import {
-  annotationsFor,
   getRegistry,
   isRegistryTree,
-  resourceOfNode,
   listPermissions,
-} from "../core/permissions.ts";
+} from "../core/permission-registry.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { ignoreRejection, isThenable } from "../core/thenable.ts";
+import {
+  type ResourceRef,
+  approvalToolRefusal,
+  deniedToolRefusal,
+  toolErrorResult,
+} from "../core/tool-refusal.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
-import { wireDenials } from "../core/wire-denial.ts";
 
 const MISSING_CONTEXT =
   "permdock/webmcp: document.modelContext is absent; registerTools is a no-op.";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 const CURRENT = Symbol.for("permdock.current");
 
@@ -192,36 +192,14 @@ function bindTenant(
   return { ok: true, input: { ...input, [tenantKey]: tenant } };
 }
 
-function alternativesOf(
-  decision: Extract<Decision, { readonly outcome: "denied" }>,
-): string[] {
-  return decision.alternatives.map((leaf) => leaf.key);
-}
-
 function deniedResult(
   decision: Extract<Decision, { readonly outcome: "denied" }>,
   permission: Permission,
   data: unknown,
 ): WebMcpToolResult {
-  const described = describe(decision);
-  const alternatives = alternativesOf(decision);
-  const suffix =
-    alternatives.length === 0 ? "" : ` You may: ${alternatives.join(", ")}.`;
-  return {
-    isError: true,
-    content: [{ type: "text", text: `Denied: ${permission.key}.${suffix}` }],
-    structuredContent: compact({
-      outcome: "denied" as const,
-      permission: permission.key,
-      resource: resourceRef(
-        permission,
-        permission.kind === "collection" ? undefined : data,
-      ),
-      denials: wireDenials(decision.denials),
-      alternatives,
-      detail: described.detail,
-    }),
-  };
+  return toolErrorResult(
+    deniedToolRefusal(decision, permission, refOf(permission, data)),
+  );
 }
 
 function approvalResult(
@@ -229,18 +207,23 @@ function approvalResult(
   permission: Permission,
   data: unknown,
 ): WebMcpToolResult {
+  const refusal = approvalToolRefusal(
+    decision,
+    permission,
+    refOf(permission, data),
+  );
   return {
-    content: [{ type: "text", text: describe(decision).detail }],
-    structuredContent: {
-      outcome: "approval-required" as const,
-      permission: permission.key,
-      resource: resourceRef(
-        permission,
-        permission.kind === "collection" ? undefined : data,
-      ),
-      token: decision.token,
-    },
+    content: [{ type: "text", text: refusal.text }],
+    structuredContent: refusal.structured,
   };
+}
+
+/** A collection permission names the resource type only, never an id from the input. */
+function refOf(permission: Permission, data: unknown): ResourceRef {
+  return resourceRef(
+    permission,
+    permission.kind === "collection" ? undefined : data,
+  );
 }
 
 function validationResult(error: PermDockValidationError): WebMcpToolResult {

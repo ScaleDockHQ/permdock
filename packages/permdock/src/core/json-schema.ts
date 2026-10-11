@@ -1,5 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import { isRecord } from "./compact.ts";
+
 /**
  * The JSON Schema 2020-12 keywords the package's own schemas use;
  * `checkSchema` interprets exactly these. `$ref` resolves only `#/$defs/<name>`
@@ -31,10 +33,6 @@ type Issues = StandardSchemaV1.Issue[];
 
 function issue(issues: Issues, path: Path, message: string): void {
   issues.push({ message, path: [...path] });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**

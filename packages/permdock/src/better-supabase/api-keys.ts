@@ -4,11 +4,10 @@ import type {
   ApiKeys,
 } from "better-supabase/blocks/api-keys";
 
-import type { Credential } from "../core/credential.ts";
 import type { CredentialVerifier } from "../core/interfaces.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 
-import { parseCredential } from "../core/credential.ts";
+import { type Credential, parseCredential } from "../core/credential.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { parseSupabaseManifest } from "../supabase/manifest.ts";
 

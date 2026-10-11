@@ -1,15 +1,12 @@
 import type { DenialReason } from "./decision.ts";
-import type { Grant, PolicyDelegation } from "./policy.ts";
+import type { Permission, PermissionTree } from "./permission-types.ts";
+import type { Grant, PolicyDelegation } from "./policy-types.ts";
 import type { Delegation, GnapAccess, Subject } from "./subject.ts";
 
-import { flattenGrantee, matchGrantee } from "./grantee.ts";
-import {
-  type Permission,
-  type PermissionTree,
-  annotationsFor,
-  findPermission,
-  formerScopes,
-} from "./permissions.ts";
+import { matchGrantee } from "./grantee-match.ts";
+import { flattenGrantee } from "./grantee.ts";
+import { annotationsFor, formerScopes } from "./permission-leaf.ts";
+import { findPermission } from "./permission-registry.ts";
 import { isActive } from "./validity.ts";
 
 type DelegatedPermission = Pick<Permission, "scope" | "resource" | "action">;

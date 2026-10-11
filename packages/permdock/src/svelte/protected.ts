@@ -1,16 +1,19 @@
 import type { Snippet } from "svelte";
 
 import type { ClientStore } from "../client/store.ts";
-import type { ProtectedView } from "../client/views.ts";
 import type {
   ApprovalRequiredDecision,
   Decision,
   GrantedDecision,
 } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { Permission } from "../core/permissions.ts";
+import type { Permission } from "../core/permission-types.ts";
 
-import { protectedView, scopedTenant } from "../client/views.ts";
+import {
+  type ProtectedView,
+  protectedView,
+  scopedTenant,
+} from "../client/views.ts";
 
 export { slotContent } from "../client/views.ts";
 

@@ -326,8 +326,11 @@ export const library: OxlintConfig = defineConfig({
     "typescript/no-base-to-string": "off",
     // Sources and sinks pass promises through without an extra microtask (249 findings).
     "typescript/promise-function-async": "off",
-    // Core modules (policy, evaluate, instance) keep one concept per file (145 findings).
-    "eslint/max-lines": "off",
+    // One concept per file; past 1,000 code lines a module splits by concern.
+    "eslint/max-lines": [
+      "error",
+      { max: 1000, skipBlankLines: true, skipComments: true },
+    ],
     // Evaluation branches mirror the decision table; splitting hides the order (80 findings).
     "eslint/complexity": "off",
     // Adapter entry files wire many core modules (48 findings).

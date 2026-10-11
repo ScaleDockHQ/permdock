@@ -3,7 +3,7 @@ import { describe } from "vitest";
 import { toWhere as drizzleToWhere } from "../../src/drizzle/index.ts";
 import { toWhere as kyselyToWhere } from "../../src/kysely/index.ts";
 import { toWhere as prismaToWhere } from "../../src/prisma/index.ts";
-import { testWhereCompiler } from "../../src/testing/conformance.ts";
+import { testWhereCompiler } from "../../src/testing/conformance/where.ts";
 
 type Row = Readonly<Record<string, unknown>>;
 type Truth = boolean | null;

@@ -1,10 +1,7 @@
-import type { Permission, PermissionTree } from "../core/permissions.ts";
+import type { Permission, PermissionTree } from "../core/permission-types.ts";
 
-import {
-  formerKeys,
-  formerScopes,
-  listPermissions,
-} from "../core/permissions.ts";
+import { formerKeys, formerScopes } from "../core/permission-leaf.ts";
+import { listPermissions } from "../core/permission-registry.ts";
 
 /** The `resource` of an AuthZEN evaluation item, unvalidated. */
 export type EvaluationResource = {

@@ -1,7 +1,10 @@
+import type { BuildInstanceInput, BuiltInstance } from "./build-instance.ts";
 import type { PermDock } from "./permdock.ts";
-import type { PolicyVocabulary } from "./policy.ts";
+import type { PolicyVocabulary } from "./policy-types.ts";
+import type { Principal } from "./subject.ts";
 
 import { assertAppData } from "./app-data.ts";
+import { buildInstance } from "./build-instance.ts";
 import { wrapPermDock } from "./wrap.ts";
 
 /** What a `context` hook returns: plain JSON, merged into `subject.context`. */
@@ -22,7 +25,7 @@ function deliver(handler: (payload: unknown) => void, error: unknown): void {
   }
 }
 
-export function errorChannel(queued: readonly unknown[]): {
+function errorChannel(queued: readonly unknown[]): {
   readonly report: Report;
   readonly attach: <V extends PolicyVocabulary>(
     permdock: PermDock<V>,
@@ -55,6 +58,32 @@ export function errorChannel(queued: readonly unknown[]): {
         },
       })),
   };
+}
+
+/**
+ * `buildInstance` with an error channel: the instance's `on('error')`
+ * replays `errors` raised while resolving the request, and `report` adds
+ * more. Kept beside `errorChannel`, so adapters without one do not bundle it.
+ */
+export async function buildReportingInstance<
+  TUser,
+  TPrincipal extends Principal,
+  V extends PolicyVocabulary,
+>(
+  input: BuildInstanceInput<TUser, TPrincipal, V> & {
+    readonly errors: readonly unknown[];
+  },
+): Promise<BuiltInstance<V> & { readonly report: Report }> {
+  const channel = errorChannel(input.errors);
+  const { wrap } = input;
+  const built = await buildInstance({
+    ...input,
+    wrap: (created) => {
+      const attached = channel.attach(created);
+      return wrap === undefined ? attached : wrap(attached);
+    },
+  });
+  return { ...built, report: channel.report };
 }
 
 /**

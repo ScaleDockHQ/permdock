@@ -1,17 +1,15 @@
 import type { ApprovalStore } from "permdock/approvals";
 import type { SupabaseRpcClient } from "permdock/supabase";
 
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { supabaseApprovalStore } from "permdock/supabase";
 import { testApprovalStore } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { SupabasePostgres } from "./support/supabase-postgres.ts";
 
+import { generateSql } from "./support/rls.ts";
 import { startSupabasePostgres } from "./support/supabase-postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -30,25 +28,6 @@ function started(): SupabasePostgres {
     throw new Error("PermDock: supabase/postgres was not started");
   }
   return db;
-}
-
-async function generate(
-  fixture: string,
-  args: readonly string[],
-): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-jsonschema-"));
-  try {
-    const out = join(dir, "out.sql");
-    const result = await run([...args, "--out", out], {
-      cwd: join(HERE, "../fixtures", fixture),
-    });
-    if (result.code !== 0) {
-      throw new Error(`${args.join(" ")}: ${result.stdout}${result.stderr}`);
-    }
-    return readFileSync(out, "utf8");
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
 }
 
 /** supabase-js shaped, over `postgres`, which owns the store functions. */
@@ -91,13 +70,11 @@ const store: ApprovalStore = {
 };
 
 beforeAll(async () => {
-  const rls = await generate("approvals-jsonschema", [
-    "rls",
-    "generate",
-    "--target",
-    "sql",
-  ]);
-  const hook = await generate("hook-validate", [
+  const rls = await generateSql(
+    join(HERE, "../fixtures", "approvals-jsonschema"),
+    ["rls", "generate", "--target", "sql"],
+  );
+  const hook = await generateSql(join(HERE, "../fixtures", "hook-validate"), [
     "supabase",
     "hook",
     "generate",

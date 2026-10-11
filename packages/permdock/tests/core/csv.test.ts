@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DecisionEvent } from "../../src/core/interfaces.ts";
+import type { DecisionEvent } from "../../src/core/event-types.ts";
 
 import { CSV_COLUMNS, toCsvRow } from "../../src/core/csv.ts";
 

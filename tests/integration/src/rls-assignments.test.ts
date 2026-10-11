@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { jwtClaims, askAs } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -83,12 +84,7 @@ describe("rls.assignments", () => {
     await target.as(
       {
         role: "authenticated",
-        settings: {
-          "request.jwt.claims": JSON.stringify({
-            sub: user,
-            role: "authenticated",
-          }),
-        },
+        settings: jwtClaims(user),
       },
       async () => {
         await target.tester.query(sql);
@@ -230,48 +226,36 @@ describe("rls.assignments", () => {
       throw new Error("PermDock: Postgres was not started");
     }
     const target = db;
-    const askAs = async (user: string, sql: string): Promise<unknown> => {
-      let ok: unknown;
-      await target.as(
-        {
-          role: "authenticated",
-          settings: {
-            "request.jwt.claims": JSON.stringify({
-              sub: user,
-              role: "authenticated",
-            }),
-          },
-        },
-        async () => {
-          ok = (
-            await target.tester.query<{ ok: unknown }>(`select ${sql} as ok`)
-          ).rows[0]?.ok;
-        },
-      );
-      return ok;
-    };
     const any = (role: string, tenant: string, scope: string, id: string) =>
       `permdock.permdock_can_assign_any('${role}', ${tenant}, '${scope}', ${id})`;
     expect(
-      await askAs(ADMIN, any("member", "'acme'", "tenant", "'acme'")),
-    ).toBe(true);
-    expect(await askAs(ADMIN, any("admin", "'acme'", "tenant", "'acme'"))).toBe(
-      false,
-    );
-    expect(
-      await askAs(ADMIN, any("reader", "'acme'", "tenant", "'acme'")),
+      await askAs(target, ADMIN, any("member", "'acme'", "tenant", "'acme'")),
     ).toBe(true);
     expect(
-      await askAs(ADMIN, any("editor", "'acme'", "tenant", "'acme'")),
+      await askAs(target, ADMIN, any("admin", "'acme'", "tenant", "'acme'")),
     ).toBe(false);
     expect(
-      await askAs(MEMBER, any("member", "'acme'", "tenant", "'acme'")),
-    ).toBe(false);
-    expect(
-      await askAs(PLATFORM, any("platform-support", "null", "global", "null")),
+      await askAs(target, ADMIN, any("reader", "'acme'", "tenant", "'acme'")),
     ).toBe(true);
     expect(
-      await askAs(PLATFORM, any("platform-reader", "null", "global", "null")),
+      await askAs(target, ADMIN, any("editor", "'acme'", "tenant", "'acme'")),
+    ).toBe(false);
+    expect(
+      await askAs(target, MEMBER, any("member", "'acme'", "tenant", "'acme'")),
+    ).toBe(false);
+    expect(
+      await askAs(
+        target,
+        PLATFORM,
+        any("platform-support", "null", "global", "null"),
+      ),
+    ).toBe(true);
+    expect(
+      await askAs(
+        target,
+        PLATFORM,
+        any("platform-reader", "null", "global", "null"),
+      ),
     ).toBe(true);
     const ask = async (sql: string): Promise<unknown> =>
       (await target.admin.query<{ ok: unknown }>(`select ${sql} as ok`)).rows[0]

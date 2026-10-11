@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { RelatedCondition } from "../../src/conditions/ast.ts";
-import type {
-  GraphSql,
-  GraphSqlOptions,
-} from "../../src/conditions/graph-sql.ts";
-import type { ResourceNode } from "../../src/core/permissions.ts";
+import type { ResourceNode } from "../../src/core/permission-types.ts";
 
 import {
+  type GraphSql,
+  type GraphSqlOptions,
   holderIdsSql,
   quoteSqlName,
   relatedSql,
@@ -16,11 +14,9 @@ import {
   relationArmSql,
   renderGraphSql,
 } from "../../src/conditions/graph-sql.ts";
-import {
-  definePermissions,
-  getRegistry,
-  resource,
-} from "../../src/core/permissions.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { getRegistry } from "../../src/core/permission-registry.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import { permissions } from "../fixtures/graph.ts";
 
 const resources: ReadonlyMap<string, ResourceNode> = getRegistry(permissions);

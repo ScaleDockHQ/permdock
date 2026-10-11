@@ -1,6 +1,6 @@
-import type { DecisionEvent } from "../core/interfaces.ts";
+import type { DecisionEvent } from "../core/event-types.ts";
 import type { PermDock } from "../core/permdock.ts";
-import type { PolicyVocabulary } from "../core/policy.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
 
 export const GENAI_SEMCONV_PIN = "1.37.0";
 export const GEN_AI_TOOL_NAME = "gen_ai.tool.name";

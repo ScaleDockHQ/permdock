@@ -1,5 +1,5 @@
 import type { WhereResult } from "../core/permdock.ts";
-import type { ResourceNode } from "../core/permissions.ts";
+import type { ResourceNode } from "../core/permission-types.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 
 import { compact, isReadonlyArray, sole } from "../core/compact.ts";

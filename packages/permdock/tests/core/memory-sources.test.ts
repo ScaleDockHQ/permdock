@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import type { Snapshot } from "../../src/core/interfaces.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { Membership } from "../../src/core/subject.ts";
 
 import {
   memoryMembershipSource,
   memoryRoleSource,
   memorySnapshotSource,
-} from "../../src/core/interfaces.ts";
+} from "../../src/core/memory-sources.ts";
 import {
   testMembershipSource,
   testRoleSource,
-  testSnapshotSource,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/identity.ts";
+import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
 const snapshot: Snapshot = {
   v: 1,

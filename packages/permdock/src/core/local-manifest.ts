@@ -1,19 +1,19 @@
+import type { Grant, Policy } from "./policy-types.ts";
 import type {
   LocalCustomRoleTable,
   LocalSnapshotManifest,
   SnapshotGrant,
-} from "./interfaces.ts";
-import type { Grant, Policy } from "./policy.ts";
+} from "./snapshot-types.ts";
 import type { CustomRoleGrant } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { ceilingGrants, resolveCustomRole } from "./custom-roles.ts";
 import { freezeDeep } from "./freeze.ts";
 import { flattenGrantee } from "./grantee.ts";
-import { snapshotScopes } from "./instance.ts";
+import { snapshotScopes } from "./instance-snapshot.ts";
 import { LOCAL_CUSTOM_ROLE } from "./local-role.ts";
 import { rankRoles, usesAssigns } from "./ownership.ts";
-import { findPermission } from "./permissions.ts";
+import { findPermission } from "./permission-registry.ts";
 import { declaredRoleNames, grantList, levelNames } from "./policy.ts";
 import { scopeList } from "./scopes.ts";
 import { buildSnapshot, snapshotGrant } from "./snapshot.ts";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { CompiledPolicy } from "../../src/cli/rls-compile.ts";
+import type { CompiledPolicy } from "../../src/cli/sql/compile.ts";
 
 import {
   defaultOut,
@@ -10,7 +10,7 @@ import {
   emitSql,
   migrationOut,
   migrationSql,
-} from "../../src/cli/rls-emit.ts";
+} from "../../src/cli/rls/emit.ts";
 
 function policy(over: Partial<CompiledPolicy> = {}): CompiledPolicy {
   return {

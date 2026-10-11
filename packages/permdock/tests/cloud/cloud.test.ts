@@ -6,7 +6,8 @@ import type {
   ApprovalRequest,
   ApprovalStatus,
 } from "../../src/approvals/types.ts";
-import type { SinkEvent, Snapshot } from "../../src/core/interfaces.ts";
+import type { SinkEvent } from "../../src/core/event-types.ts";
+import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { isApprovalError } from "../../src/approvals/errors.ts";
@@ -14,12 +15,12 @@ import { memoryApprovalStore } from "../../src/approvals/store.ts";
 import { cloud, cloudEndpoints } from "../../src/cloud/create.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
+import { testApprovalStore } from "../../src/testing/conformance/approvals.ts";
 import {
-  testApprovalStore,
   testDecisionSink,
   testPolicySource,
   testSnapshotSource,
-} from "../../src/testing/conformance.ts";
+} from "../../src/testing/conformance/runtime-stores.ts";
 
 const CLOUD_URL = "https://cloud.permdock.test";
 const KEY = "env-key";

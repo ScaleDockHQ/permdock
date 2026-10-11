@@ -1,11 +1,8 @@
 import type { Permission, Principal } from "permdock";
 import type { RlsParityFixture, RlsQueryFn } from "permdock/testing";
 
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { rlsParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -19,6 +16,7 @@ import {
   policy,
 } from "../fixtures/named-scopes/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { generateRls } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/named-scopes");
@@ -125,21 +123,6 @@ const fixtures: readonly RlsParityFixture[] = Object.entries(subjects).flatMap(
     ),
 );
 
-async function generate(cwd: string): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-scopes-"));
-  const out = join(dir, "rls.sql");
-  const result = await run(
-    ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
-    { cwd },
-  );
-  if (result.code !== 0) {
-    throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
-  }
-  const sql = readFileSync(out, "utf8");
-  rmSync(dir, { recursive: true, force: true });
-  return sql;
-}
-
 describe.each([
   { mode: "database", cwd: FIXTURE },
   { mode: "jwt", cwd: join(FIXTURE, "jwt") },
@@ -148,7 +131,7 @@ describe.each([
   let generated = "";
 
   beforeAll(async () => {
-    generated = await generate(cwd);
+    generated = await generateRls(cwd, ["--dialect", "guc"]);
     db = await startPostgres([SETUP, generated]);
   }, 120_000);
 

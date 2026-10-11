@@ -22,6 +22,7 @@ import {
   users,
 } from "../fixtures/restricted-stops/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { jwtClaims, readableIds } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/restricted-stops");
@@ -34,12 +35,7 @@ async function asUser(
   return db.as(
     {
       role: "authenticated",
-      settings: {
-        "request.jwt.claims": JSON.stringify({
-          sub: user,
-          role: "authenticated",
-        }),
-      },
+      settings: jwtClaims(user),
     },
     async () =>
       (await db.tester.query<{ id: string }>(sql)).rows
@@ -55,11 +51,7 @@ async function inProcess(
 ): Promise<readonly string[]> {
   const permission = treePermissions[tree][action];
   const permdock = await createPermDock(policy, user, { relations });
-  await permdock.loadRelations(permission, rows);
-  return rows
-    .filter((row) => permdock.can(permission, row))
-    .map((row) => row.id)
-    .toSorted();
+  return readableIds(permdock, permission, rows);
 }
 
 describe("restricted stops in RLS: the parent walk, the drive link and rows below a restricted one", () => {
