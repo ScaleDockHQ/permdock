@@ -89,6 +89,7 @@ import {
   subjectClaimJsonSql,
   USER_ID_HELPER,
 } from "./rls-sql.ts";
+import { auditSql, generatedTables, triggersSql } from "./rls-triggers.ts";
 import {
   dataMigrationFile,
   driftOf,
@@ -752,7 +753,7 @@ export async function runRlsGenerate(input: {
     shimsConfig === undefined || rls?.migrate === undefined
       ? undefined
       : shimsSql(ctx, rls.migrate, shimsConfig, renamed, grants);
-  const preamble = [
+  const core = [
     rbac?.head,
     helpersSql(ctx, compiled.rolePermissions, {
       levelReach: compiled.levelReach,
@@ -777,6 +778,19 @@ export async function runRlsGenerate(input: {
     rbac?.tail,
   ]
     .filter((part): part is string => part !== undefined)
+    .join("\n");
+  const created = generatedTables(core, schema);
+  const seedsSplit = splitsPart(input.split, "seeds");
+  let ownTriggers: string;
+  let audit: string;
+  try {
+    ownTriggers = triggersSql(rls?.triggers, schema, created);
+    audit = auditSql(rls?.audit, schema, created);
+  } catch (cause) {
+    return { code: 2, output: describeError(cause), text: "" };
+  }
+  const preamble = [core, ownTriggers, seedsSplit ? "" : audit]
+    .filter((part) => part !== "")
     .join("\n");
   if (force) {
     for (const entry of graph.values()) {
@@ -912,7 +926,7 @@ export async function runRlsGenerate(input: {
         emitSql([], preamble, false, helpersOnly ? views : []),
         ctx.dialect,
       ),
-      seeds: `${SEEDS_MARKER} schema=${schema}\n${seedSql(ctx, compiled.rolePermissions)}\n`,
+      seeds: `${SEEDS_MARKER} schema=${schema}\n${seedSql(ctx, compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,
       indexes: `${INDEXES_MARKER}\n${indexesSql(indexes)}\n`,
     }),
     scopes,
