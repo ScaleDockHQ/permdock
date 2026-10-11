@@ -18,7 +18,12 @@ export function globalRolesSql(ctx: RlsSqlContext): string {
   if (ctx.roles === undefined) {
     return "";
   }
-  const source = globalRoleSource(ctx.roles, "public", "t");
+  const source = globalRoleSource(
+    ctx.roles,
+    "public",
+    "t",
+    ctx.customRoles?.table,
+  );
   const table = quoteTable(qualifiedName(ctx.roles.table));
   const user = quoteIdent(source.user);
   const fn = qualified(ctx, GLOBAL_ROLES.replace);
@@ -43,9 +48,13 @@ export function globalRolesSql(ctx: RlsSqlContext): string {
     const id = quoteIdent(through.id);
     const key = quoteIdent(through.key);
     const ref = quoteIdent(through.ref);
+    const global =
+      source.tenant === undefined
+        ? ""
+        : ` and k.${quoteIdent(source.tenant)} is null`;
     body = `  select string_agg(w.r, ', ' order by w.r) into v_unknown
   from (${wanted}) w(r)
-  where not exists (select 1 from ${keys} k where k.${key}::text = w.r);
+  where not exists (select 1 from ${keys} k where k.${key}::text = w.r${global});
   if v_unknown is not null then
     raise exception using
       errcode = '22023',
@@ -57,12 +66,12 @@ export function globalRolesSql(ctx: RlsSqlContext): string {
     and not exists (
       select 1 from ${keys} k
       where k.${id} = t.${ref}
-        and k.${key}::text = any(coalesce(p_roles, '{}'::text[]))
+        and k.${key}::text = any(coalesce(p_roles, '{}'::text[]))${global}
     );
   insert into ${table} (${user}, ${ref})
   select p_user, k.${id}
   from ${keys} k
-  where k.${key}::text in (${wanted})
+  where k.${key}::text in (${wanted})${global}
     and not exists (
       select 1 from ${table} t where t.${user} = p_user and t.${ref} = k.${id}
     );`;
