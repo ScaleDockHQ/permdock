@@ -22,15 +22,21 @@ export async function GET(
   context: MarkdownRouteContext,
 ): Promise<Response> {
   const { slug } = await context.params;
-  const markdown = await pageMarkdown(slug?.slice(0, -1));
+  const slugs = slug?.slice(0, -1);
+  const markdown = await pageMarkdown(
+    slugs?.at(-1) === "index" ? slugs.slice(0, -1) : slugs,
+  );
   if (markdown === null) notFound();
 
-  return new Response(markdown, { headers: markdownHeaders });
+  // Next.js drops `Vary` on page responses, so only this negotiated twin can
+  // tell a shared cache that the same URL also has an HTML representation.
+  return new Response(markdown, {
+    headers: { ...markdownHeaders, Vary: "Accept" },
+  });
 }
 
 export function generateStaticParams() {
   return source.getPages().map((page) => ({
-    lang: page.locale,
     slug: getPageMarkdownUrl(page).segments,
   }));
 }
