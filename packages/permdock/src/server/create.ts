@@ -1,7 +1,7 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { TenantOption, TenantScope } from "../core/adapter-context.ts";
 import type { Decision } from "../core/decision.ts";
-import type { ApprovalHint } from "../core/errors.ts";
+import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Snapshot } from "../core/interfaces.ts";
 import type {
@@ -20,6 +20,8 @@ import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
 export { tenantScope };
 export type { TenantOption, TenantScope };
 
+import type { PermDockWrap } from "../core/wrap.ts";
+
 import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
@@ -27,6 +29,12 @@ import { challengeScope } from "../core/oauth-scopes.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { listPermissions } from "../core/permissions.ts";
 import { problemDetails } from "../core/problem-details.ts";
+import {
+  errorChannel,
+  requestContext,
+  type Report,
+  type RequestContext,
+} from "../core/request-context.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import {
   applyApprovalResume,
@@ -34,6 +42,7 @@ import {
 } from "./evaluations.ts";
 import { hasCredentials } from "./http.ts";
 import {
+  ANONYMOUS,
   decisionResponse,
   notFoundProblem,
   problemFromDecision,
@@ -64,7 +73,41 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
   /** Added as `approval` to every `approval-required` problem. */
   readonly approval?: ApprovalHint;
   readonly operations?: OperationScopes;
+  /**
+   * Replaces the response of a refused guard. A status below 300, or a
+   * throw, keeps the default response and reports through `on('error')`.
+   */
+  readonly onDenied?: OnDenied;
+  /**
+   * Request values merged into `subject.context`, under `policy.context`.
+   * Only values the server derived belong here, never client input. A throw
+   * or a value that is not a JSON object adds nothing and reports through
+   * `on('error')`.
+   */
+  readonly context?: (
+    request: Request,
+  ) => RequestContext | undefined | Promise<RequestContext | undefined>;
+  /** Wraps each instance the kernel builds; build it with `wrapPermDock` to cover derived instances. */
+  readonly wrap?: PermDockWrap;
 };
+
+export type { RequestContext };
+
+/** What `onDenied` receives: the refusal and the default Problem Details for it. */
+export type OnDeniedEvent = {
+  readonly decision: Exclude<Decision, { readonly outcome: "granted" }>;
+  readonly problem: ProblemDetails;
+  readonly request: Request | undefined;
+};
+
+/** Returns Problem Details with extra members, a `Response`, or nothing for the default. */
+export type OnDenied = (
+  event: OnDeniedEvent,
+) =>
+  | ProblemDetails
+  | Response
+  | undefined
+  | Promise<ProblemDetails | Response | undefined>;
 
 export type OperationScopes = {
   oauthScopesForRequest(
@@ -80,7 +123,12 @@ export type Guard<T = unknown, V extends PolicyVocabulary = PolicyVocabulary> =
       readonly decision: Extract<Decision, { readonly outcome: "granted" }>;
       readonly data: T;
     }
-  | { readonly ok: false; readonly response: Response };
+  | {
+      readonly ok: false;
+      readonly response: Response;
+      /** The refusal behind `response`; absent for a missing row or a bad signature. */
+      readonly decision?: Exclude<Decision, { readonly outcome: "granted" }>;
+    };
 
 /**
  * What `protect(null, …)` resolves to: the route declares OAuth scopes and no
@@ -96,7 +144,12 @@ export type ScopeGuard<
       readonly decision?: undefined;
       readonly data: T;
     }
-  | { readonly ok: false; readonly response: Response };
+  | {
+      readonly ok: false;
+      readonly response: Response;
+      /** The refusal behind `response`; absent for a missing row or a bad signature. */
+      readonly decision?: Exclude<Decision, { readonly outcome: "granted" }>;
+    };
 
 type Loader<T> = (
   request: Request,
@@ -152,13 +205,17 @@ export type ProtectOptions = {
    * for the request. Required, here or there, for `protect(null)`.
    */
   readonly oauthScopes?: readonly string[];
+  /** The field being read or written; only grants whose `fields` cover it match. */
+  readonly field?: string;
+  /** Adds the evaluation `trace` to the guard's decision. */
+  readonly explain?: boolean;
 };
 
 export type ServerKernelOptions<
   TUser,
   V extends PolicyVocabulary = PolicyVocabulary,
-> = ServerPermDockOptions<TUser> & {
-  /** Wraps each instance the kernel builds, as `withOtel` does. */
+> = Omit<ServerPermDockOptions<TUser>, "wrap"> & {
+  /** Wraps each instance the kernel builds: `otel`, then the adapter's `wrap`. */
   readonly wrap?: (permdock: PermDock<V>) => PermDock<V>;
   /** The `adapter` label on decision events, revocations and approvals. Defaults to `server`. */
   readonly adapter?: string;
@@ -238,7 +295,7 @@ export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
 
 async function resolveActor(
   request: Request,
-  options: ServerPermDockOptions,
+  options: Pick<ServerPermDockOptions, "actor" | "webBotAuth">,
 ): Promise<Actor | undefined> {
   const verified =
     options.webBotAuth === undefined
@@ -250,11 +307,15 @@ async function resolveActor(
 type Built<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly permdock: PermDock<V>;
   readonly remote: PdpPermDock | undefined;
+  readonly report: Report;
 };
 
 type Resolved<TUser> = {
   readonly user: TUser | Subject | null;
   readonly actor: Actor | undefined;
+  readonly context: RequestContext | undefined;
+  /** Errors from resolving the request, replayed to every `on('error')` handler. */
+  readonly errors: readonly unknown[];
 };
 
 const NO_TENANT = "\u0000";
@@ -280,6 +341,27 @@ const NOT_DELEGATED: Extract<Decision, { readonly outcome: "denied" }> = {
   denials: [{ role: null, reason: "not-delegated" }],
   alternatives: [],
 };
+
+const LOAD_FAILED: Extract<Decision, { readonly outcome: "denied" }> = {
+  outcome: "denied",
+  denials: [{ role: null, reason: "validation" }],
+  alternatives: [],
+};
+
+/** The `403` for a loader that threw: the check fails closed, as on MCP. */
+function loadFailedProblem(permission: Permission | null): Response {
+  const key = permission?.key ?? "the route";
+  return decisionResponse(
+    problemDetails(
+      compact({
+        decision: LOAD_FAILED,
+        detail: `${key} failed closed: the row could not be loaded`,
+        permission: permission?.key,
+      }),
+    ),
+    LOAD_FAILED,
+  );
+}
 
 /** The `403` `insufficient_scope` for a token that holds none of a route's OAuth scopes. */
 function scopeProblem(
@@ -316,7 +398,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: ServerPermDockOptions<TUser>,
 ): ServerPermDock<V> {
-  return createServerKernel(policy, options);
+  return createServerKernel<TUser, TPrincipal, V>(policy, options);
 }
 
 function problemFor(
@@ -362,10 +444,12 @@ export function createServerKernel<
 
   const freshSubject = async (request: Request): Promise<Resolved<TUser>> => {
     const actor = await resolveActor(request, options);
+    const errors: unknown[] = [];
+    const context = await requestContext(options.context, request, errors);
     try {
-      return { user: await options.subject(request), actor };
+      return { user: await options.subject(request), actor, context, errors };
     } catch {
-      return { user: null, actor };
+      return { user: null, actor, context, errors };
     }
   };
 
@@ -379,24 +463,74 @@ export function createServerKernel<
     return resolved;
   };
 
+  const reporters = new WeakMap<PermDock<V>, Report>();
+
   const instanceFor = async (
-    { user, actor }: Resolved<TUser>,
+    { user, actor, context, errors }: Resolved<TUser>,
     tenant: string | undefined,
   ): Promise<Built<V>> => {
     const coreOptions = compact({
       tenant,
       ...instanceOptions(options),
       actor,
+      context,
     });
-    const permdock = await createCorePermDock(policy, user, coreOptions);
+    const channel = errorChannel(errors);
+    const permdock = channel.attach(
+      await createCorePermDock(policy, user, coreOptions),
+    );
     const remote =
       options.pdp === undefined
         ? undefined
         : await options.pdp(policy, user, coreOptions);
-    return {
-      permdock: options.wrap === undefined ? permdock : options.wrap(permdock),
-      remote,
-    };
+    const wrapped =
+      options.wrap === undefined ? permdock : options.wrap(permdock);
+    reporters.set(wrapped, channel.report);
+    return { permdock: wrapped, remote, report: channel.report };
+  };
+
+  const refused = async (
+    fallback: Response,
+    decision: Exclude<Decision, { readonly outcome: "granted" }>,
+    request: Request | undefined,
+    report: Report,
+  ): Promise<{
+    readonly ok: false;
+    readonly response: Response;
+    readonly decision: Exclude<Decision, { readonly outcome: "granted" }>;
+  }> => {
+    const hook = options.onDenied;
+    if (hook === undefined) {
+      return { ok: false, response: fallback, decision };
+    }
+    try {
+      // SAFETY: every refusal response the kernel builds carries a Problem Details body.
+      const problem = (await fallback.clone().json()) as ProblemDetails;
+      const result = await hook({ decision, problem, request });
+      if (result === undefined) {
+        return { ok: false, response: fallback, decision };
+      }
+      const status = result.status;
+      if (typeof status !== "number" || status < 300) {
+        throw new TypeError(
+          `PermDock: onDenied returned status ${String(status)}; a refusal keeps a status of 300 or more`,
+        );
+      }
+      return {
+        ok: false,
+        response:
+          result instanceof Response
+            ? result
+            : new Response(JSON.stringify(result), {
+                status,
+                headers: fallback.headers,
+              }),
+        decision,
+      };
+    } catch (error) {
+      report(error);
+      return { ok: false, response: fallback, decision };
+    }
   };
 
   const build = async (
@@ -480,8 +614,9 @@ export function createServerKernel<
     return async (request, scope) => {
       let instance: PermDock<V>;
       let remote: PdpPermDock | undefined;
+      let report: Report;
       try {
-        ({ permdock: instance, remote } = await build(request, scope));
+        ({ permdock: instance, remote, report } = await build(request, scope));
       } catch (error) {
         if (error instanceof InvalidSignatureError) {
           return { ok: false, response: error.response };
@@ -491,6 +626,7 @@ export function createServerKernel<
       return guardOn<T>(
         instance,
         remote,
+        report,
         request,
         permission,
         loadData === undefined
@@ -504,6 +640,7 @@ export function createServerKernel<
   const guardOn = async <T>(
     instance: PermDock<V>,
     remote: PdpPermDock | undefined,
+    report: Report,
     request: Request | undefined,
     permission: Permission | null,
     load: (() => ReturnType<Loader<T>>) | undefined,
@@ -528,7 +665,12 @@ export function createServerKernel<
         );
       }
       if (instance.subject.principal === null) {
-        return { ok: false, response: unauthenticatedProblem(credentials) };
+        return refused(
+          unauthenticatedProblem(credentials),
+          ANONYMOUS,
+          request,
+          report,
+        );
       }
     }
     const held = instance.subject.delegation?.scopes;
@@ -537,19 +679,27 @@ export function createServerKernel<
       held !== undefined &&
       !declared.some((granted) => held.includes(granted))
     ) {
-      return {
-        ok: false,
-        response: scopeProblem(
-          permission,
-          instance.subject,
-          credentials,
-          declared[0],
-        ),
-      };
+      return refused(
+        scopeProblem(permission, instance.subject, credentials, declared[0]),
+        NOT_DELEGATED,
+        request,
+        report,
+      );
     }
     let data: T | undefined;
     if (load !== undefined) {
-      const loaded = await load();
+      let loaded: T | null | undefined;
+      try {
+        loaded = await load();
+      } catch (error) {
+        report(error);
+        return refused(
+          loadFailedProblem(permission),
+          LOAD_FAILED,
+          request,
+          report,
+        );
+      }
       if (loaded === null || loaded === undefined) {
         return { ok: false, response: notFoundProblem() };
       }
@@ -562,6 +712,8 @@ export function createServerKernel<
     const decideOptions = compact<DecideOptions>({
       source: "adapter",
       adapter,
+      field: protectOptions.field,
+      explain: protectOptions.explain,
       ...(protectOptions.trusted === true
         ? { trusted: true }
         : { trusted: false, boundary: "http-body" as const }),
@@ -601,9 +753,8 @@ export function createServerKernel<
         data: data as T,
       };
     }
-    return {
-      ok: false,
-      response: problemFromDecision(
+    return refused(
+      problemFromDecision(
         decision,
         permission,
         instance.subject,
@@ -617,7 +768,10 @@ export function createServerKernel<
               : policy.resources.get(permission.resource)?.disclosure,
         }),
       ),
-    };
+      decision,
+      request,
+      report,
+    );
   };
 
   // SAFETY: Protect's overloads only narrow the guard by whether permission is null, which protectRoute branches on.
@@ -664,7 +818,15 @@ export function createServerKernel<
     getSnapshot,
     protect,
     protectOn: (instance, permission, load, protectOptions = {}, request) =>
-      guardOn(instance, undefined, request, permission, load, protectOptions),
+      guardOn(
+        instance,
+        undefined,
+        reporters.get(instance) ?? ((): void => undefined),
+        request,
+        permission,
+        load,
+        protectOptions,
+      ),
     connection,
     shareSubject: (from, to) => {
       const resolved = subjects.get(from);

@@ -162,7 +162,29 @@ describe("permdock/next", () => {
     await expect(
       anonymous.requireAccess({ permission: permissions.post.read }),
     ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;401" });
-    expect(seen).toEqual([]);
+    expect(seen).toEqual(["factory"]);
+  });
+
+  it("runs the call's onDenied before the factory's, and lets it replace the interrupt", async () => {
+    const seen: string[] = [];
+    const member = createPermDock(policy, {
+      subject: () => memberUser,
+      onDenied: () => {
+        seen.push("factory");
+      },
+    });
+    const replaced = new Error("redirect");
+    await expect(
+      member.requireAccess({
+        permission: permissions.post.update,
+        data: otherPost,
+        onDenied: () => {
+          seen.push("call");
+          throw replaced;
+        },
+      }),
+    ).rejects.toBe(replaced);
+    expect(seen).toEqual(["call"]);
   });
 
   it("throws the approval error from requireAccess instead of forbidden", async () => {

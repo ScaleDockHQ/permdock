@@ -109,7 +109,10 @@ function assemblePrincipal(
   } catch {
     principal = null;
   }
-  const contextResult = resolveContext(policy, user, context, auth);
+  const contextResult = withRequestContext(
+    options.context,
+    resolveContext(policy, user, context, auth),
+  );
   let memberships: readonly Membership[] | Promise<readonly Membership[]> =
     principal?.memberships ?? [];
   let live = false;
@@ -467,6 +470,23 @@ function resolveContext(
     auth.push({ reason: "source-threw", source: "context" });
     return {};
   }
+}
+
+function withRequestContext(
+  request: Readonly<Record<string, unknown>> | undefined,
+  resolved:
+    | Readonly<Record<string, unknown>>
+    | Promise<Readonly<Record<string, unknown>>>,
+):
+  | Readonly<Record<string, unknown>>
+  | Promise<Readonly<Record<string, unknown>>> {
+  if (request === undefined) {
+    return resolved;
+  }
+  const base = sanitizeContext(request);
+  return isThenable(resolved)
+    ? resolved.then((value) => ({ ...base, ...value }))
+    : { ...base, ...resolved };
 }
 
 export function resolveSubject(

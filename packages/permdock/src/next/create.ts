@@ -25,6 +25,7 @@ import { NO_GRANT } from "../core/decision.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
+import { wrapPermDock } from "../core/wrap.ts";
 import { createEvaluationsHandler } from "../server/evaluations.ts";
 import { renderClientProvider } from "./provider.tsx";
 
@@ -100,37 +101,28 @@ function wrapInstance<V extends PolicyVocabulary>(
   if (onDenied === undefined) {
     return permdock;
   }
-  const wrap = (next: PermDock<V>): PermDock<V> => wrapInstance(next, onDenied);
-  // SAFETY: assert's instance and collection overloads share one implementation that takes either kind.
-  const assert = ((
-    permission: Permission,
-    data?: unknown,
-    options?: DecideOptions,
-  ) =>
-    (
-      permdock.assert as (
-        next: Permission,
-        row?: unknown,
-        nextOptions?: DecideOptions,
-      ) => ReturnType<PermDock<V>["assert"]>
-    )(
-      permission,
-      data,
-      compact({
-        ...options,
-        onDenied: options?.onDenied ?? onDenied,
-      }),
-    )) as PermDock<V>["assert"];
-  return Object.freeze({
-    ...permdock,
-    assert,
-    tenant: (id: string) => wrap(permdock.tenant(id)),
-    team: (id: string) => wrap(permdock.team(id)),
-    derive: (options: Parameters<PermDock<V>["derive"]>[0]) => {
-      const derived = permdock.derive(options);
-      return derived instanceof Promise ? derived.then(wrap) : wrap(derived);
-    },
-  });
+  return wrapPermDock(permdock, (inner) => ({
+    // SAFETY: assert's instance and collection overloads share one implementation that takes either kind.
+    assert: ((
+      permission: Permission,
+      data?: unknown,
+      options?: DecideOptions,
+    ) =>
+      (
+        inner.assert as (
+          next: Permission,
+          row?: unknown,
+          nextOptions?: DecideOptions,
+        ) => ReturnType<PermDock<V>["assert"]>
+      )(
+        permission,
+        data,
+        compact({
+          ...options,
+          onDenied: options?.onDenied ?? onDenied,
+        }),
+      )) as PermDock<V>["assert"],
+  }));
 }
 
 export function createPermDock<
@@ -242,8 +234,10 @@ export function createPermDock<
       row?: unknown,
       nextOptions?: DecideOptions,
     ) => GrantedDecision;
+    const handler = input.onDenied ?? options.onDenied;
     return assert(input.permission, input.data, {
       onDenied: (decision) => {
+        handler?.(decision);
         if (
           decision.outcome !== "denied" ||
           decision.denials.some((denial) => denial.reason === "validation")

@@ -19,7 +19,13 @@ import { compact } from "../core/compact.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import {
+  errorChannel,
+  requestContext,
+  type Report,
+} from "../core/request-context.ts";
 import { resourceRef } from "../core/resource-ref.ts";
+import { deniedText } from "./denied-text.ts";
 import { modelReason, thrownReason, unmappedReason } from "./reason.ts";
 
 /** The resume token an agent run carries under the namespaced `permdockApproval` key. */
@@ -100,8 +106,17 @@ export function createAgentKernel<
   readonly allowedToolNames: (
     context: TContext,
   ) => Promise<ReadonlySet<string>>;
+  /** Sends `error` to the `on('error')` handlers of an instance this kernel built. */
+  readonly report: (permdock: PermDock<V> | undefined, error: unknown) => void;
 } {
   const cache = new WeakMap<object, Promise<PermDock<V>>>();
+  const reporters = new WeakMap<PermDock<V>, Report>();
+
+  const report = (permdock: PermDock<V> | undefined, error: unknown): void => {
+    if (permdock !== undefined) {
+      reporters.get(permdock)?.(error);
+    }
+  };
 
   const instance = (context: TContext): Promise<PermDock<V>> => {
     if (typeof context === "object" && context !== null) {
@@ -127,18 +142,30 @@ export function createAgentKernel<
         }
       }
       const { tenant } = await tenantScope(options.tenant, context);
-      const created = await createCorePermDock(
-        policy,
-        user,
-        compact({
-          tenant,
-          actor,
-          delegation,
-          ...instanceOptions(options),
-        }),
+      const errors: unknown[] = [];
+      const requestValues = await requestContext(
+        options.context,
+        context,
+        errors,
+      );
+      const channel = errorChannel(errors);
+      const created = channel.attach(
+        await createCorePermDock(
+          policy,
+          user,
+          compact({
+            tenant,
+            actor,
+            delegation,
+            context: requestValues,
+            ...instanceOptions(options),
+          }),
+        ),
       );
       // SAFETY: wrap returns the instance it was given, decorated; the vocabulary is unchanged.
-      return (options.wrap?.(created) ?? created) as PermDock<V>;
+      const wrapped = (options.wrap?.(created) ?? created) as PermDock<V>;
+      reporters.set(wrapped, channel.report);
+      return wrapped;
     })();
     if (typeof context === "object" && context !== null) {
       cache.set(context, built);
@@ -224,14 +251,11 @@ export function createAgentKernel<
       decideOptions: checkOptions,
     });
 
-  const evaluate = async (
+  const verdictOf = (
+    checked: CheckResult<V>,
     binding: ToolBinding,
     toolName: string,
-    args: unknown,
-    context: TContext,
-    decideOptions: DecideToolOptions = {},
-  ): Promise<ToolVerdict> => {
-    const checked = await check(binding, args, context, decideOptions);
+  ): ToolVerdict => {
     if (!checked.ok) {
       if (checked.failure !== "no-data" || checked.permdock === undefined) {
         return {
@@ -292,6 +316,56 @@ export function createAgentKernel<
     };
   };
 
+  const evaluate = async (
+    binding: ToolBinding,
+    toolName: string,
+    args: unknown,
+    context: TContext,
+    decideOptions: DecideToolOptions = {},
+  ): Promise<ToolVerdict> => {
+    const checked = await check(binding, args, context, decideOptions);
+    return relabel(verdictOf(checked, binding, toolName), checked.permdock);
+  };
+
+  const relabel = (
+    verdict: ToolVerdict,
+    permdock: PermDock<V> | undefined,
+  ): ToolVerdict => {
+    const hook = options.onDenied;
+    if (hook === undefined || verdict.outcome === "granted") {
+      return verdict;
+    }
+    const onError = (error: unknown): void => {
+      report(permdock, error);
+    };
+    if (verdict.outcome === "denied") {
+      return {
+        ...verdict,
+        reason: deniedText(
+          hook,
+          {
+            decision: verdict.decision,
+            permission: verdict.permission,
+            text: verdict.reason,
+          },
+          onError,
+        ),
+      };
+    }
+    return {
+      ...verdict,
+      summary: deniedText(
+        hook,
+        {
+          decision: verdict.decision,
+          permission: verdict.permission,
+          text: verdict.summary,
+        },
+        onError,
+      ),
+    };
+  };
+
   const tokenFor = async (
     binding: ToolBinding,
     args: unknown,
@@ -317,12 +391,17 @@ export function createAgentKernel<
       ? tools[toolName]
       : undefined;
     if (binding === undefined) {
-      return Promise.resolve({
-        outcome: "denied",
-        decision: null,
-        permission: undefined,
-        reason: unmappedReason(toolName),
-      });
+      return Promise.resolve(
+        relabel(
+          {
+            outcome: "denied",
+            decision: null,
+            permission: undefined,
+            reason: unmappedReason(toolName),
+          },
+          undefined,
+        ),
+      );
     }
     return evaluate(binding, toolName, args, context, decideOptions);
   };
@@ -347,5 +426,6 @@ export function createAgentKernel<
     check,
     tokenFor,
     allowedToolNames,
+    report,
   };
 }

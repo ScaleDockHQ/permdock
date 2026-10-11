@@ -343,7 +343,7 @@ export function notFoundProblem(instance?: string): Response {
   return problemResponse(notFoundDetails(instance));
 }
 
-const ANONYMOUS: Extract<Decision, { readonly outcome: "denied" }> = {
+export const ANONYMOUS: Extract<Decision, { readonly outcome: "denied" }> = {
   outcome: "denied",
   denials: [{ role: null, reason: "anonymous" }],
   alternatives: [],

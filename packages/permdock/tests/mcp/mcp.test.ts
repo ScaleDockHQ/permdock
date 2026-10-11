@@ -841,4 +841,65 @@ describe("actorKind", () => {
       subjectFromMcp(auth([], { sub: "u1" }), { actorKind: "" }).principal,
     ).toBeNull();
   });
+
+  it("lets onDenied replace the refusal text and nothing else", async () => {
+    const { server } = postServer({
+      subject: () => memberUser,
+      onDenied: ({ decision, permission }) =>
+        `Nope: ${permission?.key ?? "?"} (${decision?.outcome ?? "none"})`,
+    });
+    const { client } = await connect(server, {
+      authInfo: auth(["post:update"]),
+    });
+    const denied = await client.callTool({
+      name: "update_post",
+      arguments: { id: "p2" },
+    });
+    expect(denied.isError).toBe(true);
+    expect(text(denied)).toBe("Nope: post.update (denied)");
+    expect(denied.structuredContent).toMatchObject({
+      outcome: "denied",
+      permission: "post.update",
+    });
+  });
+
+  it("keeps PermDock's text when onDenied throws", async () => {
+    const { server } = postServer({
+      subject: () => memberUser,
+      onDenied: () => {
+        throw new Error("hook broke");
+      },
+    });
+    const { client } = await connect(server, {
+      authInfo: auth(["post:update"]),
+    });
+    const denied = await client.callTool({
+      name: "update_post",
+      arguments: { id: "p2" },
+    });
+    expect(text(denied)).toBe("Denied: post.update on p2.");
+  });
+
+  it("merges context(authInfo) into subject.context and applies wrap", async () => {
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    const seen: unknown[] = [];
+    const guarded = createPermDock(policy, {
+      subject: () => memberUser,
+      context: (authInfo) => ({ client: authInfo.clientId ?? null }),
+      wrap: (permdock) => {
+        seen.push(permdock.subject.context);
+        return permdock;
+      },
+    }).protectServer(server);
+    guarded.registerTool(
+      "list_posts",
+      { permission: permissions.post.list },
+      () => ({ content: [{ type: "text", text: "[]" }] }),
+    );
+    const { client } = await connect(server, {
+      authInfo: auth(["post:list"]),
+    });
+    await client.callTool({ name: "list_posts", arguments: {} });
+    expect(seen).toContainEqual({ client: "mcp-tester" });
+  });
 });

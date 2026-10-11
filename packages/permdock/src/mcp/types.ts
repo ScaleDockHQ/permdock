@@ -18,12 +18,15 @@ import type {
   Variables,
 } from "@modelcontextprotocol/server";
 
+import type { OnDeniedText } from "../agent/denied-text.ts";
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { ClientNames } from "../core/clients.ts";
 import type { ApprovalHint } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Permission } from "../core/permissions.ts";
+import type { RequestContext } from "../core/request-context.ts";
 import type { Principal } from "../core/subject.ts";
+import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
 
 /** The verified `AuthInfo` the MCP SDK's bearer auth puts on `ctx.http.authInfo`. */
@@ -201,6 +204,20 @@ export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly store?: ApprovalStore;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
+  /** Wraps each instance after `otel`; build it with `wrapPermDock` to cover derived instances. */
+  readonly wrap?: PermDockWrap;
+  /**
+   * Request values merged into `subject.context`, under `policy.context`.
+   * Read them from the verified `authInfo`, never from tool arguments.
+   */
+  readonly context?: (
+    authInfo: McpAuthInfo,
+  ) => RequestContext | undefined | Promise<RequestContext | undefined>;
+  /**
+   * Replaces the text of a refusal. `isError`, `structuredContent` and the
+   * approval shape stay as PermDock built them.
+   */
+  readonly onDenied?: OnDeniedText;
 };
 
 export type McpPermDock = {

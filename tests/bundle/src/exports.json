@@ -115,6 +115,7 @@
     "user",
     "validateApprovalPolicy",
     "validateCustomRole",
+    "wrapPermDock",
     "writable"
   ],
   "./approvals": [

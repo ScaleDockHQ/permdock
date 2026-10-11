@@ -50,6 +50,11 @@ export type RequireAccessInput = {
   readonly data?: unknown;
   /** The active tenant, as for `getPermDock({ tenant })`; defaults to the factory's `tenant`. */
   readonly tenant?: string;
+  /**
+   * Runs before the default interrupts; throw or redirect to replace them.
+   * Defaults to the factory's `onDenied`.
+   */
+  readonly onDenied?: (decision: Decision) => never | void;
 };
 
 export type ServerPermissionState = {
@@ -109,8 +114,9 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    */
   readonly getSnapshot: (query?: GetSnapshotQuery) => Promise<Snapshot>;
   /**
-   * Resolves to the granted `Decision`. A denial calls `unauthorized()` for an
-   * anonymous subject and `forbidden()` otherwise (`experimental.authInterrupts`);
+   * Resolves to the granted `Decision`. A denial first runs `onDenied` (the
+   * call's, else the factory's), then calls `unauthorized()` for an anonymous
+   * subject and `forbidden()` otherwise (`experimental.authInterrupts`);
    * approval-required and boundary validation throw as from `assert`.
    */
   readonly requireAccess: (

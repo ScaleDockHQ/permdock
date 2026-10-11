@@ -4,8 +4,10 @@ import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { PolicyVocabulary } from "../core/policy.ts";
+import type { RequestContext } from "../core/request-context.ts";
 import type { Delegation } from "../core/subject.ts";
 import type { Boundary } from "../core/validation.ts";
+import type { OnDeniedText } from "./denied-text.ts";
 
 export type ToolBinding = {
   readonly permission: Permission;
@@ -29,8 +31,14 @@ export type AgentKernelOptions<TContext, TUser = unknown> = InstanceOptions & {
   readonly adapter: string;
   /** Reported on validation errors of the loaded row. Defaults to `'tool-args'`. */
   readonly boundary?: Boundary;
-  /** Wraps every instance, for `withOtel`. */
+  /** Wraps every instance: `otel`, then the adapter's `wrap`. */
   readonly wrap?: (instance: PermDock) => PermDock;
+  /** Replaces the text of a denied or approval-required verdict; nothing else. */
+  readonly onDenied?: OnDeniedText;
+  /** Request values merged into `subject.context`, under `policy.context`. */
+  readonly context?: (
+    context: TContext,
+  ) => RequestContext | undefined | Promise<RequestContext | undefined>;
 };
 
 /** Why `check` decided nothing: the loader threw, found no row, or anything else threw. */

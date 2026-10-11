@@ -253,4 +253,38 @@ describe("permdock/ai-sdk", () => {
     });
     expect(denied).toMatchObject({ type: "denied" });
   });
+
+  it("lets onDenied replace the reason and the approval summary", async () => {
+    const { toolApproval } = createPermDock(policy, {
+      subject: () => memberUser,
+      delegation: () => delegated,
+      tools: tools(),
+      store: memoryApprovalStore(),
+      context: () => ({ channel: "chat" }),
+      wrap: (permdock) => {
+        expect(permdock.subject.context).toEqual({ channel: "chat" });
+        return permdock;
+      },
+      onDenied: ({ decision }) =>
+        `${decision?.outcome ?? "unmapped"}: ask an admin`,
+    });
+    const denied = await toolApproval({
+      toolCall: { toolName: "publish_post", input: { id: "p1" } },
+    });
+    expect(denied).toEqual({ type: "denied", reason: "denied: ask an admin" });
+    const asked = await toolApproval({
+      toolCall: { toolName: "delete_post", input: { id: "p1" } },
+    });
+    expect(asked).toMatchObject({
+      type: "user-approval",
+      reason: "approval-required: ask an admin",
+    });
+    const unmapped = await toolApproval({
+      toolCall: { toolName: "explode", input: {} },
+    });
+    expect(unmapped).toEqual({
+      type: "denied",
+      reason: "unmapped: ask an admin",
+    });
+  });
 });

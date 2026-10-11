@@ -11,6 +11,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { appObligationNames } from "../core/ocsf.ts";
+import { wrapPermDock } from "../core/wrap.ts";
 import {
   GENAI_SEMCONV_PIN,
   GEN_AI_TOOL_CALL_ID,
@@ -295,39 +296,36 @@ function instrumented<V extends PolicyVocabulary>(
   options: OtelOptions,
   api: OtelApi | undefined,
 ): PermDock<V> {
-  let started: number | undefined;
-  listen(permdock, options, api, () => started);
-  const timed =
-    <TArgs extends unknown[], TResult>(
-      fn: (...args: TArgs) => TResult,
-    ): ((...args: TArgs) => TResult) =>
-    (...args: TArgs): TResult => {
-      const outer = started === undefined;
-      if (outer) {
-        started = now();
-      }
-      try {
-        return fn(...args);
-      } finally {
+  return wrapPermDock(permdock, (inner) => {
+    let started: number | undefined;
+    listen(inner, options, api, () => started);
+    const timed =
+      <TArgs extends unknown[], TResult>(
+        fn: (...args: TArgs) => TResult,
+      ): ((...args: TArgs) => TResult) =>
+      (...args: TArgs): TResult => {
+        const outer = started === undefined;
         if (outer) {
-          started = undefined;
+          started = now();
         }
-      }
+        try {
+          return fn(...args);
+        } finally {
+          if (outer) {
+            started = undefined;
+          }
+        }
+      };
+    // SAFETY: timed() forwards its arguments and result unchanged; the casts restore the overloads.
+    return {
+      can: timed(inner.can) as PermDock<V>["can"],
+      decide: timed(inner.decide) as PermDock<V>["decide"],
+      assert: timed(inner.assert) as PermDock<V>["assert"],
+      explain: timed(inner.explain) as PermDock<V>["explain"],
+      filter: timed(inner.filter) as PermDock<V>["filter"],
+      pick: timed(inner.pick) as PermDock<V>["pick"],
+      actions: timed(inner.actions),
     };
-  // SAFETY: timed() forwards its arguments and result unchanged; the casts restore the overloads.
-  return Object.freeze({
-    ...permdock,
-    can: timed(permdock.can) as PermDock<V>["can"],
-    decide: timed(permdock.decide) as PermDock<V>["decide"],
-    assert: timed(permdock.assert) as PermDock<V>["assert"],
-    explain: timed(permdock.explain) as PermDock<V>["explain"],
-    filter: timed(permdock.filter) as PermDock<V>["filter"],
-    pick: timed(permdock.pick) as PermDock<V>["pick"],
-    actions: timed(permdock.actions),
-    tenant: (id: string): PermDock<V> =>
-      instrumented(permdock.tenant(id), options, api),
-    team: (id: string): PermDock<V> =>
-      instrumented(permdock.team(id), options, api),
   });
 }
 

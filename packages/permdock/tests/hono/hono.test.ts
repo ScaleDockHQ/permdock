@@ -164,6 +164,34 @@ describe("permdock/hono", () => {
     );
   });
 
+  it("passes context, wrap and onDenied through to the kernel", async () => {
+    const wrapped: unknown[] = [];
+    const { permdock, protect } = createPermDock(policy, {
+      subject: () => memberUser,
+      context: (c) => ({ path: c.req.path }),
+      wrap: (instance) => {
+        wrapped.push(instance.subject.context);
+        return instance;
+      },
+      onDenied: ({ problem }) => ({ ...problem, code: "LOCKED" }),
+    });
+    const app = new Hono();
+    app.use(permdock());
+    app.delete(
+      "/posts/:id",
+      protect(permissions.post.update, (c) =>
+        c.req.param("id") === "p1" ? ownPost : otherPost,
+      ),
+      (c) => c.json({ ok: true }),
+    );
+    const denied = await app.request("http://localhost/posts/p2", {
+      method: "DELETE",
+    });
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toMatchObject({ code: "LOCKED" });
+    expect(wrapped).toContainEqual({ path: "/posts/p2" });
+  });
+
   it("mounts the AuthZEN evaluations handler", async () => {
     const { permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,
