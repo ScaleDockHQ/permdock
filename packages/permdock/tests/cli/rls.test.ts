@@ -1,36 +1,11 @@
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/run.ts";
+import { miniAppCopy, removeProjects } from "./doctor-kit.ts";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, "./fixtures/mini-app");
-const TMP = join(HERE, "../../tmp");
-
-const temps: string[] = [];
-
-function appCopy(): string {
-  mkdirSync(TMP, { recursive: true });
-  const dir = mkdtempSync(join(TMP, "rls-"));
-  temps.push(dir);
-  cpSync(FIXTURE, dir, { recursive: true });
-  return dir;
-}
-
-afterEach(() => {
-  for (const dir of temps.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
+afterEach(removeProjects);
 
 describe("permdock rls", () => {
   it("prints command help when no subcommand is given", async () => {
@@ -56,7 +31,7 @@ describe("permdock rls", () => {
       readonly out: string;
       sql: string;
     }> => {
-      const cwd = appCopy();
+      const cwd = miniAppCopy();
       writeFileSync(
         join(cwd, "permdock.config.ts"),
         `export default {
@@ -94,7 +69,7 @@ describe("permdock rls", () => {
   });
 
   it("adds FORCE ROW LEVEL SECURITY only with --force", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     const generate = (out: string, target: string, extra: readonly string[]) =>
       run(
         [
@@ -126,7 +101,7 @@ describe("permdock rls", () => {
   });
 
   it("generates SQL without service_role and compiles principal.id", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     const result = await run(
       [
         "rls",
@@ -153,7 +128,7 @@ describe("permdock rls", () => {
   });
 
   it("collapses policies by default and keeps the per-role shape behind a flag", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     const base = ["rls", "generate", "--target", "sql"];
     await run([...base, "--out", "collapsed.sql"], { cwd });
     const collapsed = readFileSync(join(cwd, "collapsed.sql"), "utf8");
@@ -174,7 +149,7 @@ describe("permdock rls", () => {
   });
 
   it("generate --check reports drift then up to date", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     const missing = await run(
       ["rls", "generate", "--target", "sql", "--out", "rls.sql", "--check"],
       { cwd },
@@ -192,7 +167,7 @@ describe("permdock rls", () => {
   });
 
   it("compiles memberOf through a memberships table mapping", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     writeFileSync(
       join(cwd, "src/tenant-policy.ts"),
       `import { allow, definePolicy, role } from 'permdock';
@@ -244,7 +219,7 @@ export const policy = definePolicy(permissions, {
   });
 
   it("resolves custom roles only with --custom-roles, bounded by the ceiling view", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     writeFileSync(
       join(cwd, "src/tenant-policy.ts"),
       `import { allow, definePolicy, role } from 'permdock';
@@ -319,76 +294,8 @@ export const policy = definePolicy(permissions, {
     expect(jwt).not.toMatch(/service_role/i);
   });
 
-  it("verify resolves the fixture file customRoles in-process", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "src/tenant-policy.ts"),
-      `import { allow, definePolicy, role } from 'permdock';
-import { permissions } from './permissions.ts';
-
-export const policy = definePolicy(permissions, {
-  roles: [role('admin', [allow(permissions.post.read), allow(permissions.post.update)], { on: 'tenant' })],
-  scopes: { tenant: { key: 'orgId' } },
-  subject: () => null,
-});
-`,
-    );
-    writeFileSync(
-      join(cwd, "permdock.config.ts"),
-      `export default {
-  permissions: './src/permissions.ts',
-  policy: './src/tenant-policy.ts',
-};
-`,
-    );
-    const subject = {
-      id: "user-1",
-      tenant: "org-1",
-      memberships: [{ tenant: "org-1", roles: ["reader"] }],
-    };
-    const row = {
-      id: "p1",
-      authorId: "user-9",
-      orgId: "org-1",
-      published: true,
-    };
-    writeFileSync(
-      join(cwd, "rls.fixtures.json"),
-      JSON.stringify({
-        customRoles: [
-          {
-            tenant: "org-1",
-            name: "reader",
-            grants: [
-              { permission: "post.read" },
-              { permission: "post.delete" },
-            ],
-          },
-        ],
-        fixtures: [
-          { subject, row, action: "post.read", expected: "granted" },
-          { subject, row, action: "post.update", expected: "denied" },
-          { subject, row, action: "post.delete", expected: "denied" },
-        ],
-      }),
-    );
-    const result = await run(
-      ["rls", "verify", "--fixtures", "rls.fixtures.json"],
-      { cwd },
-    );
-    expect(result.stdout).toContain("verified 3 fixture(s)");
-    expect(result.code).toBe(0);
-    const pgtap = await run(
-      ["rls", "verify", "--fixtures", "rls.fixtures.json", "--format", "pgtap"],
-      { cwd },
-    );
-    expect(pgtap.stdout).toContain(
-      '"grants":{"reader":["post.read","post.delete"]}',
-    );
-  });
-
   it("emits authorize() and points to the supabase token hook with --rbac-scaffold", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     const result = await run(
       [
         "rls",
@@ -417,7 +324,7 @@ export const policy = definePolicy(permissions, {
   });
 
   it("seeds top-level definePolicy({ grants }) into the rbac enums and role_permissions", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     writeFileSync(
       join(cwd, "src/top-level-policy.ts"),
       `import { allow, definePolicy, plan } from 'permdock';
@@ -458,7 +365,7 @@ export const planPolicy = definePolicy(permissions, {
   });
 
   it("rejects unknown --rbac values, bad --authorize and non-supabase dialects", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     const base = ["rls", "generate", "--target", "sql", "--out", "rls.sql"];
     expect((await run([...base, "--rbac", "clerk"], { cwd })).code).toBe(2);
     expect(
@@ -476,7 +383,7 @@ export const planPolicy = definePolicy(permissions, {
 
   for (const mode of ["database", "jwt"] as const) {
     it(`matches the ${mode}-mode RBAC golden file (2 roles, 7 permissions)`, async () => {
-      const cwd = appCopy();
+      const cwd = miniAppCopy();
       writeFileSync(
         join(cwd, "src/rbac-policy.ts"),
         `import { allow, definePolicy, principal, role } from 'permdock';
@@ -550,192 +457,8 @@ export const policy = definePolicy(permissions, {
     });
   }
 
-  it("import writes permissions.generated.ts from a SQL dump", async () => {
-    const cwd = appCopy();
-    await run(["rls", "generate", "--target", "sql", "--out", "schema.sql"], {
-      cwd,
-    });
-    const imported = await run(
-      [
-        "rls",
-        "import",
-        "--sql",
-        "schema.sql",
-        "--out",
-        "src/permissions.generated.ts",
-        "--memberships",
-        "organization_members:organization_id,user_id,role",
-      ],
-      { cwd },
-    );
-    expect(imported.code).toBe(0);
-    const generated = readFileSync(
-      join(cwd, "src/permissions.generated.ts"),
-      "utf8",
-    );
-    expect(generated).toContain("// @generated");
-    expect(generated).toContain("definePermissions");
-    expect(generated).toContain("export const catalog");
-    expect(generated).toContain("principal.id");
-  });
-
-  for (const shape of ["collapsed", "per-role"] as const) {
-    it(`import reads the ${shape} helper shape back to roles and memberOf`, async () => {
-      const cwd = appCopy();
-      writeFileSync(
-        join(cwd, "src/scoped-policy.ts"),
-        `import { allow, definePolicy, principal, role } from 'permdock';
-import { permissions } from './permissions.ts';
-
-const { post } = permissions;
-
-export const policy = definePolicy(permissions, {
-  roles: [
-    role('staff', [allow(post.read)]),
-    role('admin', [allow([post.read, post.update])], { on: 'tenant' }),
-    role(
-      'member',
-      [allow(post.read), allow(post.update, { where: { authorId: principal.id } })],
-      { on: 'tenant' },
-    ),
-  ],
-  scopes: { tenant: { key: 'orgId' } },
-  subject: () => null,
-});
-`,
-      );
-      writeFileSync(
-        join(cwd, "permdock.config.ts"),
-        `export default {
-  permissions: './src/permissions.ts',
-  policy: './src/scoped-policy.ts',
-};
-`,
-      );
-      const generated = await run(
-        [
-          "rls",
-          "generate",
-          "--out",
-          "schema.sql",
-          ...(shape === "per-role" ? ["--policy-per-role"] : []),
-        ],
-        { cwd },
-      );
-      expect(generated.code).toBe(0);
-      const imported = await run(
-        ["rls", "import", "--sql", "schema.sql", "--out", "src/gen.ts"],
-        { cwd },
-      );
-      expect(imported.code).toBe(0);
-      const text = readFileSync(join(cwd, "src/gen.ts"), "utf8");
-      const json = /export const catalog = ([\s\S]*?) as const/u.exec(
-        text,
-      )?.[1];
-      // SAFETY: the catalog JSON literal that `rls import` wrote into src/gen.ts above.
-      const catalog = JSON.parse(json ?? "[]") as readonly {
-        readonly cmd: string;
-        readonly condition: unknown;
-        readonly grants?: readonly {
-          readonly key: string;
-          readonly permission: string;
-          readonly scope: string;
-          readonly roles: readonly string[];
-          readonly where?: unknown;
-        }[];
-      }[];
-      const grants = catalog.flatMap((entry) =>
-        (entry.grants ?? []).map((grant) =>
-          Object.assign({ cmd: entry.cmd }, grant),
-        ),
-      );
-      const summary = [
-        ...new Set(
-          grants.map(
-            (grant) =>
-              `${grant.cmd} ${grant.permission} ${grant.scope} ${grant.roles.join("+")}${grant.where === undefined ? "" : " where"}`,
-          ),
-        ),
-      ].toSorted();
-      expect(summary).toEqual([
-        "SELECT post.read global staff",
-        "SELECT post.read tenant admin+member",
-        "UPDATE post.update tenant admin",
-        "UPDATE post.update tenant member where",
-      ]);
-      const member = grants.find(
-        (grant) => grant.cmd === "UPDATE" && grant.roles.includes("member"),
-      );
-      expect(member?.key).toBe("post.update#2");
-      expect(member?.where).toEqual({
-        op: "eq",
-        field: "authorId",
-        value: { ref: "principal.id" },
-      });
-      const selects = catalog
-        .filter((entry) => entry.cmd === "SELECT")
-        .map((entry) => JSON.stringify(entry.condition))
-        .join("\n");
-      expect(selects).toContain(
-        '{"op":"memberOf","scope":"tenant","field":"orgId","roles":["admin","member"]}',
-      );
-      expect(selects).toContain(`permdock_has('post.read')`);
-    });
-  }
-
-  it("verify fixtures carry memberships and tenant and match can()", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "rls.fixtures.json"),
-      `${JSON.stringify(
-        [
-          {
-            subject: {
-              id: "user-1",
-              roles: ["member"],
-              tenant: "org-1",
-              memberships: [{ tenant: "org-1", roles: ["member"] }],
-            },
-            row: {
-              id: "p1",
-              authorId: "user-1",
-              orgId: "org-1",
-              published: true,
-            },
-            action: "post.update",
-            expected: "granted",
-          },
-          {
-            subject: {
-              id: "user-2",
-              roles: ["member"],
-              tenant: "org-1",
-              memberships: [{ tenant: "org-1", roles: ["member"] }],
-            },
-            row: {
-              id: "p1",
-              authorId: "user-1",
-              orgId: "org-1",
-              published: true,
-            },
-            action: "post.update",
-            expected: "denied",
-          },
-        ],
-        null,
-        2,
-      )}\n`,
-    );
-    const result = await run(
-      ["rls", "verify", "--fixtures", "rls.fixtures.json"],
-      { cwd },
-    );
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain("verified");
-  });
-
   it("compiles neon and guc subject dialects", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     const neon = await run(
       [
         "rls",
@@ -775,7 +498,7 @@ export const policy = definePolicy(permissions, {
   });
 
   it("reads tenant memberships from the jwt claim when no table is mapped", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     writeFileSync(
       join(cwd, "src/tenant-policy.ts"),
       `import { allow, definePolicy, role } from 'permdock';
@@ -811,7 +534,7 @@ export const policy = definePolicy(permissions, {
   });
 
   it("rejects an unknown generate target and import without --sql", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     const target = await run(["rls", "generate", "--target", "mysql"], { cwd });
     expect(target.code).toBe(2);
     const imported = await run(["rls", "import"], { cwd });
@@ -819,71 +542,8 @@ export const policy = definePolicy(permissions, {
     expect(imported.stdout).toContain("--sql");
   });
 
-  it("verify --format pgtap emits memberships and tenant claims", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "rls.fixtures.json"),
-      `${JSON.stringify([
-        {
-          subject: {
-            id: "user-1",
-            roles: ["member"],
-            tenant: "org-1",
-            memberships: [{ tenant: "org-1", roles: ["member"] }],
-          },
-          row: {
-            id: "p1",
-            authorId: "user-1",
-            orgId: "org-1",
-            published: true,
-          },
-          action: "post.read",
-        },
-      ])}\n`,
-    );
-    const result = await run(
-      ["rls", "verify", "--fixtures", "rls.fixtures.json", "--format", "pgtap"],
-      { cwd },
-    );
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain("select plan(");
-    expect(result.stdout).toContain("tenant_id");
-    expect(result.stdout).toContain("memberships");
-  });
-
-  it("verify exits 1 when can() disagrees with expected", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "rls.fixtures.json"),
-      `${JSON.stringify([
-        {
-          subject: {
-            id: "user-2",
-            roles: ["member"],
-            tenant: "org-1",
-            memberships: [{ tenant: "org-1", roles: ["member"] }],
-          },
-          row: {
-            id: "p1",
-            authorId: "user-1",
-            orgId: "org-1",
-            published: true,
-          },
-          action: "post.update",
-          expected: "granted",
-        },
-      ])}\n`,
-    );
-    const result = await run(
-      ["rls", "verify", "--fixtures", "rls.fixtures.json"],
-      { cwd },
-    );
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("denied");
-  });
-
   it("writes drizzle and prisma targets", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     const drizzle = await run(
       ["rls", "generate", "--target", "drizzle", "--out", "src/db/policies.ts"],
       { cwd },
@@ -940,7 +600,7 @@ export const policy = definePolicy(permissions, {
   });
 
   it("emits sqlFunction calls and can inline the twin", async () => {
-    const cwd = appCopy();
+    const cwd = miniAppCopy();
     writeFileSync(
       join(cwd, "src/fn-policy.ts"),
       `import { allow, definePolicy, principal, role, sqlFunction } from 'permdock';
@@ -993,209 +653,5 @@ export const policy = definePolicy(permissions, {
     expect(readFileSync(join(cwd, "inline.sql"), "utf8")).toContain(
       '"authorId" = (select "permdock".permdock_user_id())',
     );
-  });
-
-  it("import maps mapped functions to sqlFunction and hints on unmapped calls", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "schema.sql"),
-      `create policy "jobs_read" on job for select to authenticated using (job_permitted(id));
-create policy "posts_read" on post for select to authenticated using ((select auth.uid()) = "authorId");
-`,
-    );
-    writeFileSync(
-      join(cwd, "permdock.config.ts"),
-      `export default {
-  permissions: './src/permissions.ts',
-  policy: './src/policy.ts',
-  rls: {
-    functions: {
-      job_permitted: {
-        twin: { op: 'eq', field: 'authorId', value: { ref: 'principal.id' } },
-        args: ['id'],
-      },
-    },
-  },
-};
-`,
-    );
-    const mapped = await run(
-      [
-        "rls",
-        "import",
-        "--sql",
-        "schema.sql",
-        "--out",
-        "src/permissions.generated.ts",
-      ],
-      { cwd },
-    );
-    expect(mapped.code).toBe(0);
-    const generated = readFileSync(
-      join(cwd, "src/permissions.generated.ts"),
-      "utf8",
-    );
-    expect(generated).toContain("sqlFunction");
-    expect(generated).toContain("principal.id");
-  });
-
-  it("import hints when a function is not listed in rls.functions", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "opaque.sql"),
-      `create policy "jobs_read" on job for select to authenticated using (job_permitted(id));
-`,
-    );
-    const unmapped = await run(
-      [
-        "rls",
-        "import",
-        "--sql",
-        "opaque.sql",
-        "--out",
-        "src/opaque.generated.ts",
-      ],
-      { cwd },
-    );
-    expect(unmapped.code).toBe(0);
-    expect(unmapped.stdout).toContain("rls.functions.job_permitted");
-  });
-
-  it("import proposes a memberships mapping for an unknown EXISTS join", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "members.sql"),
-      `create policy "posts_read" on post for select to authenticated using (
-  exists (select 1 from workspace_users w where w.workspace_id = "orgId")
-);
-`,
-    );
-    const result = await run(
-      [
-        "rls",
-        "import",
-        "--sql",
-        "members.sql",
-        "--out",
-        "src/permissions.generated.ts",
-      ],
-      { cwd },
-    );
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain(
-      "rls: { memberships: { tenant: { table: 'workspace_users'",
-    );
-  });
-
-  it("import maps EXISTS and IN membership subqueries to memberOf", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "members.sql"),
-      `create policy "posts_read" on post for select to authenticated using (
-  exists (select 1 from organization_members m where m.organization_id = "orgId")
-);
-create policy "posts_list" on post for select to authenticated using (
-  "orgId" in (select organization_id from organization_members)
-);
-`,
-    );
-    writeFileSync(
-      join(cwd, "permdock.config.ts"),
-      `export default {
-  permissions: './src/permissions.ts',
-  policy: './src/policy.ts',
-  rls: {
-    memberships: {
-      tenant: {
-        table: 'organization_members',
-        tenant: 'orgId',
-        user: 'user_id',
-        role: 'role',
-      },
-    },
-  },
-};
-`,
-    );
-    const result = await run(
-      [
-        "rls",
-        "import",
-        "--sql",
-        "members.sql",
-        "--out",
-        "src/permissions.generated.ts",
-      ],
-      { cwd },
-    );
-    expect(result.code).toBe(0);
-    const generated = readFileSync(
-      join(cwd, "src/permissions.generated.ts"),
-      "utf8",
-    );
-    expect(generated).toContain('"op": "memberOf"');
-    expect(generated).toContain('"scope": "tenant"');
-  });
-
-  it("verify --db reports a connection failure and opaque grants as untestable", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "src/opaque-policy.ts"),
-      `import { allow, definePolicy, opaque, role } from 'permdock';
-import { permissions } from './permissions.ts';
-
-export const policy = definePolicy(permissions, {
-  roles: [
-    role('member', [
-      allow(permissions.post.read, {
-        where: opaque({ sql: 'job_permitted(id)', fingerprint: 'x' }),
-      }),
-    ]),
-  ],
-  subject: () => null,
-});
-`,
-    );
-    writeFileSync(
-      join(cwd, "permdock.config.ts"),
-      `export default {
-  permissions: './src/permissions.ts',
-  policy: './src/opaque-policy.ts',
-};
-`,
-    );
-    writeFileSync(
-      join(cwd, "rls.fixtures.json"),
-      `${JSON.stringify(
-        [
-          {
-            subject: { id: "user-1", roles: ["member"] },
-            row: { id: "p1", authorId: "user-1" },
-            action: "post.read",
-          },
-        ],
-        null,
-        2,
-      )}\n`,
-    );
-    const inProcess = await run(
-      ["rls", "verify", "--fixtures", "rls.fixtures.json"],
-      { cwd },
-    );
-    expect(inProcess.code).toBe(0);
-    expect(inProcess.stdout).toContain("untestable app-side");
-    const missing = await run(
-      [
-        "rls",
-        "verify",
-        "--db",
-        "postgres://permdock:permdock@127.0.0.1:1/missing",
-        "--fixtures",
-        "rls.fixtures.json",
-      ],
-      { cwd },
-    );
-    expect(missing.code).toBe(1);
-    expect(missing.stderr).toContain("could not connect");
   });
 });
