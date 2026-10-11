@@ -16,6 +16,7 @@ type Membership = {
   roles: string[]; // declared role names, or tenant-defined custom role names
   via?: string; // the membership kind: 'staff', 'contact', 'group:<scim id>'; a role's `for` lists the kinds that hold it
   expiresAt?: number; // Unix seconds; time-bound access
+  x?: AppData; // the application's own data: a department, a seat label
 };
 
 type Principal = {
@@ -35,6 +36,7 @@ type Principal = {
 - A membership names one instance of a [named scope](/docs/concepts/scopes) (`scope`, `id`, and the ancestors' ids in `within`) or one resource (`on`). The `{ tenant }` and `{ tenant, team }` input shapes still work: they are the first and second declared scope and are normalised when the subject is resolved. A malformed entry is dropped (fail-closed, reported by `permdock doctor` PD025).
 - `tenant` on the principal is the **active tenant**, an instance of the first scope: the one this request is about, taken from the URL, a header the server resolved, or the provider's active organisation. A value with no matching membership makes tenant-scoped roles contribute nothing. There is never a default tenant; an absent value means "no tenant", and tenant-scoped grants do not match ([threat model](/docs/security/threat-model)).
 - Memberships come only from verified material: a `subjectFrom*` provider, the policy's `subject` or `context` function, or a `MembershipSource`. Never from a model argument, an unsigned header, a request body or a CLI flag. This is invariant 13 extended to memberships.
+- `x` is data the application owns about a membership. It is plain JSON from the same trusted sources, checked by `definePolicy(…, { x: { membership } })`. An invalid `x` is dropped with an `on('auth')` event of reason `schema`, and the membership stays. Conditions, RLS and role listings never read it, and the [Supabase token hook](/docs/adapters/supabase-hook) never writes it into claims, so it costs nothing against the claim size budget. It reaches the client in the snapshot's `principal.memberships` and through `permdock.memberships()`. The Supabase sources read it from a `jsonb` column: `fromTable({ columns: { x: 'meta' } })` or `fromJunction({ x: 'meta' })`.
 - Identifiers, never display names. A team id is the provider's or SCIM group `id`; a display name is editable by any group owner and not unique across tenants ([JWT authorization claims](/docs/standards/jwt-authorization-claims)).
 
 ```ts

@@ -19,6 +19,7 @@ type Decision =
     }
   | {
       outcome: "denied";
+      permission?: string;
       denials: Array<{ role: string | null; reason: string; detail?: unknown }>;
       alternatives: Permission[];
     }
@@ -50,9 +51,38 @@ if (decision.outcome === "granted") {
 }
 ```
 
-`matched` is the grant that produced the outcome: the role name, the permission key and the normalised condition. It is JSON, so it can be logged as the justification for the action.
+`matched` is the grant that produced the outcome: the role name, the permission key, the normalised condition, and the grant's `name` and `meta` when it declares them. It is JSON, so it can be logged as the justification for the action.
 
-When the matched allow has a `limit`, the decision also carries `quota: { remaining, resetsAt }`, and it may carry `obligations`: `{ kind: 'over-limit' }` when a soft limit granted past its count, `{ kind: 'near-limit' }` when usage reached `alertAt` ([limits](/docs/concepts/policies#limits)). An obligation never turns `granted` into another outcome; the caller acts on it (warn, bill, notify) and proceeds. An exhausted limit denies with reason `limit` and `detail: { count, window, resetsAt }` (`LimitDetail`), which HTTP adapters turn into a `429` with `Retry-After` and the `RateLimit` fields ([Problem Details](/docs/standards/problem-details)).
+When the matched allow has a `limit`, the decision also carries `quota: { remaining, resetsAt }`. An exhausted limit denies with reason `limit` and `detail: { count, window, resetsAt }` (`LimitDetail`), which HTTP adapters turn into a `429` with `Retry-After` and the `RateLimit` fields ([Problem Details](/docs/standards/problem-details)).
+
+### Obligations
+
+`obligations` lists what the caller owes alongside a granted action. An obligation never turns `granted` into another outcome; the caller acts on it and proceeds.
+
+| `kind`             | Set by                                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------------------------- |
+| `over-limit`       | A `mode: 'soft'` limit granted past its count ([limits](/docs/concepts/policies#limits))                  |
+| `near-limit`       | Usage reached the limit's `alertAt`                                                                       |
+| `notify`, `review` | A break-glass grant's declared follow-ups ([elevated access](/docs/concepts/elevated-access))             |
+| `justify`          | A break-glass grant; `reason` is the justification the caller gave                                        |
+| `app`              | The application, through `allow(p, { obligations })`; PermDock carries `name` and `detail` and never acts |
+
+```ts
+allow(permissions.report.export, {
+  obligations: ["watermark", { name: "mfa-reprompt", detail: { maxAge: 300 } }],
+});
+
+const decision = permdock.decide(permissions.report.export, report);
+if (decision.outcome === "granted") {
+  for (const obligation of decision.obligations ?? []) {
+    if (obligation.kind === "app" && obligation.name === "watermark") {
+      addWatermark(file);
+    }
+  }
+}
+```
+
+An app obligation's `name` is lower case letters, digits, `_` and `-`, starting with a letter, unique on the grant; its `detail` is plain JSON. `definePolicy` throws for obligations on a `deny`, because a deny has no granted action to follow up. A [snapshot](/docs/concepts/snapshots) carries them on its grants, so a client decision owes the same obligations as the server's. Decision events, the OCSF projection and the OTel span attributes carry the obligation names ([audit and observability](/docs/concepts/audit-and-observability)).
 
 ### denied
 
@@ -106,7 +136,9 @@ When the matched allow has a `limit`, the decision also carries `quota: { remain
 
 This fixes two long-standing gaps: CASL's `ForbiddenError` only knows a reason when an inverted rule matched, and permix had no `explain` at all ([permix #22](https://github.com/letstri/permix/issues/22)). PermDock always says which roles were tried and why each did not grant; [`explain`](#explain) adds which grant decided it.
 
-A `deny` denial from a grant with a `name` carries `detail: { name }`, so `PermDockDeniedError.message` reads `editor (deny 'lock')` and an agent refusal names the rule.
+A `deny` denial from a grant with a `name` carries `detail: { name }`, so `PermDockDeniedError.message` reads `editor (deny 'lock')` and an agent refusal names the rule. `DenialDetails` maps each reason that carries a structured detail to its type, and `Denial<'limit'>` narrows `detail` to `LimitDetail`; any other reason's detail is `unknown`.
+
+`permission` is the key that was checked, absent when the check named no declared permission. A fallback can resolve it with `findPermission` and read the leaf's `meta`, for example its `title` or the app's `meta.x`.
 
 ### alternatives
 
@@ -231,4 +263,5 @@ Each adapter page documents its exact translation; the [wire formats](/docs/conc
 ## Why
 
 - **Three outcomes, closed reasons.** A fourth outcome (`not-applicable`) is how a fail-open bug enters a policy engine; a permission with no grant is `denied`. Reasons are a closed list so adapters, Problem Details and agent refusals can map them without parsing text.
+- **One `app` obligation kind.** Applications needed to steer on a grant (watermark this export, re-prompt for MFA) without PermDock learning what that means. A new `kind` per need would break every exhaustive `switch` over `Obligation` in user code. One namespaced variant, `{ kind: 'app', name, detail? }`, keeps the list closed and lets the application own the names.
 - **`explain` is a method, with the trace off by default.** `decide` was first documented as enough on its own: `denials` names every consulted role and `describe(decision)` turns it into prose, so `explain` was a reserved word. That left one question unanswered: which deny won, and which allows it overrode, when several roles carry grants for the same permission. Putting that on every `Decision` would cost every `can` an allocation and would push grant internals into the decision log, so the trace is opt-in (`explain: true`, or `explain`), computed in process, and never emitted. The name follows what every other engine calls it.

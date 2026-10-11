@@ -110,7 +110,7 @@ Install each with `npx skills add ScaleDockHQ/PermDock --skill <name>` when the 
 
 ## Reference index
 
-- [references/adapters.md](references/adapters.md): factory shapes for Next.js, HTTP frameworks, RPC frameworks, UI frameworks, AuthZEN, OpenAPI, OpenTelemetry, SCIM, Cloud, Better Auth, Clerk, Supabase, the remote PDP and collect-only frameworks.
-- [references/policy-options.md](references/policy-options.md): limits, disclosure, plans, validity windows, step-up, and CLI starting points (OpenAPI import, Arazzo, Cloud push).
+- [references/adapters.md](references/adapters.md): factory shapes for Next.js, HTTP frameworks, RPC frameworks, UI frameworks, AuthZEN, OpenAPI, OpenTelemetry, SCIM, Cloud, Better Auth, Clerk, Supabase, the remote PDP, collect-only frameworks, and the `onDenied`, `context` and `wrap` adapter hooks.
+- [references/policy-options.md](references/policy-options.md): limits, disclosure, plans, validity windows, step-up, app data and app obligations, and CLI starting points (OpenAPI import, Arazzo, Cloud push).
 - The `permdock` skill: the mental model, `explain` for an unexpected denial, and the docs MCP.
 - Docs: [policies](https://permdock.com/docs/concepts/policies), [conditions](https://permdock.com/docs/concepts/conditions), [decisions](https://permdock.com/docs/concepts/decisions), [adapters](https://permdock.com/docs/adapters).
