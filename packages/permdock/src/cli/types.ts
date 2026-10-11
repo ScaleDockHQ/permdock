@@ -480,7 +480,7 @@ export type RlsMigrateConfig = {
 };
 
 export type RlsMigrateTable = {
-  /** The trigger functions that keep the table in step. Default: every trigger function in `--sql` whose body writes it. */
+  /** The functions that keep the table in step. Default: every function in `--sql` whose body writes it, and every function that calls one. */
   readonly refresh?: readonly string[];
 };
 

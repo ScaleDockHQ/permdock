@@ -203,6 +203,8 @@ async function migrate(
     target: migrateTarget(generated),
     write: input.write,
     json: input.json,
+    retireOut: input.retireOut,
+    ...(input.io.now === undefined ? {} : { now: input.io.now() }),
   });
 }
 
