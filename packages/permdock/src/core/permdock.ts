@@ -41,11 +41,6 @@ import {
 } from "./approval-policies.ts";
 import { compact } from "./compact.ts";
 import {
-  assignableNamesFor,
-  customRolesFor,
-  roleSourceFor,
-} from "./evaluate.ts";
-import {
   type PolicyDocument,
   type PolicySource,
   mergeHostedGrants,
@@ -53,6 +48,11 @@ import {
 import { buildInstance } from "./instance.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { resolveSubject } from "./resolve-subject.ts";
+import {
+  assignableNamesFor,
+  customRolesFor,
+  roleSourceFor,
+} from "./role-loading.ts";
 import { type Scope, scopeList } from "./scopes.ts";
 import { parseSnapshot } from "./snapshot.ts";
 import { heldRoleNamesIn, tenantsOf } from "./tenancy.ts";

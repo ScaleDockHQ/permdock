@@ -54,14 +54,7 @@ import {
   approvalMessage,
   deniedMessage,
 } from "./errors.ts";
-import {
-  assignableNamesFor,
-  customRolesFor,
-  evaluate,
-  expandRoleNames,
-  requirementCondition,
-  roleSourceFor,
-} from "./evaluate.ts";
+import { evaluate } from "./evaluate.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -95,7 +88,14 @@ import {
   pendingRelations,
   relationReader,
 } from "./relations.ts";
+import { requirementCondition } from "./requires-conditions.ts";
 import { isPrincipalRelation } from "./resource-relations.ts";
+import {
+  assignableNamesFor,
+  customRolesFor,
+  expandRoleNames,
+  roleSourceFor,
+} from "./role-loading.ts";
 import {
   normalizeMemberships,
   resolveScope,
