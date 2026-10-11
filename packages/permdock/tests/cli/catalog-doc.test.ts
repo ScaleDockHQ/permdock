@@ -52,6 +52,52 @@ const policy = definePolicy(permissions, {
   subject: () => null,
 });
 
+describe("catalog app data", () => {
+  const tree = definePermissions({
+    invoice: resource({
+      actions: ["pay"],
+      meta: { title: "Invoice", x: { team: "billing" } },
+    }),
+    note: resource({ actions: ["read"] }),
+  });
+  const withMeta = definePolicy(tree, {
+    roles: [
+      role("clerk", [
+        allow(tree.invoice.pay, {
+          name: "clerk-pays",
+          meta: { description: "Clerks pay invoices", x: { ticket: "FIN-1" } },
+        }),
+        allow(tree.note.read),
+      ]),
+    ],
+    subject: () => null,
+  });
+  const catalog = buildCatalog(tree, scan, "2026-09-29T00:00:00Z", withMeta);
+
+  it("carries resource meta and grant meta, and omits them when empty", () => {
+    expect(catalog.resources["invoice"]?.meta).toEqual({
+      title: "Invoice",
+      x: { team: "billing" },
+    });
+    expect(catalog.resources["note"]).not.toHaveProperty("meta");
+    const [pays, reads] = [
+      catalog.grants?.find((grant) => grant.permission === "invoice.pay"),
+      catalog.grants?.find((grant) => grant.permission === "note.read"),
+    ];
+    expect(pays?.meta).toEqual({
+      description: "Clerks pay invoices",
+      x: { ticket: "FIN-1" },
+    });
+    expect(reads).not.toHaveProperty("meta");
+  });
+
+  it("validates against catalog-v1", () => {
+    expect(() =>
+      parseCatalog(JSON.parse(JSON.stringify(catalog))),
+    ).not.toThrow();
+  });
+});
+
 describe("catalog resource versions", () => {
   const catalog = buildCatalog(
     permissions,

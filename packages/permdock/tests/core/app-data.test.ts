@@ -11,8 +11,10 @@ import {
   defineRoles,
   definePlans,
   deny,
+  fromSnapshot,
   getResource,
   memoryRoleSource,
+  parseSnapshot,
   resource,
   role,
 } from "../../src/index.ts";
@@ -252,6 +254,17 @@ describe("membership x", () => {
     expect(permdock.subject.principal?.memberships?.[0]?.x).toEqual({
       department: "finance",
     });
+  });
+
+  it("carries x through the snapshot to the client", async () => {
+    const permdock = await createPermDock(make(), {
+      id: "u_1",
+      x: { department: "finance" },
+    });
+    const client = fromSnapshot(
+      parseSnapshot(JSON.stringify(permdock.snapshot())),
+    );
+    expect(client.memberships()[0]?.x).toEqual({ department: "finance" });
   });
 
   it("drops an invalid x, keeps the membership and reports it", async () => {

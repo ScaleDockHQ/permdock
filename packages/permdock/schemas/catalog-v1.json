@@ -53,6 +53,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "meta": {
+            "type": "object"
           }
         }
       }
@@ -485,6 +488,9 @@
           },
           "portable": {
             "const": false
+          },
+          "meta": {
+            "type": "object"
           }
         }
       }
