@@ -72,3 +72,11 @@ export function challengeScope(
 ): string {
   return coarseScopesFor(policy, permission)[0] ?? permission.scope;
 }
+
+/** Whether a token holding `granted` carries any of `scopes`. */
+export function hasScope(
+  granted: readonly string[] | undefined,
+  scopes: readonly string[],
+): boolean {
+  return scopes.some((scope) => granted?.includes(scope) === true);
+}

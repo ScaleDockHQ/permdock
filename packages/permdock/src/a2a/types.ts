@@ -9,6 +9,8 @@ export type A2aAuth = {
   readonly scopes?: readonly string[];
   readonly extra?: {
     readonly authorizationDetails?: readonly AuthorizationDetail[];
+    /** The RFC 9396 claim name; read when `authorizationDetails` is absent. */
+    readonly authorization_details?: readonly AuthorizationDetail[];
     readonly approval?: string;
   };
 };

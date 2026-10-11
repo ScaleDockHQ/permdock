@@ -3,7 +3,7 @@ import type { ProblemDetails } from "../core/errors.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permissions.ts";
 import type { Policy } from "../core/policy.ts";
-import type { Actor, Delegation, Principal, Subject } from "../core/subject.ts";
+import type { Actor, Principal, Subject } from "../core/subject.ts";
 import type {
   A2aAgentCard,
   A2aAuth,
@@ -19,6 +19,7 @@ import type {
 import { createAgentKernel } from "../agent/kernel.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
+import { delegationFrom } from "../core/delegation-input.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -26,7 +27,11 @@ import {
 import { freezeDeep } from "../core/freeze.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
-import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
+import {
+  challengeScope,
+  hasScope,
+  scopesReaching,
+} from "../core/oauth-scopes.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { bytesToBase64Url } from "../core/sha256.ts";
 import { bearerChallenge, wwwAuthenticate } from "../server/problem.ts";
@@ -140,21 +145,10 @@ function cardOf(
 
 const DEFAULT_MODES: readonly string[] = ["text/plain"];
 
-function delegationOf(auth: A2aAuth): Delegation | undefined {
-  return compact<Delegation>({
-    scopes: auth.scopes,
-    authorizationDetails: auth.extra?.authorizationDetails,
-  });
-}
-
 function actorOf(auth: A2aAuth): Actor | undefined {
   return typeof auth.clientId === "string" && auth.clientId !== ""
     ? { id: auth.clientId, kind: "oauth-client" }
     : undefined;
-}
-
-function hasScope(auth: A2aAuth, scopes: readonly string[]): boolean {
-  return scopes.some((scope) => auth.scopes?.includes(scope) === true);
 }
 
 const LOAD_FAILED: Extract<Decision, { readonly outcome: "denied" }> =
@@ -276,7 +270,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     compact({
       subject: options.subject,
       actor: actorOf,
-      delegation: delegationOf,
+      delegation: (auth: A2aAuth) => delegationFrom(auth.scopes, auth.extra),
       tenant: options.tenant,
       store: options.store,
       adapter: "a2a",
@@ -323,7 +317,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           },
         };
       }
-      if (!hasScope(auth, scopesReaching(policy, config.permission))) {
+      if (!hasScope(auth.scopes, scopesReaching(policy, config.permission))) {
         return missingScope(
           config.permission,
           challengeScope(policy, config.permission),

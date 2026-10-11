@@ -10,11 +10,7 @@ import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission, ToolHints } from "../core/permissions.ts";
 import type { Policy } from "../core/policy.ts";
-import type {
-  AuthorizationDetail,
-  Delegation,
-  Principal,
-} from "../core/subject.ts";
+import type { Principal } from "../core/subject.ts";
 import type { BearerChallenge } from "../server/problem.ts";
 import type {
   GuardedMcpServer,
@@ -30,13 +26,22 @@ import { createAgentKernel } from "../agent/kernel.ts";
 import { boundedMap } from "../agent/lru.ts";
 import { clientNameOf } from "../core/clients.ts";
 import { compact, isRecord } from "../core/compact.ts";
+import { delegationFrom } from "../core/delegation-input.ts";
 import { describe } from "../core/describe.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { mayUse } from "../core/may-use.ts";
-import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
+import {
+  challengeScope,
+  hasScope,
+  scopesReaching,
+} from "../core/oauth-scopes.ts";
 import { annotationsFor } from "../core/permissions.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import { wireDenials } from "../core/wire-denial.ts";
+import {
+  approvalToolRefusal,
+  deniedToolRefusal,
+  toolErrorResult,
+} from "../core/tool-refusal.ts";
 import { composeWraps } from "../core/wrap.ts";
 import {
   bearerChallenge,
@@ -145,29 +150,6 @@ function approvalTokenOf(context: Context): string | undefined {
   return typeof fromAuth === "string" && fromAuth !== "" ? fromAuth : undefined;
 }
 
-function authorizationDetailsOf(
-  authInfo: McpAuthInfo,
-): readonly AuthorizationDetail[] | undefined {
-  const details =
-    authInfo.extra?.["authorizationDetails"] ??
-    authInfo.extra?.["authorization_details"];
-  // SAFETY: authInfo comes from the server's token verifier, which puts RFC 9396 entries in this array.
-  return Array.isArray(details)
-    ? (details as readonly AuthorizationDetail[])
-    : undefined;
-}
-
-function delegationOf(authInfo: McpAuthInfo): Delegation | undefined {
-  return compact<Delegation>({
-    scopes: authInfo.scopes,
-    authorizationDetails: authorizationDetailsOf(authInfo),
-  });
-}
-
-function hasScope(authInfo: McpAuthInfo, scopes: readonly string[]): boolean {
-  return scopes.some((scope) => (authInfo.scopes ?? []).includes(scope));
-}
-
 function resourceMetadataOf(authInfo: McpAuthInfo): string | undefined {
   if (authInfo.resourceMetadataUrl !== undefined) {
     return authInfo.resourceMetadataUrl;
@@ -255,25 +237,7 @@ function deniedRefusal(
   permission: Permission,
   data: unknown,
 ): Refusal {
-  const alternatives = decision.alternatives.map((leaf) => leaf.key);
-  const resource = resourceRef(permission, data);
-  const suffix =
-    resource.id === undefined
-      ? permission.key
-      : `${permission.key} on ${resource.id}`;
-  const maybe =
-    alternatives.length === 0 ? "" : ` You may: ${alternatives.join(", ")}.`;
-  return {
-    text: `Denied: ${suffix}.${maybe}`,
-    structured: {
-      outcome: "denied",
-      permission: permission.key,
-      resource,
-      denials: wireDenials(decision.denials),
-      alternatives,
-      detail: describe(decision).detail,
-    },
-  };
+  return deniedToolRefusal(decision, permission, resourceRef(permission, data));
 }
 
 function approvalRefusal(
@@ -281,15 +245,11 @@ function approvalRefusal(
   permission: Permission,
   data: unknown,
 ): Refusal {
-  return {
-    text: describe(decision).detail,
-    structured: {
-      outcome: "approval-required",
-      permission: permission.key,
-      resource: resourceRef(permission, data),
-      token: decision.token,
-    },
-  };
+  return approvalToolRefusal(
+    decision,
+    permission,
+    resourceRef(permission, data),
+  );
 }
 
 function plainRefusal(
@@ -359,14 +319,7 @@ function failedRefusal(permission: Permission, failure: CheckFailure): Refusal {
 }
 
 function toolRefusal(refusal: Refusal): unknown {
-  if (refusal.inputRequired !== undefined) {
-    return refusal.inputRequired;
-  }
-  return {
-    isError: true,
-    content: [{ type: "text", text: refusal.text }],
-    structuredContent: refusal.structured,
-  };
+  return refusal.inputRequired ?? toolErrorResult(refusal);
 }
 
 function requirePermission(
@@ -426,7 +379,7 @@ function challengeFor(
       return first;
     }
     const authInfo = context.authInfo;
-    if (authInfo === undefined || hasScope(authInfo, reaching)) {
+    if (authInfo === undefined || hasScope(authInfo.scopes, reaching)) {
       return undefined;
     }
     return { scopes: [challenged] } satisfies ScopeChallenge;
@@ -480,7 +433,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           : undefined;
       },
       delegation: (call: McpCall) =>
-        call.authInfo === undefined ? undefined : delegationOf(call.authInfo),
+        call.authInfo === undefined
+          ? undefined
+          : delegationFrom(call.authInfo.scopes, call.authInfo.extra),
       tenant: tenantOf(options.tenant),
       store: options.store,
       adapter: "mcp",
@@ -516,7 +471,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   ): boolean =>
     authInfo === undefined
       ? options.requireAuthInfo !== true
-      : forThisServer(authInfo) && hasScope(authInfo, reach.scopes);
+      : forThisServer(authInfo) && hasScope(authInfo.scopes, reach.scopes);
 
   const approvalInput = async (
     decision: Extract<Decision, { readonly outcome: "approval-required" }>,
@@ -620,7 +575,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         ),
       };
     }
-    if (authInfo !== undefined && !hasScope(authInfo, reach.scopes)) {
+    if (authInfo !== undefined && !hasScope(authInfo.scopes, reach.scopes)) {
       const resourceMetadata = resourceMetadataOf(authInfo);
       const challenged = reach.challenge;
       return {
