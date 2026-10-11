@@ -25,9 +25,15 @@ import { supabaseTenantClaim } from "../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { describeError } from "./errors.ts";
 import { asPolicy, loadModule, pickNamed } from "./load.ts";
-import { GRANTS_MARKER, INDEXES_MARKER, SEEDS_MARKER } from "./markers.ts";
+import {
+  BACKFILL_MARKER,
+  GRANTS_MARKER,
+  INDEXES_MARKER,
+  SEEDS_MARKER,
+} from "./markers.ts";
 import { apiKeysPlan } from "./rls-api-keys.ts";
 import { adoptedApprovalStoreSql, approvalStoreSql } from "./rls-approvals.ts";
+import { backfillSql } from "./rls-backfill.ts";
 import { breakGlassEntries, breakGlassSql } from "./rls-break-glass.ts";
 import { compileGrants } from "./rls-compile.ts";
 import {
@@ -68,6 +74,7 @@ import {
 } from "./rls-rbac.ts";
 import { realtimeStoragePolicies } from "./rls-realtime-storage.ts";
 import { inheritTargets, rowHelpersSql } from "./rls-rows.ts";
+import { customRolesOn } from "./rls-shared.ts";
 import { shimGrants, shimsSql } from "./rls-shims.ts";
 import {
   checkSuspension,
@@ -83,6 +90,7 @@ import {
   USER_ID_HELPER,
 } from "./rls-sql.ts";
 import {
+  dataMigrationFile,
   driftOf,
   isSeedsDirectory,
   parseSplit,
@@ -283,6 +291,11 @@ export async function runRlsGenerate(input: {
    * gets a new `<version>_permdock_seeds.sql` only when the rows changed.
    */
   readonly seedsOut?: string;
+  /**
+   * The `rls.customRoles.from` copy goes here (`-` prints it). A directory
+   * gets a new `<version>_permdock_backfill.sql` only when the copy changed.
+   */
+  readonly backfillOut?: string;
   /** Only the helpers, their seeds and the scaffold: no table policies, for a project whose policies are hand-written. */
   readonly helpersOnly?: boolean;
   /** Legacy-named wrappers over the helpers, one per `rls.migrate.helpers` entry. */
@@ -389,7 +402,7 @@ export async function runRlsGenerate(input: {
       : { memberSources }),
     ...(suspension === undefined ? {} : { suspension }),
     ...(roles === undefined ? {} : { roles }),
-    ...(input.customRoles === true || rls?.customRoles === true
+    ...(input.customRoles === true || customRolesOn(rls)
       ? {
           customRoles: {
             ...customRoleNames(policy, requires.keys),
@@ -447,6 +460,24 @@ export async function runRlsGenerate(input: {
           },
         }),
   };
+  const from =
+    typeof rls?.customRoles === "object" ? rls.customRoles.from : undefined;
+  if (input.backfillOut !== undefined && from === undefined) {
+    return {
+      code: 2,
+      output:
+        "rls generate --backfill-out needs rls.customRoles.from in permdock.config.ts",
+      text: "",
+    };
+  }
+  let backfill: string | undefined;
+  if (from !== undefined) {
+    try {
+      backfill = backfillSql(ctx, from, rls?.migrate);
+    } catch (cause) {
+      return { code: 2, output: describeError(cause), text: "" };
+    }
+  }
   if (ctx.anonymousSignIns === "deny" && ctx.dialect !== "supabase") {
     return {
       code: 2,
@@ -893,6 +924,20 @@ export async function runRlsGenerate(input: {
   const files: SqlFile[] = [...planned];
   if (migrationRel !== undefined) {
     files.push({ part: "migration", rel: migrationRel, text: migration });
+  }
+  if (input.backfillOut !== undefined && backfill !== undefined) {
+    const file = dataMigrationFile({
+      cwd: input.cwd,
+      out: input.backfillOut,
+      part: "backfill",
+      marker: BACKFILL_MARKER,
+      text: backfill,
+      now: input.io.now?.() ?? new Date(),
+      check: input.check,
+    });
+    if (file !== undefined) {
+      files.push(file);
+    }
   }
   if (input.check) {
     const drift = driftOf(input.cwd, files);

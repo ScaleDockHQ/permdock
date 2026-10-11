@@ -19,7 +19,7 @@ import { tableFor } from "./rls-compile.ts";
 import { contextRefs } from "./rls-conditions.ts";
 import { collectGrants } from "./rls-grants.ts";
 import { ownershipRules } from "./rls-ownership.ts";
-import { CUSTOM_ROLES } from "./rls-shared.ts";
+import { CUSTOM_ROLES, customRolesOn } from "./rls-shared.ts";
 
 /**
  * How a stream query names the signed-in user, its claims and row columns.
@@ -486,7 +486,7 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
       globalRoles.role ?? "role",
     );
   }
-  if (database && rls?.customRoles === true) {
+  if (database && customRolesOn(rls)) {
     const root = ctx.scopes[0]?.name;
     const tenants =
       root === undefined

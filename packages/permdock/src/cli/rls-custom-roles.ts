@@ -468,7 +468,7 @@ revoke execute on function ${trusted}(${signature}) from public, anon, authentic
 }
 
 /** `expr` read as its current key: a former key maps to the key it was renamed to. */
-function currentKeyExpr(
+export function currentKeyExpr(
   renames: readonly (readonly [string, string])[],
   expr: string,
 ): string {

@@ -168,6 +168,16 @@ export function rls(ctx: CliContext): Command {
         description: "File for the role_permissions seeds",
         valueHint: "file",
       },
+      "backfill-out": {
+        type: "string",
+        description: "File for the rls.customRoles.from copy",
+        valueHint: "file",
+      },
+      "retire-out": {
+        type: "string",
+        description: "migrate: file dropping the rls.migrate.tables",
+        valueHint: "file",
+      },
       "helpers-only": {
         type: "boolean",
         description: "Write the helpers and keep the policies hand-written",
@@ -220,6 +230,8 @@ export function rls(ctx: CliContext): Command {
         split: stringArg(parsed.split),
         grantsOut: stringArg(parsed["grants-out"]),
         seedsOut: stringArg(parsed["seeds-out"]),
+        backfillOut: stringArg(parsed["backfill-out"]),
+        retireOut: stringArg(parsed["retire-out"]),
         helpersOnly: parsed["helpers-only"] === true,
         shims: parsed.shims === true,
         write: parsed.write === true,

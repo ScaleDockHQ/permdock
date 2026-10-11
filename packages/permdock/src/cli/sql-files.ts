@@ -125,6 +125,37 @@ export function isSeedsDirectory(cwd: string, out: string): boolean {
   return existsSync(path) && statSync(path).isDirectory();
 }
 
+/**
+ * A generated data migration at `out`: a file, `-` for stdout, or a
+ * migrations directory that gets a new versioned file only when the newest
+ * one starting with `marker` differs. With `check`, the planned file is
+ * always returned, so drift names it.
+ */
+export function dataMigrationFile(input: {
+  readonly cwd: string;
+  readonly out: string;
+  readonly part: string;
+  readonly marker: string;
+  readonly text: string;
+  readonly now: Date;
+  readonly check: boolean;
+}): SqlFile | undefined {
+  if (!isSeedsDirectory(input.cwd, input.out)) {
+    return { part: input.part, rel: input.out, text: input.text };
+  }
+  const planned = seedsMigration(
+    input.cwd,
+    input.out,
+    input.marker,
+    input.text,
+    input.now,
+    input.part,
+  );
+  return !planned.current || input.check
+    ? { part: input.part, rel: planned.rel, text: input.text }
+    : undefined;
+}
+
 /** `YYYYMMDDHHMMSS` in UTC, the Supabase migration version. */
 export function migrationVersion(now: Date): string {
   return now
@@ -169,7 +200,8 @@ export function nextMigrationVersion(
  * starts with \`marker\` when its text is \`text\` already, otherwise a new
  * \`<version>_permdock_seeds.sql\` one second after the newest migration
  * (\`nextMigrationVersion\`), so a regeneration of the same directory names it
- * the same. \`current\` is false when a new one is due.
+ * the same. \`current\` is false when a new one is due. \`label\` replaces
+ * \`seeds\` in the file name for the other generated data migrations.
  */
 export function seedsMigration(
   cwd: string,
@@ -177,6 +209,7 @@ export function seedsMigration(
   marker: string,
   text: string,
   now: Date,
+  label = "seeds",
 ): { readonly rel: string; readonly current: boolean } {
   const base = dir.endsWith("/") ? dir.slice(0, -1) : dir;
   const path = resolve(cwd, base);
@@ -197,7 +230,7 @@ export function seedsMigration(
   }
   const names = existsSync(path) ? readdirSync(path) : [];
   return {
-    rel: `${base}/${nextMigrationVersion(names, now)}_permdock_seeds.sql`,
+    rel: `${base}/${nextMigrationVersion(names, now)}_permdock_${label}.sql`,
     current: false,
   };
 }
