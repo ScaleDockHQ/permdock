@@ -144,6 +144,6 @@ Each rule file contains:
 - Correct code example with explanation
 - Additional context and references
 
-## Full Guide
+## Full Compiled Document
 
-Every rule is expanded in its own file under `rules/`; read the ones whose prefix matches the task.
+For the complete guide with all rules expanded: `AGENTS.md`

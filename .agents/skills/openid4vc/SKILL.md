@@ -1,10 +1,10 @@
 ---
 name: openid4vc
-description: "OpenID4VC: issue and verify verifiable credentials over OAuth. Use when building or reviewing a credential issuer, wallet or verifier with OpenID for Verifiable Credential Issuance (OpenID4VCI) or OpenID for Verifiable Presentations (OpenID4VP): credential offers, authorization code and pre-authorized code flows, issuer metadata at /.well-known/openid-credential-issuer, nonce and credential endpoints, key proofs and key or wallet attestations, DCQL queries, vp_token responses, client identifier prefixes such as x509_hash, direct_post.jwt and the W3C Digital Credentials API (dc_api). Also use it to apply the OpenID4VC High Assurance Interoperability Profile (HAIP), to handle SD-JWT VC (dc+sd-jwt), ISO mdoc (mso_mdoc) and W3C VCDM (jwt_vc_json, ldp_vc) credentials at the protocol level, and to prepare for OpenID conformance testing. Triggers: OID4VCI, OID4VP, OpenID4VCI, OpenID4VP, HAIP, verifiable credentials, digital wallet, mDL, mdoc, SD-JWT VC, DCQL, vp_token, credential offer, key binding JWT."
+description: "OpenID4VC: issue and verify verifiable credentials over OAuth. Use when building or reviewing a credential issuer, wallet or verifier with OpenID4VCI 1.0, OpenID4VP 1.0 or HAIP 1.0 (the 1.1 drafts tracked; upgrades from Implementer's Drafts such as VCI draft 13 and VP ID2): credential offers, authorization and pre-authorized code flows, issuer metadata at /.well-known/openid-credential-issuer, nonce and credential endpoints, key proofs, key and wallet attestations, DCQL queries, vp_token responses, client identifier prefixes such as x509_hash, direct_post.jwt and the W3C Digital Credentials API (dc_api). Also use it for SD-JWT VC (dc+sd-jwt), ISO mdoc (mso_mdoc) and W3C VCDM credentials at the protocol level, and OpenID conformance testing. Triggers: OID4VCI, OID4VP, HAIP, verifiable credentials, digital wallet, mDL, SD-JWT VC, DCQL, vp_token, credential offer, Presentation Exchange migration."
 license: MIT
 metadata:
   author: ScaleDockHQ
-  version: "1.0.0"
+  version: "1.2.2"
   kind: standard
 ---
 
@@ -20,6 +20,7 @@ OpenID for Verifiable Credentials is the OpenID Foundation's family of protocols
 - Flows: issuance with the authorization code flow, the pre-authorized code flow or both; presentation through redirects (same-device or cross-device) or through the Digital Credentials API.
 - Formats: `dc+sd-jwt`, `mso_mdoc`, `jwt_vc_json`, `jwt_vc_json-ld` or `ldp_vc` (OpenID4VCI Appendix A, OpenID4VP Appendix B).
 - Profile: plain OpenID4VCI and OpenID4VP, or HAIP. HAIP is required for OpenID certification of both.
+- Target version, per specification: OpenID4VCI 1.0, OpenID4VP 1.0 and HAIP 1.0 are current (the defaults). OpenID4VCI ID1 (draft 13), OpenID4VCI ID2 (draft 15), OpenID4VP ID2 (draft 18), OpenID4VP ID3 (draft 23) and HAIP ID1 (draft 03) are legacy: read them and upgrade, never author them; OpenID4VP ID2 is still met in ISO 18013-7 Annex B deployments. OpenID4VCI 1.1, OpenID4VP 1.1 and HAIP 1.1 are previews (posture: track): never emit them. See [`references/versions.md`](references/versions.md).
 - Revision: the pinned revision in [Sources](#sources), unless the user names another.
 - Sources: when refreshing this skill or when a rule looks out of date, re-read every URL in [Sources](#sources) first, check the DCP WG specifications page and each specification's errata URL for a newer revision, and update the pins.
 
@@ -42,8 +43,9 @@ OpenID for Verifiable Credentials is the OpenID Foundation's family of protocols
 
 ## Workflow
 
-1. **Pin roles, flows, formats and profile.** Record them from the inputs.
-   ✓ Every flow and format is named, and HAIP is in or out.
+1. **Pick the versions and pin roles, flows, formats and profile.** Use the 1.0 Finals unless a named consumer needs a legacy draft for reading. Record the rest from the inputs.
+   -> [`references/versions.md`](references/versions.md)
+   ✓ Each family has a recorded target that is not a legacy or preview line, every flow and format is named, and HAIP is in or out.
 2. **Build issuance.** Issuer metadata, credential offer, authorization or pre-authorized code, token, nonce, credential, deferred and notification endpoints, and the wallet side of each.
    -> [`references/issuance.md`](references/issuance.md)
    ✓ A wallet obtains a credential from metadata alone, and a replayed proof or offer is rejected.
@@ -65,6 +67,9 @@ OpenID for Verifiable Credentials is the OpenID Foundation's family of protocols
 8. **Prepare certification.** Choose the HAIP test plans for wallet, verifier or issuer.
    -> [`references/certification.md`](references/certification.md)
    ✓ The plan, credential format, response mode and client identifier prefix are configured.
+9. **Upgrade** (only when asked). Follow the upgrade section for each step from the source draft to the 1.0 Final, per family.
+   -> [`references/versions.md`](references/versions.md)
+   ✓ No Presentation Exchange, `client_id_scheme`, JARM, `proof` or `vc+sd-jwt` remains, and the conformance tests pass against 1.0.
 
 ## Verify before done
 
@@ -75,15 +80,18 @@ OpenID for Verifiable Credentials is the OpenID Foundation's family of protocols
 - [ ] The verifier checks integrity, holder binding, audience, nonce, query criteria and its own policy for every presentation, then the set as a whole.
 - [ ] `direct_post` responses use a response code; encrypted responses use the request's key and an allowed `enc`.
 - [ ] Over the DC API, signed requests carry `expected_origins`, and responses are bound to `origin:<origin>`.
+- [ ] SD-JWT VC presentations carry a `kb+jwt` KB-JWT with a correct `sd_hash`, verified with the key in `cnf`, and a `status` reference is checked against a `statuslist+jwt` token before the credential is accepted.
 - [ ] If HAIP is in scope, the matching conformance test plans finish with no failures.
+- [ ] Nothing from a 1.1 editor's draft or an Implementer's Draft is emitted.
 
 ## Reference index
 
+- **`references/versions.md`**: the version lines of OpenID4VCI, OpenID4VP and HAIP, which to use, what changed since each Implementer's Draft, upgrade steps and the 1.1 previews. Load for steps 1 and 9.
 - **`references/issuance.md`**: OpenID4VCI issuer metadata, offers, grants, token, nonce, credential, deferred and notification endpoints, proofs, attestations and errors.
 - **`references/presentation.md`**: OpenID4VP requests, client identifier prefixes, response modes, encryption, errors, validation and security checks, with TypeScript.
 - **`references/dcql.md`**: the Digital Credentials Query Language, claims path pointers and selection rules, with examples.
 - **`references/dc-api.md`**: OpenID4VP over the W3C Digital Credentials API, with a browser example.
-- **`references/formats.md`**: SD-JWT VC, ISO mdoc and W3C VCDM parameters in OpenID4VCI and OpenID4VP.
+- **`references/formats.md`**: SD-JWT VC, ISO mdoc and W3C VCDM parameters in OpenID4VCI and OpenID4VP, and the SD-JWT, SD-JWT VC and Token Status List base rules.
 - **`references/haip.md`**: the HAIP 1.0 requirements as a checklist.
 - **`references/certification.md`**: OpenID conformance test plans for OpenID4VP and OpenID4VCI.
 
@@ -95,6 +103,12 @@ OpenID for Verifiable Credentials is the OpenID Foundation's family of protocols
 - `openid-federation` for the `openid_federation` client identifier prefix and trust chains: `npx skills add ScaleDockHQ/scaledock-skills --skill openid-federation`.
 - `openid-connect` for SIOPv2-style `vp_token id_token` responses and OpenID Connect basics: `npx skills add ScaleDockHQ/scaledock-skills --skill openid-connect`.
 - `openid` for an overview of OpenID Foundation specifications: `npx skills add ScaleDockHQ/scaledock-skills --skill openid`.
+- `sd-jwt` for RFC 9901 SD-JWT, SD-JWT VC and Token Status List in depth: disclosures, Key Binding JWTs, type metadata and status checks behind `dc+sd-jwt`: `npx skills add ScaleDockHQ/scaledock-skills --skill sd-jwt`.
+- `vc-data-model` for the W3C Verifiable Credentials Data Model 2.0 behind `jwt_vc_json`, `jwt_vc_json-ld` and `ldp_vc`, with VC JOSE COSE, Data Integrity and Bitstring Status List: `npx skills add ScaleDockHQ/scaledock-skills --skill vc-data-model`.
+- `did` for W3C DIDs, DID documents and resolution behind `did:<method>` binding methods and the `decentralized_identifier:` client identifier prefix: `npx skills add ScaleDockHQ/scaledock-skills --skill did`.
+- `eudi-wallet` for the EU Digital Identity Wallet ARF, which profiles OpenID4VCI, OpenID4VP and HAIP for PID and attestation issuers, wallets and relying parties: `npx skills add ScaleDockHQ/scaledock-skills --skill eudi-wallet`.
+- `digital-credentials`, when the work also follows that specification: `npx skills add ScaleDockHQ/scaledock-skills --skill digital-credentials`
+- `fedcm`, when the work also follows that specification: `npx skills add ScaleDockHQ/scaledock-skills --skill fedcm`
 
 ## Sources
 
@@ -103,8 +117,22 @@ Status uses the publishing body's own maturity term. Checked is the date the sou
 - [OpenID for Verifiable Credential Issuance 1.0](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0-final.html): Final, published 16 September 2025, checked 2026-10-02.
 - [OpenID for Verifiable Presentations 1.0](https://openid.net/specs/openid-4-verifiable-presentations-1_0-final.html): Final, published 9 July 2025, checked 2026-10-02.
 - [OpenID4VC High Assurance Interoperability Profile 1.0](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0-final.html): Final, published 24 December 2025, checked 2026-10-02.
+- [OpenID for Verifiable Credential Issuance - draft 13 (Implementer's Draft 1)](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0-ID1.html): Implementer's Draft, ID1, document draft 13 (8 February 2024), checked 2026-10-05. Legacy line.
+- [OpenID for Verifiable Credential Issuance - draft 15 (Implementer's Draft 2)](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0-ID2.html): Implementer's Draft, ID2, document draft 15 (19 December 2024), checked 2026-10-05. Legacy line.
+- [OpenID for Verifiable Credential Issuance 1.0 - draft 17](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0-17.html): Draft, draft 17 (17 August 2025), checked 2026-10-05. Read for its Document History; superseded by the Final.
+- [OpenID for Verifiable Credential Issuance 1.1 - Editor's draft](https://openid.github.io/OpenID4VCI/openid-4-verifiable-credential-issuance-1_1-wg-draft.html): Editor's draft, 1.1 -01 (1 October 2026), checked 2026-10-05. Draft posture: track.
+- [OpenID for Verifiable Presentations - draft 18 (Implementer's Draft 2)](https://openid.net/specs/openid-4-verifiable-presentations-1_0-ID2.html): Implementer's Draft, ID2, document draft 18 (21 April 2023), checked 2026-10-05. Legacy line, used by ISO 18013-7 Annex B.
+- [OpenID for Verifiable Presentations - draft 23 (Implementer's Draft 3)](https://openid.net/specs/openid-4-verifiable-presentations-1_0-ID3.html): Implementer's Draft, ID3, document draft 23 (2 December 2024), checked 2026-10-05. Legacy line.
+- [OpenID for Verifiable Presentations - draft 29](https://openid.net/specs/openid-4-verifiable-presentations-1_0-29.html): Draft, draft 29 (10 June 2025), checked 2026-10-05. Read for its Document History; superseded by the Final.
+- [OpenID for Verifiable Presentations 1.1 - Editor's draft](https://openid.github.io/OpenID4VP/openid-4-verifiable-presentations-1_1-wg-draft.html): Editor's draft, 1.1 -01 (1 October 2026), checked 2026-10-05. Draft posture: track.
+- [OpenID4VC High Assurance Interoperability Profile - draft 03 (Implementer's Draft 1)](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0-ID1.html): Implementer's Draft, ID1, document draft 03 (7 February 2025), checked 2026-10-05. Legacy line.
+- [OpenID4VC High Assurance Interoperability Profile 1.0 - draft 06](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0-06.html): Draft, draft 06 (20 November 2025), checked 2026-10-05. Read for its Document History; superseded by the Final.
+- [OpenID4VC High Assurance Interoperability Profile 1.1 - Editor's draft](https://openid.github.io/OpenID4VC-HAIP/openid4vc-high-assurance-interoperability-profile-1_1-wg-draft.html): Editor's draft, 1.1 -01 (24 September 2026), checked 2026-10-05. Draft posture: track.
 - [Security and Trust in OpenID for Verifiable Credentials Ecosystems](https://openid.github.io/OpenID4VC_SecTrust/draft-oid4vc-security-and-trust.html): WG draft, draft-oid4vc-security-and-trust-latest (14 March 2024), checked 2026-10-02. Draft posture: track, because it is an unfinished, non-normative analysis.
 - [Digital Credentials](https://www.w3.org/TR/digital-credentials/): W3C Working Draft, 4 September 2026, checked 2026-10-02. Draft posture: build, because OpenID4VP Appendix A and HAIP §5.2 depend on it.
+- [RFC 9901: Selective Disclosure for JSON Web Tokens](https://www.rfc-editor.org/rfc/rfc9901.html): RFC (Proposed Standard), RFC 9901 (November 2025), checked 2026-10-05.
+- [SD-JWT-based Verifiable Digital Credentials (SD-JWT VC)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/19/): WG draft (IETF OAuth), draft-ietf-oauth-sd-jwt-vc-19 (31 August 2026), checked 2026-10-05. Draft posture: build; HAIP pins -13.
+- [Token Status List (TSL)](https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/21/): WG draft (IETF OAuth), in the RFC Editor queue, draft-ietf-oauth-status-list-21 (21 June 2026), checked 2026-10-05. Draft posture: build; HAIP pins -14.
 - [DCP WG specifications](https://openid.net/wg/digital-credentials-protocols/specifications/): Index, page as read 2026-10-02, checked 2026-10-02.
 - [Conformance testing for OpenID for Verifiable Presentations](https://openid.net/certification/conformance-testing-for-openid-for-verifiable-presentations/): Published, page as read 2026-10-02, checked 2026-10-02.
 - [Conformance testing for OpenID for Verifiable Credential Issuance](https://openid.net/certification/conformance-testing-for-openid-for-verifiable-credential-issuance/): Published, page as read 2026-10-02, checked 2026-10-02.

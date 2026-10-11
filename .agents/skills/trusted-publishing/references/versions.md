@@ -1,0 +1,25 @@
+# Versions and upgrades
+
+Read this when choosing a target version, reading a document written for an older line, upgrading, or deciding whether to use a preview. Sources: the pinned texts listed in [Sources](../SKILL.md#sources).
+
+## Version lines
+
+| Id                        | Line                    | Status  | Revision                         | Posture | Summary                                                                                                                               |
+| ------------------------- | ----------------------- | ------- | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `trusted-publishing-npm`  | npm trusted publishing  | current | Commit 48e397113e76 (2026-10-02) |         | npm's trusted publishing for GitHub Actions, GitLab CI/CD and CircleCI cloud runners, with automatic provenance on GitHub and GitLab. |
+| `trusted-publishing-pypi` | PyPI trusted publishing | current | Commit f97350ae5bd7 (2026-10-06) |         | PyPI's trusted publishing for GitHub Actions, GitLab CI/CD, Google Cloud and ActiveState, minting API tokens valid for 15 minutes.    |
+
+Statuses: **current** is the default target; **supported** is released and still a valid target when a consumer needs it; **legacy** is superseded, read and upgraded from but never authored; **preview** is a draft of the next line, used only as its posture allows. A line whose only publication is itself a draft is **current** and carries a posture.
+
+## Which version to use
+
+- Default to the current line.
+- Drop to a supported line only for a named consumer that cannot read the current one.
+- Treat a legacy document as input to an upgrade.
+- Emit nothing from a preview unless its posture is build.
+
+Neither registry numbers its trusted publishing feature; each documentation page is a living document. The two lines are two registries, not two editions. Pin the documentation repository commits in [Sources](../SKILL.md#sources).
+
+## Upgrading
+
+This skill has one published line. There is no older line here to upgrade from.
