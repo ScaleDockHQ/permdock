@@ -1,12 +1,9 @@
 import type { SqlQuery } from "permdock/supabase";
 import type { Client } from "pg";
 
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { composeMemberships, createPermDock, memoryRoleSource } from "permdock";
-import { run } from "permdock/cli";
 import { subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -15,6 +12,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { sources } from "../fixtures/centrakit-roles/sources.ts";
 import { permissions, policy } from "../fixtures/centrakit/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { generateRlsParts } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/centrakit-roles");
@@ -146,48 +144,18 @@ insert into customer_contacts (organization_id, customer_id, contact_profile_id)
 
 type Claims = Record<string, unknown>;
 
-async function generate(args: readonly string[]): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-roles-"));
-  try {
-    const result = await run(
-      [
-        "rls",
-        "generate",
-        "--target",
-        "sql",
-        ...args,
-        "--out",
-        join(dir, "{part}.sql"),
-      ],
-      { cwd: FIXTURE },
-    );
-    if (result.code !== 0) {
-      throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
-    }
-    const parts = args[args.indexOf("--split") + 1]?.split(",") ?? [];
-    return parts
-      .map((part) => readFileSync(join(dir, `${part}.sql`), "utf8"))
-      .join("\n");
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
 describe("CentraKit user_roles and organization_users through roles.key", () => {
   let db: Postgres | undefined;
   let sql = "";
   let query: SqlQuery = async () => [];
 
   beforeAll(async () => {
-    sql = await generate(["--split", "helpers,hook"]);
-    const jwt = await generate([
-      "--authorize",
-      "jwt",
-      "--rbac-schema",
-      "permdock_jwt",
-      "--split",
-      "helpers",
-    ]);
+    sql = await generateRlsParts(FIXTURE, ["helpers", "hook"]);
+    const jwt = await generateRlsParts(
+      FIXTURE,
+      ["helpers"],
+      ["--authorize", "jwt", "--rbac-schema", "permdock_jwt"],
+    );
     db = await startPostgres([SETUP, sql, jwt]);
     const admin = db.admin;
     query = async (text, values) => (await admin.query(text, [...values])).rows;

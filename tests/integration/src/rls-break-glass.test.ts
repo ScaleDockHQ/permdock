@@ -1,13 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { generateRls } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/break-glass");
@@ -37,29 +35,12 @@ function session(extra: Record<string, unknown> = {}): string {
   });
 }
 
-async function generate(): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-break-glass-"));
-  const out = join(dir, "rls.sql");
-  try {
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
-      { cwd: FIXTURE },
-    );
-    if (result.code !== 0) {
-      throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
-    }
-    return readFileSync(out, "utf8");
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
 describe("break-glass RLS session function (guc)", () => {
   let db: Postgres | undefined;
   let generated = "";
 
   beforeAll(async () => {
-    generated = await generate();
+    generated = await generateRls(FIXTURE, ["--dialect", "guc"]);
     db = await startPostgres([SETUP, generated]);
   }, 120_000);
 

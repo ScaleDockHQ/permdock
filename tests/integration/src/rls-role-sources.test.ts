@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { visibleIds } from "./support/rls.ts";
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -133,14 +134,10 @@ describe("membership rows with several role sources", () => {
 
   it("compiles a resource membership condition over every source", async () => {
     const visible = (user: string) =>
-      db!.as(
+      visibleIds(
+        db!,
         { role: "authenticated", settings: { "app.user_id": user } },
-        async () =>
-          (
-            await db!.tester.query<{ readonly id: string }>(
-              "select id from ledger order by id",
-            )
-          ).rows.map((row) => row.id),
+        "select id from ledger order by id",
       );
     expect(await visible("u1")).toEqual(["l1", "l2"]);
     expect(await visible("u2")).toEqual([]);

@@ -1,11 +1,8 @@
 import type { Client } from "pg";
 
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPermDock } from "permdock";
-import { run } from "permdock/cli";
 import {
   type SqlQuery,
   fromJunction,
@@ -23,6 +20,7 @@ import {
   policy,
 } from "../fixtures/named-scopes/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { rlsAndHook } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/named-scopes/keep");
@@ -84,28 +82,6 @@ grant select, insert, update, delete on quote, invoice, asset to authenticated;
 
 type Claims = Record<string, unknown>;
 
-async function generate(cwd: string): Promise<readonly string[]> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-keep-"));
-  const out = join(dir, "rls.sql");
-  const hookOut = join(dir, "hook.sql");
-  const rls = await run(
-    ["rls", "generate", "--target", "sql", "--rbac", "supabase", "--out", out],
-    { cwd },
-  );
-  if (rls.code !== 0) {
-    throw new Error(`rls generate: ${rls.stdout}${rls.stderr}`);
-  }
-  const hook = await run(["supabase", "hook", "generate", "--out", hookOut], {
-    cwd,
-  });
-  if (hook.code !== 0) {
-    throw new Error(`hook generate: ${hook.stdout}${hook.stderr}`);
-  }
-  const sql = [readFileSync(out, "utf8"), readFileSync(hookOut, "utf8")];
-  rmSync(dir, { recursive: true, force: true });
-  return sql;
-}
-
 describe.each([
   { mode: "jwt", cwd: FIXTURE },
   { mode: "database", cwd: join(FIXTURE, "database") },
@@ -113,7 +89,7 @@ describe.each([
   let db: Postgres | undefined;
 
   beforeAll(async () => {
-    db = await startPostgres([SETUP, ...(await generate(cwd))]);
+    db = await startPostgres([SETUP, ...(await rlsAndHook(cwd))]);
   }, 120_000);
 
   afterAll(async () => {

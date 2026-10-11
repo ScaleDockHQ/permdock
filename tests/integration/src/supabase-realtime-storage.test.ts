@@ -1,12 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { SupabasePostgres } from "./support/supabase-postgres.ts";
 
+import { generateRls } from "./support/rls.ts";
 import { generatedFindings, runSplinter } from "./support/splinter.ts";
 import { startSupabasePostgres } from "./support/supabase-postgres.ts";
 
@@ -73,23 +71,6 @@ function started(): SupabasePostgres {
   return db;
 }
 
-async function generate(): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-realtime-storage-"));
-  try {
-    const out = join(dir, "out.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: join(HERE, "../fixtures/realtime-storage") },
-    );
-    if (result.code !== 0) {
-      throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
-    }
-    return readFileSync(out, "utf8");
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
 /** Runs `sql` as `authenticated` with these claims and Realtime topic, then rolls back. */
 async function as<T extends Record<string, unknown>>(
   claims: Readonly<Record<string, unknown>>,
@@ -121,7 +102,7 @@ const upload = (name: string, bucket = "files"): string =>
   `insert into storage.objects (bucket_id, name) values ('${bucket}', '${name}')`;
 
 beforeAll(async () => {
-  generated = await generate();
+  generated = await generateRls(join(HERE, "../fixtures/realtime-storage"));
   db = await startSupabasePostgres();
   await db.superuser.query(SERVICES);
   await db.owner.query(APP);

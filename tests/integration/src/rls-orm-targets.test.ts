@@ -25,6 +25,7 @@ import {
   users,
 } from "../fixtures/workspace/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { visibleIds } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/workspace");
@@ -175,14 +176,10 @@ async function visible(
   sub: string,
   table: Table,
 ): Promise<string[]> {
-  return db.as(
+  return visibleIds(
+    db,
     { role: "authenticated", settings: { "app.user_id": sub } },
-    async () =>
-      (
-        await db.tester.query<{ id: string }>(
-          `select id from public.${table} order by id`,
-        )
-      ).rows.map((row) => row.id),
+    `select id from public.${table} order by id`,
   );
 }
 

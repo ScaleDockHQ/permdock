@@ -1,8 +1,5 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { type RlsParityFixture, rlsParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -11,6 +8,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { permissions } from "../fixtures/abac/permissions.ts";
 import { policy } from "../fixtures/abac/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { generateRls } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/abac");
@@ -317,32 +315,6 @@ const expected: Readonly<Record<string, boolean>> = {
   "note: contains never treats % and _ as wildcards": false,
 };
 
-async function generate(dialect: Dialect): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), `permdock-abac-${dialect}-`));
-  const out = join(dir, "rls.sql");
-  try {
-    const result = await run(
-      [
-        "rls",
-        "generate",
-        "--target",
-        "sql",
-        "--dialect",
-        dialect,
-        "--out",
-        out,
-      ],
-      { cwd: FIXTURE },
-    );
-    if (result.code !== 0) {
-      throw new Error(`rls generate --dialect ${dialect}: ${result.stderr}`);
-    }
-    return readFileSync(out, "utf8");
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
 describe.each(["supabase", "neon", "guc"] as const)(
   "RLS parity for subject attributes (%s)",
   (dialect) => {
@@ -350,7 +322,7 @@ describe.each(["supabase", "neon", "guc"] as const)(
     let generated = "";
 
     beforeAll(async () => {
-      generated = await generate(dialect);
+      generated = await generateRls(FIXTURE, ["--dialect", dialect]);
       db = await startPostgres([SETUP, STUBS[dialect], generated, GRANTS]);
     }, 120_000);
 

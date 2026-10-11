@@ -16,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { jwtClaims, visibleIds } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/centrakit-legacy");
@@ -364,22 +365,10 @@ drop table if exists "public"."user_permissions";
       "select count(*)::int as n from pg_class where relname = 'user_permissions'",
     );
     expect(rows[0]?.n).toBe(0);
-    const customers = await db.as(
-      {
-        role: "authenticated",
-        settings: {
-          "request.jwt.claims": JSON.stringify({
-            sub: MEMBER,
-            role: "authenticated",
-          }),
-        },
-      },
-      async () =>
-        (
-          await db!.tester.query<{ id: string }>(
-            "select id from customers order by id",
-          )
-        ).rows.map((row) => row.id),
+    const customers = await visibleIds(
+      db,
+      { role: "authenticated", settings: jwtClaims(MEMBER) },
+      "select id from customers order by id",
     );
     expect(customers).toEqual([CUST_A]);
     expect(

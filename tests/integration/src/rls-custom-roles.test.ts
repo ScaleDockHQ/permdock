@@ -15,7 +15,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions } from "../fixtures/rls-custom-roles/permissions.ts";
 import { policy } from "../fixtures/rls-custom-roles/policy.ts";
-import { startPostgres } from "./support/postgres.ts";
+import { startPostgres, databaseUri, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/rls-custom-roles");
@@ -298,19 +298,6 @@ async function runPgtap(uri: string, script: string): Promise<string[]> {
   } finally {
     await client.end();
   }
-}
-
-function databaseUri(uri: string, database: string): string {
-  const url = new URL(uri);
-  url.pathname = `/${database}`;
-  return url.toString();
-}
-
-function testerUri(uri: string, database: string): string {
-  const url = new URL(databaseUri(uri, database));
-  url.username = "tester";
-  url.password = "tester";
-  return url.toString();
 }
 
 describe("custom roles in generated RLS (database and jwt modes)", () => {

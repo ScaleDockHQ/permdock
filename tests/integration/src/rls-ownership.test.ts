@@ -10,6 +10,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/ownership/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { visibleIds } from "./support/rls.ts";
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -162,14 +163,10 @@ describe("ownership triggers in generated RLS", () => {
           },
         ],
       });
-      const visible = await db!.as(
+      const visible = await visibleIds(
+        db!,
         { role: "authenticated", settings: { "app.user_id": user } },
-        async () =>
-          (
-            await db!.tester.query<{ readonly id: string }>(
-              "select id from ledger order by id",
-            )
-          ).rows.map((row) => row.id),
+        "select id from ledger order by id",
       );
       const expected = ["l1", "l2"].filter((id) =>
         permdock.can(permissions.ledger.read, { id }),

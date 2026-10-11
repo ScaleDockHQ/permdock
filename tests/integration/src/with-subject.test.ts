@@ -25,7 +25,7 @@ import {
   seedSql,
   users,
 } from "../fixtures/workspace/policy.ts";
-import { startPostgres } from "./support/postgres.ts";
+import { startPostgres, testerUri } from "./support/postgres.ts";
 import { PrismaClient } from "./support/prisma/client.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -71,13 +71,6 @@ type PrismaDb = {
   $transaction<T>(fn: (tx: PrismaRawTx) => Promise<T>): Promise<T>;
   $disconnect(): Promise<void>;
 };
-
-function testerUri(uri: string): string {
-  const url = new URL(uri);
-  url.username = "tester";
-  url.password = "tester";
-  return url.toString();
-}
 
 describe("withSubject runs Drizzle, Kysely and Prisma under the generated RLS", () => {
   let db: Postgres | undefined;

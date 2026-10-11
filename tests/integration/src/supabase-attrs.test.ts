@@ -1,12 +1,9 @@
 import type { Principal } from "permdock";
 import type { Client } from "pg";
 
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -15,6 +12,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { permissions } from "../fixtures/abac/permissions.ts";
 import { policy } from "../fixtures/abac/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { generateRls, generateSql } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/supabase-attrs");
@@ -76,25 +74,13 @@ grant select on report, ticket, record, note to authenticated;
 
 type Claims = Record<string, unknown>;
 
-async function generate(args: readonly string[]): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-attrs-"));
-  const out = join(dir, "out.sql");
-  const result = await run([...args, "--out", out], { cwd: FIXTURE });
-  if (result.code !== 0) {
-    throw new Error(`${args.join(" ")}: ${result.stdout}${result.stderr}`);
-  }
-  const sql = readFileSync(out, "utf8");
-  rmSync(dir, { recursive: true, force: true });
-  return sql;
-}
-
 describe("the attrs claim against Postgres", () => {
   let db: Postgres | undefined;
   let hook = "";
 
   beforeAll(async () => {
-    hook = await generate(["supabase", "hook", "generate"]);
-    const rls = await generate(["rls", "generate", "--target", "sql"]);
+    hook = await generateSql(FIXTURE, ["supabase", "hook", "generate"]);
+    const rls = await generateRls(FIXTURE);
     db = await startPostgres([SETUP, hook, rls]);
   }, 120_000);
 

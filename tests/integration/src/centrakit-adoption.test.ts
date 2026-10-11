@@ -24,6 +24,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/centrakit-adoption/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { visibleIds, jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/centrakit-adoption");
@@ -266,12 +267,7 @@ describe("CentraKit adoption shapes", () => {
     const ok = await db.as(
       {
         role: "shim_caller",
-        settings: {
-          "request.jwt.claims": JSON.stringify({
-            sub: ADMIN,
-            role: "authenticated",
-          }),
-        },
+        settings: jwtClaims(ADMIN),
       },
       async () =>
         (
@@ -544,19 +540,15 @@ export default {
 
   const ids = async (sub: string, table: string) => {
     const pg = started();
-    return pg.as(
+    return visibleIds(
+      pg,
       {
         role: "authenticated",
         settings: {
           "request.jwt.claims": JSON.stringify({ sub, role: "authenticated" }),
         },
       },
-      async () =>
-        (
-          await pg.tester.query<{ id: string }>(
-            `select id from ${table} order by id`,
-          )
-        ).rows.map((row) => row.id),
+      `select id from ${table} order by id`,
     );
   };
 

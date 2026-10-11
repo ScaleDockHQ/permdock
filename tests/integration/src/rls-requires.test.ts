@@ -20,27 +20,19 @@ import {
   users,
 } from "../fixtures/requires/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { jwtClaims, readableIds, visibleIds } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/requires");
 
 async function visible(db: Postgres, user: string): Promise<readonly string[]> {
-  return db.as(
+  return visibleIds(
+    db,
     {
       role: "authenticated",
-      settings: {
-        "request.jwt.claims": JSON.stringify({
-          sub: user,
-          role: "authenticated",
-        }),
-      },
+      settings: jwtClaims(user),
     },
-    async () =>
-      (
-        await db.tester.query<{ id: string }>(
-          "select id from public.drive order by id",
-        )
-      ).rows.map((row) => row.id),
+    "select id from public.drive order by id",
   );
 }
 
@@ -49,11 +41,7 @@ async function inProcess(user: RequiresUser): Promise<readonly string[]> {
     relations,
     customRoles,
   });
-  await permdock.loadRelations(permissions.drive.read, drives);
-  return drives
-    .filter((row) => permdock.can(permissions.drive.read, row))
-    .map((row) => row.id)
-    .toSorted();
+  return readableIds(permdock, permissions.drive.read, drives);
 }
 
 describe("requires in RLS: a share counts only where the role permission is held", () => {
@@ -112,22 +100,13 @@ describe("requires in RLS: a share counts only where the role permission is held
     const target = db;
     const mismatches: string[] = [];
     for (const user of users) {
-      const got = await target.as(
+      const got = await visibleIds(
+        target,
         {
           role: "authenticated",
-          settings: {
-            "request.jwt.claims": JSON.stringify({
-              sub: user.id,
-              role: "authenticated",
-            }),
-          },
+          settings: jwtClaims(user.id),
         },
-        async () =>
-          (
-            await target.tester.query<{ id: string }>(
-              "select id from permdock.permitted_drive_rows('drive.read') id order by id",
-            )
-          ).rows.map((row) => row.id),
+        "select id from permdock.permitted_drive_rows('drive.read') id order by id",
       );
       const named = (
         await target.admin.query<{ id: string }>(
@@ -157,7 +136,8 @@ describe("requires in RLS: a share counts only where the role permission is held
     const target = db;
     const member = users[0]?.id ?? "";
     const withKey = async (scopes: readonly string[]) =>
-      target.as(
+      visibleIds(
+        target,
         {
           role: "authenticated",
           settings: {
@@ -168,12 +148,7 @@ describe("requires in RLS: a share counts only where the role permission is held
             }),
           },
         },
-        async () =>
-          (
-            await target.tester.query<{ id: string }>(
-              "select id from public.drive order by id",
-            )
-          ).rows.map((row) => row.id),
+        "select id from public.drive order by id",
       );
     expect(await withKey(["file.read"])).toEqual(["d-acme"]);
     expect(await withKey(["drive.read", "file.read"])).toEqual(["d-acme"]);
@@ -199,7 +174,8 @@ describe("requires in RLS: a share counts only where the role permission is held
       [],
     ]) {
       for (const user of users) {
-        const got = await target.as(
+        const got = await visibleIds(
+          target,
           {
             role: "authenticated",
             settings: {
@@ -210,12 +186,7 @@ describe("requires in RLS: a share counts only where the role permission is held
               }),
             },
           },
-          async () =>
-            (
-              await target.tester.query<{ id: string }>(
-                "select id from public.drive order by id",
-              )
-            ).rows.map((row) => row.id),
+          "select id from public.drive order by id",
         );
         const permdock = await createPermDock(
           policy,

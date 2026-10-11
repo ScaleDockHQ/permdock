@@ -1,13 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { generateRls } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -44,33 +42,19 @@ insert into public.job values
   ('j3', 'initech', '${ADMIN}');
 `;
 
-async function generated(fixture: string, dir: string): Promise<string> {
-  const out = join(dir, `${fixture}.sql`);
-  const result = await run(
-    ["rls", "generate", "--target", "sql", "--out", out],
-    { cwd: join(HERE, "../fixtures", fixture) },
-  );
-  if (result.code !== 0) {
-    throw new Error(`rls generate: ${result.stdout}`);
-  }
-  return readFileSync(out, "utf8");
-}
-
 describe("rls.tenants", () => {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-rls-tenants-"));
   const databases: Record<string, Postgres> = {};
 
   beforeAll(async () => {
     for (const fixture of ["custom-role-writes", "rls-tenants-all"]) {
       databases[fixture] = await startPostgres([
         SETUP,
-        await generated(fixture, dir),
+        await generateRls(join(HERE, "../fixtures", fixture)),
       ]);
     }
   }, 240_000);
 
   afterAll(async () => {
-    rmSync(dir, { recursive: true, force: true });
     for (const db of Object.values(databases)) {
       await db.stop();
     }

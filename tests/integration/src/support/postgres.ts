@@ -58,6 +58,23 @@ function inTransaction(
   };
 }
 
+/** `uri` pointed at `database`; unchanged when `database` is omitted. */
+export function databaseUri(uri: string, database?: string): string {
+  const url = new URL(uri);
+  if (database !== undefined) {
+    url.pathname = `/${database}`;
+  }
+  return url.toString();
+}
+
+/** `databaseUri` logged in as `tester`, the role RLS applies to. */
+export function testerUri(uri: string, database?: string): string {
+  const url = new URL(databaseUri(uri, database));
+  url.username = "tester";
+  url.password = "tester";
+  return url.toString();
+}
+
 const TESTER = `
 create role tester login password 'tester' nosuperuser nobypassrls inherit;
 grant usage on schema public to tester;

@@ -1,16 +1,14 @@
 import { createClient, sql } from "@pgkit/client";
 import { Migration } from "@pgkit/migra";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { generated } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -82,40 +80,27 @@ create table public.customer_contacts (
 alter table public.customer_contacts enable row level security;
 `;
 
-async function generate(
+async function generateSplit(
   fixture: string,
   split: string,
 ): Promise<{ readonly schema: string; readonly grants: string }> {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-db-diff-"));
-  try {
-    const result = await run(
-      [
-        "rls",
-        "generate",
-        "--target",
-        "sql",
-        "--split",
-        split,
-        "--out",
-        join(dir, "{part}.sql"),
-        "--grants-out",
-        join(dir, "grants.sql"),
-      ],
-      { cwd: join(HERE, "../fixtures", fixture) },
-    );
-    if (result.code !== 0) {
-      throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
-    }
-    return {
-      schema: split
-        .split(",")
-        .map((part) => readFileSync(join(dir, `${part}.sql`), "utf8"))
-        .join("\n"),
-      grants: readFileSync(join(dir, "grants.sql"), "utf8"),
-    };
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  const [grants = "", ...parts] = await generated(
+    [
+      "rls",
+      "generate",
+      "--target",
+      "sql",
+      "--split",
+      split,
+      "--out",
+      "{dir}/{part}.sql",
+      "--grants-out",
+      "{dir}/grants.sql",
+    ],
+    ["grants.sql", ...split.split(",").map((part) => `${part}.sql`)],
+    { cwd: join(HERE, "../fixtures", fixture) },
+  );
+  return { schema: parts.join("\n"), grants };
 }
 
 describe("supabase db diff over rls generate --grants-out", () => {
@@ -173,7 +158,7 @@ describe("supabase db diff over rls generate --grants-out", () => {
     ["centrakit-roles", CENTRAKIT, "helpers,hook"],
   ] as const) {
     it(`finds nothing to change between the migrations and the ${split} schema (${fixture})`, async () => {
-      const { schema, grants } = await generate(fixture, split);
+      const { schema, grants } = await generateSplit(fixture, split);
       const migrated = await database([setup, schema, grants]);
       const declared = await database([setup, schema]);
       expect(await diff(migrated, declared)).toBe("");

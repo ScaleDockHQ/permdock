@@ -18,6 +18,7 @@ import {
   users,
 } from "../fixtures/typed-groups/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { readableIds, visibleIds } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/typed-groups");
@@ -34,14 +35,10 @@ async function visible(
   sub: string,
   table: "drive" | "team",
 ): Promise<readonly string[]> {
-  return db.as(
+  return visibleIds(
+    db,
     { role: "authenticated", settings: { "app.user_id": sub } },
-    async () =>
-      (
-        await db.tester.query<{ id: string }>(
-          `select id::text from public.${table} order by id::text`,
-        )
-      ).rows.map((row) => row.id),
+    `select id::text from public.${table} order by id::text`,
   );
 }
 
@@ -51,11 +48,7 @@ async function inProcess(
 ): Promise<readonly string[]> {
   const permdock = await createPermDock(policy, { id: sub }, { relations });
   if (table === "drive") {
-    await permdock.loadRelations(permissions.drive.read, rows.drive);
-    return rows.drive
-      .filter((row) => permdock.can(permissions.drive.read, row))
-      .map((row) => row.id)
-      .toSorted();
+    return readableIds(permdock, permissions.drive.read, rows.drive);
   }
   await permdock.loadRelations(permissions.team.read, rows.team);
   return rows.team

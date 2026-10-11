@@ -18,6 +18,7 @@ import {
   users,
 } from "../fixtures/inherit/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { jwtClaims, readableIds, visibleIds } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/inherit");
@@ -27,18 +28,13 @@ async function asUser(
   user: string,
   sql: string,
 ): Promise<readonly string[]> {
-  return db.as(
+  return visibleIds(
+    db,
     {
       role: "authenticated",
-      settings: {
-        "request.jwt.claims": JSON.stringify({
-          sub: user,
-          role: "authenticated",
-        }),
-      },
+      settings: jwtClaims(user),
     },
-    async () =>
-      (await db.tester.query<{ id: string }>(sql)).rows.map((row) => row.id),
+    sql,
   );
 }
 
@@ -47,11 +43,7 @@ async function inProcess(
   permission: typeof permissions.node.read | typeof permissions.node.share,
 ): Promise<readonly string[]> {
   const permdock = await createPermDock(policy, user, { relations });
-  await permdock.loadRelations(permission, nodes);
-  return nodes
-    .filter((row) => permdock.can(permission, row))
-    .map((row) => row.id)
-    .toSorted();
+  return readableIds(permdock, permission, nodes);
 }
 
 describe("inherit() in RLS: a node is readable where its drive is", () => {

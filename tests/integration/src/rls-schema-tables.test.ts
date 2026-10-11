@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
-import { startPostgres } from "./support/postgres.ts";
+import { startPostgres, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/schema-tables");
@@ -99,13 +99,6 @@ const FIXTURES = [
     expected: "granted",
   },
 ];
-
-function testerUri(uri: string): string {
-  const url = new URL(uri);
-  url.username = "tester";
-  url.password = "tester";
-  return url.toString();
-}
 
 describe("rls.tables with schema-qualified names", () => {
   const dir = mkdtempSync(join(tmpdir(), "permdock-schema-tables-"));
