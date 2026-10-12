@@ -775,6 +775,35 @@ describe("configuration and remaining causes", () => {
     ]);
   });
 
+  it("reports a throwing membership source and keeps the principal", async () => {
+    const events: { readonly reason: string; readonly source: string }[] = [];
+    const token = await accessToken({ tenants: { o_1: ["owner"] } });
+    const subject = await subjectFromJwt(token, {
+      jwks: PUBLIC_JWKS,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      sender: "none",
+      claims: { memberships: "tenants" },
+      memberships: {
+        membershipsFor: () => {
+          throw new Error("db down");
+        },
+      },
+      onAuth: (event) => {
+        events.push(event);
+      },
+    });
+    expect(subject.principal?.memberships).toEqual([
+      { tenant: "o_1", roles: ["owner"] },
+    ]);
+    expect(events).toEqual([
+      expect.objectContaining({
+        reason: "source-threw",
+        source: "memberships",
+      }),
+    ]);
+  });
+
   it("rejects a claimed act chain that does not nest", async () => {
     const events: { readonly cause?: string }[] = [];
     const token = await accessToken({ act: { iss: "https://as.example" } });

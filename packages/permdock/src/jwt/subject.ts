@@ -77,6 +77,14 @@ async function extraMemberships(
       principal: { ...subject.principal, memberships: merged },
     });
   } catch {
+    options.onAuth?.(
+      compact<AuthEvent>({
+        reason: "source-threw",
+        source: "memberships",
+        issuer: options.issuer,
+        requestId: options.requestId,
+      }),
+    );
     return subject;
   }
 }
