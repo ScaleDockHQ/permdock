@@ -17,11 +17,8 @@ try {
   const result = spawnSync(bin, args, {
     cwd,
     stdio: "inherit",
-    env: {
-      ...process.env,
-      SUPABASE_DB_URL: database.url,
-      DATABASE_URL: database.url,
-    },
+    // 0.8 reads SUPABASE_DB_URL when DATABASE_URL is unset; a DATABASE_URL in the caller's shell must not win.
+    env: { ...process.env, DATABASE_URL: "", SUPABASE_DB_URL: database.url },
   });
   process.exitCode = result.status ?? 1;
 } finally {

@@ -1,8 +1,10 @@
 import "server-only";
 import { createNext } from "better-supabase/next";
 import { createPostgres } from "better-supabase/postgres";
+import { authorizer } from "permdock/better-supabase";
 
 import { env } from "../../env.ts";
+import { policy } from "../../policy.ts";
 import { audience, betterSupabase, cookieName } from "./index.ts";
 
 /** Direct Postgres: `bs.cached()` hands out `sql`, typed repositories that run as the caller, so RLS applies. */
@@ -17,6 +19,7 @@ export const bs = createNext(betterSupabase, {
     jwksUrl: new URL(`${issuer}/.well-known/jwks.json`),
   },
   postgres,
+  authorizer: authorizer({ policy }),
   auth: {
     jwks: env.verificationKeys,
     issuer,

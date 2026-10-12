@@ -1,4 +1,4 @@
--- better-supabase module: updated-at (0.7.0)
+-- better-supabase module: updated-at (0.8.0)
 -- @bs-module-data updated-at
 -- Rows and settings a schema diff doesn't capture. Run `better-supabase sql data`
 -- after the schema migration to put them in a migration.

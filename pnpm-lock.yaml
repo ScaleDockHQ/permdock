@@ -414,8 +414,8 @@ catalogs:
       specifier: 1.1.3
       version: 1.1.3
     better-supabase:
-      specifier: 0.7.0
-      version: 0.7.0
+      specifier: 0.8.0
+      version: 0.8.0
     botid:
       specifier: 1.5.11
       version: 1.5.11
@@ -1604,7 +1604,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: 0.7.0(a1a80d04fd456cc8d803c6aaf7229a44)
+        version: 0.8.0(a1a80d04fd456cc8d803c6aaf7229a44)
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -2493,7 +2493,7 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: 0.7.0(c7710a5968e16d3a689742d3acd81030)
+        version: 0.8.0(c7710a5968e16d3a689742d3acd81030)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.3)(mysql2@3.24.5(@types/node@26.6.4))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.5)
@@ -2796,7 +2796,7 @@ importers:
         version: 7.0.127(zod@4.6.5)
       better-supabase:
         specifier: 'catalog:'
-        version: 0.7.0(c7710a5968e16d3a689742d3acd81030)
+        version: 0.8.0(c7710a5968e16d3a689742d3acd81030)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.3)(mysql2@3.24.5(@types/node@26.6.4))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.5)
@@ -8846,8 +8846,8 @@ packages:
   better-result@2.10.0:
     resolution: {integrity: sha512-oQhh0y1qo2/ZKdAAEvHZAqKKiHOFU5k/bW96fE2ScgQOVkJRiHwB+nOS1SgFsYqRlxMDWvefXi9Q3px7QvgNDw==}
 
-  better-supabase@0.7.0:
-    resolution: {integrity: sha512-58fCaUjN7gjHqxA2kHbsk8Chi6tVyrKPa+ogvq1pL+44IxbP6Rl8z0XhRBiv4o0XdrMK0sykqvP8ICMIwfvF8A==}
+  better-supabase@0.8.0:
+    resolution: {integrity: sha512-1UlPuCA5z9mi9jR4Kd7upTpkKcIs9xXbzcKxuKtuinRkq6xvEZU0lFtQdleI405H/6PMVCPsmA9xmYvsVrMURw==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -8859,17 +8859,22 @@ packages:
       '@next/playwright': '>=16.2 <17'
       '@opentelemetry/api': '>=1.9 <2'
       '@orpc/server': '>=2.0.0-beta.40 <3'
+      '@supabase-labs/tanstack-db': '>=0.1.0 <0.2'
       '@supabase/config': '>=0.9.0 <0.12'
-      '@supabase/postgrest-typegen': 0.4.0
+      '@supabase/lite': '>=0.11.0 <0.12'
+      '@supabase/mcp-server-supabase': '>=0.13.0 <0.14'
+      '@supabase/postgrest-typegen': '>=0.4.0 <0.5'
       '@supabase/supabase-js': ^2.116.0
       '@tanstack/query-core': ^5.62.0
       '@workflow/world': '>=5.0.2 <5.1'
       '@workflow/world-postgres': '>=5.0.2 <5.1'
       ai: '>=7 <8'
+      better-result: '>=3 <4'
       chat: '>=4.41 <5'
       eve: '>=0.71 <1'
       expo-server: '>=55 <59'
       hono: '>=4 <5'
+      jsonpath-rfc9535: '>=1.3.0 <2'
       next: 16.3.8
       oxfmt: '>=0.66.0 <1'
       pg: 8.23.1
@@ -8898,7 +8903,13 @@ packages:
         optional: true
       '@orpc/server':
         optional: true
+      '@supabase-labs/tanstack-db':
+        optional: true
       '@supabase/config':
+        optional: true
+      '@supabase/lite':
+        optional: true
+      '@supabase/mcp-server-supabase':
         optional: true
       '@supabase/postgrest-typegen':
         optional: true
@@ -8910,6 +8921,8 @@ packages:
         optional: true
       ai:
         optional: true
+      better-result:
+        optional: true
       chat:
         optional: true
       eve:
@@ -8917,6 +8930,8 @@ packages:
       expo-server:
         optional: true
       hono:
+        optional: true
+      jsonpath-rfc9535:
         optional: true
       next:
         optional: true
@@ -11888,15 +11903,6 @@ packages:
   lru.min@1.1.5:
     resolution: {integrity: sha512-5J9ysMYUpYIg9RF2vJpy9SinEmSviFSe0GyPpCQ4L5QSkLAgeLXlTAOu2ZwWUU5m+0SBl6gUU1R1ZQB3aKypfA==}
     engines: {bun: '>=1.0.0', deno: '>=1.30.0', node: '>=8.0.0'}
-
-  lucide-react@1.50.0:
-    resolution: {integrity: sha512-RqHPQtKX6S9IE1xOL4oTHHsVQbcwJWTnmlxI6AdI9IpOwKiy7q+COPCQyMepI/Qu1x3h7sunpyEMvqtgFbgNiQ==}
-    peerDependencies:
-      '@types/react': '*'
-      react: 19.3.0
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
 
   lucide-react@1.52.0:
     resolution: {integrity: sha512-TUgPtl5ZI9WgxOcbu4ckaC5B3l1qxPQrCMgb6OfUB9owx/OvSJfcf93SMgUWAxRw5/1XDfh9uI5F5iNGXCcGDQ==}
@@ -17525,7 +17531,7 @@ snapshots:
       class-variance-authority: 0.7.1
       cn: 0.3.3
       fumadocs-core: 16.15.18(@mdx-js/mdx@3.1.1(supports-color@7.2.0))(@modelcontextprotocol/server@2.3.0)(@tanstack/react-router@1.170.39(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.3.0)(lucide-react@1.52.0(@types/react@19.3.0)(react@19.3.0))(next@16.3.8(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@26.6.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react-router@8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(supports-color@7.2.0)(zod@4.6.5)
-      lucide-react: 1.50.0(@types/react@19.3.0)(react@19.3.0)
+      lucide-react: 1.52.0(@types/react@19.3.0)(react@19.3.0)
       motion: 13.4.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       next-themes: 0.4.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
@@ -22433,7 +22439,7 @@ snapshots:
 
   better-result@2.10.0: {}
 
-  better-supabase@0.7.0(a1a80d04fd456cc8d803c6aaf7229a44):
+  better-supabase@0.8.0(a1a80d04fd456cc8d803c6aaf7229a44):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -22467,7 +22473,7 @@ snapshots:
       - h3
       - typescript
 
-  better-supabase@0.7.0(c7710a5968e16d3a689742d3acd81030):
+  better-supabase@0.8.0(c7710a5968e16d3a689742d3acd81030):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -25740,12 +25746,6 @@ snapshots:
       yallist: 3.1.1
 
   lru.min@1.1.5: {}
-
-  lucide-react@1.50.0(@types/react@19.3.0)(react@19.3.0):
-    dependencies:
-      react: 19.3.0
-    optionalDependencies:
-      '@types/react': 19.3.0
 
   lucide-react@1.52.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
