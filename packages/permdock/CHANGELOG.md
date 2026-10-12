@@ -1,5 +1,43 @@
 # permdock
 
+## 0.4.0
+
+### Minor Changes
+
+- [#149](https://github.com/ScaleDockHQ/permdock/pull/149) [`4fb331c`](https://github.com/ScaleDockHQ/permdock/commit/4fb331c92bd4ba157e09dfb5d4785ac107b78d4a) Thanks [@martijn00](https://github.com/martijn00)! - `permdock/better-supabase` adds `authorizer({ policy })`, better-supabase 0.8's `Authorizer` for PermDock: it decides each `permission` of a resource, action, route guard or MCP tool from the verified claims. The `better-supabase` peer range is now `>=0.6.0 <0.9.0`.
+
+- [#143](https://github.com/ScaleDockHQ/permdock/pull/143) [`3d76388`](https://github.com/ScaleDockHQ/permdock/commit/3d76388fcbb6cf9b508e2df69a4a8a07bd052575) Thanks [@martijn00](https://github.com/martijn00)! - HTTP adapters take `onDenied` to replace a refusal's Problem Details or `Response`, `context` to merge server-derived values into `subject.context`, and `wrap` with the new `wrapPermDock` helper; MCP and the AI SDK take the same `context` and `wrap`, and an `onDenied` that replaces the refusal text only. Behaviour changes: a `protect` loader that throws now answers `403` with reason `validation` instead of throwing, and Next.js `requireAccess` now runs the factory's `onDenied` unless the call passes its own.
+
+- [#143](https://github.com/ScaleDockHQ/permdock/pull/143) [`3d76388`](https://github.com/ScaleDockHQ/permdock/commit/3d76388fcbb6cf9b508e2df69a4a8a07bd052575) Thanks [@martijn00](https://github.com/martijn00)! - `definePermissions`, `defineRoles`, `definePlans` and `definePolicy` take an `x` option with one Standard Schema per kind of app data, which checks and types `meta.x` on permissions, resources, roles, plans and grants and `Membership.x` on memberships. `resource({ meta })`, `allow(p, { meta })`, `Membership.x` and custom-role `meta.x` are carried to decisions, events, snapshots and `catalog-v1` (optional `meta` on resources and grants), and PermDock never reads them; the Supabase sources read `Membership.x` from a `jsonb` column set with `x`.
+
+- [#143](https://github.com/ScaleDockHQ/permdock/pull/143) [`3d76388`](https://github.com/ScaleDockHQ/permdock/commit/3d76388fcbb6cf9b508e2df69a4a8a07bd052575) Thanks [@martijn00](https://github.com/martijn00)! - `allow(p, { obligations })` adds `{ kind: 'app', name, detail? }` obligations to a granted decision, in process and through snapshots, and decision events, OCSF and OTel carry the grant `name` and the obligation names. A denied decision now carries `permission`, `DenialDetails` types each reason's `detail`, and `describe(decision, { permission })` uses the leaf's `meta.title`.
+
+- [#143](https://github.com/ScaleDockHQ/permdock/pull/143) [`3d76388`](https://github.com/ScaleDockHQ/permdock/commit/3d76388fcbb6cf9b508e2df69a4a8a07bd052575) Thanks [@martijn00](https://github.com/martijn00)! - `PermDockProvider` (and the Vue plugin, Svelte `setPermDock` and Solid provider) takes `defaults` for the `<Protected>` slots, `messages` for the new `useDescribe()` (`getDescribe()` in Svelte), and `onSnapshot`, `onClear` and `approvalInterval`. `<Protected approval>` renders an approval-required decision and falls back to `fallback`.
+
+- [#146](https://github.com/ScaleDockHQ/permdock/pull/146) [`c9cb09c`](https://github.com/ScaleDockHQ/permdock/commit/c9cb09ce563ded326f5b2b6c02c40c9a136d5783) Thanks [@martijn00](https://github.com/martijn00)! - `createPermDock` from `permdock/next` takes `wrap`, a `PermDockWrap` applied to each instance after `otel` and before the factory `onDenied`, as the HTTP adapters do.
+
+- [#141](https://github.com/ScaleDockHQ/permdock/pull/141) [`e179f3e`](https://github.com/ScaleDockHQ/permdock/commit/e179f3e22251b610180af5f6c87ed65c9cdc5628) Thanks [@martijn00](https://github.com/martijn00)! - `rls generate --backfill-out` copies existing custom roles named in `rls.customRoles.from` into the custom-role tables, and `rls.triggers` and `rls.audit` declare app-owned and audit triggers on generated tables, which now carry an identity `id` primary key. `rls migrate --retire-out` drops each `rls.migrate.tables` table with its refresh triggers once nothing reads it, and `doctor` reports such a table as PD066 until then.
+
+### Patch Changes
+
+- [#146](https://github.com/ScaleDockHQ/permdock/pull/146) [`2aa62fd`](https://github.com/ScaleDockHQ/permdock/commit/2aa62fdcb48c587fc5adbf82398ca7a640c4fe7f) Thanks [@martijn00](https://github.com/martijn00)! - `permdock/webmcp` denial text names the resource id (`Denied: post.update on p1.`), as `permdock/mcp` does. `permdock/a2a` reads RFC 9396 entries from `extra.authorization_details` when `extra.authorizationDetails` is absent.
+
+- [#148](https://github.com/ScaleDockHQ/permdock/pull/148) [`8bd33f3`](https://github.com/ScaleDockHQ/permdock/commit/8bd33f3f854c8ca22b299c072231fd0d0c4139a3) Thanks [@martijn00](https://github.com/martijn00)! - `approvalsHandler` shows `GET /:token` for a request without a tenant only to its requester, who answered it and who may answer it; other principals get `404`. A note over 2000 characters is a `400` and a body over 16 KiB a `413`; the request stays pending.
+
+- [#146](https://github.com/ScaleDockHQ/permdock/pull/146) [`de9da25`](https://github.com/ScaleDockHQ/permdock/commit/de9da25c5bc6cc90b5f389f7a436d5aae4d7d774) Thanks [@martijn00](https://github.com/martijn00)! - `subjectFromClerk` reads the `globalRoles` claim path through the shared path reader, so a `__proto__`, `constructor` or `prototype` segment yields no roles.
+
+- [#146](https://github.com/ScaleDockHQ/permdock/pull/146) [`9eafe89`](https://github.com/ScaleDockHQ/permdock/commit/9eafe89a6d706cb79286958f894ab5f7386cefa5) Thanks [@martijn00](https://github.com/martijn00)! - Streamed subscription items wait for a pending revalidation, so an item after a revocation event is checked against the rebuilt instance instead of the revoked one. `Connection` gains `settled()`, which resolves once queued revalidations finish.
+
+- [#148](https://github.com/ScaleDockHQ/permdock/pull/148) [`4b94e3f`](https://github.com/ScaleDockHQ/permdock/commit/4b94e3f9c64b42b01fb601f553cbb324e2cabd68) Thanks [@martijn00](https://github.com/martijn00)! - `joseTokenVerifier` decrypts a nested JWE with any key in `decryptionKeys`, not only the first `oct` key. It accepts `RSA`, `EC` and `OKP` private JWKs, skips keys whose `use`, `alg` or `kid` do not fit the header, and tries the rest in order, so key rotation works.
+
+- [#148](https://github.com/ScaleDockHQ/permdock/pull/148) [`e445e5b`](https://github.com/ScaleDockHQ/permdock/commit/e445e5be3816b2de8ec5352cb73e3c8733035a8b) Thanks [@martijn00](https://github.com/martijn00)! - `subjectFromJwt` and `createJwtSubjectResolver` report a throwing `memberships` source through `onAuth` as `{ reason: 'source-threw', source: 'memberships' }`. The subject still resolves without the extra memberships.
+
+- [#143](https://github.com/ScaleDockHQ/permdock/pull/143) [`3d76388`](https://github.com/ScaleDockHQ/permdock/commit/3d76388fcbb6cf9b508e2df69a4a8a07bd052575) Thanks [@martijn00](https://github.com/martijn00)! - `withOtel` keeps instrumenting the instance `derive()` returns.
+
+- [#148](https://github.com/ScaleDockHQ/permdock/pull/148) [`c4bffee`](https://github.com/ScaleDockHQ/permdock/commit/c4bffeed6dac2bcaf2634c834d89456cd8e7019e) Thanks [@martijn00](https://github.com/martijn00)! - `protect(null)` in `permdock/server` now refuses a delegated token (one with an actor or a delegation) that carries no scopes, with the `403` `insufficient_scope` challenge. It passed before, while `permdock/mcp` refused the same token. First-party sessions are unchanged.
+
+- [#146](https://github.com/ScaleDockHQ/permdock/pull/146) [`6fea849`](https://github.com/ScaleDockHQ/permdock/commit/6fea8491d90f881d3aff57273bcf21abf8809ab4) Thanks [@martijn00](https://github.com/martijn00)! - `permdock rls generate --db` exits `1` (unavailable) when the database cannot be reached, instead of `2` (usage).
+
 ## 0.3.1
 
 ### Patch Changes
