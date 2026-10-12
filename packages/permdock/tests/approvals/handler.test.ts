@@ -67,6 +67,68 @@ describe("approvalsHandler GET by token", () => {
     );
   });
 
+  it("hides a tenantless request from a principal who may not resolve it", async () => {
+    const store = memoryApprovalStore();
+    store.create({
+      ...pending("closed", { id: "u_3", roles: ["member"] }),
+      approvers: { by: { kind: "user", id: "u_8" } },
+    });
+    const as = (id: string, roles: string[]): Subject => ({
+      principal: { id, roles },
+      context: {},
+    });
+    const statusFor = async (subject: Subject) =>
+      (
+        await approvalsHandler(store, { subject: () => subject })(
+          new Request(`${BASE}/closed`),
+        )
+      ).status;
+    expect(await statusFor(as("u_9", ["member"]))).toBe(404);
+    expect(await statusFor(as("u_3", ["member"]))).toBe(200);
+    expect(await statusFor(as("u_8", ["member"]))).toBe(200);
+  });
+
+  it("keeps a resolved tenantless request visible to who resolved it", async () => {
+    const store = memoryApprovalStore();
+    store.create({
+      ...pending("done", { id: "u_3", roles: ["member"] }),
+      approvers: { by: { kind: "user", id: "u_8" } },
+    });
+    const approver: Subject = {
+      principal: { id: "u_8", roles: [] },
+      context: {},
+    };
+    const handler = approvalsHandler(store, { subject: () => approver });
+    expect(
+      (await handler(new Request(`${BASE}/done/approve`, { method: "POST" })))
+        .status,
+    ).toBe(200);
+    expect((await handler(new Request(`${BASE}/done`))).status).toBe(200);
+  });
+
+  it("refuses a note over 2000 characters and a body over 16 KiB", async () => {
+    const store = seeded();
+    const handler = approvalsHandler(store, { subject: () => viewer });
+    const post = (body: string, headers: Record<string, string> = {}) =>
+      handler(
+        new Request(`${BASE}/loose/approve`, {
+          method: "POST",
+          headers: { "content-type": "application/json", ...headers },
+          body,
+        }),
+      );
+    expect(
+      (await post(JSON.stringify({ note: "x".repeat(2001) }))).status,
+    ).toBe(400);
+    expect(
+      (await post("{}", { "content-length": String(16 * 1024 + 1) })).status,
+    ).toBe(413);
+    expect((await store.get("loose"))?.status).toBe("pending");
+    expect(
+      (await post(JSON.stringify({ note: "x".repeat(2000) }))).status,
+    ).toBe(200);
+  });
+
   it("refuses an undefined subject and an unknown route", async () => {
     const handler = approvalsHandler(seeded(), { subject: () => undefined });
     expect((await handler(new Request(`${BASE}/own`))).status).toBe(401);

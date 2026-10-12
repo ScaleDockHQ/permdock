@@ -5,13 +5,18 @@ Owning pages: [JWT adapter](https://permdock.com/docs/adapters/jwt), [authentica
 ## Access tokens — `permdock/jwt`
 
 ```ts
-import { subjectFromJwt } from "permdock/jwt";
+import { createJwtSubjectResolver } from "permdock/jwt";
 
-const subject = await subjectFromJwt(token, {
+// One resolver per issuer for the life of the process: it caches Discovery and the JWKS.
+const resolve = createJwtSubjectResolver({
   discovery: "https://issuer.example.com",
   audience: "https://api.example.com",
 });
+
+const subject = await resolve(token, request);
 ```
+
+`subjectFromJwt(token, options)` takes the same options but builds a new verifier per call, so each call fetches Discovery and the JWKS again. Use it for a one-off check such as a CLI or a test.
 
 - Prefer `discovery: '<issuer>'` over a hand-copied `jwks` URL. Set `audience` to the resource identifier. Write algorithms as `Ed25519`, `ES256` or `PS256`; never `EdDSA`, `none` or `RSA1_5`.
 - Keep the default `accept: 'access-token'`, so an ID token never authorises an API call.

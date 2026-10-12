@@ -440,6 +440,33 @@ describe("oauthScopes", () => {
     );
   });
 
+  it("protect(null) refuses a delegated token that carries no scopes", async () => {
+    const delegations = [
+      { chain: [{ sub: "client-1" }] },
+      { authorizationDetails: [{ type: "task", actions: ["read"] }] },
+      undefined,
+    ];
+    const results: number[] = [];
+    for (const delegation of delegations) {
+      const { protect } = createServerPermDock(exportPolicy, {
+        subject: () => ({
+          principal: { id: "u1", roles: ["member"] },
+          context: {},
+          actor: agent,
+          ...(delegation === undefined ? {} : { delegation }),
+        }),
+      });
+      const guarded = await protect(null, undefined, { oauthScopes: ["chat"] })(
+        new Request("https://api.example/chat", {
+          method: "POST",
+          headers: { authorization: "Bearer t" },
+        }),
+      );
+      results.push(guarded.ok ? 200 : guarded.response.status);
+    }
+    expect(results).toEqual([403, 403, 403]);
+  });
+
   it("the server kernel reads a HEAD request's scopes from the GET entry", async () => {
     const { protect } = createServerPermDock(exportPolicy, {
       subject: () => ({

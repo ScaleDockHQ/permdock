@@ -139,7 +139,13 @@ export async function guardOn<T, V extends PolicyVocabulary>(
       );
     }
   }
-  const held = instance.subject.delegation?.scopes;
+  const { actor, delegation } = instance.subject;
+  // A route without a permission has no decision to clip a delegation, so a
+  // delegated token without scopes holds none of them.
+  const held =
+    permission === null && (actor !== undefined || delegation !== undefined)
+      ? (delegation?.scopes ?? [])
+      : delegation?.scopes;
   if (
     declared !== undefined &&
     held !== undefined &&
