@@ -169,19 +169,34 @@ async function mayResolve(
   }
 }
 
-function canView(request: ApprovalRequest, subject: Subject): boolean {
+/**
+ * The requester, a tenant member for a tenant request, and for a request
+ * without a tenant only who answered it or may answer it.
+ */
+function canView(
+  request: ApprovalRequest,
+  subject: Subject,
+  requireDistinct: boolean,
+  options: ApprovalsHandlerOptions,
+): Promise<boolean> {
   const principal = subject.principal;
   if (principal === null) {
-    return false;
+    return Promise.resolve(false);
   }
   if (request.subject.principal?.id === principal.id) {
-    return true;
+    return Promise.resolve(true);
   }
   const tenant = request.subject.principal?.tenant;
   if (tenant !== undefined) {
-    return belongsToTenant(subject, tenant);
+    return Promise.resolve(belongsToTenant(subject, tenant));
   }
-  return true;
+  if (
+    request.resolvedBy === principal.id ||
+    (request.approvals ?? []).some((item) => item.by === principal.id)
+  ) {
+    return Promise.resolve(true);
+  }
+  return mayResolve(request, subject, requireDistinct, options);
 }
 
 /**
@@ -254,28 +269,57 @@ function signedApproval(
   );
 }
 
-async function readNote(request: Request): Promise<string | undefined> {
+type NoteRead = { readonly note?: string; readonly refusal?: Response };
+
+const MAX_BODY_BYTES = 16 * 1024;
+const MAX_NOTE_LENGTH = 2000;
+
+function tooLarge(): Response {
+  return problem(
+    413,
+    "Payload too large",
+    `request body exceeds ${String(MAX_BODY_BYTES)} bytes`,
+    "payload-too-large",
+  );
+}
+
+/** An unreadable body is no note; an oversized body or note is refused, never truncated. */
+async function readNote(request: Request): Promise<NoteRead> {
   const contentType = request.headers.get("content-type") ?? "";
-  if (request.method !== "POST" || contentType === "") {
-    return undefined;
+  if (request.method !== "POST" || !contentType.includes("application/json")) {
+    return {};
   }
-  if (!contentType.includes("application/json")) {
-    return undefined;
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > MAX_BODY_BYTES) {
+    return { refusal: tooLarge() };
   }
   try {
-    const body: unknown = await request.json();
+    const text = await request.text();
+    if (text.length > MAX_BODY_BYTES) {
+      return { refusal: tooLarge() };
+    }
+    const body: unknown = JSON.parse(text);
     if (
       body !== null &&
       typeof body === "object" &&
       "note" in body &&
       typeof body.note === "string"
     ) {
-      return body.note;
+      return body.note.length > MAX_NOTE_LENGTH
+        ? {
+            refusal: problem(
+              400,
+              "Invalid request",
+              `note exceeds ${String(MAX_NOTE_LENGTH)} characters`,
+              "validation",
+            ),
+          }
+        : { note: body.note };
     }
   } catch {
-    return undefined;
+    return {};
   }
-  return undefined;
+  return {};
 }
 
 function mapError(error: unknown, credentials: boolean): Response {
@@ -365,7 +409,10 @@ export function approvalsHandler(
       }
       if (route.kind === "get") {
         const current = await store.get(route.token);
-        if (current === null || !canView(current, subject)) {
+        if (
+          current === null ||
+          !(await canView(current, subject, requireDistinct, options))
+        ) {
           return problem(
             404,
             "Not found",
@@ -393,7 +440,11 @@ export function approvalsHandler(
         relations,
         permissions,
       );
-      const note = await readNote(request);
+      const read = await readNote(request);
+      if (read.refusal !== undefined) {
+        return read.refusal;
+      }
+      const note = read.note;
       const resolved = await store.resolve(
         route.token,
         compact<ApprovalVerdict>({
