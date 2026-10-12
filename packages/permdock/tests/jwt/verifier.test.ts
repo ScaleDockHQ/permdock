@@ -290,6 +290,100 @@ describe("joseTokenVerifier nested JWE", () => {
     ]);
   });
 
+  it("decrypts with RSA and EC private keys, any key of a set, and by kid", async () => {
+    const inner = await sign();
+    const wrap = async (
+      alg: string,
+      enc: string,
+      key: CryptoKey | Uint8Array,
+      kid?: string,
+    ) =>
+      new CompactEncrypt(new TextEncoder().encode(inner))
+        .setProtectedHeader({
+          alg,
+          enc,
+          cty: "JWT",
+          ...(kid === undefined ? {} : { kid }),
+        })
+        .encrypt(key);
+    const rsa = await generateKeyPair("RSA-OAEP-256", { extractable: true });
+    const ec = await generateKeyPair("ECDH-ES+A256KW", {
+      extractable: true,
+      crv: "P-256",
+    });
+    const rsaPrivate = {
+      ...(await exportJWK(rsa.privateKey)),
+      kid: "rsa-1",
+      use: "enc",
+    };
+    const rsaPublic = await exportJWK(rsa.publicKey);
+    const ecPrivate = { ...(await exportJWK(ec.privateKey)), kid: "ec-1" };
+    const octKey = { kty: "oct", k, kid: "oct-1" };
+    const rsaToken = await wrap("RSA-OAEP-256", "A256GCM", rsa.publicKey);
+    const kidRsaToken = await wrap(
+      "RSA-OAEP-256",
+      "A256GCM",
+      rsa.publicKey,
+      "rsa-1",
+    );
+    const ecToken = await wrap("ECDH-ES+A256KW", "A128GCM", ec.publicKey);
+    const dirToken = await wrap("dir", "A256GCM", secret);
+    const cases: readonly [
+      string,
+      string,
+      Partial<JoseTokenVerifierOptions>,
+    ][] = [
+      ["rsa", rsaToken, { decryptionKeys: rsaPrivate }],
+      ["ec", ecToken, { decryptionKeys: { keys: [ecPrivate] } }],
+      [
+        "rsa second in set",
+        rsaToken,
+        { decryptionKeys: { keys: [octKey, rsaPrivate] } },
+      ],
+      [
+        "dir last in set",
+        dirToken,
+        { decryptionKeys: { keys: [rsaPrivate, octKey] } },
+      ],
+      [
+        "kid picks the key",
+        kidRsaToken,
+        {
+          decryptionKeys: {
+            keys: [{ ...rsaPrivate, kid: "other" }, rsaPrivate],
+          },
+        },
+      ],
+      [
+        "kid names no key",
+        kidRsaToken,
+        { decryptionKeys: { keys: [{ ...rsaPrivate, kid: "other" }] } },
+      ],
+      ["public key only", rsaToken, { decryptionKeys: rsaPublic }],
+      ["sig key", rsaToken, { decryptionKeys: { ...rsaPrivate, use: "sig" } }],
+      [
+        "alg mismatch",
+        rsaToken,
+        { decryptionKeys: { ...rsaPrivate, alg: "RSA-OAEP" } },
+      ],
+    ];
+    const results = [];
+    for (const [label, token, options] of cases) {
+      results.push([label, await causeOf(token, options)]);
+    }
+    expect(results).toEqual([
+      ["rsa", "ok"],
+      ["ec", "ok"],
+      ["rsa second in set", "ok"],
+      ["dir last in set", "ok"],
+      ["kid picks the key", "ok"],
+      ["kid names no key", "encrypted-token"],
+      ["public key only", "encrypted-token"],
+      ["sig key", "encrypted-token"],
+      ["alg mismatch", "encrypted-token"],
+    ]);
+  });
+
   it("refuses RSA1_5 before decrypting", async () => {
     const header = base64url.encode(
       JSON.stringify({ alg: "RSA1_5", enc: "A256GCM", cty: "JWT" }),

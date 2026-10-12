@@ -9,7 +9,6 @@ import type { JoseTokenVerifierOptions, JwtAlgorithm } from "./types.ts";
 import { compact } from "../core/compact.ts";
 import { createKeyCache } from "./cache.ts";
 import {
-  DEFAULT_DECRYPTION_ALGS,
   assertVerifierConfig,
   fail,
   isSecretJwks,
@@ -18,6 +17,7 @@ import {
   resolveClockTolerance,
   secretBytes,
 } from "./config.ts";
+import { decryptWithKeys } from "./decrypt.ts";
 import { decodeHeader, isJwe, normalizeTyp, unknownCrit } from "./header.ts";
 import { loadJose } from "./load-jose.ts";
 
@@ -239,34 +239,8 @@ export function joseTokenVerifier(
       return fail("encrypted-token");
     }
     const jose = await loadJose();
-    try {
-      const listed = options.decryptionKeys;
-      // SAFETY: checked to be an array; each entry's kty and k are checked before use.
-      const rawKeys: readonly Record<string, unknown>[] =
-        "keys" in listed && Array.isArray(listed.keys)
-          ? (listed.keys as readonly Record<string, unknown>[])
-          : [listed];
-      const first = rawKeys[0];
-      if (
-        first === undefined ||
-        first["kty"] !== "oct" ||
-        typeof first["k"] !== "string"
-      ) {
-        return fail("encrypted-token");
-      }
-      const { plaintext } = await jose.compactDecrypt(
-        token,
-        jose.base64url.decode(first["k"]),
-        {
-          keyManagementAlgorithms: [
-            ...(options.decryptionAlgorithms ?? DEFAULT_DECRYPTION_ALGS),
-          ].filter((alg) => alg !== "RSA1_5"),
-        },
-      );
-      return { ok: true, jwt: new TextDecoder().decode(plaintext) };
-    } catch {
-      return fail("encrypted-token");
-    }
+    const jwt = await decryptWithKeys(jose, token, header, options);
+    return jwt === undefined ? fail("encrypted-token") : { ok: true, jwt };
   };
 
   return {
