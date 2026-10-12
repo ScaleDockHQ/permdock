@@ -1,4 +1,4 @@
--- better-supabase module: pgtap (0.7.0)
+-- better-supabase module: pgtap (0.8.0)
 -- @bs-module pgtap@1 managed
 -- tests.create_user, tests.authenticate_as and tests.rls_enabled for `supabase test db`. Written to supabase/tests, never to your schema.
 -- Managed by `better-supabase sql add`; re-running it overwrites this file.

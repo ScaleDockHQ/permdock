@@ -1,4 +1,4 @@
--- better-supabase module: updated-at (0.7.0)
+-- better-supabase module: updated-at (0.8.0)
 -- @bs-module updated-at@1 managed
 -- Keeps an updated_at column current on every update.
 -- Managed by `better-supabase sql add`; re-running it overwrites this file.

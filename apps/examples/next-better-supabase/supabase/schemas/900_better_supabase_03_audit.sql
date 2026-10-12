@@ -1,4 +1,4 @@
--- better-supabase module: audit (0.7.0)
+-- better-supabase module: audit (0.8.0)
 -- @bs-module audit@6 managed
 -- Records inserts, updates and deletes with the actor and changed columns for tables you register, plus semantic events through audit_event(), with redaction, an append-only guard, a tenant read policy and per-tenant retention as options.
 -- Managed by `better-supabase sql add`; re-running it overwrites this file.
@@ -463,13 +463,18 @@ revoke execute on function better_supabase.audit_schema(text, text, text[]) from
 -- actor_id, actor_kind, actor_label, ip, user_agent, session_id, request_id
 -- and scope are honoured for the service role and direct admin connections,
 -- which never get the request's own address, user agent or session; everyone
--- else gets auth.uid() and the request's own values. restricted goes to the
+-- else gets auth.uid() and the request's own values. support_session,
+-- impersonated_by and impersonation_reason fill the impersonation columns;
+-- other callers may only name themselves as impersonated_by, from a token
+-- without an act claim (an admin starting or ending their own support
+-- session), and otherwise get the act claim's values. restricted goes to the
 -- restricted table, with no row when every restricted value is empty; without
 -- that table, passing it fails instead of dropping the details.
 drop function if exists better_supabase.audit_event(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid);
 drop function if exists better_supabase.audit_event(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text);
 drop function if exists better_supabase.audit_event(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text);
 drop function if exists better_supabase.audit_event(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text);
+drop function if exists better_supabase.audit_event(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text, uuid, uuid, text);
 create or replace function better_supabase.audit_event(
   event_type text,
   category text default null,
@@ -491,7 +496,10 @@ create or replace function better_supabase.audit_event(
   user_agent text default null,
   session_id text default null,
   request_id text default null,
-  scope text default null
+  scope text default null,
+  support_session uuid default null,
+  impersonated_by uuid default null,
+  impersonation_reason text default null
 )
 returns text
 language plpgsql
@@ -515,6 +523,11 @@ begin
     session_id := null;
     request_id := null;
     scope := null;
+    if (select auth.jwt()) -> 'act' is not null or impersonated_by is distinct from auth.uid() then
+      support_session := null;
+      impersonated_by := null;
+      impersonation_reason := null;
+    end if;
   elsif actor_id is null then
     actor_id := auth.uid();
   end if;
@@ -537,9 +550,9 @@ begin
     actor_id,
     coalesce(auth.jwt() ->> 'role', current_user),
     tenant,
-    case when auth.jwt() -> 'act' ->> 'sub' ~ '^[0-9a-f-]{36}$' then (auth.jwt() -> 'act' ->> 'sub')::uuid end,
-    auth.jwt() -> 'act' ->> 'reason',
-    case when auth.jwt() -> 'act' ->> 'session_id' ~ '^[0-9a-f-]{36}$' then (auth.jwt() -> 'act' ->> 'session_id')::uuid end,
+    coalesce(audit_event.impersonated_by, case when auth.jwt() -> 'act' ->> 'sub' ~ '^[0-9a-f-]{36}$' then (auth.jwt() -> 'act' ->> 'sub')::uuid end),
+    coalesce(audit_event.impersonation_reason, auth.jwt() -> 'act' ->> 'reason'),
+    coalesce(audit_event.support_session, case when auth.jwt() -> 'act' ->> 'session_id' ~ '^[0-9a-f-]{36}$' then (auth.jwt() -> 'act' ->> 'session_id')::uuid end),
     event_type,
     coalesce(category, 'system'),
     coalesce(outcome, 'success'),
@@ -567,8 +580,8 @@ begin
   return entry_id::text;
 end;
 $$;
-revoke execute on function better_supabase.audit_event(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text) from public, anon, authenticated;
-grant execute on function better_supabase.audit_event(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text) to "service_role";
+revoke execute on function better_supabase.audit_event(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text, uuid, uuid, text) from public, anon, authenticated;
+grant execute on function better_supabase.audit_event(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text, uuid, uuid, text) to "service_role";
 
 -- audit_event for the app's own security definer functions: it honours
 -- actor_id, actor_kind, actor_label, scope and the request details from any
@@ -576,6 +589,7 @@ grant execute on function better_supabase.audit_event(text, text, text, text, te
 -- sql.modules.audit.options.trustedRoles may execute it. A function owned by
 -- postgres calls it on behalf of a client with the real actor context.
 drop function if exists better_supabase.audit_event_trusted(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text);
+drop function if exists better_supabase.audit_event_trusted(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text, uuid, uuid, text);
 create or replace function better_supabase.audit_event_trusted(
   event_type text,
   category text default null,
@@ -597,7 +611,10 @@ create or replace function better_supabase.audit_event_trusted(
   user_agent text default null,
   session_id text default null,
   request_id text default null,
-  scope text default null
+  scope text default null,
+  support_session uuid default null,
+  impersonated_by uuid default null,
+  impersonation_reason text default null
 )
 returns text
 language plpgsql
@@ -632,9 +649,9 @@ begin
     actor_id,
     coalesce(auth.jwt() ->> 'role', current_user),
     tenant,
-    case when auth.jwt() -> 'act' ->> 'sub' ~ '^[0-9a-f-]{36}$' then (auth.jwt() -> 'act' ->> 'sub')::uuid end,
-    auth.jwt() -> 'act' ->> 'reason',
-    case when auth.jwt() -> 'act' ->> 'session_id' ~ '^[0-9a-f-]{36}$' then (auth.jwt() -> 'act' ->> 'session_id')::uuid end,
+    coalesce(audit_event_trusted.impersonated_by, case when auth.jwt() -> 'act' ->> 'sub' ~ '^[0-9a-f-]{36}$' then (auth.jwt() -> 'act' ->> 'sub')::uuid end),
+    coalesce(audit_event_trusted.impersonation_reason, auth.jwt() -> 'act' ->> 'reason'),
+    coalesce(audit_event_trusted.support_session, case when auth.jwt() -> 'act' ->> 'session_id' ~ '^[0-9a-f-]{36}$' then (auth.jwt() -> 'act' ->> 'session_id')::uuid end),
     event_type,
     coalesce(category, 'system'),
     coalesce(outcome, 'success'),
@@ -662,8 +679,8 @@ begin
   return entry_id::text;
 end;
 $$;
-revoke execute on function better_supabase.audit_event_trusted(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text) from public, anon, authenticated;
-grant execute on function better_supabase.audit_event_trusted(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text) to "service_role";
+revoke execute on function better_supabase.audit_event_trusted(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text, uuid, uuid, text) from public, anon, authenticated;
+grant execute on function better_supabase.audit_event_trusted(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text, uuid, uuid, text) to "service_role";
 
 -- Entries are append-only. purge_audit_log deletes old ones: it runs as its
 -- owner and sets better_supabase.audit_purge, and a role that only sets the
