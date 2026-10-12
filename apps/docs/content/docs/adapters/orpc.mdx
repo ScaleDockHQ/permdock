@@ -137,7 +137,7 @@ export const router = {
 };
 ```
 
-`protect` throws `FORBIDDEN` with PermDock's Problem Details as `data`, the same shape `bs.unwrap` gives a `DbError`. `@orpc/server` must satisfy better-supabase's peer range (2.0.0-beta.40 or later).
+`protect` throws `FORBIDDEN` with PermDock's Problem Details as `data`, the same shape `bs.unwrap` gives a `DbError`. `@orpc/server` must satisfy better-supabase's peer range (2.0.0-beta.40 or later). Before better-supabase 0.8, `bs.authed()` checked `roles` only together with `requireTenant` or `authorize`, so a procedure guarded by `roles` alone admitted every signed-in caller: upgrade before relying on it. From 0.8, `permission` on `bs.authed()` is decided by PermDock's [`authorizer`](/docs/adapters/better-supabase#authorizer).
 
 ## Request lifecycle
 
