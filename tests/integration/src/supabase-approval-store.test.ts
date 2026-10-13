@@ -113,6 +113,7 @@ describe("supabaseApprovalStore over the generated store", () => {
   it("runs onOpen once for a request a repeated ask finds still open", async () => {
     const request = {
       v: 1 as const,
+      id: "repeat",
       token: "repeat-token",
       permission: "job.update",
       scope: "job:update",

@@ -129,6 +129,7 @@ describe("supabaseApprovalStore over an adopted approvals table", () => {
     }
     await current.create({
       v: 1,
+      id: "adopt",
       token: "adopt-token",
       permission: "job.update",
       scope: "job:update",
