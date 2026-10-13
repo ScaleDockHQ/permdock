@@ -7,11 +7,7 @@ import type {
 } from "../../src/eve/index.ts";
 
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
-import {
-  actorFromSession,
-  createPermDock,
-  rolesOf,
-} from "../../src/eve/create.ts";
+import { actorFromEve, createPermDock, rolesOf } from "../../src/eve/create.ts";
 import {
   memberUser,
   ownPost,
@@ -78,7 +74,7 @@ describe("eve session helpers", () => {
 
   it("names the current principal as actor when it differs from the initiator", () => {
     expect(
-      actorFromSession({
+      actorFromEve({
         session: {
           id: "s1",
           auth: {

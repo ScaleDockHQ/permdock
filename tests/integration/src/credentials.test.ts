@@ -100,18 +100,20 @@ const verifier = apiKeyVerifier({
   },
 });
 
-const resolveKey = subjectFromApiKey({
-  verifier,
-  permissions,
-  settings,
-  revoked: async (id) =>
-    (
-      await db.admin.query(
-        "select 1 from api_keys where id = $1 and revoked_at is not null",
-        [id],
-      )
-    ).rowCount !== 0,
-});
+const resolveKey = (key: string, scope: { readonly tenant?: string } = {}) =>
+  subjectFromApiKey(key, {
+    verifier,
+    permissions,
+    settings,
+    revoked: async (id) =>
+      (
+        await db.admin.query(
+          "select 1 from api_keys where id = $1 and revoked_at is not null",
+          [id],
+        )
+      ).rowCount !== 0,
+    ...scope,
+  });
 
 async function store(
   credential: Credential,

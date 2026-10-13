@@ -1,6 +1,10 @@
 import type { JwtClaims } from "../core/interfaces.ts";
-import type { Actor, Binding } from "../core/subject.ts";
-import type { JwtSubjectOptions, MappedSubject } from "./types.ts";
+import type { Actor, Binding, Subject } from "../core/subject.ts";
+import type {
+  IntrospectionPrincipal,
+  JwtSubjectOptions,
+  MappedSubject,
+} from "./types.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
@@ -125,7 +129,7 @@ function boundToConfig(
 export function subjectFromIntrospection(
   response: unknown,
   options: JwtSubjectOptions = {},
-): MappedSubject {
+): Subject<IntrospectionPrincipal> {
   try {
     if (
       !isRecord(response) ||

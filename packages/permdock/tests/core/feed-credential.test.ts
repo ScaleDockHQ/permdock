@@ -168,17 +168,17 @@ describe("feed credentials", () => {
 
     const store = memoryCredentialStore();
     const key = await store.issue(decision.credential);
-    const resolved = await subjectFromApiKey({
+    const resolved = await subjectFromApiKey(key, {
       verifier: store,
       permissions,
       kinds: ["feed"],
-    })(key);
+    });
     expect(resolved.principal?.kind).toBe("feed");
-    const refused = await subjectFromApiKey({
+    const refused = await subjectFromApiKey(key, {
       verifier: store,
       permissions,
       kinds: ["user"],
-    })(key);
+    });
     expect(refused.principal).toBeNull();
   });
 

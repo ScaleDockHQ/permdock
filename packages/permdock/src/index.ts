@@ -410,7 +410,6 @@ export {
 } from "./core/delegation.ts";
 export {
   capabilityFromClaims,
-  capabilitySubject,
   linkPolicyViolation,
   parseCapability,
   parseCapabilityClaim,
@@ -421,21 +420,21 @@ export type {
   CapabilityClaim,
   CapabilityConfirmation,
   CapabilityInput,
+  CapabilityPrincipal,
   CapabilityRedeemer,
   LinkPolicy,
   LinkPolicyViolation,
-  LinkPrincipal,
   SignCapabilityOptions,
 } from "./core/capability.ts";
 export {
   credentialDelegation,
   credentialPolicyViolation,
-  credentialSubject,
   decideCredential,
   isFeedId,
   parseCredential,
 } from "./core/credential.ts";
 export type {
+  ApiKeyPrincipal,
   Credential,
   CredentialDecision,
   CredentialKind,
@@ -443,7 +442,6 @@ export type {
   CredentialPermissionInput,
   CredentialPolicy,
   CredentialPolicyViolation,
-  CredentialPrincipal,
   CredentialRequest,
   DecideCredentialOptions,
 } from "./core/credential.ts";

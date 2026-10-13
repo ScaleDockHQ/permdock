@@ -17,9 +17,12 @@ const user = { id: "u1", role: "member" };
 describe("subjectFromBetterAuth edge cases", () => {
   it("is anonymous for a session-only record or a non-object user", async () => {
     const subjects = await Promise.all([
-      subjectFromBetterAuth({}, { session: { id: "s1" } }),
-      subjectFromBetterAuth({}, { user: "u1", session: { id: "s1" } }),
-      subjectFromBetterAuth({}, { user: { id: "" } }),
+      subjectFromBetterAuth({ session: { id: "s1" } }, { auth: {} }),
+      subjectFromBetterAuth(
+        { user: "u1", session: { id: "s1" } },
+        { auth: {} },
+      ),
+      subjectFromBetterAuth({ user: { id: "" } }, { auth: {} }),
     ]);
     expect(subjects.map((subject) => subject.principal)).toEqual([
       null,
@@ -42,9 +45,8 @@ describe("subjectFromBetterAuth edge cases", () => {
     const results = [];
     for (const schema of [asyncSchema, scalar]) {
       const subject = await subjectFromBetterAuth(
-        {},
         { user: { ...user, plan: "pro" } },
-        { schema },
+        { auth: {}, schema },
       );
       results.push(subject.principal?.claims);
     }
@@ -70,14 +72,18 @@ describe("subjectFromBetterAuth edge cases", () => {
         },
       },
     };
-    const listed = await subjectFromBetterAuth(auth, { user });
+    const listed = await subjectFromBetterAuth({ user }, { auth });
     const notArray = await subjectFromBetterAuth(
-      { api: { listOrganizations: async () => ({ organizations: [] }) } },
       { user },
+      {
+        auth: {
+          api: { listOrganizations: async () => ({ organizations: [] }) },
+        },
+      },
     );
     const noLister = await subjectFromBetterAuth(
-      { api: { listOrganizations: async () => [{ id: "acme" }] } },
       { user },
+      { auth: { api: { listOrganizations: async () => [{ id: "acme" }] } } },
     );
     expect({
       queried,

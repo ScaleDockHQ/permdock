@@ -375,7 +375,7 @@ import {
 } from "permdock/better-auth";
 
 const session = await auth.api.getSession({ headers });
-const subject = await subjectFromBetterAuth(auth, session);
+const subject = await subjectFromBetterAuth(session, { auth });
 const permdock = await createPermDock(policy, subject, {
   customRoles: betterAuthRoleSource(auth),
 });

@@ -1,10 +1,18 @@
 import type { AuthEvent } from "../core/event-types.ts";
 import type { JwtClaims } from "../core/interfaces.ts";
-import type { JwtSubjectOptions, MappedSubject } from "./types.ts";
+import type {
+  JwtPrincipal,
+  JwtSubjectOptions,
+  MappedSubject,
+} from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { type Membership, anonymousSubject } from "../core/subject.ts";
+import {
+  type Membership,
+  type Subject,
+  anonymousSubject,
+} from "../core/subject.ts";
 import { assertSubjectConfig, fail, issuerFromDiscovery } from "./config.ts";
 import { verifyDpopProof } from "./dpop.ts";
 import { decodeHeader } from "./header.ts";
@@ -93,7 +101,7 @@ export function subjectFromJwt(
   token: string | undefined | null,
   options: JwtSubjectOptions,
   request?: Request,
-): Promise<MappedSubject> {
+): Promise<Subject<JwtPrincipal>> {
   return resolveSubject(token, options, request);
 }
 

@@ -59,7 +59,7 @@ export type Capability = CapabilityClaim & {
   readonly cnf?: CapabilityConfirmation;
 };
 
-export type LinkPrincipal = Principal & {
+export type CapabilityPrincipal = Principal & {
   readonly kind: "link";
   readonly capability: Capability;
 };
@@ -434,7 +434,7 @@ export function redeemerAllows(
 export function capabilitySubject(
   capability: Capability,
   options: { readonly issuer?: string } = {},
-): Subject<LinkPrincipal> | Subject {
+): Subject<CapabilityPrincipal> {
   if (capability.holder !== "link") {
     return anonymousSubject();
   }
@@ -444,7 +444,7 @@ export function capabilitySubject(
     via: "link",
     expiresAt: capability.expiresAt,
   };
-  const principal: LinkPrincipal = compact<LinkPrincipal>({
+  const principal: CapabilityPrincipal = compact<CapabilityPrincipal>({
     id: capability.id,
     kind: "link",
     issuer: options.issuer,
@@ -452,7 +452,7 @@ export function capabilitySubject(
     capability,
   });
   return freezeDeep(
-    compact<Subject<LinkPrincipal>>({
+    compact<Subject<CapabilityPrincipal>>({
       principal,
       delegation:
         capability.permissions === undefined

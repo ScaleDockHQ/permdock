@@ -40,7 +40,7 @@ export type SsfSubject = {
   readonly issuer?: string;
 };
 
-export type SsfSubjectMapper = (
+export type SsfSubjectResolver = (
   setSubject: SetSubject,
   meta?: { readonly session?: string; readonly issuer?: string },
 ) =>
@@ -120,7 +120,7 @@ export type SsfPermDockOptions = {
   readonly jwks?: JwtJwks | string;
   readonly discovery?: DiscoveryInput;
   readonly verifier?: TokenVerifier;
-  readonly subject: SsfSubjectMapper;
+  readonly subject: SsfSubjectResolver;
   readonly onEvent?: SsfOnEvent;
   readonly replay?: ReplayStore;
   readonly approvals?: ApprovalStore;

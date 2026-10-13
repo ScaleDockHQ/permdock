@@ -2,20 +2,33 @@
 "permdock": minor
 ---
 
-Breaking: in-process defaults are named `memory<Interface>`. Run `permdock codemod 0.5` for the renames below.
+Breaking: `subjectFrom*` resolvers take the input first and options second and return `Subject<<Source>Principal>`, and in-process defaults are named `memory<Interface>`. Run `permdock codemod 0.5` for the renames below; the call-shape changes in the second table need a manual edit.
 
-| Old | New |
-| --- | --- |
-| `memorySettings` | `memorySettingsSource` |
-| `memoryRelations` | `memoryRelationSource` |
-| `MemoryRelationsData` | `MemoryRelationSourceData` |
-| `memorySink` | `memoryDecisionSink` |
-| `MemorySink` | `MemoryDecisionSink` |
-| `MemorySinkOptions` | `MemoryDecisionSinkOptions` |
-| `memoryApprovalPolicies` | `memoryApprovalPolicySource` |
+| Old                         | New                              |
+| --------------------------- | -------------------------------- |
+| `subjectFromSession`        | `subjectFromEve`                 |
+| `actorFromSession`          | `actorFromEve`                   |
+| `CredentialPrincipal`       | `ApiKeyPrincipal`                |
+| `LinkPrincipal`             | `CapabilityPrincipal`            |
+| `SsfSubjectMapper`          | `SsfSubjectResolver`             |
+| `memorySettings`            | `memorySettingsSource`           |
+| `memoryRelations`           | `memoryRelationSource`           |
+| `MemoryRelationsData`       | `MemoryRelationSourceData`       |
+| `memorySink`                | `memoryDecisionSink`             |
+| `MemorySink`                | `MemoryDecisionSink`             |
+| `MemorySinkOptions`         | `MemoryDecisionSinkOptions`      |
+| `memoryApprovalPolicies`    | `memoryApprovalPolicySource`     |
 | `memoryApprovalDelegations` | `memoryApprovalDelegationSource` |
-| `memoryAccessReviews` | `memoryAccessReviewStore` |
-| `MemoryAccessReviews` | `MemoryAccessReviewStore` |
-| `memoryCredentials` | `memoryCredentialStore` |
-| `MemoryCredentials` | `MemoryCredentialStore` |
-| `memoryStorage` | `memorySnapshotStorage` |
+| `memoryAccessReviews`       | `memoryAccessReviewStore`        |
+| `MemoryAccessReviews`       | `MemoryAccessReviewStore`        |
+| `memoryCredentials`         | `memoryCredentialStore`          |
+| `MemoryCredentials`         | `MemoryCredentialStore`          |
+| `memoryStorage`             | `memorySnapshotStorage`          |
+
+| Before                                                   | After                                                                                         |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `subjectFromApiKey(options)(key, { tenant })`            | `subjectFromApiKey(key, { ...options, tenant })`                                              |
+| `subjectFromBetterAuth(auth, session, options)`          | `subjectFromBetterAuth(session, { auth, ...options })`                                        |
+| `capabilitySubject(capability)` from `permdock`          | `subjectFromCapability(token, options)` from `permdock/jwt`                                   |
+| `credentialSubject(credential, options)` from `permdock` | `subjectFromApiKey(key, options)` from `permdock/server`                                      |
+| `MappedSubject` from `permdock/jwt`                      | `Subject<JwtPrincipal>`; `subjectFromIntrospection` returns `Subject<IntrospectionPrincipal>` |

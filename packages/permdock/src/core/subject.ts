@@ -241,9 +241,9 @@ export function isActor(value: unknown): value is Actor {
   return typeof record.id === "string" && typeof record.kind === "string";
 }
 
-export function anonymousSubject(
+export function anonymousSubject<TPrincipal extends Principal = Principal>(
   context: Readonly<Record<string, unknown>> = {},
-): Subject {
+): Subject<TPrincipal> {
   return Object.freeze({
     principal: null,
     context: Object.freeze({ ...context }),

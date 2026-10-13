@@ -18,6 +18,6 @@ export type {
   SsfPermDockOptions,
   SsfReceiver,
   SsfSubject,
-  SsfSubjectMapper,
+  SsfSubjectResolver,
   SsfVerification,
 } from "./types.ts";

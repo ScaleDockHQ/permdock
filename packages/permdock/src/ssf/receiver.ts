@@ -15,7 +15,7 @@ import type {
   SsfOnEvent,
   SsfReceiver,
   SsfSubject,
-  SsfSubjectMapper,
+  SsfSubjectResolver,
 } from "./types.ts";
 
 import { cancelApprovals } from "../approvals/helpers.ts";
@@ -54,7 +54,7 @@ type ReceiverConfig = {
   readonly verifier: TokenVerifier;
   readonly issuer?: string;
   readonly audience: string | readonly string[];
-  readonly subject: SsfSubjectMapper;
+  readonly subject: SsfSubjectResolver;
   readonly onEvent: SsfOnEvent;
   readonly replay: ReplayStore;
   readonly approvals?: ApprovalStore;

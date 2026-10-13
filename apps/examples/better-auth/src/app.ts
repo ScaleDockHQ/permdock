@@ -27,7 +27,7 @@ const auth = {
 
 const { protect } = createPermDock(policy, {
   subject: async () => {
-    const subject = await subjectFromBetterAuth(auth, session);
+    const subject = await subjectFromBetterAuth(session, { auth });
     return subject;
   },
   customRoles: betterAuthRoleSource(auth, {

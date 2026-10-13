@@ -103,9 +103,9 @@ function resolve(
   options: ApiKeySubjectOptions,
   tenant?: string,
 ) {
-  return subjectFromApiKey(options)(
+  return subjectFromApiKey(
     key,
-    tenant === undefined ? undefined : { tenant },
+    tenant === undefined ? options : { ...options, tenant },
   );
 }
 
@@ -269,8 +269,10 @@ describe("apiKeyVerifier", () => {
 });
 
 describe("subjectFromApiKey", () => {
+  const verifier = memoryCredentialStore();
   testSubjectResolver(
-    subjectFromApiKey({ verifier: memoryCredentialStore(), permissions }),
+    (key: string | undefined | null, scope?: { readonly tenant?: string }) =>
+      subjectFromApiKey(key, { verifier, permissions, ...scope }),
     { invalid: `pdk_nope_${"a".repeat(49)}` },
   );
 
@@ -641,11 +643,13 @@ describe("a user key held to one tenant on a route of another", () => {
 
   async function heldKey() {
     const { store, key } = await issue({ tenant: "o_2" });
-    const resolver = subjectFromApiKey({
-      verifier: store,
-      permissions,
-      principals: { principal: () => twoTenants },
-    });
+    const resolver = (k: string, scope: { readonly tenant: string }) =>
+      subjectFromApiKey(k, {
+        verifier: store,
+        permissions,
+        principals: { principal: () => twoTenants },
+        ...scope,
+      });
     return { key, resolver };
   }
 

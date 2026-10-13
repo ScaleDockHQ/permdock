@@ -236,7 +236,7 @@ Use `apiKeyVerifier` where PermDock reads the key itself, for example a route ou
 import { apiKeyVerifier } from "permdock/better-supabase";
 import { subjectFromApiKey } from "permdock/server";
 
-const resolveKey = subjectFromApiKey({
+const subject = await subjectFromApiKey(request.headers.get("x-api-key"), {
   verifier: apiKeyVerifier({
     keys,
     manifest,
@@ -244,7 +244,6 @@ const resolveKey = subjectFromApiKey({
   }),
   permissions,
 });
-const subject = await resolveKey(request.headers.get("x-api-key"));
 ```
 
 `permdock/server` exports an `apiKeyVerifier` too, over PermDock's own key store. This one reads better-supabase's `api_keys` table instead; import the one that matches where the keys live.

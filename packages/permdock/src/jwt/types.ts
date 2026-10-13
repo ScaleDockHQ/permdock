@@ -134,4 +134,7 @@ export type DpopProofResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly cause: TokenFailureCause };
 
+/** The principal `subjectFromIntrospection` maps an RFC 7662 response to. */
+export type IntrospectionPrincipal = JwtPrincipal;
+
 export type MappedSubject = Subject<JwtPrincipal>;

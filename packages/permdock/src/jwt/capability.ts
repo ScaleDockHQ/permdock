@@ -6,7 +6,7 @@ import type { JoseTokenVerifierOptions } from "./types.ts";
 import {
   type Capability,
   type LinkPolicy,
-  type LinkPrincipal,
+  type CapabilityPrincipal,
   capabilityFromClaims,
   capabilitySubject,
   linkPolicyViolation,
@@ -149,14 +149,14 @@ async function stores(
 export async function subjectFromCapability(
   token: string | undefined | null,
   options: CapabilitySubjectOptions,
-): Promise<Subject<LinkPrincipal> | Subject> {
+): Promise<Subject<CapabilityPrincipal>> {
   if (token === undefined || token === null || token.length === 0) {
     return anonymousSubject();
   }
   const deny = (
     cause: CapabilityFailureCause | undefined,
     reason: AuthEvent["reason"] = "invalid-token",
-  ): Subject => {
+  ): Subject<CapabilityPrincipal> => {
     emit(options, reason, cause, token);
     return anonymousSubject();
   };

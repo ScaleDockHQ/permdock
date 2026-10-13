@@ -3,7 +3,6 @@ import type {
   CredentialVerifier,
   DecisionSink,
   SettingsSource,
-  SubjectResolver,
 } from "../core/interfaces.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
@@ -13,7 +12,7 @@ import { compact } from "../core/compact.ts";
 import {
   type Credential,
   type CredentialKind,
-  type CredentialPrincipal,
+  type ApiKeyPrincipal,
   credentialPolicyViolation,
   credentialSubject,
   credentialTenant,
@@ -389,6 +388,8 @@ export type ApiKeySubjectOptions = {
    * rights come from the `memberships` source passed to `createPermDock`.
    */
   readonly principals?: PrincipalSource;
+  /** The tenant the request acts in: a user key is held to its owner's memberships there. */
+  readonly tenant?: string;
   /** `true` when the application revoked the credential id; a throw denies. */
   readonly revoked?: (id: string) => boolean | Promise<boolean>;
   /**
@@ -513,35 +514,25 @@ function reportUse(
 }
 
 /**
- * A `SubjectResolver` for opaque API keys (`pdk_<id>_<secret>`): each call
- * resolves a key into the subject its credential acts as. Every failure (a
- * malformed or unknown key, a record that is not a valid credential, expiry,
- * a tenant policy the key breaks, a revoked id, a missing owner, a throwing
- * verifier, source or callback) is the anonymous subject, never a throw.
+ * Resolves an opaque API key (`pdk_<id>_<secret>`) into the subject its
+ * credential acts as. Every failure (a malformed or unknown key, a record
+ * that is not a valid credential, expiry, a tenant policy the key breaks, a
+ * revoked id, a missing owner, a throwing verifier, source or callback) is
+ * the anonymous subject, never a throw.
  */
-export function subjectFromApiKey(
-  options: ApiKeySubjectOptions,
-): SubjectResolver<string | undefined | null, CredentialPrincipal> {
-  return (key, resolve) => resolveApiKey(key, options, resolve?.tenant);
-}
-
-function anonymous(): Subject<CredentialPrincipal> {
-  // SAFETY: the anonymous subject has a null principal, which fits any principal type.
-  return anonymousSubject() as Subject<CredentialPrincipal>;
-}
-
-async function resolveApiKey(
+export async function subjectFromApiKey(
   key: string | undefined | null,
   options: ApiKeySubjectOptions,
-  tenant: string | undefined,
-): Promise<Subject<CredentialPrincipal>> {
+): Promise<Subject<ApiKeyPrincipal>> {
+  const anonymous = (): Subject<ApiKeyPrincipal> => anonymousSubject();
+  const tenant = options.tenant;
   if (typeof key !== "string" || key.length === 0) {
     return anonymous();
   }
   const deny = (
     cause: ApiKeyFailureCause | undefined,
     reason: AuthEvent["reason"] = "invalid-token",
-  ): Subject<CredentialPrincipal> => {
+  ): Subject<ApiKeyPrincipal> => {
     try {
       options.onAuth?.(
         compact<AuthEvent>({
@@ -600,6 +591,6 @@ async function resolveApiKey(
   }
   reportUse(options, credential);
   touch(options.verifier, credential.id);
-  // SAFETY: credentialSubject builds a CredentialPrincipal, and a null principal returned above.
-  return subject as Subject<CredentialPrincipal>;
+  // SAFETY: credentialSubject builds an ApiKeyPrincipal, and a null principal returned above.
+  return subject as Subject<ApiKeyPrincipal>;
 }

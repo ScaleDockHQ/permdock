@@ -119,7 +119,7 @@ export function rolesOf(principal: EvePrincipal | null | undefined): string[] {
   return roles.filter((role): role is string => typeof role === "string");
 }
 
-export function subjectFromSession(context: EveContext): unknown {
+export function subjectFromEve(context: EveContext): unknown {
   const initiator = context.session?.auth?.initiator;
   if (initiator === undefined || initiator === null) {
     return null;
@@ -127,7 +127,7 @@ export function subjectFromSession(context: EveContext): unknown {
   return { id: initiator.principalId, roles: rolesOf(initiator) };
 }
 
-export function actorFromSession(context: EveContext): unknown {
+export function actorFromEve(context: EveContext): unknown {
   const auth = context.session?.auth;
   const initiator = auth?.initiator;
   const current = auth?.current;
@@ -182,7 +182,7 @@ export function createPermDock<
 ): EvePermDock<V> {
   const store = options.store ?? memoryApprovalStore();
   const tokensByCall = boundedMap<string, string>(TOKENS_PER_PROCESS);
-  // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromSession builds, or null.
+  // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromEve builds, or null.
   const kernel = createAgentKernel<EveContext, TUser, V>(policy, {
     ...compact({
       tenant: options.tenant,
@@ -191,8 +191,8 @@ export function createPermDock<
     ...instanceOptions(options),
     subject:
       options.subject ??
-      (subjectFromSession as (context: EveContext) => TUser | Promise<TUser>),
-    actor: options.actor ?? actorFromSession,
+      (subjectFromEve as (context: EveContext) => TUser | Promise<TUser>),
+    actor: options.actor ?? actorFromEve,
     tools: options.tools,
     store,
     adapter: "eve",

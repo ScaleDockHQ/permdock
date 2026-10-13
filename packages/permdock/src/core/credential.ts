@@ -73,7 +73,7 @@ export type Credential = {
   readonly name?: string;
 };
 
-export type CredentialPrincipal = Principal & {
+export type ApiKeyPrincipal = Principal & {
   readonly credential: Credential;
 };
 
@@ -374,9 +374,9 @@ export function credentialSubject(
     readonly permissions: PermissionTree;
     readonly owner?: Principal;
   },
-): Subject<CredentialPrincipal> | Subject {
+): Subject<ApiKeyPrincipal> | Subject {
   const delegation = credentialDelegation(credential, options.permissions);
-  let principal: CredentialPrincipal;
+  let principal: ApiKeyPrincipal;
   if (credential.kind === "feed") {
     if (credential.on === undefined || credential.roles === undefined) {
       return anonymousSubject();
@@ -386,7 +386,7 @@ export function credentialSubject(
       roles: credential.roles,
       via: "feed",
     });
-    principal = compact<CredentialPrincipal>({
+    principal = compact<ApiKeyPrincipal>({
       id: credential.id,
       kind: "feed",
       memberships: [membership],
@@ -400,7 +400,7 @@ export function credentialSubject(
     ) {
       return anonymousSubject();
     }
-    principal = compact<CredentialPrincipal>({
+    principal = compact<ApiKeyPrincipal>({
       ...owner,
       kind: "user",
       tenant: credential.tenant ?? owner.tenant,
@@ -412,7 +412,7 @@ export function credentialSubject(
       roles: credential.roles ?? [],
       via: "credential",
     });
-    principal = compact<CredentialPrincipal>({
+    principal = compact<ApiKeyPrincipal>({
       id: credential.principal,
       kind: "service",
       tenant: credential.tenant,
@@ -421,7 +421,7 @@ export function credentialSubject(
     });
   }
   return freezeDeep(
-    compact<Subject<CredentialPrincipal>>({
+    compact<Subject<ApiKeyPrincipal>>({
       principal,
       delegation,
       context: {},

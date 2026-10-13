@@ -63,6 +63,8 @@ export type BetterAuthLike = {
 };
 
 export type BetterAuthSubjectOptions = {
+  /** The Better Auth instance, read for member, team and organization rows. */
+  readonly auth: BetterAuthLike;
   readonly memberships?: "all" | "active";
   /**
    * Parses the user's additional fields into `principal.claims`. Without it no
