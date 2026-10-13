@@ -183,6 +183,10 @@
       "types": "./dist/drizzle/index.d.ts",
       "default": "./dist/drizzle/index.js"
     },
+    "./workflow": {
+      "types": "./dist/workflow/index.d.ts",
+      "default": "./dist/workflow/index.js"
+    },
     "./prisma": {
       "types": "./dist/prisma/index.d.ts",
       "default": "./dist/prisma/index.js"

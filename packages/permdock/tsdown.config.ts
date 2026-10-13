@@ -131,6 +131,7 @@ export default defineConfig({
     "src/scim/index.ts",
     "src/cloud/index.ts",
     "src/drizzle/index.ts",
+    "src/workflow/index.ts",
     "src/prisma/index.ts",
     "src/kysely/index.ts",
     "src/supabase/index.ts",

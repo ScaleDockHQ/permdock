@@ -22,6 +22,7 @@ import {
 } from "./arazzo.ts";
 import { assertDecision } from "./assert-decision.ts";
 import { type Assignable, assignableIn } from "./assignable.ts";
+import { decideAutomation } from "./automation.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { decideCredential } from "./credential.ts";
 import { customGrantsFor } from "./custom-roles.ts";
@@ -615,6 +616,11 @@ export function buildInstance(
         envBase.settings === undefined
           ? options
           : { settings: envBase.settings, ...options },
+      );
+    },
+    decideAutomation(request, options) {
+      return Promise.resolve().then(() =>
+        decideAutomation(instance, request, options),
       );
     },
     mayUse(permission) {

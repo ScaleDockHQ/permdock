@@ -74,6 +74,16 @@ export type {
   PrincipalIdentityLink,
   PrincipalSource,
 } from "./core/principal-source.ts";
+export { memoryAutomationSource, parseAutomation } from "./core/automation.ts";
+export type {
+  Automation,
+  AutomationDecision,
+  AutomationMode,
+  AutomationRequest,
+  AutomationSource,
+  DecideAutomationOptions,
+  MemoryAutomationSource,
+} from "./core/automation.ts";
 export {
   APPROVAL_POLICY_UNAVAILABLE,
   memoryApprovalPolicySource,

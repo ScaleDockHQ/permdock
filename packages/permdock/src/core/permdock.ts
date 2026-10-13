@@ -1,6 +1,11 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
 import type {
+  AutomationDecision,
+  AutomationRequest,
+  DecideAutomationOptions,
+} from "./automation.ts";
+import type {
   CredentialDecision,
   CredentialRequest,
   DecideCredentialOptions,
@@ -348,6 +353,17 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     request: CredentialRequest,
     options?: DecideCredentialOptions,
   ) => Promise<CredentialDecision>;
+  /**
+   * Decides whether the subject may publish the automation in `request` and
+   * returns the record to store: the publisher's own reach over every
+   * operation's permission and, for a `service` automation, their assignable
+   * ceiling. Each run re-checks the publisher live. An instance built from a
+   * snapshot denies with `unsupported`.
+   */
+  readonly decideAutomation: (
+    request: AutomationRequest,
+    options?: DecideAutomationOptions,
+  ) => Promise<AutomationDecision>;
   /**
    * Whether `permission` could be granted to the subject for some row, within
    * its delegation. A listing hint for tools and skills, never a decision.

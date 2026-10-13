@@ -342,6 +342,15 @@ export function fromSnapshot(
         }),
       );
     },
+    decideAutomation() {
+      // Publishing is a server decision: a snapshot carries no assignable ceilings to check.
+      return Promise.resolve(
+        freezeDeep({
+          outcome: "denied" as const,
+          denials: [{ role: null, reason: "unsupported" as const }],
+        }),
+      );
+    },
     mayUse(permission) {
       return mayUse(instance, permission);
     },
