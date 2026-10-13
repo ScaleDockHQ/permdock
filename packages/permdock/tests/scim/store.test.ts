@@ -7,6 +7,7 @@ import {
   DirectoryNotFoundError,
   DirectoryUniquenessError,
   isDirectoryNotFoundError,
+  isDirectoryUniquenessError,
 } from "../../src/scim/types.ts";
 
 const A = "o_a";
@@ -289,5 +290,35 @@ describe("memoryDirectoryStore groups", () => {
       name: "DirectoryNotFoundError",
       message: "not found",
     });
+  });
+});
+
+describe("directory errors", () => {
+  it("recognises a directory error from another copy of the module", () => {
+    const foreign = (name: string, code: string): Error =>
+      Object.assign(new Error("x"), { name, code });
+    expect(
+      isDirectoryUniquenessError(
+        foreign("DirectoryUniquenessError", "uniqueness"),
+      ),
+    ).toBe(true);
+    expect(
+      isDirectoryNotFoundError(foreign("DirectoryNotFoundError", "not-found")),
+    ).toBe(true);
+    expect(isDirectoryUniquenessError(new DirectoryUniquenessError())).toBe(
+      true,
+    );
+    expect(isDirectoryNotFoundError(new DirectoryUniquenessError())).toBe(
+      false,
+    );
+    expect(
+      isDirectoryNotFoundError(foreign("DirectoryNotFoundError", "uniqueness")),
+    ).toBe(false);
+    expect(
+      isDirectoryUniquenessError({
+        name: "DirectoryUniquenessError",
+        code: "uniqueness",
+      }),
+    ).toBe(false);
   });
 });

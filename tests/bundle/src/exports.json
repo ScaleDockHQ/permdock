@@ -447,6 +447,8 @@
     "authenticateScim",
     "directoryMembershipSource",
     "filterSupported",
+    "isDirectoryNotFoundError",
+    "isDirectoryUniquenessError",
     "matchFilter",
     "memoryDirectoryStore",
     "normalizePatchOps",

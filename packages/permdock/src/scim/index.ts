@@ -11,6 +11,8 @@ export {
   DirectoryUniquenessError,
   ERROR_SCHEMA,
   GROUP_SCHEMA,
+  isDirectoryNotFoundError,
+  isDirectoryUniquenessError,
   LIST_SCHEMA,
   PATCH_SCHEMA,
   ROLES_EXTENSION,

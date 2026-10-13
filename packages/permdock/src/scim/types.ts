@@ -167,14 +167,24 @@ export class DirectoryNotFoundError extends Error {
   }
 }
 
+function isNamedError(error: unknown, name: string, code: string): boolean {
+  return (
+    error instanceof Error &&
+    error.name === name &&
+    Reflect.get(error, "code") === code
+  );
+}
+
+/** Matches by `name` and `code`, so an error from another copy of the module still maps. */
 export function isDirectoryUniquenessError(
   error: unknown,
 ): error is DirectoryUniquenessError {
-  return error instanceof DirectoryUniquenessError;
+  return isNamedError(error, "DirectoryUniquenessError", "uniqueness");
 }
 
+/** Matches by `name` and `code`, so an error from another copy of the module still maps. */
 export function isDirectoryNotFoundError(
   error: unknown,
 ): error is DirectoryNotFoundError {
-  return error instanceof DirectoryNotFoundError;
+  return isNamedError(error, "DirectoryNotFoundError", "not-found");
 }

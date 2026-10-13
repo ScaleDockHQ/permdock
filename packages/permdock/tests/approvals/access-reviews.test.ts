@@ -210,6 +210,22 @@ describe("access reviews", () => {
         new AccessReviewError("review-closed", "access review is closed"),
       ),
     ).toBe(true);
+    expect(
+      isAccessReviewError(
+        Object.assign(new Error("x"), {
+          name: "AccessReviewError",
+          code: "review-closed",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isAccessReviewError(
+        Object.assign(new Error("x"), {
+          name: "AccessReviewError",
+          code: "nope",
+        }),
+      ),
+    ).toBe(false);
     const opener = await createPermDock(policy, inTenant("ann", ["owner"]));
     const store = memoryAccessReviewStore();
     await expect(
