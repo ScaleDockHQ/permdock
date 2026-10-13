@@ -179,6 +179,13 @@ catalog:
   "@playwright/test": 1.63.0
   babel-plugin-react-compiler: 1.0.0
   "@babel/core": 8.0.6
+  chat: 4.41.1
+  resend: 6.32.1
+  "@solidjs/start": 2.0.6
+  "@sveltejs/kit": 3.0.1
+  "@tanstack/react-start": 1.168.61
+  astro: 7.3.8
+  h3: 2.0.2
 
 catalogs:
   ts59:
@@ -188,6 +195,7 @@ catalogs:
   peers:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
     better-supabase: ">=0.6.0 <0.9.0"
+    chat: ">=4"
     "@modelcontextprotocol/server": ">=2"
     "@nestjs/common": ">=11"
     "@nestjs/core": ">=11"
@@ -211,6 +219,7 @@ catalogs:
     pgsql-parser: ">=18"
     react: "^19"
     reflect-metadata: ">=0.1"
+    resend: ">=6"
     rxjs: ">=7"
     "solid-js": ">=1.9"
     svelte: ">=5.3"
@@ -253,6 +262,8 @@ peerDependencyRules:
     "@supabase/server>@nestjs/common": "12"
     # typegen 0.4.0 pins oxfmt 0.66.0 exactly; the example's `better-supabase gen` formats with the repo's oxfmt.
     "@supabase/postgrest-typegen>oxfmt": "0.71"
+    # The optional typescript peer of SvelteKit 3 reads only its public types; the repository builds with TypeScript 7.
+    "@sveltejs/kit>typescript": "7"
 
 # The VS Code TypeScript native preview looks for `@typescript/typescript-<platform>`
 # next to `node_modules/typescript` without following pnpm's symlinks.
