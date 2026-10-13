@@ -140,6 +140,7 @@ export default defineConfig({
     "src/delivery/index.ts",
     "src/resend/index.ts",
     "src/chat/index.ts",
+    "src/chat-sdk/index.ts",
     "src/prisma/index.ts",
     "src/kysely/index.ts",
     "src/supabase/index.ts",

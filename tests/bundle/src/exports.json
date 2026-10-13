@@ -526,6 +526,14 @@
     "resendWebhook"
   ],
   "./chat": ["createPermDock", "isChatAuthor", "subjectFromChat"],
+  "./chat-sdk": [
+    "APPROVE_ACTION",
+    "REJECT_ACTION",
+    "approvalActions",
+    "approvalCard",
+    "chatSdkAuthor",
+    "chatSdkTransport"
+  ],
   "./drizzle": ["checkRow", "toWhere", "withSubject"],
   "./prisma": [
     "checkRow",

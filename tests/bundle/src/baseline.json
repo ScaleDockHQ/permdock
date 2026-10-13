@@ -40,6 +40,7 @@
   "./delivery": 34012,
   "./resend": 45738,
   "./chat": 137731,
+  "./chat-sdk": 22585,
   "./drizzle": 24879,
   "./prisma": 27411,
   "./kysely": 24614,

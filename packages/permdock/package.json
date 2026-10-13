@@ -219,6 +219,10 @@
       "types": "./dist/chat/index.d.ts",
       "default": "./dist/chat/index.js"
     },
+    "./chat-sdk": {
+      "types": "./dist/chat-sdk/index.d.ts",
+      "default": "./dist/chat-sdk/index.js"
+    },
     "./prisma": {
       "types": "./dist/prisma/index.d.ts",
       "default": "./dist/prisma/index.js"
