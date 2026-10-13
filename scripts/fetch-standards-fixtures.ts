@@ -8,11 +8,11 @@ const JSON_SOURCES = {
   // Apache-2.0, cloudevents/spec v1.0.2.
   "cloudevents-1.0.2.schema.json":
     "https://raw.githubusercontent.com/cloudevents/spec/v1.0.2/cloudevents/formats/cloudevents.json",
-  // Apache-2.0, OCSF 1.3.0 class definitions.
-  "ocsf-1.3.0-authorize_session.json":
-    "https://schema.ocsf.io/api/1.3.0/classes/authorize_session",
-  "ocsf-1.3.0-account_change.json":
-    "https://schema.ocsf.io/api/1.3.0/classes/account_change",
+  // Apache-2.0, OCSF 1.9.0 class definitions.
+  "ocsf-1.9.0-authorize_session.json":
+    "https://schema.ocsf.io/api/1.9.0/classes/authorize_session",
+  "ocsf-1.9.0-user_management.json":
+    "https://schema.ocsf.io/api/1.9.0/classes/user_management",
   // Apache-2.0, the JSON Schema published with A2A 1.0.0.
   "a2a-1.0.0.schema.json": "https://a2a-protocol.org/v1.0.0/spec/a2a.json",
   // Apache-2.0, the Arazzo 1.1 schema `$id`.

@@ -313,7 +313,7 @@ describe("RFC 8936 poll delivery", () => {
   });
 });
 
-describe("Audit path: CloudEvents 1.0.2 and OCSF 1.3.0", () => {
+describe("Audit path: CloudEvents 1.0.2 and OCSF 1.9.0", () => {
   async function decisionEvents(): Promise<DecisionEvent[]> {
     const events: DecisionEvent[] = [];
     for (const user of [{ id: "u_1" }, null]) {
@@ -327,29 +327,25 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.3.0", () => {
     return events;
   }
 
-  type OcsfAttribute = OcsfClass["attributes"][number][string];
-
-  function attributesOf(fixture: OcsfClass): Record<string, OcsfAttribute> {
-    const merged: Record<string, OcsfAttribute> = {};
-    for (const entry of fixture.attributes) {
-      Object.assign(merged, entry);
-    }
-    return merged;
-  }
-
   function required(fixture: OcsfClass): readonly string[] {
-    return Object.entries(attributesOf(fixture))
+    return Object.entries(fixture.attributes)
       .filter(
         ([, attribute]) =>
           attribute.requirement === "required" &&
-          (attribute.profile ?? null) === null,
+          (attribute.profiles ?? []).length === 0,
       )
       .map(([name]) => name);
   }
 
   function enumKeys(fixture: OcsfClass, name: string): readonly number[] {
-    const attribute = fixture.attributes.find((entry) => name in entry)?.[name];
-    return Object.keys(attribute?.enum ?? {}).map(Number);
+    return Object.keys(fixture.attributes[name]?.enum ?? {}).map(Number);
+  }
+
+  function captionOf(fixture: OcsfClass, name: string, id: unknown): unknown {
+    const entry = fixture.attributes[name]?.enum?.[String(id)];
+    return entry !== null && typeof entry === "object" && "caption" in entry
+      ? entry.caption
+      : undefined;
   }
 
   it("every decision event is a valid CloudEvent", async () => {
@@ -372,13 +368,21 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.3.0", () => {
   });
 
   it("toOcsf fills every required Authorize Session attribute with a defined enum value", async () => {
-    const fixture = standardsFixture("ocsf-1.3.0-authorize_session.json");
+    const fixture = standardsFixture("ocsf-1.9.0-authorize_session.json");
     for (const event of await decisionEvents()) {
-      const ocsf: Record<string, unknown> = toOcsf(event);
+      const ocsf: Record<string, unknown> = toOcsf(event) ?? {};
       expect(
         required(fixture).filter((name) => ocsf[name] === undefined),
       ).toEqual([]);
+      expect(
+        (fixture.constraints?.at_least_one ?? []).some(
+          (name) => ocsf[name] !== undefined,
+        ),
+      ).toBe(true);
       expect(ocsf["class_uid"]).toBe(fixture.uid);
+      expect(ocsf["status"]).toBe(
+        captionOf(fixture, "status_id", ocsf["status_id"]),
+      );
       expect(ocsf["category_uid"]).toBe(fixture.category_uid);
       expect(enumKeys(fixture, "activity_id")).toContain(ocsf["activity_id"]);
       expect(enumKeys(fixture, "status_id")).toContain(ocsf["status_id"]);
@@ -389,33 +393,30 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.3.0", () => {
     }
   });
 
-  it("accessToOcsf uses Account Change Enable and Disable", () => {
-    const fixture = standardsFixture("ocsf-1.3.0-account_change.json");
-    const activities = attributesOf(fixture)["activity_id"]?.enum ?? {};
-    const caption = (id: unknown): unknown => {
-      const entry = activities[String(id)];
-      return entry !== null && typeof entry === "object" && "caption" in entry
-        ? entry.caption
-        : undefined;
-    };
+  it("accessToOcsf uses User Management Enable and Disable", () => {
+    const fixture = standardsFixture("ocsf-1.9.0-user_management.json");
     for (const [operation, expected] of [
       ["started", "Enable"],
       ["ended", "Disable"],
       ["revoked", "Disable"],
     ] as const) {
-      const ocsf: Record<string, unknown> = accessToOcsf(
-        accessEvent({
-          source: "app",
-          operation,
-          tenant: "T",
-          principal: { id: "agent" },
-          roles: ["support"],
-        }),
-      );
+      const ocsf: Record<string, unknown> =
+        accessToOcsf(
+          accessEvent({
+            source: "app",
+            operation,
+            tenant: "T",
+            principal: { id: "agent" },
+            roles: ["support"],
+          }),
+        ) ?? {};
       expect(
         required(fixture).filter((name) => ocsf[name] === undefined),
       ).toEqual([]);
-      expect({ operation, caption: caption(ocsf["activity_id"]) }).toEqual({
+      expect({
+        operation,
+        caption: captionOf(fixture, "activity_id", ocsf["activity_id"]),
+      }).toEqual({
         operation,
         caption: expected,
       });

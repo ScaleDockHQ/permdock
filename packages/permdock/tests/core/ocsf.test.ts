@@ -42,7 +42,7 @@ describe("toOcsf", () => {
       user: { uid: "u_1" },
       actor: { user: { uid: "u_1" }, app_name: "agent_1" },
       metadata: {
-        version: "1.3.0",
+        version: "1.9.0",
         product: {
           name: "PermDock",
           vendor_name: "PermDock",
@@ -67,39 +67,42 @@ describe("toOcsf", () => {
       subject: { principal: null },
       matched: { role: "admin", permission: "post.delete" },
     });
-    expect(granted.status_id).toBe(1);
-    expect(granted.status_detail).toBeUndefined();
-    expect(granted.user).toEqual({ name: "anonymous" });
-    expect(granted.unmapped.role).toBe("admin");
+    expect(granted?.status_id).toBe(1);
+    expect(granted?.status_detail).toBeUndefined();
+    expect(granted?.user).toEqual({ name: "anonymous" });
+    expect(granted?.unmapped.role).toBe("admin");
     const pending = toOcsf({
       ...base,
       outcome: "approval-required",
       token: "tok_1",
       phase: "requested",
     });
-    expect(pending.status_id).toBe(99);
-    expect(pending.status_detail).toBe("approval-required");
-    expect(pending.metadata.correlation_uid).toBe("tok_1");
+    expect(pending?.status_id).toBe(99);
+    expect(pending?.status).toBe("Approval Required");
+    expect(pending?.status_detail).toBe("approval-required");
+    expect(pending?.metadata.correlation_uid).toBe("tok_1");
     expect(JSON.parse(JSON.stringify(pending))).toEqual(pending);
   });
 
-  it("maps an unparsable time to 0, drops an empty detail and names an anonymous actor by app only", () => {
+  it("drops an event whose time does not parse", () => {
+    expect(toOcsf({ ...base, at: "not a date" })).toBeUndefined();
+  });
+
+  it("drops an empty detail and names an anonymous actor by app only", () => {
     const event = toOcsf({
       ...base,
-      at: "not a date",
       denials: [],
       subject: { principal: null, actor: { id: "agent_1", kind: "agent" } },
     });
-    expect(event.time).toBe(0);
-    expect(event.status_detail).toBeUndefined();
-    expect(event.actor).toEqual({ app_name: "agent_1" });
+    expect(event?.status_detail).toBeUndefined();
+    expect(event?.actor).toEqual({ app_name: "agent_1" });
   });
 
   it("maps an outcome it does not know to Unknown", () => {
     // SAFETY: a forged outcome, as a sink could receive from a newer producer.
     const forged = { ...base, outcome: "maybe" } as unknown as DecisionEvent;
     const event = toOcsf(forged);
-    expect({ id: event.status_id, status: event.status }).toEqual({
+    expect({ id: event?.status_id, status: event?.status }).toEqual({
       id: 0,
       status: "Unknown",
     });
@@ -126,9 +129,9 @@ describe("accessToOcsf", () => {
       reason: "ticket 42",
     });
     expect(started).toMatchObject({
-      class_uid: 3001,
-      activity_id: 2,
-      type_uid: 300102,
+      class_uid: 3007,
+      activity_id: 4,
+      type_uid: 300704,
       severity_id: 4,
       time: Date.parse(access.at),
       user: { uid: "vendor_1" },
@@ -141,12 +144,16 @@ describe("accessToOcsf", () => {
       },
     });
     for (const operation of ["ended", "revoked"] as const) {
-      const ended = accessToOcsf({ ...access, operation, at: "never" });
+      const ended = accessToOcsf({ ...access, operation });
       expect({ operation, ended }).toMatchObject({
         operation,
-        ended: { activity_id: 5, type_uid: 300105, time: 0 },
+        ended: { activity_id: 5, type_uid: 300705 },
       });
-      expect(ended.actor).toBeUndefined();
+      expect(ended?.actor).toBeUndefined();
     }
+  });
+
+  it("drops an access event whose time does not parse", () => {
+    expect(accessToOcsf({ ...access, at: "never" })).toBeUndefined();
   });
 });

@@ -185,7 +185,7 @@ describe("events and telemetry", () => {
       { kind: "app", name: "mfa-reprompt", detail: { maxAge: 300 } },
     ]);
     expect(
-      event === undefined ? undefined : toOcsf(event).unmapped,
+      event === undefined ? undefined : toOcsf(event)?.unmapped,
     ).toMatchObject({
       grant: "watermarked-export",
       obligations: ["watermark", "mfa-reprompt"],

@@ -295,9 +295,9 @@ describe("E2 break-glass", () => {
       call: "decide",
     };
     const ocsf = toOcsf(event);
-    expect(ocsf.severity_id).toBe(4);
-    expect(ocsf.unmapped.breakGlass).toBe(true);
-    expect(ocsf.unmapped.reason).toBe("cardiac arrest");
+    expect(ocsf?.severity_id).toBe(4);
+    expect(ocsf?.unmapped.breakGlass).toBe(true);
+    expect(ocsf?.unmapped.reason).toBe("cardiac arrest");
   });
 });
 
@@ -373,9 +373,9 @@ describe("E3 support access", () => {
     expect(started.type).toBe("access");
     expect(started.via).toBe("support");
     const ocsf = accessToOcsf(started);
-    expect(ocsf.class_uid).toBe(3001);
-    expect(ocsf.severity_id).toBe(4);
-    expect(ocsf.unmapped.operation).toBe("started");
+    expect(ocsf?.class_uid).toBe(3007);
+    expect(ocsf?.severity_id).toBe(4);
+    expect(ocsf?.unmapped.operation).toBe("started");
   });
 });
 

@@ -53,16 +53,18 @@ export type OcsfClass = {
   readonly uid: number;
   readonly name: string;
   readonly category_uid: number;
-  readonly attributes: readonly Readonly<
+  readonly attributes: Readonly<
     Record<
       string,
       {
         readonly requirement?: string;
-        readonly profile?: string | null;
+        /** Set when a profile, not the class, makes the attribute required. */
+        readonly profiles?: readonly string[];
         readonly enum?: Readonly<Record<string, unknown>>;
       }
     >
-  >[];
+  >;
+  readonly constraints?: { readonly at_least_one?: readonly string[] };
 };
 
 export type StandardWebhooksVector = {
@@ -79,8 +81,8 @@ type Fixtures = {
   readonly "rfc8037-ed25519.json": Rfc8037Vector;
   readonly "rfc7520-jws.json": Rfc7520Vector;
   readonly "rfc7643-schemas.json": Rfc7643Vector;
-  readonly "ocsf-1.3.0-authorize_session.json": OcsfClass;
-  readonly "ocsf-1.3.0-account_change.json": OcsfClass;
+  readonly "ocsf-1.9.0-authorize_session.json": OcsfClass;
+  readonly "ocsf-1.9.0-user_management.json": OcsfClass;
   readonly "cloudevents-1.0.2.schema.json": Readonly<Record<string, unknown>>;
   readonly "a2a-1.0.0.schema.json": Readonly<Record<string, unknown>>;
   readonly "arazzo-1.1.schema.json": Readonly<Record<string, unknown>>;

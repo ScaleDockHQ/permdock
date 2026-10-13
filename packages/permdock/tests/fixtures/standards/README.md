@@ -5,7 +5,7 @@ Upstream artefacts that `tests/standards` checks PermDock against. `pnpm standar
 | File                                                                                       | Source                                        | Licence                                                   |
 | ------------------------------------------------------------------------------------------ | --------------------------------------------- | --------------------------------------------------------- |
 | `cloudevents-1.0.2.schema.json`                                                            | CloudEvents 1.0.2 JSON Schema                 | Apache-2.0                                                |
-| `ocsf-1.3.0-*.json`                                                                        | OCSF 1.3.0 class definitions                  | Apache-2.0                                                |
+| `ocsf-1.9.0-*.json`                                                                        | OCSF 1.9.0 class definitions                  | Apache-2.0                                                |
 | `a2a-1.0.0.schema.json`                                                                    | A2A 1.0.0 JSON Schema                         | Apache-2.0                                                |
 | `arazzo-1.1.schema.json`                                                                   | Arazzo 1.1 schema `2026-04-15`                | Apache-2.0                                                |
 | `standard-webhooks-v1.json`                                                                | Standard Webhooks reference library sign test | MIT                                                       |

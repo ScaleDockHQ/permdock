@@ -444,7 +444,7 @@ export type {
   CredentialRequest,
   DecideCredentialOptions,
 } from "./core/credential.ts";
-export type { OcsfAccountChange, OcsfAuthorizeSession } from "./core/ocsf.ts";
+export type { OcsfAuthorizeSession, OcsfUserManagement } from "./core/ocsf.ts";
 export type {
   Actor,
   Assurance,
