@@ -5,8 +5,8 @@ import type {
   ApprovalRequirement,
   Grant,
   GrantMeta,
-  GrantValidity,
   HostedGrantRef,
+  WireValidity,
 } from "./policy-types.ts";
 import type { Membership, Subject } from "./subject.ts";
 
@@ -59,7 +59,7 @@ export type DenialReason =
 export type DenialDetails = {
   readonly limit: LimitDetail;
   /** The window the inactive allow applies in. */
-  readonly "inactive-grant": GrantValidity;
+  readonly "inactive-grant": WireValidity;
   /** The matching deny's declared `name`. */
   readonly deny: { readonly name?: string };
 };
@@ -116,20 +116,20 @@ export type AppObligation = {
   readonly detail?: MetaValue;
 };
 
-/** What is left of the `limit` that applied; `resetsAt` is Unix seconds. */
+/** What is left of the `limit` that applied; `resetsAt` is RFC 3339. */
 export type Quota = {
   readonly remaining: number;
-  readonly resetsAt: number;
+  readonly resetsAt: string;
 };
 
 /**
- * The `detail` of a `limit` denial: the grant's `count`, its window in
- * seconds and when the window resets (Unix seconds).
+ * The `detail` of a `limit` denial: the grant's `count`, its `per` window
+ * in seconds and when the window resets (RFC 3339).
  */
 export type LimitDetail = {
   readonly count: number;
-  readonly window: number;
-  readonly resetsAt: number;
+  readonly per: number;
+  readonly resetsAt: string;
 };
 
 /**

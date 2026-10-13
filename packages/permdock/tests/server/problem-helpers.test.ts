@@ -21,6 +21,8 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 
+const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
+
 const SUBJECT: Subject = {
   principal: { id: "u1", roles: ["member"] },
   context: {},
@@ -152,25 +154,25 @@ describe("stepUpOf and wwwAuthenticate", () => {
 
 describe("rateLimitHeaders", () => {
   it("names one policy per role, percent-encodes non-ASCII and escapes quotes", () => {
-    const detail = { count: 5, window: 60, resetsAt: 1_000 };
+    const detail = { count: 5, per: 60, resetsAt: at(1_000) };
     const headers = rateLimitHeaders(
       denied(
         { role: 'r\u00E9le "x"', reason: "limit", detail },
         {
           role: 'r\u00E9le "x"',
           reason: "limit",
-          detail: { ...detail, resetsAt: 2_000 },
+          detail: { ...detail, resetsAt: at(2_000) },
         },
         {
           role: null,
           reason: "limit",
-          detail: { count: 1, window: 1, resetsAt: 990 },
+          detail: { count: 1, per: 1, resetsAt: at(990) },
         },
         { role: "bad", reason: "limit", detail: { count: "x" } },
         { role: "none", reason: "limit", detail: null },
         { role: "other", reason: "no-grant" },
       ),
-      980,
+      { epochMilliseconds: 980_000 },
     );
     expect(headers).toEqual({
       "Retry-After": "10",

@@ -15,7 +15,7 @@ import {
   isMembershipExpired,
   membershipField,
 } from "./tenancy.ts";
-import { isActive } from "./validity.ts";
+import { isActive, readWireValidity } from "./validity.ts";
 
 const ALWAYS: Condition = freezeDeep({ op: "eq", field: "_", value: true });
 
@@ -196,7 +196,7 @@ function collect(
     if (
       grant.effect !== "deny" ||
       grant.portable === false ||
-      !isActive(grant.validity, scope.now)
+      !isActive(readWireValidity(grant.validity), scope.now)
     ) {
       continue;
     }
@@ -213,7 +213,7 @@ function collect(
     if (
       grant.effect !== "allow" ||
       grant.portable === false ||
-      !isActive(grant.validity, scope.now)
+      !isActive(readWireValidity(grant.validity), scope.now)
     ) {
       continue;
     }

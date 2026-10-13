@@ -49,7 +49,7 @@ describe("pushedPolicy", () => {
         role("member", [
           allow(tree.doc.read, { where: { ownerId: principal.id } }),
           allow(tree.doc.share, () => true),
-          allow(tree.doc.list, { limit: { count: 10, per: "hour" } }),
+          allow(tree.doc.list, { limit: { count: 10, per: 3600 } }),
           deny(tree.doc.purge),
         ]),
         role("editor", [allow(tree.doc.share)], { on: tree.doc }),
@@ -81,7 +81,7 @@ describe("pushedPolicy", () => {
         role: "member",
         to: member,
         portable: false,
-        limit: { count: 10, per: "hour" },
+        limit: { count: 10, per: 3600 },
       },
       { permission: "doc.purge", effect: "deny", role: "member", to: member },
       {

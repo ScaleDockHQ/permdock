@@ -122,7 +122,13 @@
         "membership": { "type": "object" },
         "portable": { "const": false },
         "fields": { "$ref": "#/$defs/strings" },
-        "validity": { "type": "object" },
+        "validity": {
+          "type": "object",
+          "properties": {
+            "from": { "$ref": "#/$defs/instant" },
+            "until": { "$ref": "#/$defs/instant" }
+          }
+        },
         "name": { "type": "string" },
         "meta": { "type": "object" },
         "obligations": { "type": "array" }

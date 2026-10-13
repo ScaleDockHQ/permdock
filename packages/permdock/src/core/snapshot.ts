@@ -15,6 +15,7 @@ import { isForbiddenKey } from "./paths.ts";
 import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isRfc3339, rfc3339 } from "./time.ts";
+import { wireValidity } from "./validity.ts";
 import { listPlans, listRoles, type Plan, type Role } from "./vocabulary.ts";
 import { toWireDelegation } from "./wire-delegation.ts";
 
@@ -65,7 +66,7 @@ export function snapshotGrant(
     membership,
     portable: grant.portable ? undefined : false,
     fields: grant.fields,
-    validity: grant.validity,
+    validity: wireValidity(grant.validity),
     name: grant.name,
     meta: grant.meta,
     obligations: grant.obligations,

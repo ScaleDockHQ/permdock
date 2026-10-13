@@ -284,8 +284,10 @@ export type LimitConsumeInput = {
   readonly key: string;
   readonly subjectId: string;
   readonly count: number;
-  readonly per: string;
-  readonly now?: number;
+  /** The window in seconds; windows are aligned to the epoch. */
+  readonly per: number;
+  /** The decision clock; the store reads the clock when absent. */
+  readonly now?: Instant;
   /** The active tenant; a quota counts per subject and tenant. */
   readonly tenant?: string;
 };

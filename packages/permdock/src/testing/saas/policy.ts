@@ -95,7 +95,7 @@ export const saasPolicy: Policy<
       ...each(admins, (to) =>
         allow(p.apiKey.create, {
           to,
-          limit: { count: SAAS_API_KEY_LIMIT, per: "day" },
+          limit: { count: SAAS_API_KEY_LIMIT, per: 86_400 },
         }),
       ),
       allow(p.apiKey.revokeAll, {

@@ -41,8 +41,8 @@ metadata:
      approval: {
        by: roles.finance,
        quorum: 2,
-       ttl: "30m",
-       escalation: { after: "4h", to: roles.owner },
+       ttl: 1800, // seconds: 30 minutes
+       escalation: { after: 14_400, to: roles.owner }, // 4 hours
      },
    });
    ```

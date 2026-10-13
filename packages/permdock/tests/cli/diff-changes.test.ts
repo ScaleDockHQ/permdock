@@ -88,13 +88,13 @@ describe("grant change descriptions", () => {
       where: eq,
       check: eq,
       approval: "human",
-      limit: { count: 1, per: "1d" },
+      limit: { count: 1, per: 86_400 },
     });
     const other = grant({
       where: neq,
       check: neq,
       approval: { by: { role: "admin" } },
-      limit: { count: 2, per: "1d" },
+      limit: { count: 2, per: 86_400 },
     });
     expect(changesOf(compare([open], [conditioned]))).toEqual([
       "where added",
@@ -128,9 +128,11 @@ describe("grant change descriptions", () => {
   });
 
   it("tells a narrowed validity window from a widened one", () => {
-    const later = grant({ validity: { from: 200 } });
-    const earlier = grant({ validity: { from: 100 } });
-    const shorter = grant({ validity: { from: 100, until: 900 } });
+    const later = grant({ validity: { from: "2026-01-03T00:00:00Z" } });
+    const earlier = grant({ validity: { from: "2026-01-02T00:00:00Z" } });
+    const shorter = grant({
+      validity: { from: "2026-01-02T00:00:00Z", until: "2026-01-09T00:00:00Z" },
+    });
     expect(changesOf(compare([open], [later]))).toEqual(["validity narrowed"]);
     expect(changesOf(compare([later], [open]))).toEqual(["validity widened"]);
     expect(changesOf(compare([later], [earlier]))).toEqual([
@@ -224,7 +226,7 @@ describe("delegation change descriptions", () => {
   const toOne: CatalogDelegation = {
     ...toKind,
     to: { kind: "eve", id: "agent-1" },
-    validity: { until: 900 },
+    validity: { until: "2026-01-09T00:00:00Z" },
   };
 
   it("names the actor and lists gained keys and a widened window as safe", () => {

@@ -694,7 +694,7 @@ export const policy = definePolicy(permissions, {
 describe("PD033 role activation", () => {
   const policy = `  scopes: { tenant: { key: 'orgId' } },
   roles: [
-    role('admin', [allow(permissions.post.update)], { on: 'tenant', activation: { maxDuration: '4h' } }),
+    role('admin', [allow(permissions.post.update)], { on: 'tenant', activation: { maxDuration: 14_400 } }),
     role('member', [allow(permissions.post.read)], { on: 'tenant' }),
   ],`;
 
@@ -747,7 +747,7 @@ describe("PD034, PD035 and PD037 stay quiet on a clean policy", () => {
       policy: `  scopes: { tenant: { key: 'orgId' } },
   roles: [
     role('member', [allow(permissions.post.read, { where: { authorId: principal.id } })], { on: 'tenant' }),
-    supportAccess({ role: 'support', actorRequired: true, consent: { by: 'owner', durations: ['1d'] } }),
+    supportAccess({ role: 'support', actorRequired: true, consent: { by: 'owner', durations: [86_400] } }),
   ],`,
     });
     const config = { policy: "./src/policy.ts", rls: {} };

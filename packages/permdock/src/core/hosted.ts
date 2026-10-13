@@ -3,7 +3,6 @@ import type { ApprovalRequirement, Grant, Policy } from "./policy-types.ts";
 
 import { normalizeWhere } from "../conditions/normalize.ts";
 import { compact, isRecord } from "./compact.ts";
-import { parseDuration } from "./duration.ts";
 import { freezeDeep } from "./freeze.ts";
 import { allow, completeGrant, deny } from "./grant-builders.ts";
 import { type Grantee, MAX_RELATION_DEPTH, flattenGrantee } from "./grantee.ts";
@@ -13,6 +12,7 @@ import { declaredRoleNames, indexPolicy } from "./policy.ts";
 import { isSelfParented } from "./resource-relations.ts";
 import { role } from "./role-builder.ts";
 import { sha256Digest } from "./sha256.ts";
+import { durationOf } from "./time.ts";
 import { isRfc3339, rfc3339 } from "./time.ts";
 import { findRole, listPlans } from "./vocabulary.ts";
 
@@ -254,7 +254,7 @@ function approvalRank(approval: Grant["approval"]):
     distinct: approval.distinct !== false,
     stale: approval.staleOn === "resource-change",
     quorum: approval.quorum ?? 1,
-    ttl: parseDuration(approval.ttl) ?? Number.POSITIVE_INFINITY,
+    ttl: durationOf(approval.ttl) ?? Number.POSITIVE_INFINITY,
     escalates: approval.escalation !== undefined,
   };
 }
@@ -379,8 +379,7 @@ function approvalAcceptable(
   }
   if (
     approval["ttl"] !== undefined &&
-    (typeof approval["ttl"] !== "string" ||
-      parseDuration(approval["ttl"]) === undefined)
+    durationOf(approval["ttl"]) === undefined
   ) {
     return false;
   }
@@ -388,8 +387,7 @@ function approvalAcceptable(
   if (
     escalation !== undefined &&
     (!isRecord(escalation) ||
-      typeof escalation["after"] !== "string" ||
-      parseDuration(escalation["after"]) === undefined ||
+      durationOf(escalation["after"]) === undefined ||
       !granteesAcceptable(policy, escalation["to"], permissionResource))
   ) {
     return false;

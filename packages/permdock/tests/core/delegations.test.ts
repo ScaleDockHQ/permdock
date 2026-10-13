@@ -14,6 +14,7 @@ import {
   delegatedPermissions,
   deny,
   fromSnapshot,
+  mayUse,
   relation,
   resource,
   role,
@@ -32,7 +33,8 @@ const post = { id: "p1", authorId: "u1" };
 type User = { readonly id: string; readonly roles: readonly string[] };
 const subject = (user: User) => user;
 
-const UNTIL = Date.parse("2027-06-01T00:00:00Z") / 1000;
+const UNTIL_AT = "2027-06-01T00:00:00Z";
+const UNTIL = Date.parse(UNTIL_AT) / 1000;
 
 const policy = definePolicy(permissions, {
   roles: [
@@ -171,7 +173,7 @@ describe("policy delegations", () => {
           from: "member",
           to: actor("eve"),
           permissions: [permissions.post.update, permissions.post.read],
-          validUntil: UNTIL,
+          validUntil: UNTIL_AT,
         },
       ],
       subject,
@@ -354,8 +356,8 @@ describe("read-only actors", () => {
     expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
       "not-delegated",
     );
-    expect(permdock.mayUse(permissions.post.read)).toBe(true);
-    expect(permdock.mayUse(permissions.post.update)).toBe(false);
+    expect(mayUse(permdock, permissions.post.read)).toBe(true);
+    expect(mayUse(permdock, permissions.post.update)).toBe(false);
   });
 
   it("follows meta.readOnly over the action name", async () => {

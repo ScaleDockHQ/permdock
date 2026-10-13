@@ -78,7 +78,7 @@ import {
 import { decisionToken, payloadDigest, versionOf } from "./token.ts";
 import { PermDockValidationError } from "./validation-error.ts";
 import { validateBoundary } from "./validation.ts";
-import { isActive } from "./validity.ts";
+import { isActive, wireValidity } from "./validity.ts";
 
 type ScopeMatch = ReturnType<typeof matchScopedMembership>;
 
@@ -567,7 +567,7 @@ function evaluateCandidate(
       state.denials.push({
         role: displayRole,
         reason: "inactive-grant",
-        detail: grant.validity,
+        detail: wireValidity(grant.validity) ?? {},
       });
     } else {
       skip(tracer, grant, permission.key, "validity");

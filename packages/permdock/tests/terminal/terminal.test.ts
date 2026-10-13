@@ -593,7 +593,7 @@ describe("permdock/terminal destructive and dry-run", () => {
     roles: [
       role("operator", [
         allow(deploys.environment.delete),
-        allow(deploys.environment.deploy, { limit: { count: 1, per: "hour" } }),
+        allow(deploys.environment.deploy, { limit: { count: 1, per: 3600 } }),
       ]),
     ],
     subject: (user: { readonly id: string } | null) =>

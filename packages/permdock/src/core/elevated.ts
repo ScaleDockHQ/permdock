@@ -14,7 +14,6 @@ import type { Membership, Subject } from "./subject.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
 import { compact, isReadonlyArray, sole } from "./compact.ts";
-import { parseDuration } from "./duration.ts";
 import { freezeDeep } from "./freeze.ts";
 import {
   type AssuranceGrantee,
@@ -27,6 +26,7 @@ import { listPermissions } from "./permission-registry.ts";
 import { normalizeAssurance, role } from "./role-builder.ts";
 import { type Scope, resolveScope, scopeList } from "./scopes.ts";
 import { isMembershipExpired, nowSeconds } from "./tenancy.ts";
+import { assertDuration, durationOf } from "./time.ts";
 import { decisionToken } from "./token.ts";
 import { type Role, isRole } from "./vocabulary.ts";
 
@@ -58,6 +58,9 @@ export function breakGlass<T>(
   permission: Permission<string, T> | readonly Permission<string, T>[],
   options: BreakGlassOptions = {},
 ): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[] {
+  if (options.maxDuration !== undefined) {
+    assertDuration(options.maxDuration, "breakGlass maxDuration");
+  }
   const purpose =
     options.requires?.purpose === undefined ||
     options.requires.purpose.length === 0
@@ -99,6 +102,12 @@ export function supportAccess(
   options: SupportAccessOptions<never>,
 ): RoleBinding<"tenant">;
 export function supportAccess(options: SupportAccessOptions): RoleBinding {
+  for (const duration of options.consent.durations) {
+    assertDuration(
+      duration,
+      `supportAccess consent duration on role '${options.role}'`,
+    );
+  }
   const via = options.role;
   const forbidden = (options.forbid ?? []).flatMap((item) =>
     flattenPermissions(item),
@@ -280,8 +289,8 @@ export type ActivateInput = {
   readonly id: string;
   /** Ancestor scope ids, keyed by scope name, for a nested-scope activation. */
   readonly within?: Readonly<Record<string, string>>;
-  /** How long the elevation lasts; capped at the role's `maxDuration`. */
-  readonly duration?: string;
+  /** Seconds the elevation lasts; capped at the role's `maxDuration`. */
+  readonly duration?: number;
   readonly reason?: string;
 };
 
@@ -350,8 +359,11 @@ export function activate(
       assurance(activation.assurance),
     );
   }
-  const requested = parseDuration(input.duration);
-  const cap = parseDuration(activation.maxDuration);
+  const requested = durationOf(input.duration);
+  if (input.duration !== undefined && requested === undefined) {
+    return activationDenied("validation");
+  }
+  const cap = durationOf(activation.maxDuration);
   const seconds =
     cap === undefined ? requested : Math.min(requested ?? cap, cap);
   const membership: Membership = freezeDeep(

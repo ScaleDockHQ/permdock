@@ -4,7 +4,7 @@ import type { Approver } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 import type { WireDelegation } from "../core/wire-delegation.ts";
 
-import { parseDuration } from "../core/duration.ts";
+import { durationOf } from "../core/time.ts";
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 
@@ -20,9 +20,9 @@ export type ApprovalApprovers = {
   readonly staleOn?: "resource-change";
   /** Distinct approvers of `by` needed before `status` becomes `approved`; absent means 1. */
   readonly quorum?: number;
-  /** Who else may approve once the request has waited `after` (a duration such as `'4h'`) since `createdAt`. */
+  /** Who else may approve once the request has waited `after` seconds since `createdAt`. */
   readonly escalation?: {
-    readonly after: string;
+    readonly after: number;
     readonly to: Approver | readonly Approver[];
   };
 };
@@ -174,9 +174,9 @@ export type ApprovalCancelMeta = {
 
 export type ApprovalStore = {
   /**
-   * How long a request opened against this store stays open, in
-   * milliseconds, when the caller sets no `ttl`; absent means
-   * `DEFAULT_APPROVAL_TTL_MS`. A grant's `approval.ttl` still caps it.
+   * Seconds a request opened against this store stays open when the
+   * caller sets no `ttl`; absent means `DEFAULT_APPROVAL_TTL`. A grant's
+   * `approval.ttl` still caps it.
    */
   readonly ttl?: number;
   create(request: ApprovalRequest): Promise<void> | void;
@@ -222,7 +222,8 @@ export type ApprovalInspectResult =
 
 export const APPROVAL_HEADER = "PermDock-Approval" as const;
 
-export const DEFAULT_APPROVAL_TTL_MS: number = 60 * 60 * 1000;
+/** Seconds a request stays open when neither the store nor the call sets a `ttl`. */
+export const DEFAULT_APPROVAL_TTL: number = 60 * 60;
 
 /** The approvals a request needs in total: `approvers.quorum` (or 1), or the sum of its stages' quorums. */
 export function approvalQuorum(request: ApprovalRequest): number {
@@ -239,8 +240,7 @@ export function approvalQuorum(request: ApprovalRequest): number {
  * `after` does not parse (then nobody escalates: fail-closed).
  */
 export function escalationOpenAt(request: ApprovalRequest): number | undefined {
-  const after = request.approvers?.escalation?.after;
-  const seconds = parseDuration(after);
+  const seconds = durationOf(request.approvers?.escalation?.after);
   if (seconds === undefined) {
     return undefined;
   }
@@ -252,7 +252,7 @@ export function stageEscalationOpenAt(
   request: ApprovalRequest,
   stage: ApprovalStage,
 ): number | undefined {
-  const seconds = parseDuration(stage.escalation?.after);
+  const seconds = durationOf(stage.escalation?.after);
   if (seconds === undefined) {
     return undefined;
   }

@@ -6,7 +6,7 @@ import type { Delegation } from "./subject.ts";
 import { coveredByDelegation } from "./delegation.ts";
 import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
 import { isMembershipExpired, nowSeconds } from "./tenancy.ts";
-import { isActive } from "./validity.ts";
+import { isActive, readWireValidity } from "./validity.ts";
 
 function delegationMayCover(
   permission: Permission,
@@ -160,7 +160,7 @@ export function permittedIds(
         }
       } else if (
         (conditioned || !isConditioned(grant)) &&
-        isActive(grant.validity, now)
+        isActive(readWireValidity(grant.validity), now)
       ) {
         allowed.add(membership.id);
       }

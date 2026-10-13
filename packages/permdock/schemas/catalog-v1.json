@@ -113,7 +113,8 @@
             "required": ["justification"],
             "properties": {
               "maxDuration": {
-                "type": "string"
+                "type": "integer",
+                "minimum": 1
               },
               "justification": {
                 "enum": ["required", "optional"]
@@ -139,7 +140,8 @@
               "durations": {
                 "type": "array",
                 "items": {
-                  "type": "string"
+                  "type": "integer",
+                  "minimum": 1
                 }
               }
             }
@@ -287,14 +289,16 @@
                       "minimum": 1
                     },
                     "ttl": {
-                      "type": "string"
+                      "type": "integer",
+                      "minimum": 1
                     },
                     "escalation": {
                       "type": "object",
                       "required": ["after", "to"],
                       "properties": {
                         "after": {
-                          "type": "string"
+                          "type": "integer",
+                          "minimum": 1
                         },
                         "to": {}
                       }
@@ -324,7 +328,8 @@
                 "type": "boolean"
               },
               "maxDuration": {
-                "type": "string"
+                "type": "integer",
+                "minimum": 1
               },
               "obligations": {
                 "type": "array",
@@ -415,14 +420,16 @@
                     "minimum": 1
                   },
                   "ttl": {
-                    "type": "string"
+                    "type": "integer",
+                    "minimum": 1
                   },
                   "escalation": {
                     "type": "object",
                     "required": ["after", "to"],
                     "properties": {
                       "after": {
-                        "type": "string"
+                        "type": "integer",
+                        "minimum": 1
                       },
                       "to": {}
                     }
@@ -441,10 +448,14 @@
             "type": "object",
             "properties": {
               "from": {
-                "type": "integer"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
               },
               "until": {
-                "type": "integer"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
               }
             }
           },
@@ -479,7 +490,8 @@
                 "minimum": 1
               },
               "per": {
-                "type": "string"
+                "type": "integer",
+                "minimum": 1
               },
               "mode": {
                 "enum": ["hard", "soft"]
@@ -527,10 +539,14 @@
             "type": "object",
             "properties": {
               "from": {
-                "type": "integer"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
               },
               "until": {
-                "type": "integer"
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
               }
             }
           }

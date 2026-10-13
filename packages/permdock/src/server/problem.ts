@@ -19,6 +19,12 @@ import {
   stepUpOf,
 } from "../core/problem-details.ts";
 import { problemType, statusProblem } from "../core/problem-types.ts";
+import {
+  type Instant,
+  durationOf,
+  nowSeconds,
+  secondsOf,
+} from "../core/time.ts";
 
 export { PROBLEM_BASE, stepUpOf };
 
@@ -184,11 +190,11 @@ function isLimitDetail(value: unknown): value is LimitDetail {
     return false;
   }
   // SAFETY: value is a non-null object; each destructured field is checked below.
-  const { count, window, resetsAt } = value as Partial<LimitDetail>;
+  const { count, per, resetsAt } = value as Partial<LimitDetail>;
   return (
     Number.isFinite(count) &&
-    Number.isFinite(window) &&
-    Number.isFinite(resetsAt)
+    durationOf(per) !== undefined &&
+    secondsOf(resetsAt) !== undefined
   );
 }
 
@@ -198,7 +204,7 @@ function isLimitDetail(value: unknown): value is LimitDetail {
  */
 export function rateLimitHeaders(
   decision: Decision,
-  now: number = Date.now() / 1000,
+  now?: Instant,
 ): Record<string, string> {
   if (decision.outcome !== "denied") {
     return {};
@@ -219,7 +225,7 @@ export function rateLimitHeaders(
   const entries = [...policies].map(([name, detail]) => ({
     name: sfString(name),
     detail,
-    wait: Math.max(1, Math.ceil(detail.resetsAt - now)),
+    wait: Math.max(1, (secondsOf(detail.resetsAt) ?? 0) - nowSeconds(now)),
   }));
   return {
     "Retry-After": String(Math.min(...entries.map((entry) => entry.wait))),
@@ -229,7 +235,7 @@ export function rateLimitHeaders(
     "RateLimit-Policy": entries
       .map(
         (entry) =>
-          `${entry.name};q=${entry.detail.count};w=${entry.detail.window}`,
+          `${entry.name};q=${entry.detail.count};w=${entry.detail.per}`,
       )
       .join(", "),
   };

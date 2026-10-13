@@ -392,7 +392,7 @@ const quotaPolicy = definePolicy(quotaPermissions, {
   roles: [
     role("member", [
       allow(quotaPermissions.report.export, {
-        limit: { count: 10, per: "hour" },
+        limit: { count: 10, per: 3600 },
       }),
     ]),
   ],
@@ -432,12 +432,12 @@ const softQuotaPolicy = definePolicy(quotaPermissions, {
   roles: [
     role("member", [
       allow(quotaPermissions.report.export, {
-        limit: { count: 1, per: "hour", mode: "soft", alertAt: 1 },
+        limit: { count: 1, per: 3600, mode: "soft", alertAt: 1 },
       }),
     ]),
     role("capped", [
       allow(quotaPermissions.report.export, {
-        limit: { count: 5, per: "hour" },
+        limit: { count: 5, per: 3600 },
       }),
     ]),
   ],

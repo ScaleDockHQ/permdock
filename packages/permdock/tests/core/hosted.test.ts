@@ -243,7 +243,7 @@ describe("hosted grants", () => {
         roles: [
           role("member", [
             allow(permissions.invoice.delete, {
-              approval: { by: "auditor", quorum: 2, ttl: "1h" },
+              approval: { by: "auditor", quorum: 2, ttl: 3600 },
             }),
           ]),
           role("auditor", []),
@@ -280,7 +280,7 @@ describe("hosted grants", () => {
           approval: {
             by: { kind: "role", role: "auditor", scope: "global" },
             escalation: {
-              after: "1h",
+              after: 3600,
               to: { kind: "role", role: "ghost", scope: "global" },
             },
           },
@@ -292,7 +292,7 @@ describe("hosted grants", () => {
           approval: {
             by: { kind: "role", role: "auditor", scope: "global" },
             quorum: 1,
-            ttl: "1h",
+            ttl: 3600,
           },
         },
         {
@@ -302,7 +302,7 @@ describe("hosted grants", () => {
           approval: {
             by: { kind: "role", role: "auditor", scope: "global" },
             quorum: 2,
-            ttl: "2h",
+            ttl: 7200,
           },
         },
         {
@@ -312,7 +312,7 @@ describe("hosted grants", () => {
           approval: {
             by: { kind: "role", role: "auditor", scope: "global" },
             quorum: 3,
-            ttl: "30m",
+            ttl: 1800,
           },
         },
       ]),

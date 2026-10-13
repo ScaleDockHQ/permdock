@@ -15,6 +15,7 @@ import { freezeDeep } from "./freeze.ts";
 import { flattenGrants, flattenPermissions } from "./grant-builders.ts";
 import { asGrantee, flattenGrantee, roleScopeOf } from "./grantee.ts";
 import { isForbiddenKey } from "./paths.ts";
+import { assertDuration } from "./time.ts";
 import { type Role as RoleLeaf, isRole } from "./vocabulary.ts";
 
 function resolveRoleScope(on: RoleScope | undefined): Grant["scope"] {
@@ -127,6 +128,12 @@ function normalizeActivation(
   if (justification !== "required" && justification !== "optional") {
     throw new Error(
       `PermDock: role '${roleName}' activation justification must be 'required' or 'optional'`,
+    );
+  }
+  if (option.maxDuration !== undefined) {
+    assertDuration(
+      option.maxDuration,
+      `activation.maxDuration on role '${roleName}'`,
     );
   }
   return compact<ActivationSpec>({

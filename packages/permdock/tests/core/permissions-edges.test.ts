@@ -66,7 +66,7 @@ describe("permission tree and builder edges", () => {
   it("role and policy builders check scopes, resources, limits and validate", () => {
     expect(
       role("limited", [
-        allow(tree.post.read, { limit: { count: 1, per: "hour" } }),
+        allow(tree.post.read, { limit: { count: 1, per: 3600 } }),
       ]).grants[0]?.portable,
     ).toBe(false);
     expect(deny([tree.post.read, tree.post.create])).toHaveLength(2);

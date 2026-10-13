@@ -92,7 +92,7 @@ describe("saas scenario helpers", () => {
     key: "apiKey.create",
     subjectId: "alice",
     count: 5,
-    per: "day",
+    per: 86_400,
     tenant: "acme",
   };
 

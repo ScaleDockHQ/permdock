@@ -224,7 +224,7 @@ describe("approval errors", () => {
 
 describe("memory store retention", () => {
   it("drops settled records one ttl after they expire", async () => {
-    const store = memoryApprovalStore({ ttl: 1000 });
+    const store = memoryApprovalStore({ ttl: 1 });
     const expiresAt = new Date(Date.now() + 1000).toISOString();
     store.create(pending("pd1.old", "o_1", { expiresAt }));
     store.create(pending("pd1.new", "o_1"));

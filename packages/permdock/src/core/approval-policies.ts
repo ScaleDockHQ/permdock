@@ -16,12 +16,12 @@ import {
   normalizeApproval,
 } from "./approval-normalize.ts";
 import { compact, isRecord } from "./compact.ts";
-import { parseDuration } from "./duration.ts";
 import { authenticated } from "./grantee.ts";
 import { isPortableCondition } from "./hosted.ts";
 import { findPermission } from "./permission-registry.ts";
 import { type Scope, rootMembershipId } from "./scopes.ts";
 import { isThenable } from "./thenable.ts";
+import { durationOf } from "./time.ts";
 
 /**
  * One approval requirement kept as data, for a tenant or the whole platform.
@@ -321,18 +321,16 @@ function entryStages(
 }
 
 function shorter(
-  a: string | undefined,
-  b: string | undefined,
-): string | undefined {
+  a: number | undefined,
+  b: number | undefined,
+): number | undefined {
   if (a === undefined) {
     return b;
   }
   if (b === undefined) {
     return a;
   }
-  return (parseDuration(b) ?? Infinity) < (parseDuration(a) ?? Infinity)
-    ? b
-    : a;
+  return (durationOf(b) ?? Infinity) < (durationOf(a) ?? Infinity) ? b : a;
 }
 
 /**
@@ -379,7 +377,7 @@ export function tightenApproval(
   let sequential = false;
   let distinct = false;
   let staleOn: ApprovalRequirement["staleOn"];
-  let ttl: string | undefined;
+  let ttl: number | undefined;
   for (const [index, part] of parts.entries()) {
     const fromCode = code !== undefined && index === 0;
     for (const stage of fromCode ? asStages(part) : entryStages(part)) {

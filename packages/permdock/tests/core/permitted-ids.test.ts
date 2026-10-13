@@ -6,6 +6,7 @@ import {
   definePermissions,
   definePolicy,
   deny,
+  permittedIds,
   resource,
   role,
 } from "../../src/index.ts";
@@ -45,19 +46,21 @@ const contact = {
 describe("permittedIds", () => {
   it("lists the instances an unconditional allow reaches, across tenants or within one", async () => {
     const permdock = await createPermDock(policy, contact);
-    expect(permdock.permittedIds(permissions.asset.read, "customer")).toEqual([
+    expect(permittedIds(permdock, permissions.asset.read, "customer")).toEqual([
       "A",
       "B",
     ]);
     expect(
-      permdock.permittedIds(permissions.asset.read, "customer", {
+      permittedIds(permdock, permissions.asset.read, "customer", {
         within: "T",
       }),
     ).toEqual(["A"]);
-    expect(permdock.permittedIds(permissions.quote.read, "customer")).toEqual(
+    expect(permittedIds(permdock, permissions.quote.read, "customer")).toEqual(
       [],
     );
-    expect(permdock.permittedIds(permissions.asset.read, "region")).toEqual([]);
+    expect(permittedIds(permdock, permissions.asset.read, "region")).toEqual(
+      [],
+    );
   });
 
   it("leaves out an instance a deny reaches and follows a snapshot", async () => {
@@ -85,19 +88,19 @@ describe("permittedIds", () => {
         },
       },
     );
-    expect(staff.permittedIds(permissions.quote.read, "organization")).toEqual([
-      "U",
-    ]);
-    expect(staff.permittedIds(permissions.asset.read, "organization")).toEqual([
-      "T",
-      "U",
-    ]);
+    expect(permittedIds(staff, permissions.quote.read, "organization")).toEqual(
+      ["U"],
+    );
+    expect(permittedIds(staff, permissions.asset.read, "organization")).toEqual(
+      ["T", "U"],
+    );
     const snapshot = staff.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
     expect(
-      fromSnapshot(snapshot).permittedIds(
+      permittedIds(
+        fromSnapshot(snapshot),
         permissions.asset.read,
         "organization",
       ),
@@ -110,7 +113,7 @@ describe("permittedIds", () => {
       actor: { id: "bot", kind: "agent" },
       delegation: { scopes: ["quote:read"] },
     });
-    expect(permdock.permittedIds(permissions.asset.read, "customer")).toEqual(
+    expect(permittedIds(permdock, permissions.asset.read, "customer")).toEqual(
       [],
     );
   });
@@ -118,12 +121,12 @@ describe("permittedIds", () => {
   it("lists conditioned allows only on request, and then subtracts only unconditional denies", async () => {
     const permdock = await createPermDock(policy, contact);
     expect(
-      permdock.permittedIds(permissions.quote.read, "customer", {
+      permittedIds(permdock, permissions.quote.read, "customer", {
         conditioned: true,
       }),
     ).toEqual(["A", "B"]);
     expect(
-      permdock.permittedIds(permissions.quote.accept, "customer", {
+      permittedIds(permdock, permissions.quote.accept, "customer", {
         conditioned: true,
         within: "U",
       }),
@@ -150,9 +153,13 @@ describe("permittedIds over fields, validity and conditioned denies", () => {
         ],
         { on: "group" },
       ),
-      role("timed", [allow(tree.note.read, { validUntil: 4_102_444_800 })], {
-        on: "group",
-      }),
+      role(
+        "timed",
+        [allow(tree.note.read, { validUntil: "2100-01-01T00:00:00Z" })],
+        {
+          on: "group",
+        },
+      ),
       role("blocked", [allow(tree.note.read), deny(tree.note.read)], {
         on: "group",
       }),
@@ -178,9 +185,9 @@ describe("permittedIds over fields, validity and conditioned denies", () => {
       },
       context: {},
     });
-    expect(permdock.permittedIds(tree.note.read, "group")).toEqual([]);
+    expect(permittedIds(permdock, tree.note.read, "group")).toEqual([]);
     expect(
-      permdock.permittedIds(tree.note.read, "group", { conditioned: true }),
+      permittedIds(permdock, tree.note.read, "group", { conditioned: true }),
     ).toEqual(["t1", "t2"]);
     const fieldsOnly = await createPermDock(
       definePolicy(tree, {
@@ -198,6 +205,6 @@ describe("permittedIds over fields, validity and conditioned denies", () => {
         context: {},
       },
     );
-    expect(fieldsOnly.permittedIds(tree.note.read, "group")).toEqual(["t1"]);
+    expect(permittedIds(fieldsOnly, tree.note.read, "group")).toEqual(["t1"]);
   });
 });

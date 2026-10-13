@@ -26,6 +26,8 @@ import { invalidSignatureProblem } from "../../src/server/web-bot-auth.ts";
 import { PROBLEM_EXAMPLES } from "../../src/testing/problem-examples.ts";
 import { permissions, policy } from "../fixtures/quick-start.ts";
 
+const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
+
 const subject = { principal: null, context: {} };
 const permission = permissions.post.update;
 
@@ -120,7 +122,7 @@ describe("RFC 9457 Problem Details", () => {
       decision: denied({
         role: "member",
         reason: "limit",
-        detail: { count: 10, window: 60, resetsAt: Date.now() / 1000 + 30 },
+        detail: { count: 10, per: 60, resetsAt: at(Date.now() / 1000 + 30) },
       }),
       status: 429,
       type: "rate-limited",
@@ -133,7 +135,7 @@ describe("RFC 9457 Problem Details", () => {
         {
           role: "admin",
           reason: "limit",
-          detail: { count: 1, window: 60, resetsAt: Date.now() / 1000 + 30 },
+          detail: { count: 1, per: 60, resetsAt: at(Date.now() / 1000 + 30) },
         },
       ),
       status: 503,
@@ -320,7 +322,7 @@ describe("RFC 9457 Problem Details", () => {
       denied({
         role: "member",
         reason: "limit",
-        detail: { count: 10, window: 60, resetsAt: Date.now() / 1000 + 30 },
+        detail: { count: 10, per: 60, resetsAt: at(Date.now() / 1000 + 30) },
       }),
       permission,
       subject,
@@ -513,7 +515,7 @@ describe("PROBLEM_EXAMPLES", () => {
         refused({
           role: "member",
           reason: "limit",
-          detail: { count: 10, window: 60, resetsAt: 1_900_000_000 },
+          detail: { count: 10, per: 60, resetsAt: at(1_900_000_000) },
         }),
         remove,
         author,

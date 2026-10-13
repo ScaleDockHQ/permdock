@@ -393,7 +393,7 @@ export const { getPermDock } = createPermDock(policy, {
 });
 ```
 
-Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API; create `createClerkSubjectResolver({ memberships: 'all', backend, cache: { ttl: '10s' } })` once per process to cache each user's list (at most 30 seconds, so a removed membership grants until then). `o:` plans and features from `pla` and `fea` hold only in the session organization.
+Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API; create `createClerkSubjectResolver({ memberships: 'all', backend, cache: { ttl: 10 } })` once per process to cache each user's list (at most 30 seconds, so a removed membership grants until then). `o:` plans and features from `pla` and `fea` hold only in the session organization.
 
 ## Supabase — `permdock/supabase`
 

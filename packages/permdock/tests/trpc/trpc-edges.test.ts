@@ -214,7 +214,7 @@ describe("permdock/trpc limit codes", () => {
   const limitedPolicy = definePolicy(limited, {
     roles: [
       role("member", [
-        allow(limited.report.export, { limit: { count: 1, per: "hour" } }),
+        allow(limited.report.export, { limit: { count: 1, per: 3600 } }),
       ]),
     ],
     subject: (user: {

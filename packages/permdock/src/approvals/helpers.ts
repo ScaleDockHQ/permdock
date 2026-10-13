@@ -7,8 +7,8 @@ import type { ApprovalsHandlerOptions } from "./handler.ts";
 import { parseApprovalHeader } from "../core/approval-header.ts";
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
-import { parseDuration } from "../core/duration.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { durationOf } from "../core/time.ts";
 import { toWireDelegation } from "../core/wire-delegation.ts";
 import { ApprovalError } from "./errors.ts";
 import { listAllApprovals } from "./page.ts";
@@ -27,7 +27,7 @@ import {
   type ApprovalRequest,
   type ApprovalStore,
   type ApprovalVerdict,
-  DEFAULT_APPROVAL_TTL_MS,
+  DEFAULT_APPROVAL_TTL,
 } from "./types.ts";
 
 function permissionMeta(
@@ -86,20 +86,17 @@ function approvalTtl(
   storeTtl: number | undefined,
   approval: ApprovalRequirement | "human" | undefined,
 ): number {
-  if (
-    storeTtl !== undefined &&
-    (!Number.isSafeInteger(storeTtl) || storeTtl <= 0)
-  ) {
+  if (storeTtl !== undefined && durationOf(storeTtl) === undefined) {
     throw new RangeError(
-      `PermDock: approval ttl must be a positive whole number of milliseconds, got ${String(storeTtl)}`,
+      `PermDock: approval ttl must be a whole number of seconds above 0, got ${String(storeTtl)}`,
     );
   }
-  const base = storeTtl ?? DEFAULT_APPROVAL_TTL_MS;
+  const base = storeTtl ?? DEFAULT_APPROVAL_TTL;
   const grant =
     approval === undefined || approval === "human"
       ? undefined
-      : parseDuration(approval.ttl);
-  return grant === undefined ? base : Math.min(base, grant * 1000);
+      : durationOf(approval.ttl);
+  return grant === undefined ? base : Math.min(base, grant);
 }
 
 export async function requestApproval(
@@ -154,7 +151,7 @@ export async function requestApproval(
       detail: meta.detail ?? describe(decision).detail,
       adapter: meta.adapter,
       createdAt: now.toISOString(),
-      expiresAt: new Date(now.getTime() + ttl).toISOString(),
+      expiresAt: new Date(now.getTime() + ttl * 1000).toISOString(),
       status: "pending",
     }),
   );
@@ -352,9 +349,9 @@ export async function resumeDecision(input: {
   readonly consume?: boolean;
   readonly now?: Date;
   /**
-   * How long a request this call opens stays open, in milliseconds; absent
-   * means the store's `ttl`, else `DEFAULT_APPROVAL_TTL_MS`. The grant's
-   * `approval.ttl` still caps it.
+   * Seconds a request this call opens stays open; absent means the
+   * store's `ttl`, else `DEFAULT_APPROVAL_TTL`. The grant's `approval.ttl`
+   * still caps it.
    */
   readonly ttl?: number;
 }): Promise<Decision> {

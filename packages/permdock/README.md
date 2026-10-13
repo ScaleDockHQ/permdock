@@ -253,8 +253,8 @@ allow(permissions.payout.release, {
   approval: {
     by: roles.finance,
     quorum: 2, // two distinct finance approvers
-    ttl: "30m",
-    escalation: { after: "10m", to: roles.cfo },
+    ttl: 1800, // seconds: 30 minutes
+    escalation: { after: 600, to: roles.cfo },
   },
 });
 ```

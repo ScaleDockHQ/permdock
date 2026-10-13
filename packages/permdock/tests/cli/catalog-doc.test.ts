@@ -182,7 +182,7 @@ describe("catalog approvals and roles", () => {
   const signer = role("signer", [allow(tree.doc.sign, { approval: "human" })], {
     on: "tenant",
     min: 0,
-    activation: { maxDuration: "4h", justification: "required" },
+    activation: { maxDuration: 14_400, justification: "required" },
   });
   const approver = role("approver", [allow(tree.doc.read)], {
     on: "tenant",
@@ -200,7 +200,7 @@ describe("catalog approvals and roles", () => {
       supportAccess({
         role: "support",
         actorRequired: true,
-        consent: { by: "owner", durations: ["1h", "1h", "1d"] },
+        consent: { by: "owner", durations: [3600, 3600, 86_400] },
         group: "vendor",
       }),
     ],
@@ -246,7 +246,7 @@ describe("catalog approvals and roles", () => {
         key: "signer",
         on: "tenant",
         assignable: expect.any(Boolean),
-        activation: { maxDuration: "4h", justification: "required" },
+        activation: { maxDuration: 14_400, justification: "required" },
       },
       approver: {
         key: "approver",
@@ -266,7 +266,7 @@ describe("catalog approvals and roles", () => {
         supportAccess: {
           actorRequired: true,
           group: "vendor",
-          durations: ["1h", "1d"],
+          durations: [3600, 86_400],
         },
       }),
     });
@@ -318,7 +318,7 @@ describe("catalog grants", () => {
       allow(grantsPermissions.doc.update, {
         where: { ownerId: principal.id },
         fields: ["ownerId"],
-        validFrom: 1_700_000_000,
+        validFrom: "2023-11-14T22:13:20Z",
       }),
       deny(grantsPermissions.doc.delete, { name: "keep" }),
       allow(
@@ -381,7 +381,7 @@ describe("catalog grants", () => {
         scope: "global",
         where: { op: "eq", field: "ownerId", value: { ref: "principal.id" } },
         fields: ["ownerId"],
-        validity: { from: 1_700_000_000 },
+        validity: { from: "2023-11-14T22:13:20.000Z" },
       },
     ]);
     expect(catalogGrants(build("b"))).toEqual(catalog.grants);

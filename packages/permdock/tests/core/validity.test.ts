@@ -23,6 +23,12 @@ const subject = (user: { id: string; roles: string[] }) => user;
 
 const FROM = Date.parse("2026-03-01T00:00:00Z") / 1000;
 const UNTIL = Date.parse("2026-04-01T00:00:00Z") / 1000;
+const UNTIL_AT = "2026-04-01T00:00:00Z";
+const UNTIL_INSTANT = { epochMilliseconds: UNTIL * 1000 };
+const WINDOW = {
+  from: "2026-03-01T00:00:00.000Z",
+  until: "2026-04-01T00:00:00.000Z",
+};
 const before = FROM - 60;
 const during = FROM + 60;
 const after = UNTIL + 60;
@@ -34,9 +40,9 @@ const policy = definePolicy(permissions, {
         validFrom: "2026-03-01T00:00:00Z",
         validUntil: "2026-04-01T00:00:00Z",
       }),
-      allow(permissions.doc.update, { validUntil: UNTIL }),
+      allow(permissions.doc.update, { validUntil: UNTIL_INSTANT }),
       allow(permissions.doc.delete),
-      deny(permissions.doc.delete, { validUntil: UNTIL, name: "freeze" }),
+      deny(permissions.doc.delete, { validUntil: UNTIL_AT, name: "freeze" }),
     ]),
   ],
   subject,
@@ -47,7 +53,7 @@ async function contractor() {
 }
 
 describe("grant validity", () => {
-  it("normalises RFC 3339 and Unix-second bounds to seconds", () => {
+  it("normalises RFC 3339 and Instant bounds to seconds", () => {
     const [read, update] = policy.grants.filter(
       (grant) => grant.effect === "allow" && grant.role === "contractor",
     );
@@ -65,12 +71,27 @@ describe("grant validity", () => {
         subject,
       }),
     ).toThrow(
-      "validFrom on 'doc.read' must be an RFC 3339 string or Unix seconds",
+      "validFrom on 'doc.read' must be an RFC 3339 string or an Instant",
     );
     expect(() =>
       definePolicy(permissions, {
         roles: [
-          role("r", [allow(permissions.doc.read, { validUntil: Number.NaN })]),
+          role("r", [
+            // SAFETY: Unix seconds are what a caller without types might still pass.
+            allow(permissions.doc.read, { validUntil: UNTIL as never }),
+          ]),
+        ],
+        subject,
+      }),
+    ).toThrow("validUntil on 'doc.read'");
+    expect(() =>
+      definePolicy(permissions, {
+        roles: [
+          role("r", [
+            allow(permissions.doc.read, {
+              validUntil: { epochMilliseconds: Number.NaN },
+            }),
+          ]),
         ],
         subject,
       }),
@@ -82,7 +103,10 @@ describe("grant validity", () => {
       definePolicy(permissions, {
         roles: [
           role("r", [
-            allow(permissions.doc.read, { validFrom: UNTIL, validUntil: FROM }),
+            allow(permissions.doc.read, {
+              validFrom: UNTIL_AT,
+              validUntil: "2026-03-01T00:00:00Z",
+            }),
           ]),
         ],
         subject,
@@ -107,7 +131,7 @@ describe("grant validity", () => {
           {
             role: "contractor",
             reason: "inactive-grant",
-            detail: { from: FROM, until: UNTIL },
+            detail: WINDOW,
           },
         ]);
       }
@@ -156,7 +180,7 @@ describe("grant validity", () => {
     const read = snapshot.grants.find(
       (grant) => grant.permission === "doc.read",
     );
-    expect(read?.validity).toEqual({ from: FROM, until: UNTIL });
+    expect(read?.validity).toEqual(WINDOW);
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.doc.read, doc, { now: during })).toBe(true);
     const decision = client.decide(permissions.doc.read, doc, { now: after });
@@ -206,9 +230,12 @@ describe("grant validity", () => {
             validFrom: "2026-03-01T00:00:00Z",
             validUntil: "2026-05-01T00:00:00Z",
           }),
-          allow(permissions.doc.update, { validUntil: UNTIL }),
+          allow(permissions.doc.update, { validUntil: UNTIL_INSTANT }),
           allow(permissions.doc.delete),
-          deny(permissions.doc.delete, { validUntil: UNTIL, name: "freeze" }),
+          deny(permissions.doc.delete, {
+            validUntil: UNTIL_AT,
+            name: "freeze",
+          }),
         ]),
       ],
       subject,

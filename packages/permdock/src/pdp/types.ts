@@ -40,7 +40,8 @@ export type RemotePdpEndpoints = {
 };
 
 export type RemotePdpCache = {
-  readonly ttl: number | `${number}s` | `${number}ms`;
+  /** Seconds, at most 30. */
+  readonly ttl: number;
 };
 
 export type RemotePdpOptions = {

@@ -113,7 +113,7 @@ describe("ApprovalPolicySource", () => {
     const source = memoryApprovalPolicySource([
       {
         permission: "expense.pay",
-        approval: { by: { kind: "user", id: "cfo" }, ttl: "1h" },
+        approval: { by: { kind: "user", id: "cfo" }, ttl: 3600 },
       },
     ]);
     const decision = await decide(source, permissions.expense.pay, large);
@@ -127,7 +127,7 @@ describe("ApprovalPolicySource", () => {
             { by: { kind: "relation", relation: "approver" } },
             { by: { kind: "user", id: "cfo" } },
           ],
-          ttl: "1h",
+          ttl: 3600,
         },
       },
     });
@@ -148,7 +148,7 @@ describe("ApprovalPolicySource", () => {
     const escalating = memoryApprovalPolicySource([
       {
         permission: "expense.read",
-        approval: { by: "finance", escalation: { after: "soon", to: "x" } },
+        approval: { by: "finance", escalation: { after: 1.5, to: "x" } },
       },
     ]);
     const junk: ApprovalPolicySource = {
@@ -243,14 +243,14 @@ describe("ApprovalPolicySource", () => {
   it("merges entries: one stage per distinct approver, the shortest ttl, distinct unless all opt out", async () => {
     const finance = {
       permission: "expense.read",
-      approval: { by: "finance", quorum: 2, distinct: false, ttl: "2h" },
+      approval: { by: "finance", quorum: 2, distinct: false, ttl: 7200 },
     } as const;
     const source = memoryApprovalPolicySource([
       finance,
       finance,
       {
         permission: "expense.read",
-        approval: { by: "auditor", distinct: false, ttl: "30m" },
+        approval: { by: "auditor", distinct: false, ttl: 1800 },
       },
     ]);
     const decision = await decide(source, permissions.expense.read, small);
@@ -267,7 +267,7 @@ describe("ApprovalPolicySource", () => {
             { by: { kind: "role", role: "auditor", scope: "global" } },
           ],
           distinct: false,
-          ttl: "30m",
+          ttl: 1800,
         },
       },
     });
@@ -398,7 +398,7 @@ describe("ApprovalPolicySource", () => {
       [
         {
           permission: "expense.read",
-          approval: { by: "finance", escalation: { after: "soon", to: "x" } },
+          approval: { by: "finance", escalation: { after: 1.5, to: "x" } },
         },
         { ok: false, problem: "invalid" },
       ],

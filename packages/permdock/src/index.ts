@@ -174,6 +174,7 @@ export { wrapPermDock } from "./core/wrap.ts";
 export type { PermDockOverrides, PermDockWrap } from "./core/wrap.ts";
 export type { RequestContext } from "./core/request-context.ts";
 export { mayAccess } from "./core/may-access.ts";
+export { mayUse, permittedIds } from "./core/may-use.ts";
 export type { PermittedIdsOptions } from "./core/may-use.ts";
 export {
   customRoleClaim,
@@ -296,6 +297,7 @@ export type {
   GrantScope,
   GrantValidity,
   HostedGrantRef,
+  WireValidity,
   MembershipFixture,
   ObligationInput,
   Policy,
@@ -314,7 +316,6 @@ export type {
 } from "./core/policy-types.ts";
 export { breakGlass, supportAccess } from "./core/elevated.ts";
 export type { ActivateInput } from "./core/elevated.ts";
-export { parseDuration } from "./core/duration.ts";
 export {
   actor,
   anyone,
@@ -428,6 +429,7 @@ export type {
 export {
   credentialDelegation,
   credentialPolicyViolation,
+  decideCredential,
   isFeedId,
   parseCredential,
 } from "./core/credential.ts";

@@ -8,7 +8,7 @@ import type { Decision } from "../../src/core/decision.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
-  DEFAULT_APPROVAL_TTL_MS,
+  DEFAULT_APPROVAL_TTL,
   cancelApprovals,
   consumeApproval,
   memoryApprovalStore,
@@ -136,9 +136,9 @@ describe("requestApproval", () => {
     const grant = {
       by: { kind: "role", role: "admin", scope: "global" },
       quorum: 2,
-      ttl: "30m",
+      ttl: 1800,
       escalation: {
-        after: "10m",
+        after: 600,
         to: { kind: "role", role: "auditor", scope: "global" },
       },
     };
@@ -153,15 +153,15 @@ describe("requestApproval", () => {
     expect(request.expiresAt).toBe("2026-03-01T10:30:00.000Z");
     const longer = await requestApproval(
       store,
-      pendingOf("t-long", { ...grant, ttl: "4h" }),
-      { permission: deletePost, subject: requester, now, ttl: 60 * 60 * 1000 },
+      pendingOf("t-long", { ...grant, ttl: 14_400 }),
+      { permission: deletePost, subject: requester, now, ttl: 60 * 60 },
     );
     expect(longer.expiresAt).toBe("2026-03-01T11:00:00.000Z");
     const plain = await requestApproval(store, pendingOf("t-plain"), {
       permission: deletePost,
       subject: requester,
       now,
-      ttl: 60 * 1000,
+      ttl: 60,
     });
     expect(plain.expiresAt).toBe("2026-03-01T10:01:00.000Z");
   });
@@ -307,30 +307,37 @@ describe("resumeDecision ttl", () => {
     return Date.parse(request.expiresAt) - before;
   };
 
-  it("opens the request for ttl milliseconds instead of the one-hour default", async () => {
-    const day = 24 * 60 * 60 * 1000;
-    expect(await openFor(day)).toBeGreaterThan(day - 5_000);
-    expect(await openFor(day)).toBeLessThanOrEqual(day + 5_000);
+  it("opens the request for ttl seconds instead of the one-hour default", async () => {
+    const day = 24 * 60 * 60;
+    expect(await openFor(day)).toBeGreaterThan(day * 1000 - 5_000);
+    expect(await openFor(day)).toBeLessThanOrEqual(day * 1000 + 5_000);
+    expect(DEFAULT_APPROVAL_TTL).toBe(3600);
     expect(await openFor(undefined)).toBeLessThanOrEqual(
-      DEFAULT_APPROVAL_TTL_MS + 5_000,
+      DEFAULT_APPROVAL_TTL * 1000 + 5_000,
     );
   });
 
   it("defaults to the store's ttl, which the call's ttl overrides", async () => {
-    const twoHours = 2 * 60 * 60 * 1000;
-    const minute = 60 * 1000;
+    const twoHours = 2 * 60 * 60;
+    const minute = 60;
     const store = (): ApprovalStore => memoryApprovalStore({ ttl: twoHours });
     expect(await openFor(undefined, "human", store())).toBeGreaterThan(
-      twoHours - 5_000,
+      twoHours * 1000 - 5_000,
     );
     expect(await openFor(minute, "human", store())).toBeLessThanOrEqual(
-      minute + 5_000,
+      minute * 1000 + 5_000,
     );
   });
 
+  it("refuses a store ttl that is not whole seconds", () => {
+    for (const ttl of [0, -1, 1.5, 3_600_000.5]) {
+      expect(() => memoryApprovalStore({ ttl })).toThrow(RangeError);
+    }
+  });
+
   it("is still capped by the grant's approval.ttl", async () => {
-    const day = 24 * 60 * 60 * 1000;
-    expect(await openFor(day, { by: "admin", ttl: "30m" })).toBeLessThanOrEqual(
+    const day = 24 * 60 * 60;
+    expect(await openFor(day, { by: "admin", ttl: 1800 })).toBeLessThanOrEqual(
       30 * 60 * 1000 + 5_000,
     );
   });

@@ -20,6 +20,7 @@ import { catalogSchema } from "../catalog/schema.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { byCodePoint } from "../core/compare.ts";
 import { policyRowConditionKeys } from "../core/row-conditions.ts";
+import { wireValidity } from "../core/validity.ts";
 import {
   catalogFingerprint,
   findRole,
@@ -176,7 +177,7 @@ function catalogGrant(grant: Grant): CatalogGrant {
       check: grant.portable ? grant.check : undefined,
       approval: catalogApproval(grant.approval),
       fields: grant.fields,
-      validity: grant.validity,
+      validity: wireValidity(grant.validity),
       name: grant.name,
       purpose: grant.purpose,
       requires:
@@ -224,7 +225,7 @@ export function catalogDelegations(
         from: delegation.from,
         to: delegation.to,
         permissions: delegation.permissions,
-        validity: delegation.validity,
+        validity: wireValidity(delegation.validity),
       }),
     )
     .toSorted((a, b) => {

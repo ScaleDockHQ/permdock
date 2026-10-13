@@ -1,7 +1,7 @@
 /**
  * The one time rule: NumericDate (whole seconds) for JWT registered claims
  * and the claims SQL reads, RFC 3339 for every other JSON field, integer
- * seconds for durations, and `Temporal.Instant` for every runtime `now`.
+ * seconds for durations, and an `Instant` for every runtime `now`.
  */
 
 /**
@@ -33,6 +33,42 @@ export function rfc3339(seconds: number): string {
 /** Whole seconds since the epoch of an RFC 3339 instant; `undefined` for anything else. */
 export function secondsOf(value: unknown): number | undefined {
   return isRfc3339(value) ? Math.floor(Date.parse(value) / 1000) : undefined;
+}
+
+/** Whole seconds since the epoch of an RFC 3339 string or an `Instant`; `undefined` for anything else, Unix seconds included. */
+export function instantOf(value: unknown): number | undefined {
+  if (typeof value === "string") {
+    return secondsOf(value);
+  }
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "epochMilliseconds" in value &&
+    typeof value.epochMilliseconds === "number" &&
+    Number.isFinite(value.epochMilliseconds)
+  ) {
+    return Math.floor(value.epochMilliseconds / 1000);
+  }
+  return undefined;
+}
+
+/** A duration: a whole number of seconds above zero, else `undefined`. */
+export function durationOf(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : undefined;
+}
+
+/** Throws at definition time unless `value` is a whole number of seconds above zero. */
+export function assertDuration(
+  value: unknown,
+  label: string,
+): asserts value is number {
+  if (durationOf(value) === undefined) {
+    throw new Error(
+      `PermDock: ${label} must be a whole number of seconds above 0, got ${JSON.stringify(value) ?? String(value)}`,
+    );
+  }
 }
 
 /** Whole seconds since the epoch of `now`, or of the clock when absent. */

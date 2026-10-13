@@ -55,7 +55,7 @@ group("approval modes and approver kinds", () => {
       normalizeApproval({
         mode: "all",
         stages: [{ by: user("cfo") }, { by: "admin", quorum: 2 }],
-        ttl: "1d",
+        ttl: 86_400,
       }),
     ).toEqual({
       mode: "all",
@@ -66,7 +66,7 @@ group("approval modes and approver kinds", () => {
           quorum: 2,
         },
       ],
-      ttl: "1d",
+      ttl: 86_400,
     });
     expect(normalizeApproval({ by: [user("cfo"), "admin"] })).toEqual({
       by: [
@@ -150,7 +150,7 @@ group("approval modes and approver kinds", () => {
         roles: [
           role("admin", [allow(tree.doc.read)], {
             activation: {
-              maxDuration: "1h",
+              maxDuration: 3600,
               approval: { by: relation(tree.doc, "owner") },
             },
           }),

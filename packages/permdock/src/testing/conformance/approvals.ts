@@ -313,7 +313,7 @@ export function testApprovalStore(
       context: {},
     };
     const escalation = {
-      after: "1h",
+      after: 3600,
       to: { kind: "role" as const, role: "auditor", scope: "global" as const },
     };
     await store.create({

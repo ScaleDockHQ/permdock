@@ -5,7 +5,7 @@ import type { Permission } from "./permission-types.ts";
 import type {
   ApprovalRequirement,
   GrantMeta,
-  GrantValidity,
+  WireValidity,
 } from "./policy-types.ts";
 import type { Membership } from "./subject.ts";
 import type { Plan, Role } from "./vocabulary.ts";
@@ -104,8 +104,8 @@ export type SnapshotGrant = {
   readonly membership?: Membership;
   readonly portable?: false;
   readonly fields?: readonly string[];
-  /** When the grant applies (Unix seconds, `from` inclusive, `until` exclusive); absent means always. */
-  readonly validity?: GrantValidity;
+  /** When the grant applies (RFC 3339, `from` inclusive, `until` exclusive); absent means always. */
+  readonly validity?: WireValidity;
   /** The grant's declared `name`. */
   readonly name?: string;
   /** The grant's declared `meta`; visible to the client that holds the snapshot. */

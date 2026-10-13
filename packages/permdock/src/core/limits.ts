@@ -2,26 +2,7 @@ import type { LimitDetail, Obligation, Quota } from "./decision.ts";
 import type { LimitStore } from "./interfaces.ts";
 import type { Grant, GrantLimit } from "./policy-types.ts";
 
-const UNIT_SECONDS: Record<string, number> = {
-  s: 1,
-  sec: 1,
-  secs: 1,
-  second: 1,
-  seconds: 1,
-  m: 60,
-  min: 60,
-  mins: 60,
-  minute: 60,
-  minutes: 60,
-  h: 3600,
-  hr: 3600,
-  hrs: 3600,
-  hour: 3600,
-  hours: 3600,
-  d: 86400,
-  day: 86400,
-  days: 86400,
-};
+import { durationOf, nowSeconds, rfc3339 } from "./time.ts";
 
 function isThenable(value: unknown): value is Promise<unknown> {
   return (
@@ -30,27 +11,6 @@ function isThenable(value: unknown): value is Promise<unknown> {
     "then" in value &&
     typeof value.then === "function"
   );
-}
-
-const PER_PATTERN =
-  /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/u;
-
-/** The window length of `per` in seconds, or `undefined` when unrecognised. */
-function limitWindowSeconds(per: string): number | undefined {
-  const trimmed = per.trim().toLowerCase();
-  const named = UNIT_SECONDS[trimmed];
-  if (named !== undefined) {
-    return named;
-  }
-  const match = PER_PATTERN.exec(trimmed);
-  if (match === null) {
-    return undefined;
-  }
-  const amount = Number(match[1]);
-  const unit = UNIT_SECONDS[match[2] ?? ""];
-  return unit !== undefined && Number.isSafeInteger(amount) && amount > 0
-    ? amount * unit
-    : undefined;
 }
 
 /** Throws at definition time for a `limit` no store could count. */
@@ -66,9 +26,9 @@ export function assertLimit(
       `PermDock: limit count on '${permissionKey}' must be a positive integer`,
     );
   }
-  if (limitWindowSeconds(limit.per) === undefined) {
+  if (durationOf(limit.per) === undefined) {
     throw new Error(
-      `PermDock: limit per '${limit.per}' on '${permissionKey}' is not a duration such as 'hour' or '15 min'`,
+      `PermDock: limit per on '${permissionKey}' must be a whole number of seconds above 0 (3600 for an hour), got ${JSON.stringify(limit.per)}`,
     );
   }
   if (
@@ -106,8 +66,8 @@ export function normalizeLimit(
   };
 }
 
-function limitWindowId(per: string, now: number): string | undefined {
-  const seconds = limitWindowSeconds(per);
+function limitWindowId(per: number, now: number): string | undefined {
+  const seconds = durationOf(per);
   return seconds === undefined ? undefined : String(Math.floor(now / seconds));
 }
 
@@ -115,7 +75,7 @@ function limitCacheKey(
   input: {
     readonly subjectId: string;
     readonly key: string;
-    readonly per: string;
+    readonly per: number;
     readonly tenant?: string;
   },
   now: number,
@@ -137,8 +97,8 @@ function locate(
 ):
   | { readonly id: string; readonly until: number; readonly now: number }
   | undefined {
-  const now = input.now ?? Date.now() / 1000;
-  const seconds = limitWindowSeconds(input.per);
+  const now = nowSeconds(input.now);
+  const seconds = durationOf(input.per);
   const id = limitCacheKey(input, now);
   if (seconds === undefined || id === undefined) {
     return undefined;
@@ -219,11 +179,11 @@ function verdictFor(
   left: number,
   now: number,
 ): QuotaVerdict {
-  const seconds = limitWindowSeconds(limit.per);
+  const seconds = durationOf(limit.per);
   if (seconds === undefined) {
     return { ok: false, reason: "limit-unavailable" };
   }
-  const resetsAt = (Math.floor(now / seconds) + 1) * seconds;
+  const resetsAt = rfc3339((Math.floor(now / seconds) + 1) * seconds);
   if (left < 0) {
     return limit.mode === "soft"
       ? {
@@ -234,7 +194,7 @@ function verdictFor(
       : {
           ok: false,
           reason: "limit",
-          detail: { count: limit.count, window: seconds, resetsAt },
+          detail: { count: limit.count, per: seconds, resetsAt },
         };
   }
   const near =
@@ -271,7 +231,7 @@ export function applyQuota(input: {
     subjectId: input.subjectId,
     count: limit.count,
     per: limit.per,
-    now: input.now,
+    now: { epochMilliseconds: input.now * 1000 },
     ...(input.tenant === undefined ? {} : { tenant: input.tenant }),
   };
   const cacheKey = limitCacheKey(payload, input.now);

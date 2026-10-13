@@ -19,9 +19,9 @@ import {
   user,
 } from "./approvers.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
-import { parseDuration } from "./duration.ts";
 import { type GranteeInput, asGrantee, authenticated } from "./grantee.ts";
 import { isSelfParented } from "./resource-relations.ts";
+import { assertDuration } from "./time.ts";
 
 /** Every approver a requirement names: `by`, each stage and its escalation, and `escalation.to`, inside `anyOf` groups too. */
 function approversOf(requirement: ApprovalRequirement): readonly Approver[] {
@@ -95,10 +95,8 @@ export function normalizeApproval(
   }
   const label = permission ?? "a grant";
   assertQuorum(approval.quorum, "approval.quorum", label);
-  if (approval.ttl !== undefined && parseDuration(approval.ttl) === undefined) {
-    throw new Error(
-      `PermDock: approval.ttl on '${label}' must be a duration such as '30m', got '${approval.ttl}'`,
-    );
+  if (approval.ttl !== undefined) {
+    assertDuration(approval.ttl, `approval.ttl on '${label}'`);
   }
   const escalation = normalizeEscalation(approval.escalation, label);
   const mode = approval.mode ?? "any";
@@ -189,18 +187,14 @@ function normalizeStages(
 
 function normalizeEscalation(
   escalation:
-    | { readonly after: string; readonly to: ApproverInput }
+    | { readonly after: number; readonly to: ApproverInput }
     | undefined,
   label: string,
 ): ApprovalEscalation | undefined {
   if (escalation === undefined) {
     return undefined;
   }
-  if (parseDuration(escalation.after) === undefined) {
-    throw new Error(
-      `PermDock: approval.escalation.after on '${label}' must be a duration such as '4h', got '${escalation.after}'`,
-    );
-  }
+  assertDuration(escalation.after, `approval.escalation.after on '${label}'`);
   return { after: escalation.after, to: asApprover(escalation.to) };
 }
 

@@ -30,7 +30,7 @@ import {
   rowInScope,
 } from "./tenancy.ts";
 import { decisionToken, payloadDigest } from "./token.ts";
-import { isActive } from "./validity.ts";
+import { isActive, readWireValidity } from "./validity.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
 function coveredByInclude(snapshot: Snapshot, permission: Permission): boolean {
@@ -328,7 +328,7 @@ export function evaluateSnapshot(
       );
       continue;
     }
-    if (!isActive(grant.validity, now())) {
+    if (!isActive(readWireValidity(grant.validity), now())) {
       if (grant.effect === "allow") {
         denials.push({
           role: grant.role,

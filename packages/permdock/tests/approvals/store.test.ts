@@ -168,7 +168,7 @@ describe("request and resume helpers", () => {
           context: {},
         },
         adapter: "eve",
-        ttl: 3_600_000,
+        ttl: 3600,
       },
     );
     expect(recorded.status).toBe("pending");

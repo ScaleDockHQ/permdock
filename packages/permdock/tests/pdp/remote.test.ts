@@ -419,7 +419,7 @@ describe("remotePdp decide", () => {
     const options = {
       url: "https://pdp.test",
       endpoints: { evaluation },
-      cache: { ttl: "500ms" },
+      cache: { ttl: 1 },
       fetch: fake.fetch,
     } as const;
     const provider = remotePdp(options);

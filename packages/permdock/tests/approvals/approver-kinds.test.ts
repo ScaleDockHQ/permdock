@@ -205,14 +205,14 @@ describe("escalation in data and per stage", () => {
   it("an entry's escalation widens only its own stage", () => {
     const code = normalizeApproval({
       by: "controller",
-      escalation: { after: "1d", to: user("ceo") },
+      escalation: { after: 86_400, to: user("ceo") },
     });
     expect(
       validateApprovalPolicy(policy, {
         permission: "payment.send",
         approval: {
           by: user("cfo"),
-          escalation: { after: "4h", to: "auditor" },
+          escalation: { after: 14_400, to: "auditor" },
         },
       }),
     ).toEqual({ ok: true });
@@ -224,7 +224,7 @@ describe("escalation in data and per stage", () => {
           approval:
             normalizeApproval({
               by: user("cfo"),
-              escalation: { after: "4h", to: "auditor" },
+              escalation: { after: 14_400, to: "auditor" },
             }) ?? "human",
         },
       ],
@@ -240,12 +240,12 @@ describe("escalation in data and per stage", () => {
     );
     expect(tightened).toMatchObject({
       mode: "all",
-      escalation: { after: "1d", to: { kind: "user", id: "ceo" } },
+      escalation: { after: 86_400, to: { kind: "user", id: "ceo" } },
       stages: [
         { by: { kind: "role", role: "controller" } },
         {
           by: { kind: "user", id: "cfo" },
-          escalation: { after: "4h", to: { kind: "role", role: "auditor" } },
+          escalation: { after: 14_400, to: { kind: "role", role: "auditor" } },
         },
       ],
     });
@@ -270,7 +270,7 @@ describe("escalation in data and per stage", () => {
                   { by: "controller" },
                   {
                     by: user("cfo"),
-                    escalation: { after: "4h", to: "auditor" },
+                    escalation: { after: 14_400, to: "auditor" },
                   },
                 ],
               },
@@ -299,7 +299,7 @@ describe("escalation in data and per stage", () => {
       resource: { type: "payment", id: "p1" },
       subject: permdock.subject,
       now: created,
-      ttl: 24 * 60 * 60 * 1000,
+      ttl: 24 * 60 * 60,
     });
     const auditor = inTenant("ann", ["auditor"]);
     const early = new Date("2026-10-05T09:00:00Z");

@@ -24,7 +24,7 @@ import { PERMDOCK_SCHEMA } from "./sources.ts";
 export type SupabaseApprovalStoreOptions = {
   /** Schema of the generated store functions (`rls.schema`). Default `permdock`. */
   readonly schema?: string;
-  /** How long a request stays open when the caller sets no `ttl`, in milliseconds. */
+  /** Seconds a request stays open when the caller sets no `ttl`. */
   readonly ttl?: number;
   /**
    * Runs once per stored request, after the call that stored it, with the

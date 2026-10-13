@@ -96,7 +96,11 @@ export const PROBLEM_EXAMPLES: Readonly<Record<ProblemType, ProblemDetails>> =
         {
           role: "member",
           reason: "limit",
-          detail: { count: 10, window: 60, resetsAt: 1_900_000_000 },
+          detail: {
+            count: 10,
+            per: 60,
+            resetsAt: "2030-03-17T17:46:40.000Z",
+          },
         },
       ],
       alternatives: ["post.read", "post.update"],

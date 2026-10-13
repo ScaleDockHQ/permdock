@@ -13,6 +13,7 @@ import type {
 
 import { parseCatalog } from "../../catalog/parse.ts";
 import { canonicalJson } from "../../core/canonical-json.ts";
+import { secondsOf } from "../../core/time.ts";
 import {
   type Policy,
   createPermDock,
@@ -265,9 +266,9 @@ function fieldsChange(
 }
 
 const validFrom = (value: CatalogGrant["validity"]): number =>
-  value?.from ?? Number.NEGATIVE_INFINITY;
+  secondsOf(value?.from) ?? Number.NEGATIVE_INFINITY;
 const validUntil = (value: CatalogGrant["validity"]): number =>
-  value?.until ?? Number.POSITIVE_INFINITY;
+  secondsOf(value?.until) ?? Number.POSITIVE_INFINITY;
 
 /** Narrowed when the window starts later or ends earlier than before; a new window on an open grant narrows it. */
 function validityChange(

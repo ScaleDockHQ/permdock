@@ -32,7 +32,7 @@ const policy = definePolicy(permissions, {
       "member",
       [
         allow(permissions.invoice.read),
-        allow(permissions.invoice.send, { limit: { count: 1, per: "hour" } }),
+        allow(permissions.invoice.send, { limit: { count: 1, per: 3600 } }),
         allow(permissions.invoice.void, { approval: "human" }),
       ],
       { on: "tenant" },
@@ -42,7 +42,7 @@ const policy = definePolicy(permissions, {
       [
         allow(permissions.invoice.read),
         allow(permissions.invoice.refund),
-        allow(permissions.invoice.send, { limit: { count: 1, per: "hour" } }),
+        allow(permissions.invoice.send, { limit: { count: 1, per: 3600 } }),
       ],
       { on: "tenant" },
     ),

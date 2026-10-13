@@ -5,6 +5,7 @@ import type { RevocationEvent, RevocationFeed } from "../core/revocations.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockRevokedError, type RevokedCode } from "../core/errors.ts";
+import { durationOf } from "../core/time.ts";
 
 /** `setTimeout` stores delays in a signed 32-bit integer. */
 const MAX_DELAY = 2_147_483_647;
@@ -18,7 +19,7 @@ export type ConnectionOptions<T = unknown> = {
   readonly permission?: Permission;
   /** The row for `permission`, or a loader re-run on every revalidation. */
   readonly data?: ConnectionData<T>;
-  /** Milliseconds between periodic revalidations; off by default. */
+  /** Seconds between periodic revalidations; off by default. */
   readonly revalidate?: number;
 };
 
@@ -268,9 +269,9 @@ export async function openConnection<T>(
     if (membership !== undefined) {
       after((membership - now) * 1000, revalidate);
     }
-    const every = input.options.revalidate;
-    if (every !== undefined && Number.isFinite(every) && every > 0) {
-      after(every, revalidate);
+    const every = durationOf(input.options.revalidate);
+    if (every !== undefined) {
+      after(every * 1000, revalidate);
     }
   };
 

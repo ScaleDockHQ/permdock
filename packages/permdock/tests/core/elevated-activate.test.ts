@@ -35,7 +35,7 @@ const policy = definePolicy(
     roles: [
       role(roles.operator, [], {
         on: "project",
-        activation: { maxDuration: "2h" },
+        activation: { maxDuration: 7200 },
       }),
       role("auditor", [], {
         on: "organization",
@@ -43,7 +43,7 @@ const policy = definePolicy(
       }),
       role("owner", [], {
         on: "organization",
-        activation: { maxDuration: "1h", approval: "human" },
+        activation: { maxDuration: 3600, approval: "human" },
       }),
       role("viewer", [], { on: "organization" }),
     ],
@@ -138,7 +138,7 @@ describe("activate", () => {
         scope: "project",
         id: "p1",
         within: { organization: "o1" },
-        duration: "8h",
+        duration: 28_800,
       },
       NOW,
     );

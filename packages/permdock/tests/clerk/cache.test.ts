@@ -36,7 +36,7 @@ describe("createClerkSubjectResolver", () => {
     const subject = createClerkSubjectResolver({
       memberships: "all",
       backend,
-      cache: { ttl: "10s" },
+      cache: { ttl: 10 },
     });
     const first = await subject({ sub: "u1", sid: "s1" });
     await subject({ sub: "u1", sid: "s2" });

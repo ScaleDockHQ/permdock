@@ -78,7 +78,7 @@ export {
 export type { MemoryApprovalStore } from "./store.ts";
 export {
   APPROVAL_HEADER,
-  DEFAULT_APPROVAL_TTL_MS,
+  DEFAULT_APPROVAL_TTL,
   approvalQuorum,
   approverRelationKey,
   escalationOpenAt,

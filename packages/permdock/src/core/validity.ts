@@ -1,20 +1,6 @@
-import type { GrantValidity } from "./policy-types.ts";
+import type { GrantValidity, WireValidity } from "./policy-types.ts";
 
-/**
- * An instant as Unix seconds: a finite number is taken as seconds already, a
- * string must parse as RFC 3339. Anything else is `undefined`, and the caller
- * decides whether that is "absent" or an error.
- */
-function instantOf(input: unknown): number | undefined {
-  if (typeof input === "number") {
-    return Number.isFinite(input) ? Math.floor(input) : undefined;
-  }
-  if (typeof input !== "string" || input.trim() === "") {
-    return undefined;
-  }
-  const millis = Date.parse(input);
-  return Number.isFinite(millis) ? Math.floor(millis / 1000) : undefined;
-}
+import { type Instant, instantOf, rfc3339, secondsOf } from "./time.ts";
 
 /**
  * The normalised validity of a grant, or `undefined` when neither bound is
@@ -23,8 +9,8 @@ function instantOf(input: unknown): number | undefined {
  */
 export function normalizeValidity(
   options: {
-    readonly validFrom?: string | number;
-    readonly validUntil?: string | number;
+    readonly validFrom?: string | Instant;
+    readonly validUntil?: string | Instant;
   },
   permissionKey: string,
 ): GrantValidity | undefined {
@@ -36,12 +22,12 @@ export function normalizeValidity(
       : instantOf(options.validUntil);
   if (options.validFrom !== undefined && from === undefined) {
     throw new Error(
-      `PermDock: validFrom on '${permissionKey}' must be an RFC 3339 string or Unix seconds`,
+      `PermDock: validFrom on '${permissionKey}' must be an RFC 3339 string or an Instant`,
     );
   }
   if (options.validUntil !== undefined && until === undefined) {
     throw new Error(
-      `PermDock: validUntil on '${permissionKey}' must be an RFC 3339 string or Unix seconds`,
+      `PermDock: validUntil on '${permissionKey}' must be an RFC 3339 string or an Instant`,
     );
   }
   if (from !== undefined && until !== undefined && until <= from) {
@@ -71,3 +57,44 @@ export function isActive(
   }
   return validity.until === undefined || now < validity.until;
 }
+
+export function wireValidity(
+  validity: GrantValidity | undefined,
+): WireValidity | undefined {
+  if (validity === undefined) {
+    return undefined;
+  }
+  return Object.freeze({
+    ...(validity.from === undefined ? {} : { from: rfc3339(validity.from) }),
+    ...(validity.until === undefined ? {} : { until: rfc3339(validity.until) }),
+  });
+}
+
+/**
+ * The validity of a wire grant. A bound that is not RFC 3339 makes the
+ * grant never apply (`{ from: +∞ }`), so a malformed window fails closed.
+ */
+export function readWireValidity(value: unknown): GrantValidity | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "object" || value === null) {
+    return NEVER;
+  }
+  const from = "from" in value ? value.from : undefined;
+  const until = "until" in value ? value.until : undefined;
+  const start = from === undefined ? undefined : secondsOf(from);
+  const end = until === undefined ? undefined : secondsOf(until);
+  if (
+    (from !== undefined && start === undefined) ||
+    (until !== undefined && end === undefined)
+  ) {
+    return NEVER;
+  }
+  return Object.freeze({
+    ...(start === undefined ? {} : { from: start }),
+    ...(end === undefined ? {} : { until: end }),
+  });
+}
+
+const NEVER: GrantValidity = Object.freeze({ from: Number.POSITIVE_INFINITY });
