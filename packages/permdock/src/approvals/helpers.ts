@@ -4,6 +4,7 @@ import type { ApprovalRequirement } from "../core/policy-types.ts";
 import type { Delegation, Membership, Subject } from "../core/subject.ts";
 import type { ApprovalsHandlerOptions } from "./handler.ts";
 
+import { parseApprovalHeader } from "../core/approval-header.ts";
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { parseDuration } from "../core/duration.ts";
@@ -465,14 +466,11 @@ export async function cancelApprovals(
   return outcomes.filter(Boolean).length;
 }
 
+/** The token of a `PermDock-Approval` field: one RFC 9651 sf-token Item with no parameters, else `undefined`. */
 export function readApprovalHeader(
   headers: Headers | { readonly get: (name: string) => string | null },
 ): string | undefined {
-  const value = headers.get(APPROVAL_HEADER);
-  if (value === null || value.trim() === "") {
-    return undefined;
-  }
-  return value.trim();
+  return parseApprovalHeader(headers.get(APPROVAL_HEADER));
 }
 
 export function resumeFromHeader(
