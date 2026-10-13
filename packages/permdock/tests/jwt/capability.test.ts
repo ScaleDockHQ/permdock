@@ -1,3 +1,9 @@
+import {
+  SignJWT,
+  calculateJwkThumbprint,
+  exportJWK,
+  generateKeyPair,
+} from "jose";
 import { describe, expect, it } from "vitest";
 
 import type { AuthEvent } from "../../src/core/event-types.ts";
@@ -10,6 +16,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { bytesToBase64Url, sha256 } from "../../src/core/sha256.ts";
 import { subjectFromCapability } from "../../src/jwt/capability.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { subjectFromJwt } from "../../src/jwt/subject.ts";
@@ -143,7 +150,7 @@ describe("subjectFromCapability", () => {
           expiresAt: inAnHour(),
         },
       },
-      { typ: "permdock-snapshot+jwt", audience: AUDIENCE },
+      { typ: "vnd.permdock.snapshot+jwt", audience: AUDIENCE },
     );
     const { subject, events } = await resolve(token);
     expect(subject.principal).toBeNull();
@@ -172,24 +179,95 @@ describe("subjectFromCapability", () => {
     expect(events[0]?.cause).toBe("expired");
   });
 
-  it("refuses a link whose sub is not its id", async () => {
+  it("refuses a capability without sub", async () => {
     const token = await signer.sign(
       {
-        sub: "lnk_other",
         capability: {
           v: 1,
-          id: "lnk_1",
           holder: "link",
           on: { resource: "quote", id: "q_1" },
           roles: ["guest"],
-          expiresAt: inAnHour(),
         },
       },
-      { typ: "permdock-capability+jwt", audience: AUDIENCE },
+      { typ: "vnd.permdock.capability+jwt", audience: AUDIENCE },
     );
     const { subject, events } = await resolve(token);
     expect(subject.principal).toBeNull();
     expect(events[0]?.cause).toBe("invalid-claims");
+  });
+
+  describe("bound to a key through cnf", () => {
+    const url = "https://app.example.com/quotes/q_1";
+
+    async function holderKey(): Promise<{
+      readonly privateKey: CryptoKey;
+      readonly jwk: Record<string, unknown>;
+      readonly jkt: string;
+    }> {
+      const pair = await generateKeyPair("ES256", { extractable: true });
+      const jwk = await exportJWK(pair.publicKey);
+      return {
+        privateKey: pair.privateKey,
+        jwk,
+        jkt: await calculateJwkThumbprint(jwk),
+      };
+    }
+
+    async function proof(
+      token: string,
+      key: Awaited<ReturnType<typeof holderKey>>,
+    ): Promise<Request> {
+      const dpop = await new SignJWT({
+        htm: "GET",
+        htu: url,
+        jti: crypto.randomUUID(),
+        ath: bytesToBase64Url(sha256(token)),
+      })
+        .setProtectedHeader({ alg: "ES256", typ: "dpop+jwt", jwk: key.jwk })
+        .setIssuedAt()
+        .sign(key.privateKey);
+      return new Request(url, { headers: { DPoP: dpop } });
+    }
+
+    it("resolves only with a DPoP proof from the bound key", async () => {
+      const key = await holderKey();
+      const other = await holderKey();
+      const token = await link({ cnf: { jkt: key.jkt } });
+      const bound = await resolve(token, { request: await proof(token, key) });
+      expect(bound.events).toEqual([]);
+      expect(bound.subject.principal?.id).toBe("lnk_1");
+      for (const request of [
+        undefined,
+        new Request(url),
+        await proof(token, other),
+      ]) {
+        const refused = await resolve(
+          token,
+          request === undefined ? {} : { request },
+        );
+        expect(refused.subject.principal).toBeNull();
+        expect(refused.events[0]?.cause).toBe("dpop-proof-invalid");
+      }
+    });
+
+    it("refuses a malformed cnf", async () => {
+      const token = await signer.sign(
+        {
+          sub: "lnk_1",
+          capability: {
+            v: 1,
+            holder: "link",
+            on: { resource: "quote", id: "q_1" },
+            roles: ["guest"],
+          },
+          cnf: { jkt: "not-a-thumbprint" },
+        },
+        { typ: "vnd.permdock.capability+jwt", audience: AUDIENCE },
+      );
+      const { subject, events } = await resolve(token);
+      expect(subject.principal).toBeNull();
+      expect(events[0]?.cause).toBe("invalid-claims");
+    });
   });
 
   it("refuses a reserved key holder", async () => {
@@ -205,7 +283,7 @@ describe("subjectFromCapability", () => {
           expiresAt: inAnHour(),
         },
       },
-      { typ: "permdock-capability+jwt", audience: AUDIENCE },
+      { typ: "vnd.permdock.capability+jwt", audience: AUDIENCE },
     );
     const { subject, events } = await resolve(token);
     expect(subject.principal).toBeNull();

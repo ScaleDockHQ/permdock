@@ -13,6 +13,7 @@ import {
   type Subject,
   anonymousSubject,
 } from "./subject.ts";
+import { nowSeconds } from "./time.ts";
 
 /**
  * Who may redeem a capability: anyone holding it, any signed-in principal,
@@ -25,15 +26,17 @@ export type CapabilityRedeemer =
   | { readonly user: string }
   | { readonly scope: string; readonly id: string };
 
+/** RFC 7800 confirmation: the SHA-256 JWK thumbprint (RFC 7638) of the key that must redeem it. */
+export type CapabilityConfirmation = { readonly jkt: string };
+
 /**
- * Capability v1: the `capability` claim of a `permdock-capability+jwt`. It
- * holds `roles` on one resource instance (`on`, the `Membership.on` shape),
- * optionally narrowed to `permissions` (keys). `id` is the link id: the
- * token's `sub` and the handle an application revokes.
+ * Capability v1: the `capability` claim of a `vnd.permdock.capability+jwt`.
+ * It holds `roles` on one resource instance (`on`, the `Membership.on`
+ * shape), optionally narrowed to `permissions` (keys). The link id is the
+ * token's `sub` and its expiry the token's `exp`; neither repeats here.
  */
-export type Capability = {
+export type CapabilityClaim = {
   readonly v: 1;
-  readonly id: string;
   /** `key` is reserved for user-bound credentials and resolves to no subject. */
   readonly holder: "link" | "key";
   readonly on: { readonly resource: string; readonly id: string };
@@ -42,8 +45,17 @@ export type Capability = {
   readonly redeemer?: CapabilityRedeemer;
   /** One request per token: the resolver claims the token's `jti` in a `ReplayStore`. */
   readonly once?: true;
-  /** Seconds since the epoch; also the token's `exp` and the membership's `expiresAt`. */
+};
+
+/**
+ * A verified capability: the claim plus `id` (the token's `sub`, the handle
+ * an application revokes), `expiresAt` (its `exp`, Unix seconds, also the
+ * membership's `expiresAt`) and `cnf` when the token binds a redeemer key.
+ */
+export type Capability = CapabilityClaim & {
+  readonly id: string;
   readonly expiresAt: number;
+  readonly cnf?: CapabilityConfirmation;
 };
 
 export type LinkPrincipal = Principal & {
@@ -61,7 +73,10 @@ export type CapabilityInput = {
   readonly permissions?: readonly Permission[];
   readonly redeemer?: CapabilityRedeemer;
   readonly once?: boolean;
+  /** `exp`, Unix seconds. */
   readonly expiresAt: number;
+  /** Binds the link to the key with this RFC 7638 thumbprint; redeeming it then needs a DPoP proof from that key. */
+  readonly cnf?: CapabilityConfirmation;
 };
 
 /**
@@ -81,6 +96,8 @@ export type LinkPolicyViolation = "lifetime" | "redeemer" | "once";
 
 export type SignCapabilityOptions = {
   readonly audience?: string | readonly string[];
+  /** `iat`; the clock when absent. */
+  readonly issuedAt?: Temporal.Instant;
   /** Refuse to sign a link these policies would refuse at resolution. */
   readonly linkPolicy?: LinkPolicy | readonly LinkPolicy[];
 };
@@ -186,14 +203,70 @@ function parseRedeemer(input: unknown): CapabilityRedeemer | undefined {
   return undefined;
 }
 
+function parseConfirmation(input: unknown): CapabilityConfirmation | undefined {
+  const value = ownRecord(input);
+  const jkt = value?.["jkt"];
+  return typeof jkt === "string" && /^[\w-]{43}$/u.test(jkt)
+    ? { jkt }
+    : undefined;
+}
+
+/**
+ * Validates a verified capability (a claim plus `id`, `expiresAt` and
+ * an optional `cnf`) and returns a frozen copy, or `undefined`.
+ */
+export function parseCapability(input: unknown): Capability | undefined {
+  const value = ownRecord(input);
+  const claim = parseCapabilityClaim(input);
+  if (value === undefined || claim === undefined || !isId(value["id"])) {
+    return undefined;
+  }
+  const expiresAt = value["expiresAt"];
+  if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) {
+    return undefined;
+  }
+  const cnf =
+    value["cnf"] === undefined ? undefined : parseConfirmation(value["cnf"]);
+  if (value["cnf"] !== undefined && cnf === undefined) {
+    return undefined;
+  }
+  return freezeDeep(
+    compact<Capability>({ ...claim, id: value["id"], expiresAt, cnf }),
+  );
+}
+
+/**
+ * The capability verified claims carry: the `capability` claim, `sub` as
+ * `id`, `exp` as `expiresAt` and the RFC 7800 `cnf`. `undefined` when any
+ * of them is missing or malformed.
+ */
+export function capabilityFromClaims(
+  claims: Readonly<Record<string, unknown>>,
+): Capability | undefined {
+  const claim = parseCapabilityClaim(claims["capability"]);
+  const sub = claims["sub"];
+  const exp = claims["exp"];
+  if (claim === undefined || !isId(sub) || typeof exp !== "number") {
+    return undefined;
+  }
+  return parseCapability({
+    ...claim,
+    id: sub,
+    expiresAt: exp,
+    cnf: claims["cnf"],
+  });
+}
+
 /**
  * Validates an untrusted `capability` claim and returns a frozen copy with
  * only the v1 fields, or `undefined`. Unknown fields are dropped; a wrong
  * type in a known field rejects the whole claim.
  */
-export function parseCapability(input: unknown): Capability | undefined {
+export function parseCapabilityClaim(
+  input: unknown,
+): CapabilityClaim | undefined {
   const value = ownRecord(input);
-  if (value === undefined || value["v"] !== 1 || !isId(value["id"])) {
+  if (value === undefined || value["v"] !== 1) {
     return undefined;
   }
   if (value["holder"] !== "link" && value["holder"] !== "key") {
@@ -224,21 +297,15 @@ export function parseCapability(input: unknown): Capability | undefined {
   if (value["once"] !== undefined && value["once"] !== true) {
     return undefined;
   }
-  const expiresAt = value["expiresAt"];
-  if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) {
-    return undefined;
-  }
   return freezeDeep(
-    compact<Capability>({
+    compact<CapabilityClaim>({
       v: 1,
-      id: value["id"],
       holder: value["holder"],
       on: { resource: on["resource"], id: on["id"] },
       roles,
       permissions,
       redeemer,
       once: value["once"],
-      expiresAt,
     }),
   );
 }
@@ -267,19 +334,21 @@ export function capabilityOf(input: CapabilityInput): Capability {
       redeemer: input.redeemer,
       once: input.once === true ? true : undefined,
       expiresAt: Math.floor(input.expiresAt),
+      cnf: input.cnf,
     }),
   );
   if (capability === undefined) {
     throw new Error(
-      "PermDock: invalid capability (id, on.id and roles are required; roles and permissions hold at most 64 entries)",
+      "PermDock: invalid capability (id, on.id and roles are required; roles and permissions hold at most 64 entries; cnf.jkt is a base64url SHA-256 thumbprint)",
     );
   }
   return capability;
 }
 
 /**
- * Signs a capability as a `permdock-capability+jwt`: `sub` is the link id,
- * `exp` is `expiresAt`, and the signer sets `iss`, `iat` and a fresh `jti`.
+ * Signs a capability as a `vnd.permdock.capability+jwt`: `sub` is the link
+ * id, `exp` is `expiresAt`, `cnf` binds the redeemer's key, and the signer
+ * sets `iss`, `aud`, `iat` (`issuedAt`, else now) and a fresh `jti`.
  */
 export function signCapability(
   input: CapabilityInput,
@@ -287,25 +356,24 @@ export function signCapability(
   options: SignCapabilityOptions = {},
 ): Promise<string> {
   const capability = capabilityOf(input);
+  const issuedAt = nowSeconds(options.issuedAt);
   const violation =
     options.linkPolicy === undefined
       ? undefined
-      : linkPolicyViolation(
-          capability,
-          options.linkPolicy,
-          Math.floor(Date.now() / 1000),
-        );
+      : linkPolicyViolation(capability, options.linkPolicy, issuedAt);
   if (violation !== undefined) {
     return Promise.reject(
       new Error(`PermDock: capability breaks the link policy (${violation})`),
     );
   }
+  const { id, expiresAt, cnf, ...claim } = capability;
   return signer.sign(
-    { capability, sub: capability.id },
+    compact({ capability: claim, sub: id, cnf }),
     compact<Parameters<TokenSigner["sign"]>[1]>({
-      typ: "permdock-capability+jwt",
+      typ: "vnd.permdock.capability+jwt",
       audience: options.audience,
-      expiresAt: capability.expiresAt,
+      expiresAt,
+      issuedAt,
     }),
   );
 }

@@ -1,3 +1,4 @@
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import type { TokenSigner } from "../../src/core/interfaces.ts";
@@ -5,6 +6,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import {
   type Capability,
+  capabilityFromClaims,
   capabilityOf,
   capabilitySubject,
   linkPolicyViolation,
@@ -20,6 +22,8 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
+
+const JKT = "0ZcOCORZNYy-DWpqq30jZyJGHTN0d2HglBV3uiguA4I";
 
 const permissions = definePermissions({
   quote: resource({
@@ -294,7 +298,7 @@ describe("redeemerAllows", () => {
 });
 
 describe("signCapability", () => {
-  it("signs the capability under typ permdock-capability+jwt", async () => {
+  it("signs the capability under typ vnd.permdock.capability+jwt", async () => {
     const calls: unknown[] = [];
     const signer: TokenSigner = {
       sign(payload, options) {
@@ -311,9 +315,15 @@ describe("signCapability", () => {
         permissions: [permissions.quote.read],
         once: true,
         expiresAt,
+        cnf: { jkt: JKT },
       },
       signer,
-      { audience: "https://app.example.com" },
+      {
+        audience: "https://app.example.com",
+        issuedAt: Temporal.Instant.fromEpochMilliseconds(
+          (expiresAt - 60) * 1000,
+        ),
+      },
     );
     expect(calls).toEqual([
       {
@@ -321,22 +331,57 @@ describe("signCapability", () => {
           sub: "lnk_1",
           capability: {
             v: 1,
-            id: "lnk_1",
             holder: "link",
             on: { resource: "quote", id: "q_1" },
             roles: ["guest"],
             permissions: ["quote.read"],
             once: true,
-            expiresAt,
           },
+          cnf: { jkt: JKT },
         },
         options: {
-          typ: "permdock-capability+jwt",
+          typ: "vnd.permdock.capability+jwt",
           audience: "https://app.example.com",
           expiresAt,
+          issuedAt: expiresAt - 60,
         },
       },
     ]);
+  });
+
+  it("rebuilds the capability from verified claims and refuses a malformed cnf", () => {
+    const expiresAt = future();
+    const claim = {
+      v: 1,
+      holder: "link",
+      on: { resource: "quote", id: "q_1" },
+      roles: ["guest"],
+    };
+    expect(
+      capabilityFromClaims({
+        capability: claim,
+        sub: "lnk_1",
+        exp: expiresAt,
+        cnf: { jkt: JKT },
+      }),
+    ).toEqual({ ...claim, id: "lnk_1", expiresAt, cnf: { jkt: JKT } });
+    expect(
+      capabilityFromClaims({ capability: claim, sub: "lnk_1", exp: expiresAt }),
+    ).toEqual({ ...claim, id: "lnk_1", expiresAt });
+    expect(
+      capabilityFromClaims({
+        capability: claim,
+        sub: "lnk_1",
+        exp: expiresAt,
+        cnf: { jkt: "short" },
+      }),
+    ).toBeUndefined();
+    expect(
+      capabilityFromClaims({ capability: claim, exp: expiresAt }),
+    ).toBeUndefined();
+    expect(
+      capabilityFromClaims({ capability: claim, sub: "lnk_1" }),
+    ).toBeUndefined();
   });
 
   it("refuses a capability spanning two resources", () => {

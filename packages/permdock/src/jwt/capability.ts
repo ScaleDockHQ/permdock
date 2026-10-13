@@ -7,13 +7,14 @@ import {
   type Capability,
   type LinkPolicy,
   type LinkPrincipal,
+  capabilityFromClaims,
   capabilitySubject,
   linkPolicyViolation,
-  parseCapability,
   redeemerAllows,
 } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
 import { type Subject, anonymousSubject } from "../core/subject.ts";
+import { verifyDpopProof } from "./dpop.ts";
 import { decodeHeader, normalizeTyp } from "./header.ts";
 import { joseTokenVerifier } from "./verifier.ts";
 
@@ -51,6 +52,12 @@ export type CapabilitySubjectOptions = Omit<
   readonly replay?: ReplayStore;
   /** The request's own verified subject, checked against the capability's `redeemer`. */
   readonly viewer?: Subject;
+  /**
+   * The incoming request. A capability with `cnf` resolves only when the
+   * request carries a DPoP proof (RFC 9449) signed by the bound key;
+   * without one it is refused.
+   */
+  readonly request?: Request;
   readonly onAuth?: (event: AuthEvent) => void;
   readonly requestId?: string;
 };
@@ -133,10 +140,11 @@ async function stores(
 }
 
 /**
- * Resolves a `permdock-capability+jwt` into the `link` subject it acts as.
+ * Resolves a `vnd.permdock.capability+jwt` into the `link` subject it acts as.
  * Every failure (signature, `typ`, `iss`, `aud`, expiry, a malformed claim,
  * a revoked link, a replayed one-time token, a redeemer the viewer does not
- * satisfy, a throwing store) is the anonymous subject, never a throw.
+ * satisfy, a `cnf` without a matching DPoP proof, a throwing store) is the
+ * anonymous subject, never a throw.
  */
 export async function subjectFromCapability(
   token: string | undefined | null,
@@ -164,7 +172,7 @@ export async function subjectFromCapability(
       options.verifier ??
       joseTokenVerifier({
         ...options,
-        typ: "permdock-capability+jwt",
+        typ: "vnd.permdock.capability+jwt",
       });
   } catch {
     return deny("malformed");
@@ -174,7 +182,7 @@ export async function subjectFromCapability(
     verified = await verifier.verify(
       token,
       compact({
-        typ: "permdock-capability+jwt",
+        typ: "vnd.permdock.capability+jwt",
         issuer: options.issuer,
         audience: options.audience,
         clockTolerance: options.clockTolerance,
@@ -186,22 +194,33 @@ export async function subjectFromCapability(
   if (!verified.ok) {
     return deny(verified.cause);
   }
-  if (normalizeTyp(verified.header.typ) !== "permdock-capability+jwt") {
+  if (normalizeTyp(verified.header.typ) !== "vnd.permdock.capability+jwt") {
     return deny("wrong-token-type");
   }
-  const parsed = parseCapability(verified.claims["capability"]);
-  const exp = verified.claims.exp;
+  const capability = capabilityFromClaims(verified.claims);
   if (
-    parsed?.holder !== "link" ||
-    verified.claims.sub !== parsed.id ||
-    typeof exp !== "number"
+    capability?.holder !== "link" ||
+    (verified.claims["cnf"] !== undefined && capability.cnf === undefined)
   ) {
     return deny("invalid-claims");
   }
-  const capability = { ...parsed, expiresAt: Math.min(parsed.expiresAt, exp) };
   const now = Date.now() / 1000;
   if (capability.expiresAt <= now) {
     return deny("expired");
+  }
+  if (capability.cnf !== undefined) {
+    const proof =
+      options.request === undefined
+        ? { ok: false as const }
+        : await verifyDpopProof(
+            options.request,
+            verified.claims,
+            token,
+            compact({ replay: options.replay }),
+          );
+    if (!proof.ok) {
+      return deny("dpop-proof-invalid");
+    }
   }
   if (!redeemerAllows(capability.redeemer, options.viewer, now)) {
     return deny("redeemer-mismatch");

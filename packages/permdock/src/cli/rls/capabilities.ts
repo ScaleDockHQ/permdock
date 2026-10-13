@@ -47,8 +47,8 @@ as $$
     and jsonb_typeof(c -> 'roles') = 'array'
     and c -> 'roles' @> jsonb_build_array(p_role)
     and (c -> 'permissions' is null or c -> 'permissions' @> jsonb_build_array(p_permission))
-    and jsonb_typeof(c -> 'expiresAt') = 'number'
-    and (c ->> 'expiresAt')::numeric > extract(epoch from now())
+    and jsonb_typeof(c -> 'expires_at') = 'number'
+    and (c ->> 'expires_at')::numeric > extract(epoch from now())
 $$;
 revoke execute on function ${fn}(text, text, text) from public;
 grant execute on function ${fn}(text, text, text) to anon, authenticated;`;

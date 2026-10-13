@@ -4,6 +4,7 @@ import {
   generateKeyPair,
   jwtVerify,
 } from "jose";
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import { capabilityOf, capabilitySubject } from "../../src/core/capability.ts";
@@ -16,6 +17,7 @@ const permissions = definePermissions({
 });
 const SECRET = "super-secret-jwt-token-with-at-least-32-characters";
 const NOW = 1_900_000_000;
+const AT = Temporal.Instant.fromEpochMilliseconds(NOW * 1000);
 const pair = generateKeyPair("ES256", { extractable: true });
 
 async function es256() {
@@ -48,7 +50,7 @@ describe("exchangeCapability", () => {
     const token = await exchangeCapability(linkSubject(), {
       ...signing,
       issuer: "https://ref.supabase.co/auth/v1",
-      now: NOW,
+      now: AT,
     });
     const { payload } = await jwtVerify(token ?? "", publicKey, {
       currentDate: new Date(NOW * 1000),
@@ -60,12 +62,11 @@ describe("exchangeCapability", () => {
       exp: NOW + 300,
       capability: {
         v: 1,
-        id: "lnk_1",
         holder: "link",
         on: { resource: "quote", id: "q_1" },
         roles: ["guest"],
         permissions: ["quote.read"],
-        expiresAt: NOW + 86_400,
+        expires_at: NOW + 300,
       },
     });
     expect(payload).not.toHaveProperty("sub");
@@ -76,14 +77,14 @@ describe("exchangeCapability", () => {
     const token = await exchangeCapability(linkSubject(NOW + 30), {
       ...signing,
       ttl: 600,
-      now: NOW,
+      now: AT,
     });
     const { payload } = await jwtVerify(token ?? "", publicKey, {
       currentDate: new Date(NOW * 1000),
     });
     expect(payload.exp).toBe(NOW + 30);
     await expect(
-      exchangeCapability(linkSubject(NOW - 1), { ...signing, now: NOW }),
+      exchangeCapability(linkSubject(NOW - 1), { ...signing, now: AT }),
     ).resolves.toBeUndefined();
   });
 
@@ -91,7 +92,7 @@ describe("exchangeCapability", () => {
     const { signing } = await es256();
     const token = await exchangeCapability(linkSubject(), {
       ...signing,
-      now: NOW,
+      now: AT,
     });
     expect(decodeProtectedHeader(token ?? "")).toEqual({
       alg: "ES256",
@@ -104,7 +105,7 @@ describe("exchangeCapability", () => {
     const token = await exchangeCapability(linkSubject(), {
       key: { secret: SECRET },
       alg: "HS256",
-      now: NOW,
+      now: AT,
     });
     expect(decodeProtectedHeader(token ?? "")).toEqual({
       alg: "HS256",
@@ -120,7 +121,7 @@ describe("exchangeCapability", () => {
 
   it("exchanges only a link subject", async () => {
     const { signing } = await es256();
-    const options = { ...signing, now: NOW };
+    const options = { ...signing, now: AT };
     await expect(
       exchangeCapability({ principal: null, context: {} }, options),
     ).resolves.toBeUndefined();
@@ -146,7 +147,7 @@ describe("exchangeCapability", () => {
     const token = await exchangeCapability(linkSubject(), {
       key: signing.key,
       kid: signing.kid,
-      now: NOW,
+      now: AT,
     });
     expect(decodeProtectedHeader(token ?? "").alg).toBe("ES256");
     await expect(
