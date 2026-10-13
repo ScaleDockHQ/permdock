@@ -1,0 +1,68 @@
+---
+title: SvelteKit
+description: permdock/sveltekit is a handle hook that sets event.locals.permdock, a protect wrapper for +server.ts handlers, and the decision endpoint for permdock/svelte.
+---
+
+## Purpose
+
+`permdock/sveltekit` is the server half for SvelteKit apps; [`permdock/svelte`](/docs/adapters/svelte) is the client half. `middleware()` is the `handle` hook in `src/hooks.server.ts`, `protect` wraps a `+server.ts` handler, and `getSnapshot` feeds a layout `load` that hands the snapshot to the Svelte components.
+
+## API
+
+```ts title="src/lib/server/permdock.ts"
+import { createPermDock } from "permdock/sveltekit";
+import { policy } from "./policy";
+
+export const { middleware, protect, getSnapshot, permdockHandler } =
+  createPermDock(policy, { subject: (event) => event.locals.user });
+```
+
+```ts title="src/hooks.server.ts"
+export const handle = middleware();
+```
+
+```ts title="src/routes/api/posts/[id]/+server.ts"
+export const PATCH = protect(permissions.post.update, (event) =>
+  loadPost(event.params.id),
+)((event) => Response.json(update(event.locals.permdockData)));
+```
+
+```ts title="src/routes/api/permdock/+server.ts"
+export const { GET, POST } = permdockHandler();
+```
+
+| Export                             | Role                                                                                                                                                                                                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `middleware()`                     | A `handle` hook. Sets `event.locals.permdock` and calls `resolve(event)`. Combine it with other hooks through `sequence`. A bad Web Bot Auth signature answers `401`.                                                          |
+| `protect(target, data?, options?)` | Returns a wrapper for a `+server.ts` handler. A grant sets `event.locals.permdock` and `event.locals.permdockData`; a refusal is the Problem Details response. The wrapped handler keeps the route's generated `RequestEvent`. |
+| `withPermDock(handler)`            | Types `event.locals.permdock` for a handler without a check, and answers a thrown `PermDockError` with Problem Details.                                                                                                        |
+| `getPermDock(event)`               | The instance for a `load` function, a form action or a handler.                                                                                                                                                                |
+| `getSnapshot(event, query?)`       | The snapshot a layout `load` returns for `permdock/svelte`.                                                                                                                                                                    |
+| `connection(event, options?)`      | A kernel [`Connection`](/docs/adapters/server-kernel#connections) for a stream.                                                                                                                                                |
+| `permdockHandler()`                | `GET` (snapshot) and `POST` (AuthZEN-shaped evaluations) for `export const { GET, POST }`.                                                                                                                                     |
+| `openapi`                          | The kernel's OpenAPI hook contract.                                                                                                                                                                                            |
+
+`SvelteKitHandle` is assignable to the `Handle` type of SvelteKit 2 (`@sveltejs/kit`) and SvelteKit 3 (`@sveltejs/kit/hooks`), and the peer range accepts both.
+
+## Request lifecycle
+
+`permdock/sveltekit` follows the [shared adapter contract](/docs/adapters). What differs on SvelteKit:
+
+- `subject(event)`, `tenant(event)` and `context(event)` receive the `RequestEvent`; read the user an earlier hook put on `event.locals`.
+- The kernel caches one instance per request and tenant, so the hook plus a guarded handler builds one instance.
+- A loader that returns `null` or `undefined` answers `404`.
+- A form action or `load` calls `getPermDock(event)` and checks with `can` or `assert`; a thrown `PermDockError` there goes to SvelteKit's `handleError`, so map it to `error(403)` in the action.
+
+## Why
+
+SvelteKit endpoints are plain functions of a `RequestEvent` that carries the Fetch `Request`, and `event.locals` is the request-scoped object the framework provides. The adapter therefore needs no request conversion, only a place to put the instance and a wrapper that types it. `protect` wraps the handler, rather than being a hook, because SvelteKit has no per-route middleware; a wrapper also keeps the route's generated `./$types` event type. `App.Locals` augmentation is left to the app, so one policy's types never leak into another app in a monorepo.
+
+## Example app
+
+`apps/examples/sveltekit`: `src/lib/permissions.ts`, `src/lib/policy.ts` and `src/lib/permdock.ts`, the hook in `src/hooks.server.ts`, `protect` on `PATCH /api/posts/[id]` (granted) and `POST /api/posts/[id]/publish` (denied for `member`), and the decision endpoint at `src/routes/api/permdock/+server.ts`. The example takes `typescript` from `catalog:ts6`, because `svelte-kit sync` calls the TypeScript JS API that TypeScript 7 does not ship.
+
+## Related standards
+
+- [Problem Details](/docs/standards/problem-details).
+- [AuthZEN](/docs/standards/authzen) for the decision endpoint.
+- [Web Bot Auth](/docs/standards/web-bot-auth).

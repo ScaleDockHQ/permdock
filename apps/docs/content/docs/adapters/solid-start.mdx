@@ -1,0 +1,70 @@
+---
+title: SolidStart
+description: permdock/solid-start is an h3 middleware for SolidStart 2's createMiddleware, a protect wrapper for API routes, and the decision endpoint for permdock/solid.
+---
+
+## Purpose
+
+`permdock/solid-start` is the server half for SolidStart 2 apps; [`permdock/solid`](/docs/adapters/solid) is the client half. `middleware()` goes into the list of `createMiddleware` in `src/middleware.ts`, `protect` wraps an API route handler, and `getPermDock` serves server functions through `getRequestEvent()`.
+
+## API
+
+```ts title="src/lib/permdock.ts"
+import { createPermDock } from "permdock/solid-start";
+import { policy } from "./policy";
+
+export const { middleware, protect, getPermDock, permdockHandler } =
+  createPermDock(policy, { subject: (event) => event.context.user });
+```
+
+```ts title="src/middleware.ts"
+import { createMiddleware } from "@solidjs/start/middleware";
+
+export default createMiddleware([middleware()]);
+```
+
+```ts title="src/routes/api/posts/[id].ts"
+export const PATCH = protect(permissions.post.update, (event) =>
+  loadPost(event.params.id),
+)((event) => Response.json(update(event.locals.permdockData)));
+```
+
+```ts title="src/routes/api/permdock.ts"
+export const { GET, POST } = permdockHandler();
+```
+
+The middleware file is registered with `solidStart({ middleware: "./src/middleware.ts" })` in `vite.config.ts`.
+
+| Export                             | Role                                                                                                                                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `middleware()`                     | An h3 middleware for `createMiddleware([...])`. Sets `event.context.permdock` on the h3 event under the request. A bad Web Bot Auth signature answers `401`.                         |
+| `protect(target, data?, options?)` | Returns a wrapper for an API route. `data` receives the `APIEvent`. A grant sets `event.locals.permdock` and `event.locals.permdockData`; a refusal is the Problem Details response. |
+| `withPermDock(handler)`            | Types `event.locals.permdock` for an API route without a check, reusing the middleware's instance, and answers a thrown `PermDockError` with Problem Details.                        |
+| `getPermDock(event)`               | The instance for an API route, or for a server function with `getPermDock(getRequestEvent())`.                                                                                       |
+| `getSnapshot(event, query?)`       | The snapshot a route `query` returns for `permdock/solid`.                                                                                                                           |
+| `connection(event, options?)`      | A kernel [`Connection`](/docs/adapters/server-kernel#connections) for a stream.                                                                                                      |
+| `permdockHandler()`                | `GET` (snapshot) and `POST` (AuthZEN-shaped evaluations) for `export const { GET, POST }`.                                                                                           |
+| `openapi`                          | The kernel's OpenAPI hook contract.                                                                                                                                                  |
+
+## Request lifecycle
+
+`permdock/solid-start` follows the [shared adapter contract](/docs/adapters). What differs on SolidStart:
+
+- `subject`, `tenant` and `context` receive the h3 event under the request (`SolidStartNativeEvent`), because SolidStart 2 middleware runs on h3 and the same resolver serves the middleware and the routes.
+- `withPermDock` reuses the instance `middleware()` set, and the kernel caches one instance per request and tenant for `protect`.
+- A loader that returns `null` or `undefined` answers `404`.
+- A server function throws on a denial; call `assert` and let the error reach the caller, or check with `can`.
+
+## Why
+
+SolidStart 2 runs on h3: its middleware are h3 middleware and every `FetchEvent` carries the h3 event as `nativeEvent`. The adapter keys its resolvers on that h3 event, so one `subject` serves the middleware, the API routes and server functions. `event.locals` is where SolidStart code expects request state, so `protect` and `withPermDock` set the instance there as well. The `App.RequestEventLocals` augmentation is left to the app, which keeps one policy's types out of other apps in a monorepo.
+
+## Example app
+
+`apps/examples/solid-start`: `src/lib/permissions.ts`, `src/lib/policy.ts` and `src/lib/permdock.ts`, `src/middleware.ts`, `protect` on `PATCH /api/posts/[id]` (granted) and `POST /api/posts/[id]/publish` (denied for `member`), and the decision endpoint at `src/routes/api/permdock.ts`.
+
+## Related standards
+
+- [Problem Details](/docs/standards/problem-details).
+- [AuthZEN](/docs/standards/authzen) for the decision endpoint.
+- [Web Bot Auth](/docs/standards/web-bot-auth).

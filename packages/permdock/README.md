@@ -288,8 +288,8 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import 
 | Group              | Entries                                                                                                                                                            |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | UI                 | `permdock/react` · `permdock/react-native` · `permdock/vue` · `permdock/svelte` · `permdock/solid`                                                                 |
-| Full-stack         | `permdock/next`                                                                                                                                                    |
-| HTTP               | `permdock/server` · `permdock/hono` · `permdock/express` · `permdock/fastify` · `permdock/elysia` · `permdock/nest` · `permdock/node`                              |
+| Full-stack         | `permdock/next` · `permdock/sveltekit` · `permdock/astro` · `permdock/solid-start` · `permdock/tanstack-start`                                                     |
+| HTTP               | `permdock/server` · `permdock/hono` · `permdock/h3` · `permdock/express` · `permdock/fastify` · `permdock/elysia` · `permdock/nest` · `permdock/node`              |
 | Terminal           | `permdock/terminal` for your own CLI (not the `permdock` binary)                                                                                                   |
 | RPC                | `permdock/trpc` · `permdock/orpc`                                                                                                                                  |
 | Agents             | `permdock/mcp` · `permdock/ai-sdk` · `permdock/claude-agent` · `permdock/eve` · `permdock/openai` · `permdock/webmcp` · `permdock/a2a`                             |
@@ -299,7 +299,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import 
 | Build              | `permdock/next/plugin` · `permdock/unplugin`                                                                                                                       |
 | Testing            | `permdock/testing`                                                                                                                                                 |
 
-React Router, TanStack Start, SvelteKit and Nuxt loaders call `getSnapshot(request)` from `permdock/server` and send `snapshotHeaders(snapshot)`. Astro and Effect use these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.com/docs/adapters).
+React Router loaders call `getSnapshot(request)` from `permdock/server` and send `snapshotHeaders(snapshot)`; Nitro and Nuxt server routes use `permdock/h3`. Effect uses these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.com/docs/adapters).
 
 ## Secure by default
 

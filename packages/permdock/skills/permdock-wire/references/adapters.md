@@ -84,7 +84,7 @@ app.get(
 
 Publish `revocations.revoke({ principal, tenant, kind: 'changed' })` from your role-edit code so open connections revalidate.
 
-For a framework loader (React Router, TanStack Start, SvelteKit, Nuxt), `createPermDock` from `permdock/server` returns `getSnapshot(request, { tenant })`: the snapshot a client provider takes, built from the request's own subject. Send it with `snapshotHeaders(snapshot)` from `permdock/server`, which sets a private `Cache-Control` from the snapshot's expiry. Docs: [loader snapshots](https://permdock.com/docs/adapters/server-kernel).
+For a React Router loader, `createPermDock` from `permdock/server` returns `getSnapshot(request, { tenant })`: the snapshot a client provider takes, built from the request's own subject. Send it with `snapshotHeaders(snapshot)` from `permdock/server`, which sets a private `Cache-Control` from the snapshot's expiry. Docs: [loader snapshots](https://permdock.com/docs/adapters/server-kernel).
 
 ## React (Vite) — `permdock/react`
 
@@ -200,6 +200,42 @@ const app = new Elysia().use(middleware()).delete("/posts/:id", handler, {
 ```
 
 Fetch-native plugin via `derive`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. For `.ws` routes, `connection(ws, { permission })` in `open` returns the socket's connection (memoised); it closes the socket with `1008` when revoked.
+
+## h3, SvelteKit, Astro, SolidStart, TanStack Start
+
+`permdock/h3`, `permdock/sveltekit`, `permdock/astro`, `permdock/solid-start` and `permdock/tanstack-start` return `{ middleware, protect, getPermDock, getSnapshot, connection, permdockHandler, openapi }`; all but TanStack Start add `withPermDock(handler)`. `protect` takes a permission, an operation from `defineOperations` or `null`. Nitro and Nuxt server routes use `permdock/h3`.
+
+```ts
+// h3: event.context.permdock, event.context.permdockData
+app.use(middleware());
+app.patch("/posts/:id", withPermDock<Post>(handler), {
+  middleware: [protect(permissions.post.update, loadPostFromEvent)],
+});
+
+// SvelteKit (src/hooks.server.ts and +server.ts): event.locals.permdock
+export const handle = middleware();
+export const PATCH = protect(permissions.post.update, (event) =>
+  loadPost(event.params.id),
+)((event) => Response.json(event.locals.permdockData));
+
+// Astro (src/middleware.ts and src/pages): context.locals.permdock
+export const onRequest = middleware();
+
+// SolidStart (src/middleware.ts): createMiddleware([middleware()]); API routes as SvelteKit
+
+// TanStack Start: request middleware, typed context
+export const startInstance = createStart(() => ({
+  requestMiddleware: [middleware()],
+}));
+export const Route = createFileRoute("/api/posts/$id")({
+  server: {
+    middleware: [protect(permissions.post.update, postFromRequest)],
+    handlers: { PATCH: ({ context }) => Response.json(context.permdockData) },
+  },
+});
+```
+
+`subject` receives the framework's context: the `H3Event`, the SvelteKit `RequestEvent`, the Astro `APIContext`, the h3 event under a SolidStart request, or the TanStack Start `Request`. The decision endpoint is `export const { GET, POST } = permdockHandler()` (SvelteKit, Astro, SolidStart), `server: { handlers: permdockHandler() }` (TanStack Start) or `app.all("/api/permdock", permdockHandler())` (h3). Docs: [adapters](https://permdock.com/docs/adapters).
 
 ## Nest — `permdock/nest`
 
@@ -495,6 +531,6 @@ For OpenFGA or SpiceDB, use `openfga({ url, storeId, map })` or `spicedb({ url, 
 
 ## Collect-only frameworks (no package)
 
-Nuxt, Astro, React Router, TanStack Start and Effect have no `permdock/<name>` entry. Add `createPermDockUnplugin.vite()` from `permdock/unplugin` (or `.webpack` / `.esbuild`). Runtime is `permdock/server` or the matching HTTP adapter, plus `permdock/vue`, `permdock/react` or `permdock/svelte` on the client. Effect Schema is a Standard Schema; Effect HttpApi uses Overlay, not a hook.
+Nuxt, React Router and Effect have no `permdock/<name>` entry. Add `createPermDockUnplugin.vite()` from `permdock/unplugin` (or `.webpack` / `.esbuild`). Runtime is `permdock/h3` for Nuxt server routes, otherwise `permdock/server` or the matching HTTP adapter, plus `permdock/vue`, `permdock/react` or `permdock/svelte` on the client. Effect Schema is a Standard Schema; Effect HttpApi uses Overlay, not a hook.
 
 Remaining work follows the names on the adapter page under `/docs/adapters/<name>`. Do not invent identifiers.

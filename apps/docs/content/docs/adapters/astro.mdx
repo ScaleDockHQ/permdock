@@ -1,0 +1,66 @@
+---
+title: Astro
+description: permdock/astro is an onRequest middleware that sets context.locals.permdock, a protect wrapper for endpoints, and the decision endpoint for islands.
+---
+
+## Purpose
+
+`permdock/astro` guards Astro on-demand routes: `middleware()` is `onRequest` in `src/middleware.ts`, `protect` wraps an endpoint in `src/pages`, and `getSnapshot` gives a page the snapshot it passes to a `permdock/react`, `permdock/vue`, `permdock/svelte` or `permdock/solid` island. It needs `output: "server"` or a route with `prerender = false`; a prerendered page has no request to check.
+
+## API
+
+```ts title="src/lib/permdock.ts"
+import { createPermDock } from "permdock/astro";
+import { policy } from "./policy";
+
+export const { middleware, protect, getSnapshot, permdockHandler } =
+  createPermDock(policy, { subject: (context) => context.locals.user });
+```
+
+```ts title="src/middleware.ts"
+export const onRequest = middleware();
+```
+
+```ts title="src/pages/api/posts/[id].ts"
+export const PATCH = protect(permissions.post.update, (context) =>
+  loadPost(context.params.id),
+)((context) => Response.json(update(context.locals.permdockData)));
+```
+
+```ts title="src/pages/api/permdock.ts"
+export const { GET, POST } = permdockHandler();
+```
+
+| Export                             | Role                                                                                                                                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `middleware()`                     | A `MiddlewareHandler` for `onRequest`, or one step of `sequence`. Sets `context.locals.permdock` and calls `next()`. A bad Web Bot Auth signature answers `401`.                                      |
+| `protect(target, data?, options?)` | Returns a wrapper for an endpoint. A grant sets `context.locals.permdock` and `context.locals.permdockData`; a refusal is the Problem Details response. The endpoint keeps its own `APIContext` type. |
+| `withPermDock(handler)`            | Types `context.locals.permdock` for an endpoint without a check, and answers a thrown `PermDockError` with Problem Details.                                                                           |
+| `getPermDock(context)`             | The instance for an endpoint, an action or a page's frontmatter, where `Astro` is the `APIContext`.                                                                                                   |
+| `getSnapshot(context, query?)`     | The snapshot a page passes to an island.                                                                                                                                                              |
+| `connection(context, options?)`    | A kernel [`Connection`](/docs/adapters/server-kernel#connections) for a stream.                                                                                                                       |
+| `permdockHandler()`                | `GET` (snapshot) and `POST` (AuthZEN-shaped evaluations) for `export const { GET, POST }`.                                                                                                            |
+| `openapi`                          | The kernel's OpenAPI hook contract.                                                                                                                                                                   |
+
+## Request lifecycle
+
+`permdock/astro` follows the [shared adapter contract](/docs/adapters). What differs on Astro:
+
+- `subject(context)`, `tenant(context)` and `context(context)` receive the `APIContext`; read the user an earlier middleware put on `context.locals`.
+- The kernel caches one instance per request and tenant, so the middleware plus a guarded endpoint builds one instance.
+- A loader that returns `null` or `undefined` answers `404`.
+- A page cannot return a Problem Details body; its frontmatter calls `getPermDock(Astro)` and redirects or renders a fallback with `Astro.redirect` when `can` is false.
+
+## Why
+
+Astro endpoints and middleware receive an `APIContext` with the Fetch `Request` and a request-scoped `locals` object, so the adapter is the kernel with Astro's context type. `protect` wraps the endpoint because Astro has no per-route middleware, and the wrapper keeps the endpoint's own `APIContext`. Islands are client components, so the UI side stays with the existing UI entries; this entry only adds the server half they need.
+
+## Example app
+
+`apps/examples/astro`: `src/lib/permissions.ts`, `src/lib/policy.ts` and `src/lib/permdock.ts`, `onRequest` in `src/middleware.ts`, `protect` on `PATCH /api/posts/[id]` (granted) and `POST /api/posts/[id]/publish` (denied for `member`), and the decision endpoint at `src/pages/api/permdock.ts`. `pnpm dev` runs it; a production build needs an Astro server adapter, which the example does not install.
+
+## Related standards
+
+- [Problem Details](/docs/standards/problem-details).
+- [AuthZEN](/docs/standards/authzen) for the decision endpoint.
+- [Web Bot Auth](/docs/standards/web-bot-auth).
