@@ -28,11 +28,6 @@ export function secondsOf(value: unknown): number | undefined {
   return isRfc3339(value) ? Math.floor(Date.parse(value) / 1000) : undefined;
 }
 
-/** Milliseconds since the epoch of an RFC 3339 instant; `undefined` for anything else. */
-export function millisOf(value: unknown): number | undefined {
-  return isRfc3339(value) ? Date.parse(value) : undefined;
-}
-
 /** Whole seconds since the epoch of `now`, or of the clock when absent. */
 export function nowSeconds(now?: Temporal.Instant): number {
   return Math.floor(nowMillis(now) / 1000);
@@ -41,11 +36,4 @@ export function nowSeconds(now?: Temporal.Instant): number {
 /** Milliseconds since the epoch of `now`, or of the clock when absent. */
 export function nowMillis(now?: Temporal.Instant): number {
   return now === undefined ? Date.now() : now.epochMilliseconds;
-}
-
-/** A duration in whole positive seconds; `undefined` for anything else, so a caller fails closed. */
-export function durationSeconds(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
-    ? value
-    : undefined;
 }
