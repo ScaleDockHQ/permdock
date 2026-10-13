@@ -25,7 +25,7 @@ testHttpAdapter({
     // SAFETY: Express types every param as present; `id` is absent on routes without it
     const row = (req: Request) =>
       domain.project(req.params["id"] as string | undefined);
-    const upload = multer({ storage: multer.memorySnapshotStorage() });
+    const upload = multer({ storage: multer.memoryStorage() });
 
     const admin = express.Router({ mergeParams: true });
     admin.get("/members", protect(p.member.list), (_req, res) => {
