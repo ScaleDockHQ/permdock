@@ -60,6 +60,16 @@ export type {
   AgentScenarioName,
   AgentToolName,
 } from "./agent-adapter.ts";
+export { testAgentRuntime } from "./agent-runtime.ts";
+export type {
+  AgentRuntimeContext,
+  AgentRuntimeDomain,
+  AgentRuntimeModel,
+  AgentRuntimeMounted,
+  AgentRuntimeOperation,
+  AgentRuntimeOptions,
+  AgentRuntimeScenarioName,
+} from "./agent-runtime.ts";
 export {
   authzenTodoData,
   authzenTodoPermissions,

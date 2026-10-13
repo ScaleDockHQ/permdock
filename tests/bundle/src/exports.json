@@ -603,6 +603,7 @@
     "supabaseMembershipsBudget",
     "testAccessReviewStore",
     "testAgentAdapter",
+    "testAgentRuntime",
     "testApprovalDelegationSource",
     "testApprovalPolicySource",
     "testApprovalStore",
