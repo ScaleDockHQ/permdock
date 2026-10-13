@@ -261,14 +261,14 @@ export function testTokenSigner(
   it("emits compact JWS with only alg, kid and typ", async () => {
     const token = await signer.sign(
       { snapshot: { v: 1 }, sub: "u_1" },
-      { typ: "permdock-snapshot+jwt", audience: "https://app.example.com" },
+      { typ: "vnd.permdock.snapshot+jwt", audience: "https://app.example.com" },
     );
     const header = decodeHeader(token);
     expect(Object.keys(header).toSorted()).toEqual(["alg", "kid", "typ"]);
-    expect(header["typ"]).toBe("permdock-snapshot+jwt");
+    expect(header["typ"]).toBe("vnd.permdock.snapshot+jwt");
     expect(header["alg"]).not.toBe("none");
     const verified = await options.verifier.verify(token, {
-      typ: "permdock-snapshot+jwt",
+      typ: "vnd.permdock.snapshot+jwt",
       audience: "https://app.example.com",
     });
     expect(verified.ok).toBe(true);

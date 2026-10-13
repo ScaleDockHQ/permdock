@@ -239,13 +239,21 @@ export type TokenSigner = {
     payload: Readonly<Record<string, unknown>>,
     options: {
       readonly typ:
-        | "permdock-snapshot+jwt"
-        | "permdock-approval+jwt"
-        | "permdock-decisions+jwt"
-        | "permdock-policy+jwt"
-        | "permdock-capability+jwt";
+        | "vnd.permdock.snapshot+jwt"
+        | "vnd.permdock.approval+jwt"
+        | "vnd.permdock.policy+jwt"
+        | "vnd.permdock.capability+jwt"
+        | "vnd.permdock.run+jwt"
+        | "vnd.permdock.support-session+jwt"
+        | "vnd.permdock.evidence+jwt";
+      /** `aud`; a signer with no default audience refuses to sign without one. */
       readonly audience?: string | readonly string[];
+      /** `exp`, a NumericDate; one hour after `iat` when absent. */
       readonly expiresAt?: number;
+      /** `iat`, a NumericDate: the artefact's issue time. The signer's clock when absent. */
+      readonly issuedAt?: number;
+      /** `jti`: the artefact's id. A fresh UUID when absent. */
+      readonly jti?: string;
     },
   ): Promise<string>;
   readonly kid?: string;

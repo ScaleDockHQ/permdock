@@ -173,7 +173,8 @@ function base64url(value: string): string {
 describe("testTokenSigner with a padded header and no jwks", () => {
   let kid = "k";
   while (
-    JSON.stringify({ alg: "EdDSA", kid, typ: "permdock-snapshot+jwt" }).length %
+    JSON.stringify({ alg: "EdDSA", kid, typ: "vnd.permdock.snapshot+jwt" })
+      .length %
       3 ===
     0
   ) {
@@ -198,7 +199,7 @@ describe("testTokenSigner with a padded header and no jwks", () => {
           ? {
               ok: true,
               claims: { sub: "u_1" },
-              header: { alg: "EdDSA", typ: "permdock-snapshot+jwt" },
+              header: { alg: "EdDSA", typ: "vnd.permdock.snapshot+jwt" },
             }
           : { ok: false, reason: "invalid-token", cause: "invalid-signature" },
       ),

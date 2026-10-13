@@ -302,11 +302,11 @@ describe("RFC 8725 JWT Best Current Practices (February 2020)", () => {
 
 describe("PermDock outputs: compact JWS with registered headers", () => {
   const TYPES = [
-    "permdock-snapshot+jwt",
-    "permdock-approval+jwt",
-    "permdock-decisions+jwt",
-    "permdock-policy+jwt",
-    "permdock-capability+jwt",
+    "vnd.permdock.snapshot+jwt",
+    "vnd.permdock.approval+jwt",
+    "vnd.permdock.evidence+jwt",
+    "vnd.permdock.policy+jwt",
+    "vnd.permdock.capability+jwt",
   ] as const satisfies readonly Parameters<TokenSigner["sign"]>[1]["typ"][];
 
   it("every typ carries alg, kid and typ only, and round-trips through joseTokenVerifier", async () => {

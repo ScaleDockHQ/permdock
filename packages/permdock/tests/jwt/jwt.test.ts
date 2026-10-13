@@ -3,6 +3,7 @@ import {
   SignJWT,
   UnsecuredJWT,
   base64url,
+  decodeJwt,
   exportJWK,
   generateKeyPair,
   importJWK,
@@ -94,7 +95,7 @@ describe("joseTokenSigner", () => {
     });
     const jws = await signer.sign(
       { snapshot: { v: 1 }, sub: "u_1" },
-      { typ: "permdock-snapshot+jwt", audience: "https://app.example.com" },
+      { typ: "vnd.permdock.snapshot+jwt", audience: "https://app.example.com" },
     );
     const [encoded] = jws.split(".");
     expect(encoded).toBeDefined();
@@ -106,13 +107,13 @@ describe("joseTokenSigner", () => {
     expect(header).toEqual({
       alg: "Ed25519",
       kid: "2026-09",
-      typ: "permdock-snapshot+jwt",
+      typ: "vnd.permdock.snapshot+jwt",
     });
     const checked = await joseTokenVerifier({
       jwks: PUBLIC_JWKS,
-      typ: "permdock-snapshot+jwt",
+      typ: "vnd.permdock.snapshot+jwt",
     }).verify(jws, {
-      typ: "permdock-snapshot+jwt",
+      typ: "vnd.permdock.snapshot+jwt",
       audience: "https://app.example.com",
       issuer: "https://app.example.com",
     });
@@ -601,8 +602,53 @@ describe("configuration and remaining causes", () => {
         key: new Uint8Array(32),
         alg: "Ed25519",
         kid: "k",
-      }).sign({ snapshot: {} }, { typ: "permdock-snapshot+jwt" }),
+        issuer: ISSUER,
+      }).sign(
+        { snapshot: {} },
+        { typ: "vnd.permdock.snapshot+jwt", audience: AUDIENCE },
+      ),
     ).rejects.toThrow(/HMAC/);
+  });
+
+  it("requires an issuer, an audience and a whole-second iat", async () => {
+    const key = { ...PRIVATE_JWK };
+    expect(() =>
+      joseTokenSigner({ key, alg: "Ed25519", kid: "k", issuer: "" }),
+    ).toThrow(/requires issuer/);
+    const signer = joseTokenSigner({
+      key,
+      alg: "Ed25519",
+      kid: "k",
+      issuer: ISSUER,
+    });
+    await expect(
+      signer.sign({ snapshot: {} }, { typ: "vnd.permdock.snapshot+jwt" }),
+    ).rejects.toThrow(/audience/);
+    await expect(
+      signer.sign(
+        { snapshot: {} },
+        { typ: "vnd.permdock.snapshot+jwt", audience: AUDIENCE, issuedAt: 1.5 },
+      ),
+    ).rejects.toThrow(/whole NumericDate/);
+    const withDefault = joseTokenSigner({
+      key,
+      alg: "Ed25519",
+      kid: "k",
+      issuer: ISSUER,
+      audience: AUDIENCE,
+    });
+    const token = await withDefault.sign(
+      { snapshot: {}, iss: "forged", jti: "forged" },
+      { typ: "vnd.permdock.snapshot+jwt", issuedAt: 1000, jti: "snap_1" },
+    );
+    expect(decodeJwt(token)).toEqual({
+      snapshot: {},
+      iss: ISSUER,
+      aud: AUDIENCE,
+      iat: 1000,
+      exp: 4600,
+      jti: "snap_1",
+    });
   });
 
   it("verifies HS256 secrets and remote JWKS URLs", async () => {
@@ -914,9 +960,9 @@ describe("signed snapshot", () => {
     // SAFETY: the typeof check above confirmed snapshot({ signer }) returned a JWS string.
     const checked = await joseTokenVerifier({
       jwks: PUBLIC_JWKS,
-      typ: "permdock-snapshot+jwt",
+      typ: "vnd.permdock.snapshot+jwt",
     }).verify(jws as string, {
-      typ: "permdock-snapshot+jwt",
+      typ: "vnd.permdock.snapshot+jwt",
       audience: "https://app.example.com",
       issuer: "https://app.example.com",
     });

@@ -178,7 +178,7 @@ describe("createPermDock", () => {
     const signed = permdock.snapshot({
       signer: {
         async sign(payload, options) {
-          expect(options.typ).toBe("permdock-snapshot+jwt");
+          expect(options.typ).toBe("vnd.permdock.snapshot+jwt");
           expect("snapshot" in payload).toBe(true);
           return "signed.jws";
         },

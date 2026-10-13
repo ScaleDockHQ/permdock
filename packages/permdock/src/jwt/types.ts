@@ -68,7 +68,10 @@ export type JoseTokenSignerOptions = {
   readonly key: Record<string, unknown> | Uint8Array;
   readonly alg: JwtAlgorithm;
   readonly kid: string;
-  readonly issuer?: string;
+  /** `iss` of every output; required. */
+  readonly issuer: string;
+  /** `aud` for an output whose `sign` call names none; without either, `sign` rejects. */
+  readonly audience?: string | readonly string[];
 };
 
 export type JwtClaimPaths = {

@@ -29,6 +29,10 @@ export function joseTokenSigner(options: JoseTokenSignerOptions): TokenSigner {
   if (options.kid.length === 0) {
     throw new Error("PermDock: joseTokenSigner requires kid.");
   }
+  if (typeof options.issuer !== "string" || options.issuer.length === 0) {
+    throw new Error("PermDock: joseTokenSigner requires issuer.");
+  }
+  const issuer = options.issuer;
 
   const importKey = async (): Promise<Uint8Array | object> => {
     if (options.key instanceof Uint8Array) {
@@ -59,25 +63,37 @@ export function joseTokenSigner(options: JoseTokenSignerOptions): TokenSigner {
     payload: Readonly<Record<string, unknown>>,
     signOptions: Parameters<TokenSigner["sign"]>[1],
   ): Promise<string> {
+    const audience = signOptions.audience ?? options.audience;
+    if (audience === undefined || audience.length === 0) {
+      throw new Error("PermDock: joseTokenSigner requires an audience.");
+    }
+    const issuedAt = signOptions.issuedAt ?? Math.floor(Date.now() / 1000);
+    if (!Number.isSafeInteger(issuedAt)) {
+      throw new TypeError("PermDock: iat must be a whole NumericDate.");
+    }
     const jose = await loadJose();
     const key = await importKey();
-    const now = Math.floor(Date.now() / 1000);
-    const jwt = new jose.SignJWT({ ...payload });
+    const {
+      iss: _iss,
+      aud: _aud,
+      exp: _exp,
+      iat: _iat,
+      nbf: _nbf,
+      jti: _jti,
+      ...claims
+    } = payload;
+    const jwt = new jose.SignJWT(claims);
     jwt.setProtectedHeader({
       alg: options.alg,
       kid: options.kid,
       typ: signOptions.typ,
     });
-    jwt.setIssuedAt(now);
-    jwt.setJti(globalThis.crypto.randomUUID());
-    if (options.issuer !== undefined) {
-      jwt.setIssuer(options.issuer);
-    }
-    if (signOptions.audience !== undefined) {
-      // SAFETY: setAudience only reads the list, so a readonly array is not mutated.
-      jwt.setAudience(signOptions.audience as string | string[]);
-    }
-    jwt.setExpirationTime(signOptions.expiresAt ?? now + 3600);
+    jwt.setIssuedAt(issuedAt);
+    jwt.setJti(signOptions.jti ?? globalThis.crypto.randomUUID());
+    jwt.setIssuer(issuer);
+    // SAFETY: setAudience only reads the list, so a readonly array is not mutated.
+    jwt.setAudience(audience as string | string[]);
+    jwt.setExpirationTime(signOptions.expiresAt ?? issuedAt + 3600);
     return jwt.sign(key);
   }
 }
