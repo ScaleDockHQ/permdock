@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/evidence-export-v1.json",
+  "title": "PermDock evidence export v1",
+  "description": "The JWT claims set of a vnd.permdock.evidence+jwt, which signDecisionBatch writes: an offline export of sink events as CloudEvents 1.0 in structured JSON mode. Each event's dataschema names the schema of its data. Unknown claims are allowed so a v1 minor release can add one.",
+  "type": "object",
+  "required": ["iss", "aud", "iat", "exp", "jti", "events"],
+  "properties": {
+    "iss": { "type": "string", "minLength": 1 },
+    "aud": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      ]
+    },
+    "iat": { "$ref": "#/$defs/numericDate" },
+    "exp": { "$ref": "#/$defs/numericDate" },
+    "jti": { "type": "string", "minLength": 1 },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["specversion", "id", "source", "type", "data"],
+        "properties": {
+          "specversion": { "const": "1.0" },
+          "id": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "minLength": 1 },
+          "subject": { "type": "string" },
+          "time": {
+            "description": "RFC 3339 date-time.",
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "datacontenttype": { "const": "application/json" },
+          "dataschema": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "numericDate": {
+      "description": "RFC 7519 NumericDate: seconds since the epoch.",
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}

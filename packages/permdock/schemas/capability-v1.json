@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/capability-v1.json",
+  "title": "PermDock capability v1",
+  "description": "The JWT claims set of a vnd.permdock.capability+jwt. sub is the capability id an application revokes, exp its expiry, and jti the per-token id a once capability claims. Unknown claims are allowed so a v1 minor release can add one.",
+  "type": "object",
+  "required": ["iss", "aud", "iat", "exp", "jti", "sub", "capability"],
+  "properties": {
+    "iss": { "type": "string", "minLength": 1 },
+    "aud": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      ]
+    },
+    "iat": { "$ref": "#/$defs/numericDate" },
+    "exp": { "$ref": "#/$defs/numericDate" },
+    "jti": { "type": "string", "minLength": 1 },
+    "sub": { "type": "string", "minLength": 1 },
+    "cnf": {
+      "description": "RFC 7800: the RFC 7638 SHA-256 JWK thumbprint of the key whose RFC 9449 DPoP proof must accompany the token.",
+      "type": "object",
+      "required": ["jkt"],
+      "properties": {
+        "jkt": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": ["v", "holder", "on", "roles"],
+      "properties": {
+        "v": { "const": 1 },
+        "holder": { "enum": ["link", "key"] },
+        "on": {
+          "type": "object",
+          "required": ["resource", "id"],
+          "properties": {
+            "resource": { "type": "string", "minLength": 1 },
+            "id": { "type": "string", "minLength": 1 }
+          }
+        },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "permissions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "redeemer": {
+          "anyOf": [
+            { "enum": ["anyone", "signed-in"] },
+            {
+              "type": "object",
+              "required": ["user"],
+              "properties": { "user": { "type": "string", "minLength": 1 } }
+            },
+            {
+              "type": "object",
+              "required": ["scope", "id"],
+              "properties": {
+                "scope": { "type": "string", "minLength": 1 },
+                "id": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
+        },
+        "once": { "const": true }
+      }
+    }
+  },
+  "$defs": {
+    "numericDate": {
+      "description": "RFC 7519 NumericDate: seconds since the epoch.",
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}
