@@ -331,6 +331,36 @@
     "toRequest",
     "webBotAuthVerifier"
   ],
+  "./h3": [
+    "InvalidSignatureError",
+    "createPermDock",
+    "discoverViaSignatureAgent",
+    "webBotAuthVerifier"
+  ],
+  "./sveltekit": [
+    "InvalidSignatureError",
+    "createPermDock",
+    "discoverViaSignatureAgent",
+    "webBotAuthVerifier"
+  ],
+  "./astro": [
+    "InvalidSignatureError",
+    "createPermDock",
+    "discoverViaSignatureAgent",
+    "webBotAuthVerifier"
+  ],
+  "./solid-start": [
+    "InvalidSignatureError",
+    "createPermDock",
+    "discoverViaSignatureAgent",
+    "webBotAuthVerifier"
+  ],
+  "./tanstack-start": [
+    "InvalidSignatureError",
+    "createPermDock",
+    "discoverViaSignatureAgent",
+    "webBotAuthVerifier"
+  ],
   "./trpc": ["createPermDock", "errorFormatter"],
   "./orpc": ["createPermDock", "permissionOf"],
   "./vue": [
