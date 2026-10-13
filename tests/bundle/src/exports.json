@@ -504,6 +504,12 @@
     "subscribersFor",
     "webhookTransport"
   ],
+  "./resend": [
+    "approvalEmail",
+    "resendFailure",
+    "resendTransport",
+    "resendWebhook"
+  ],
   "./drizzle": ["checkRow", "toWhere", "withSubject"],
   "./prisma": [
     "checkRow",

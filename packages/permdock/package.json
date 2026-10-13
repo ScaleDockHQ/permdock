@@ -211,6 +211,10 @@
       "types": "./dist/delivery/index.d.ts",
       "default": "./dist/delivery/index.js"
     },
+    "./resend": {
+      "types": "./dist/resend/index.d.ts",
+      "default": "./dist/resend/index.js"
+    },
     "./prisma": {
       "types": "./dist/prisma/index.d.ts",
       "default": "./dist/prisma/index.js"
