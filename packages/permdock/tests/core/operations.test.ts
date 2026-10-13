@@ -25,7 +25,7 @@ const other = definePermissions({
 
 describe("defineOperations", () => {
   it("returns a frozen map of frozen operations named by their key", () => {
-    const data = z.object({ id: z.string() });
+    const data = (input: { readonly id: string }) => ({ id: input.id });
     const operations = defineOperations(permissions, {
       sendInvoice: {
         permission: permissions.invoice.send,
@@ -151,10 +151,10 @@ describe("defineOperations", () => {
     expect(bad([])).toThrow(/meta/u);
   });
 
-  it("throws for a data value that is not a Standard Schema", () => {
+  it("throws for a data value that is not a function", () => {
     expect(() =>
       defineOperations(permissions, {
-        // SAFETY: deliberately not a schema, to reach the runtime check.
+        // SAFETY: deliberately not a loader, to reach the runtime check.
         op: { permission: permissions.invoice.read, data: {} as never },
       }),
     ).toThrow(/data/u);

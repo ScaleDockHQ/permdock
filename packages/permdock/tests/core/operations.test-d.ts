@@ -21,24 +21,21 @@ const permissions = definePermissions({
 const operations = defineOperations(permissions, {
   sendInvoice: {
     permission: permissions.invoice.send,
-    data: z.object({ id: z.string(), note: z.string().optional() }),
+    data: (input: { id: string; note?: string }) => ({ id: input.id }),
     meta: { risk: "medium", effects: ["send"] },
   },
   readInvoice: { permission: permissions.invoice.read },
 });
 
 describe("defineOperations types", () => {
-  it("types each entry by name, permission and data output", () => {
+  it("types each entry by name, permission and data input", () => {
     expectTypeOf(operations.sendInvoice.name).toEqualTypeOf<"sendInvoice">();
     expectTypeOf(operations.sendInvoice.permission).toEqualTypeOf<
       typeof permissions.invoice.send
     >();
     expectTypeOf<
       OperationInput<typeof operations.sendInvoice>
-    >().toEqualTypeOf<{
-      id: string;
-      note?: string | undefined;
-    }>();
+    >().toEqualTypeOf<{ id: string; note?: string }>();
     expectTypeOf<
       OperationInput<typeof operations.readInvoice>
     >().toEqualTypeOf<undefined>();

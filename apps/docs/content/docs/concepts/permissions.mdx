@@ -337,7 +337,7 @@ import { defineOperations } from "permdock";
 export const operations = defineOperations(permissions, {
   sendInvoice: {
     permission: permissions.billing.invoice.submit,
-    data: z.object({ id: z.string(), note: z.string().optional() }),
+    data: (input: { id: string }) => db.invoice.find(input.id),
     meta: {
       risk: "high",
       effects: ["send", "external"],
@@ -353,14 +353,14 @@ export const operations = defineOperations(permissions, {
 
 It returns a frozen `OperationMap`. Each entry is a frozen `Operation` `{ name, permission, data?, results?, meta }`:
 
-| Field        | Meaning                                                                                             |
-| ------------ | --------------------------------------------------------------------------------------------------- |
-| `permission` | The leaf a caller must hold to run the operation                                                    |
-| `data`       | A Standard Schema for the input; `OperationInput<typeof operations.sendInvoice>` is its output type |
-| `results`    | The leaf each result row is filtered by                                                             |
-| `meta`       | `{ risk?, effects?, title? }`; `{}` when absent                                                     |
+| Field        | Meaning                                                                                                               |
+| ------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `permission` | The leaf a caller must hold to run the operation                                                                      |
+| `data`       | Loads the row the check runs on from the input; `OperationInput<typeof operations.sendInvoice>` is its parameter type |
+| `results`    | The leaf each result row is filtered by                                                                               |
+| `meta`       | `{ risk?, effects?, title? }`; `{}` when absent                                                                       |
 
-`risk` is one of `low`, `medium`, `high`, `critical`. `effects` lists distinct values of `read`, `write`, `delete`, `send`, `spend`, `external`. A host reads `meta` to label, confirm or gate an operation; PermDock never decides on it. `defineOperations` throws at definition time for a `permission` or `results` outside `permissions` (matched by key), a `data` that is not a Standard Schema, meta outside those lists, and a name that is not 1 to 128 of `A-Z a-z 0-9 _ . -` or that repeats another name case-insensitively.
+`risk` is one of `low`, `medium`, `high`, `critical`. `effects` lists distinct values of `read`, `write`, `delete`, `send`, `spend`, `external`. A host reads `meta` to label, confirm or gate an operation; PermDock never decides on it. `defineOperations` throws at definition time for a `permission` or `results` outside `permissions` (matched by key), a `data` that is not a function, meta outside those lists, and a name that is not 1 to 128 of `A-Z a-z 0-9 _ . -` or that repeats another name case-insensitively.
 
 With `operations: "./src/operations.ts"` in `permdock.config.ts`, `permdock collect` writes the map to the catalog as `operations`: `{ name, permission, results?, meta }` with permission keys. [Doctor](/docs/cli/doctor) PD067 reports an operation whose `permission` or `results` key the configured permissions module does not declare.
 

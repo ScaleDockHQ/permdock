@@ -58,7 +58,7 @@ describe("RFC 8785 test vectors", () => {
       }`,
     );
     expect(canonicalJson(input)).toBe(
-      '{"\\r":"Carriage Return","1":"One","\u0080":"Control","\u00f6":"Latin Small Letter O With Diaeresis","\u20ac":"Euro Sign","\ud83d\ude00":"Emoji: Grinning Face","\ufb33":"Hebrew Letter Dalet With Dagesh"}',
+      '{"\\r":"Carriage Return","1":"One","\u0080":"Control","\u00F6":"Latin Small Letter O With Diaeresis","\u20AC":"Euro Sign","\uD83D\uDE00":"Emoji: Grinning Face","\uFB33":"Hebrew Letter Dalet With Dagesh"}',
     );
   });
 

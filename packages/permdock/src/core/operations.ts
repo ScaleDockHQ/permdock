@@ -1,5 +1,3 @@
-import type { StandardSchemaV1 } from "@standard-schema/spec";
-
 import type { Permission, PermissionTree } from "./permission-types.ts";
 
 import { isForbiddenKey } from "./paths.ts";
@@ -39,11 +37,20 @@ export type OperationMeta = {
   readonly title?: string;
 };
 
+/**
+ * Loads the row the check runs on from the operation's input, the binding
+ * every surface shares. The row is validated against the permission's
+ * resource schema like any request-derived data (invariant 9).
+ */
+export type OperationData<TInput = never> = {
+  // A method type read as a property is bivariant, so an `Operation<{ id: string }>` stays assignable to `Operation`.
+  load(input: TInput): unknown;
+}["load"];
+
 /** One entry of the object passed to `defineOperations`. */
 export type OperationDefinition = {
   readonly permission: Permission;
-  /** A Standard Schema for the operation's input. */
-  readonly data?: StandardSchemaV1;
+  readonly data?: OperationData<unknown>;
   /** The permission each result row is filtered by. */
   readonly results?: Permission;
   readonly meta?: OperationMeta;
@@ -51,8 +58,8 @@ export type OperationDefinition = {
 
 /**
  * A permission-bound action that agent tools, workflow nodes, MCP operations,
- * HTTP routes and chat commands read by name. `TInput` is the output type of
- * `data`; an operation without `data` takes `undefined`.
+ * HTTP routes and chat commands read by name. `TInput` is the parameter type
+ * of `data`; an operation without `data` takes `undefined`.
  */
 export type Operation<
   TInput = unknown,
@@ -61,19 +68,19 @@ export type Operation<
 > = {
   readonly name: TName;
   readonly permission: TPermission;
-  readonly data?: StandardSchemaV1<unknown, TInput>;
+  readonly data?: OperationData<TInput>;
   readonly results?: Permission;
   readonly meta: OperationMeta;
 };
 
-/** The input type of an operation: the output type of its `data` schema. */
+/** The input type of an operation: the parameter type of its `data` loader. */
 export type OperationInput<TOperation> =
   TOperation extends Operation<infer TInput> ? TInput : never;
 
 type InputOf<TDefinition> = TDefinition extends {
-  readonly data: infer TData extends StandardSchemaV1;
+  readonly data: (input: infer TInput) => unknown;
 }
-  ? StandardSchemaV1.InferOutput<TData>
+  ? TInput
   : undefined;
 
 export type OperationMap<
@@ -93,22 +100,6 @@ export type OperationMap<
 const NAME = /^[A-Za-z0-9_.-]{1,128}$/u;
 
 const META_KEYS: ReadonlySet<string> = new Set(["risk", "effects", "title"]);
-
-function isStandardSchema(value: unknown): value is StandardSchemaV1 {
-  if (
-    value === null ||
-    (typeof value !== "object" && typeof value !== "function")
-  ) {
-    return false;
-  }
-  const standard: unknown = Reflect.get(value, "~standard");
-  return (
-    standard !== null &&
-    typeof standard === "object" &&
-    typeof Reflect.get(standard, "version") === "number" &&
-    typeof Reflect.get(standard, "validate") === "function"
-  );
-}
 
 export function isOperationRisk(value: unknown): value is OperationRisk {
   return OPERATION_RISKS.some((risk) => risk === value);
@@ -194,7 +185,7 @@ function treeLeaf(
  * Binds each named operation to a permission of `permissions`. Throws at
  * definition time for a permission or `results` outside the tree, a name that
  * is not 1 to 128 of `A-Z a-z 0-9 _ . -` or repeats another case-insensitively,
- * a `data` that is not a Standard Schema, or meta outside the closed lists.
+ * a `data` that is not a function, or meta outside the closed lists.
  */
 export function defineOperations<
   const TDefinitions extends Record<string, OperationDefinition>,
@@ -235,12 +226,12 @@ export function defineOperations<
       "permission",
       Reflect.get(definition, "permission"),
     );
-    const data: unknown = Reflect.get(definition, "data");
-    if (data !== undefined && !isStandardSchema(data)) {
-      throw new TypeError(
-        `Operation "${name}": data must be a Standard Schema.`,
-      );
+    const value: unknown = Reflect.get(definition, "data");
+    if (value !== undefined && typeof value !== "function") {
+      throw new TypeError(`Operation "${name}": data must be a function.`);
     }
+    // SAFETY: a function, checked above; its parameter type is the definition's own.
+    const data = value as OperationData<unknown> | undefined;
     const resultsValue: unknown = Reflect.get(definition, "results");
     const results =
       resultsValue === undefined

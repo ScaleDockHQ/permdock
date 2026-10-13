@@ -134,11 +134,7 @@ export async function loadPrincipalByIdentity<TPrincipal extends Principal>(
   identity: PrincipalIdentity,
 ): Promise<TPrincipal | null> {
   const normalized = normalizeIdentity(identity);
-  if (
-    source === undefined ||
-    source.principalByIdentity === undefined ||
-    normalized === undefined
-  ) {
+  if (source?.principalByIdentity === undefined || normalized === undefined) {
     return null;
   }
   try {

@@ -52,7 +52,7 @@ describe("catalog operations", () => {
     const operations = defineOperations(permissions, {
       sendPost: {
         permission: permissions.post.send,
-        data: z.object({ id: z.string() }),
+        data: (input: { readonly id: string }) => input,
         meta: { risk: "high", effects: ["send", "external"] },
       },
       listPosts: {

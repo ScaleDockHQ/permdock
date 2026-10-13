@@ -210,6 +210,7 @@ export { definePermissions } from "./core/permissions.ts";
 export { defineOperations } from "./core/operations.ts";
 export type {
   Operation,
+  OperationData,
   OperationDefinition,
   OperationEffect,
   OperationInput,
@@ -361,10 +362,12 @@ export type {
   RoleChangeTarget,
 } from "./core/ownership.ts";
 export {
-  CLOUD_EVENT_TYPES,
   CLOUDEVENTS_BATCH_CONTENT_TYPE,
   CLOUDEVENTS_CONTENT_TYPE,
+  CLOUD_EVENT_TYPES,
+  RESERVED_CLOUD_EVENT_TYPES,
   accessEvent,
+  cloudEventType,
   credentialEvent,
   membershipEvent,
   memorySink,
@@ -376,15 +379,12 @@ export type {
   CatalogFinding,
   CatalogFindingCode,
   CloudEvent,
+  CloudEventOptions,
   CloudEventType,
   MemorySink,
   MemorySinkOptions,
-  CloudEventOptions,
   SignDecisionBatchOptions,
 } from "./core/sink.ts";
-export { OCSF_VERSION, accessToOcsf, toOcsf } from "./core/ocsf.ts";
-export { CSV_COLUMNS, toCsvRow } from "./core/csv.ts";
-export { catalogFingerprint } from "./core/catalog-fingerprint.ts";
 export {
   parseCloudEventBatch,
   parseSinkEvent,
@@ -401,6 +401,9 @@ export {
   SINK_EVENT_SCHEMAS,
 } from "./core/event-schemas.ts";
 export type { JsonSchemaNode } from "./core/json-schema.ts";
+export { OCSF_VERSION, accessToOcsf, toOcsf } from "./core/ocsf.ts";
+export { CSV_COLUMNS, toCsvRow } from "./core/csv.ts";
+export { catalogFingerprint } from "./core/catalog-fingerprint.ts";
 export {
   coveredByDelegation,
   delegatedPermissions,
