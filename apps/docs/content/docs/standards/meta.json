@@ -8,6 +8,8 @@
     "arazzo",
     "openapi-registry",
     "problem-details",
+    "cloudevents",
+    "standard-webhooks",
     "ratelimit-headers",
     "postgres-rls",
     "---Authentication---",

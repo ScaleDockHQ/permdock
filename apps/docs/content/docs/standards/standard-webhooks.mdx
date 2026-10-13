@@ -1,0 +1,81 @@
+---
+title: Standard Webhooks
+description: The Standard Webhooks signing scheme PermDock uses for every webhook delivery, the v1 HMAC and v1a Ed25519 signatures, and the timestamp and replay checks a receiver applies.
+---
+
+## What it is
+
+[Standard Webhooks](https://github.com/standard-webhooks/standard-webhooks/blob/main/spec/standard-webhooks.md) is a published specification for signing HTTP webhook deliveries, with reference libraries in most languages. A delivery carries three headers:
+
+- `webhook-id`: a unique message id, the same on every retry of that message.
+- `webhook-timestamp`: Unix seconds when the delivery was signed.
+- `webhook-signature`: a space-separated list of `<version>,<base64 signature>` entries over `<webhook-id>.<webhook-timestamp>.<body>`.
+
+Version `v1` is HMAC-SHA256 with a shared `whsec_` secret. Version `v1a` is Ed25519, verified with the sender's public key. A receiver accepts the delivery when any one entry verifies, rejects a timestamp too far from its clock, and drops a `webhook-id` it has already processed.
+
+## Why it matters for PermDock
+
+- **Receivers need no PermDock code.** A webhook receiver is often written in another language or sits behind a gateway that already verifies Standard Webhooks.
+- **Retries are safe.** The `webhook-id` is stable across retries, so deduplication is a lookup, not a body comparison.
+- **Key rotation has a shape.** The signature header holds several entries, so a sender signs with the old and the new key during a rotation and the receiver accepts either.
+
+## How PermDock uses it
+
+`webhookSigner` and `webhookVerifier` on `permdock/server` implement the scheme for any body. `verifyWebhook` on `permdock/cloud` wraps the verifier for PermDock Cloud deliveries, whose body is a [CloudEvents](/docs/standards/cloudevents) batch.
+
+```ts
+import { memoryReplayStore } from "permdock/ssf";
+import { webhookSigner, webhookVerifier } from "permdock/server";
+
+const signer = webhookSigner({
+  keys: [{ alg: "v1", secret: process.env.WEBHOOK_SECRET! }],
+});
+const body = JSON.stringify(batch);
+const headers = await signer.sign({
+  id: "msg_2KWPBgLlAfxdpx2AI54pPJ85f4W",
+  body,
+});
+await fetch(endpoint, {
+  method: "POST",
+  headers: { ...headers, "content-type": "application/cloudevents-batch+json" },
+  body,
+});
+
+const verifier = webhookVerifier({
+  secret: process.env.WEBHOOK_SECRET!,
+  replay: memoryReplayStore(),
+});
+const delivery = await verifier.verify(request);
+if (!delivery.ok) return new Response(null, { status: 401 });
+```
+
+Behaviour:
+
+- **Every key signs.** `keys` holds `v1` secrets and `v1a` private JWKs; each delivery carries one entry per key. The signer throws on an invalid key or id, because both come from the sender's configuration.
+- **Any entry verifies.** The verifier checks `v1` entries against each `secret` and `v1a` entries against each Ed25519 key in `jwks` (an inline set, or a URL it fetches and caches for 300 seconds). Unknown versions are ignored.
+- **Timestamps are bounded.** A `webhook-timestamp` more than `tolerance` seconds (default 300) before or after the clock fails with `timestamp-out-of-range`.
+- **Replays fail.** The `webhook-id` is claimed in the `ReplayStore` only after a signature verifies, so a forged delivery cannot burn a real id. A store that throws fails the delivery closed. Replay protection covers one store: receivers behind a load balancer share a store, or each instance accepts a delivery once.
+- **It never throws.** `verify` answers `{ ok: true, id, timestamp, body }`, with `timestamp` in RFC 3339, or `{ ok: false, cause }` with `missing-headers`, `malformed`, `timestamp-out-of-range`, `invalid-signature`, `keys-unavailable` or `replayed`.
+- **Build it once.** A verifier with a `jwks` URL caches the key set; one built per request fetches the key set on every delivery.
+
+## Mapping table
+
+| Standard Webhooks concept   | PermDock                                                                      |
+| --------------------------- | ----------------------------------------------------------------------------- |
+| `webhook-id`                | `WebhookMessage.id`; the replay key; kept across retries                      |
+| `webhook-timestamp`         | Signing time in Unix seconds; `VerifiedWebhookMessage.timestamp` in RFC 3339  |
+| `webhook-signature` `v1`    | `{ alg: 'v1', secret }` on the signer, `secret` on the verifier               |
+| `webhook-signature` `v1a`   | `{ alg: 'v1a', privateKey }` on the signer, `jwks` on the verifier            |
+| Timestamp tolerance         | `tolerance`, default 300 seconds                                              |
+| Idempotency on `webhook-id` | `replay`, a `ReplayStore` such as `memoryReplayStore`                         |
+| Body                        | A CloudEvents batch, `application/cloudevents-batch+json`, for PermDock Cloud |
+
+## Why
+
+PermDock Cloud first signed webhook batches as a JWS. Every receiver then needed a JOSE library, a PermDock-specific `typ` and claim layout, and its own retry deduplication. Standard Webhooks fixes the same properties (authenticity, freshness, replay) in a format gateways and libraries already verify. `v1a` keeps the asymmetric property the JWS had: the Cloud signs with a private key, and a receiver verifies against the environment's published JWK Set without holding a secret. The JWS stays for offline evidence exports, where the signature must outlive the delivery ([wire formats](/docs/concepts/wire-formats)).
+
+## Sources
+
+- [Standard Webhooks specification](https://github.com/standard-webhooks/standard-webhooks/blob/main/spec/standard-webhooks.md)
+- [Standard Webhooks reference libraries](https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries), whose JavaScript test vector is vendored as `tests/fixtures/standards/standard-webhooks-v1.json`
+- [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032.html) (Ed25519) and [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104.html) (HMAC)
