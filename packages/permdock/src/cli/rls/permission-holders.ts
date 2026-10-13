@@ -12,7 +12,7 @@ import {
 } from "./permission-keys.ts";
 
 /** `permitted_<scope>_users(p_permission, p_id)`. Names are part of the SQL contract. */
-export function permittedUsersHelper(scope: string): string {
+function permittedUsersHelper(scope: string): string {
   return checkName(`permitted_${scope}_users`);
 }
 

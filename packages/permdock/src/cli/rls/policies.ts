@@ -257,10 +257,7 @@ export const ACTOR_MAY_WRITE = "permdock_actor_may_write";
  * True unless the token's `act` claim (`act`, as SQL `jsonb`) is a session
  * of one of `kinds` that is not `read_only: false`.
  */
-export function readOnlyActorPasses(
-  act: string,
-  kinds: readonly string[],
-): string {
+function readOnlyActorPasses(act: string, kinds: readonly string[]): string {
   const list = `array[${kinds.map((kind) => `'${kind}'`).join(", ")}]::text[]`;
   const session = kinds.includes("support")
     ? `(${act} ->> 'kind') = any(${list}) or ((${act} ->> 'kind') is null and ${act} ? 'session_id')`
