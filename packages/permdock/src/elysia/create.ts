@@ -56,12 +56,14 @@ export type ElysiaPermDockPlugin<
   V extends PolicyVocabulary = PolicyVocabulary,
 > = Elysia<
   "",
+  /* oxlint-disable typescript/no-generated-empty-object-type -- Elysia's own empty singleton slots */
   {
     decorator: Record<never, never>;
     store: Record<never, never>;
     derive: { readonly permdock: PermDock<V> };
     resolve: Record<never, never>;
   }
+  /* oxlint-enable typescript/no-generated-empty-object-type */
 >;
 
 export type ElysiaPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {

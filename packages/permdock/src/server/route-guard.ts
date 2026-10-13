@@ -35,7 +35,7 @@ import {
 export type RouteGuardDeps = {
   readonly policy: Policy;
   readonly options: Pick<
-    ServerPermDockOptions<unknown>,
+    ServerPermDockOptions,
     "operations" | "deniedResponse" | "store" | "approval"
   >;
   readonly adapter: string;
@@ -58,7 +58,7 @@ export function routeScopes(value: unknown): readonly string[] | undefined {
 }
 
 async function refused(
-  hook: ServerPermDockOptions<unknown>["deniedResponse"],
+  hook: ServerPermDockOptions["deniedResponse"],
   fallback: Response,
   decision: Exclude<Decision, { readonly outcome: "granted" }>,
   request: Request | undefined,
