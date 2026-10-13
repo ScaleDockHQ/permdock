@@ -3,10 +3,16 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Actor, Delegation } from "../core/subject.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
+import { fromWireDelegation } from "../core/wire-delegation.ts";
 import {
   type PermissionLookup,
   itemResourceData,
+  wireResourceId,
 } from "../server/evaluation-items.ts";
+import {
+  type EvaluationReasons,
+  evaluationReasons,
+} from "../server/evaluations.ts";
 
 export type AuthzenEntity = {
   readonly type?: unknown;
@@ -56,12 +62,9 @@ export function resourceData(item: AuthzenItem): unknown {
   return itemResourceData(item.resource);
 }
 
+/** The row id an item names; `undefined` for none and for the collection sentinel `id: "*"`. */
 export function resourceIdOf(item: AuthzenItem): string | undefined {
-  const id = item.resource?.id;
-  if (typeof id === "string" || typeof id === "number") {
-    return String(id);
-  }
-  return undefined;
+  return wireResourceId(item.resource?.id);
 }
 
 export function userFromEntity(entity: AuthzenEntity | undefined): unknown {
@@ -101,20 +104,7 @@ export function delegationOf(item: AuthzenItem): Delegation | undefined {
   const fromSubject = isRecord(item.subject?.properties)
     ? item.subject.properties["delegation"]
     : undefined;
-  const raw = context["delegation"] ?? fromSubject;
-  if (!isRecord(raw)) {
-    return undefined;
-  }
-  const scopes = raw["scopes"];
-  const authorizationDetails = raw["authorizationDetails"];
-  return compact<Delegation>({
-    scopes: Array.isArray(scopes)
-      ? scopes.filter((scope) => typeof scope === "string")
-      : undefined,
-    authorizationDetails: Array.isArray(authorizationDetails)
-      ? authorizationDetails
-      : undefined,
-  });
+  return fromWireDelegation(context["delegation"] ?? fromSubject);
 }
 
 export function tenantOf(item: AuthzenItem): string | undefined {
@@ -140,7 +130,9 @@ export type PermDockContext = {
 };
 
 /** Only the outcome, denial reasons and token leave the PDP; `alternatives` are `search/action`. */
-export type EvaluationContext = { readonly permdock: PermDockContext };
+export type EvaluationContext = EvaluationReasons & {
+  readonly permdock: PermDockContext;
+};
 
 function permdockContext(decision: Decision): PermDockContext {
   switch (decision.outcome) {
@@ -168,17 +160,19 @@ function permdockContext(decision: Decision): PermDockContext {
   }
 }
 
-function evaluationContext(decision: Decision): EvaluationContext {
-  return { permdock: permdockContext(decision) };
-}
-
-export function evaluationRow(decision: Decision): {
+export function evaluationRow(
+  decision: Decision,
+  permission: string,
+): {
   readonly decision: boolean;
   readonly context: EvaluationContext;
 } {
   return {
     decision: decision.outcome === "granted",
-    context: evaluationContext(decision),
+    context: {
+      permdock: permdockContext(decision),
+      ...evaluationReasons(decision, permission),
+    },
   };
 }
 

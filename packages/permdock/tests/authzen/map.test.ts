@@ -134,28 +134,39 @@ describe("resource and subject mapping", () => {
   it.each<[AuthzenItem, unknown]>([
     [{}, undefined],
     [{ context: [] }, undefined],
-    [{ context: { delegation: "all" } }, undefined],
+    [{ context: { delegation: "all" } }, { scopes: [] }],
     [{ context: { delegation: {} } }, {}],
     [
       {
         context: {
           delegation: {
-            scopes: ["post.read", 3],
-            authorizationDetails: [{ type: "x" }],
+            scope: "post.read  post.update",
+            authorization_details: [{ type: "x" }],
           },
         },
       },
-      { scopes: ["post.read"], authorizationDetails: [{ type: "x" }] },
+      {
+        scopes: ["post.read", "post.update"],
+        authorizationDetails: [{ type: "x" }],
+      },
+    ],
+    [
+      {
+        context: {
+          delegation: { scopes: ["post.read"], authorizationDetails: [] },
+        },
+      },
+      {},
     ],
     [
       {
         subject: {
           properties: {
-            delegation: { scopes: "post.read", authorizationDetails: {} },
+            delegation: { scope: "post.read", authorization_details: {} },
           },
         },
       },
-      {},
+      { scopes: [] },
     ],
   ])("delegationOf(%j)", (item, delegation) => {
     expect(delegationOf(item)).toEqual(delegation);
@@ -175,19 +186,22 @@ describe("evaluationRow", () => {
     const granted = { outcome: "granted" } as const;
     expect(
       // SAFETY: evaluationRow reads only the outcome of a granted decision.
-      evaluationRow(granted as unknown as Decision),
+      evaluationRow(granted as unknown as Decision, "post.read"),
     ).toEqual({
       decision: true,
       context: { permdock: { outcome: "granted" } },
     });
     expect(
-      evaluationRow({
-        outcome: "denied",
-        denials: [
-          { role: null, reason: "no-grant", detail: "unknown-permission" },
-        ],
-        alternatives: [permissions.post.read],
-      }),
+      evaluationRow(
+        {
+          outcome: "denied",
+          denials: [
+            { role: null, reason: "no-grant", detail: "unknown-permission" },
+          ],
+          alternatives: [permissions.post.read],
+        },
+        "post.purge",
+      ),
     ).toEqual({
       decision: false,
       context: {
@@ -196,17 +210,27 @@ describe("evaluationRow", () => {
           denials: [{ role: null, reason: "no-grant" }],
           reason: "unknown-permission",
         },
+        reason_admin: { en: "post.purge denied: none (no-grant)." },
+        reason_user: { en: "post.purge is not permitted." },
       },
     });
     expect(
       // SAFETY: evaluationRow reads only the outcome and token of an approval decision.
-      evaluationRow({
-        outcome: "approval-required",
-        token: "t",
-      } as unknown as Decision),
+      evaluationRow(
+        {
+          outcome: "approval-required",
+          reason: "human",
+          token: "t",
+        } as unknown as Decision,
+        "post.delete",
+      ),
     ).toEqual({
       decision: false,
-      context: { permdock: { outcome: "approval-required", token: "t" } },
+      context: {
+        permdock: { outcome: "approval-required", token: "t" },
+        reason_admin: { en: "post.delete requires human approval (human)." },
+        reason_user: { en: "post.delete requires approval." },
+      },
     });
   });
 });

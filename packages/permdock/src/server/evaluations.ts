@@ -4,7 +4,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 
 import { readApprovalHeader, resumeDecision } from "../approvals/helpers.ts";
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { type Decision, NO_GRANT } from "../core/decision.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { type WireDecision, wireDenials } from "../core/wire-denial.ts";
@@ -12,6 +12,7 @@ import {
   type PermissionLookup,
   itemResourceData,
   permissionLookup,
+  wireResourceId,
 } from "./evaluation-items.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
@@ -29,6 +30,139 @@ type EvaluationItem = {
   readonly action?: { readonly name?: unknown };
 };
 
+/** AuthZEN 1.0 section 7.1.2.1 `options.evaluations_semantic` values. */
+export const EVALUATIONS_SEMANTICS = [
+  "execute_all",
+  "deny_on_first_deny",
+  "permit_on_first_permit",
+] as const;
+
+export type EvaluationsSemantic = (typeof EVALUATIONS_SEMANTICS)[number];
+
+/** The batch's `evaluations_semantic`: `execute_all` when absent, `undefined` for an unknown value. */
+export function evaluationsSemantic(
+  body: Readonly<Record<string, unknown>>,
+): EvaluationsSemantic | undefined {
+  const options = body["options"];
+  const value = isRecord(options) ? options["evaluations_semantic"] : undefined;
+  if (value === undefined) {
+    return "execute_all";
+  }
+  return EVALUATIONS_SEMANTICS.find((semantic) => semantic === value);
+}
+
+export function unknownSemanticProblem(): Response {
+  return validationProblem(
+    `options.evaluations_semantic must be one of ${EVALUATIONS_SEMANTICS.join(", ")}`,
+  );
+}
+
+/**
+ * Evaluates `items` under `semantic`: all at once for `execute_all`, else in
+ * order, stopping after the first deny or permit.
+ */
+export async function evaluateBatch<T extends { readonly decision: boolean }>(
+  items: readonly unknown[],
+  semantic: EvaluationsSemantic,
+  rowOf: (item: unknown) => Promise<T>,
+): Promise<T[]> {
+  if (semantic === "execute_all") {
+    return Promise.all(items.map(rowOf));
+  }
+  const stopOn = semantic === "permit_on_first_permit";
+  const rows: T[] = [];
+  for (const item of items) {
+    // oxlint-disable-next-line no-await-in-loop -- short-circuit semantics evaluate in order and stop early
+    const row = await rowOf(item);
+    rows.push(row);
+    if (row.decision === stopOn) {
+      break;
+    }
+  }
+  return rows;
+}
+
+/** AuthZEN 1.0 section 10.1.1: a response echoes the request's `X-Request-ID`. */
+export function withRequestId(request: Request, response: Response): Response {
+  const id = request.headers.get("x-request-id");
+  if (id === null || id === "") {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  headers.set("X-Request-ID", id);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+/** AuthZEN 1.0 section 9.1 PDP metadata for the PDP at `pdp`. */
+export function authzenMetadata(
+  pdp: string,
+  search: {
+    readonly action?: boolean;
+    readonly resource?: boolean;
+    readonly subject?: boolean;
+  } = {},
+): Readonly<Record<string, string>> {
+  return compact<Record<string, string>>({
+    policy_decision_point: pdp,
+    access_evaluation_endpoint: `${pdp}/access/v1/evaluation`,
+    access_evaluations_endpoint: `${pdp}/access/v1/evaluations`,
+    search_subject_endpoint:
+      search.subject === true ? `${pdp}/access/v1/search/subject` : undefined,
+    search_resource_endpoint:
+      search.resource === true ? `${pdp}/access/v1/search/resource` : undefined,
+    search_action_endpoint:
+      search.action === true ? `${pdp}/access/v1/search/action` : undefined,
+  });
+}
+
+/** AuthZEN 1.0 section 7.2.1 reasons, keyed by language tag. */
+export type EvaluationReasons = {
+  readonly reason_admin?: { readonly en: string };
+  readonly reason_user?: { readonly en: string };
+};
+
+/**
+ * `reason_admin` and `reason_user` for a decision that is not granted, from
+ * the denial roles and reasons the context already carries. The user reason
+ * names no role, grant or subject.
+ */
+export function evaluationReasons(
+  decision: Decision,
+  permission: string,
+): EvaluationReasons {
+  switch (decision.outcome) {
+    case "granted": {
+      return {};
+    }
+    case "denied": {
+      return {
+        reason_admin: {
+          en: `${permission} denied: ${decision.denials
+            .map((denial) => `${denial.role ?? "none"} (${denial.reason})`)
+            .join(", ")}.`,
+        },
+        reason_user: { en: `${permission} is not permitted.` },
+      };
+    }
+    case "approval-required": {
+      return {
+        reason_admin: {
+          en: `${permission} requires human approval (${decision.reason}).`,
+        },
+        reason_user: { en: `${permission} requires approval.` },
+      };
+    }
+    default: {
+      const exhausted: never = decision;
+      return exhausted;
+    }
+  }
+}
+
 function permissionOf(
   lookup: PermissionLookup,
   item: EvaluationItem,
@@ -39,9 +173,12 @@ function permissionOf(
   );
 }
 
-function evaluationRow(decision: Decision): {
+function evaluationRow(
+  decision: Decision,
+  permission: string,
+): {
   readonly decision: boolean;
-  readonly context: {
+  readonly context: EvaluationReasons & {
     readonly outcome: Decision["outcome"];
     readonly permdock: WireDecision;
   };
@@ -58,12 +195,17 @@ function evaluationRow(decision: Decision): {
         context: {
           outcome: "denied",
           permdock: { ...decision, denials: wireDenials(decision.denials) },
+          ...evaluationReasons(decision, permission),
         },
       };
     case "approval-required":
       return {
         decision: false,
-        context: { outcome: "approval-required", permdock: decision },
+        context: {
+          outcome: "approval-required",
+          permdock: decision,
+          ...evaluationReasons(decision, permission),
+        },
       };
     default: {
       const exhausted: never = decision;
@@ -100,10 +242,14 @@ function evaluateOne(
   store: ApprovalStore | undefined,
   header: string | undefined,
   adapter: string,
-): Promise<Decision> {
+): Promise<{ readonly decision: Decision; readonly permission: string }> {
   const permission = permissionOf(lookup, item);
   if (permission === undefined) {
-    return Promise.resolve(NO_GRANT);
+    return Promise.resolve({
+      decision: NO_GRANT,
+      permission:
+        typeof item.action?.name === "string" ? item.action.name : "unknown",
+    });
   }
   const data = itemResourceData(item.resource);
   // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
@@ -127,11 +273,11 @@ function evaluateOne(
     permission,
     subject: permdock.subject,
     store,
-    resource: resourceRef(permission, data, item.resource?.id),
+    resource: resourceRef(permission, data, wireResourceId(item.resource?.id)),
     adapter,
     token: header,
     consume: false,
-  });
+  }).then((resumed) => ({ decision: resumed, permission: permission.key }));
 }
 
 async function resolvePermdock(
@@ -193,6 +339,11 @@ export function createEvaluationsHandler(options: {
     if (evaluations.length > maxEvaluations) {
       return batchTooLarge(maxEvaluations);
     }
+    // SAFETY: body was checked to be a non-array object above.
+    const semantic = evaluationsSemantic(body as Record<string, unknown>);
+    if (semantic === undefined) {
+      return unknownSemanticProblem();
+    }
 
     const header = readApprovalHeader(request.headers);
     let permdock: PermDock;
@@ -204,37 +355,29 @@ export function createEvaluationsHandler(options: {
       }
       throw error;
     }
-    const rows = await Promise.all(
-      evaluations.map(async (item) => {
-        // SAFETY: every EvaluationItem field is optional and read through ?. and typeof checks.
-        const entry =
-          item !== null && typeof item === "object"
-            ? (item as EvaluationItem)
-            : {};
-        return evaluationRow(
-          await evaluateOne(
-            lookup,
-            permdock,
-            entry,
-            options.store,
-            header,
-            adapter,
-          ),
-        );
-      }),
-    );
+    const rows = await evaluateBatch(evaluations, semantic, async (item) => {
+      // SAFETY: every EvaluationItem field is optional and read through ?. and typeof checks.
+      const entry =
+        item !== null && typeof item === "object"
+          ? (item as EvaluationItem)
+          : {};
+      const evaluated = await evaluateOne(
+        lookup,
+        permdock,
+        entry,
+        options.store,
+        header,
+        adapter,
+      );
+      return evaluationRow(evaluated.decision, evaluated.permission);
+    });
     return Response.json({ evaluations: rows });
   };
 
   const GET = async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
     if (url.pathname.includes("authzen-configuration")) {
-      const origin = url.origin;
-      return Response.json({
-        policy_decision_point: origin,
-        access_evaluation_endpoint: `${origin}/access/v1/evaluation`,
-        access_evaluations_endpoint: `${origin}/access/v1/evaluations`,
-      });
+      return Response.json(authzenMetadata(url.origin));
     }
     const tenant = url.searchParams.get("tenant") ?? undefined;
     let permdock: PermDock;
@@ -250,5 +393,8 @@ export function createEvaluationsHandler(options: {
     return Response.json(await Promise.resolve(snapshot));
   };
 
-  return { POST, GET };
+  return {
+    POST: async (request) => withRequestId(request, await POST(request)),
+    GET: async (request) => withRequestId(request, await GET(request)),
+  };
 }

@@ -105,6 +105,7 @@ export {
   memoryPolicySource,
   mergeHostedGrants,
   parsePolicyDocument,
+  policyDocumentFromClaims,
 } from "./core/hosted.ts";
 export type {
   HostedGrant,
@@ -405,13 +406,17 @@ export {
   delegatedPermissions,
 } from "./core/delegation.ts";
 export {
+  capabilityFromClaims,
   capabilitySubject,
   linkPolicyViolation,
   parseCapability,
+  parseCapabilityClaim,
   signCapability,
 } from "./core/capability.ts";
 export type {
   Capability,
+  CapabilityClaim,
+  CapabilityConfirmation,
   CapabilityInput,
   CapabilityRedeemer,
   LinkPolicy,

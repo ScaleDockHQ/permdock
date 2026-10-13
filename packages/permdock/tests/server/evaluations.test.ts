@@ -113,6 +113,69 @@ describe("createEvaluationsHandler POST", () => {
     });
   });
 
+  it.each<[string | undefined, readonly boolean[]]>([
+    [undefined, [true, false, true]],
+    ["execute_all", [true, false, true]],
+    ["deny_on_first_deny", [true, false]],
+    ["permit_on_first_permit", [true]],
+  ])("evaluates under evaluations_semantic %s", async (semantic, decisions) => {
+    const response = await handler().POST(
+      post({
+        ...(semantic === undefined
+          ? {}
+          : { options: { evaluations_semantic: semantic } }),
+        evaluations: [
+          {
+            action: { name: "post.update" },
+            resource: { properties: ownPost },
+          },
+          {
+            action: { name: "post.update" },
+            resource: { properties: otherPost },
+          },
+          { action: { name: "post.read" }, resource: { properties: ownPost } },
+        ],
+      }),
+    );
+    expect((await rows(response)).map((row) => row.decision)).toEqual(
+      decisions,
+    );
+  });
+
+  it("refuses an unknown evaluations_semantic and echoes X-Request-ID", async () => {
+    const request = new Request(ENDPOINT, {
+      method: "POST",
+      headers: { "x-request-id": "req-9" },
+      body: JSON.stringify({
+        options: { evaluations_semantic: "first" },
+        evaluations: [],
+      }),
+    });
+    const response = await handler().POST(request);
+    expect([response.status, response.headers.get("x-request-id")]).toEqual([
+      400,
+      "req-9",
+    ]);
+  });
+
+  it("gives a denial reason_admin and reason_user", async () => {
+    const [row] = await rows(
+      await handler().POST(
+        post({
+          evaluations: [
+            {
+              action: { name: "post.update" },
+              resource: { properties: otherPost },
+            },
+          ],
+        }),
+      ),
+    );
+    expect(row?.context).toMatchObject({
+      reason_user: { en: "post.update is not permitted." },
+    });
+  });
+
   it("answers the signature problem when resolving the instance rejects it", async () => {
     const problem = invalidSignatureProblem("bad signature");
     const response = await handler({

@@ -295,6 +295,53 @@ describe("AuthZEN 1.0 section 8: Search APIs", () => {
   });
 });
 
+describe("AuthZEN 1.0 section 5: information model", () => {
+  it('reads id "*" as the collection, never as a row id', async () => {
+    const collection = await post("/access/v1/evaluation", {
+      subject: member,
+      action: { name: "create" },
+      resource: { type: "post", id: "*" },
+    });
+    expect(await json(collection)).toMatchObject({ decision: true });
+    const row = await post("/access/v1/evaluation", {
+      subject: member,
+      action: { name: "update" },
+      resource: { type: "post", id: "*" },
+    });
+    expect(await json(row)).toMatchObject({ decision: false });
+  });
+
+  it("reads a delegation as scope and authorization_details", async () => {
+    const delegated = (delegation: unknown) =>
+      post("/access/v1/evaluation", {
+        subject: member,
+        action: { name: "update" },
+        resource: own,
+        context: { delegation },
+      }).then(json);
+    expect(await delegated({ scope: "post:update" })).toMatchObject({
+      decision: true,
+    });
+    expect(await delegated({ scope: "post:read" })).toMatchObject({
+      decision: false,
+    });
+  });
+
+  it("fills reason_admin and reason_user on a denial", async () => {
+    const body = await json(
+      await post("/access/v1/evaluation", {
+        subject: member,
+        action: { name: "update" },
+        resource: other,
+      }),
+    );
+    expect(body["context"]).toMatchObject({
+      reason_admin: { en: expect.stringMatching(/^post\.update denied: /u) },
+      reason_user: { en: "post.update is not permitted." },
+    });
+  });
+});
+
 describe("AuthZEN 1.0 section 9: PDP metadata", () => {
   it("policy_decision_point is the PDP identifier and every endpoint is beneath it", async () => {
     const response = await permdockHandler(

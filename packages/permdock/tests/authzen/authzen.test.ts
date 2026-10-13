@@ -130,7 +130,11 @@ describe("permdock/authzen", () => {
     const deniedBody = (await denied.json()) as {
       readonly context: { readonly permdock: Record<string, unknown> };
     };
-    expect(Object.keys(deniedBody.context)).toEqual(["permdock"]);
+    expect(Object.keys(deniedBody.context).toSorted()).toEqual([
+      "permdock",
+      "reason_admin",
+      "reason_user",
+    ]);
     expect(Object.keys(deniedBody.context.permdock).toSorted()).toEqual([
       "denials",
       "outcome",
