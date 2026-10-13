@@ -1179,65 +1179,76 @@ revoke execute on function "permdock".permitted_customer_permission_keys_for(uui
 -- the users who hold a permission on one organization: its members and the global-role holders for whom the _for helpers answer; no client role may execute it
 create or replace function "permdock".permitted_organization_users(p_permission text, p_id uuid)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
 as $$
-  select c.user_id
-  from (
-    select h.user_id::uuid
+declare
+  v_key_0 "public"."memberships"."scope_id"%type := p_id;
+begin
+  return query
+    select c.user_id
     from (
-      select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
-      from "public"."memberships" m
-      where m."scope"::text = 'organization' and m."scope_id" = p_id
-    ) h
-    union
-    select ur.user_id::uuid
-    from "permdock".user_roles ur
-  ) c(user_id)
-  where c.user_id is not null
-    and (
-      p_id in (select "permdock".permitted_organization_ids_by_permission_for(c.user_id, p_permission))
-      or "permdock".permdock_has_permission_for(c.user_id, p_permission)
-    )
-  order by 1
+      select h.user_id::uuid
+      from (
+        select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
+        from "public"."memberships" m
+        where m."scope"::text = 'organization' and m."scope_id" = v_key_0
+      ) h
+      union
+      select ur.user_id::uuid
+      from "permdock".user_roles ur
+    ) c(user_id)
+    where c.user_id is not null
+      and (
+        p_id in (select "permdock".permitted_organization_ids_by_permission_for(c.user_id, p_permission))
+        or "permdock".permdock_has_permission_for(c.user_id, p_permission)
+      )
+    order by 1;
+end
 $$;
 revoke execute on function "permdock".permitted_organization_users(text, uuid) from public, anon, authenticated;
 
 -- the users who hold a permission on one customer: its members and the global-role holders for whom the _for helpers answer; no client role may execute it
 create or replace function "permdock".permitted_customer_users(p_permission text, p_id uuid)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
 as $$
-  select c.user_id
-  from (
-    select h.user_id::uuid
+declare
+  v_key_0 "public"."memberships"."scope_id"%type := p_id;
+  v_key_1 "public"."contacts"."customer_id"%type := p_id;
+begin
+  return query
+    select c.user_id
     from (
-      select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
-      from "public"."memberships" m
-      where m."scope"::text = 'customer' and m."scope_id" = p_id
-    ) h
-    union
-    select h.user_id::uuid
-    from (
-      select m."customer_id"::text as id, m."user_id"::text as user_id, mf.role as role, 'contact'::text as via, true as live
-      from "public"."contacts" m cross join lateral unnest(array['contact']::text[]) mf(role)
-      where m."customer_id" = p_id
-    ) h
-    union
-    select ur.user_id::uuid
-    from "permdock".user_roles ur
-  ) c(user_id)
-  where c.user_id is not null
-    and (
-      p_id in (select "permdock".permitted_customer_ids_by_permission_for(c.user_id, p_permission))
-      or "permdock".permdock_has_permission_for(c.user_id, p_permission)
-    )
-  order by 1
+      select h.user_id::uuid
+      from (
+        select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
+        from "public"."memberships" m
+        where m."scope"::text = 'customer' and m."scope_id" = v_key_0
+      ) h
+      union
+      select h.user_id::uuid
+      from (
+        select m."customer_id"::text as id, m."user_id"::text as user_id, mf.role as role, 'contact'::text as via, true as live
+        from "public"."contacts" m cross join lateral unnest(array['contact']::text[]) mf(role)
+        where m."customer_id" = v_key_1
+      ) h
+      union
+      select ur.user_id::uuid
+      from "permdock".user_roles ur
+    ) c(user_id)
+    where c.user_id is not null
+      and (
+        p_id in (select "permdock".permitted_customer_ids_by_permission_for(c.user_id, p_permission))
+        or "permdock".permdock_has_permission_for(c.user_id, p_permission)
+      )
+    order by 1;
+end
 $$;
 revoke execute on function "permdock".permitted_customer_users(text, uuid) from public, anon, authenticated;
 
