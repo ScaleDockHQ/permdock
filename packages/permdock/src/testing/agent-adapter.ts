@@ -2,11 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { ToolMap } from "../agent/types.ts";
 import type { ApprovalStore } from "../approvals/index.ts";
-import type { Principal, RoleSource } from "../index.ts";
+import type { Principal, CustomRoleSource } from "../index.ts";
 import type { SaasProject } from "./saas/permissions.ts";
 
 import { memoryApprovalStore } from "../approvals/index.ts";
-import { memoryRoleSource } from "../index.ts";
+import { memoryCustomRoleSource } from "../index.ts";
 import { saasPermissions } from "./saas/permissions.ts";
 import { saasPolicy } from "./saas/policy.ts";
 import { saasCustomRoles, saasPrincipal, saasSeed } from "./saas/seed.ts";
@@ -36,7 +36,7 @@ export type AgentScenarioDomain = {
    * approval.
    */
   readonly tools: ToolMap & { readonly [K in AgentToolName]: ToolMap[K] };
-  readonly customRoles: RoleSource;
+  readonly customRoles: CustomRoleSource;
   readonly store: ApprovalStore;
 };
 
@@ -191,7 +191,7 @@ function createDomain(): AgentScenarioDomain {
       },
       api_keys_revoke_all: { permission: saasPermissions.apiKey.revokeAll },
     },
-    customRoles: memoryRoleSource(saasCustomRoles),
+    customRoles: memoryCustomRoleSource(saasCustomRoles),
     store: memoryApprovalStore(),
   };
 }

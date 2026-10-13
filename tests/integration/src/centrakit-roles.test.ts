@@ -3,7 +3,11 @@ import type { Client } from "pg";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { composeMemberships, createPermDock, memoryRoleSource } from "permdock";
+import {
+  composeMemberships,
+  createPermDock,
+  memoryCustomRoleSource,
+} from "permdock";
 import { subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -324,7 +328,7 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
   });
 
   it("resolves a tenant's custom role key within that tenant at runtime", async () => {
-    const customRoles = memoryRoleSource([
+    const customRoles = memoryCustomRoleSource([
       {
         tenant: ORG_A,
         scope: "organization",

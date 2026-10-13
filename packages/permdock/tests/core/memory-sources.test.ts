@@ -5,12 +5,12 @@ import type { Membership } from "../../src/core/subject.ts";
 
 import {
   memoryMembershipSource,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   memorySnapshotSource,
 } from "../../src/core/memory-sources.ts";
 import {
   testMembershipSource,
-  testRoleSource,
+  testCustomRoleSource,
 } from "../../src/testing/conformance/identity.ts";
 import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
@@ -42,9 +42,9 @@ describe("memorySnapshotSource conformance", () => {
   testSnapshotSource(memorySnapshotSource(snapshot));
 });
 
-describe("memoryRoleSource conformance", () => {
-  testRoleSource(
-    memoryRoleSource([
+describe("memoryCustomRoleSource conformance", () => {
+  testCustomRoleSource(
+    memoryCustomRoleSource([
       { tenant: "o1", name: "staff", includes: ["member"] },
       { scope: "global", name: "auditor", includes: ["viewer"] },
     ]),
@@ -92,9 +92,9 @@ describe("memorySnapshotSource", () => {
   });
 });
 
-describe("memoryRoleSource", () => {
+describe("memoryCustomRoleSource", () => {
   it("keeps global roles apart from tenant roles", async () => {
-    const source = memoryRoleSource([
+    const source = memoryCustomRoleSource([
       { tenant: "o1", name: "staff", includes: ["member"] },
       { scope: "global", name: "auditor", includes: ["viewer"] },
     ]);

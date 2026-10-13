@@ -35,11 +35,11 @@ These steps build a native Expo Router app with tabs that a role hides, a snapsh
 import * as SecureStore from "expo-secure-store";
 import {
   memorySnapshotStorage,
-  type PermDockStorage,
+  type SnapshotStorage,
 } from "permdock/react-native";
 import { Platform } from "react-native";
 
-export const storage: PermDockStorage =
+export const storage: SnapshotStorage =
   Platform.OS === "web"
     ? memorySnapshotStorage()
     : {
@@ -206,7 +206,7 @@ const source = localSnapshot({
 </PermDockProvider>;
 ```
 
-`read()` returns what a [`MembershipSource`](/docs/concepts/tenancy) and a [`RoleSource`](/docs/concepts/custom-roles) would on the server: the memberships, global roles, plans and custom roles of the signed-in user. `attributes` carries the principal values conditions read, such as `principal.claims.team_ids`. On every `subscribe` call the provider rebuilds the snapshot and persists it to `storage`. A failed `read()` keeps the current snapshot.
+`read()` returns what a [`MembershipSource`](/docs/concepts/tenancy) and a [`CustomRoleSource`](/docs/concepts/custom-roles) would on the server: the memberships, global roles, plans and custom roles of the signed-in user. `attributes` carries the principal values conditions read, such as `principal.claims.team_ids`. On every `subscribe` call the provider rebuilds the snapshot and persists it to `storage`. A failed `read()` keeps the current snapshot.
 
 The local snapshot decides like the server snapshot for the same rows, with these limits:
 

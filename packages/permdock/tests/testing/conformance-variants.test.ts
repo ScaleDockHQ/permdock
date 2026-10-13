@@ -25,7 +25,7 @@ import {
 import {
   testEntitlementSource,
   testMembershipSource,
-  testRoleSource,
+  testCustomRoleSource,
 } from "../../src/testing/conformance/identity.ts";
 import { testRelationSource } from "../../src/testing/conformance/relations.ts";
 import {
@@ -94,7 +94,7 @@ describe("testRelationSource with periods and no objects", () => {
   testRelationSource(timed, { objects: [] });
 });
 
-describe("testRoleSource with declared role leaves and a policy ceiling", () => {
+describe("testCustomRoleSource with declared role leaves and a policy ceiling", () => {
   const permissions = definePermissions({
     doc: resource({ actions: ["read", "update"] }),
   });
@@ -106,7 +106,7 @@ describe("testRoleSource with declared role leaves and a policy ceiling", () => 
       subject: () => null,
     },
   );
-  testRoleSource(
+  testCustomRoleSource(
     {
       rolesFor: (tenant) => [{ tenant, name: "reviewer", grants: [] }],
     },

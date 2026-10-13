@@ -64,7 +64,7 @@ export type {
 export {
   memoryEntitlementSource,
   memoryMembershipSource,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   memorySnapshotSource,
   memorySettingsSource,
 } from "./core/memory-sources.ts";
@@ -128,8 +128,8 @@ export type {
   RelationGroup,
   RelationHolder,
   RelationSource,
-  RoleSource,
-  RoleSourceFactory,
+  CustomRoleSource,
+  CustomRoleSourceFactory,
   SettingsSource,
   SnapshotSource,
   SubjectResolver,

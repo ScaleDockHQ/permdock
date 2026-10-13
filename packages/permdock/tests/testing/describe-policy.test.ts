@@ -43,7 +43,7 @@ import {
 import {
   testDirectoryStore,
   testMembershipSource,
-  testRoleSource,
+  testCustomRoleSource,
   testSubjectResolver,
 } from "../../src/testing/conformance/identity.ts";
 import {
@@ -572,7 +572,7 @@ describe("conformance runners", () => {
     { principals: [{ id: "bob" }] },
   );
 
-  testRoleSource(
+  testCustomRoleSource(
     {
       rolesFor: () => [{ tenant: "o1", name: "staff", includes: ["member"] }],
       assignable: () => ["member"],

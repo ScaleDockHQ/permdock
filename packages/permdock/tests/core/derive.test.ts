@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { RoleSource } from "../../src/core/interfaces.ts";
+import type { CustomRoleSource } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
@@ -59,7 +59,7 @@ describe("permdock.derive", () => {
       context: {},
     };
     const asked: string[] = [];
-    const source: RoleSource = {
+    const source: CustomRoleSource = {
       rolesFor(tenant) {
         asked.push(tenant);
         return mechanic.filter((role) => role.tenant === tenant);

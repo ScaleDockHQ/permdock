@@ -1,7 +1,7 @@
 import type { JsonWebKeySet } from "permdock/jwt";
 
 import { Hono } from "hono";
-import { memoryRoleSource } from "permdock";
+import { memoryCustomRoleSource } from "permdock";
 import { createPermDock as createAuthzen } from "permdock/authzen";
 import { createPermDock as createHono } from "permdock/hono";
 import { createJwtSubjectResolver } from "permdock/jwt";
@@ -21,7 +21,7 @@ import {
 /** The only bearer the AuthZEN endpoint accepts: a test-only PEP credential. */
 export const PEP_TOKEN = "runtimes-pep-bearer";
 
-export const customRoles = memoryRoleSource(saasCustomRoles);
+export const customRoles = memoryCustomRoleSource(saasCustomRoles);
 
 const verify = createJwtSubjectResolver({
   // SAFETY: saasJwks is a well-formed EC JWKS; its EcJwk type differs from JsonWebKeySet's key type

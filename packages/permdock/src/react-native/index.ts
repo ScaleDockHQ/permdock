@@ -51,7 +51,7 @@ export type { LocalSnapshotManifest } from "../core/snapshot-types.ts";
 export type {
   NativePermDockProviderProps,
   NativeRevalidate,
-  PermDockStorage,
+  SnapshotStorage,
   SubscribeForeground,
   SubscribeOnline,
 } from "./types.ts";

@@ -33,7 +33,7 @@ export type DecisionProvider = {
   }): Promise<readonly string[] | null | undefined>;
 };
 
-export type RoleSource = {
+export type CustomRoleSource = {
   /**
    * The custom roles of one tenant. `createPermDock` passes `held`, the role
    * names the subject's live memberships hold there, declared or not, so a
@@ -55,12 +55,14 @@ export type RoleSource = {
 };
 
 /**
- * A `RoleSource` built for the subject the instance serves, for an adapter
+ * A `CustomRoleSource` built for the subject the instance serves, for an adapter
  * option shared by every request: it gets the resolved subject (principal,
  * actor and delegation) and returns that subject's source, or `undefined`
  * for none. A throw reads no custom roles and reports `source-threw`.
  */
-export type RoleSourceFactory = (subject: Subject) => RoleSource | undefined;
+export type CustomRoleSourceFactory = (
+  subject: Subject,
+) => CustomRoleSource | undefined;
 
 /** One member of a scope instance, as `MembershipSource.list` returns it. */
 export type MemberEntry = {
@@ -329,7 +331,7 @@ export type TenantSettings = {
 };
 
 /**
- * Per-tenant settings, a subject input like `RoleSource`: they tighten what
+ * Per-tenant settings, a subject input like `CustomRoleSource`: they tighten what
  * a key may be and never grant. A throw denies.
  */
 export type SettingsSource = {

@@ -1,5 +1,5 @@
 import type { Snapshot } from "../core/snapshot-types.ts";
-import type { PermDockStorage } from "./types.ts";
+import type { SnapshotStorage } from "./types.ts";
 
 import { isJws } from "../client/source.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
@@ -10,7 +10,7 @@ export const TENANT_KEY = "permdock.tenant";
 
 export function memorySnapshotStorage(
   initial: Readonly<Record<string, string>> = {},
-): PermDockStorage {
+): SnapshotStorage {
   const map = new Map<string, string>(Object.entries(initial));
   return {
     getItem(key: string): string | null {
@@ -96,7 +96,7 @@ export type GuardedStorage = {
   fail(error: unknown): void;
 };
 
-export function guardStorage(storage: PermDockStorage): GuardedStorage {
+export function guardStorage(storage: SnapshotStorage): GuardedStorage {
   let warned = false;
   const fail = (error: unknown): void => {
     const dev = Reflect.get(globalThis, "__DEV__") === true;

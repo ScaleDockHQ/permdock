@@ -150,7 +150,7 @@ On the snapshot-backed client `decideRoleChange` always denies with `unsupported
 
 ## Who may hand out what
 
-Without `assigns`, [`assignableRoles()`](/docs/concepts/custom-roles) keeps its ceiling rule: the declared assignable roles the subject holds, plus those whose every allow the subject holds. Once any role declares `assigns`, the graph is authoritative: the subject hands out exactly the roles its held roles list, whether or not it holds their permissions (an admin who lists `contact` links portal contacts without holding `quote.accept`), and a role nobody lists is assignable only by a `meta.manageRoles` holder. `RoleSource.assignable(tenant)` narrows either list.
+Without `assigns`, [`assignableRoles()`](/docs/concepts/custom-roles) keeps its ceiling rule: the declared assignable roles the subject holds, plus those whose every allow the subject holds. Once any role declares `assigns`, the graph is authoritative: the subject hands out exactly the roles its held roles list, whether or not it holds their permissions (an admin who lists `contact` links portal contacts without holding `quote.accept`), and a role nobody lists is assignable only by a `meta.manageRoles` holder. `CustomRoleSource.assignable(tenant)` narrows either list.
 
 ## Rank and audiences
 

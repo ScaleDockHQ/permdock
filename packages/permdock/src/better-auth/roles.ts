@@ -1,4 +1,4 @@
-import type { DecisionSink, RoleSource } from "../core/interfaces.ts";
+import type { DecisionSink, CustomRoleSource } from "../core/interfaces.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
 import type { RoleBinding } from "../core/policy-types.ts";
 import type { CustomRole } from "../core/subject.ts";
@@ -6,7 +6,7 @@ import type {
   BetterAuthAccessControl,
   BetterAuthLike,
   BetterAuthRoleChangeEvent,
-  BetterAuthRoleSourceOptions,
+  BetterAuthCustomRoleSourceOptions,
   BetterAuthStatements,
   BetterAuthUnmatchedStatement,
 } from "./types.ts";
@@ -65,10 +65,10 @@ export function rolesFromAccessControl(
   return Object.assign(roles, { unmatched });
 }
 
-export function betterAuthRoleSource(
+export function betterAuthCustomRoleSource(
   auth: BetterAuthLike,
-  options: BetterAuthRoleSourceOptions = {},
-): RoleSource {
+  options: BetterAuthCustomRoleSourceOptions = {},
+): CustomRoleSource {
   const assignableRoles = options.assignable ?? [];
   return {
     async rolesFor(tenant: string): Promise<CustomRole[]> {

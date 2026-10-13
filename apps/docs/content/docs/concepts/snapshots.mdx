@@ -35,7 +35,7 @@ const snapshot = snapshotFor(policy, claims, {
   tenant: org, // the org in the URL; ignored without a matching membership
   plans: [orgPlan], // plans are per tenant; pass the active org's plan
   customRoles: orgRoles, // CustomRole[] loaded by the app, filtered to the subject's orgs
-  assignable: { [org]: offered }, // optional: RoleSource.assignable per tenant
+  assignable: { [org]: offered }, // optional: CustomRoleSource.assignable per tenant
   memberships: rowsFromDatabase, // database mode: replaces the memberships in the claims
 });
 ```

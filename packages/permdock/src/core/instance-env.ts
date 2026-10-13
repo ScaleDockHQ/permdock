@@ -5,7 +5,7 @@ import type {
   LimitStore,
   MembershipSource,
   RelationSource,
-  RoleSource,
+  CustomRoleSource,
 } from "./interfaces.ts";
 import type { DeriveOptions } from "./permdock.ts";
 import type { Policy } from "./policy-types.ts";
@@ -34,8 +34,8 @@ export type InstanceEnv = {
   readonly limits: LimitStore | undefined;
   readonly limitCache: Map<string, number>;
   readonly simulated: boolean;
-  readonly roleSource: RoleSource | undefined;
-  /** `RoleSource.assignable` per tenant, loaded with the custom roles. */
+  readonly roleSource: CustomRoleSource | undefined;
+  /** `CustomRoleSource.assignable` per tenant, loaded with the custom roles. */
   readonly assignable?: ReadonlyMap<string, readonly string[]>;
   readonly queuedAuth: readonly AuthEvent[];
   /** Errors from building the instance (a dropped hosted grant), replayed to `on('error')`. */

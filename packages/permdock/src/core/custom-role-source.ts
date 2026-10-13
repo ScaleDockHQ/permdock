@@ -1,4 +1,4 @@
-import type { RoleSource } from "./interfaces.ts";
+import type { CustomRoleSource } from "./interfaces.ts";
 import type { Policy } from "./policy-types.ts";
 import type { CustomRole } from "./subject.ts";
 
@@ -37,7 +37,7 @@ function ofTenant(tenant: string, roles: unknown): CustomRole[] {
 }
 
 /**
- * A `RoleSource` over a reader that returns every custom role of a tenant.
+ * A `CustomRoleSource` over a reader that returns every custom role of a tenant.
  * It keeps only the roles of the requested tenant. With `read: 'held'` it
  * skips a tenant's read, and `globalRoles`, when the subject holds only
  * declared roles there.
@@ -45,10 +45,10 @@ function ofTenant(tenant: string, roles: unknown): CustomRole[] {
 export function customRoleSource(
   reader: CustomRoleReader,
   options: CustomRoleSourceOptions = {},
-): RoleSource {
+): CustomRoleSource {
   const declared =
     options.read === "held" ? declaredRoleNames(options.policy) : undefined;
-  const source: RoleSource = {
+  const source: CustomRoleSource = {
     rolesFor(tenant, context) {
       if (
         declared !== undefined &&

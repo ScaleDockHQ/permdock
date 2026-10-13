@@ -20,7 +20,7 @@ export type VocabularyOptions<X = never> = {
   /**
    * A Standard Schema for every leaf's `meta.x`, validated synchronously at
    * definition time. On a role tree it also checks the `meta.x` of custom
-   * roles a `RoleSource` returns; an invalid one is dropped, not the role.
+   * roles a `CustomRoleSource` returns; an invalid one is dropped, not the role.
    */
   readonly x?: AppDataSchema<X>;
 };

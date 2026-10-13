@@ -5,7 +5,7 @@ import type { Principal } from "../../src/core/subject.ts";
 import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -101,7 +101,7 @@ const dave: Principal = {
 async function both(user: Principal, tenant: string) {
   const server = await createPermDock(policy, user, {
     tenant,
-    customRoles: memoryRoleSource([
+    customRoles: memoryCustomRoleSource([
       { tenant: "acme", name: "contractor", includes: ["viewer"] },
       { tenant: "globex", name: "contractor", includes: ["admin"] },
     ]),

@@ -87,7 +87,7 @@ definePolicy(permissions, {
 ```
 
 - Its fields are the values that `subject.<field>` references read in [conditions](/docs/concepts/conditions). Nothing else about the user is visible to the policy.
-- `roles` selects which global `role()` grants apply. `memberships` selects scoped roles: each entry names a tenant, a team inside a tenant, or one resource, and the roles held there; `tenant` is the active tenant this request is about. A membership with a role name the policy never declared is resolved as a tenant-defined custom role through the `RoleSource`, or dropped. Full rules on [tenants, teams and scoped roles](/docs/concepts/tenancy).
+- `roles` selects which global `role()` grants apply. `memberships` selects scoped roles: each entry names a tenant, a team inside a tenant, or one resource, and the roles held there; `tenant` is the active tenant this request is about. A membership with a role name the policy never declared is resolved as a tenant-defined custom role through the `CustomRoleSource`, or dropped. Full rules on [tenants, teams and scoped roles](/docs/concepts/tenancy).
 - It is computed once per `createPermDock`, frozen, and included in the snapshot so the client evaluates the same conditions against the same values.
 - It is never taken from a model, a tool argument or a request body. Adapters derive it from verified auth material (session cookie, bearer token `authInfo`, provider session) through a `subjectFrom<Source>` function; what counts as verified is defined in [Authentication and PermDock](/docs/concepts/authentication). See also the [threat model](/docs/security/threat-model).
 

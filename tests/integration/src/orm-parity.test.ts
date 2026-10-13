@@ -9,7 +9,7 @@ import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { Kysely, PostgresDialect } from "kysely";
 import { readFileSync } from "node:fs";
-import { createPermDock, memoryRoleSource } from "permdock";
+import { createPermDock, memoryCustomRoleSource } from "permdock";
 import {
   checkRow as drizzleCheckRow,
   toWhere as drizzleWhere,
@@ -124,7 +124,7 @@ function principalFor(
   return saasPrincipal(user, tenant);
 }
 
-const saasRoleSource = memoryRoleSource(saasCustomRoles);
+const saasRoleSource = memoryCustomRoleSource(saasCustomRoles);
 
 const saasChecks = [
   p.project.read,

@@ -20,7 +20,7 @@ import {
   definePermissions,
   definePolicy,
   holder,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   normalizeApproval,
   resource,
   role,
@@ -121,7 +121,7 @@ describe("approver kinds", () => {
     const { request } = await pending();
     const erin = inTenant("erin", ["treasury"]);
     const instance = await createPermDock(policy, erin, {
-      customRoles: memoryRoleSource([
+      customRoles: memoryCustomRoleSource([
         {
           name: "treasury",
           tenant: "o1",

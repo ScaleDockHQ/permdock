@@ -8,7 +8,7 @@ import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { authenticated, relation } from "../../src/core/grantee.ts";
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -253,7 +253,7 @@ async function serverSnapshot(
     { ...user, claims },
     {
       ...(tenant === undefined ? {} : { tenant }),
-      customRoles: memoryRoleSource(customRoles),
+      customRoles: memoryCustomRoleSource(customRoles),
     },
   );
   return parseSnapshot(JSON.stringify(server.snapshot()));

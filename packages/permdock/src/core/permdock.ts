@@ -15,8 +15,8 @@ import type {
   EntitlementSource,
   MembershipSource,
   RelationSource,
-  RoleSource,
-  RoleSourceFactory,
+  CustomRoleSource,
+  CustomRoleSourceFactory,
   TokenSigner,
 } from "./interfaces.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
@@ -408,7 +408,7 @@ export type PermDockOptions = {
   readonly tenant?: string;
   /** One source, or several composed with `composeMemberships`. */
   readonly memberships?: MembershipSource | readonly MembershipSource[];
-  readonly customRoles?: RoleSource | RoleSourceFactory;
+  readonly customRoles?: CustomRoleSource | CustomRoleSourceFactory;
   /** Plans and seats from billing, merged into `principal.plans` for the active tenant. */
   readonly entitlements?: EntitlementSource;
   readonly actor?: Actor;

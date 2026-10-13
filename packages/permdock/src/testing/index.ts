@@ -103,7 +103,7 @@ export {
   testEntitlementSource,
   testDirectoryStore,
   testMembershipSource,
-  testRoleSource,
+  testCustomRoleSource,
   testSettingsSource,
   testSubjectResolver,
 } from "./conformance/identity.ts";

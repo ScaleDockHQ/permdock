@@ -7,7 +7,7 @@ import {
   createPermDock,
   fromSnapshot,
   memoryLimitStore,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   parseSnapshot,
 } from "../../../src/index.ts";
 import {
@@ -32,7 +32,7 @@ import { reasonOf } from "../../fixtures/decisions.ts";
 async function instanceFor(user: string, tenant: string | undefined) {
   return createPermDock(saasPolicy, saasPrincipal(user, tenant), {
     ...(tenant === undefined ? {} : { tenant }),
-    customRoles: memoryRoleSource(saasCustomRoles),
+    customRoles: memoryCustomRoleSource(saasCustomRoles),
     limits: memoryLimitStore(),
     relations: saasRelations(),
   });

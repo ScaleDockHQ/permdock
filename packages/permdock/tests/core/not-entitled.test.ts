@@ -5,7 +5,7 @@ import {
   requiredPlans,
 } from "../../src/core/describe.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { problemFromDecision } from "../../src/server/problem.ts";
@@ -19,7 +19,7 @@ import {
 async function both(user: string, tenant: string) {
   const server = await createPermDock(saasPolicy, saasPrincipal(user, tenant), {
     tenant,
-    customRoles: memoryRoleSource(saasCustomRoles),
+    customRoles: memoryCustomRoleSource(saasCustomRoles),
   });
   const client = fromSnapshot(parseSnapshot(JSON.stringify(server.snapshot())));
   return { server, client };

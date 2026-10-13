@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
-import type { PermDockStorage } from "../../src/react-native/types.ts";
+import type { SnapshotStorage } from "../../src/react-native/types.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";
 import { PermDockProvider } from "../../src/react-native/provider.tsx";
@@ -119,7 +119,7 @@ describe("permdock/react-native", () => {
   });
 });
 
-type AsyncStorage = PermDockStorage & {
+type AsyncStorage = SnapshotStorage & {
   readonly writes: string[];
   readonly map: Map<string, string>;
 };
@@ -148,7 +148,7 @@ function asyncStorage(
 }
 
 /** A keychain-like store whose every call throws synchronously. */
-function throwingStorage(): PermDockStorage {
+function throwingStorage(): SnapshotStorage {
   return {
     getItem: () => {
       throw new Error("keychain locked");
@@ -226,7 +226,7 @@ describe("permdock/react-native storage", () => {
     expect(
       readStoredSync(guardStorage(throwingStorage()), "u1", false),
     ).toEqual({ stored: undefined, tenant: undefined });
-    const rejecting: PermDockStorage = {
+    const rejecting: SnapshotStorage = {
       getItem: () => Promise.reject(new Error("io")),
       setItem: () => undefined,
       removeItem: () => undefined,

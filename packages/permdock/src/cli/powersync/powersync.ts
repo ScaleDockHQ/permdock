@@ -9,7 +9,7 @@ import {
   createPermDock,
   findPermission,
   localSnapshotManifest,
-  memoryRoleSource,
+  memoryCustomRoleSource,
 } from "../../index.ts";
 import { usageResult } from "../errors.ts";
 import {
@@ -178,7 +178,7 @@ async function verifyStreams(input: {
   readonly policy: Policy;
   readonly config: PermDockConfig;
   readonly fixtures: readonly RlsFixture[];
-  readonly customRoles: Parameters<typeof memoryRoleSource>[0];
+  readonly customRoles: Parameters<typeof memoryCustomRoleSource>[0];
   readonly db: string;
   readonly connect: SqlConnect;
 }): Promise<{ readonly mismatches: string[]; readonly notes: string[] }> {
@@ -232,7 +232,7 @@ async function verifyStreams(input: {
           ...fixture.subject,
           ...(tenant === undefined ? {} : { tenant }),
         }),
-        { customRoles: memoryRoleSource(input.customRoles) },
+        { customRoles: memoryCustomRoleSource(input.customRoles) },
       );
       const granted = canFixture(
         permdock,

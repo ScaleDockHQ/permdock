@@ -129,7 +129,7 @@ An access review asks a named owner to confirm, per person, that what they could
 1. **Scope.** The tenant, the window, the reviewer, and the permissions in scope (usually every permission the catalog marks destructive or `approval: 'human'`, plus anything `hostable`).
 2. **Population.** Every principal with a `granted` or `approval-required` event on an in-scope permission in the window, from the CSV filtered on `tenant` and `permission`. Add principals whose current memberships grant an in-scope permission but who did not use it; unused access is the finding reviews most often surface.
 3. **Per principal.** The roles and memberships behind each grant (`matched.role`, `via`), the count of `granted`, `denied` and `approval-required` events per permission, and the agents that acted for them (`actor`).
-4. **Decision.** The reviewer marks each principal and permission keep, reduce or revoke, with a reason. [Access reviews](/docs/concepts/access-reviews) stores that decision. Reduce and revoke change the role or membership at its source (the identity provider, SCIM, the application's `RoleSource`); the application then marks the item applied. PermDock never applies the change itself.
+4. **Decision.** The reviewer marks each principal and permission keep, reduce or revoke, with a reason. [Access reviews](/docs/concepts/access-reviews) stores that decision. Reduce and revoke change the role or membership at its source (the identity provider, SCIM, the application's `CustomRoleSource`); the application then marks the item applied. PermDock never applies the change itself.
 5. **Evidence.** The CSV rows, the signed batch covering the same window, and the reviewer's decisions, filed with the compliance platform.
 
 Agents get the same review keyed on `actor` instead of `principal`: which delegations they used, for whom, and whether any `approval-required` call was approved by the principal it acted for.
@@ -143,7 +143,7 @@ Governance means acting on what the log shows. The actions PermDock Cloud (or an
 - **Reject pending approvals** for an actor, a principal or a tenant through `ApprovalStore.resolve(token, 'rejected')`. This stops in-flight approval-gated actions.
 - **Invalidate snapshots** through `SnapshotSource`, so cached clients refetch and a revoked membership or role takes effect at the edge.
 
-A "freeze this agent" button in the Cloud is those two operations plus a recommendation: the application's own `RoleSource` or `context` reads a kill-switch table the application owns, so the next `decide` denies. The Cloud cannot deny a future check, because nothing the Cloud stores is consulted on the decision path (invariant 15). This is the same reason the log is trustworthy as evidence: it records decisions it could not have influenced.
+A "freeze this agent" button in the Cloud is those two operations plus a recommendation: the application's own `CustomRoleSource` or `context` reads a kill-switch table the application owns, so the next `decide` denies. The Cloud cannot deny a future check, because nothing the Cloud stores is consulted on the decision path (invariant 15). This is the same reason the log is trustworthy as evidence: it records decisions it could not have influenced.
 
 ### OpenTelemetry is not the evidence path
 

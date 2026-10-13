@@ -103,7 +103,7 @@ function oldNames(paths: RenameDriftPaths): readonly string[] {
     (name) =>
       [
         name,
-        // `>` before a name is a placeholder such as `<provider>RoleSource`, not the old name
+        // `>` before a name is a placeholder such as `<provider>CustomRoleSource`, not the old name
         new RegExp(`(?<![\\w$>])${RegExp.escape(name)}(?![\\w$])`, "u"),
       ] as const,
   );

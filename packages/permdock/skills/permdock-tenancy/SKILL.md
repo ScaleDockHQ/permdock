@@ -22,7 +22,7 @@ A policy declares its scopes in order (an organization, the customers inside it)
 
 ## Invariants
 
-1. Memberships and custom roles come only from a `subjectFrom*` provider, the policy's `subject` or `context` function, a `MembershipSource` or a `RoleSource`. Never from a request body, an unsigned header, a model argument or a CLI flag.
+1. Memberships and custom roles come only from a `subjectFrom*` provider, the policy's `subject` or `context` function, a `MembershipSource` or a `CustomRoleSource`. Never from a request body, an unsigned header, a model argument or a CLI flag.
 2. A requested tenant with no matching membership is no tenant, never a default one. Team and tenant ids are identifiers, never display names.
 3. No cascade. An organization owner sees no customer portal unless they also hold a contact membership, and a global role never reaches scoped rows. An instance check without a row answers from first-scope memberships only; a nested membership needs the row or `permdock.team(id)`. A collection check (`create`, `list`) still answers from any membership in the tenant; for a staff-only guard pass `{ scope: '<first scope>' }` as the decide option.
 4. Role rules live on the role (`min`, `assigns`, `for`), not in handlers. `decideRoleChange` takes the actor from the instance and never writes.
@@ -60,9 +60,9 @@ A policy declares its scopes in order (an organization, the customers inside it)
 
 4. **Put ownership on the roles.** Set `min: 1` on the role that manages each scope, `assigns` for who hands out what, `for: ['staff']` on admin-like roles, and `meta.audience` for the surface. Every server action that changes a membership calls `permdock.decideRoleChange(...)` with the target's current membership and the holder count before it writes. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md)
    ✓ PD026 is clean, and removing the last owner is denied with `last-holder`.
-5. **Custom roles, when tenant admins define roles.** Keep declared roles small and mark them in `defineRoles` (`editor: { on: 'organization', assignable: true }`). Pass a `RoleSource` as `customRoles`, build the editor from `useAssignablePermissions()`, and save through a server action that runs `validateCustomRole`. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md#custom-roles)
+5. **Custom roles, when tenant admins define roles.** Keep declared roles small and mark them in `defineRoles` (`editor: { on: 'organization', assignable: true }`). Pass a `CustomRoleSource` as `customRoles`, build the editor from `useAssignablePermissions()`, and save through a server action that runs `validateCustomRole`. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md#custom-roles)
    ✓ PD023 is clean, and saving a role with a permission outside the ceiling is refused.
-6. **Test.** Add `describePolicy` rows for a member of another tenant, a contact reaching an organization row, and a role change that breaks `min` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). Run `testMembershipSource` and `testRoleSource` from `permdock/testing` on custom sources. For list queries and RLS over scoped tables, follow the `permdock-data` skill.
+6. **Test.** Add `describePolicy` rows for a member of another tenant, a contact reaching an organization row, and a role change that breaks `min` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). Run `testMembershipSource` and `testCustomRoleSource` from `permdock/testing` on custom sources. For list queries and RLS over scoped tables, follow the `permdock-data` skill.
    ✓ The tests pass.
 
 ## Verify before done
@@ -72,7 +72,7 @@ A policy declares its scopes in order (an organization, the customers inside it)
 - [ ] No `assigns` list lets a role appoint a role ranked above it.
 - [ ] Every server action that writes a membership role calls `decideRoleChange` with a `holders` count from the store, never a guess.
 - [ ] Every custom-role save runs `validateCustomRole` and checks `assignablePermissions()`. No single assignable `admin` role makes the ceiling the whole product.
-- [ ] Custom `MembershipSource` and `RoleSource` implementations pass `testMembershipSource` / `testRoleSource`.
+- [ ] Custom `MembershipSource` and `CustomRoleSource` implementations pass `testMembershipSource` / `testCustomRoleSource`.
 
 ## Reference index
 

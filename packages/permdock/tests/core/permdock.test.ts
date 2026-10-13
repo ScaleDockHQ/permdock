@@ -9,7 +9,7 @@ import {
 } from "../../src/core/errors.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -361,7 +361,7 @@ describe("createPermDock", () => {
         roles: ["staff"],
       },
       {
-        customRoles: memoryRoleSource([
+        customRoles: memoryCustomRoleSource([
           { tenant: "unused", name: "staff", includes: ["member"] },
         ]),
       },
@@ -379,7 +379,7 @@ describe("createPermDock", () => {
       },
       {
         tenant: "o1",
-        customRoles: memoryRoleSource([
+        customRoles: memoryCustomRoleSource([
           { tenant: "o1", name: "staff", includes: ["member"] },
         ]),
       },

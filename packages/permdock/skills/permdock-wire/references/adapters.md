@@ -345,7 +345,7 @@ The handler writes users and groups. It never decides. Unknown or non-assignable
 
 ## Cloud — `permdock/cloud`
 
-No factory for a `PermDock`. `cloud({ url, key, environment })` returns `approvals`, `sink`, `snapshots` and `policies` to pass into any adapter, plus the environment `issuer` (`<url>/v1/environments/<environment>`) and its `jwks` URL; `cloudEndpoints({ url, environment })` computes the same two without a key. It never implements `MembershipSource` or `RoleSource` and never decides.
+No factory for a `PermDock`. `cloud({ url, key, environment })` returns `approvals`, `sink`, `snapshots` and `policies` to pass into any adapter, plus the environment `issuer` (`<url>/v1/environments/<environment>`) and its `jwks` URL; `cloudEndpoints({ url, environment })` computes the same two without a key. It never implements `MembershipSource` or `CustomRoleSource` and never decides.
 
 ```ts
 import { cloud } from "permdock/cloud";
@@ -371,13 +371,13 @@ Hosted grants are opt-in per permission. List the permissions a Cloud admin may 
 ```ts
 import {
   subjectFromBetterAuth,
-  betterAuthRoleSource,
+  betterAuthCustomRoleSource,
 } from "permdock/better-auth";
 
 const session = await auth.api.getSession({ headers });
 const subject = await subjectFromBetterAuth(session, { auth });
 const permdock = await createPermDock(policy, subject, {
-  customRoles: betterAuthRoleSource(auth),
+  customRoles: betterAuthCustomRoleSource(auth),
 });
 ```
 

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import type { Permission } from "../../src/core/permission-types.ts";
-import type { PermDockStorage } from "../../src/react-native/types.ts";
+import type { SnapshotStorage } from "../../src/react-native/types.ts";
 
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
 import { parseLocalSnapshotManifest } from "../../src/core/parse-local-manifest.ts";
@@ -213,7 +213,7 @@ function Guard(props: {
   return <>{`${String(ready)}:${String(allowed)}`}</>;
 }
 
-function render(storage: PermDockStorage, guard: ReactElement): string {
+function render(storage: SnapshotStorage, guard: ReactElement): string {
   return renderToStaticMarkup(
     <PermDockProvider storage={storage} subjectId={memberUser.id}>
       {guard}

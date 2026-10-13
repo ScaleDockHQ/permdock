@@ -9,7 +9,7 @@ import {
   createPermDock,
   findPermission,
   memoryRelationSource,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   validateCustomRole,
 } from "permdock";
 import {
@@ -304,7 +304,7 @@ describe("CentraKit adoption shapes", () => {
     const permdock = await createPermDock(
       policy,
       { id: TIER2, roles: ["tier2"] },
-      { customRoles: memoryRoleSource([tier2]) },
+      { customRoles: memoryCustomRoleSource([tier2]) },
     );
     expect(
       permdock.can(permissions.platform.billing.view, { id: PLATFORM_BILL }),

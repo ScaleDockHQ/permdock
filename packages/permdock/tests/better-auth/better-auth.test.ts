@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import {
-  betterAuthRoleSource,
+  betterAuthCustomRoleSource,
   onRoleChange,
   rolesFromAccessControl,
   subjectFromBetterAuth,
@@ -11,7 +11,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { memoryDecisionSink } from "../../src/core/sink.ts";
 import {
-  testRoleSource,
+  testCustomRoleSource,
   testSubjectResolver,
 } from "../../src/testing/conformance/identity.ts";
 
@@ -403,9 +403,9 @@ describe("rolesFromAccessControl", () => {
   });
 });
 
-describe("betterAuthRoleSource conformance", () => {
-  testRoleSource(
-    betterAuthRoleSource(
+describe("betterAuthCustomRoleSource conformance", () => {
+  testCustomRoleSource(
+    betterAuthCustomRoleSource(
       {
         api: {
           listOrganizationRoles: async () => [
@@ -430,9 +430,9 @@ describe("subjectFromBetterAuth conformance", () => {
   );
 });
 
-describe("betterAuthRoleSource", () => {
+describe("betterAuthCustomRoleSource", () => {
   it("includes declared assignable roles whose statements the dynamic role covers", async () => {
-    const source = betterAuthRoleSource(
+    const source = betterAuthCustomRoleSource(
       {
         api: {
           listOrganizationRoles: async () => [
@@ -466,7 +466,7 @@ describe("betterAuthRoleSource", () => {
   });
 
   it("resolves to nothing when the organization role API throws", async () => {
-    const source = betterAuthRoleSource({
+    const source = betterAuthCustomRoleSource({
       api: {
         listOrganizationRoles: async () => {
           throw new Error("down");

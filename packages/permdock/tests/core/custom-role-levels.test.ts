@@ -15,7 +15,7 @@ import {
 } from "../../src/core/custom-roles.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -93,7 +93,7 @@ async function permdockFor(
 ) {
   return createPermDock(policy, subjectIn(memberships), {
     tenant: "acme",
-    customRoles: memoryRoleSource(customRoles),
+    customRoles: memoryCustomRoleSource(customRoles),
   });
 }
 
@@ -502,7 +502,7 @@ describe("deny with levels", () => {
       subjectIn([{ scope: "tenant", id: "acme", roles: ["reader"] }]),
       {
         tenant: "acme",
-        customRoles: memoryRoleSource([
+        customRoles: memoryCustomRoleSource([
           {
             tenant: "acme",
             name: "reader",

@@ -6,7 +6,7 @@ import type { SnapshotSource, TokenVerifier } from "../core/interfaces.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockDefaults } from "../react/types.ts";
 
-export type PermDockStorage = {
+export type SnapshotStorage = {
   getItem(key: string): string | null | Promise<string | null>;
   setItem(key: string, value: string): void | Promise<void>;
   removeItem(key: string): void | Promise<void>;
@@ -29,7 +29,7 @@ export type SubscribeOnline = (
 ) => () => void;
 
 export type NativePermDockProviderProps = {
-  readonly storage: PermDockStorage;
+  readonly storage: SnapshotStorage;
   /**
    * The signed-in principal's id, or `null` when nobody is signed in. Only a
    * persisted snapshot for this id is read or written; `null` clears storage.

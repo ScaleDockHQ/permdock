@@ -47,7 +47,7 @@ export type ApprovalsHandlerOptions = {
   /**
    * The approver's own instance in the request's tenant, for
    * `holder(permission)` approvers (custom roles included when the instance
-   * reads a `RoleSource`). Without it, or when it throws, they match nobody.
+   * reads a `CustomRoleSource`). Without it, or when it throws, they match nobody.
    */
   readonly permdockFor?: (
     approver: Subject,

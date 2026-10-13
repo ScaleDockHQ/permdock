@@ -75,7 +75,7 @@ export type BetterAuthSubjectOptions = {
   readonly declared?: readonly string[];
 };
 
-export type BetterAuthRoleSourceOptions = {
+export type BetterAuthCustomRoleSourceOptions = {
   readonly assignable?: readonly BetterAuthAssignableRole[];
   readonly headers?: unknown;
 };

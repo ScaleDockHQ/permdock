@@ -46,7 +46,7 @@ export type ApprovalPolicy = {
 };
 
 /**
- * Data-driven approval requirements, a subject input like `RoleSource`:
+ * Data-driven approval requirements, a subject input like `CustomRoleSource`:
  * read once per instance for the subject's tenants (entries without a
  * tenant always apply). A throw, a rejected promise or an invalid entry
  * denies every call an allow would otherwise permit.

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { RoleSource } from "../../src/core/interfaces.ts";
+import type { CustomRoleSource } from "../../src/core/interfaces.ts";
 import type { CustomRole, Principal } from "../../src/index.ts";
 
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import {
   assets,
@@ -13,8 +13,8 @@ import {
   policy,
 } from "../fixtures/named-scopes.ts";
 
-function recording(source: RoleSource): {
-  readonly source: RoleSource;
+function recording(source: CustomRoleSource): {
+  readonly source: CustomRoleSource;
   readonly calls: [string, readonly string[] | undefined][];
 } {
   const calls: [string, readonly string[] | undefined][] = [];
@@ -29,9 +29,9 @@ function recording(source: RoleSource): {
   };
 }
 
-describe("RoleSource.rolesFor receives the held role names", () => {
+describe("CustomRoleSource.rolesFor receives the held role names", () => {
   it("passes each tenant's live membership roles, nested scopes included", async () => {
-    const { source, calls } = recording(memoryRoleSource(customRoles));
+    const { source, calls } = recording(memoryCustomRoleSource(customRoles));
     const principal: Principal = {
       ...personas.staffContact,
       memberships: [
@@ -55,7 +55,7 @@ describe("RoleSource.rolesFor receives the held role names", () => {
   it("lets a source skip its read when every held role is declared", async () => {
     const declared = new Set(policy.rolesByName.keys());
     const reads: string[] = [];
-    const source: RoleSource = {
+    const source: CustomRoleSource = {
       rolesFor(tenant, context): CustomRole[] {
         if (context?.held.every((name) => declared.has(name)) === true) {
           return [];

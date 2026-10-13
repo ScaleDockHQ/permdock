@@ -4,7 +4,7 @@ import type { CustomRole } from "../../src/index.ts";
 
 import { customRoleSource } from "../../src/core/custom-role-source.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { testRoleSource } from "../../src/testing/conformance/identity.ts";
+import { testCustomRoleSource } from "../../src/testing/conformance/identity.ts";
 import { customRoles, personas, policy } from "../fixtures/named-scopes.ts";
 
 const stored: readonly CustomRole[] = [
@@ -109,8 +109,8 @@ describe("customRoleSource", () => {
   });
 });
 
-describe("testRoleSource every", () => {
-  testRoleSource(customRoleSource(reader()), {
+describe("testCustomRoleSource every", () => {
+  testCustomRoleSource(customRoleSource(reader()), {
     tenant: "T",
     declared: [...policy.rolesByName.keys()],
     policy,

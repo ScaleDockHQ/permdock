@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 
-import type { Permission, Policy, RoleSource } from "../index.ts";
+import type { Permission, Policy, CustomRoleSource } from "../index.ts";
 
 import { createPermDock, fromSnapshot, parseSnapshot } from "../index.ts";
 
@@ -19,7 +19,7 @@ export type ClientParityCase = {
 };
 
 export type ClientParityOptions = {
-  readonly customRoles?: RoleSource;
+  readonly customRoles?: CustomRoleSource;
 };
 
 async function outcomes(

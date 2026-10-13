@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import {
-  betterAuthRoleSource,
+  betterAuthCustomRoleSource,
   subjectFromBetterAuth,
 } from "permdock/better-auth";
 import { createPermDock } from "permdock/hono";
@@ -30,7 +30,7 @@ const { protect } = createPermDock(policy, {
     const subject = await subjectFromBetterAuth(session, { auth });
     return subject;
   },
-  customRoles: betterAuthRoleSource(auth, {
+  customRoles: betterAuthCustomRoleSource(auth, {
     assignable: [{ name: "member", statements: { post: ["read", "create"] } }],
   }),
 });

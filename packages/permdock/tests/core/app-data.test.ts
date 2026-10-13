@@ -13,7 +13,7 @@ import {
   deny,
   fromSnapshot,
   getResource,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   parseSnapshot,
   resource,
   role,
@@ -141,7 +141,7 @@ describe("role and plan x", () => {
           },
       },
     );
-    const customRoles = memoryRoleSource([
+    const customRoles = memoryCustomRoleSource([
       {
         name: "reviewer",
         tenant: "o_1",

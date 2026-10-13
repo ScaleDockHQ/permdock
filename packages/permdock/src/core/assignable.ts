@@ -91,7 +91,7 @@ function heldLevels(
 
 /**
  * What the subject may hand out in `tenant`: declared assignable roles and the
- * tenant custom-role ceiling, narrowed by `allowed` (`RoleSource.assignable`),
+ * tenant custom-role ceiling, narrowed by `allowed` (`CustomRoleSource.assignable`),
  * then intersected with the permissions the subject holds there. Holding a
  * role or a granted permission with `meta.manageRoles` lifts the intersection.
  */

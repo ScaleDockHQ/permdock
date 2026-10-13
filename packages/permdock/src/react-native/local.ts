@@ -36,7 +36,7 @@ export type LocalSnapshotData = {
     /** Attributes conditions read, such as `claims` for `principal.claims.team_ids`. */
     readonly attributes?: Readonly<Record<string, unknown>>;
   } | null;
-  /** The tenant's custom roles, in the shape a `RoleSource` returns. */
+  /** The tenant's custom roles, in the shape a `CustomRoleSource` returns. */
   readonly customRoles?: readonly CustomRole[];
 };
 

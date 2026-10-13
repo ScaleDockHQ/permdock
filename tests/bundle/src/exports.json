@@ -88,7 +88,7 @@
     "memoryPrincipalSource",
     "memoryRelationSource",
     "memoryRevocationFeed",
-    "memoryRoleSource",
+    "memoryCustomRoleSource",
     "memorySettingsSource",
     "memoryDecisionSink",
     "memorySnapshotSource",
@@ -494,7 +494,7 @@
   "./supabase/middleware": ["createPermDock"],
   "./ssf": ["createPermDock", "memoryReplayStore"],
   "./better-auth": [
-    "betterAuthRoleSource",
+    "betterAuthCustomRoleSource",
     "onRoleChange",
     "rolesFromAccessControl",
     "subjectFromBetterAuth"
@@ -558,7 +558,7 @@
     "testRelationSource",
     "testReplayStore",
     "testRevocationFeed",
-    "testRoleSource",
+    "testCustomRoleSource",
     "testSettingsSource",
     "testSnapshotSource",
     "testSubjectResolver",

@@ -18,7 +18,7 @@ import {
   type Policy,
   createPermDock,
   findPermission,
-  memoryRoleSource,
+  memoryCustomRoleSource,
 } from "../../index.ts";
 import { buildCatalog } from "../catalog-doc.ts";
 import { usageResult } from "../errors.ts";
@@ -664,7 +664,7 @@ async function impactOf(input: {
       policy,
       fixtureSubject(fixture.subject),
       {
-        customRoles: memoryRoleSource(customRoles),
+        customRoles: memoryCustomRoleSource(customRoles),
       },
     );
     const [decision] = permdock.simulate(
