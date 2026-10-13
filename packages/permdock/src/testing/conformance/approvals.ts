@@ -1,6 +1,11 @@
 import { expect, it } from "vitest";
 
-import type { ApprovalRequest, ApprovalStore } from "../../approvals/index.ts";
+import type {
+  AccessReviewStore,
+  ApprovalDelegationSource,
+  ApprovalRequest,
+  ApprovalStore,
+} from "../../approvals/index.ts";
 import type { ApprovalPolicySource, Policy, Subject } from "../../index.ts";
 
 import { approvalPoliciesFor } from "../../core/approval-policies.ts";
@@ -416,5 +421,126 @@ export function testApprovalPolicySource(
       tenants: [options.unknown ?? "__permdock_unknown__"],
     });
     expect(other.filter((entry) => entry.tenant !== undefined)).toEqual([]);
+  });
+}
+
+const reviewItem = {
+  v: 1 as const,
+  id: "rev:u_1:post.delete",
+  review: "rev",
+  principal: "u_1",
+  permission: "post.delete",
+  via: ["member"],
+  status: "pending" as const,
+};
+
+/**
+ * Checks an `AccessReviewStore`: create is kept, items page, a decision is
+ * recorded once, only a revoked item can be marked applied, and close is once.
+ */
+export function testAccessReviewStore(store: AccessReviewStore): void {
+  it("records a review, pages its items and stores one decision", async () => {
+    const review = {
+      v: 1 as const,
+      id: "rev",
+      tenant: "o1",
+      permissions: ["post.delete"],
+      reviewers: { kind: "user" as const, id: "u_9" },
+      createdBy: "u_owner",
+      createdAt: "2026-10-13T12:00:00.000Z",
+      dueAt: "2026-12-31T00:00:00.000Z",
+      status: "open" as const,
+      complete: true,
+    };
+    await store.create(review, [
+      reviewItem,
+      { ...reviewItem, id: "rev:u_2:post.delete", principal: "u_2" },
+    ]);
+    await store.create(review, []);
+    expect((await store.get("rev"))?.status).toBe("open");
+    const page = await store.items({ review: "rev", limit: 1 });
+    expect(page.items).toHaveLength(1);
+    expect(page.next).toEqual(expect.any(String));
+    const kept = await store.decide("rev", reviewItem.id, {
+      status: "kept",
+      decidedBy: "u_9",
+      decidedAt: "2026-10-14T12:00:00.000Z",
+    });
+    expect(kept.status).toBe("kept");
+    await expect(
+      Promise.resolve().then(() =>
+        store.decide("rev", reviewItem.id, {
+          status: "revoked",
+          decidedBy: "u_9",
+          decidedAt: "2026-10-14T12:00:00.000Z",
+        }),
+      ),
+    ).rejects.toThrow(/decided/u);
+    const revoked = await store.decide("rev", "rev:u_2:post.delete", {
+      status: "revoked",
+      decidedBy: "u_9",
+      decidedAt: "2026-10-14T12:00:00.000Z",
+    });
+    expect(revoked.status).toBe("revoked");
+    await expect(
+      Promise.resolve().then(() =>
+        store.markApplied("rev", reviewItem.id, "2026-10-15T00:00:00.000Z"),
+      ),
+    ).rejects.toThrow(/revoked/u);
+    const applied = await store.markApplied(
+      "rev",
+      "rev:u_2:post.delete",
+      "2026-10-15T00:00:00.000Z",
+    );
+    expect(applied.appliedAt).toBe("2026-10-15T00:00:00.000Z");
+    expect((await store.close("rev")).status).toBe("closed");
+    await expect(
+      Promise.resolve().then(() => store.close("rev")),
+    ).rejects.toThrow(/closed/u);
+  });
+}
+
+/**
+ * Checks an `ApprovalDelegationSource`: entries are plain JSON, name the
+ * delegate, and are active at `at`. A query for another delegate is empty.
+ */
+export function testApprovalDelegationSource(
+  source: ApprovalDelegationSource,
+  options: {
+    readonly delegate: string;
+    readonly delegator: string;
+    readonly tenant?: string;
+    readonly at?: string;
+  },
+): void {
+  it("answers with active plain delegations for the delegate", async () => {
+    const at = options.at ?? new Date().toISOString();
+    const entries = await source.delegationsFor({
+      delegate: options.delegate,
+      ...(options.tenant === undefined ? {} : { tenant: options.tenant }),
+      at,
+    });
+    expect(Array.isArray(entries)).toBe(true);
+    expect(
+      entries.some(
+        (entry) =>
+          entry.delegate === options.delegate &&
+          entry.delegator === options.delegator,
+      ),
+    ).toBe(true);
+    const instant = Date.parse(at);
+    for (const entry of entries) {
+      expect(JSON.parse(JSON.stringify(entry))).toEqual(entry);
+      expect(entry.delegate).toBe(options.delegate);
+      expect(Date.parse(entry.from)).toBeLessThanOrEqual(instant);
+      expect(Date.parse(entry.until)).toBeGreaterThan(instant);
+    }
+    expect(
+      await source.delegationsFor({
+        delegate: "__permdock_unknown__",
+        ...(options.tenant === undefined ? {} : { tenant: options.tenant }),
+        at,
+      }),
+    ).toEqual([]);
   });
 }

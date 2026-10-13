@@ -7,13 +7,15 @@ import type {
   ApprovalStore,
   ApprovalVerdict,
 } from "./types.ts";
+import type { ApprovalDelegationSource } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { PROBLEM_BASE } from "../core/validation-error.ts";
 import { hasCredentials } from "../server/http.ts";
 import { unauthenticatedProblem } from "../server/problem.ts";
-import { isApprovalError } from "./errors.ts";
+import { matchDelegation } from "./delegation.ts";
+import { ApprovalError, isApprovalError } from "./errors.ts";
 import { heldPermissions } from "./permissions.ts";
 import { approverRelations } from "./relations.ts";
 import { assertApprover } from "./store.ts";
@@ -39,6 +41,20 @@ export type ApprovalsHandlerOptions = {
     approver: Subject,
     request: ApprovalRequest,
   ) => PermDock | Promise<PermDock>;
+  /**
+   * Out-of-office delegations. With `subjectFor`, a caller who is not an
+   * approver may approve as someone who delegated to them. Without either,
+   * delegation matches nobody.
+   */
+  readonly delegations?: ApprovalDelegationSource;
+  /**
+   * Resolves a delegator's subject from their principal id. Server-side:
+   * never from the request body. A throw matches nobody.
+   */
+  readonly subjectFor?: (
+    principalId: string,
+    request: ApprovalRequest,
+  ) => Subject | null | undefined | Promise<Subject | null | undefined>;
 };
 
 type ProblemBody = {
@@ -142,6 +158,82 @@ function belongsToTenant(subject: Subject, tenant: string): boolean {
   return membershipTenants(subject).includes(tenant);
 }
 
+type Acting =
+  | {
+      readonly kind: "self";
+      readonly relations: readonly string[];
+      readonly permissions: readonly string[];
+    }
+  | {
+      readonly kind: "delegated";
+      readonly delegation: string;
+      readonly delegator: Subject;
+      readonly relations: readonly string[];
+      readonly permissions: readonly string[];
+    };
+
+async function factsFor(
+  request: ApprovalRequest,
+  subject: Subject,
+  options: ApprovalsHandlerOptions,
+): Promise<{
+  readonly relations: readonly string[];
+  readonly permissions: readonly string[];
+}> {
+  return {
+    relations: await approverRelations(request, subject, options),
+    permissions: await heldPermissions(request, subject, options.permdockFor),
+  };
+}
+
+/** The caller as themselves, or the first delegation that makes them an approver. */
+async function actingApprover(
+  request: ApprovalRequest,
+  subject: Subject,
+  requireDistinct: boolean,
+  options: ApprovalsHandlerOptions,
+): Promise<Acting> {
+  const facts = await factsFor(request, subject, options);
+  try {
+    assertApprover(
+      request,
+      subject,
+      requireDistinct,
+      new Date(),
+      facts.relations,
+      facts.permissions,
+    );
+    return { kind: "self", ...facts };
+  } catch (error) {
+    if (!isApprovalError(error) || error.code !== "approver-not-eligible") {
+      throw error;
+    }
+  }
+  const match = await matchDelegation(request, subject, {
+    ...(options.delegations === undefined
+      ? {}
+      : { delegations: options.delegations }),
+    ...(options.subjectFor === undefined
+      ? {}
+      : { subjectFor: options.subjectFor }),
+    requireDistinct,
+    factsFor: (delegator) => factsFor(request, delegator, options),
+  });
+  if (match === undefined) {
+    throw new ApprovalError(
+      "approver-not-eligible",
+      "approver does not hold an eligible role",
+    );
+  }
+  return {
+    kind: "delegated",
+    delegation: match.delegation.id,
+    delegator: match.delegator,
+    relations: match.relations,
+    permissions: match.permissions,
+  };
+}
+
 async function mayResolve(
   request: ApprovalRequest,
   subject: Subject,
@@ -149,20 +241,7 @@ async function mayResolve(
   options: ApprovalsHandlerOptions,
 ): Promise<boolean> {
   try {
-    const relations = await approverRelations(request, subject, options);
-    const permissions = await heldPermissions(
-      request,
-      subject,
-      options.permdockFor,
-    );
-    assertApprover(
-      request,
-      subject,
-      requireDistinct,
-      new Date(),
-      relations,
-      permissions,
-    );
+    await actingApprover(request, subject, requireDistinct, options);
     return true;
   } catch {
     return false;
@@ -426,19 +505,11 @@ export function approvalsHandler(
       if (current === null) {
         return problem(404, "Not found", "approval was not found", "not-found");
       }
-      const relations = await approverRelations(current, subject, options);
-      const permissions = await heldPermissions(
-        current,
-        subject,
-        options.permdockFor,
-      );
-      assertApprover(
+      const acting = await actingApprover(
         current,
         subject,
         requireDistinct,
-        new Date(),
-        relations,
-        permissions,
+        options,
       );
       const read = await readNote(request);
       if (read.refusal !== undefined) {
@@ -451,8 +522,17 @@ export function approvalsHandler(
           status: route.kind === "approve" ? "approved" : "rejected",
           by: subject,
           note,
-          relations,
-          permissions,
+          relations: acting.kind === "self" ? acting.relations : undefined,
+          permissions: acting.kind === "self" ? acting.permissions : undefined,
+          onBehalfOf:
+            acting.kind === "delegated"
+              ? {
+                  subject: acting.delegator,
+                  delegation: acting.delegation,
+                  relations: acting.relations,
+                  permissions: acting.permissions,
+                }
+              : undefined,
         }),
       );
       const signed = await signedApproval(

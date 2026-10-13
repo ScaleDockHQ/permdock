@@ -77,6 +77,8 @@ export type {
 } from "./authzen.ts";
 export type { ApprovalStoreOptions } from "./conformance/approvals.ts";
 export {
+  testAccessReviewStore,
+  testApprovalDelegationSource,
   testApprovalPolicySource,
   testApprovalStore,
 } from "./conformance/approvals.ts";

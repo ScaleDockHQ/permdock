@@ -77,7 +77,7 @@ type ApproverFacts = {
   readonly permissions: ReadonlySet<string>;
 };
 
-function matchesApprovers(
+export function matchesApprovers(
   by: Approver | readonly Approver[],
   subject: Subject,
   tenant: string | undefined,
@@ -203,6 +203,12 @@ function assertSeparateApprover(
       "approver must be authenticated",
     );
   }
+  if (principal.kind === "link" || principal.kind === "feed") {
+    throw new ApprovalError(
+      "approver-not-eligible",
+      "a link or a feed cannot approve",
+    );
+  }
   if (
     request.subject.actor !== undefined &&
     principal.id === request.subject.actor.id
@@ -228,7 +234,11 @@ function assertSeparateApprover(
 }
 
 function assertNotRepeated(request: ApprovalRequest, id: string): void {
-  if ((request.approvals ?? []).some((item) => item.by === id)) {
+  if (
+    (request.approvals ?? []).some(
+      (item) => item.by === id || item.onBehalfOf === id,
+    )
+  ) {
     throw new ApprovalError(
       "approver-repeated",
       "approver has already approved this request",
@@ -362,18 +372,41 @@ export function applyApprovalVerdict(
     throw new ApprovalError("approval-expired", "approval has expired");
   }
   const vouched = vouchedRule(verdict);
-  const stage =
+  const behalf = vouched === undefined ? verdict.onBehalfOf : undefined;
+  let stage: number | undefined;
+  if (
     (verdict.status === "rejected" && isSystemSubject(verdict.by)) ||
     vouched !== undefined
-      ? undefined
-      : assertApprover(
-          request,
-          verdict.by,
-          false,
-          now,
-          verdict.relations,
-          verdict.permissions,
-        );
+  ) {
+    stage = undefined;
+  } else if (behalf === undefined) {
+    stage = assertApprover(
+      request,
+      verdict.by,
+      false,
+      now,
+      verdict.relations,
+      verdict.permissions,
+    );
+  } else {
+    const delegate = assertSeparateApprover(request, verdict.by, false);
+    const tenant = request.subject.principal?.tenant;
+    if (tenant !== undefined && !belongsToTenant(verdict.by, tenant)) {
+      throw new ApprovalError(
+        "approver-not-eligible",
+        "approver does not belong to the request tenant",
+      );
+    }
+    assertNotRepeated(request, delegate.id);
+    stage = assertApprover(
+      request,
+      behalf.subject,
+      false,
+      now,
+      behalf.relations ?? [],
+      behalf.permissions ?? [],
+    );
+  }
   if (vouched !== undefined) {
     assertNotRepeated(
       request,
@@ -400,6 +433,9 @@ export function applyApprovalVerdict(
       at: now.toISOString(),
       stage,
       vouched,
+      onBehalfOf:
+        behalf === undefined ? undefined : behalf.subject.principal?.id,
+      delegation: behalf?.delegation,
     }),
   ];
   if (vouched === undefined && !isComplete(request, approvals)) {

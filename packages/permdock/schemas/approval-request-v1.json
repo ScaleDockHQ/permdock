@@ -168,6 +168,12 @@
         },
         "vouched": {
           "type": "string"
+        },
+        "onBehalfOf": {
+          "type": "string"
+        },
+        "delegation": {
+          "type": "string"
         }
       }
     }
