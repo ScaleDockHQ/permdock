@@ -80,3 +80,21 @@ export type {
   WebBotAuthOptions,
   WebBotAuthVerifier,
 } from "./web-bot-auth.ts";
+export { webhookSigner, webhookVerifier } from "./standard-webhooks.ts";
+export type {
+  VerifiedWebhookMessage,
+  WebhookAlgorithm,
+  WebhookFailureCause,
+  WebhookHeaders,
+  WebhookInput,
+  WebhookJwk,
+  WebhookJwks,
+  WebhookMessage,
+  WebhookSigner,
+  WebhookSignerOptions,
+  WebhookSigningKey,
+  WebhookVerifier,
+  WebhookVerifierOptions,
+} from "./standard-webhooks.ts";
+export { memoryReplayStore } from "../ssf/replay.ts";
+export type { ReplayStore } from "../ssf/types.ts";

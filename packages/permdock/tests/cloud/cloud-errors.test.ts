@@ -119,6 +119,12 @@ describe("cloud approvals over a failing API", () => {
 });
 
 describe("cloud sink and snapshots over a failing API", () => {
+  it("refuses a CloudEvents source that is not an absolute URI", () => {
+    expect(() =>
+      cloud({ url: "https://cloud.permdock.test", key: "k", source: "app" }),
+    ).toThrow(TypeError);
+  });
+
   it("re-queues a rejected batch and does nothing on an empty flush", async () => {
     let status = 500;
     const { client: c, calls } = client(() => new Response(null, { status }));

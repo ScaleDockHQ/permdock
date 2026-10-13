@@ -5,19 +5,27 @@ import type {
   DirectoryEvent,
   MembershipEvent,
 } from "../core/event-types.ts";
-import type { TokenFailureCause, TokenVerifier } from "../core/interfaces.ts";
 import type {
   CLOUD_EVENT_TYPES,
   CatalogEventData,
   CloudEvent,
   CloudEventType,
 } from "../core/sink.ts";
-import type { JsonWebKeySet } from "../jwt/types.ts";
+import type {
+  WebhookFailureCause,
+  WebhookJwks,
+  WebhookVerifier,
+  WebhookVerifierOptions,
+} from "../server/standard-webhooks.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 
+import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { parseCloudEvent as parseCoreCloudEvent } from "../core/parse-sink-events.ts";
-import { joseTokenVerifier } from "../jwt/verifier.ts";
+import {
+  parseCloudEventBatch,
+  parseCloudEvent as parseCoreCloudEvent,
+} from "../core/parse-sink-events.ts";
+import { webhookVerifier } from "../server/standard-webhooks.ts";
 
 type Envelope<TType extends CloudEventType, TData> = Omit<
   CloudEvent,
@@ -69,32 +77,42 @@ export type PermDockCloudEvent =
     >;
 
 export type VerifyWebhookOptions = {
-  /** Your receiver's URL; the batch `aud` must name it. */
-  readonly audience: string | readonly string[];
-  /** A verifier over the Cloud JWKS; built from `jwks` when absent. */
-  readonly verifier?: TokenVerifier;
-  /** `cloud().jwks`, a JWKS URL, or an inline key set. */
-  readonly jwks?: string | URL | JsonWebKeySet;
-  /** Drops a batch whose `jti` was already delivered. */
+  /**
+   * A verifier to reuse across deliveries, so the JWKS is fetched once;
+   * built from `jwks`, `secret`, `replay`, `tolerance` and `now` when absent.
+   */
+  readonly verifier?: WebhookVerifier;
+  /** `cloud().jwks`, a JWKS URL or an inline key set, for `v1a` signatures. */
+  readonly jwks?: WebhookJwks;
+  /** The endpoint's `whsec_` secret, for `v1` signatures. */
+  readonly secret?: string | readonly string[];
+  /** Records each `webhook-id`; required unless `verifier` is set. */
   readonly replay?: ReplayStore;
+  /** Seconds a timestamp may differ from the clock. Defaults to 300. */
+  readonly tolerance?: number;
+  readonly now?: () => Temporal.Instant;
+  readonly fetch?: typeof fetch;
 };
 
 export type WebhookFailureReason =
   | "unsigned"
-  | "invalid-token"
+  | "invalid-signature"
   | "invalid-events"
   | "replayed";
 
 export type VerifiedWebhook =
   | {
       readonly ok: true;
+      /** The `webhook-id`, unique per message across retries. */
       readonly id: string;
+      /** The `webhook-timestamp` as an RFC 3339 instant. */
+      readonly timestamp: string;
       readonly events: readonly PermDockCloudEvent[];
     }
   | {
       readonly ok: false;
       readonly reason: WebhookFailureReason;
-      readonly cause?: TokenFailureCause;
+      readonly cause?: WebhookFailureCause;
     };
 
 /**
@@ -106,91 +124,97 @@ export function parseCloudEvent(value: unknown): PermDockCloudEvent | null {
   return parseCoreCloudEvent(value) as PermDockCloudEvent | null;
 }
 
-function verifierFor(options: VerifyWebhookOptions): TokenVerifier | undefined {
+function verifierFor(
+  options: VerifyWebhookOptions,
+): WebhookVerifier | undefined {
   if (options.verifier !== undefined) {
     return options.verifier;
   }
-  if (options.jwks === undefined) {
+  if (
+    options.replay === undefined ||
+    (options.jwks === undefined && options.secret === undefined)
+  ) {
     return undefined;
   }
   try {
-    return joseTokenVerifier({
-      jwks:
-        typeof options.jwks === "string" ? new URL(options.jwks) : options.jwks,
-      algorithms: ["Ed25519", "ES256"],
-    });
+    return webhookVerifier(
+      compact<WebhookVerifierOptions>({
+        jwks: options.jwks,
+        secret: options.secret,
+        replay: options.replay,
+        tolerance: options.tolerance,
+        now: options.now,
+        fetch: options.fetch,
+      }),
+    );
   } catch {
     return undefined;
   }
 }
 
-function isCompactJws(value: string): boolean {
-  return /^[\w-]+\.[\w-]+\.[\w-]+$/u.test(value);
+function eventsOf(body: string): readonly PermDockCloudEvent[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) {
+    const single = parseCloudEvent(parsed);
+    return single === null ? null : [single];
+  }
+  // SAFETY: parseCloudEventBatch checked each event's data against the family its type names.
+  return parseCloudEventBatch(parsed) as readonly PermDockCloudEvent[] | null;
 }
 
 /**
- * Verifies a PermDock Cloud webhook delivery: a compact JWS with
- * `typ: vnd.permdock.evidence+jwt` whose `events` claim holds CloudEvents.
- * There is no unsigned mode, and it never throws.
+ * Verifies a PermDock Cloud webhook delivery: Standard Webhooks headers over
+ * an `application/cloudevents-batch+json` body (or one
+ * `application/cloudevents+json` event). There is no unsigned mode, and it
+ * never throws.
  */
 export async function verifyWebhook(
   request: Request,
   options: VerifyWebhookOptions,
 ): Promise<VerifiedWebhook> {
-  let body: string;
-  try {
-    body = (await request.text()).trim();
-  } catch {
-    return { ok: false, reason: "unsigned" };
-  }
-  if (!isCompactJws(body)) {
-    return { ok: false, reason: "unsigned" };
-  }
   const verifier = verifierFor(options);
   if (verifier === undefined) {
-    return { ok: false, reason: "invalid-token", cause: "jwks-unavailable" };
+    return {
+      ok: false,
+      reason: "invalid-signature",
+      cause: "keys-unavailable",
+    };
   }
-  let verified: Awaited<ReturnType<TokenVerifier["verify"]>>;
-  try {
-    verified = await verifier.verify(body, {
-      typ: "vnd.permdock.evidence+jwt",
-      audience: options.audience,
-    });
-  } catch {
-    return { ok: false, reason: "invalid-token", cause: "malformed" };
-  }
+  const verified = await verifier.verify(request);
   if (!verified.ok) {
-    return { ok: false, reason: "invalid-token", cause: verified.cause };
+    switch (verified.cause) {
+      case "missing-headers":
+        return { ok: false, reason: "unsigned", cause: verified.cause };
+      case "replayed":
+        return { ok: false, reason: "replayed", cause: verified.cause };
+      case "malformed":
+      case "timestamp-out-of-range":
+      case "invalid-signature":
+      case "keys-unavailable":
+        return {
+          ok: false,
+          reason: "invalid-signature",
+          cause: verified.cause,
+        };
+      default: {
+        const exhaustive: never = verified.cause;
+        return exhaustive;
+      }
+    }
   }
-  const jti = verified.claims["jti"];
-  const raw = verified.claims["events"];
-  if (typeof jti !== "string" || !Array.isArray(raw)) {
+  const events = eventsOf(verified.body);
+  if (events === null) {
     return { ok: false, reason: "invalid-events" };
   }
-  const events: PermDockCloudEvent[] = [];
-  for (const item of raw) {
-    const parsed = parseCloudEvent(item);
-    if (parsed === null) {
-      return { ok: false, reason: "invalid-events" };
-    }
-    events.push(parsed);
-  }
-  if (options.replay !== undefined) {
-    const key = `permdock-webhook:${jti}`;
-    const expiresAt =
-      typeof verified.claims.exp === "number" ? verified.claims.exp : undefined;
-    try {
-      if (options.replay.claim === undefined) {
-        if (await options.replay.seen(key)) {
-          return { ok: false, reason: "replayed" };
-        }
-        await options.replay.remember(key, expiresAt);
-      } else if (!(await options.replay.claim(key, expiresAt))) {
-        return { ok: false, reason: "replayed" };
-      }
-    } catch {
-      return { ok: false, reason: "replayed" };
-    }
-  }
-  return freezeDeep({ ok: true as const, id: jti, events });
+  return freezeDeep({
+    ok: true as const,
+    id: verified.id,
+    timestamp: verified.timestamp,
+    events,
+  });
 }

@@ -65,6 +65,15 @@ export type OcsfClass = {
   >[];
 };
 
+export type StandardWebhooksVector = {
+  readonly source: string;
+  readonly secret: string;
+  readonly id: string;
+  readonly timestamp: string;
+  readonly body: string;
+  readonly signature: string;
+};
+
 type Fixtures = {
   readonly "rfc9421-ed25519.json": Rfc9421Vector;
   readonly "rfc8037-ed25519.json": Rfc8037Vector;
@@ -75,6 +84,7 @@ type Fixtures = {
   readonly "cloudevents-1.0.2.schema.json": Readonly<Record<string, unknown>>;
   readonly "a2a-1.0.0.schema.json": Readonly<Record<string, unknown>>;
   readonly "arazzo-1.1.schema.json": Readonly<Record<string, unknown>>;
+  readonly "standard-webhooks-v1.json": StandardWebhooksVector;
 };
 
 /** A vendored upstream artefact from `tests/fixtures/standards`. */

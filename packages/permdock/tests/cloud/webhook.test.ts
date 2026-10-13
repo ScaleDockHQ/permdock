@@ -1,14 +1,15 @@
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import type { SinkEvent } from "../../src/core/event-types.ts";
 
 import { parseCloudEvent, verifyWebhook } from "../../src/cloud/webhook.ts";
 import {
+  CLOUDEVENTS_BATCH_CONTENT_TYPE,
   CLOUD_EVENT_TYPES,
-  signDecisionBatch,
   toCloudEvent,
 } from "../../src/core/sink.ts";
-import { joseTokenSigner } from "../../src/jwt/signer.ts";
+import { webhookSigner } from "../../src/server/standard-webhooks.ts";
 import { memoryReplayStore } from "../../src/ssf/replay.ts";
 
 const PRIVATE_JWK = {
@@ -17,17 +18,15 @@ const PRIVATE_JWK = {
   x: "79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ",
   kty: "OKP",
   kid: "2026-09",
-  alg: "Ed25519",
 };
 const { d: _d, ...PUBLIC_JWK } = PRIVATE_JWK;
 const JWKS = { keys: [PUBLIC_JWK] };
+const SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
 const RECEIVER = "https://hooks.example.com/permdock";
+const SOURCE = "https://api.permdock.test/v1/environments/production";
 
-const signer = joseTokenSigner({
-  key: { ...PRIVATE_JWK },
-  alg: "Ed25519",
-  kid: "2026-09",
-  issuer: "https://api.permdock.test",
+const signer = webhookSigner({
+  keys: [{ alg: "v1a", privateKey: PRIVATE_JWK }],
 });
 
 const membership: SinkEvent = {
@@ -39,206 +38,229 @@ const membership: SinkEvent = {
   roles: { added: ["admin"], removed: [] },
 };
 
-function delivery(body: string): Request {
+let sequence = 0;
+
+async function delivery(
+  body: unknown,
+  options: { readonly id?: string; readonly sign?: typeof signer } = {},
+): Promise<Request> {
+  const text = typeof body === "string" ? body : JSON.stringify(body);
+  sequence += 1;
+  const headers = await (options.sign ?? signer).sign({
+    id: options.id ?? `msg_${String(sequence)}`,
+    body: text,
+    now: Temporal.Now.instant(),
+  });
   return new Request(RECEIVER, {
     method: "POST",
-    headers: { "content-type": "application/jwt" },
-    body,
+    headers: { ...headers, "content-type": CLOUDEVENTS_BATCH_CONTENT_TYPE },
+    body: text,
   });
 }
 
+const catalog = (data: Record<string, unknown>): Record<string, unknown> => ({
+  specversion: "1.0",
+  type:
+    data["kind"] === "drift"
+      ? CLOUD_EVENT_TYPES.catalogDrifted
+      : CLOUD_EVENT_TYPES.catalogPublished,
+  source: SOURCE,
+  subject: "cat_2",
+  id: "evt_1",
+  time: "2026-09-28T10:00:00.000Z",
+  datacontenttype: "application/json",
+  dataschema: "https://permdock.com/schemas/catalog-event-v1.json",
+  data,
+});
+
 describe("verifyWebhook", () => {
-  it("accepts a signed batch for this receiver", async () => {
-    const jws = await signDecisionBatch([membership], signer, {
-      audience: RECEIVER,
-      source: "https://api.permdock.test",
-    });
-    const result = await verifyWebhook(delivery(jws), {
-      jwks: JWKS,
-      audience: RECEIVER,
-    });
-    expect(result.ok).toBe(true);
-    expect(result.ok ? result.events[0]?.type : undefined).toBe(
-      CLOUD_EVENT_TYPES.membership,
+  it("accepts a v1a-signed CloudEvents batch", async () => {
+    const result = await verifyWebhook(
+      await delivery([toCloudEvent(membership, { source: SOURCE })], {
+        id: "msg_batch",
+      }),
+      { jwks: JWKS, replay: memoryReplayStore() },
     );
+    expect(result).toMatchObject({
+      ok: true,
+      id: "msg_batch",
+      events: [{ type: CLOUD_EVENT_TYPES.membershipChanged, source: SOURCE }],
+    });
   });
 
-  it("carries a catalog event", async () => {
-    const jws = await signer.sign(
-      {
-        events: [
-          {
-            specversion: "1.0",
-            type: CLOUD_EVENT_TYPES.catalog,
-            source: "https://api.permdock.test",
-            subject: "cat_2",
-            id: "evt_1",
-            time: "2026-09-28T10:00:00.000Z",
-            datacontenttype: "application/json",
-            data: { kind: "publish", fingerprint: "cat_2", previous: "cat_1" },
-          },
-        ],
-      },
-      { typ: "permdock-decisions+jwt", audience: RECEIVER },
+  it("accepts a single v1-signed CloudEvent", async () => {
+    const result = await verifyWebhook(
+      await delivery(toCloudEvent(membership, { source: SOURCE }), {
+        sign: webhookSigner({ keys: [{ alg: "v1", secret: SECRET }] }),
+      }),
+      { secret: SECRET, replay: memoryReplayStore() },
     );
-    const result = await verifyWebhook(delivery(jws), {
-      jwks: JWKS,
-      audience: RECEIVER,
-    });
+    expect(result.ok ? result.events.length : 0).toBe(1);
+  });
+
+  it("carries catalog events with typed drift findings", async () => {
+    const replay = memoryReplayStore();
+    const published = await verifyWebhook(
+      await delivery([
+        catalog({ kind: "publish", fingerprint: "cat_2", previous: "cat_1" }),
+      ]),
+      { jwks: JWKS, replay },
+    );
     expect(
-      result.ok && result.events[0]?.type === "dev.permdock.catalog"
-        ? result.events[0].data.previous
+      published.ok &&
+        published.events[0]?.type === CLOUD_EVENT_TYPES.catalogPublished
+        ? published.events[0].data.previous
         : undefined,
     ).toBe("cat_1");
-  });
-
-  it("accepts typed drift findings and rejects free-text ones", async () => {
     const drift = (findings: readonly unknown[]) =>
-      signer.sign(
-        {
-          events: [
-            {
-              specversion: "1.0",
-              type: CLOUD_EVENT_TYPES.catalog,
-              source: "https://api.permdock.test",
-              subject: "cat_2",
-              id: "evt_drift",
-              time: "2026-09-28T10:00:00.000Z",
-              datacontenttype: "application/json",
-              data: {
-                kind: "drift",
-                fingerprint: "cat_2",
-                previous: "cat_1",
-                findings,
-              },
-            },
-          ],
-        },
-        { typ: "permdock-decisions+jwt", audience: RECEIVER },
-      );
+      delivery([catalog({ kind: "drift", fingerprint: "cat_2", findings })]);
     const typed = await verifyWebhook(
-      delivery(
-        await drift([
-          { code: "not-hostable", permission: "auditLog.read", grant: "g_1" },
-          { code: "permission-removed", permission: "invoice.export" },
-        ]),
-      ),
-      { jwks: JWKS, audience: RECEIVER },
+      await drift([
+        { code: "not-hostable", permission: "auditLog.read", grant: "g_1" },
+        { code: "permission-removed", permission: "invoice.export" },
+      ]),
+      { jwks: JWKS, replay },
     );
     expect(
-      typed.ok && typed.events[0]?.type === "dev.permdock.catalog"
+      typed.ok && typed.events[0]?.type === CLOUD_EVENT_TYPES.catalogDrifted
         ? typed.events[0].data.findings?.[0]?.code
         : undefined,
     ).toBe("not-hostable");
-    const text = await verifyWebhook(
-      delivery(await drift(["auditLog.read is no longer hostable"])),
-      { jwks: JWKS, audience: RECEIVER },
-    );
-    expect(text.ok).toBe(false);
-    const unknown = await verifyWebhook(
-      delivery(await drift([{ code: "renamed", permission: "a.b" }])),
-      { jwks: JWKS, audience: RECEIVER },
-    );
-    expect(unknown.ok).toBe(false);
+    for (const findings of [
+      ["auditLog.read is no longer hostable"],
+      [{ code: "renamed", permission: "a.b" }],
+    ]) {
+      expect(
+        await verifyWebhook(await drift(findings), { jwks: JWKS, replay }),
+      ).toEqual({ ok: false, reason: "invalid-events" });
+    }
   });
 
   it("has no unsigned mode", async () => {
-    const plain = JSON.stringify([toCloudEvent(membership)]);
-    const result = await verifyWebhook(delivery(plain), {
-      jwks: JWKS,
-      audience: RECEIVER,
+    const plain = new Request(RECEIVER, {
+      method: "POST",
+      body: JSON.stringify([toCloudEvent(membership, { source: SOURCE })]),
     });
-    expect(result).toEqual({ ok: false, reason: "unsigned" });
+    expect(
+      await verifyWebhook(plain, { jwks: JWKS, replay: memoryReplayStore() }),
+    ).toEqual({ ok: false, reason: "unsigned", cause: "missing-headers" });
   });
 
-  it("rejects another audience, another typ and a missing key set", async () => {
-    const other = await signDecisionBatch([membership], signer, {
-      audience: "https://other.example.com",
+  it("needs keys and a replay store", async () => {
+    const request = await delivery([]);
+    expect(await verifyWebhook(request, { jwks: JWKS })).toEqual({
+      ok: false,
+      reason: "invalid-signature",
+      cause: "keys-unavailable",
     });
-    const wrongAudience = await verifyWebhook(delivery(other), {
-      jwks: JWKS,
-      audience: RECEIVER,
-    });
-    expect(wrongAudience.ok).toBe(false);
-    const snapshot = await signer.sign(
-      { events: [] },
-      { typ: "permdock-snapshot+jwt", audience: RECEIVER },
-    );
-    const wrongTyp = await verifyWebhook(delivery(snapshot), {
-      jwks: JWKS,
-      audience: RECEIVER,
-    });
-    expect(wrongTyp.ok).toBe(false);
-    const good = await signDecisionBatch([membership], signer, {
-      audience: RECEIVER,
-    });
-    expect(await verifyWebhook(delivery(good), { audience: RECEIVER })).toEqual(
-      { ok: false, reason: "invalid-token", cause: "jwks-unavailable" },
-    );
     expect(
-      (
-        await verifyWebhook(delivery(good), {
-          audience: RECEIVER,
-          jwks: "not a url",
-        })
-      ).ok,
-    ).toBe(false);
-  });
-
-  it("rejects an unknown event type and a replayed batch", async () => {
-    const unknown = await signer.sign(
-      {
-        events: [
-          {
-            specversion: "1.0",
-            type: "dev.permdock.grant",
-            source: "s",
-            id: "e",
-            time: "t",
-            datacontenttype: "application/json",
-            data: {},
-          },
-        ],
-      },
-      { typ: "permdock-decisions+jwt", audience: RECEIVER },
-    );
+      await verifyWebhook(request, { replay: memoryReplayStore() }),
+    ).toMatchObject({ ok: false, cause: "keys-unavailable" });
     expect(
-      await verifyWebhook(delivery(unknown), {
-        jwks: JWKS,
-        audience: RECEIVER,
+      await verifyWebhook(request, {
+        secret: "whsec_",
+        replay: memoryReplayStore(),
       }),
-    ).toEqual({ ok: false, reason: "invalid-events" });
+    ).toMatchObject({ ok: false, cause: "keys-unavailable" });
+  });
+
+  it("rejects another key, a stale timestamp and a tampered body", async () => {
+    const other = webhookSigner({ keys: [{ alg: "v1", secret: SECRET }] });
+    expect(
+      await verifyWebhook(await delivery([], { sign: other }), {
+        jwks: JWKS,
+        replay: memoryReplayStore(),
+      }),
+    ).toEqual({
+      ok: false,
+      reason: "invalid-signature",
+      cause: "invalid-signature",
+    });
+    expect(
+      await verifyWebhook(await delivery([]), {
+        jwks: JWKS,
+        replay: memoryReplayStore(),
+        now: () => Temporal.Now.instant().add({ minutes: 6 }),
+      }),
+    ).toEqual({
+      ok: false,
+      reason: "invalid-signature",
+      cause: "timestamp-out-of-range",
+    });
+    const signed = await delivery([]);
+    const tampered = new Request(signed, { method: "POST", body: "[ ]" });
+    expect(
+      await verifyWebhook(tampered, {
+        jwks: JWKS,
+        replay: memoryReplayStore(),
+      }),
+    ).toMatchObject({ ok: false, cause: "invalid-signature" });
+  });
+
+  it("rejects an unknown event type, a non-JSON body and a replayed delivery", async () => {
     const replay = memoryReplayStore();
-    const jws = await signDecisionBatch([membership], signer, {
-      audience: RECEIVER,
-    });
-    const first = await verifyWebhook(delivery(jws), {
-      jwks: JWKS,
-      audience: RECEIVER,
-      replay,
-    });
-    const second = await verifyWebhook(delivery(jws), {
-      jwks: JWKS,
-      audience: RECEIVER,
-      replay,
-    });
+    const unknown = {
+      ...toCloudEvent(membership, { source: SOURCE }),
+      type: "com.permdock.grant",
+    };
+    expect(
+      await verifyWebhook(await delivery([unknown]), { jwks: JWKS, replay }),
+    ).toEqual({ ok: false, reason: "invalid-events" });
+    expect(
+      await verifyWebhook(await delivery("not json"), { jwks: JWKS, replay }),
+    ).toEqual({ ok: false, reason: "invalid-events" });
+    const body = [toCloudEvent(membership, { source: SOURCE })];
+    const verifier = { jwks: JWKS, replay };
+    const first = await verifyWebhook(
+      await delivery(body, { id: "msg_once" }),
+      verifier,
+    );
+    const second = await verifyWebhook(
+      await delivery(body, { id: "msg_once" }),
+      verifier,
+    );
     expect(first.ok).toBe(true);
-    expect(second).toEqual({ ok: false, reason: "replayed" });
+    expect(second).toEqual({
+      ok: false,
+      reason: "replayed",
+      cause: "replayed",
+    });
+  });
+
+  it("reuses an injected verifier", async () => {
+    const result = await verifyWebhook(await delivery([]), {
+      verifier: {
+        verify: async () => ({
+          ok: true,
+          id: "msg_x",
+          timestamp: "2026-09-28T10:00:00Z",
+          body: "[]",
+        }),
+      },
+    });
+    expect(result).toEqual({
+      ok: true,
+      id: "msg_x",
+      timestamp: "2026-09-28T10:00:00Z",
+      events: [],
+    });
   });
 });
 
 describe("parseCloudEvent", () => {
   it("validates the envelope, the type and the data shape", () => {
-    const event = toCloudEvent(membership);
-    expect(parseCloudEvent(event)?.type).toBe("dev.permdock.membership");
+    const event = toCloudEvent(membership, { source: SOURCE });
+    expect(parseCloudEvent(event)?.type).toBe(
+      CLOUD_EVENT_TYPES.membershipChanged,
+    );
     expect(parseCloudEvent({ ...event, specversion: "0.3" })).toBeNull();
     expect(
-      parseCloudEvent({ ...event, type: CLOUD_EVENT_TYPES.catalog }),
+      parseCloudEvent({ ...event, type: CLOUD_EVENT_TYPES.catalogPublished }),
     ).toBeNull();
     expect(
       parseCloudEvent(
         JSON.parse(
-          `{"specversion":"1.0","type":"dev.permdock.catalog","source":"s","id":"i","time":"t","data":{"kind":"drift","fingerprint":"f","__proto__":{}}}`,
+          `{"specversion":"1.0","type":"com.permdock.catalog.drifted","source":"https://a.example","id":"i","time":"2026-01-01T00:00:00Z","dataschema":"https://permdock.com/schemas/catalog-event-v1.json","data":{"kind":"drift","fingerprint":"f","__proto__":{}}}`,
         ),
       ),
     ).toBeNull();
