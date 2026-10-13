@@ -13,7 +13,7 @@ import type {
 } from "../core/sink.ts";
 import type { Instant } from "../core/time.ts";
 import type {
-  WebhookFailureCause,
+  WebhookFailureCause as MessageFailureCause,
   WebhookJwks,
   WebhookVerifier,
   WebhookVerifierOptions,
@@ -95,11 +95,8 @@ export type VerifyWebhookOptions = {
   readonly fetch?: typeof fetch;
 };
 
-export type WebhookFailureReason =
-  | "unsigned"
-  | "invalid-signature"
-  | "invalid-events"
-  | "replayed";
+/** The Standard Webhooks verifier's cause, or `invalid-events` for a signed body that is not a CloudEvents batch. */
+export type WebhookFailureCause = MessageFailureCause | "invalid-events";
 
 export type VerifiedWebhook =
   | {
@@ -110,11 +107,7 @@ export type VerifiedWebhook =
       readonly timestamp: string;
       readonly events: readonly PermDockCloudEvent[];
     }
-  | {
-      readonly ok: false;
-      readonly reason: WebhookFailureReason;
-      readonly cause?: WebhookFailureCause;
-    };
+  | { readonly ok: false; readonly cause: WebhookFailureCause };
 
 /**
  * Validates one CloudEvent against the closed type list, its `dataschema` and
@@ -180,37 +173,15 @@ export async function verifyWebhook(
 ): Promise<VerifiedWebhook> {
   const verifier = verifierFor(options);
   if (verifier === undefined) {
-    return {
-      ok: false,
-      reason: "invalid-signature",
-      cause: "keys-unavailable",
-    };
+    return { ok: false, cause: "keys-unavailable" };
   }
   const verified = await verifier.verify(request);
   if (!verified.ok) {
-    switch (verified.cause) {
-      case "missing-headers":
-        return { ok: false, reason: "unsigned", cause: verified.cause };
-      case "replayed":
-        return { ok: false, reason: "replayed", cause: verified.cause };
-      case "malformed":
-      case "timestamp-out-of-range":
-      case "invalid-signature":
-      case "keys-unavailable":
-        return {
-          ok: false,
-          reason: "invalid-signature",
-          cause: verified.cause,
-        };
-      default: {
-        const exhaustive: never = verified.cause;
-        return exhaustive;
-      }
-    }
+    return { ok: false, cause: verified.cause };
   }
   const events = eventsOf(verified.body);
   if (events === null) {
-    return { ok: false, reason: "invalid-events" };
+    return { ok: false, cause: "invalid-events" };
   }
   return freezeDeep({
     ok: true as const,

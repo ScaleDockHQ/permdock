@@ -132,7 +132,7 @@ describe("verifyWebhook", () => {
     ]) {
       expect(
         await verifyWebhook(await drift(findings), { jwks: JWKS, replay }),
-      ).toEqual({ ok: false, reason: "invalid-events" });
+      ).toEqual({ ok: false, cause: "invalid-events" });
     }
   });
 
@@ -143,14 +143,13 @@ describe("verifyWebhook", () => {
     });
     expect(
       await verifyWebhook(plain, { jwks: JWKS, replay: memoryReplayStore() }),
-    ).toEqual({ ok: false, reason: "unsigned", cause: "missing-headers" });
+    ).toEqual({ ok: false, cause: "missing-headers" });
   });
 
   it("needs keys and a replay store", async () => {
     const request = await delivery([]);
     expect(await verifyWebhook(request, { jwks: JWKS })).toEqual({
       ok: false,
-      reason: "invalid-signature",
       cause: "keys-unavailable",
     });
     expect(
@@ -171,22 +170,14 @@ describe("verifyWebhook", () => {
         jwks: JWKS,
         replay: memoryReplayStore(),
       }),
-    ).toEqual({
-      ok: false,
-      reason: "invalid-signature",
-      cause: "invalid-signature",
-    });
+    ).toEqual({ ok: false, cause: "invalid-signature" });
     expect(
       await verifyWebhook(await delivery([]), {
         jwks: JWKS,
         replay: memoryReplayStore(),
         now: () => Temporal.Now.instant().add({ minutes: 6 }),
       }),
-    ).toEqual({
-      ok: false,
-      reason: "invalid-signature",
-      cause: "timestamp-out-of-range",
-    });
+    ).toEqual({ ok: false, cause: "timestamp-out-of-range" });
     const signed = await delivery([]);
     const tampered = new Request(signed, { method: "POST", body: "[ ]" });
     expect(
@@ -205,10 +196,10 @@ describe("verifyWebhook", () => {
     };
     expect(
       await verifyWebhook(await delivery([unknown]), { jwks: JWKS, replay }),
-    ).toEqual({ ok: false, reason: "invalid-events" });
+    ).toEqual({ ok: false, cause: "invalid-events" });
     expect(
       await verifyWebhook(await delivery("not json"), { jwks: JWKS, replay }),
-    ).toEqual({ ok: false, reason: "invalid-events" });
+    ).toEqual({ ok: false, cause: "invalid-events" });
     const body = [toCloudEvent(membership, { source: SOURCE })];
     const verifier = { jwks: JWKS, replay };
     const first = await verifyWebhook(
@@ -220,11 +211,7 @@ describe("verifyWebhook", () => {
       verifier,
     );
     expect(first.ok).toBe(true);
-    expect(second).toEqual({
-      ok: false,
-      reason: "replayed",
-      cause: "replayed",
-    });
+    expect(second).toEqual({ ok: false, cause: "replayed" });
   });
 
   it("reuses an injected verifier", async () => {

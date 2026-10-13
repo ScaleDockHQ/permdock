@@ -429,6 +429,12 @@ const rows: readonly Rename[] = [
     entries: ["permdock/cloud"],
     kind: "type",
   },
+  {
+    from: "ApprovalResumeFailure",
+    to: "ApprovalResumeFailureCause",
+    entries: ["permdock/approvals"],
+    kind: "type",
+  },
 ];
 
 /** Every 0.5.0 rename, one row per `from` and target. */
@@ -499,5 +505,23 @@ export const SIGNATURE_CHANGES_0_5: readonly SignatureChange[] = Object.freeze([
     entries: SERVER_ADAPTERS,
     before: "verifyWebBotAuth(request, options)",
     after: "webBotAuthVerifier(options)(request)",
+  },
+  {
+    name: "verifyWebhook",
+    entries: ["permdock/cloud"],
+    before: "verifyWebhook(request, options).reason",
+    after: "verifyWebhook(request, options).cause",
+  },
+  {
+    name: "inspectApproval",
+    entries: ["permdock/approvals"],
+    before: "inspectApproval(store, token).detail",
+    after: "inspectApproval(store, token).cause",
+  },
+  {
+    name: "consumeApproval",
+    entries: ["permdock/approvals"],
+    before: "consumeApproval(store, token).detail",
+    after: "consumeApproval(store, token).cause",
   },
 ]);

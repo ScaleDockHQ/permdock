@@ -93,7 +93,7 @@ export type {
   ApprovalListQuery,
   ApprovalPage,
   ApprovalRequest,
-  ApprovalResumeFailure,
+  ApprovalResumeFailureCause,
   ApprovalSignature,
   ApprovalStatus,
   ApprovalStore,

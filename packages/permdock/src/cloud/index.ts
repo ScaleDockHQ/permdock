@@ -10,5 +10,5 @@ export type {
   PermDockCloudEvent,
   VerifiedWebhook,
   VerifyWebhookOptions,
-  WebhookFailureReason,
+  WebhookFailureCause,
 } from "./webhook.ts";

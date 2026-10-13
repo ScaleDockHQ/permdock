@@ -121,19 +121,19 @@ const delivery = (): Request =>
   new Request(RECEIVER, { method: "POST", body: "[]" });
 
 describe("verifyWebhook with an injected verifier", () => {
-  it.each<[WebhookFailureCause, string]>([
-    ["missing-headers", "unsigned"],
-    ["malformed", "invalid-signature"],
-    ["timestamp-out-of-range", "invalid-signature"],
-    ["invalid-signature", "invalid-signature"],
-    ["keys-unavailable", "invalid-signature"],
-    ["replayed", "replayed"],
-  ])("maps %s to %s", async (cause, reason) => {
+  it.each<WebhookFailureCause>([
+    "missing-headers",
+    "malformed",
+    "timestamp-out-of-range",
+    "invalid-signature",
+    "keys-unavailable",
+    "replayed",
+  ])("passes the verifier cause %s through", async (cause) => {
     expect(
       await verifyWebhook(delivery(), {
         verifier: verifierWith({ ok: false, cause }),
       }),
-    ).toEqual({ ok: false, reason, cause });
+    ).toEqual({ ok: false, cause });
   });
 
   it.each<[string, string]>([
@@ -152,6 +152,6 @@ describe("verifyWebhook with an injected verifier", () => {
           body,
         }),
       }),
-    ).toEqual({ ok: false, reason: "invalid-events" });
+    ).toEqual({ ok: false, cause: "invalid-events" });
   });
 });

@@ -379,7 +379,7 @@ describe("consumeApproval", () => {
     const store: ApprovalStore = { ...approved("t1"), consume: () => null };
     expect(await consumeApproval(store, "t1")).toEqual({
       ok: false,
-      detail: "approval-consumed",
+      cause: "approval-consumed",
     });
   });
 });

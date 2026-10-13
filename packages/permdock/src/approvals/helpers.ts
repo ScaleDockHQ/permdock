@@ -229,19 +229,19 @@ export async function inspectApproval(
   await store.expire({ epochMilliseconds: now });
   const request = await store.get(token);
   if (request === null) {
-    return { ok: false, detail: "approval-not-found" };
+    return { ok: false, cause: "approval-not-found" };
   }
   if (request.status === "pending") {
-    return { ok: false, detail: "approval-pending" };
+    return { ok: false, cause: "approval-pending" };
   }
   if (request.status === "rejected") {
-    return { ok: false, detail: "approval-rejected" };
+    return { ok: false, cause: "approval-rejected" };
   }
   if (request.consumedAt !== undefined) {
-    return { ok: false, detail: "approval-consumed" };
+    return { ok: false, cause: "approval-consumed" };
   }
   if (request.status === "expired" || Date.parse(request.expiresAt) <= now) {
-    return { ok: false, detail: "approval-expired" };
+    return { ok: false, cause: "approval-expired" };
   }
   return { ok: true, request };
 }
@@ -258,11 +258,11 @@ export async function consumeApproval(
     return inspected;
   }
   if (typeof store.consume !== "function") {
-    return { ok: false, detail: "approval-not-found" };
+    return { ok: false, cause: "approval-not-found" };
   }
   const consumed = await store.consume(token, now);
   if (consumed === null) {
-    return { ok: false, detail: "approval-consumed" };
+    return { ok: false, cause: "approval-consumed" };
   }
   return { ok: true, request: consumed };
 }
@@ -409,7 +409,7 @@ export async function resumeDecision(input: {
     return approvalDenied("approval-not-found");
   }
   if (!inspected.ok) {
-    return approvalDenied(inspected.detail);
+    return approvalDenied(inspected.cause);
   }
   const principal = input.subject.principal;
   if (principal === null) {
@@ -476,7 +476,7 @@ export function resumeFromHeader(
 ): Promise<ApprovalInspectResult> {
   const token = readApprovalHeader(headers);
   if (token === undefined) {
-    return Promise.resolve({ ok: false, detail: "approval-not-found" });
+    return Promise.resolve({ ok: false, cause: "approval-not-found" });
   }
   return inspectApproval(store, token, now);
 }

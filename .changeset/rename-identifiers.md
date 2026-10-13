@@ -50,12 +50,16 @@ Breaking: `subjectFrom*` resolvers take the input first and options second and r
 | `AuthZenSearchVector`                                         | `AuthzenSearchVector`               |
 | `powersyncSource`                                             | `powerSyncSource`                   |
 | `summariseSubject`                                            | `summarizeSubject`                  |
+| `WebhookFailureReason`                                        | `WebhookFailureCause`               |
+| `ApprovalResumeFailure`                                       | `ApprovalResumeFailureCause`        |
 
-| Before                                                   | After                                                                                         |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `subjectFromApiKey(options)(key, { tenant })`            | `subjectFromApiKey(key, { ...options, tenant })`                                              |
-| `subjectFromBetterAuth(auth, session, options)`          | `subjectFromBetterAuth(session, { auth, ...options })`                                        |
-| `capabilitySubject(capability)` from `permdock`          | `subjectFromCapability(token, options)` from `permdock/jwt`                                   |
-| `credentialSubject(credential, options)` from `permdock` | `subjectFromApiKey(key, options)` from `permdock/server`                                      |
-| `MappedSubject` from `permdock/jwt`                      | `Subject<JwtPrincipal>`; `subjectFromIntrospection` returns `Subject<IntrospectionPrincipal>` |
-| `verifyWebBotAuth(request, options)`                     | `webBotAuthVerifier(options)(request)`, or `webBotAuth: webBotAuthVerifier(options)`          |
+| Before                                                                  | After                                                                                         |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `subjectFromApiKey(options)(key, { tenant })`                           | `subjectFromApiKey(key, { ...options, tenant })`                                              |
+| `subjectFromBetterAuth(auth, session, options)`                         | `subjectFromBetterAuth(session, { auth, ...options })`                                        |
+| `capabilitySubject(capability)` from `permdock`                         | `subjectFromCapability(token, options)` from `permdock/jwt`                                   |
+| `credentialSubject(credential, options)` from `permdock`                | `subjectFromApiKey(key, options)` from `permdock/server`                                      |
+| `MappedSubject` from `permdock/jwt`                                     | `Subject<JwtPrincipal>`; `subjectFromIntrospection` returns `Subject<IntrospectionPrincipal>` |
+| `verifyWebBotAuth(request, options)`                                    | `webBotAuthVerifier(options)(request)`, or `webBotAuth: webBotAuthVerifier(options)`          |
+| `verifyWebhook` failure `{ ok: false, reason, cause? }`                 | `{ ok: false, cause }`, where `cause` is a `WebhookFailureCause`                              |
+| `inspectApproval` and `consumeApproval` failure `{ ok: false, detail }` | `{ ok: false, cause }`                                                                        |

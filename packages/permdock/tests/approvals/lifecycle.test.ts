@@ -90,10 +90,10 @@ describe("single-use approvals", () => {
     const first = await consumeApproval(store, "pd1.a");
     expect(first.ok).toBe(true);
     const second = await consumeApproval(store, "pd1.a");
-    expect(second).toEqual({ ok: false, detail: "approval-consumed" });
+    expect(second).toEqual({ ok: false, cause: "approval-consumed" });
     expect(await inspectApproval(store, "pd1.a")).toEqual({
       ok: false,
-      detail: "approval-consumed",
+      cause: "approval-consumed",
     });
   });
 

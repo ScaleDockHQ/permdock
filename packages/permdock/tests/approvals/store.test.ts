@@ -178,7 +178,7 @@ describe("request and resume helpers", () => {
     const pendingInspect = await inspectApproval(store, "pd1.abc");
     expect(pendingInspect.ok).toBe(false);
     if (!pendingInspect.ok) {
-      expect(pendingInspect.detail).toBe("approval-pending");
+      expect(pendingInspect.cause).toBe("approval-pending");
     }
 
     const approved = await resolveApproval(store, "pd1.abc", {
@@ -234,7 +234,7 @@ describe("request and resume helpers", () => {
     store.create(pending({ token: "pd1.gone", status: "expired" }));
     expect(await inspectApproval(store, "pd1.gone")).toEqual({
       ok: false,
-      detail: "approval-expired",
+      cause: "approval-expired",
     });
     await expect(
       resolveApproval(store, "missing", {
@@ -259,7 +259,7 @@ describe("request and resume helpers", () => {
     );
     expect(await inspectApproval(store, "pd1.old-ok")).toEqual({
       ok: false,
-      detail: "approval-expired",
+      cause: "approval-expired",
     });
   });
 
@@ -273,11 +273,11 @@ describe("request and resume helpers", () => {
       { requireDistinctApprover: true },
     );
     const rejected = await inspectApproval(store, "pd1.rej");
-    expect(rejected).toEqual({ ok: false, detail: "approval-rejected" });
+    expect(rejected).toEqual({ ok: false, cause: "approval-rejected" });
 
     store.create(pending({ token: "pd1.old", expiresAt: past }));
     const expired = await inspectApproval(store, "pd1.old");
-    expect(expired).toEqual({ ok: false, detail: "approval-expired" });
+    expect(expired).toEqual({ ok: false, cause: "approval-expired" });
   });
 
   it("records grant approvers and the subject session on requests", async () => {

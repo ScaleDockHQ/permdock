@@ -209,7 +209,7 @@ export type ApprovalStore = {
   ): Promise<number> | number;
 };
 
-export type ApprovalResumeFailure =
+export type ApprovalResumeFailureCause =
   | "approval-not-found"
   | "approval-pending"
   | "approval-rejected"
@@ -218,7 +218,7 @@ export type ApprovalResumeFailure =
 
 export type ApprovalInspectResult =
   | { readonly ok: true; readonly request: ApprovalRequest }
-  | { readonly ok: false; readonly detail: ApprovalResumeFailure };
+  | { readonly ok: false; readonly cause: ApprovalResumeFailureCause };
 
 export const APPROVAL_HEADER = "PermDock-Approval" as const;
 
