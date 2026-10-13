@@ -18,6 +18,7 @@ import type { DoctorFinding, DoctorSource } from "../shared/doctor-types.ts";
 /** Entries a client file must not import; `tests/cli/doctor-entries.test.ts` keeps it in step with `exports`. */
 export const SERVER_SPECIFIERS = [
   "permdock/a2a",
+  "permdock/agent",
   "permdock/ai-sdk",
   "permdock/approvals",
   "permdock/authzen",
@@ -52,6 +53,7 @@ export const SERVER_SPECIFIERS = [
   "permdock/supabase/middleware",
   "permdock/terminal",
   "permdock/trpc",
+  "permdock/workflow",
 ] as const;
 
 /** Entries that feed request, tool or model data into a check. */

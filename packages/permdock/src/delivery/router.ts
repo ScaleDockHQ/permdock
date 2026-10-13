@@ -468,7 +468,7 @@ export function createPermDock<
           message as DeliveryMessages["email"],
           // SAFETY: the target was built for the email channel above.
           target as DeliveryTarget<"email">,
-          options.from ?? options.transports.email?.from,
+          options.from,
         );
         if (!built.ok) {
           return fail({

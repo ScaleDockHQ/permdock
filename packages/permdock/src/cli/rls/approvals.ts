@@ -8,6 +8,12 @@ import {
   quoteLiteral,
   quoteQualified,
 } from "../sql/quote.ts";
+import { subjectIdSql } from "../sql/subject.ts";
+import {
+  PERMISSION_HELPERS,
+  checkName,
+  permittedByPermissionHelper,
+} from "./permission-keys.ts";
 
 /** The objects `rls.approvals` adds. Names are part of the SQL contract `supabaseApprovalStore` calls. */
 const APPROVAL_STORE = {
@@ -19,6 +25,7 @@ const APPROVAL_STORE = {
   list: "permdock_approval_list",
   expire: "permdock_approval_expire",
   cancel: "permdock_approval_cancel",
+  isApprover: "permdock_is_approver",
 } as const;
 
 /** `body` as the row's filter columns hold it. */
@@ -240,6 +247,85 @@ as $$
   select count(*)::integer from cancelled
 $$;
 ${serverOnly(fn(APPROVAL_STORE.cancel), "jsonb, text, text, text")}
+`;
+}
+
+/**
+ * `permdock_is_approver(p_approvers jsonb, p_tenant text default null)`: true
+ * when the signed-in user matches the serialised approvers of a request
+ * (`approvers.by`), for policies on the app's own approval views. A list
+ * needs every item and `any-of` one of them; `user` compares the user id and
+ * `holder(permission)` reads `permitted_<root>_ids_by_permission` in
+ * `p_tenant`, or `permdock_has_permission` without one. Role, relation and
+ * other grantee approvers need facts the database does not hold for every
+ * membership source, so they match nobody.
+ */
+export function isApproverSql(ctx: RlsSqlContext): string {
+  const fn = qualified(ctx, APPROVAL_STORE.isApprover);
+  const root = ctx.scopes[0]?.name;
+  const inTenant =
+    root === undefined
+      ? "false"
+      : `exists (
+          select 1
+          from ${qualified(ctx, checkName(permittedByPermissionHelper(root)))}(p_approvers ->> 'permission') i(id)
+          where i.id::text = p_tenant
+        )`;
+  return `
+-- approvers: whether the signed-in user matches a request's approvers.by; policies on approval views call it
+create or replace function ${fn}(p_approvers jsonb, p_tenant text default null)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_item jsonb;
+  v_user text := ${subjectIdSql(ctx)}::text;
+begin
+  if coalesce(v_user, '') = '' or p_approvers is null then
+    return false;
+  end if;
+  if jsonb_typeof(p_approvers) = 'array' then
+    if jsonb_array_length(p_approvers) = 0 then
+      return false;
+    end if;
+    for v_item in select value from jsonb_array_elements(p_approvers) loop
+      if not ${fn}(v_item, p_tenant) then
+        return false;
+      end if;
+    end loop;
+    return true;
+  end if;
+  if jsonb_typeof(p_approvers) <> 'object' then
+    return false;
+  end if;
+  case p_approvers ->> 'kind'
+    when 'user' then
+      return coalesce(p_approvers ->> 'id' = v_user, false);
+    when 'permission' then
+      if p_tenant is null then
+        return coalesce(${qualified(ctx, PERMISSION_HELPERS.has)}(p_approvers ->> 'permission'), false);
+      end if;
+      return ${inTenant};
+    when 'any-of' then
+      if jsonb_typeof(p_approvers -> 'of') <> 'array' then
+        return false;
+      end if;
+      for v_item in select value from jsonb_array_elements(p_approvers -> 'of') loop
+        if ${fn}(v_item, p_tenant) then
+          return true;
+        end if;
+      end loop;
+      return false;
+    else
+      return false;
+  end case;
+end;
+$$;
+revoke execute on function ${fn}(jsonb, text) from public, anon;
+grant execute on function ${fn}(jsonb, text) to authenticated;
 `;
 }
 
