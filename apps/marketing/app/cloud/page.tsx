@@ -27,7 +27,7 @@ export default function CloudPage() {
           {
             title: "Decision log as evidence",
             description:
-              "Signed batches with typ permdock-decisions+jwt. A sink never changes an outcome.",
+              "Signed batches with typ vnd.permdock.evidence+jwt. A sink never changes an outcome.",
             href: "/docs/concepts/audit-and-observability",
             icon: <ClipboardListIcon aria-hidden="true" className="size-4" />,
           },

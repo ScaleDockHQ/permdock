@@ -74,8 +74,8 @@ const subject = await subjectFromJwt(token, {
 | `createJwtSubjectResolver(options)`                           | Returns `(token, request?) => Promise<Subject>` with a cached Discovery document and JWKS. Use one resolver per issuer for the life of the process; pass it as the `subject` option of a server adapter.                                                                                                                                                                                                                                                                                                                                      |
 | `verifyDpopProof(request, claims, accessToken?, { replay }?)` | Checks the `DPoP` header of `request` against `claims.cnf.jkt`: an asymmetric `alg` and a public `jwk` only, proof signature, `htm` match, `htu` against the request URI without its query and fragment (RFC 9449 section 4.3), `iat` window, `ath` hash of the access token. With `replay`, a proof without a `jti`, or with a `jti` the same key used in the last 60 seconds, is invalid. Returns `{ ok: true }` or `{ ok: false, cause }`. Called automatically when `sender: 'dpop'`; exported for adapters that verify tokens elsewhere. |
 | `joseTokenVerifier(options)`                                  | The built-in `TokenVerifier`: `jwks` or `discovery`, `algorithms`, `typ`, `audience`, `clockTolerance`, `decryptionKeys`. Exported so `permdock/ssf`, `permdock/cloud` and your own code verify PermDock's signed outputs and SETs with the same rules ([extension interfaces](/docs/concepts/extension-interfaces)).                                                                                                                                                                                                                         |
-| `joseTokenSigner({ key, alg, kid })`                          | The built-in `TokenSigner`: signs a payload as compact JWS with a registered `typ`. Used by `permdock.snapshot({ signer })`, `approvalsHandler({ signer })` and `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)).                                                                                                                                                                                                                                                                                                               |
-| `subjectFromCapability(token, options)`                       | Verifies a `permdock-capability+jwt` share link and returns the `link` subject it acts as: one resource membership, narrowed by `delegation.scopes` when the capability lists permissions. `issuer` and `audience` are required. Never throws ([link capabilities](/docs/concepts/capabilities)).                                                                                                                                                                                                                                             |
+| `joseTokenSigner({ key, alg, kid, issuer, audience })`        | The built-in `TokenSigner`: signs a payload as compact JWS with a `vnd.permdock.*+jwt` `typ`. `issuer` is required; `audience` is the default `aud`. Used by `permdock.snapshot({ signer })`, `approvalsHandler({ signer })` and `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)).                                                                                                                                                                                                                                              |
+| `subjectFromCapability(token, options)`                       | Verifies a `vnd.permdock.capability+jwt` share link and returns the `link` subject it acts as: one resource membership, narrowed by `delegation.scopes` when the capability lists permissions. `issuer` and `audience` are required. Never throws ([link capabilities](/docs/concepts/capabilities)).                                                                                                                                                                                                                                         |
 | `subjectFromIntrospection(response, options)`                 | Maps an RFC 7662 or RFC 9767 introspection response (`active`, `access` / `scope`, `key`, `sub`, `iss`, `instance_id` / `client_id`) to the same `Subject` shape; `active` other than `true` is anonymous. With `audience` set, `aud` must contain it; with `issuer` set, a response whose `iss` differs is anonymous, and a response without `iss` has no `principal.issuer`. The HTTP call to the introspection endpoint is yours ([GNAP](/docs/standards/watch-list#gnap), [delegation](/docs/security/delegation)).                       |
 
 Option notes:
@@ -119,23 +119,25 @@ Option notes:
 
 ### Link capabilities
 
-`subjectFromCapability(token, options)` verifies with the same `joseTokenVerifier` rules (or `verifier`) but accepts only `typ: permdock-capability+jwt`, and `subjectFromJwt` never accepts that `typ`, so a link and an access token cannot stand in for each other. It takes `jwks` or `discovery`, `issuer` and `audience` (both required), `algorithms`, `clockTolerance` and three options of its own:
+`subjectFromCapability(token, options)` verifies with the same `joseTokenVerifier` rules (or `verifier`) but accepts only `typ: vnd.permdock.capability+jwt`, and `subjectFromJwt` never accepts that `typ`, so a link and an access token cannot stand in for each other. It takes `jwks` or `discovery`, `issuer` and `audience` (both required), `algorithms`, `clockTolerance` and three options of its own:
 
 - `revoked(id)` returns `true` for a link id (`sub`) the application revoked. A throw denies.
 - `replay` is a `ReplayStore` ([SSF adapter](/docs/adapters/ssf)). A one-time capability claims `capability`, the issuer and the `jti` in it and is refused without one.
 - `viewer` is the request's own verified subject, checked against the capability's `redeemer`; a link subject never satisfies it.
+- `request` is the incoming `Request`. A capability with `cnf.jkt` (RFC 7800) resolves only when the request carries a DPoP proof (RFC 9449) signed by that key; `verifyDpopProof` checks it, with `replay` when set.
 - `linkPolicy(capability)` returns the `LinkPolicy` (or several) of the scope instances the linked resource sits in: `maxLifetime` from `iat`, allowed `redeemers`, required `once`. Every one must hold. A throw denies.
 
-The result is `{ principal: { id, kind: 'link', issuer, memberships: [{ on, roles, via: 'link', expiresAt }], capability }, delegation?, context: {}, expiresAt }`, with `expiresAt` the earlier of `exp` and `capability.expiresAt`. Failures report `source: 'capability'` on `on('auth')`, with the causes below in addition to the verification causes of the next table:
+The result is `{ principal: { id, kind: 'link', issuer, memberships: [{ on, roles, via: 'link', expiresAt }], capability }, delegation?, context: {}, expiresAt }`, with `expiresAt` the token's `exp`. Failures report `source: 'capability'` on `on('auth')`, with the causes below in addition to the verification causes of the next table:
 
-| Input                                                                                                                                                 | Result    | `reason`, `cause`                      |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------- |
-| `capability` claim is not a valid v1 object, its `id` is not `sub`, its `holder` is `key`, or a one-time capability arrives without `replay` or `jti` | anonymous | `invalid-token`, `invalid-claims`      |
-| `redeemer` is `signed-in`, a user or a scope instance the `viewer` does not satisfy                                                                   | anonymous | `invalid-token`, `redeemer-mismatch`   |
-| A `linkPolicy` rule is broken (lifetime from `iat`, redeemer kind, one-time)                                                                          | anonymous | `invalid-token`, `link-policy`         |
-| `revoked(id)` returned `true`                                                                                                                         | anonymous | `invalid-token`, `capability-revoked`  |
-| A one-time capability whose `jti` was already claimed                                                                                                 | anonymous | `invalid-token`, `capability-replayed` |
-| `linkPolicy`, `revoked` or `replay` threw                                                                                                             | anonymous | `source-threw`, no cause               |
+| Input                                                                                                                                                                         | Result    | `reason`, `cause`                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------- |
+| `capability` claim is not a valid v1 object, `sub` or `exp` is missing, `cnf` is malformed, its `holder` is `key`, or a one-time capability arrives without `replay` or `jti` | anonymous | `invalid-token`, `invalid-claims`      |
+| A capability with `cnf` arrives without a DPoP proof from the bound key                                                                                                       | anonymous | `invalid-token`, `dpop-proof-invalid`  |
+| `redeemer` is `signed-in`, a user or a scope instance the `viewer` does not satisfy                                                                                           | anonymous | `invalid-token`, `redeemer-mismatch`   |
+| A `linkPolicy` rule is broken (lifetime from `iat`, redeemer kind, one-time)                                                                                                  | anonymous | `invalid-token`, `link-policy`         |
+| `revoked(id)` returned `true`                                                                                                                                                 | anonymous | `invalid-token`, `capability-revoked`  |
+| A one-time capability whose `jti` was already claimed                                                                                                                         | anonymous | `invalid-token`, `capability-replayed` |
+| `linkPolicy`, `revoked` or `replay` threw                                                                                                                                     | anonymous | `source-threw`, no cause               |
 
 `CapabilityFailureCause` is `TokenFailureCause` plus the four capability causes; a `TokenVerifier` never returns them.
 
@@ -223,32 +225,36 @@ const signer = joseTokenSigner({
   key: privateJwk,
   alg: "Ed25519",
   kid: "2026-09",
+  issuer: "https://app.example.com",
+  audience: "https://app.example.com",
 });
 const jws = await signer.sign(payload, {
-  typ: "permdock-snapshot+jwt",
-  expiresAt,
+  typ: "vnd.permdock.snapshot+jwt",
+  issuedAt, // iat, NumericDate
+  expiresAt, // exp, NumericDate
+  jti,
 });
 ```
 
-`verify` never throws; every failure is the same `{ ok: false, reason, cause }` shape the behaviour table lists. `sign` produces compact JWS with the header `alg`, `kid`, `typ` and nothing else. The conformance runner `testTokenVerifier` in `permdock/testing` checks a custom verifier against the behaviour table with the fixture tokens it ships.
+`verify` never throws; every failure is the same `{ ok: false, reason, cause }` shape the behaviour table lists. `sign` produces compact JWS with the header `alg`, `kid`, `typ` and nothing else. It sets `iss`, `aud`, `iat`, `exp` and `jti` itself and drops those claims from the payload: `iat` defaults to the signer's clock, `exp` to `iat` + 3600 and `jti` to a random UUID. Without `issuer` the signer throws at construction; without an `audience` option or default it refuses to sign. The conformance runner `testTokenVerifier` in `permdock/testing` checks a custom verifier against the behaviour table with the fixture tokens it ships.
 
 ### Signed outputs
 
-Four PermDock artefacts can be signed with a `TokenSigner`; the payloads are specified on [wire formats](/docs/concepts/wire-formats):
+PermDock signs its artefacts with a `TokenSigner`; the payloads are specified on [wire formats](/docs/concepts/wire-formats):
 
 ```ts
 const jws = await permdock.snapshot({
   signer,
   audience: "https://app.example.com",
-}); // typ: permdock-snapshot+jwt
-approvalsHandler({ store, signer }); // typ: permdock-approval+jwt on the resume token
-cloud({ url, key }).sink; // typ: permdock-decisions+jwt on batch export
-await signCapability(link, signer, { audience: "https://app.example.com" }); // typ: permdock-capability+jwt, a share link
+}); // typ: vnd.permdock.snapshot+jwt
+approvalsHandler({ store, signer }); // typ: vnd.permdock.approval+jwt on the resume token
+await signDecisionBatch(events, signer, { source }); // typ: vnd.permdock.evidence+jwt, an evidence export
+await signCapability(link, signer, { audience: "https://app.example.com" }); // typ: vnd.permdock.capability+jwt, a share link
 ```
 
-PermDock Cloud signs one more artefact, the hosted-grant policy document (`typ: permdock-policy+jwt`); the application only verifies it, through the `verifier` passed to `cloud()`.
+PermDock Cloud signs one more artefact, the hosted-grant policy document (`typ: vnd.permdock.policy+jwt`); the application only verifies it, through the `verifier` passed to `cloud()`.
 
-A client in any language verifies a signed snapshot with its JOSE library and the signer's JWKS; in TypeScript, `joseTokenVerifier({ jwks, typ: 'permdock-snapshot+jwt' })`. The unsigned JSON form remains the default and the two carry the same snapshot object.
+A client in any language verifies a signed snapshot with its JOSE library and the signer's JWKS; in TypeScript, `joseTokenVerifier({ jwks, typ: 'vnd.permdock.snapshot+jwt' })`. The unsigned JSON form remains the default and the two carry the same snapshot object.
 
 ## Usage
 

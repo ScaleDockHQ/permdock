@@ -61,7 +61,7 @@ The library is and stays MIT. PermDock Cloud is an optional hosted service built
 
 What the Cloud sells:
 
-- **Decision log and evidence.** Access-review queries per principal, actor, tenant and time window; agent activity views; the approval chain joined on `token`; signed exports (`permdock-decisions+jwt`), OCSF forwarding and CSV for compliance platforms; retention tiers. This is the lead product.
+- **Decision log and evidence.** Access-review queries per principal, actor, tenant and time window; agent activity views; the approval chain joined on `token`; signed exports (`vnd.permdock.evidence+jwt`), OCSF forwarding and CSV for compliance platforms; retention tiers. This is the lead product.
 - **Approvals inbox.** Pending approvals with delivery to Slack and Teams and approver management, behind the `ApprovalStore` interface.
 - **Snapshot distribution.** Signed snapshots with CAEP invalidation, behind the `SnapshotSource` interface.
 - **SCIM relay.** An identity-provider wizard, group-to-role mapping and a sync log that replays provisioning into a `DirectoryStore` the application owns (`permdock/scim`). In this bring-your-own mode the Cloud holds no authoritative directory copy. In Cloud-native directory mode the Cloud holds the directory of record, and it reaches a decision only as claims on a token the application verifies locally.

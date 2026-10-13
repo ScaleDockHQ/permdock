@@ -63,7 +63,7 @@ class PermDockApprovalRequiredError extends Error {
   readonly resource: { type: string; id?: string };
   readonly token: string; // bind the approval reply to these arguments
   readonly reason: string; // 'human'
-  readonly digest: string; // 'PERMDOCK_APPROVAL_REQUIRED;post.delete;pd1.…'
+  readonly digest: string; // 'PERMDOCK_APPROVAL_REQUIRED;post.delete;sha-256:…'
   toProblemDetails(options?: { instance?: string }): ProblemDetails;
 }
 ```

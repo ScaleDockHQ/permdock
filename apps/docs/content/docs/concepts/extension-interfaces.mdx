@@ -67,7 +67,7 @@ interface TokenVerifier<TClaims extends JwtClaims = JwtClaims> {
   verify(
     token: string,
     expectations: {
-      typ?: string | string[]; // 'at+jwt', 'JWT', 'logout+jwt', 'secevent+jwt', 'permdock-snapshot+jwt', ...
+      typ?: string | string[]; // 'at+jwt', 'JWT', 'logout+jwt', 'secevent+jwt', 'vnd.permdock.snapshot+jwt', ...
       audience?: string | string[];
       issuer?: string; // when not fixed at construction (Discovery supplies it)
       clockTolerance?: number;
@@ -97,13 +97,17 @@ interface TokenSigner {
     payload: Record<string, unknown>,
     options: {
       typ:
-        | "permdock-snapshot+jwt"
-        | "permdock-approval+jwt"
-        | "permdock-decisions+jwt"
-        | "permdock-policy+jwt"
-        | "permdock-capability+jwt";
-      audience?: string | string[];
-      expiresAt?: number; // NumericDate (Unix seconds); written as `exp`
+        | "vnd.permdock.snapshot+jwt"
+        | "vnd.permdock.approval+jwt"
+        | "vnd.permdock.policy+jwt"
+        | "vnd.permdock.capability+jwt"
+        | "vnd.permdock.run+jwt"
+        | "vnd.permdock.support-session+jwt"
+        | "vnd.permdock.evidence+jwt";
+      audience?: string | string[]; // `aud`; required when the signer has no default
+      expiresAt?: number; // `exp`, NumericDate; default `iat` + 3600
+      issuedAt?: number; // `iat`, NumericDate: the artefact's own time; default the signer's clock
+      jti?: string; // the artefact id; default a random UUID
     },
   ): Promise<string>; // compact JWS
   readonly kid?: string;
@@ -111,7 +115,7 @@ interface TokenSigner {
 }
 ```
 
-`sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iat` and `jti` itself and copies `iss` from its configuration, so the caller only supplies the format-specific claim (`snapshot`, `approval`, `events`, `policy`, `capability`) and optional `aud` / `exp`. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer })`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` returns the plain snapshot JSON ([wire formats](/docs/concepts/wire-formats)).
+`sign` writes `alg`, `kid` and `typ` into the protected header and nothing else; it sets `iss` from its configuration and `aud`, `iat`, `exp` and `jti` from the options, and drops those claims from the payload, so the caller supplies only the format's private claims. It refuses to sign without an audience. The built-in implementation is `joseTokenSigner({ key, alg, kid, issuer, audience? })`, which throws without `issuer`; a KMS-backed signer implements the same two methods. Signing is optional everywhere: `permdock.snapshot()` without a `signer` returns the plain snapshot JSON ([wire formats](/docs/concepts/wire-formats)).
 
 ### Typed provider principals
 

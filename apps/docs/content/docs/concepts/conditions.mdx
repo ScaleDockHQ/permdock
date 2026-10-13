@@ -205,7 +205,7 @@ Closures are the right tool for calls to another system or logic that is not a c
 allow(permissions.post.read, {
   where: opaque({
     sql: "(created_at > now() - interval '30 days')",
-    fingerprint: "sha256:...",
+    fingerprint: "sha-256:...",
   }),
 });
 ```

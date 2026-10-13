@@ -88,18 +88,18 @@ If the grant does not match, the outcome is `denied` as usual; approval is never
 
 ## The replay-safe token
 
-`Decision.token` is a hash of the permission key, the resource id (from the resource's `id` field), a digest of the call's data when there is no id (a collection action such as `refund.create`, or a row without its `id` field), the principal's `id`, `tenant` and `issuer`, the actor's `id` and `kind`, and the fingerprint of the matched grant's conditions. Roles, memberships, assurance and claims are not hashed: the resume re-runs `decide`, so a role lost in between is a denial. It exists so an approval given for one call cannot be attached to another: approving "delete post p_42 for user u_123 via agent A" must not authorise deleting p_43, or deleting p_42 as a different user, or the same action by a different agent. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approval replies; PermDock computes the binding itself so the guarantee holds in every runtime.
+`Decision.token` is `sha-256:` followed by the base64url SHA-256 of the RFC 8785 JSON of the permission key, the resource id (from the resource's `id` field), a digest of the call's data when there is no id (a collection action such as `refund.create`, or a row without its `id` field), the principal's `id`, `tenant` and `issuer`, the actor's `id` and `kind`, and the fingerprint of the matched grant's conditions. Roles, memberships, assurance and claims are not hashed: the resume re-runs `decide`, so a role lost in between is a denial. It exists so an approval given for one call cannot be attached to another: approving "delete post p_42 for user u_123 via agent A" must not authorise deleting p_43, or deleting p_42 as a different user, or the same action by a different agent. This is the problem the AI SDK's `experimental_toolApprovalSecret` addresses for its own approval replies; PermDock computes the binding itself so the guarantee holds in every runtime.
 
 Properties:
 
 - Deterministic for the same inputs, so a resumed request can recompute and compare.
 - Includes `actor`, so an approval obtained by one agent cannot be spent by another.
-- Includes a SHA-256 of the canonical JSON of the validated data (keys sorted, `undefined` members dropped) when the resource id would be `*`. An approved `refund.create` for `{ amount: 5, to: 'c_1' }` does not cover `{ amount: 5000, to: 'c_attacker' }`: the retried call recomputes a different token and is a new `approval-required`.
+- Includes a `sha-256:` digest of the RFC 8785 JSON of the validated data (`undefined` members dropped) when the resource id would be `*`. An approved `refund.create` for `{ amount: 5, to: 'c_1' }` does not cover `{ amount: 5000, to: 'c_attacker' }`: the retried call recomputes a different token and is a new `approval-required`.
 - Does not include a timestamp; expiry lives on the `ApprovalRequest` record in the store, not in the token.
 - Includes the row's `version` field only for a grant with `approval: { staleOn: 'resource-change' }` (below).
 - Carries no secret material and reveals nothing beyond what the caller already knows.
 
-On resume, the adapter recomputes the token from the actual call being made and compares it with the approved token. A mismatch is `denied` with a reason of kind `approval`. A signed `permdock-approval+jwt` never replaces this comparison: it proves who resolved the request, the token proves what was approved.
+On resume, the adapter recomputes the token from the actual call being made and compares it with the approved token. A mismatch is `denied` with a reason of kind `approval`. A signed `vnd.permdock.approval+jwt` never replaces this comparison: it proves who resolved the request, the token proves what was approved.
 
 ## Approvals that go stale
 

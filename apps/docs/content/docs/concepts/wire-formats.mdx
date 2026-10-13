@@ -51,18 +51,19 @@ The normalised form of `{ where: { authorId: principal.id, teamId: { in: context
 | SQL function                 | `{ "op": "sqlFunction", "name": string, "args": array, "twin": Condition }`. Each arg is a value or `{ "field": "id" }`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Graph (from relation grants) | `{ "op": "related", "resource": string, "relation": string, "field": string, "depth": integer, "parent"?: true, "restricted"?: string, "restrictedAncestors"?: object, "passRestricted"?: true }`: the subject holds `relation` on the `resource` instance the row's `field` names (its parent when `parent` is set), or on an ancestor within `depth` hops. Produced from a `relation(..., { through: 'parent' })` or edge-table grantee; it appears in an in-process `Decision.matched.where`, never in a snapshot, a policy document or a hosted grant ([relationships](/docs/concepts/relationships)) |
 | Live session                 | `{ "op": "liveSession" }`: the Auth server still holds the subject's session ([live sessions](/docs/concepts/conditions#live-sessions)). Bound to a constant in a snapshot                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Opaque (imported)            | `{ "op": "opaque", "sql": "...", "fingerprint": "sha256:..." }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Opaque (imported)            | `{ "op": "opaque", "sql": "...", "fingerprint": "sha-256:..." }`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Literals are JSON literals. Single-child compounds are collapsed and nested same-operator compounds are flattened when the grant is defined, so consumers see a canonical tree. Field names `op`, `field`, `value`, `ref` and `date` are final.
 
 ## Snapshot
 
-Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). The TypeScript type is `Snapshot`; `v` is the format major, and `parseSnapshot` accepts only major 1. The subject carries `principal.memberships` and `principal.tenant`; each grant carries its grantee union `to`, a `scope` and a `membership`; the top level carries `tenants`, `simulated` and `vocabulary.roles` / `vocabulary.plans`. The optional `scopes` field lists the policy's [named scopes](/docs/concepts/scopes) in declaration order, each `{ name, key, within?, resources?, fields? }`, where `resources` names the resources whose `memberOf` relations partition rows by that key (absent when the policy declares no scopes) and `fields` maps a resource to the field that holds the scope's id when it is not `key`, such as `{ "organization": "id" }` for a table whose own id is the instance. A reader without `fields` support checks `key` on those rows, finds none, and denies. A client checks the row against each grant's `membership` along the scope's chain, so a snapshot client never grants what the server denies. The principal carries no `claims`: a grant's `where` or `check` that reads `principal.claims.*` (or `principal.claim.*`) holds the subject's value as a literal instead of the `ref`, bound when the snapshot is built (a missing claim binds to `null`, or `[]` for `in` / `notIn`, as in `where()`).
+Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](/docs/concepts/snapshots). The TypeScript type is `Snapshot`; `v` is the format major, and `parseSnapshot` accepts only major 1. `issuedAt` and `expiresAt` are RFC 3339 date-times, and `subject.delegation` is the token's OAuth `scope` (one space-separated string) and RFC 9396 `authorization_details`. The JSON Schema is `schemas/snapshot-v1.json`. The subject carries `principal.memberships` and `principal.tenant`; each grant carries its grantee union `to`, a `scope` and a `membership`; the top level carries `tenants`, `simulated` and `vocabulary.roles` / `vocabulary.plans`. The optional `scopes` field lists the policy's [named scopes](/docs/concepts/scopes) in declaration order, each `{ name, key, within?, resources?, fields? }`, where `resources` names the resources whose `memberOf` relations partition rows by that key (absent when the policy declares no scopes) and `fields` maps a resource to the field that holds the scope's id when it is not `key`, such as `{ "organization": "id" }` for a table whose own id is the instance. A reader without `fields` support checks `key` on those rows, finds none, and denies. A client checks the row against each grant's `membership` along the scope's chain, so a snapshot client never grants what the server denies. The principal carries no `claims`: a grant's `where` or `check` that reads `principal.claims.*` (or `principal.claim.*`) holds the subject's value as a literal instead of the `ref`, bound when the snapshot is built (a missing claim binds to `null`, or `[]` for `in` / `notIn`, as in `where()`).
 
 ```json
 {
   "v": 1,
-  "issuedAt": 1788999900,
+  "issuedAt": "2026-09-09T00:25:00Z",
+  "expiresAt": "2026-09-09T00:41:40Z",
   "subject": {
     "principal": {
       "id": "u_1",
@@ -80,7 +81,7 @@ Output of `permdock.snapshot({ include: [permissions.post] })`. See [snapshots](
         }
       ]
     },
-    "delegation": { "scopes": ["post:read", "post:update"] },
+    "delegation": { "scope": "post:read post:update" },
     "context": {}
   },
   "roles": ["member", "lead"],
@@ -205,11 +206,11 @@ Carried inside the principal and exchanged with `MembershipSource` and `RoleSour
 }
 ```
 
-A membership names one scope instance (`scope`, `id`, and in `within` the id of every ancestor scope) or one resource (`on`). Readers also accept the input form `{ tenant, team? }` for the first and second scope and normalise it; everything PermDock writes (snapshots, claims, events) uses the canonical form. The same shape is the `memberships` claim RLS reads in `jwt` mode, with a membership's custom roles as an optional compact `grants` map and platform custom roles in the top-level `role_grants` claim, keyed by role name ([custom roles](/docs/concepts/custom-roles)). A custom role has `tenant` (the owning instance of the first scope), `name`, optional `scope` (the scope it is held at, default the first, or `global` for a platform role, which has no `tenant`, `team` or `id`) and `id` (one instance of it), `includes` (declared role names) and `grants` (declared permission keys with `effect` `allow`, the default, or `deny`, an optional `level` on an allow, and no other field). In the compact `grants` claim a leveled allow is `key@level`. Both are bounded by the ceiling of assignable declared roles in the role's scope; entries outside it are dropped, never widened ([custom roles](/docs/concepts/custom-roles)).
+A membership names one scope instance (`scope`, `id`, and in `within` the id of every ancestor scope) or one resource (`on`). Readers also accept the input form `{ tenant, team? }` for the first and second scope and normalise it; everything PermDock writes (snapshots, claims, events) uses the canonical form. The same shape, with `expiresAt`, `grantedBy` and `managedBy` written `expires_at`, `granted_by` and `managed_by`, is the `memberships` claim RLS reads in `jwt` mode, with a membership's custom roles as an optional compact `grants` map and platform custom roles in the top-level `role_grants` claim, keyed by role name ([custom roles](/docs/concepts/custom-roles)). A custom role has `tenant` (the owning instance of the first scope), `name`, optional `scope` (the scope it is held at, default the first, or `global` for a platform role, which has no `tenant`, `team` or `id`) and `id` (one instance of it), `includes` (declared role names) and `grants` (declared permission keys with `effect` `allow`, the default, or `deny`, an optional `level` on an allow, and no other field). In the compact `grants` claim a leveled allow is `key@level`. Both are bounded by the ceiling of assignable declared roles in the role's scope; entries outside it are dropped, never widened ([custom roles](/docs/concepts/custom-roles)).
 
 `x` on a membership is the application's own data about it (a department, a seat label), plain JSON from a trusted membership source and checked by `definePolicy(…, { x: { membership } })`. An invalid `x` is dropped with an `on('auth')` event of reason `schema`; the membership stays. Conditions and RLS never read `x`, and the token hook never writes it into claims. A custom role's `meta` takes the same `x`, checked by the role tree's `defineRoles(…, { x })` schema, and lands on the role leaf `assignableRoles()` returns.
 
-`via` is the membership kind (`staff`, `contact`, `group:<id>`) and `expiresAt` its expiry in seconds since the epoch; both round-trip through the claim, `subjectFromSupabase` and the snapshot, so a client can show "invited, expires in 3 days". `managedBy: "idp"` marks a membership the identity provider owns (the application must not edit it), `entitlements` lists the seats it holds (`plan()` grantees match a seat only inside the active tenant), and `member: { group }` names the subgroup a membership source's `group` fills, a non-empty string that round-trips through `subjectFromSupabase`. `keep` appears only on a membership whose instance or an ancestor instance is suspended and whose scope keeps permissions (`suspension.scopes.<scope>.keep`): a sorted list of the permission keys it still grants. Every other grant ignores such a membership, allow or deny, and so do role listings; a `keep` that is not a list of non-empty strings drops the membership, and an empty list grants nothing. An `act` claim is the RFC 8693 actor chain: its `sub` is the current actor and each nested `act` a prior one, and every level needs a non-empty `sub`. The Supabase token hook adds three top-level claims next to `memberships`: `memberships_truncated: true` when the size budget cut the list, `authz_ver` (the principal's authorization version, an integer) and `attrs` (allow-listed server-owned columns and `app_metadata` keys, which attribute conditions read as `principal.claims.attrs.<key>`; `user_metadata` never). The budget covers `attrs` and `memberships` together, and `memberships_truncated` also marks `attrs` dropped for size. `subjectFromSupabase` maps the first two to `principal.membershipsTruncated` and `principal.authzVersion`; `attrs` stays under `principal.claims` ([Supabase token hook](/docs/adapters/supabase-hook)).
+`via` is the membership kind (`staff`, `contact`, `group:<id>`) and `expiresAt` its expiry in seconds since the epoch, a NumericDate because SQL reads it from the claim; both round-trip through the claim, `subjectFromSupabase` and the snapshot, so a client can show "invited, expires in 3 days". `managedBy: "idp"` marks a membership the identity provider owns (the application must not edit it), `entitlements` lists the seats it holds (`plan()` grantees match a seat only inside the active tenant), and `member: { group }` names the subgroup a membership source's `group` fills, a non-empty string that round-trips through `subjectFromSupabase`. `keep` appears only on a membership whose instance or an ancestor instance is suspended and whose scope keeps permissions (`suspension.scopes.<scope>.keep`): a sorted list of the permission keys it still grants. Every other grant ignores such a membership, allow or deny, and so do role listings; a `keep` that is not a list of non-empty strings drops the membership, and an empty list grants nothing. An `act` claim is the RFC 8693 actor chain: its `sub` is the current actor and each nested `act` a prior one, and every level needs a non-empty `sub`. The Supabase token hook adds three top-level claims next to `memberships`: `memberships_truncated: true` when the size budget cut the list, `authz_ver` (the principal's authorization version, an integer) and `attrs` (allow-listed server-owned columns and `app_metadata` keys, which attribute conditions read as `principal.claims.attrs.<key>`; `user_metadata` never). The budget covers `attrs` and `memberships` together, and `memberships_truncated` also marks `attrs` dropped for size. `subjectFromSupabase` maps the first two to `principal.membershipsTruncated` and `principal.authzVersion`; `attrs` stays under `principal.claims` ([Supabase token hook](/docs/adapters/supabase-hook)).
 
 ## Decision
 
@@ -223,7 +224,7 @@ The return value of `decide`, and the payload inside AuthZEN `context` and Probl
     "permission": "post.update",
     "to": { "kind": "role", "role": "member", "scope": "global" }
   },
-  "token": "pd1.…",
+  "token": "sha-256:…",
   "subject": { "principal": { "id": "u_1", "roles": ["member"] } }
 }
 ```
@@ -232,7 +233,7 @@ The return value of `decide`, and the payload inside AuthZEN `context` and Probl
 {
   "outcome": "granted",
   "matched": { "role": "member", "permission": "report.export" },
-  "token": "pd1.…",
+  "token": "sha-256:…",
   "subject": { "principal": { "id": "u_1", "roles": ["member"] } },
   "quota": { "remaining": 0, "resetsAt": 1789002000 },
   "obligations": [{ "kind": "over-limit" }]
@@ -248,7 +249,7 @@ The return value of `decide`, and the payload inside AuthZEN `context` and Probl
     "name": "clerk-pays",
     "meta": { "x": { "ticket": "FIN-1" } }
   },
-  "token": "pd1.…",
+  "token": "sha-256:…",
   "subject": { "principal": { "id": "u_1", "roles": ["clerk"] } },
   "obligations": [
     { "kind": "app", "name": "mfa-reprompt", "detail": { "maxAge": 300 } }
@@ -273,7 +274,7 @@ The return value of `decide`, and the payload inside AuthZEN `context` and Probl
   "outcome": "approval-required",
   "grant": { "role": "member", "permission": "post.delete" },
   "reason": "human",
-  "token": "pd1.…"
+  "token": "sha-256:…"
 }
 ```
 
@@ -394,7 +395,7 @@ A `credential` event records an API key's lifecycle ([API keys](/docs/concepts/c
 
 ## Credential
 
-The record an API key stands for. The key itself (`pdk_<id>_<secret><checksum>`) is opaque; the application stores this record with the key's base64url SHA-256 hash and never the key.
+The record an API key stands for. The key itself (`pdk_<id>_<secret><checksum>`) is opaque; the application stores this record with the key's base64url SHA-256 hash and never the key. The JSON Schema is `schemas/credential-v1.json`.
 
 ```json
 {
@@ -419,12 +420,13 @@ The record an API key stands for. The key itself (`pdk_<id>_<secret><checksum>`)
 
 ## Approval request
 
-Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See the [approvals adapter](/docs/adapters/approvals) and [approval security](/docs/security/approvals). Its JSON Schema is `schemas/approval-request-v1.json` in the `permdock` package; it allows unknown properties and checks timestamps with `pattern`, so pg_jsonschema can enforce it in a check constraint (`rls.jsonSchema`). Records set `v: 1`; `approvers` is optional. An approver in `by`, a stage or `escalation.to` is a grantee, `{ kind: 'user', id }`, `{ kind: 'permission', permission }` (a `holder()`) or `{ kind: 'any-of', of: [...] }`, whose items are approvers or all-of lists; a stage may carry its own `escalation: { after, to }`. These additions are optional fields of `v: 1`; a reader that does not know a kind treats the approver as matching nobody.
+Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See the [approvals adapter](/docs/adapters/approvals) and [approval security](/docs/security/approvals). Its JSON Schema is `schemas/approval-request-v1.json` in the `permdock` package; it allows unknown properties and checks timestamps with `pattern`, so pg_jsonschema can enforce it in a check constraint (`rls.jsonSchema`). Records set `v: 1` and an `id`, which is the `jti` of the signed approval; `approvers` is optional. An approver in `by`, a stage or `escalation.to` is a grantee, `{ kind: 'user', id }`, `{ kind: 'permission', permission }` (a `holder()`) or `{ kind: 'any-of', of: [...] }`, whose items are approvers or all-of lists; a stage may carry its own `escalation: { after, to }`. These additions are optional fields of `v: 1`; a reader that does not know a kind treats the approver as matching nobody.
 
 ```json
 {
   "v": 1,
-  "token": "pd1.…",
+  "id": "apr_01J8…",
+  "token": "sha-256:…",
   "permission": "filing.pay",
   "scope": "filing:pay",
   "resource": { "type": "filing", "id": "42" },
@@ -432,7 +434,7 @@ Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See the [approva
     "principal": { "id": "u_1", "roles": ["clerk"], "tenant": "o_1" },
     "actor": { "id": "eve:app", "kind": "eve" },
     "session": "sid-1",
-    "delegation": { "scopes": ["filing:pay"] }
+    "delegation": { "scope": "filing:pay" }
   },
   "approvers": {
     "by": [{ "kind": "role", "role": "admin", "scope": "tenant" }],
@@ -458,7 +460,7 @@ Stored by an `ApprovalStore` and exchanged with PermDock Cloud. See the [approva
 }
 ```
 
-`status` is `pending`, `approved`, `rejected` or `expired`; `resolvedAt`, `resolvedBy` and `note` appear only once resolved. `vouched` appears on a request the application's own rules resolved (`vouchApproval`), naming the rule, and on the approval it recorded; it is an optional `v: 1` field, absent on every other request. `consumedAt` appears once an approved request has resumed its call: an approval resumes exactly one call, and `status` stays `approved`. The `token` is `pd1.` followed by the base64url SHA-256 of the permission key, the resource id, the principal's `id`, `tenant` and `issuer`, the actor's `id` and `kind`, and the condition fingerprint; roles, memberships, assurance and claims are not hashed, so a session refresh keeps an outstanding approval valid. When the grant's approval sets `staleOn: 'resource-change'`, the hash input also carries `version`, the value of the resource's `version` field (ISO text for a date, `null` when the row lacks it); the prefix stays `pd1.` and every other token is unchanged, because the field is left out of the input rather than set to `null`. `approvers` carries `staleOn` when the grant sets it. `approvers` is copied from `grant.approval` when it is the object form. `approvers.distinct` defaults to `true`: a record without `approvers`, or with `approvers` but no `distinct`, refuses its principal as approver, and only `distinct: false` lets the principal resolve it. `approvers.quorum` (default 1) is how many distinct approvers the request needs; each one is appended to `approvals` as `{ by, at }`, oldest first, and a delegated approval also carries `onBehalfOf` (the delegator's principal id) and `delegation` (the delegation id). Both are optional `v: 1` fields. A verdict's `onBehalfOf` is server-side input only: the delegator's subject and that subject's relation and permission facts, which the store checks again and does not store. `status` turns `approved` with the one that meets the quorum, who is also `resolvedBy`. `approvers.escalation` names who else may approve once `after` (a duration) has passed since `createdAt`. With `approvers.mode` `all` or `sequential`, `approvers.stages` lists `{ by, quorum? }` sets in order and there is no top-level `by` or `quorum`; each `approvals` entry then carries `stage`, the index of the stage it counted towards. An approver in `by` may also be `{ "kind": "user", "id": "u_7" }`, or a relation grantee, which a store matches only through the verdict's `relations`: keys from `approverRelationKey`, computed by the handler and never stored on the record. `approvers` already includes the stages added by matching approval policy entries. The grant's `approval.ttl` is not copied: it is already applied to `expiresAt`, which is the shorter of the store's window and the grant's. `subject.session` is the OIDC `sid` when the subject carried one. The record never carries the resource object, the policy, or tokens from `authInfo`. On the wire, the HTTP resume header is `PermDock-Approval: <token>`.
+`status` is `pending`, `approved`, `rejected` or `expired`; `resolvedAt`, `resolvedBy` and `note` appear only once resolved. `vouched` appears on a request the application's own rules resolved (`vouchApproval`), naming the rule, and on the approval it recorded; it is an optional `v: 1` field, absent on every other request. `consumedAt` appears once an approved request has resumed its call: an approval resumes exactly one call, and `status` stays `approved`. The `token` is `sha-256:` followed by the base64url SHA-256 of the RFC 8785 JSON of the permission key, the resource id, the principal's `id`, `tenant` and `issuer`, the actor's `id` and `kind`, and the condition fingerprint; roles, memberships, assurance and claims are not hashed, so a session refresh keeps an outstanding approval valid. When the grant's approval sets `staleOn: 'resource-change'`, the hash input also carries `version`, the value of the resource's `version` field (ISO text for a date, `null` when the row lacks it); the prefix stays `sha-256:` and every other token is unchanged, because the field is left out of the input rather than set to `null`. `approvers` carries `staleOn` when the grant sets it. `approvers` is copied from `grant.approval` when it is the object form. `approvers.distinct` defaults to `true`: a record without `approvers`, or with `approvers` but no `distinct`, refuses its principal as approver, and only `distinct: false` lets the principal resolve it. `approvers.quorum` (default 1) is how many distinct approvers the request needs; each one is appended to `approvals` as `{ by, at }` with `at` in RFC 3339, oldest first, and a delegated approval also carries `onBehalfOf` (the delegator's principal id) and `delegation` (the delegation id). Both are optional `v: 1` fields. A verdict's `onBehalfOf` is server-side input only: the delegator's subject and that subject's relation and permission facts, which the store checks again and does not store. `status` turns `approved` with the one that meets the quorum, who is also `resolvedBy`. `approvers.escalation` names who else may approve once `after` (a duration) has passed since `createdAt`. With `approvers.mode` `all` or `sequential`, `approvers.stages` lists `{ by, quorum? }` sets in order and there is no top-level `by` or `quorum`; each `approvals` entry then carries `stage`, the index of the stage it counted towards. An approver in `by` may also be `{ "kind": "user", "id": "u_7" }`, or a relation grantee, which a store matches only through the verdict's `relations`: keys from `approverRelationKey`, computed by the handler and never stored on the record. `approvers` already includes the stages added by matching approval policy entries. The grant's `approval.ttl` is not copied: it is already applied to `expiresAt`, which is the shorter of the store's window and the grant's. `subject.session` is the OIDC `sid` when the subject carried one, and `subject.delegation` is the token's `scope` string and `authorization_details`. The record never carries the resource object, the policy, or tokens from `authInfo`. On the wire, the HTTP resume header is `PermDock-Approval: <token>`.
 
 ## Access review
 
@@ -470,15 +472,15 @@ An `AccessReviewItem` holds `id`, `review`, `principal`, `permission`, `via` (ro
 
 ## Policy document
 
-Hosted grants travel as a `PolicyDocument` under the `policy` claim of a `permdock-policy+jwt` ([hostable permissions](/docs/concepts/policies)). Each grant uses the same `Grantee` and `Condition` JSON as a snapshot grant, names its permission by `key`, and carries a stable `id`.
+Hosted grants travel as a `PolicyDocument` ([hostable permissions](/docs/concepts/policies)). Signed as a `vnd.permdock.policy+jwt`, the document's `id` is the token's `jti`, `issuedAt` is its `iat`, and the `policy` claim carries the other fields; `policyDocumentFromClaims(claims)` rebuilds the document. The JSON Schema of the claims is `schemas/policy-v1.json`. Each grant uses the same `Grantee` and `Condition` JSON as a snapshot grant, names its permission by `key`, and carries a stable `id`.
 
 ```json
 {
   "v": 1,
   "id": "pol_01J8…",
-  "fingerprint": "Ux3f…",
-  "catalog": "b41c…",
-  "issuedAt": 1788999900,
+  "fingerprint": "sha-256:Ux3f…",
+  "catalog": "sha-256:b41c…",
+  "issuedAt": "2026-09-09T00:25:00Z",
   "grants": [
     {
       "id": "g_pro_audit",
@@ -500,51 +502,62 @@ Hosted grants travel as a `PolicyDocument` under the `policy` claim of a `permdo
 }
 ```
 
-`effect` defaults to `allow`. `to` is one grantee or an array (an intersection) of `role`, `plan` and `relation` grantees; a hosted `relation` is declared on the permission's own resource, and it may carry `through: "parent"` (with an integer `depth` from 0 to 32) only when that resource parents itself, so a hosted grant never walks further than a code grant could; `where` and `check` are portable conditions only; `approval` is `"human"` or the object form, with `distinct` defaulting to `true` as on a code grant, so a hosted `distinct: false` on a permission a code allow guards with an approval is dropped as `weaker-approval`; `fields` is an optional string list. `catalog` is the fingerprint of the `permdock collect` catalog the document was authored against, and `fingerprint` is what `matched.hosted.document` records. `parsePolicyDocument` rejects a `v` other than `1`, a missing envelope field and any `__proto__`, `constructor` or `prototype` key; grant-level problems drop only that grant.
+`effect` defaults to `allow`. `to` is one grantee or an array (an intersection) of `role`, `plan` and `relation` grantees; a hosted `relation` is declared on the permission's own resource, and it may carry `through: "parent"` (with an integer `depth` from 0 to 32) only when that resource parents itself, so a hosted grant never walks further than a code grant could; `where` and `check` are portable conditions only; `approval` is `"human"` or the object form, with `distinct` defaulting to `true` as on a code grant, so a hosted `distinct: false` on a permission a code allow guards with an approval is dropped as `weaker-approval`; `fields` is an optional string list. `catalog` is the fingerprint of the `permdock collect` catalog the document was authored against, and `fingerprint` is what `matched.hosted.document` records. `issuedAt` is RFC 3339. `parsePolicyDocument` rejects a `v` other than `1`, a missing envelope field, a numeric `issuedAt` and any `__proto__`, `constructor` or `prototype` key; grant-level problems drop only that grant.
 
 ## Capability
 
-A share link travels as a `Capability` under the `capability` claim of a `permdock-capability+jwt` ([link capabilities](/docs/concepts/capabilities)). `on` has the shape of a resource membership's `on`, and the resolver turns the object into exactly that membership.
+A share link travels as the `capability` claim of a `vnd.permdock.capability+jwt` ([link capabilities](/docs/concepts/capabilities)). `on` has the shape of a resource membership's `on`, and the resolver turns the claim into exactly that membership. The link id is the token's `sub` and its expiry the token's `exp`; neither repeats inside the claim.
 
 ```json
 {
-  "v": 1,
-  "id": "lnk_01J8…",
-  "holder": "link",
-  "on": { "resource": "quote", "id": "q_1" },
-  "roles": ["guest"],
-  "permissions": ["quote.read"],
-  "redeemer": "anyone",
-  "once": true,
-  "expiresAt": 1791600000
+  "iss": "https://app.example.com",
+  "aud": "https://app.example.com",
+  "sub": "lnk_01J8…",
+  "iat": 1791000000,
+  "exp": 1791600000,
+  "jti": "0b0c6f0e-…",
+  "cnf": { "jkt": "0ZcOCORZNYy-DWpqq30jZyJGHTN0d2HglBV3uiguA4I" },
+  "capability": {
+    "v": 1,
+    "holder": "link",
+    "on": { "resource": "quote", "id": "q_1" },
+    "roles": ["guest"],
+    "permissions": ["quote.read"],
+    "redeemer": "anyone",
+    "once": true
+  }
 }
 ```
 
-`id` is the link id and equals the token's `sub`; `holder` is `link` or the reserved `key`; `roles` holds 1 to 64 role names and `permissions`, when present, 1 to 64 permission keys; `redeemer` is `"anyone"`, `"signed-in"`, `{ "user": "<id>" }` or `{ "scope": "<name>", "id": "<id>" }`; `once` is `true` or absent; `expiresAt` is NumericDate seconds. `parseCapability` rejects a `v` other than `1`, a wrong type in any of these fields, and reads own properties only (never `__proto__`, `constructor` or `prototype`); unknown fields are dropped. The same object is the `capability` claim of the Supabase access token `exchangeCapability` mints, which the generated `permdock_capability_ids` helper reads.
+`holder` is `link` or the reserved `key`; `roles` holds 1 to 64 role names and `permissions`, when present, 1 to 64 permission keys; `redeemer` is `"anyone"`, `"signed-in"`, `{ "user": "<id>" }` or `{ "scope": "<name>", "id": "<id>" }`; `once` is `true` or absent. `cnf.jkt` (RFC 7800) is optional: it binds the link to one key, and `subjectFromCapability` then resolves it only with a DPoP proof (RFC 9449) from that key. `parseCapabilityClaim` rejects a `v` other than `1` or a wrong type in any of these fields, and reads own properties only (never `__proto__`, `constructor` or `prototype`); unknown fields are dropped. `capabilityFromClaims(claims)` adds `id` from `sub`, `expiresAt` from `exp` and `cnf`, and is `undefined` when any of them is invalid. The JSON Schema of the claims is `schemas/capability-v1.json`. The Supabase access token `exchangeCapability` mints carries the claim with `expires_at` (NumericDate), which the generated `permdock_capability_ids` helper reads.
 
 ## Signed outputs
 
-Five artefacts can leave the process as compact JWS (RFC 7515) signed by a `TokenSigner` ([extension interfaces](/docs/concepts/extension-interfaces), [JOSE](/docs/standards/jose)). Signing is additive: the JSON object above is placed unchanged under one private claim next to registered JWT claims, so no `v` changes and a reader that already understands the JSON form understands the payload. Anything that can verify a JWS against a JWK Set, in any language, can verify these.
+Seven artefact types leave the process as compact JWS (RFC 7515) signed by a `TokenSigner` ([extension interfaces](/docs/concepts/extension-interfaces), [JOSE](/docs/standards/jose)). The registered claims are authoritative: an artefact's issue time, expiry and id move to `iat`, `exp` and `jti` (or `sub`), and the payload never repeats them. Anything that can verify a JWS against a JWK Set, in any language, can verify these.
 
-The envelope is the same for all five:
+The envelope is the same for all of them:
 
-- **Header**: exactly `alg`, `kid` and `typ`. `alg` is one of the [`permdock/jwt`](/docs/adapters/jwt) allow-list (`ES256`, `PS256`, `Ed25519`; `RS256` outside `profile: 'fapi2'`); never `none`. `kid` names a key in the signer's JWK Set. `typ` is one of the five values below and a verifier rejects any other. No `crit`, no `jku`, no `x5u`, no embedded `jwk`: the verifier is configured with the key set, never told where to fetch it by the token.
-- **Registered claims**: `iss` (the signing service's URL), `aud` (the intended consumer), `iat`, `exp`, `jti` (RFC 7519 section 4.1). `sub` is present when the artefact is about one principal and equals `subject.principal.id` (for a capability, the link id, which becomes the link principal's id). All times are NumericDate seconds.
-- **One private claim** carrying the artefact: `snapshot`, `approval`, `events`, `policy` or `capability`. Nothing PermDock-specific appears at the top level; PermDock never registers a claim name in the IANA JWT registry for these.
+- **Header**: exactly `alg`, `kid` and `typ`. `alg` is one of the [`permdock/jwt`](/docs/adapters/jwt) allow-list (`ES256`, `PS256`, `Ed25519`; `RS256` outside `profile: 'fapi2'`); never `none`. `kid` names a key in the signer's JWK Set. `typ` is one of the values below and a verifier rejects any other. No `crit`, no `jku`, no `x5u`, no embedded `jwk`: the verifier is configured with the key set, never told where to fetch it by the token.
+- **Registered claims**: `iss` (the signing service's URL), `aud` (the intended consumer), `iat`, `exp` and `jti` (RFC 7519 section 4.1), all required. `sub` is present when the artefact is about one principal and equals `subject.principal.id` (for a capability, the link id). The actor is `act` (RFC 8693). Times are NumericDate seconds.
+- **Private claims** carrying the artefact, snake_case, never at the IANA JWT registry.
 
-| `typ`                     | Private claim                                                                                                                             | Producer                                                                                                                                                       | Consumer                                                                                                                         |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `permdock-snapshot+jwt`   | `snapshot`: a Snapshot object                                                                                                             | `permdock.snapshot({ signer, audience })`; a `SnapshotSource` (`permdock/cloud` always signs)                                                                  | The client `PermDockProvider` through `joseTokenVerifier`, or any JOSE library                                                   |
-| `permdock-approval+jwt`   | `approval`: `{ "token": "pd1.…", "permission", "resource": { "type", "id" }, "status" }`                                                  | `approvalsHandler({ signer })` on resolve, for a resume that crosses services                                                                                  | The resuming adapter, which still re-runs `decide` and recomputes the bound `token`                                              |
-| `permdock-decisions+jwt`  | `events`: an array of CloudEvents-enveloped events (decision and approval from a sink; any of the five types in a Cloud webhook delivery) | A `DecisionSink` with a `signer` (`memorySink({ signer })` or `signDecisionBatch`) ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports | A SIEM, an auditor, a compliance tool verifying provenance offline                                                               |
-| `permdock-policy+jwt`     | `policy`: a PolicyDocument                                                                                                                | PermDock Cloud, for each published hosted-grant revision                                                                                                       | `cloud().policies.refresh()` through the application's `TokenVerifier`, with `iss` and `aud` checked against the environment URL |
-| `permdock-capability+jwt` | `capability`: a Capability                                                                                                                | `signCapability(input, signer, { audience })` in the application                                                                                               | `subjectFromCapability` in `permdock/jwt`, with `iss` and `aud` required                                                         |
+| `typ`                              | Private claims                                                                                                                              | Producer                                                                                                                  | Consumer                                                                                                                         |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `vnd.permdock.snapshot+jwt`        | `snapshot`: the Snapshot without `issuedAt` and `expiresAt`                                                                                 | `permdock.snapshot({ signer, audience })`, `signSnapshot`; a `SnapshotSource` (`permdock/cloud` always signs)             | The client `PermDockProvider` through `joseTokenVerifier`, or any JOSE library                                                   |
+| `vnd.permdock.approval+jwt`        | `act`, `token`, `resolved_by`, `approvals`, one `authorization_details` entry (RFC 9396) for the approved action; `jti` is the request `id` | `approvalsHandler({ signer })` on resolve, for a resume that crosses services                                             | The resuming adapter, which still re-runs `decide` and recomputes the bound `token`                                              |
+| `vnd.permdock.policy+jwt`          | `policy`: the PolicyDocument without `id` and `issuedAt`                                                                                    | PermDock Cloud, for each published hosted-grant revision                                                                  | `cloud().policies.refresh()` through the application's `TokenVerifier`, with `iss` and `aud` checked against the environment URL |
+| `vnd.permdock.capability+jwt`      | `capability`, optional `cnf`                                                                                                                | `signCapability(input, signer, { audience })` in the application                                                          | `subjectFromCapability` in `permdock/jwt`, with `iss` and `aud` required                                                         |
+| `vnd.permdock.run+jwt`             | `v`, `act`, `scope`, `authorization_details` and the run fields ([run tickets](/docs/adapters/server-kernel#run-tickets))                   | `signRunTicket`                                                                                                           | `subjectFromRunTicket` in `permdock/server`                                                                                      |
+| `vnd.permdock.support-session+jwt` | Reserved; nothing signs it yet                                                                                                              |                                                                                                                           |                                                                                                                                  |
+| `vnd.permdock.evidence+jwt`        | `events`: CloudEvents 1.0 events from a sink                                                                                                | `signDecisionBatch`, `memorySink({ signer })` ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports | A SIEM, an auditor, a compliance tool verifying provenance offline                                                               |
+
+Each signed format has a JSON Schema in the `permdock` package: `schemas/snapshot-v1.json` (the unsigned snapshot), `schemas/approval-signature-v1.json`, `schemas/policy-v1.json`, `schemas/capability-v1.json` and `schemas/evidence-export-v1.json` (the claims sets).
 
 Signed snapshot, decoded:
 
 ```json
 {
-  "alg": "Ed25519", "kid": "2026-09", "typ": "permdock-snapshot+jwt"
+  "alg": "Ed25519", "kid": "2026-09", "typ": "vnd.permdock.snapshot+jwt"
 }
 .
 {
@@ -554,23 +567,46 @@ Signed snapshot, decoded:
   "iat": 1788999900,
   "exp": 1789000000,
   "jti": "snap_01J8…",
-  "snapshot": { "v": 1, "issuedAt": 1788999900, "expiresAt": 1789000000, "subject": { "…": "…" }, "roles": ["member"], "grants": ["…"], "tenants": ["o_1"], "include": ["post"] }
+  "snapshot": { "v": 1, "subject": { "…": "…" }, "roles": ["member"], "grants": ["…"], "tenants": ["o_1"], "include": ["post"] }
+}
+```
+
+Signed approval, decoded payload:
+
+```json
+{
+  "iss": "https://app.example.com",
+  "aud": "https://app.example.com",
+  "sub": "u_1",
+  "act": { "sub": "eve:app" },
+  "iat": 1788992431,
+  "exp": 1788993900,
+  "jti": "apr_01J8…",
+  "token": "sha-256:…",
+  "resolved_by": "u_9",
+  "approvals": [
+    { "by": "u_7", "at": "2026-09-06T10:18:02Z" },
+    { "by": "u_9", "at": "2026-09-06T10:20:31Z" }
+  ],
+  "authorization_details": [
+    { "type": "filing", "actions": ["pay"], "identifier": "42" }
+  ]
 }
 ```
 
 Rules that hold for every signed output:
 
-- `exp` equals the artefact's own expiry (`snapshot.expiresAt`, `approval` request `expiresAt`, `capability.expiresAt`) when it has one; otherwise the signer's default (one hour for `permdock-decisions+jwt`). A verifier applies `exp` before reading the private claim.
-- `iat` equals `snapshot.issuedAt` for snapshots. A tampered persisted snapshot fails signature verification, so `issuedAt` needs no separate protection.
-- `sub` is redundant with `snapshot.subject.principal.id` by design: a consumer can route or cache on registered claims without parsing the private claim.
-- A signed approval never replaces the bound hash `token`: the resuming adapter verifies the JWS, then compares `approval.token` with a freshly recomputed token exactly as it would for a bare `PermDock-Approval` header. The JWS proves who resolved it; the token proves what was approved.
-- A signed decision batch is evidence, not input: no PermDock code path reads `events` back to make a decision.
-- A signed capability is a subject input, like a verified access token: it reaches a decision only as the link subject `subjectFromCapability` returns, after `typ`, `iss`, `aud`, `exp`, the `sub` binding, revocation and one-time use are checked, and it can only ever hold resource-scoped roles on its one resource.
+- `exp` is the artefact's own expiry (a snapshot's `expiresAt`, an approval request's `expiresAt`, a link's expiry) when it has one; otherwise `iat` plus one hour. A verifier applies `exp` before reading a private claim.
+- `iat` is the artefact's own time: a snapshot's `issuedAt`, an approval's `resolvedAt`, a policy document's `issuedAt`. `snapshotFromClaims` and `policyDocumentFromClaims` read them back as RFC 3339.
+- `sub` is the principal a consumer can route or cache on without parsing a private claim.
+- A signed approval never replaces the bound hash `token`: the resuming adapter verifies the JWS, then compares `token` with a freshly recomputed token exactly as it would for a bare `PermDock-Approval` header. The JWS proves who resolved it; the token proves what was approved.
+- A signed evidence export is evidence, not input: no PermDock code path reads `events` back to make a decision.
+- A signed capability is a subject input, like a verified access token: it reaches a decision only as the link subject `subjectFromCapability` returns, after `typ`, `iss`, `aud`, `exp`, `sub`, `cnf`, revocation and one-time use are checked, and it can only ever hold resource-scoped roles on its one resource.
 - A signed policy document is the one signed policy input. It reaches a decision only through `PolicySource.current()`, only for `hostable` permissions, and only after `typ`, `iss`, `aud` and `exp` verify; an unverifiable document is absent. Its `iss` and `aud` are both the Cloud environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>` (the document is addressed to every instance of the environment, not to one application), and `exp` is `iat` plus 24 hours: an instance that stops refreshing falls back to its code policy within a day.
 - Keys are published as a JWK Set at `/.well-known/jwks.json` by any signer that serves consumers outside its process; PermDock Cloud publishes one per environment at `<PERMDOCK_CLOUD_URL>/v1/environments/<env>/.well-known/jwks.json` (`cloud().jwks`), which verifies every artefact that environment signs. Rotation is the JWKS rule consumers already apply to identity providers: publish the new `kid`, keep the old key until every artefact signed with it has expired.
-- These five `typ` values are recorded on [OpenAPI registry](/docs/standards/openapi-registry); an artefact is never emitted with a `typ` that page does not list.
+- The `typ` values are recorded on [OpenAPI registry](/docs/standards/openapi-registry); an artefact is never emitted with a `typ` that page does not list.
 
-JWE is not used for any output: snapshots are UI-only and contain nothing the subject may not see, approval tokens are bound hashes, decision batches go to destinations that already hold the events, a policy document holds grants the application's own code bounds, and a capability names only a resource id and role names the link holder is meant to use. A team that needs confidentiality wraps the JWS in JWE on its own transport.
+JWE is not used for any output: snapshots are UI-only and contain nothing the subject may not see, approval tokens are bound hashes, evidence exports go to destinations that already hold the events, a policy document holds grants the application's own code bounds, and a capability names only a resource id and role names the link holder is meant to use. A team that needs confidentiality wraps the JWS in JWE on its own transport.
 
 `permdock/testing` ships one fixture per `typ` (a key pair, the signed compact form, the decoded payload) and `testTokenSigner` asserts that a custom signer's output for the fixture payload verifies with the fixture public key and carries exactly the three header parameters.
 
@@ -612,7 +648,7 @@ Memberships travel as a subject property and the active tenant as request contex
     "permdock": {
       "outcome": "granted",
       "matched": { "role": "member", "permission": "post.update" },
-      "token": "pd1.…"
+      "token": "sha-256:…"
     }
   }
 }
@@ -669,7 +705,7 @@ That is the application's own endpoint. `permdock/authzen` answers another PEP w
         "permdock": {
           "outcome": "approval-required",
           "reason": "human",
-          "token": "pd1.…"
+          "token": "sha-256:…"
         }
       }
     },
@@ -845,7 +881,7 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 
 `version` is the format major and `$schema` names the matching JSON Schema. A resource with a `restricted` column carries it as `restricted`, and `restrictedStops` lists the paths it closes when the resource declares `stops`. Every permission carries `rowConditions`; a catalog built without a `policy` cannot know the conditions, so it marks each one `true`, and a reader treats a missing value as invalid, never as `false`. `roles` and `plans` list the declared names the scan found and are omitted when there are none. When `permdock.config.ts` names a `policy`, the catalog lists the policy's `scopes` in order (`{ name, key, within? }`, omitted when it declares none), each role also carries `on` (a scope name or `resource`, omitted for a global role), `assignable` and, when set, its [ownership rules](/docs/concepts/ownership) `min` (omitted when 0), `max`, `transferOnly`, `assigns`, `for`, `exclusiveWith` and `audience`, a permission the policy lists in `hostable` carries `hostable: true`, `rowConditions` is `true` when a code grant for a permission depends on more than the role and the scope, so the SQL helpers alone cannot enforce it ([RLS](/docs/adapters/rls#sql-helper-contract)), and a permission whose code allows require an approval carries `approvals`: the distinct `approval` values of those allows (`"human"` or `{ by?, mode?, stages?, distinct?, staleOn?, quorum?, ttl?, escalation? }`), absent when none requires one. A permission renamed with `definePermissions(..., { renamed })` carries `renamedFrom`, its sorted former keys, an instance permission whose resource declares levels carries `levels`, the level names in declaration order, and `meta.x` appears inside `meta` as written. A resource that declares `version` carries it (the row field a `staleOn: 'resource-change'` approval binds to), one that declares `restricted` carries that column name, and one that declares `meta` carries it as `{ title?, description?, x? }`. With a `policy`, `grants` lists every code grant in canonical order (by permission, allows before denies, then role, then canonical JSON): `{ permission, effect, role, to, scope, where?, check?, approval?, fields?, validity?, name?, meta?, purpose?, requires?, limit?, portable? }`, where `meta` is the grant's `{ description?, x? }`, where `role` is `null` for a top-level grant, `scope` is `global`, a scope name or `{ resource }`, `validity` is `{ from?, until? }` in Unix seconds, `requires` is the permission key a [`requires`](/docs/concepts/policies#requires) allow needs, or the array of keys when it needs several (a snapshot grant carries it already folded into `where`), and `portable: false` marks a closure, graph or opaque grant whose `where` and `check` are omitted. Hosted grants are not listed. When the policy declares `delegations`, the catalog lists them sorted by canonical JSON as `{ from, to: { kind, id?, client? }, permissions, validity? }`, with `permissions` the sorted keys ([policy delegations](/docs/security/delegation#policy-delegations)). [`permdock diff`](/docs/cli/diff) compares both sections between two catalogs. `relations` maps each relation name to its declared shape: `{ field, memberOf? }`, `{ edge, object?, subject?, expiresAt? }` or `{ principal, period?: { startsAt?, expiresAt? } }`. A relation grantee (`to`) in a snapshot, a decision event or a catalog may carry `through: "parent"` and `depth` ([relationships](/docs/concepts/relationships)). PermDock Cloud reads these to offer only assignable roles, to apply `assigns`, `min`, `max`, `transferOnly` and `for` in its assignment checks, to offer only hostable permissions, and to refuse a hosted grant whose approval is weaker than any entry in `approvals` (`weaker-approval`); an approval without `staleOn` is weaker than one with it. `definedIn` and the entries of `usages` come from the source scan; `usages` is always present and empty when no call site was found. `parseCatalog` in `permdock/catalog` validates a document against this schema and returns it frozen ([reading a catalog](/docs/cli/catalog#reading-a-catalog)). `schema` is produced through Standard JSON Schema where the validator supports it and omitted otherwise. `permdock catalog --format json-schema` emits a JSON Schema document whose `enum` of permission keys and `$defs` of resources can be referenced from OpenAPI or MCP tool definitions. `permdock collect --check` compares this file with a fresh run, ignoring `generatedAt` and `generator`. When `permdock.config.ts` names an `operations` module, `operations` lists its [`defineOperations`](/docs/concepts/permissions#operations) entries in definition order as `{ name, permission, results?, meta }`, with permission keys.
 
-`fingerprint` identifies the catalog's contract and is what a hosted policy document pins as `catalog`. It is `catalogFingerprint(catalog)` from `permdock`: the base64url SHA-256 of the canonical JSON (object keys sorted by UTF-16 code unit, no whitespace, as in RFC 8785) of the document without `generatedAt`, `generator`, `fingerprint` and every `permissions[].usages`. The clock, the CLI version and call sites therefore never change it; any change to a permission, resource, role, plan, grant, `hostable`, `rowConditions` or `approvals` does, including a change to their `meta`. The catalog fingerprint is separate from the policy fingerprint that decision and approval tokens bind to, which leaves grant `meta` out. A reader recomputes it with the same function and rejects a document whose `fingerprint` disagrees.
+`fingerprint` identifies the catalog's contract and is what a hosted policy document pins as `catalog`. It is `catalogFingerprint(catalog)` from `permdock`: a `sha-256:` digest of the RFC 8785 JSON of the document without `generatedAt`, `generator`, `fingerprint` and every `permissions[].usages`. The clock, the CLI version and call sites therefore never change it; any change to a permission, resource, role, plan, grant, `hostable`, `rowConditions` or `approvals` does, including a change to their `meta`. The catalog fingerprint is separate from the policy fingerprint that decision and approval tokens bind to, which leaves grant `meta` out. A reader recomputes it with the same function and rejects a document whose `fingerprint` disagrees.
 
 ### `x-permdock-catalog` in OpenAPI documents
 
@@ -856,7 +892,7 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
   "x-permdock-catalog": {
     "v": 1,
     "generator": "permdock@0.x",
-    "catalog": "sha256:...",
+    "catalog": "sha-256:...",
     "drafts": {
       "oas": "3.3-dev@<commit>",
       "securityProfiles": "oai-discussion-5304@2026-09-01",
@@ -870,7 +906,7 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 
 ## Supabase claims
 
-The claims the Supabase token hook writes have a JSON Schema, `schemas/supabase-claims-v1.json` in the `permdock` package, and a Standard Schema twin, `supabaseClaims()` in `permdock/supabase`, which a session library can validate tokens with instead of copying the shape. Both cover `user_role`, `roles`, `memberships`, the tenant claim (`tenant_id` by default), `attrs`, `authz_ver` and `memberships_truncated`, at the top level or under `app_metadata`, plus the OAuth claims `client_id`, `scope` and `act`. The outer `act` level may carry `kind` (`support` or `impersonation`), and a support level needs `session_id` and may carry `read_only` and `reason`, as better-supabase writes them. Both pass other claims through. The TypeScript types are `SupabaseClaims<TenantClaim>` and `SupabaseMembershipClaim`. `supabaseClaimFixtures` in `permdock/testing` passes both, and the test suite checks that the two agree on every fixture and on a set of malformed claims.
+The claims the Supabase token hook writes have a JSON Schema, `schemas/supabase-claims-v1.json` in the `permdock` package, and a Standard Schema twin, `supabaseClaims()` in `permdock/supabase`, which a session library can validate tokens with instead of copying the shape. Both cover `user_role`, `roles`, `memberships`, the tenant claim (`tenant_id` by default), `attrs`, `authz_ver` and `memberships_truncated`, at the top level or under `app_metadata`, plus the OAuth claims `client_id`, `scope` and `act`. Membership keys are snake_case: `expires_at` (NumericDate), `granted_by` and `managed_by`. The outer `act` level may carry `kind` (`support` or `impersonation`), and a support level needs `session_id` and may carry `read_only` and `reason`, as better-supabase writes them. Both pass other claims through. The TypeScript types are `SupabaseClaims<TenantClaim>` and `SupabaseMembershipClaim`. `supabaseClaimFixtures` in `permdock/testing` passes both, and the test suite checks that the two agree on every fixture and on a set of malformed claims.
 
 ## Supabase hook manifest
 
@@ -1013,12 +1049,12 @@ Output of `permdock supabase inspect --json`, and the file `inspect --out permdo
   "type": "https://permdock.com/problems/approval-required",
   "title": "Approval required",
   "status": 403,
-  "detail": "post.delete requires human approval (human). Token: pd1.…",
+  "detail": "post.delete requires human approval (human). Token: sha-256:…",
   "permission": "post.delete",
   "scope": "post:delete",
   "resource": { "type": "post", "id": "42" },
   "reason": "human",
-  "token": "pd1.…"
+  "token": "sha-256:…"
 }
 ```
 
@@ -1048,8 +1084,8 @@ What PermDock emits for a consent screen and verifies on a token for `permission
 
 ## Versioning
 
-- The snapshot `v`, the approval request `v`, the policy document `v`, the capability `v` and the catalog `version` follow the format, not the package version, and are all `1`. A breaking change to a shape bumps the major. Readers reject unknown majors.
-- The JWS envelope of a signed output is versioned by its `typ`: a change to the header set, the registered claims or the private claim name is a new `typ` (`permdock-snapshot.v2+jwt`), never a silent change, so a verifier configured for one `typ` keeps rejecting what it does not understand.
+- The snapshot `v`, the approval request `v`, the policy document `v`, the capability `v`, the credential `v` and the catalog `version` follow the format, not the package version, and are all `1`. Times in JWT claims and in claims SQL reads are NumericDate seconds; snapshot, approval request and policy document times are RFC 3339. Credential records and grant `validity` still carry NumericDate seconds, and policy durations (`ttl`, `after`) are strings such as `"4h"`. A breaking change to a shape bumps the major. Readers reject unknown majors.
+- The JWS envelope of a signed output is versioned by its `typ`: a change to the header set, the registered claims or the private claim name is a new `typ` (`vnd.permdock.snapshot.v2+jwt`), never a silent change, so a verifier configured for one `typ` keeps rejecting what it does not understand.
 - Everything PermDock writes names a scope instance the same way: `scope`, `id` and `within`. Memberships, snapshot grants, the `memberships` claim and `membership` events all use this shape. A fixed `tenant` / `team` pair could not describe a third level, and one shape lets the Cloud and a sink join an event to the membership it changed without a per-format mapping. Only input readers (`subject`, a `MembershipSource`) still accept `{ tenant, team }`.
 - Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning. App data (`meta.x`, `Membership.x`, grant `meta`, app obligations) was added this way: every field is optional, plain JSON, and changes no outcome. New condition `op` values (such as `sqlFunction`) are additive; readers that do not know an op deny.
 - AuthZEN messages follow the 1.0 spec; PermDock-specific data lives only under the evaluation `context.permdock`: from `permdock/authzen`, `outcome`, `denials` as `{ role, reason }`, `token` on `approval-required`, and `reason: 'unknown-permission'`; from the application's own decision endpoint (`permdockHandler`), the full Decision with its denials as `WireDenial`. `alternatives` reach another PEP only through `search/action`.

@@ -57,25 +57,25 @@ interface DecisionSink {
 }
 
 import { memorySink } from "permdock";
-const sink = memorySink({ capacity: 10_000, signer }); // ring buffer; `signer` signs each write as `permdock-decisions+jwt`
+const sink = memorySink({ capacity: 10_000, signer }); // ring buffer; `signer` signs each write as `vnd.permdock.evidence+jwt`
 
 createPermDock(policy, { subject, sink }); // every request-scoped instance writes to it
 ```
 
 Implementations that ship or are documented:
 
-| Sink                     | Where          | What it does                                                                                                                                 |
-| ------------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `memorySink({ signer })` | core           | Ring buffer; the default; optional `TokenSigner` signs each `write` (`typ: permdock-decisions+jwt`); what `permdock/testing` asserts against |
-| `permdock/otel`          | optional entry | Spans and metrics from the same events (below)                                                                                               |
-| `permdock/cloud`         | optional entry | Batched delivery to the PermDock Cloud decision log with retention and per-actor queries ([Cloud adapter](/docs/adapters/cloud))             |
-| Your own                 | a few lines    | `write` inserts a batch into your database or queue; the recipe is the example sink above wrapped in the interface                           |
+| Sink                     | Where          | What it does                                                                                                                                    |
+| ------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `memorySink({ signer })` | core           | Ring buffer; the default; optional `TokenSigner` signs each `write` (`typ: vnd.permdock.evidence+jwt`); what `permdock/testing` asserts against |
+| `permdock/otel`          | optional entry | Spans and metrics from the same events (below)                                                                                                  |
+| `permdock/cloud`         | optional entry | Batched delivery to the PermDock Cloud decision log with retention and per-actor queries ([Cloud adapter](/docs/adapters/cloud))                |
+| Your own                 | a few lines    | `write` inserts a batch into your database or queue; the recipe is the example sink above wrapped in the interface                              |
 
 A sink receives `decision` events and the `approval` events that the store emits when a request is created and resolved; the three share `token`, so a sink can reconstruct an approval flow without a second log. A sink passed to [`scimHandler`](/docs/adapters/scim) also receives `directory` events (`type: 'directory'`, `source: 'scim'`: the provisioning operation, tenant, resource type and id, and the credential kind), which join to later decisions on `via: 'group:<id>'`. Group membership changes emit a `membership` event per affected user next to the directory event. `membershipEvent()` and `onRoleChange({ sink })` write the same shape for in-app role changes. API keys add `credential` events (`created`, `rotated` and `revoked` from `credentialEvent()` or `memoryCredentials({ sink })`, and `used` from `subjectFromApiKey({ sink, sample })`, always marked with the `sample` fraction it reports), and every decision a key makes names it in `subject.credential` ([API keys](/docs/concepts/credentials)). A failing sink is reported to `on('error')` and never changes an outcome.
 
 **Every event is written by default.** A sink receives all `granted`, `denied` and `approval-required` events. Sampling is opt-in per sink (`sample: { granted: 0.1 }` keeps one routine grant in ten and always writes the other two outcomes) and is meant for a metrics or debugging sink, never for the sink that serves as evidence: an access review asks what a principal or an agent was _allowed_ to do, so a log that drops grants cannot answer it. Cost is controlled by retention, not by omission.
 
-**Signed batch export.** A sink that hands events to a party who must be able to prove where they came from (a SIEM in another trust domain, an auditor, a compliance tool reading an export file) can sign each batch. The batch becomes one compact JWS with `typ: permdock-decisions+jwt`, registered claims `iss`, `iat`, `exp`, `jti`, and the CloudEvents-enveloped events under the `events` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)); the consumer verifies it with any JOSE library against the signer's JWK Set. In this package it is a `TokenSigner` handed to a sink, not a new sink: `memorySink({ signer, audience })` signs each `write`, `signDecisionBatch(events, signer)` is the same helper for your own sink, and `permdock/cloud`'s export endpoint serves signed batches. The recipe is `signer.sign({ events }, { typ: 'permdock-decisions+jwt' })` before `write` posts the batch. Events inside the JWS are the same objects a plain sink receives, so a consumer verifies, unwraps and applies the OCSF projection below unchanged. Signing is evidence for the reader; nothing in PermDock reads a batch back.
+**Signed batch export.** A sink that hands events to a party who must be able to prove where they came from (a SIEM in another trust domain, an auditor, a compliance tool reading an export file) can sign each batch. The batch becomes one compact JWS with `typ: vnd.permdock.evidence+jwt`, registered claims `iss`, `iat`, `exp`, `jti`, and the CloudEvents-enveloped events under the `events` claim ([wire formats](/docs/concepts/wire-formats), [JOSE](/docs/standards/jose)); the consumer verifies it with any JOSE library against the signer's JWK Set. In this package it is a `TokenSigner` handed to a sink, not a new sink: `memorySink({ signer, audience })` signs each `write`, `signDecisionBatch(events, signer)` is the same helper for your own sink, and `permdock/cloud`'s export endpoint serves signed batches. The recipe is `signer.sign({ events }, { typ: 'vnd.permdock.evidence+jwt' })` before `write` posts the batch. Events inside the JWS are the same objects a plain sink receives, so a consumer verifies, unwraps and applies the OCSF projection below unchanged. Signing is evidence for the reader; nothing in PermDock reads a batch back.
 
 ### Sink recipes and the OCSF projection
 
@@ -118,7 +118,7 @@ The event never includes the resource object itself, the parsed schema output, t
 
 Evidence leaves the log in three forms, all documented here so a reader in another trust domain can verify and ingest without PermDock code:
 
-- **Signed batches** (`permdock-decisions+jwt`, above): provenance for an auditor or a compliance tool; the Cloud's export endpoint serves them and a self-hosted sink can sign its own.
+- **Signed batches** (`vnd.permdock.evidence+jwt`, above): provenance for an auditor or a compliance tool; the Cloud's export endpoint serves them and a self-hosted sink can sign its own.
 - **OCSF**: the projection below for SIEMs and security lakes.
 - **CSV** with one row per event, for compliance platforms (Vanta, Drata, Secureframe) that collect access-review evidence from connected systems and for spreadsheets in an audit. The columns are fixed, in this order: `time` (the event's `at`, RFC 3339), `principal` (`subject.principal.id`, empty for anonymous), `actor` (`subject.actor.id`), `tenant`, `permission` (the key), `outcome`, `matched.role`, `via`, `denials.reason` (the reasons joined with `;`), `token`. A list inside a cell never uses commas, so the file parses with any RFC 4180 reader. `toCsvRow(event)` from `permdock` writes one row (a field is quoted only when it contains a comma, a double quote, CR or LF) and `CSV_COLUMNS` is the header; rows are joined with CRLF. The Cloud export and a self-hosted sink use the same helper, so their files are identical. Columns beyond these belong in the signed batch, not in the CSV.
 

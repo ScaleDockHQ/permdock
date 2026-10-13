@@ -36,7 +36,7 @@ A role held on a parent resource reaches its children through the child's `paren
 
 ## Issuing a link
 
-`signCapability(input, signer, { audience })` from `permdock` signs a `permdock-capability+jwt` with any `TokenSigner` ([JOSE](/docs/standards/jose)):
+`signCapability(input, signer, { audience })` from `permdock` signs a `vnd.permdock.capability+jwt` with any `TokenSigner` ([JOSE](/docs/standards/jose)):
 
 ```ts
 import { signCapability } from "permdock";
@@ -74,6 +74,7 @@ export async function shareQuote(permdock: PermDock, quote: Quote) {
 | `permissions` | Optional permission references that narrow the roles further, for example a read-only copy of an editor link.                                                       |
 | `redeemer`    | Who may open it: `'anyone'` (the default), `'signed-in'`, `{ user }` or `{ scope, id }`.                                                                            |
 | `once`        | One request per token.                                                                                                                                              |
+| `cnf`         | Optional `{ jkt }`: the RFC 7638 SHA-256 thumbprint of the key that must redeem the link (RFC 7800). See [key-bound links](#key-bound-links).                       |
 | `expiresAt`   | Required. It is the token's `exp` and the membership's `expiresAt`. A feed that must not expire is a [feed key](/docs/concepts/credentials#feeds), rotated instead. |
 
 Issuing is application code. Guard it with its own permission (`quote.share` above) so only someone who may share the quote can mint a link for it.
@@ -132,7 +133,18 @@ The subject is:
 
 `delegation` appears only when the capability lists `permissions`; a check outside them is denied with `not-delegated`. The membership's `via: 'link'` tells audit and UI that the access came from a link. A link principal never satisfies another link's `redeemer`.
 
-The resolver refuses, in this order: a token that fails verification (`typ`, `iss`, `aud`, signature, `exp`), a `capability` claim that is not a valid v1 object or whose `id` is not `sub`, a `holder` other than `link`, an expiry in the past, a `redeemer` the `viewer` does not satisfy (`redeemer-mismatch`), a revoked id (`capability-revoked`) and a one-time token whose `jti` was already claimed (`capability-replayed`). A one-time capability without a `replay` store is refused, and a `revoked` callback or store that throws denies with reason `source-threw`. A link its scope's link policy refuses is `link-policy` (below). The one-time claim runs last, so a request refused for another reason does not burn the link ([JWT adapter](/docs/adapters/jwt)).
+The resolver refuses, in this order: a token that fails verification (`typ`, `iss`, `aud`, signature, `exp`), a `capability` claim that is not a valid v1 object, a missing `sub` or `exp`, a malformed `cnf`, a `holder` other than `link`, an expiry in the past, a key-bound link without a DPoP proof from its key (`dpop-proof-invalid`), a `redeemer` the `viewer` does not satisfy (`redeemer-mismatch`), a revoked id (`capability-revoked`) and a one-time token whose `jti` was already claimed (`capability-replayed`). A one-time capability without a `replay` store is refused, and a `revoked` callback or store that throws denies with reason `source-threw`. A link its scope's link policy refuses is `link-policy` (below). The one-time claim runs last, so a request refused for another reason does not burn the link ([JWT adapter](/docs/adapters/jwt)).
+
+### Key-bound links
+
+A link signed with `cnf: { jkt }` works only for the holder of that key. `subjectFromCapability` then needs the incoming `request`, and resolves the link only when the request's `DPoP` header (RFC 9449) is a proof signed by the bound key; `verifyDpopProof` checks it, with the `replay` store when one is set.
+
+```ts
+const token = await signCapability({ ...link, cnf: { jkt } }, signer, {
+  audience: "https://app.example.com",
+});
+const subject = await subjectFromCapability(token, { ...options, request });
+```
 
 ## Link policy per scope
 
