@@ -25,6 +25,7 @@ function pending(
 ): ApprovalRequest {
   return {
     v: 1,
+    id: token,
     token,
     permission: "post.delete",
     scope: "post:delete",
@@ -268,7 +269,7 @@ describe("approval tenancy", () => {
       const body = (await response.json()) as {
         readonly items: readonly ApprovalRequest[];
       };
-      return body.items.map((request) => request.token).toSorted();
+      return body.items.map((request) => request.id).toSorted();
     };
     expect(await inbox(approver("u_9", ["o_1"]))).toEqual([
       "pd1.none",
@@ -311,7 +312,7 @@ describe("approval tenancy", () => {
       const body = (await response.json()) as {
         readonly items: readonly ApprovalRequest[];
       };
-      return body.items.map((request) => request.token).toSorted();
+      return body.items.map((request) => request.id).toSorted();
     };
     expect(await inbox(true)).toEqual([]);
     expect(await inbox(false)).toEqual(["pd1.optout"]);

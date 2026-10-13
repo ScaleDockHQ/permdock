@@ -171,7 +171,7 @@ describe("approver delegation", () => {
     });
     const response = await handler(
       new Request(
-        `https://api.example.com/approvals/${encodeURIComponent(request.token)}/approve`,
+        `https://api.example.com/approvals/${encodeURIComponent(request.id)}/approve`,
         { method: "POST" },
       ),
     );
@@ -254,7 +254,7 @@ describe("approver delegation", () => {
     });
     const response = await handler(
       new Request(
-        `https://api.example.com/approvals/${encodeURIComponent(request.token)}/approve`,
+        `https://api.example.com/approvals/${encodeURIComponent(request.id)}/approve`,
         { method: "POST" },
       ),
     );
@@ -293,7 +293,7 @@ describe("approver delegation", () => {
     });
     const response = await handler(
       new Request(
-        `https://api.example.com/approvals/${encodeURIComponent(request.token)}/approve`,
+        `https://api.example.com/approvals/${encodeURIComponent(request.id)}/approve`,
         { method: "POST" },
       ),
     );
@@ -388,7 +388,7 @@ describe("approver delegation", () => {
     });
     const response = await handler(
       new Request(
-        `https://api.example.com/approvals/${encodeURIComponent(request.token)}/approve`,
+        `https://api.example.com/approvals/${encodeURIComponent(request.id)}/approve`,
         { method: "POST" },
       ),
     );

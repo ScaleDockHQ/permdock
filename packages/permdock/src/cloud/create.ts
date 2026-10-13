@@ -17,6 +17,7 @@ import type {
 } from "./types.ts";
 
 import { ApprovalError, isApprovalErrorCode } from "../approvals/errors.ts";
+import { APPROVAL_HEADER } from "../approvals/types.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import {
@@ -151,6 +152,9 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     contentType?: string,
   ): Promise<Response> => {
     const next = headers();
+    for (const [name, value] of new Headers(init.headers)) {
+      next.set(name, value);
+    }
     if (accept !== undefined) {
       next.set("accept", accept);
     }
@@ -176,9 +180,20 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     },
     async get(token: string): Promise<ApprovalRequest | null> {
       try {
-        const response = await request(
-          `/approvals/${encodeURIComponent(token)}`,
-        );
+        const response = await request("/approvals/by-token", {
+          headers: { [APPROVAL_HEADER]: token },
+        });
+        if (!response.ok) {
+          return null;
+        }
+        return asApproval(await response.json());
+      } catch {
+        return null;
+      }
+    },
+    async getById(id: string): Promise<ApprovalRequest | null> {
+      try {
+        const response = await request(`/approvals/${encodeURIComponent(id)}`);
         if (!response.ok) {
           return null;
         }
@@ -191,13 +206,11 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       token: string,
       verdict: ApprovalVerdict,
     ): Promise<ApprovalRequest> {
-      const response = await request(
-        `/approvals/${encodeURIComponent(token)}/resolve`,
-        {
-          method: "POST",
-          body: JSON.stringify(verdict),
-        },
-      );
+      const response = await request("/approvals/by-token/resolve", {
+        method: "POST",
+        headers: { [APPROVAL_HEADER]: token },
+        body: JSON.stringify(verdict),
+      });
       if (!response.ok) {
         throw await approvalErrorFrom(response);
       }
@@ -212,17 +225,15 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     },
     async consume(token: string, now?: Date): Promise<ApprovalRequest | null> {
       try {
-        const response = await request(
-          `/approvals/${encodeURIComponent(token)}/consume`,
-          {
-            method: "POST",
-            body: JSON.stringify(
-              compact({
-                now: now === undefined ? undefined : now.toISOString(),
-              }),
-            ),
-          },
-        );
+        const response = await request("/approvals/by-token/consume", {
+          method: "POST",
+          headers: { [APPROVAL_HEADER]: token },
+          body: JSON.stringify(
+            compact({
+              now: now === undefined ? undefined : now.toISOString(),
+            }),
+          ),
+        });
         if (!response.ok) {
           return null;
         }

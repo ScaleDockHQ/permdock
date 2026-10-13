@@ -181,6 +181,13 @@ export type ApprovalStore = {
   readonly ttl?: number;
   create(request: ApprovalRequest): Promise<void> | void;
   get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
+  /**
+   * The request with this `id`, for `approvalsHandler`, which routes by id.
+   * Without it the handler pages through `list` to find the id.
+   */
+  getById?(
+    id: string,
+  ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   resolve(
     token: string,
     verdict: ApprovalVerdict,

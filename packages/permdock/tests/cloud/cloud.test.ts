@@ -89,12 +89,12 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       store.create(record);
       return new Response(null, { status: 204 });
     }
-    const resolve = /^\/approvals\/([^/]+)\/resolve$/u.exec(path);
-    if (method === "POST" && resolve?.[1] !== undefined) {
+    const token = request.headers.get("PermDock-Approval") ?? "";
+    if (method === "POST" && path === "/approvals/by-token/resolve") {
       try {
         // SAFETY: the cloud client under test posts the resolution it was given.
         const next = store.resolve(
-          decodeURIComponent(resolve[1]),
+          token,
           (await request.json()) as Parameters<typeof store.resolve>[1],
         );
         return json(next);
@@ -113,14 +113,19 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
         throw error;
       }
     }
-    const consume = /^\/approvals\/([^/]+)\/consume$/u.exec(path);
-    if (method === "POST" && consume?.[1] !== undefined) {
-      const next = store.consume(decodeURIComponent(consume[1]));
+    if (method === "POST" && path === "/approvals/by-token/consume") {
+      const next = store.consume(token);
       return next === null ? json({}, 409) : json(next);
+    }
+    if (method === "GET" && path === "/approvals/by-token") {
+      const loaded = store.get(token);
+      return loaded === null
+        ? new Response(null, { status: 404 })
+        : json(loaded);
     }
     const getOne = /^\/approvals\/([^/]+)$/u.exec(path);
     if (method === "GET" && getOne?.[1] !== undefined) {
-      const loaded = store.get(decodeURIComponent(getOne[1]));
+      const loaded = store.getById?.(decodeURIComponent(getOne[1])) ?? null;
       return loaded === null
         ? new Response(null, { status: 404 })
         : json(loaded);
@@ -386,6 +391,7 @@ describe("cloud", () => {
     });
     const request: ApprovalRequest = {
       v: 1,
+      id: "a_1",
       token: "opaque-token",
       permission: "post.delete",
       scope: "post:delete",
@@ -401,11 +407,17 @@ describe("cloud", () => {
     };
     await client.approvals.create(request);
     expect(await client.approvals.get("opaque-token")).toEqual(request);
+    expect(await client.approvals.getById?.("a_1")).toEqual(request);
+    expect(await client.approvals.getById?.("a_missing")).toBeNull();
     const listed = await client.approvals.list({ status: "pending" });
     expect(listed.items.some((item) => item.token === "opaque-token")).toBe(
       true,
     );
-    await client.approvals.create({ ...request, token: "second-token" });
+    await client.approvals.create({
+      ...request,
+      id: "a_2",
+      token: "second-token",
+    });
     const first = await client.approvals.list({ status: "pending", limit: 1 });
     expect(first.items).toHaveLength(1);
     expect(first.next).toBeTypeOf("string");
@@ -434,6 +446,7 @@ describe("cloud", () => {
     ).rejects.toThrow(/not pending/);
     await client.approvals.create({
       ...request,
+      id: "a_3",
       token: "stale-token",
       status: "pending",
     });
@@ -451,6 +464,7 @@ describe("cloud", () => {
     });
     const pending = (token: string, session: string): ApprovalRequest => ({
       v: 1,
+      id: `a_${token}`,
       token,
       permission: "post.delete",
       scope: "post:delete",
@@ -494,6 +508,7 @@ describe("cloud", () => {
     });
     const request: ApprovalRequest = {
       v: 1,
+      id: "a_pd1",
       token: "pd1.v2",
       permission: "post.delete",
       scope: "post:delete",

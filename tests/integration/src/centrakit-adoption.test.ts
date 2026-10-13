@@ -467,7 +467,7 @@ describe("CentraKit adoption shapes", () => {
       });
       return handler(
         new Request(
-          `https://centrakit.test/permdock/approvals/${encodeURIComponent(request.token)}/approve`,
+          `https://centrakit.test/permdock/approvals/${encodeURIComponent(request.id)}/approve`,
           { method: "POST" },
         ),
       );

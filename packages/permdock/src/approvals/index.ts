@@ -43,7 +43,9 @@ export type {
   MatchDelegationOptions,
 } from "./delegation.ts";
 export { approvalsHandler } from "./handler.ts";
-export type { ApprovalsHandlerOptions } from "./handler.ts";
+export type { ApprovalsHandlerOptions, ApprovalView } from "./handler.ts";
+export { memoryIdempotencyStore } from "./idempotency.ts";
+export type { IdempotencyStore, IdempotentResponse } from "./idempotency.ts";
 export {
   cancelApprovals,
   consumeApproval,

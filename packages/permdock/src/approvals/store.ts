@@ -510,6 +510,9 @@ export function memoryApprovalStore(
     get(token: string): ApprovalRequest | null {
       return records.get(token) ?? null;
     },
+    getById(id: string): ApprovalRequest | null {
+      return records.values().find((request) => request.id === id) ?? null;
+    },
     resolve(token: string, verdict: ApprovalVerdict): ApprovalRequest {
       const current = records.get(token);
       if (current === undefined) {

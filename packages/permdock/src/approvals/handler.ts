@@ -2,6 +2,7 @@ import type { RelationSource, TokenSigner } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
+import type { IdempotencyStore, IdempotentResponse } from "./idempotency.ts";
 import type {
   ApprovalRequest,
   ApprovalStore,
@@ -9,13 +10,23 @@ import type {
 } from "./types.ts";
 import type { ApprovalDelegationSource } from "./types.ts";
 
+import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
+import { problemType, statusProblem } from "../core/problem-types.ts";
 import { rootMembershipId } from "../core/scopes.ts";
-import { PROBLEM_BASE } from "../core/validation-error.ts";
+import { sha256Digest } from "../core/sha256.ts";
+import { nowMillis } from "../core/time.ts";
 import { hasCredentials } from "../server/http.ts";
-import { unauthenticatedProblem } from "../server/problem.ts";
+import {
+  methodNotAllowed,
+  problemResponse,
+  unauthenticatedProblem,
+  validationProblem,
+} from "../server/problem.ts";
 import { matchDelegation } from "./delegation.ts";
 import { ApprovalError, isApprovalError } from "./errors.ts";
+import { memoryIdempotencyStore } from "./idempotency.ts";
+import { listAllApprovals } from "./page.ts";
 import { heldPermissions } from "./permissions.ts";
 import { approverRelations } from "./relations.ts";
 import { signApproval } from "./signature.ts";
@@ -56,70 +67,172 @@ export type ApprovalsHandlerOptions = {
     principalId: string,
     request: ApprovalRequest,
   ) => Subject | null | undefined | Promise<Subject | null | undefined>;
+  /**
+   * Where `Idempotency-Key` responses on approve and reject are kept for 24
+   * hours; a `memoryIdempotencyStore()` per handler when absent.
+   */
+  readonly idempotency?: IdempotencyStore;
 };
 
-type ProblemBody = {
-  readonly type: string;
-  readonly title: string;
-  readonly status: number;
-  readonly detail: string;
-};
+/** An approval as the approvals API shows it: never the resume `token`. */
+export type ApprovalView = Omit<ApprovalRequest, "token">;
 
-function problem(
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_IDEMPOTENCY_KEY_LENGTH = 256;
+
+function problem(status: number, detail: string): Response {
+  return problemResponse(statusProblem(status, detail));
+}
+
+function json(
   status: number,
-  title: string,
-  detail: string,
-  slug: string,
+  body: unknown,
+  headers: Readonly<Record<string, string>> = {},
 ): Response {
-  const body: ProblemBody = {
-    type: `${PROBLEM_BASE}/${slug}`,
-    title,
-    status,
-    detail,
-  };
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/problem+json" },
+    headers: { ...headers, "content-type": "application/json" },
   });
 }
 
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
+function viewOf(request: ApprovalRequest): ApprovalView {
+  const { token: _token, ...view } = request;
+  return view;
+}
+
+/** A strong RFC 9110 entity tag: the `sha-256:` digest of the view's RFC 8785 JSON. */
+function entityTag(request: ApprovalRequest): string {
+  return `"${sha256Digest(canonicalJson(viewOf(request)))}"`;
+}
+
+function entityTags(field: string): readonly string[] {
+  return field
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter((tag) => tag !== "");
+}
+
+/** RFC 9110 section 13.1.1: strong comparison, so a weak tag never matches. */
+function ifMatchFails(request: Request, current: ApprovalRequest): boolean {
+  const field = request.headers.get("if-match");
+  if (field === null) {
+    return false;
+  }
+  const tags = entityTags(field);
+  if (tags.includes("*")) {
+    return false;
+  }
+  return !tags.includes(entityTag(current));
+}
+
+/** RFC 9110 section 13.1.2: weak comparison. */
+function ifNoneMatchHolds(request: Request, etag: string): boolean {
+  const field = request.headers.get("if-none-match");
+  if (field === null) {
+    return false;
+  }
+  return entityTags(field).some(
+    (tag) => tag === "*" || tag.replace(/^W\//u, "") === etag,
+  );
 }
 
 type Route =
   | { readonly kind: "pending" }
   | { readonly kind: "mine" }
-  | { readonly kind: "get"; readonly token: string }
-  | { readonly kind: "approve"; readonly token: string }
-  | { readonly kind: "reject"; readonly token: string };
+  | { readonly kind: "get"; readonly id: string }
+  | { readonly kind: "signature"; readonly id: string }
+  | { readonly kind: "approve"; readonly id: string }
+  | { readonly kind: "reject"; readonly id: string };
 
-function parseRoute(url: URL, method: string): Route | undefined {
-  const parts = url.pathname.replace(/\/+$/u, "").split("/").filter(Boolean);
+function decodeSegment(segment: string): string | undefined {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The route the path names and the methods it allows. The handler mounts at
+ * any prefix, so a path reads from its last segments; a path naming none is
+ * `undefined` (`404`).
+ */
+function parseRoute(
+  url: URL,
+):
+  | { readonly route: (method: string) => Route | undefined; allow: string }
+  | undefined {
+  const parts = url.pathname.split("/").filter(Boolean);
   const last = parts.at(-1);
   const prev = parts.at(-2);
   if (last === undefined) {
     return undefined;
   }
-  if (method === "GET" && last === "pending") {
-    return { kind: "pending" };
+  if (last === "pending" || last === "mine") {
+    const kind = last;
+    return {
+      allow: "GET",
+      route: (method) => (method === "GET" ? { kind } : undefined),
+    };
   }
-  if (method === "GET" && last === "mine") {
-    return { kind: "mine" };
+  if (
+    (last === "approve" || last === "reject" || last === "signature") &&
+    prev !== undefined
+  ) {
+    const id = decodeSegment(prev);
+    if (id === undefined) {
+      return undefined;
+    }
+    const kind = last;
+    const method = kind === "signature" ? "GET" : "POST";
+    return {
+      allow: method,
+      route: (requested) => (requested === method ? { kind, id } : undefined),
+    };
   }
-  if (method === "POST" && last === "approve" && prev !== undefined) {
-    return { kind: "approve", token: decodeURIComponent(prev) };
+  const id = decodeSegment(last);
+  if (id === undefined) {
+    return undefined;
   }
-  if (method === "POST" && last === "reject" && prev !== undefined) {
-    return { kind: "reject", token: decodeURIComponent(prev) };
+  return {
+    allow: "GET",
+    route: (method) => (method === "GET" ? { kind: "get", id } : undefined),
+  };
+}
+
+/** `store.getById`, else the first page run of `list` that carries the id. */
+async function findById(
+  store: ApprovalStore,
+  id: string,
+): Promise<ApprovalRequest | null> {
+  if (store.getById !== undefined) {
+    return store.getById(id);
   }
-  if (method === "GET" && last !== "pending" && last !== "mine") {
-    return { kind: "get", token: decodeURIComponent(last) };
+  const all = await listAllApprovals(store, {});
+  return all.find((request) => request.id === id) ?? null;
+}
+
+/** RFC 8288 `Link: <…>; rel="next"` for a page with a `next` cursor. */
+function nextLink(url: URL, next: string | undefined): Record<string, string> {
+  if (next === undefined) {
+    return {};
   }
-  return undefined;
+  const target = new URL(url);
+  target.searchParams.set("cursor", next);
+  return { Link: `<${target.href}>; rel="next"` };
+}
+
+/** The signature sub-resource beside an `…/<id>/approve` or `…/<id>/reject` URL. */
+function signatureLink(url: URL): Record<string, string> {
+  const target = new URL(url);
+  target.search = "";
+  target.pathname = target.pathname.replace(
+    /\/(?:approve|reject)\/*$/u,
+    "/signature",
+  );
+  return {
+    Link: `<${target.href}>; rel="alternate"; type="application/jwt"`,
+  };
 }
 
 async function resolveSubject(
@@ -279,6 +392,15 @@ function canView(
   return mayResolve(request, subject, requireDistinct, options);
 }
 
+/** The requester and who answered: the signed approval carries the resume token, so only they read it. */
+function party(request: ApprovalRequest, principalId: string): boolean {
+  return (
+    request.subject.principal?.id === principalId ||
+    request.resolvedBy === principalId ||
+    (request.approvals ?? []).some((item) => item.by === principalId)
+  );
+}
+
 /**
  * The tenants whose pending requests the approver may list: the requested one,
  * else the active one, else every membership tenant. Requests without a tenant
@@ -320,34 +442,35 @@ function inboxScope(
   return { ok: true, tenants: membershipTenants(subject), tenantless: true };
 }
 
-type NoteRead = { readonly note?: string; readonly refusal?: Response };
+type NoteRead = {
+  readonly note?: string;
+  /** The body as read, for the `Idempotency-Key` fingerprint. */
+  readonly text: string;
+  readonly refusal?: Response;
+};
 
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_NOTE_LENGTH = 2000;
 
 function tooLarge(): Response {
-  return problem(
-    413,
-    "Payload too large",
-    `request body exceeds ${String(MAX_BODY_BYTES)} bytes`,
-    "payload-too-large",
-  );
+  return problem(413, `request body exceeds ${String(MAX_BODY_BYTES)} bytes`);
 }
 
 /** An unreadable body is no note; an oversized body or note is refused, never truncated. */
 async function readNote(request: Request): Promise<NoteRead> {
   const contentType = request.headers.get("content-type") ?? "";
-  if (request.method !== "POST" || !contentType.includes("application/json")) {
-    return {};
+  if (!contentType.includes("application/json")) {
+    return { text: "" };
   }
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > MAX_BODY_BYTES) {
-    return { refusal: tooLarge() };
+    return { text: "", refusal: tooLarge() };
   }
+  let text = "";
   try {
-    const text = await request.text();
+    text = await request.text();
     if (text.length > MAX_BODY_BYTES) {
-      return { refusal: tooLarge() };
+      return { text, refusal: tooLarge() };
     }
     const body: unknown = JSON.parse(text);
     if (
@@ -358,39 +481,88 @@ async function readNote(request: Request): Promise<NoteRead> {
     ) {
       return body.note.length > MAX_NOTE_LENGTH
         ? {
-            refusal: problem(
-              400,
-              "Invalid request",
+            text,
+            refusal: validationProblem(
               `note exceeds ${String(MAX_NOTE_LENGTH)} characters`,
-              "validation",
             ),
           }
-        : { note: body.note };
+        : { text, note: body.note };
     }
   } catch {
-    return {};
+    return { text };
   }
-  return {};
+  return { text };
 }
 
 function mapError(error: unknown, credentials: boolean): Response {
   if (!isApprovalError(error)) {
-    return problem(500, "Internal error", "approval store failed", "internal");
+    return problem(500, "approval store failed");
   }
-  if (error.code === "approval-not-found") {
-    return problem(404, "Not found", error.message, "not-found");
+  switch (error.code) {
+    case "approval-not-found": {
+      return problem(404, error.message);
+    }
+    case "approval-not-pending":
+    case "approval-expired":
+    case "approver-repeated": {
+      return problem(409, error.message);
+    }
+    case "approver-unauthenticated": {
+      return unauthenticatedProblem(credentials);
+    }
+    case "approver-not-eligible":
+    case "approver-is-actor":
+    case "approver-is-principal": {
+      return problemResponse({
+        type: problemType("approver-not-eligible"),
+        title: "Approver not eligible",
+        status: 403,
+        detail: error.message,
+        reason: error.code,
+      });
+    }
+    default: {
+      const unhandled: never = error.code;
+      return problem(500, `unknown approval error ${String(unhandled)}`);
+    }
   }
+}
+
+/** The `Idempotency-Key` field: an RFC 9651 sf-string, 1 to 256 characters. */
+function idempotencyKey(
+  request: Request,
+): { readonly key?: string } | { readonly refusal: Response } {
+  const field = request.headers.get("idempotency-key");
+  if (field === null) {
+    return {};
+  }
+  const match = /^"([\u0020-\u007E]*)"$/u.exec(field.trim());
+  const key = match?.[1];
   if (
-    error.code === "approval-not-pending" ||
-    error.code === "approval-expired" ||
-    error.code === "approver-repeated"
+    key === undefined ||
+    key === "" ||
+    key.length > MAX_IDEMPOTENCY_KEY_LENGTH ||
+    /["\\]/u.test(key)
   ) {
-    return problem(409, "Conflict", error.message, "conflict");
+    return {
+      refusal: validationProblem(
+        "Idempotency-Key must be a quoted string of 1 to 256 characters",
+      ),
+    };
   }
-  if (error.code === "approver-unauthenticated") {
-    return unauthenticatedProblem(credentials);
-  }
-  return problem(403, "Permission denied", error.message, "denied");
+  return { key };
+}
+
+async function stored(
+  response: Response,
+  fingerprint: string,
+): Promise<IdempotentResponse> {
+  return {
+    fingerprint,
+    status: response.status,
+    headers: [...response.headers.entries()],
+    body: await response.clone().text(),
+  };
 }
 
 export function approvalsHandler(
@@ -398,17 +570,75 @@ export function approvalsHandler(
   options: ApprovalsHandlerOptions,
 ): (request: Request) => Promise<Response> {
   const requireDistinct = options.requireDistinctApprover === true;
+  const idempotency = options.idempotency ?? memoryIdempotencyStore();
+
+  const visible = async (
+    id: string,
+    subject: Subject,
+  ): Promise<ApprovalRequest | null> => {
+    const current = await findById(store, id);
+    return current !== null &&
+      (await canView(current, subject, requireDistinct, options))
+      ? current
+      : null;
+  };
+
+  const resolve = async (
+    request: Request,
+    url: URL,
+    route: Extract<Route, { readonly kind: "approve" | "reject" }>,
+    subject: Subject,
+    read: NoteRead,
+  ): Promise<Response> => {
+    const current = await visible(route.id, subject);
+    if (current === null) {
+      return problem(404, "approval was not found");
+    }
+    if (ifMatchFails(request, current)) {
+      return problem(412, "the approval changed since it was read");
+    }
+    const acting = await actingApprover(
+      current,
+      subject,
+      requireDistinct,
+      options,
+    );
+    const resolved = await store.resolve(
+      current.token,
+      compact<ApprovalVerdict>({
+        status: route.kind === "approve" ? "approved" : "rejected",
+        by: subject,
+        note: read.note,
+        relations: acting.kind === "self" ? acting.relations : undefined,
+        permissions: acting.kind === "self" ? acting.permissions : undefined,
+        onBehalfOf:
+          acting.kind === "delegated"
+            ? {
+                subject: acting.delegator,
+                delegation: acting.delegation,
+                relations: acting.relations,
+                permissions: acting.permissions,
+              }
+            : undefined,
+      }),
+    );
+    return json(200, viewOf(resolved), {
+      ETag: entityTag(resolved),
+      ...(options.signer !== undefined && resolved.status === "approved"
+        ? signatureLink(url)
+        : {}),
+    });
+  };
 
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
-    const route = parseRoute(url, request.method);
+    const parsed = parseRoute(url);
+    if (parsed === undefined) {
+      return problem(404, "unknown approvals route");
+    }
+    const route = parsed.route(request.method);
     if (route === undefined) {
-      return problem(
-        405,
-        "Method not allowed",
-        "unknown approvals route",
-        "method-not-allowed",
-      );
+      return methodNotAllowed(parsed.allow);
     }
 
     await store.expire();
@@ -420,105 +650,119 @@ export function approvalsHandler(
     }
 
     try {
-      if (route.kind === "pending") {
-        const scoped = inboxScope(url, subject);
-        if (!scoped.ok) {
-          return problem(
-            403,
-            "Permission denied",
-            "approver does not belong to that tenant",
-            "denied",
+      switch (route.kind) {
+        case "pending": {
+          const scoped = inboxScope(url, subject);
+          if (!scoped.ok) {
+            return problemResponse({
+              type: problemType("denied"),
+              title: "Permission denied",
+              status: 403,
+              detail: "approver does not belong to that tenant",
+            });
+          }
+          const page = await store.list({
+            ...pageQuery(url),
+            status: "pending",
+          });
+          const tenants = new Set(scoped.tenants);
+          const eligible = await Promise.all(
+            page.items.map(async (item) => {
+              const tenant = item.subject.principal?.tenant;
+              const inScope =
+                tenant === undefined ? scoped.tenantless : tenants.has(tenant);
+              return (
+                inScope &&
+                (await mayResolve(item, subject, requireDistinct, options))
+              );
+            }),
+          );
+          return json(
+            200,
+            compact({
+              items: page.items
+                .filter((_, index) => eligible[index] === true)
+                .map(viewOf),
+              next: page.next,
+            }),
+            nextLink(url, page.next),
           );
         }
-        const page = await store.list({ ...pageQuery(url), status: "pending" });
-        const tenants = new Set(scoped.tenants);
-        const eligible = await Promise.all(
-          page.items.map(async (item) => {
-            const tenant = item.subject.principal?.tenant;
-            const inScope =
-              tenant === undefined ? scoped.tenantless : tenants.has(tenant);
-            return (
-              inScope &&
-              (await mayResolve(item, subject, requireDistinct, options))
+        case "mine": {
+          const page = await store.list({
+            ...pageQuery(url),
+            principalId: principal.id,
+          });
+          return json(
+            200,
+            compact({ items: page.items.map(viewOf), next: page.next }),
+            nextLink(url, page.next),
+          );
+        }
+        case "get": {
+          const current = await visible(route.id, subject);
+          if (current === null) {
+            return problem(404, "approval was not found");
+          }
+          const etag = entityTag(current);
+          if (ifNoneMatchHolds(request, etag)) {
+            return new Response(null, { status: 304, headers: { ETag: etag } });
+          }
+          return json(200, viewOf(current), { ETag: etag });
+        }
+        case "signature": {
+          const current = await findById(store, route.id);
+          const signed =
+            current === null || !party(current, principal.id)
+              ? undefined
+              : await signApproval(current, options.signer, options.audience);
+          if (signed === undefined) {
+            return problem(404, "no signed approval for that request");
+          }
+          return new Response(signed, {
+            status: 200,
+            headers: { "content-type": "application/jwt" },
+          });
+        }
+        case "approve":
+        case "reject": {
+          const keyed = idempotencyKey(request);
+          if ("refusal" in keyed) {
+            return keyed.refusal;
+          }
+          const read = await readNote(request);
+          if (read.refusal !== undefined) {
+            return read.refusal;
+          }
+          if (keyed.key === undefined) {
+            return await resolve(request, url, route, subject, read);
+          }
+          const key = `${principal.id}\n${keyed.key}`;
+          const fingerprint = `${route.kind} ${route.id} ${sha256Digest(read.text)}`;
+          const replay = await idempotency.get(key);
+          if (replay !== undefined) {
+            return replay.fingerprint === fingerprint
+              ? new Response(replay.body, {
+                  status: replay.status,
+                  headers: replay.headers.map(([name, value]) => [name, value]),
+                })
+              : problem(422, "Idempotency-Key was used for another request");
+          }
+          const response = await resolve(request, url, route, subject, read);
+          if (response.ok) {
+            await idempotency.set(
+              key,
+              await stored(response, fingerprint),
+              nowMillis() + IDEMPOTENCY_TTL_MS,
             );
-          }),
-        );
-        return json(
-          200,
-          compact({
-            items: page.items.filter((_, index) => eligible[index] === true),
-            next: page.next,
-          }),
-        );
-      }
-      if (route.kind === "mine") {
-        const page = await store.list({
-          ...pageQuery(url),
-          principalId: principal.id,
-        });
-        return json(200, compact({ items: page.items, next: page.next }));
-      }
-      if (route.kind === "get") {
-        const current = await store.get(route.token);
-        if (
-          current === null ||
-          !(await canView(current, subject, requireDistinct, options))
-        ) {
-          return problem(
-            404,
-            "Not found",
-            "approval was not found",
-            "not-found",
-          );
+          }
+          return response;
         }
-        return json(200, current);
+        default: {
+          const unhandled: never = route;
+          return problem(404, `unknown approvals route ${String(unhandled)}`);
+        }
       }
-      const current = await store.get(route.token);
-      if (current === null) {
-        return problem(404, "Not found", "approval was not found", "not-found");
-      }
-      const acting = await actingApprover(
-        current,
-        subject,
-        requireDistinct,
-        options,
-      );
-      const read = await readNote(request);
-      if (read.refusal !== undefined) {
-        return read.refusal;
-      }
-      const note = read.note;
-      const resolved = await store.resolve(
-        route.token,
-        compact<ApprovalVerdict>({
-          status: route.kind === "approve" ? "approved" : "rejected",
-          by: subject,
-          note,
-          relations: acting.kind === "self" ? acting.relations : undefined,
-          permissions: acting.kind === "self" ? acting.permissions : undefined,
-          onBehalfOf:
-            acting.kind === "delegated"
-              ? {
-                  subject: acting.delegator,
-                  delegation: acting.delegation,
-                  relations: acting.relations,
-                  permissions: acting.permissions,
-                }
-              : undefined,
-        }),
-      );
-      const signed = await signApproval(
-        resolved,
-        options.signer,
-        options.audience,
-      );
-      return json(
-        200,
-        compact<ApprovalRequest & { readonly signed?: string }>({
-          ...resolved,
-          signed,
-        }),
-      );
     } catch (error) {
       return mapError(error, hasCredentials(request));
     }

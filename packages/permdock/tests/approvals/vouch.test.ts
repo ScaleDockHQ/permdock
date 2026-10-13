@@ -15,6 +15,7 @@ const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 function request(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
   return {
     v: 1,
+    id: "apr_vouch",
     token: "pd1.vouch",
     permission: "payment.send",
     scope: "payment:send",
@@ -140,7 +141,7 @@ describe("vouchApproval", () => {
       }),
     });
     const response = await handler(
-      new Request("https://api.example.com/approvals/pd1.vouch/approve", {
+      new Request("https://api.example.com/approvals/apr_vouch/approve", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ vouched: "manager-chain" }),
