@@ -31,6 +31,7 @@ export const ENTRIES = {
   "./vue": "vue/index.js",
   "./svelte": "svelte/index.js",
   "./solid": "solid/index.js",
+  "./agent": "agent/index.js",
   "./ai-sdk": "ai-sdk/index.js",
   "./claude-agent": "claude-agent/index.js",
   "./eve": "eve/index.js",
@@ -40,6 +41,7 @@ export const ENTRIES = {
   "./openapi": "openapi/index.js",
   "./terminal": "terminal/index.js",
   "./webmcp": "webmcp/index.js",
+  "./workflow": "workflow/index.js",
   "./a2a": "a2a/index.js",
   "./otel": "otel/index.js",
   "./scim": "scim/index.js",
@@ -307,6 +309,7 @@ export function policyChunks(files: readonly string[]): readonly string[] {
 /** Dist folders of server-only entries; a client entry must reach none of them. */
 export const SERVER_FOLDERS = [
   "a2a",
+  "agent",
   "ai-sdk",
   "approvals",
   "astro",
@@ -347,6 +350,7 @@ export const SERVER_FOLDERS = [
   "tanstack-start",
   "terminal",
   "trpc",
+  "workflow",
 ] as const;
 
 /** Dist folders that are neither server-only nor a client entry. */
