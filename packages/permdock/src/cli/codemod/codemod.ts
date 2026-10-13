@@ -14,7 +14,7 @@ import {
 } from "./transform.ts";
 
 /** Each codemod version and the rename map it applies. */
-export const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
+const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
   "0.5": Object.freeze({
     renames: RENAMES_0_5,
     signatures: SIGNATURE_CHANGES_0_5,

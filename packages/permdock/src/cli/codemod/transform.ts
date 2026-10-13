@@ -137,7 +137,7 @@ type Context = {
 
 const SCRIPT_BLOCK = /<script\b([^>]*)>([\s\S]*?)<\/script>/gu;
 
-export function isPermDockSpecifier(value: unknown): value is string {
+function isPermDockSpecifier(value: unknown): value is string {
   return (
     typeof value === "string" &&
     (value === "permdock" || value.startsWith("permdock/"))
