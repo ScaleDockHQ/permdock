@@ -298,6 +298,33 @@ describe("transformSource", () => {
     ]);
   });
 
+  it("renames a member on a module constant that holds the factory result", () => {
+    const result = apply(
+      [
+        'import { createPermDock } from "permdock/hono";',
+        "export const kit = await createPermDock(policy);",
+        "app.use(kit.permdock());",
+        "app.use(kit.protect(p));",
+        "function inner(kit) { kit.permdock(); }",
+      ].join("\n"),
+    );
+    expect(result.source).toContain("app.use(kit.middleware());");
+    expect(result.source).toContain("function inner(kit) { kit.permdock(); }");
+    expect(result.changes).toEqual([
+      { line: 3, column: 13, from: "permdock", to: "middleware" },
+    ]);
+    expect(result.followUps.map((item) => item.line)).toEqual([5]);
+  });
+
+  it("leaves a member alone on a factory result from another entry", () => {
+    const source = [
+      'import { createPermDock } from "permdock";',
+      "const instance = await createPermDock(policy, user);",
+      "instance.permdock;",
+    ].join("\n");
+    expect(apply(source)).toEqual({ source, changes: [], followUps: [] });
+  });
+
   it("reports call-shape changes at each call site", () => {
     const result = apply(
       [

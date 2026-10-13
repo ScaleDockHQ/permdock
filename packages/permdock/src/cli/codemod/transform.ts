@@ -131,6 +131,8 @@ type Context = {
   readonly references: Reference[];
   readonly optionRows: readonly Rename[];
   readonly methodRows: readonly Rename[];
+  /** Module-level constants holding a factory result, to the entry the factory came from. */
+  readonly factories: ReadonlyMap<string, string>;
   readonly handledKeys: Set<Estree>;
   readonly scopes: WeakMap<Estree, ReadonlySet<string> | null>;
 };
@@ -284,6 +286,7 @@ function contextFor(program: Estree, set: RenameSet): Context | undefined {
     methodRows: set.renames.filter(
       (row) => row.kind === "method" && touches(row),
     ),
+    factories: factoryValues(program, bindings),
     handledKeys: new Set(),
     scopes: new WeakMap(),
   };
@@ -392,8 +395,60 @@ function visitMember(
   if (rename !== undefined) {
     replace(ctx, property, rename.to, rename.from);
   } else if (member) {
-    reportMethods(ctx, [property], "member", "is on a value from");
+    const origin =
+      object?.type === "Identifier" &&
+      isModuleBinding(ctx, object.name ?? "", ancestors)
+        ? ctx.factories.get(object.name ?? "")
+        : undefined;
+    const method =
+      origin === undefined
+        ? undefined
+        : ctx.methodRows.find(
+            (row) => row.from === property.name && row.entries.includes(origin),
+          );
+    if (method !== undefined) {
+      replace(ctx, property, method.to, method.from);
+    } else if (origin === undefined) {
+      reportMethods(ctx, [property], "member", "is on a value from");
+    }
   }
+}
+
+/** `const x = f(…)` or `const x = await f(…)` at module level, where `f` is imported from a permdock entry. */
+function factoryValues(
+  program: Estree,
+  bindings: ReadonlyMap<string, ImportBinding>,
+): ReadonlyMap<string, string> {
+  const out = new Map<string, string>();
+  for (const statement of nodes(program.body)) {
+    const declaration =
+      statement.type === "ExportNamedDeclaration"
+        ? statement.declaration
+        : statement;
+    if (
+      declaration?.type !== "VariableDeclaration" ||
+      Reflect.get(declaration, "kind") !== "const"
+    ) {
+      continue;
+    }
+    for (const declarator of nodes(declaration.declarations)) {
+      const init =
+        declarator.init?.type === "AwaitExpression"
+          ? declarator.init.argument
+          : declarator.init;
+      const callee = init?.type === "CallExpression" ? init.callee : undefined;
+      const entry =
+        callee?.type === "Identifier"
+          ? bindings.get(callee.name ?? "")?.entry
+          : undefined;
+      const name =
+        declarator.id?.type === "Identifier" ? declarator.id.name : undefined;
+      if (entry !== undefined && name !== undefined) {
+        out.set(name, entry);
+      }
+    }
+  }
+  return out;
 }
 
 function reportMethods(

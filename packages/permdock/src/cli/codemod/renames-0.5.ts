@@ -11,8 +11,8 @@
  * - `option`: a key of an options object passed straight to a function imported from `entries`.
  *   With `calls`, the codemod renames the key in an object literal passed straight to one of
  *   those functions; otherwise it reports every such key as a manual follow-up.
- * - `method`: a member called on the value a function imported from `entries` returns; always
- *   reported, never rewritten.
+ * - `method`: a member called on the value a function imported from `entries` returns. Rewritten
+ *   on a module-level `const` that holds that function's result; reported everywhere else.
  */
 export type Rename = {
   readonly from: string;
@@ -98,6 +98,12 @@ const rows: readonly Rename[] = [
     from: "load",
     to: "data",
     entries: ["permdock/authzen"],
+    kind: "option",
+  },
+  {
+    from: "loadData",
+    to: "data",
+    entries: ["permdock/nest"],
     kind: "option",
   },
   {

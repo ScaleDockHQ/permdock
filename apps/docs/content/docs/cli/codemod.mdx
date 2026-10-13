@@ -26,16 +26,17 @@ The version is `0.5` (`0.5.0` and `v0.5` are read the same way). Any other versi
 
 The rename map is `packages/permdock/src/cli/codemod/renames-0.5.ts`; the [Naming](/docs/getting-started/naming#renamed-in-050) page lists every row. A row renames an identifier only where it is imported from one of the entries the row names, so a local `memorySink` of your own stays as it is.
 
-| Source                                              | Result                                                                                                                |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `import { memorySink } from 'permdock'`             | `import { memoryDecisionSink }`, and every reference to it renamed                                                    |
-| `import { memorySink as sink } from 'permdock'`     | `import { memoryDecisionSink as sink }`; `sink` stays                                                                 |
-| `import type { MemorySink }`, `{ type MemorySink }` | The type renamed the same way, in type positions too                                                                  |
-| `const config = { memorySink }`                     | `{ memorySink: memoryDecisionSink }`, so the object keeps its shape                                                   |
-| `export { memorySink }`                             | `export { memoryDecisionSink as memorySink }`, so your module's export keeps its name                                 |
-| `export { memorySink } from 'permdock'`             | `export { memoryDecisionSink as memorySink } from 'permdock'`                                                         |
-| `import * as pd from 'permdock'`, `pd.memorySink`   | `pd.memoryDecisionSink`                                                                                               |
-| `scimHandler({ store })`                            | `scimHandler({ directory: store })`: an option key in an object literal passed straight to the function the row names |
+| Source                                              | Result                                                                                                                                                  |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `import { memorySink } from 'permdock'`             | `import { memoryDecisionSink }`, and every reference to it renamed                                                                                      |
+| `import { memorySink as sink } from 'permdock'`     | `import { memoryDecisionSink as sink }`; `sink` stays                                                                                                   |
+| `import type { MemorySink }`, `{ type MemorySink }` | The type renamed the same way, in type positions too                                                                                                    |
+| `const config = { memorySink }`                     | `{ memorySink: memoryDecisionSink }`, so the object keeps its shape                                                                                     |
+| `export { memorySink }`                             | `export { memoryDecisionSink as memorySink }`, so your module's export keeps its name                                                                   |
+| `export { memorySink } from 'permdock'`             | `export { memoryDecisionSink as memorySink } from 'permdock'`                                                                                           |
+| `import * as pd from 'permdock'`, `pd.memorySink`   | `pd.memoryDecisionSink`                                                                                                                                 |
+| `scimHandler({ store })`                            | `scimHandler({ directory: store })`: an option key in an object literal passed straight to the function the row names                                   |
+| `const kit = createPermDock(…)`, `kit.permdock()`   | `kit.middleware()` from `permdock/hono`, `kit.getPermDock()` from `permdock/server`: a member on a module-level `const` that holds the factory's result |
 
 A reference the import does not bind keeps its name: a parameter, a local variable, a destructured name, a property key or a member of another object. When the new name is already bound where a reference sits, or the file is a Vue or Svelte component whose template may read the import, the codemod writes `import { memoryDecisionSink as memorySink }` instead and leaves the references alone.
 
@@ -44,7 +45,7 @@ A reference the import does not bind keeps its name: a parameter, a local variab
 These sites go under `Manual follow-ups` and are never rewritten:
 
 - **Call shapes.** A call to an import whose signature changed, such as `subjectFromApiKey(options)(key)`, now `subjectFromApiKey(key, options)`. An import of such a function that is never called is reported at the import.
-- **Members.** A member renamed on a value a factory returns, such as `permdock` on the `createPermDock` result of `permdock/hono` (now `middleware`), as `kit.permdock` or `const { permdock } = …`.
+- **Members.** A member renamed on a value a factory returns, when the value is not a module-level `const` holding the factory's result: a parameter, `const { permdock } = …`, or a value passed between modules.
 - **Option keys.** An option key in any other object literal in a file that imports the entry, such as `{ source: 'mcp' }` for `call`; the codemod cannot tell which call the object reaches.
 - **Parse failures.** A file the parser rejects is listed and left as it is.
 
