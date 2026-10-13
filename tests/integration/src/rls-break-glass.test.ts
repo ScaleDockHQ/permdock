@@ -30,7 +30,7 @@ function session(extra: Record<string, unknown> = {}): string {
     permission: "patient.read",
     purpose: "BTG",
     reason: "cardiac arrest",
-    expiresAt: nowSeconds() + 3600,
+    expires_at: nowSeconds() + 3600,
     ...extra,
   });
 }
@@ -101,7 +101,7 @@ describe("break-glass RLS session function (guc)", () => {
 
     await expect(
       asNurse(
-        { "app.break_glass": session({ expiresAt: nowSeconds() - 60 }) },
+        { "app.break_glass": session({ expires_at: nowSeconds() - 60 }) },
         () =>
           db!.tester.query(
             `select id from permdock.permdock_break_glass_patient('patient.read')`,

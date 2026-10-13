@@ -155,12 +155,12 @@ function asMembership(item: unknown): Membership | undefined {
     on,
     via: typeof item["via"] === "string" ? item["via"] : undefined,
     expiresAt:
-      typeof item["expiresAt"] === "number" ? item["expiresAt"] : undefined,
+      typeof item["expires_at"] === "number" ? item["expires_at"] : undefined,
     grantedBy:
-      typeof item["grantedBy"] === "string" ? item["grantedBy"] : undefined,
+      typeof item["granted_by"] === "string" ? item["granted_by"] : undefined,
     reason: typeof item["reason"] === "string" ? item["reason"] : undefined,
     member: memberOf(item["member"]),
-    managedBy: item["managedBy"] === "idp" ? "idp" : undefined,
+    managedBy: item["managed_by"] === "idp" ? "idp" : undefined,
     entitlements: Array.isArray(item["entitlements"])
       ? item["entitlements"].filter(
           (seat): seat is string => typeof seat === "string",

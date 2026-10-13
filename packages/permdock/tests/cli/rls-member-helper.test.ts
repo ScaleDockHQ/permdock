@@ -83,7 +83,7 @@ describe("member_<scope>_ids", () => {
     expect(body).toContain("m ->> 'scope' = 'customer'");
     expect(body).toContain("jsonb_array_length(m -> 'roles') > 0");
     // Expired memberships stay out, as in permitted_<scope>_ids.
-    expect(body).toContain("(m ->> 'expiresAt')::numeric");
+    expect(body).toContain("(m ->> 'expires_at')::numeric");
     // No role_permissions join and no tenant claim: membership only.
     expect(body).not.toContain("role_permissions");
     expect(body).not.toContain("tenant_id");

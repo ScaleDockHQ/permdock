@@ -216,9 +216,9 @@ export function entriesSql(parts: Parts): string {
   (${tenant}) as tenant,
   jsonb_strip_nulls(jsonb_build_object(
     'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
-    'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+    'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
     'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
-    'managedBy', s.managed_by, 'entitlements', s.seats${source.sql.keeps ? ", 'keep', s.keep" : ""}
+    'managed_by', s.managed_by, 'entitlements', s.seats${source.sql.keeps ? ", 'keep', s.keep" : ""}
   )) as entry
 from (
 ${source.sql.select(`v_user_${String(index)}`).replaceAll(/^/gmu, "  ")}

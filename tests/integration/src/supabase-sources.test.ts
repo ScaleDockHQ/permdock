@@ -207,7 +207,7 @@ describe("permdock supabase hook generate against Postgres", () => {
         id: "B",
         roles: ["member"],
         via: "staff",
-        managedBy: "idp",
+        managed_by: "idp",
       },
       { scope: "organization", id: "T", roles: ["owner"], via: "staff" },
     ]);
@@ -235,7 +235,7 @@ describe("permdock supabase hook generate against Postgres", () => {
         id: "T",
         roles: ["member"],
         via: "staff",
-        expiresAt: 4102444800,
+        expires_at: 4102444800,
         entitlements: ["dev-mode"],
       },
     ]);
@@ -264,8 +264,8 @@ describe("permdock supabase hook generate against Postgres", () => {
     for (const user of [OWNER, CONTACT, SEATED]) {
       const claims = await mint(user);
       const live = await composed.membershipsFor({ id: user }, {});
-      // SAFETY: the custom access token hook mints memberships as an array
-      expect(byJson(live)).toEqual(byJson(claims["memberships"] as unknown[]));
+      const minted = subjectFromSupabase(claims).principal?.memberships ?? [];
+      expect(byJson(live)).toEqual(byJson(minted));
     }
   });
 

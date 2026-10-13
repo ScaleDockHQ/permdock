@@ -84,6 +84,17 @@ const ownerMembership = {
   managedBy: "idp",
   entitlements: ["seat:pro"],
 } as const;
+const ownerMembershipClaim = {
+  scope: ownerMembership.scope,
+  id: ownerMembership.id,
+  roles: ownerMembership.roles,
+  via: ownerMembership.via,
+  expires_at: ownerMembership.expiresAt,
+  granted_by: ownerMembership.grantedBy,
+  reason: ownerMembership.reason,
+  managed_by: ownerMembership.managedBy,
+  entitlements: ownerMembership.entitlements,
+} as const;
 const projectMembership = {
   scope: "project",
   id: project,
@@ -242,7 +253,7 @@ export const supabaseClaimFixtures: Readonly<
       tenant_id: org,
       memberships: [
         {
-          ...ownerMembership,
+          ...ownerMembershipClaim,
           grants: { analyst: ["post.read", "-post.delete"] },
         },
         projectMembership,

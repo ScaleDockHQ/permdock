@@ -65,8 +65,11 @@ export const PERMDOCK_CLAIMS_SCHEMA: Readonly<Record<string, unknown>> = {
         team: { type: "string" },
         roles: { type: "array", minItems: 1, items: { type: "string" } },
         via: { type: "string" },
-        expiresAt: { description: "Seconds since the epoch.", type: "number" },
-        grantedBy: { type: "string" },
+        expires_at: {
+          description: "NumericDate (RFC 7519): seconds since the epoch.",
+          type: "number",
+        },
+        granted_by: { type: "string" },
         reason: { type: "string" },
         member: {
           description: "The subgroup a membership source's group fills.",
@@ -74,7 +77,7 @@ export const PERMDOCK_CLAIMS_SCHEMA: Readonly<Record<string, unknown>> = {
           required: ["group"],
           properties: { group: { type: "string", minLength: 1 } },
         },
-        managedBy: { const: "idp" },
+        managed_by: { const: "idp" },
         entitlements: { type: "array", items: { type: "string" } },
         keep: {
           description:

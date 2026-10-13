@@ -109,11 +109,11 @@
           "items": { "type": "string" }
         },
         "via": { "type": "string" },
-        "expiresAt": {
-          "description": "Seconds since the epoch.",
+        "expires_at": {
+          "description": "NumericDate (RFC 7519): seconds since the epoch.",
           "type": "number"
         },
-        "grantedBy": { "type": "string" },
+        "granted_by": { "type": "string" },
         "reason": { "type": "string" },
         "member": {
           "description": "The subgroup a membership source's group fills.",
@@ -121,7 +121,7 @@
           "required": ["group"],
           "properties": { "group": { "type": "string", "minLength": 1 } }
         },
-        "managedBy": { "const": "idp" },
+        "managed_by": { "const": "idp" },
         "entitlements": { "type": "array", "items": { "type": "string" } },
         "keep": {
           "description": "Set when the instance or an ancestor is suspended: the permission keys the membership still grants.",

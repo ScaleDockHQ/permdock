@@ -130,8 +130,8 @@ as $$
     and m ->> 'scope' = 'tenant'
     and m ->> 'id' is not null
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
-    and case jsonb_typeof(m -> 'expiresAt')
-      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
       else true
     end
 $$;
@@ -154,8 +154,8 @@ as $$
     and m ->> 'id' is not null
     and jsonb_typeof(m -> 'roles') = 'array'
     and jsonb_array_length(m -> 'roles') > 0
-    and case jsonb_typeof(m -> 'expiresAt')
-      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
       else true
     end
 $$;
@@ -346,8 +346,8 @@ as $$
     and m ->> 'scope' = 'tenant'
     and m ->> 'id' is not null
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
-    and case jsonb_typeof(m -> 'expiresAt')
-      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
       else true
     end
     ) pdk_i(id, grant_key)
@@ -422,8 +422,8 @@ as $$
     and m ->> 'scope' = 'tenant'
     and m ->> 'id' is not null
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
-    and case jsonb_typeof(m -> 'expiresAt')
-      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
       else true
     end
     ) pdk_i(id, grant_key)
@@ -507,8 +507,8 @@ begin
       join "app"."role_permissions" rp on rp.role = r.role
       where m ->> 'scope' = 'tenant'
         and m ->> 'id' = requested_tenant
-        and case jsonb_typeof(m -> 'expiresAt')
-          when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+        and case jsonb_typeof(m -> 'expires_at')
+          when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
           else true
         end
         and rp.permission = requested_permission::text
@@ -530,8 +530,8 @@ begin
       join "app"."role_permissions" rp on rp.role = r.role
       where m ->> 'scope' = 'tenant'
         and m ->> 'id' = requested_tenant
-        and case jsonb_typeof(m -> 'expiresAt')
-          when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+        and case jsonb_typeof(m -> 'expires_at')
+          when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
           else true
         end
         and rp.permission = requested_permission::text

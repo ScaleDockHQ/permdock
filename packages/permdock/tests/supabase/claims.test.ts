@@ -59,12 +59,12 @@ const invalid: readonly (readonly [string, unknown])[] = [
     { sub, memberships: [{ on: { resource: "doc" }, roles: ["a"] }] },
   ],
   [
-    "membership managedBy",
-    { sub, memberships: [{ tenant: "t", roles: ["a"], managedBy: "scim" }] },
+    "membership managed_by",
+    { sub, memberships: [{ tenant: "t", roles: ["a"], managed_by: "scim" }] },
   ],
   [
-    "membership expiresAt string",
-    { sub, memberships: [{ tenant: "t", roles: ["a"], expiresAt: "1" }] },
+    "membership expires_at string",
+    { sub, memberships: [{ tenant: "t", roles: ["a"], expires_at: "1" }] },
   ],
   [
     "membership grants array",
@@ -274,7 +274,7 @@ describe("supabaseClaims().extend", () => {
 });
 
 describe("subjectFromSupabase and the hook claims", () => {
-  it("keeps via, expiresAt, owner and seats, and reads truncation and authz_ver", () => {
+  it("keeps via, expires_at, owner and seats, and reads truncation and authz_ver", () => {
     const subject = subjectFromSupabase({
       sub: "u_1",
       role: "authenticated",
@@ -284,8 +284,8 @@ describe("subjectFromSupabase and the hook claims", () => {
           id: "T",
           roles: ["member"],
           via: "staff",
-          expiresAt: 1_900_000_000,
-          managedBy: "idp",
+          expires_at: 1_900_000_000,
+          managed_by: "idp",
           entitlements: ["dev-mode"],
         },
       ],

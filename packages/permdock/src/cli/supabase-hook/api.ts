@@ -195,9 +195,9 @@ as $$
       'principal', jsonb_build_object('id', s.user_id),
       'membership', jsonb_strip_nulls(jsonb_build_object(
         'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
-        'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+        'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
         'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
-        'managedBy', s.managed_by, 'entitlements', s.seats${keep ? ", 'keep', s.keep" : ""}
+        'managed_by', s.managed_by, 'entitlements', s.seats${keep ? ", 'keep', s.keep" : ""}
       ))
     ) order by s.user_id, s.roles::text), '[]'::jsonb)
   from (
