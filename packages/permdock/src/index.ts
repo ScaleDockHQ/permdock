@@ -155,10 +155,15 @@ export type {
   AuthEvent,
   CredentialEvent,
   DecisionEvent,
+  DeliveryChannel,
+  DeliveryEvent,
+  DeliveryFailureCause,
   DirectoryEvent,
+  EmailCategory,
   MembershipEvent,
   SinkEvent,
 } from "./core/event-types.ts";
+export { deliveryEvent } from "./core/delivery-event.ts";
 export { arazzoFindings, simulateArazzo } from "./core/arazzo.ts";
 export type {
   ArazzoFinding,
@@ -394,6 +399,7 @@ export {
   CATALOG_EVENT_SCHEMA,
   CREDENTIAL_EVENT_SCHEMA,
   DECISION_EVENT_SCHEMA,
+  DELIVERY_EVENT_SCHEMA,
   DIRECTORY_EVENT_SCHEMA,
   EVENT_SCHEMA_IDS,
   MEMBERSHIP_EVENT_SCHEMA,

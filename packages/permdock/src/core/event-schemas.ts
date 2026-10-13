@@ -13,6 +13,7 @@ export const EVENT_SCHEMA_IDS: {
   readonly credential: "https://permdock.com/schemas/credential-event-v1.json";
   readonly access: "https://permdock.com/schemas/access-event-v1.json";
   readonly catalog: "https://permdock.com/schemas/catalog-event-v1.json";
+  readonly delivery: "https://permdock.com/schemas/delivery-event-v1.json";
 } = Object.freeze({
   decision: "https://permdock.com/schemas/decision-event-v1.json",
   directory: "https://permdock.com/schemas/directory-event-v1.json",
@@ -20,6 +21,7 @@ export const EVENT_SCHEMA_IDS: {
   credential: "https://permdock.com/schemas/credential-event-v1.json",
   access: "https://permdock.com/schemas/access-event-v1.json",
   catalog: "https://permdock.com/schemas/catalog-event-v1.json",
+  delivery: "https://permdock.com/schemas/delivery-event-v1.json",
 });
 
 /** `format` is an annotation, so `pattern` enforces it. */
@@ -390,6 +392,67 @@ export const CATALOG_EVENT_SCHEMA: JsonSchemaNode = family(
   },
 );
 
+export const DELIVERY_EVENT_SCHEMA: JsonSchemaNode = family(
+  "delivery",
+  "PermDock delivery event",
+  "A DeliveryEvent, wire format v1: the data of com.permdock.delivery.* CloudEvents.",
+  {
+    type: "object",
+    required: ["type", "at", "source", "operation", "channel", "delivery"],
+    properties: {
+      type: { const: "delivery" },
+      at: instant,
+      source: text,
+      operation: {
+        enum: ["sent", "delivered", "bounced", "complained", "failed"],
+      },
+      channel: { enum: ["email", "chat", "webhook"] },
+      delivery: {
+        type: "object",
+        required: ["id", "key"],
+        properties: { id, key: id },
+        additionalProperties: false,
+      },
+      recipient: {
+        type: "object",
+        properties: { principal: ref, trusted: { const: true } },
+        additionalProperties: false,
+      },
+      permission: id,
+      tenant: text,
+      category: {
+        enum: ["transactional", "notification", "security", "approval"],
+      },
+      approval: id,
+      provider: {
+        type: "object",
+        required: ["name"],
+        properties: { name: id, id: text },
+        additionalProperties: false,
+      },
+      cause: {
+        enum: [
+          "denied",
+          "unlinked",
+          "no-transport",
+          "no-message",
+          "invalid-recipient",
+          "invalid-message",
+          "rate-limited",
+          "quota-exceeded",
+          "unauthorized",
+          "unavailable",
+          "suppressed",
+          "rejected",
+        ],
+      },
+      retryable: { type: "boolean" },
+      reason: text,
+    },
+    additionalProperties: false,
+  },
+);
+
 /** Every sink event family's schema, keyed by the event's `type`. */
 export const SINK_EVENT_SCHEMAS: {
   readonly decision: JsonSchemaNode;
@@ -397,10 +460,12 @@ export const SINK_EVENT_SCHEMAS: {
   readonly membership: JsonSchemaNode;
   readonly credential: JsonSchemaNode;
   readonly access: JsonSchemaNode;
+  readonly delivery: JsonSchemaNode;
 } = Object.freeze({
   decision: DECISION_EVENT_SCHEMA,
   directory: DIRECTORY_EVENT_SCHEMA,
   membership: MEMBERSHIP_EVENT_SCHEMA,
   credential: CREDENTIAL_EVENT_SCHEMA,
   access: ACCESS_EVENT_SCHEMA,
+  delivery: DELIVERY_EVENT_SCHEMA,
 });

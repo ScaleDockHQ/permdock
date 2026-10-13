@@ -3,6 +3,7 @@ import type {
   AccessEvent,
   CredentialEvent,
   DecisionEvent,
+  DeliveryEvent,
   DirectoryEvent,
   MembershipEvent,
   SinkEvent,
@@ -83,18 +84,13 @@ export const CLOUD_EVENT_TYPES: {
 export type CloudEventType =
   (typeof CLOUD_EVENT_TYPES)[keyof typeof CLOUD_EVENT_TYPES];
 
-/** Types named for the automation and delivery releases; a receiver refuses them until then. */
+/** Types named for the automation release; a receiver refuses them until then. */
 export const RESERVED_CLOUD_EVENT_TYPES: readonly CloudEventType[] =
   Object.freeze([
     CLOUD_EVENT_TYPES.automationPublished,
     CLOUD_EVENT_TYPES.automationChanged,
     CLOUD_EVENT_TYPES.automationRevoked,
     CLOUD_EVENT_TYPES.automationRun,
-    CLOUD_EVENT_TYPES.deliverySent,
-    CLOUD_EVENT_TYPES.deliveryDelivered,
-    CLOUD_EVENT_TYPES.deliveryBounced,
-    CLOUD_EVENT_TYPES.deliveryComplained,
-    CLOUD_EVENT_TYPES.deliveryFailed,
   ]);
 
 /** The CloudEvents JSON format media type for one event (structured mode). */
@@ -274,6 +270,25 @@ function credentialType(
   }
 }
 
+function deliveryType(operation: DeliveryEvent["operation"]): CloudEventType {
+  switch (operation) {
+    case "sent":
+      return CLOUD_EVENT_TYPES.deliverySent;
+    case "delivered":
+      return CLOUD_EVENT_TYPES.deliveryDelivered;
+    case "bounced":
+      return CLOUD_EVENT_TYPES.deliveryBounced;
+    case "complained":
+      return CLOUD_EVENT_TYPES.deliveryComplained;
+    case "failed":
+      return CLOUD_EVENT_TYPES.deliveryFailed;
+    default: {
+      const exhaustive: never = operation;
+      return exhaustive;
+    }
+  }
+}
+
 /**
  * The CloudEvents `type` of a sink event. A support access event maps onto the
  * `support-session` family, and a consent the tenant pulls early (`revoked`)
@@ -291,6 +306,8 @@ export function cloudEventType(event: SinkEvent): CloudEventType {
       return event.operation === "started"
         ? CLOUD_EVENT_TYPES.supportSessionStarted
         : CLOUD_EVENT_TYPES.supportSessionEnded;
+    case "delivery":
+      return deliveryType(event.operation);
     case "decision":
       return event.phase === undefined
         ? CLOUD_EVENT_TYPES.decision
@@ -311,6 +328,9 @@ function cloudEventSubject(event: SinkEvent): string {
   }
   if (event.type === "credential") {
     return event.credential.id;
+  }
+  if (event.type === "delivery") {
+    return event.delivery.id;
   }
   return event.permission;
 }

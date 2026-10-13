@@ -89,11 +89,11 @@ A receiver validates the batch with `parseCloudEventBatch` from `permdock`, or o
 | `com.permdock.automation.changed`      | Reserved                                                                                  |
 | `com.permdock.automation.revoked`      | Reserved                                                                                  |
 | `com.permdock.automation.run`          | Reserved                                                                                  |
-| `com.permdock.delivery.sent`           | Reserved                                                                                  |
-| `com.permdock.delivery.delivered`      | Reserved                                                                                  |
-| `com.permdock.delivery.bounced`        | Reserved                                                                                  |
-| `com.permdock.delivery.complained`     | Reserved                                                                                  |
-| `com.permdock.delivery.failed`         | Reserved                                                                                  |
+| `com.permdock.delivery.sent`           | `deliveryEvent` with `operation: 'sent'`: a transport accepted one recipient's delivery   |
+| `com.permdock.delivery.delivered`      | `deliveryEvent` with `operation: 'delivered'`, from a provider webhook                    |
+| `com.permdock.delivery.bounced`        | `deliveryEvent` with `operation: 'bounced'`, from a provider webhook                      |
+| `com.permdock.delivery.complained`     | `deliveryEvent` with `operation: 'complained'`, from a provider webhook                   |
+| `com.permdock.delivery.failed`         | `deliveryEvent` with `operation: 'failed'`: a refused recipient or a transport error      |
 
 Reserved types are in `RESERVED_CLOUD_EVENT_TYPES`: they are named for later releases, nothing emits them, and the parsers refuse them until then.
 

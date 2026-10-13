@@ -68,7 +68,75 @@ export type SinkEvent =
   | DirectoryEvent
   | MembershipEvent
   | CredentialEvent
-  | AccessEvent;
+  | AccessEvent
+  | DeliveryEvent;
+
+/** A delivery channel: an email, a chat message or an outbound webhook. */
+export type DeliveryChannel = "email" | "chat" | "webhook";
+
+/** What an email is for; only `notification` mail carries `List-Unsubscribe`. */
+export type EmailCategory =
+  | "transactional"
+  | "notification"
+  | "security"
+  | "approval";
+
+/**
+ * Why a delivery failed. `denied` and `unlinked` are the router's refusals of
+ * a recipient; the rest come from a transport or a provider webhook.
+ */
+export type DeliveryFailureCause =
+  | "denied"
+  | "unlinked"
+  | "no-transport"
+  | "no-message"
+  | "invalid-recipient"
+  | "invalid-message"
+  | "rate-limited"
+  | "quota-exceeded"
+  | "unauthorized"
+  | "unavailable"
+  | "suppressed"
+  | "rejected";
+
+/**
+ * One recipient's delivery: `sent` when a transport accepted it, then
+ * `delivered`, `bounced` or `complained` from the provider, or `failed`.
+ * It carries no address, only the principal the router checked.
+ */
+export type DeliveryEvent = {
+  readonly type: "delivery";
+  readonly at: string;
+  readonly source: string;
+  readonly operation:
+    | "sent"
+    | "delivered"
+    | "bounced"
+    | "complained"
+    | "failed";
+  readonly channel: DeliveryChannel;
+  /** The delivery's id and this recipient's key, sent as the `Idempotency-Key`. */
+  readonly delivery: { readonly id: string; readonly key: string };
+  /** The checked principal, or `trusted` for an address the server loaded itself. */
+  readonly recipient?: {
+    readonly principal?: { readonly id: string };
+    readonly trusted?: true;
+  };
+  /** The permission the recipient was checked for. */
+  readonly permission?: string;
+  readonly tenant?: string;
+  readonly category?: EmailCategory;
+  /** The approval request a prompt was delivered for. */
+  readonly approval?: string;
+  /** The transport or provider, and its message id. */
+  readonly provider?: { readonly name: string; readonly id?: string };
+  /** Set on `failed` only. */
+  readonly cause?: DeliveryFailureCause;
+  /** Set on `failed` only: whether a retry with the same key may succeed. */
+  readonly retryable?: boolean;
+  /** The denial reason when `cause` is `denied`. */
+  readonly reason?: string;
+};
 
 /**
  * A support-access session lifecycle event: a tenant consented to vendor
