@@ -2,7 +2,7 @@
 "permdock": minor
 ---
 
-Breaking: `subjectFrom*` resolvers take the input first and options second and return `Subject<<Source>Principal>`, and in-process defaults are named `memory<Interface>`. Run `permdock codemod 0.5` for the renames below; the call-shape changes in the second table need a manual edit.
+Breaking: `subjectFrom*` resolvers take the input first and return `Subject<<Source>Principal>`. In-process defaults are `memory<Interface>`, conformance runners `test<Interface>`, adapted sources `<origin><Interface>`, options take their interface's name, and failure results carry a `cause`. Run `permdock codemod 0.5` for the renames below; the call-shape changes in the second table need a manual edit.
 
 | Old                                                           | New                                 |
 | ------------------------------------------------------------- | ----------------------------------- |
