@@ -36,7 +36,7 @@ export type RouteGuardDeps = {
   readonly policy: Policy;
   readonly options: Pick<
     ServerPermDockOptions<unknown>,
-    "operations" | "onDenied" | "store" | "approval"
+    "operations" | "deniedResponse" | "store" | "approval"
   >;
   readonly adapter: string;
 };
@@ -58,7 +58,7 @@ export function routeScopes(value: unknown): readonly string[] | undefined {
 }
 
 async function refused(
-  hook: ServerPermDockOptions<unknown>["onDenied"],
+  hook: ServerPermDockOptions<unknown>["deniedResponse"],
   fallback: Response,
   decision: Exclude<Decision, { readonly outcome: "granted" }>,
   request: Request | undefined,
@@ -81,7 +81,7 @@ async function refused(
     const status = result.status;
     if (typeof status !== "number" || status < 300) {
       throw new TypeError(
-        `PermDock: onDenied returned status ${String(status)}; a refusal keeps a status of 300 or more`,
+        `PermDock: deniedResponse returned status ${String(status)}; a refusal keeps a status of 300 or more`,
       );
     }
     return {
@@ -131,7 +131,7 @@ export async function guardOn<T, V extends PolicyVocabulary>(
     }
     if (instance.subject.principal === null) {
       return refused(
-        deps.options.onDenied,
+        deps.options.deniedResponse,
         unauthenticatedProblem(credentials),
         ANONYMOUS,
         request,
@@ -152,7 +152,7 @@ export async function guardOn<T, V extends PolicyVocabulary>(
     !declared.some((granted) => held.includes(granted))
   ) {
     return refused(
-      deps.options.onDenied,
+      deps.options.deniedResponse,
       scopeProblem(permission, instance.subject, credentials, declared[0]),
       NOT_DELEGATED,
       request,
@@ -167,7 +167,7 @@ export async function guardOn<T, V extends PolicyVocabulary>(
     } catch (error) {
       report(error);
       return refused(
-        deps.options.onDenied,
+        deps.options.deniedResponse,
         loadFailedProblem(permission),
         LOAD_FAILED,
         request,
@@ -180,7 +180,7 @@ export async function guardOn<T, V extends PolicyVocabulary>(
     data = loaded;
   }
   if (permission === null) {
-    // SAFETY: T is loadData's result type; data is undefined only when no loadData was passed.
+    // SAFETY: T is the data loader's result type; data is undefined only when no loader was passed.
     return { ok: true, permdock: instance, data: data as T };
   }
   const decideOptions = compact<DecideOptions>({
@@ -219,7 +219,7 @@ export async function guardOn<T, V extends PolicyVocabulary>(
     deps.adapter,
   );
   if (decision.outcome === "granted") {
-    // SAFETY: T is loadData's result type; data is undefined only when no loadData was passed.
+    // SAFETY: T is the data loader's result type; data is undefined only when no loader was passed.
     return {
       ok: true,
       permdock: instance,
@@ -228,7 +228,7 @@ export async function guardOn<T, V extends PolicyVocabulary>(
     };
   }
   return refused(
-    deps.options.onDenied,
+    deps.options.deniedResponse,
     problemFromDecision(
       decision,
       permission,

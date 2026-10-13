@@ -28,12 +28,12 @@ export type NodePermDockOptions<TUser = unknown> = ServerAdapterOptions<
 type NodeProtect = {
   (
     permission: Permission,
-    loadData?: (req: NodeRequest) => unknown,
+    data?: (req: NodeRequest) => unknown,
     protectOptions?: ProtectOptions,
   ): (req: IncomingMessage) => Promise<Guard>;
   (
     permission: null,
-    loadData?: (req: NodeRequest) => unknown,
+    data?: (req: NodeRequest) => unknown,
     protectOptions?: ProtectOptions,
   ): (req: IncomingMessage) => Promise<ScopeGuard>;
 };
@@ -75,13 +75,13 @@ export function createPermDock<
   // SAFETY: NodeProtect's overloads only narrow the guard by whether permission is null, as the kernel's do.
   const protect = ((
     permission: Permission | null,
-    loadData?: (req: NodeRequest) => unknown,
+    data?: (req: NodeRequest) => unknown,
     protectOptions?: ProtectOptions,
   ): ((req: IncomingMessage) => Promise<Guard | ScopeGuard>) =>
     (req: IncomingMessage): Promise<Guard | ScopeGuard> =>
       bound.guard(
         permission,
-        loadData,
+        data,
         nodeRequest(req),
         protectOptions,
       )) as NodeProtect;

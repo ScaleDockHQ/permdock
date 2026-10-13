@@ -18,7 +18,7 @@ import type {
   Variables,
 } from "@modelcontextprotocol/server";
 
-import type { OnDeniedText } from "../agent/denied-text.ts";
+import type { DeniedText } from "../agent/denied-text.ts";
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { ClientNames } from "../core/clients.ts";
 import type { ApprovalHint } from "../core/errors.ts";
@@ -217,7 +217,7 @@ export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
    * Replaces the text of a refusal. `isError`, `structuredContent` and the
    * approval shape stay as PermDock built them.
    */
-  readonly onDenied?: OnDeniedText;
+  readonly deniedText?: DeniedText;
 };
 
 export type McpPermDock = {

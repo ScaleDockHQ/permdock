@@ -6,7 +6,7 @@ import type { Policy } from "../core/policy-types.ts";
 import type { Handler } from "./protect-server.ts";
 import type { McpAuthInfo, McpPermDockOptions } from "./types.ts";
 
-import { deniedText } from "../agent/denied-text.ts";
+import { refusalText } from "../agent/denied-text.ts";
 import { compact } from "../core/compact.ts";
 import {
   challengeScope,
@@ -45,7 +45,7 @@ export type McpChecks = {
     | "approval"
     | "requestState"
     | "stepUp"
-    | "onDenied"
+    | "deniedText"
   >;
   readonly kernel: ReturnType<typeof createAgentKernel<McpCall>>;
 };
@@ -244,7 +244,7 @@ async function decideCall(
   }
 }
 
-/** `decideCall` with the refusal text replaced by `onDenied`'s. */
+/** `decideCall` with the refusal text replaced by `deniedText`'s. */
 async function checkCall(
   checks: McpChecks,
   permission: Permission,
@@ -265,8 +265,8 @@ async function checkCall(
     capabilities,
     completion,
   );
-  const { onDenied } = checks.options;
-  if (checked.ok || onDenied === undefined) {
+  const { deniedText } = checks.options;
+  if (checked.ok || deniedText === undefined) {
     return checked;
   }
   const { refusal } = checked;
@@ -274,8 +274,8 @@ async function checkCall(
     ok: false,
     refusal: {
       ...refusal,
-      text: deniedText(
-        onDenied,
+      text: refusalText(
+        deniedText,
         {
           decision: refusal.decision ?? null,
           permission,

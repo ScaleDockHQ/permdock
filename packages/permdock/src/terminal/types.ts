@@ -167,7 +167,7 @@ export type TerminalPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   ) => Promise<PermDock<V>>;
   readonly protect: <TArgs extends readonly unknown[], TData = unknown>(
     permission: Permission,
-    load?: (...args: TArgs) => TData | Promise<TData>,
+    data?: (...args: TArgs) => TData | Promise<TData>,
   ) => (
     action: (context: ProtectContext<TData, V>, ...args: TArgs) => unknown,
   ) => (...args: TArgs) => Promise<unknown>;

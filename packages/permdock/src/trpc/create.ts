@@ -62,7 +62,7 @@ export type TrpcPermDock<TCtx = object> = {
   readonly middleware: () => TrpcMiddleware;
   readonly protect: (
     permission: Permission | null,
-    loadData?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
+    data?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ) => TrpcMiddleware;
   /** A long-lived connection for the request behind `ctx`. */
@@ -193,7 +193,7 @@ export function createPermDock<
     result: unknown,
     opts: TrpcMiddlewareOpts<TCtx>,
     permission: Permission | null,
-    loadData: (() => unknown) | undefined,
+    data: (() => unknown) | undefined,
     protectOptions: StreamProtectOptions | undefined,
   ): Promise<unknown> => {
     // SAFETY: checked to be a non-null object first; ok is only compared and data only tested.
@@ -212,7 +212,7 @@ export function createPermDock<
         (result as { readonly data: AsyncIterable<unknown> }).data,
         (connectionOptions) => connection(opts, connectionOptions),
         permission,
-        loadData,
+        data,
         protectOptions,
         {
           unwrap: (item: unknown): unknown =>
@@ -225,14 +225,14 @@ export function createPermDock<
 
   const protect = (
     permission: Permission | null,
-    loadData?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
+    data?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ): TrpcMiddleware =>
     // SAFETY: the function has tRPC's middleware call shape; its generics cannot be inferred from it.
     (async (opts: TrpcMiddlewareOpts<TCtx>): Promise<unknown> => {
       const { request, guard } = await runGuard(
         permission,
-        loadData,
+        data,
         opts,
         protectOptions,
       );
@@ -247,9 +247,9 @@ export function createPermDock<
           await mapDownstream(await opts.next({ ctx: nextCtx })),
           opts,
           permission,
-          loadData === undefined
+          data === undefined
             ? undefined
-            : reloadAfter(guard.data, (): unknown => loadData(opts)),
+            : reloadAfter(guard.data, (): unknown => data(opts)),
           protectOptions,
         );
       }

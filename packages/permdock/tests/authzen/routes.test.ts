@@ -23,7 +23,7 @@ function pdp(
     trustedPep: (pep) => (pep as { readonly id?: unknown }).id === "pep",
     resources: {
       post: {
-        load: (id) => (id === "p1" ? ownPost : id === "p2" ? otherPost : null),
+        data: (id) => (id === "p1" ? ownPost : id === "p2" ? otherPost : null),
         list: () => [
           ownPost,
           otherPost,

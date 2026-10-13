@@ -2,8 +2,8 @@ export { createPermDock, tenantScope } from "./create.ts";
 export type { RequestContext, TenantOption, TenantScope } from "./create.ts";
 export type {
   Guard,
-  OnDenied,
-  OnDeniedEvent,
+  DeniedResponse,
+  DeniedResponseEvent,
   OpenApiHooks,
   OperationScopes,
   ProtectOptions,

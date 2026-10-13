@@ -9,7 +9,7 @@ import type { PdpFactory } from "../pdp/types.ts";
 import type { Connection } from "./connection.ts";
 import type {
   Guard,
-  OnDenied,
+  DeniedResponse,
   ProtectOptions,
   ScopeGuard,
   ServerPermDock,
@@ -61,7 +61,7 @@ export type ServerAdapterServices = {
   /** Wraps each instance after `otel`; build it with `wrapPermDock` to cover derived instances. */
   readonly wrap?: PermDockWrap;
   /** Replaces the response of a refused guard; it can never turn a refusal into a grant. */
-  readonly onDenied?: OnDenied;
+  readonly deniedResponse?: DeniedResponse;
 };
 
 export type Attached<V extends PolicyVocabulary = PolicyVocabulary> =
@@ -87,10 +87,10 @@ export type BoundKernel<TContext, V extends PolicyVocabulary> = {
   readonly handlerScope: (request: Request) => Promise<TenantScope>;
   /** The instance for `context`; an invalid Web Bot Auth signature is its `401` response. */
   readonly attach: (context: TContext) => Promise<Attached<V>>;
-  /** `protect` for `context`: `loadData` reads the framework context and the tenant comes from `scopeOf`. */
+  /** `protect` for `context`: `data` reads the framework context and the tenant comes from `scopeOf`. */
   readonly guard: (
     permission: Permission | null,
-    loadData: ((context: TContext) => unknown) | undefined,
+    data: ((context: TContext) => unknown) | undefined,
     context: TContext,
     protectOptions?: ProtectOptions,
   ) => Promise<AnyGuard<V>>;
@@ -144,7 +144,7 @@ export function adapterKernel<
       revocations: options.revocations,
       adapter,
       wrap: composeWraps(options.otel, options.wrap),
-      onDenied: options.onDenied,
+      deniedResponse: options.deniedResponse,
     }),
   );
 }
@@ -210,13 +210,13 @@ export function bindKernel<
 
   const guard = async (
     permission: Permission | null,
-    loadData: ((context: TContext) => unknown) | undefined,
+    data: ((context: TContext) => unknown) | undefined,
     context: TContext,
     protectOptions?: ProtectOptions,
   ): Promise<AnyGuard<V>> =>
     kernel.protect(
       permission,
-      loadData === undefined ? undefined : (): unknown => loadData(context),
+      data === undefined ? undefined : (): unknown => data(context),
       protectOptions,
     )(bind(context), await scopeOf(context));
 

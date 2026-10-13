@@ -127,7 +127,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     const id = resourceIdOf(item);
     const load =
       type !== undefined && options.resources !== undefined
-        ? options.resources[type]?.load
+        ? options.resources[type]?.data
         : undefined;
     if (id !== undefined && load !== undefined) {
       try {

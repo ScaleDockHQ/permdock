@@ -20,7 +20,7 @@ const { permdockHandler } = createPermDock(policy, {
   trustedPep: (pep) => (pep as { readonly id?: unknown }).id === "pep",
   resources: {
     post: {
-      load: (id) => (id === "p1" ? ownPost : id === "p2" ? otherPost : null),
+      data: (id) => (id === "p1" ? ownPost : id === "p2" ? otherPost : null),
       list: () => [ownPost, otherPost],
     },
   },
@@ -404,7 +404,7 @@ describe("AuthZEN 1.0 section 10: transport", () => {
   it("a body subject from an untrusted PEP is ignored, the authenticated caller decides", async () => {
     const untrusted = createPermDock(policy, {
       subject: () => memberUser,
-      resources: { post: { load: () => otherPost } },
+      resources: { post: { data: () => otherPost } },
     }).permdockHandler();
     const response = await untrusted(
       new Request(`${ORIGIN}/access/v1/evaluation`, {

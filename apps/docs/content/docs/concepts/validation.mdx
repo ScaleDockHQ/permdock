@@ -21,15 +21,15 @@ The two comparison points that shaped the default: `@zap-studio/permit` validate
 
 Data has crossed a trust boundary when it was constructed by a party the policy does not trust to describe the resource honestly:
 
-| Source                                           | Boundary?        | Who marks it                                                                                                                |
-| ------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Row loaded from your database in a Route Handler | No               | You pass it to `decide` with `trusted: true`; without the marker it is validated, which is safe but costs a schema call     |
-| JSON body of an HTTP request                     | Yes              | `protect(permission, load?)` in HTTP adapters validates `load`'s result unless `protect` is called with `{ trusted: true }` |
-| MCP tool arguments                               | Yes              | `protectServer` validates `data(args)` output against the resource schema before deciding                                   |
-| AI SDK or Claude Agent SDK tool call arguments   | Yes              | `toolApproval`, `canUseTool` validate the object built from `args`                                                          |
-| Decision endpoint request from the React client  | Yes              | `permdockHandler` and the `authzen` handler validate the `resource` object                                                  |
-| Persisted or cached snapshot on a device         | Yes, but UI-only | The client PermDock validates shape before use; it never authorises writes                                                  |
-| Objects created inside a closure grant           | No               | Closures run on the server with trusted inputs                                                                              |
+| Source                                           | Boundary?        | Who marks it                                                                                                               |
+| ------------------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Row loaded from your database in a Route Handler | No               | You pass it to `decide` with `trusted: true`; without the marker it is validated, which is safe but costs a schema call    |
+| JSON body of an HTTP request                     | Yes              | `protect(permission, data?)` in HTTP adapters validates the loaded row unless `protect` is called with `{ trusted: true }` |
+| MCP tool arguments                               | Yes              | `protectServer` validates `data(args)` output against the resource schema before deciding                                  |
+| AI SDK or Claude Agent SDK tool call arguments   | Yes              | `toolApproval`, `canUseTool` validate the object built from `args`                                                         |
+| Decision endpoint request from the React client  | Yes              | `permdockHandler` and the `authzen` handler validate the `resource` object                                                 |
+| Persisted or cached snapshot on a device         | Yes, but UI-only | The client PermDock validates shape before use; it never authorises writes                                                 |
+| Objects created inside a closure grant           | No               | Closures run on the server with trusted inputs                                                                             |
 
 Data is untrusted unless the call says otherwise. Mark a row your server loaded with `trusted: true` to skip the schema call:
 

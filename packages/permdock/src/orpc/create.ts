@@ -69,7 +69,7 @@ export type OrpcOpenApiHooks<
 > = {
   readonly protect: (
     permission: Permission | null,
-    loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
+    data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ) => OrpcMiddleware<TCtx, unknown, V>;
   readonly security: (permission: Permission) => {
@@ -86,7 +86,7 @@ export type OrpcPermDock<
   readonly middleware: () => OrpcMiddleware<TCtx, unknown, V>;
   readonly protect: (
     permission: Permission | null,
-    loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
+    data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ) => OrpcMiddleware<TCtx, unknown, V>;
   /** A long-lived connection for the request behind `context`. */
@@ -301,7 +301,7 @@ export function createPermDock<
     result: unknown,
     opts: OrpcMiddlewareOpts<TCtx>,
     permission: Permission | null,
-    loadData: (() => unknown) | undefined,
+    data: (() => unknown) | undefined,
     protectOptions: StreamProtectOptions | undefined,
     errors: ErrorConstructors,
   ): Promise<unknown> => {
@@ -319,7 +319,7 @@ export function createPermDock<
         output,
         (connectionOptions) => connection(opts, connectionOptions),
         permission,
-        loadData,
+        data,
         protectOptions,
         {
           onRevoked: (error: PermDockRevokedError) =>
@@ -331,7 +331,7 @@ export function createPermDock<
 
   const protect = (
     permission: Permission | null,
-    loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
+    data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ): OrpcMiddleware<TCtx, unknown, V> =>
     tagged(
@@ -351,7 +351,7 @@ export function createPermDock<
         );
         const { request, scope, guard } = await runGuard(
           permission,
-          loadData,
+          data,
           opts,
           protectOptions,
         );
@@ -369,9 +369,9 @@ export function createPermDock<
             ),
             opts,
             permission,
-            loadData === undefined
+            data === undefined
               ? undefined
-              : reloadAfter(guard.data, (): unknown => loadData(opts)),
+              : reloadAfter(guard.data, (): unknown => data(opts)),
             protectOptions,
             mwOptions.errors,
           );

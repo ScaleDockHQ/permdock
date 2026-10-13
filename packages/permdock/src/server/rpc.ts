@@ -83,7 +83,7 @@ export type RpcKernel<TOpts, V extends PolicyVocabulary> = {
   /** `protect` for one procedure call, with the `Request` and tenant scope it resolved. */
   readonly guard: (
     permission: Permission | null,
-    loadData: ((opts: TOpts) => unknown) | undefined,
+    data: ((opts: TOpts) => unknown) | undefined,
     opts: TOpts,
     protectOptions?: StreamProtectOptions,
   ) => Promise<{
@@ -164,7 +164,7 @@ export function bindRpcKernel<
 
   const guard = async (
     permission: Permission | null,
-    loadData: ((opts: TOpts) => unknown) | undefined,
+    data: ((opts: TOpts) => unknown) | undefined,
     opts: TOpts,
     protectOptions?: StreamProtectOptions,
   ): Promise<{
@@ -179,7 +179,7 @@ export function bindRpcKernel<
       scope,
       guard: await kernel.protect(
         permission,
-        loadData === undefined ? undefined : (): unknown => loadData(opts),
+        data === undefined ? undefined : (): unknown => data(opts),
         protectOptions,
       )(request, scope),
     };
@@ -210,7 +210,7 @@ export async function guardStream(
   source: AsyncIterable<unknown>,
   open: (connectionOptions: ConnectionOptions) => Promise<Connection>,
   permission: Permission | null,
-  loadData: (() => unknown) | undefined,
+  data: (() => unknown) | undefined,
   protectOptions: StreamProtectOptions | undefined,
   guard: {
     readonly unwrap?: (item: unknown) => unknown;
@@ -218,7 +218,7 @@ export async function guardStream(
   },
 ): Promise<AsyncIterable<unknown>> {
   const conn = await open(
-    permission === null ? {} : compact({ permission, data: loadData }),
+    permission === null ? {} : compact({ permission, data: data }),
   );
   return guardIterable(
     source,

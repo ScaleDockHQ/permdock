@@ -187,7 +187,7 @@ export function createPermDock<
 
   const protectRoute = <T = unknown>(
     permission: Permission | null,
-    loadData?: Loader<T>,
+    data?: Loader<T>,
     protectOptions: ProtectOptions = {},
   ): ((
     request: Request,
@@ -221,9 +221,9 @@ export function createPermDock<
         report,
         request,
         permission,
-        loadData === undefined
+        data === undefined
           ? undefined
-          : (): ReturnType<Loader<T>> => loadData(request),
+          : (): ReturnType<Loader<T>> => data(request),
         protectOptions,
       );
     };

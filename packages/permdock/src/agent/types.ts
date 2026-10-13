@@ -7,7 +7,7 @@ import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { RequestContext } from "../core/request-context.ts";
 import type { Delegation } from "../core/subject.ts";
 import type { Boundary } from "../core/validation.ts";
-import type { OnDeniedText } from "./denied-text.ts";
+import type { DeniedText } from "./denied-text.ts";
 
 export type ToolBinding = {
   readonly permission: Permission;
@@ -34,7 +34,7 @@ export type AgentKernelOptions<TContext, TUser = unknown> = InstanceOptions & {
   /** Wraps every instance: `otel`, then the adapter's `wrap`. */
   readonly wrap?: (instance: PermDock) => PermDock;
   /** Replaces the text of a denied or approval-required verdict; nothing else. */
-  readonly onDenied?: OnDeniedText;
+  readonly deniedText?: DeniedText;
   /** Request values merged into `subject.context`, under `policy.context`. */
   readonly context?: (
     context: TContext,

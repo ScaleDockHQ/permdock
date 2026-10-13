@@ -162,7 +162,7 @@ describe("permdock/hono", () => {
     );
   });
 
-  it("passes context, wrap and onDenied through to the kernel", async () => {
+  it("passes context, wrap and deniedResponse through to the kernel", async () => {
     const wrapped: unknown[] = [];
     const { middleware, protect } = createPermDock(policy, {
       subject: () => memberUser,
@@ -171,7 +171,7 @@ describe("permdock/hono", () => {
         wrapped.push(instance.subject.context);
         return instance;
       },
-      onDenied: ({ problem }) => ({ ...problem, code: "LOCKED" }),
+      deniedResponse: ({ problem }) => ({ ...problem, code: "LOCKED" }),
     });
     const app = new Hono();
     app.use(middleware());

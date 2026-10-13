@@ -88,7 +88,7 @@ const authzen = createAuthzen(saasPolicy, {
   trustedPep: (pep) =>
     // SAFETY: `principal` and `id` are optional; optional chaining covers null
     (pep as { principal?: { id?: string } } | null)?.principal?.id === "pep",
-  resources: { project: { load: (id) => projectOf(id) } },
+  resources: { project: { data: (id) => projectOf(id) } },
   memberships: {
     membershipsFor: (principal) => saasMemberships(principal.id),
   },

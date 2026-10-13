@@ -231,7 +231,7 @@ describe("permdock/ai-sdk", () => {
     expect(denied).toMatchObject({ type: "denied" });
   });
 
-  it("lets onDenied replace the reason and the approval summary", async () => {
+  it("lets deniedText replace the reason and the approval summary", async () => {
     const { toolApproval } = createPermDock(policy, {
       subject: () => memberUser,
       delegation: () => delegated,
@@ -242,7 +242,7 @@ describe("permdock/ai-sdk", () => {
         expect(permdock.subject.context).toEqual({ channel: "chat" });
         return permdock;
       },
-      onDenied: ({ decision }) =>
+      deniedText: ({ decision }) =>
         `${decision?.outcome ?? "unmapped"}: ask an admin`,
     });
     const denied = await toolApproval({

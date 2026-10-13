@@ -18,7 +18,7 @@ export const { permdockHandler } = createPermDock(policy, {
   subject: fromBearer, // (request) => principal | null; MUST be real authentication
   resources: {
     post: {
-      load: (id) => loadPost(id),
+      data: (id) => loadPost(id),
       list: ({ where }) => db.posts.where(where),
     },
   },

@@ -46,7 +46,7 @@ export type ElysiaContext<V extends PolicyVocabulary = PolicyVocabulary> =
 
 export type ElysiaProtect = (
   permission: Permission | null,
-  loadData?: (ctx: ElysiaCtx) => unknown,
+  data?: (ctx: ElysiaCtx) => unknown,
   protectOptions?: ProtectOptions,
 ) => (ctx: ElysiaCtx) => Promise<Response | undefined>;
 
@@ -113,8 +113,8 @@ export function createPermDock<
       ) as unknown as ElysiaPermDockPlugin<V>;
 
   const protect: ElysiaProtect =
-    (permission, loadData, protectOptions) => async (ctx) => {
-      const guard = await runGuard(permission, loadData, ctx, protectOptions);
+    (permission, data, protectOptions) => async (ctx) => {
+      const guard = await runGuard(permission, data, ctx, protectOptions);
       if (!guard.ok) {
         return guard.response;
       }

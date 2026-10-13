@@ -61,7 +61,7 @@ generateText({
 
 - Tool names not present in `tools` are treated as unmapped and denied unless `unmapped` is `'allow'` (see fail-closed rules below).
 - `context(context)` returns plain JSON merged into `subject.context` under the policy's `context`, from the same per-call context `subject` reads. Only values the server derived belong there, never model output; a throw adds nothing and reports `on('error')` ([request data](/docs/guides/extending#request-data)).
-- `onDenied({ decision, permission, text })` may replace the denial reason or the approval summary the model reads, and nothing else; `undefined`, an empty string or a throw keeps PermDock's text.
+- `deniedText({ decision, permission, text })` may replace the denial reason or the approval summary the model reads, and nothing else; `undefined`, an empty string or a throw keeps PermDock's text.
 - `wrap` wraps each instance; build it with `wrapPermDock` ([wrapping an instance](/docs/guides/extending#wrapping-an-instance)).
 
 ## Request lifecycle

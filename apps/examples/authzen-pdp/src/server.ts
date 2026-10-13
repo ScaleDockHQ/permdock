@@ -15,7 +15,7 @@ export const { permdockHandler } = createPermDock(policy, {
   },
   resources: {
     post: {
-      load: (id) => posts.get(id) ?? null,
+      data: (id) => posts.get(id) ?? null,
       list: () => [...posts.values()],
     },
   },

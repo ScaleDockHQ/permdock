@@ -23,7 +23,7 @@ import {
   type Report,
 } from "../core/request-context.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import { deniedText } from "./denied-text.ts";
+import { refusalText } from "./denied-text.ts";
 import { modelReason, thrownReason, unmappedReason } from "./reason.ts";
 
 /** The resume token an agent run carries under the namespaced `permdockApproval` key. */
@@ -317,7 +317,7 @@ export function createAgentKernel<
     verdict: ToolVerdict,
     permdock: PermDock<V> | undefined,
   ): ToolVerdict => {
-    const hook = options.onDenied;
+    const hook = options.deniedText;
     if (hook === undefined || verdict.outcome === "granted") {
       return verdict;
     }
@@ -327,7 +327,7 @@ export function createAgentKernel<
     if (verdict.outcome === "denied") {
       return {
         ...verdict,
-        reason: deniedText(
+        reason: refusalText(
           hook,
           {
             decision: verdict.decision,
@@ -340,7 +340,7 @@ export function createAgentKernel<
     }
     return {
       ...verdict,
-      summary: deniedText(
+      summary: refusalText(
         hook,
         {
           decision: verdict.decision,

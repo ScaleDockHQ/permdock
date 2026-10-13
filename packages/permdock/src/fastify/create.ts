@@ -55,7 +55,7 @@ export type ProtectRequest<
 
 /**
  * Generic over the route, schema and type provider so a `preHandler` slot
- * infers them: `loadData` sees the same typed `request.body` as the handler.
+ * infers them: `data` sees the same typed `request.body` as the handler.
  */
 export type FastifyProtect = <
   Route extends RouteGenericInterface = RouteGenericInterface,
@@ -63,7 +63,7 @@ export type FastifyProtect = <
   Provider extends FastifyTypeProvider = FastifyTypeProviderDefault,
 >(
   permission: Permission | null,
-  loadData?: (request: ProtectRequest<Route, Schema, Provider>) => unknown,
+  data?: (request: ProtectRequest<Route, Schema, Provider>) => unknown,
   protectOptions?: ProtectOptions,
 ) => (
   request: ProtectRequest<Route, Schema, Provider>,
@@ -149,12 +149,12 @@ export function createPermDock<
   });
 
   const protect: FastifyProtect =
-    (permission, loadData, protectOptions) => async (request, reply) => {
+    (permission, data, protectOptions) => async (request, reply) => {
       // SAFETY: a route-typed FastifyRequest; bind and scopeOf read only the untyped base request.
       const plain = request as FastifyRequest;
       const guard = await runGuard(
         permission,
-        loadData === undefined ? undefined : (): unknown => loadData(request),
+        data === undefined ? undefined : (): unknown => data(request),
         plain,
         protectOptions,
       );

@@ -4,7 +4,7 @@ import type { Policy } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 
 export type AuthzenResourceAdapter = {
-  readonly load?: (id: string) => unknown;
+  readonly data?: (id: string) => unknown;
   readonly list?: (query: {
     readonly where?: unknown;
   }) => readonly unknown[] | Promise<readonly unknown[]>;

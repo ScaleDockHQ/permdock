@@ -240,7 +240,7 @@ export function createPermDock<
       webBotAuth: options.webBotAuth,
       adapter: "supabase-middleware",
       wrap: composeWraps(options.otel, options.wrap),
-      onDenied: options.onDenied,
+      deniedResponse: options.deniedResponse,
     }),
   );
 

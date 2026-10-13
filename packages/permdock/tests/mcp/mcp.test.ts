@@ -842,10 +842,10 @@ describe("actorKind", () => {
     ).toBeNull();
   });
 
-  it("lets onDenied replace the refusal text and nothing else", async () => {
+  it("lets deniedText replace the refusal text and nothing else", async () => {
     const { server } = postServer({
       subject: () => memberUser,
-      onDenied: ({ decision, permission }) =>
+      deniedText: ({ decision, permission }) =>
         `Nope: ${permission?.key ?? "?"} (${decision?.outcome ?? "none"})`,
     });
     const { client } = await connect(server, {
@@ -863,10 +863,10 @@ describe("actorKind", () => {
     });
   });
 
-  it("keeps PermDock's text when onDenied throws", async () => {
+  it("keeps PermDock's text when deniedText throws", async () => {
     const { server } = postServer({
       subject: () => memberUser,
-      onDenied: () => {
+      deniedText: () => {
         throw new Error("hook broke");
       },
     });

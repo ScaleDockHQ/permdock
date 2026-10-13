@@ -22,11 +22,11 @@ function errorsOf(permdock: PermDock): unknown[] {
   return seen;
 }
 
-describe("server onDenied", () => {
+describe("server deniedResponse", () => {
   it("replaces the refusal with the Problem Details it returns", async () => {
     const server = createPermDock(policy, {
       subject: () => memberUser,
-      onDenied: ({ problem, decision }) => ({
+      deniedResponse: ({ problem, decision }) => ({
         ...problem,
         detail: `custom: ${decision.outcome}`,
         code: "POST_LOCKED",
@@ -55,7 +55,8 @@ describe("server onDenied", () => {
   it("returns a Response it builds as the refusal", async () => {
     const server = createPermDock(policy, {
       subject: () => memberUser,
-      onDenied: () => Response.redirect("https://app.example/upgrade", 303),
+      deniedResponse: () =>
+        Response.redirect("https://app.example/upgrade", 303),
     });
     const guard = await server.protect(
       permissions.post.update,
@@ -82,8 +83,8 @@ describe("server onDenied", () => {
       const shared = request();
       const server = createPermDock(policy, {
         subject: () => memberUser,
-        // SAFETY: the cases return values outside OnDenied's type on purpose.
-        onDenied: hook as never,
+        // SAFETY: the cases return values outside DeniedResponse's type on purpose.
+        deniedResponse: hook as never,
       });
       const guard = await server.protect(
         permissions.post.update,
@@ -100,7 +101,7 @@ describe("server onDenied", () => {
     const seen: unknown[] = [];
     const server = createPermDock(policy, {
       subject: () => memberUser,
-      onDenied: ({ decision }) => {
+      deniedResponse: ({ decision }) => {
         seen.push(decision);
         expect(decision.outcome).toBe("denied");
         if (decision.outcome !== "denied") {
@@ -135,7 +136,7 @@ describe("server onDenied", () => {
     let calls = 0;
     const server = createPermDock(policy, {
       subject: () => memberUser,
-      onDenied: () => {
+      deniedResponse: () => {
         calls += 1;
         return undefined;
       },

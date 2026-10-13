@@ -1,5 +1,5 @@
 export { createPermDock } from "./create.ts";
-export type { DeniedTextEvent, OnDeniedText } from "../agent/denied-text.ts";
+export type { DeniedTextEvent, DeniedText } from "../agent/denied-text.ts";
 export type {
   AiSdkContext,
   AppToolApproval,

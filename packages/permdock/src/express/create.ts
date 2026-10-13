@@ -40,7 +40,7 @@ export type ExpressPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly middleware: () => RequestHandler;
   readonly protect: (
     permission: Permission | null,
-    loadData?: (req: Request) => unknown,
+    data?: (req: Request) => unknown,
     protectOptions?: ProtectOptions,
   ) => RequestHandler;
   readonly errorHandler: () => ErrorRequestHandler;
@@ -127,12 +127,12 @@ export function createPermDock<
   const protect =
     (
       permission: Permission | null,
-      loadData?: (req: Request) => unknown,
+      data?: (req: Request) => unknown,
       protectOptions?: ProtectOptions,
     ): RequestHandler =>
     (req, res, next) => {
       respond(req, res, next, async () => {
-        const guard = await runGuard(permission, loadData, req, protectOptions);
+        const guard = await runGuard(permission, data, req, protectOptions);
         if (!guard.ok) {
           await sendResponse(res, guard.response);
           return;

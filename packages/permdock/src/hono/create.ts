@@ -45,7 +45,7 @@ export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly middleware: () => MiddlewareHandler<PermDockEnv<unknown, V>>;
   readonly protect: <TData = unknown>(
     permission: Permission | null,
-    loadData?: (c: Context) => TData | Promise<TData>,
+    data?: (c: Context) => TData | Promise<TData>,
     protectOptions?: ProtectOptions,
   ) => MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>>;
   /** A long-lived connection for the request behind `c`. */
@@ -199,16 +199,16 @@ export function createPermDock<
   const protect =
     <TData = unknown>(
       permission: Permission | null,
-      loadData?: (c: Context) => TData | Promise<TData>,
+      data?: (c: Context) => TData | Promise<TData>,
       protectOptions?: ProtectOptions,
     ): MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>> =>
     async (c, next: Next): Promise<Response | undefined> => {
-      const guard = await runGuard(permission, loadData, c, protectOptions);
+      const guard = await runGuard(permission, data, c, protectOptions);
       if (!guard.ok) {
         return guard.response;
       }
       c.set("permdock", guard.permdock);
-      // SAFETY: guard.data is loadData's TData result; protect answers 404 when it is null or undefined.
+      // SAFETY: guard.data is the data loader's TData result; protect answers 404 when it is null or undefined.
       c.set("permdockData", guard.data as NonNullable<TData>);
       await next();
       mapDownstream(c);

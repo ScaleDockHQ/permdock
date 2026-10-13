@@ -43,7 +43,7 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
    * Replaces the response of a refused guard. A status below 300, or a
    * throw, keeps the default response and reports through `on('error')`.
    */
-  readonly onDenied?: OnDenied;
+  readonly deniedResponse?: DeniedResponse;
   /**
    * Request values merged into `subject.context`, under `policy.context`.
    * Only values the server derived belong here, never client input. A throw
@@ -59,16 +59,16 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly adapter?: string;
 };
 
-/** What `onDenied` receives: the refusal and the default Problem Details for it. */
-export type OnDeniedEvent = {
+/** What `deniedResponse` receives: the refusal and the default Problem Details for it. */
+export type DeniedResponseEvent = {
   readonly decision: Exclude<Decision, { readonly outcome: "granted" }>;
   readonly problem: ProblemDetails;
   readonly request: Request | undefined;
 };
 
 /** Returns Problem Details with extra members, a `Response`, or nothing for the default. */
-export type OnDenied = (
-  event: OnDeniedEvent,
+export type DeniedResponse = (
+  event: DeniedResponseEvent,
 ) =>
   | ProblemDetails
   | Response
@@ -122,7 +122,7 @@ export type Loader<T> = (
 ) => T | null | undefined | Promise<T | null | undefined>;
 
 /**
- * `protect(permission, loadData?, options?)`, or `protect(null, loadData?,
+ * `protect(permission, data?, options?)`, or `protect(null, data?,
  * { oauthScopes })` for a route that needs a signed-in principal and, from a
  * delegated token, one of the OAuth scopes it declares, but no permission.
  */
@@ -132,17 +132,17 @@ export type Protect<
 > = {
   <T = unknown>(
     permission: Permission,
-    loadData?: Loader<T>,
+    data?: Loader<T>,
     protectOptions?: ProtectOptions,
   ): (request: Request, ...args: TArgs) => Promise<Guard<T, V>>;
   <T = unknown>(
     permission: null,
-    loadData?: Loader<T>,
+    data?: Loader<T>,
     protectOptions?: ProtectOptions,
   ): (request: Request, ...args: TArgs) => Promise<ScopeGuard<T, V>>;
   <T = unknown>(
     permission: Permission | null,
-    loadData?: Loader<T>,
+    data?: Loader<T>,
     protectOptions?: ProtectOptions,
   ): (
     request: Request,
@@ -160,7 +160,7 @@ export type OpenApiHooks = {
 
 export type ProtectOptions = {
   /**
-   * `true` when `loadData` returns a row the server loaded itself, to skip
+   * `true` when `data` returns a row the server loaded itself, to skip
    * schema validation. Anything else is validated against the resource
    * schema before the check.
    */

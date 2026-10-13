@@ -1,4 +1,4 @@
-import type { OnDeniedText } from "../agent/denied-text.ts";
+import type { DeniedText } from "../agent/denied-text.ts";
 import type { ToolMap, ToolVerdict } from "../agent/types.ts";
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { PermDock } from "../core/permdock.ts";
@@ -54,7 +54,7 @@ export type AiSdkPermDockOptions<TUser = unknown> = InstanceOptions & {
   /** Wraps each instance; build it with `wrapPermDock` to cover derived instances. */
   readonly wrap?: PermDockWrap;
   /** Replaces the denial reason or approval summary text; nothing else. */
-  readonly onDenied?: OnDeniedText;
+  readonly deniedText?: DeniedText;
 };
 
 /** What an AI SDK tool approval function may return; `undefined` is `not-applicable`. */
@@ -260,7 +260,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       store: options.store,
       context: options.context,
       wrap: options.wrap,
-      onDenied: options.onDenied,
+      deniedText: options.deniedText,
     }),
     ...instanceOptions(options),
     subject: options.subject,
