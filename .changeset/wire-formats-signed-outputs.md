@@ -2,7 +2,7 @@
 "permdock": minor
 ---
 
-Every signed output is now a `vnd.permdock.<format>+jwt` with required `iss`, `aud`, `iat`, `exp` and `jti`, and the payload no longer repeats them. `joseTokenSigner` requires `issuer`, digests are `sha-256:` over RFC 8785 JSON, and every format keeps `v: 1` because nothing outside the PermDock repositories reads these formats yet.
+Breaking: every signed output is now a `vnd.permdock.<format>+jwt` with required `iss`, `aud`, `iat`, `exp` and `jti`, and the payload no longer repeats them. `joseTokenSigner` requires `issuer`, digests are `sha-256:` over RFC 8785 JSON, and every format keeps `v: 1` because nothing outside the PermDock repositories reads these formats yet.
 
 | Before                                                                                                                            | After                                                                                                                                                                                                                  |
 | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -2,7 +2,7 @@
 "permdock": minor
 ---
 
-Every event, webhook, problem, route and protocol field now follows its standard: CloudEvents types are `com.permdock.<family>.<operation>`, webhooks are Standard Webhooks over a CloudEvents batch, and the approvals API addresses a request by `id`. Every format keeps `v: 1` because nothing outside the PermDock repositories reads these formats yet.
+Breaking: every event, webhook, problem, route and protocol field now follows its standard: CloudEvents types are `com.permdock.<family>.<operation>`, webhooks are Standard Webhooks over a CloudEvents batch, and the approvals API addresses a request by `id`. Every format keeps `v: 1` because nothing outside the PermDock repositories reads these formats yet.
 
 CloudEvents types:
 

@@ -2,7 +2,7 @@
 "permdock": minor
 ---
 
-Times follow one rule: NumericDate in JWT and SQL-read claims, RFC 3339 in JSON records and HTTP bodies, whole seconds for durations, and an `Instant` (`{ epochMilliseconds }`, such as a `Temporal.Instant`) for every runtime `now`. A duration that is not a positive integer throws at definition time, and a `now` that is not an `Instant` denies with `validation`.
+Breaking: times follow one rule: NumericDate in JWT and SQL-read claims, RFC 3339 in JSON records and HTTP bodies, whole seconds for durations, and an `Instant` (`{ epochMilliseconds }`, such as a `Temporal.Instant`) for every runtime `now`. A duration that is not a positive integer throws at definition time, and a `now` that is not an `Instant` denies with `validation`.
 
 | Before                                                                                                              | After                                       |
 | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
