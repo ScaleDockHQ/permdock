@@ -12,7 +12,7 @@ export const store = memoryApprovalStore({ ttl: 60 * 60 * 1000 }); // default: o
 // Every agent and HTTP adapter takes the same option
 export const { protect } = createPermDock(policy, { subject, store });
 
-// Routes for approvers: GET /pending, GET /mine, GET /:token, POST /:token/approve, POST /:token/reject
+// Routes for approvers: GET /pending, GET /mine, GET /:id, GET /:id/signature, POST /:id/approve, POST /:id/reject
 const handler = approvalsHandler(store, {
   subject: (request) => approverFromSession(request), // the approver, from real authentication
   requireDistinctApprover: false, // true refuses the principal even where a grant sets distinct: false
