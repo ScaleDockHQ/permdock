@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { composeMemberships } from "permdock";
 import { run } from "permdock/cli";
+import { subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -391,7 +392,9 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
       const live = await composed.membershipsFor({ id: user }, {});
       expect({ user, memberships: byScope(live) }).toEqual({
         user,
-        memberships: byScope(membershipsOf(await mint(user))),
+        memberships: byScope(
+          subjectFromSupabase(await mint(user)).principal?.memberships ?? [],
+        ),
       });
     }
   });
