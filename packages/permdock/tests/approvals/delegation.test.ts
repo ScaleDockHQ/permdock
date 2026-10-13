@@ -118,7 +118,8 @@ async function pending(
   return { store, request };
 }
 
-const now = new Date("2026-10-13T12:00:00.000Z");
+// approvalsHandler reads the real clock, so the delegation window is built around it.
+const now = new Date();
 
 describe("approver delegation", () => {
   const delegations = memoryApprovalDelegations([
