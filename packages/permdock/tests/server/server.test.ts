@@ -579,7 +579,7 @@ async function signedRequest(
   agent = "https://agents.example.com",
 ): Promise<Request> {
   const created = Math.floor(Date.now() / 1000);
-  const params = `("@method" "@authority" "@path" "signature-agent");created=${String(created)};keyid="${keyid}";alg="ed25519"`;
+  const params = `("@method" "@authority" "@path" "signature-agent");created=${String(created)};keyid="${keyid}";alg="ed25519";tag="web-bot-auth"`;
   const base = [
     '"@method": DELETE',
     '"@authority": api.example',

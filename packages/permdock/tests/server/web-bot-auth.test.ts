@@ -11,6 +11,7 @@ import {
   discoverViaSignatureAgent,
   invalidSignatureProblem,
   invalidSignatureResponse,
+  verifyMessageSignature,
   verifyWebBotAuth,
 } from "../../src/server/web-bot-auth.ts";
 import { fakeFetch, json } from "../fakes/fetch.ts";
@@ -181,7 +182,7 @@ describe("verifyWebBotAuth", () => {
 
   it("honours an explicit alg and a key lookup object", async () => {
     const request = await signed(ec, {
-      params: `;created=${NOW};keyid="ec-key";alg="ecdsa-p256-sha256"`,
+      params: `;created=${NOW};keyid="ec-key";alg="ecdsa-p256-sha256";tag="web-bot-auth"`,
     });
     expect(
       await verifyWebBotAuth(request, options({ lookup: () => ec.jwk })),
@@ -363,7 +364,7 @@ describe("verifyWebBotAuth", () => {
     for (const component of ["@status", "x-missing"]) {
       const request = new Request(SIGNED_URL, {
         headers: {
-          "Signature-Input": `sig1=("${component}");created=${NOW};keyid="ed-key"`,
+          "Signature-Input": `sig1=("@authority" "${component}");created=${NOW};keyid="ed-key";tag="web-bot-auth"`,
           Signature: "sig1=:AA==:",
         },
       });
@@ -407,21 +408,23 @@ describe("verifyWebBotAuth", () => {
       "an unsupported explicit alg",
       () =>
         signed(ed, {
-          params: `;created=${NOW};keyid="ed-key";alg="rsa-pss-sha512"`,
+          params: `;created=${NOW};keyid="ed-key";alg="rsa-pss-sha512";tag="web-bot-auth"`,
         }),
       () => ed.jwk,
     ],
     [
       "an ECDSA key named as ed25519",
       () =>
-        signed(ec, { params: `;created=${NOW};keyid="ec-key";alg="ed25519"` }),
+        signed(ec, {
+          params: `;created=${NOW};keyid="ec-key";alg="ed25519";tag="web-bot-auth"`,
+        }),
       () => ec.jwk,
     ],
     [
       "an Ed25519 key named as ECDSA",
       () =>
         signed(ed, {
-          params: `;created=${NOW};keyid="ed-key";alg="ecdsa-p256-sha256"`,
+          params: `;created=${NOW};keyid="ed-key";alg="ecdsa-p256-sha256";tag="web-bot-auth"`,
         }),
       () => ed.jwk,
     ],
@@ -433,7 +436,7 @@ describe("verifyWebBotAuth", () => {
 
   it("accepts a signature whose expiry is still ahead and ignores junk parameters", async () => {
     const request = await signed(ed, {
-      params: `;created=${NOW};expires=${NOW + 60};keyid="ed-key";;nonce;tag="x"`,
+      params: `;created=${NOW};expires=${NOW + 60};keyid="ed-key";;nonce;tag="web-bot-auth"`,
     });
     expect(
       await verifyWebBotAuth(
@@ -458,6 +461,7 @@ describe("verifyWebBotAuth", () => {
       'sig1="broken',
     ]) {
       const request = await signed(ed, {
+        components: ["@method", "@authority", "@path", "signature-agent"],
         headers: { "Signature-Agent": header },
       });
       await verifyWebBotAuth(request, options(lookup));
@@ -470,6 +474,55 @@ describe("verifyWebBotAuth", () => {
       undefined,
       undefined,
     ]);
+  });
+});
+
+describe("the Web Bot Auth profile", () => {
+  it.each<[string, Parameters<typeof signed>[1], string]>([
+    [
+      "no tag",
+      { params: `;created=${NOW};keyid="ed-key"` },
+      'Signature-Input tag must be "web-bot-auth"',
+    ],
+    [
+      "another tag",
+      { params: `;created=${NOW};keyid="ed-key";tag="other"` },
+      'Signature-Input tag must be "web-bot-auth"',
+    ],
+    [
+      "@authority not covered",
+      { components: ["@method", "@path"] },
+      "Signature-Input must cover @authority",
+    ],
+    [
+      "Signature-Agent sent but not covered",
+      { headers: { "Signature-Agent": '"https://bots.example"' } },
+      "Signature-Input must cover signature-agent",
+    ],
+  ])("rejects a signature with %s", async (_label, input, detail) => {
+    const request = await signed(ed, input);
+    expect(
+      await detailOf(
+        verifyWebBotAuth(
+          request,
+          options(() => ed.jwk),
+        ),
+      ),
+    ).toBe(detail);
+  });
+
+  it("verifyMessageSignature checks RFC 9421 alone", async () => {
+    const request = await signed(ed, {
+      components: ["@method", "@path"],
+      params: `;created=${NOW};keyid="ed-key"`,
+      headers: { "Signature-Agent": '"https://bots.example"' },
+    });
+    expect(
+      await verifyMessageSignature(
+        request,
+        options(() => ed.jwk),
+      ),
+    ).toEqual({ id: "ed-key", kind: "web-bot-auth" });
   });
 });
 
