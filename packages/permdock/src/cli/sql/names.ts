@@ -149,6 +149,28 @@ export function hasMemberFor(
   );
 }
 
+/**
+ * Whether `permitted_<scope>_users` can list the members of one instance of
+ * `name`: a mapped membership table, or sources that all read a table.
+ */
+export function hasPermittedUsers(
+  input: {
+    readonly scopes: readonly Scope[];
+    readonly memberships?: RlsMemberships;
+    readonly memberSources?: readonly SqlMembershipSource[];
+  },
+  name: string,
+): boolean {
+  if (memberForTable(input, name) !== undefined) {
+    return true;
+  }
+  const sources = memberForSources(input, name);
+  return (
+    sources.length > 0 &&
+    sources.every((source) => source.sql.holders !== undefined)
+  );
+}
+
 /** The table `member_<scope>_ids_for` reads for scope `name`, when `memberships` maps one with its id column. */
 export function memberForTable(
   input: {

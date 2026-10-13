@@ -13,6 +13,7 @@ import { qualifySqlTable } from "../../core/sql.ts";
 import { roleManifest } from "../../supabase/roles.ts";
 import {
   hasMemberFor,
+  hasPermittedUsers,
   memberForSources,
   memberForTable,
   memberRoleOf,
@@ -27,11 +28,13 @@ type MemberForInput = {
 
 export function memberForPlan(input: MemberForInput): {
   readonly memberFor: readonly string[];
+  readonly holders: readonly string[];
   readonly memberships: readonly SupabaseManifestMembership[];
 } {
   const memberFor = input.scopes
     .map((scope) => scope.name)
     .filter((name) => hasMemberFor({ dialect: "supabase", ...input }, name));
+  const holders = memberFor.filter((name) => hasPermittedUsers(input, name));
   const entries = new Map<string, SupabaseManifestMembership>();
   for (const name of memberFor) {
     const mapped = memberForTable(input, name);
@@ -43,7 +46,7 @@ export function memberForPlan(input: MemberForInput): {
       entries.set(JSON.stringify(entry), entry);
     }
   }
-  return { memberFor, memberships: [...entries.values()] };
+  return { memberFor, holders, memberships: [...entries.values()] };
 }
 
 /** An `rls.memberships` table in the manifest's `fromTable` / `fromJunction` shape, for scope `name`. */

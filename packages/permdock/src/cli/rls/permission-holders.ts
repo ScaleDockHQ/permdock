@@ -1,7 +1,7 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { scopeTypeOf } from "../sql/columns.ts";
-import { scopeTable } from "../sql/names.ts";
+import { hasPermittedUsers, scopeTable } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteQualified } from "../sql/quote.ts";
 import { globalRoleRows } from "./helper-rows.ts";
 import { holderSources } from "./ownership-sources.ts";
@@ -12,7 +12,7 @@ import {
 } from "./permission-keys.ts";
 
 /** `permitted_<scope>_users(p_permission, p_id)`. Names are part of the SQL contract. */
-function permittedUsersHelper(scope: string): string {
+export function permittedUsersHelper(scope: string): string {
   return checkName(`permitted_${scope}_users`);
 }
 
@@ -59,7 +59,9 @@ export function permissionHoldersSql(ctx: RlsSqlContext): string {
   const global = globalRoleRows(ctx);
   const hasFor = qualified(ctx, PERMISSION_HELPERS.hasFor);
   const chunks = ctx.scopes.map(({ name }) => {
-    const candidates = candidatesSql(ctx, name, user);
+    const candidates = hasPermittedUsers(ctx, name)
+      ? candidatesSql(ctx, name, user)
+      : undefined;
     if (candidates === undefined) {
       return `-- ${name}: no memberships table or table source, so permitted_${name}_users is not written`;
     }
