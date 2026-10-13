@@ -13,9 +13,8 @@ import type { OtelWrap } from "../otel/types.ts";
 import type { DeniedText } from "./denied-text.ts";
 
 /** The part of an operation a tool decision reads; an `OperationMap` entry is one. */
-export type ToolBinding = Pick<Operation, "permission" | "data" | "results"> & {
-  readonly meta?: Operation["meta"];
-};
+export type ToolBinding = Pick<Operation, "permission" | "data" | "results"> &
+  Partial<Pick<Operation, "name" | "meta">>;
 
 export type ToolMap = Readonly<Record<string, ToolBinding>>;
 

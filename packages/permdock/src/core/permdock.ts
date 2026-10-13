@@ -21,6 +21,7 @@ import type {
   TokenSigner,
 } from "./interfaces.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
+import type { Operation } from "./operations.ts";
 import type {
   RoleChange,
   RoleChangeDecision,
@@ -91,6 +92,12 @@ export type DecideOptions = {
    * and memberships of other scopes are skipped with reason `scope`.
    */
   readonly scope?: string;
+  /**
+   * The operation the call decides, for `ApprovalPolicySource` entries that
+   * match on `meta.risk` and `meta.effects`. Surfaces that decide an
+   * operation (agent tools, workflow steps, `protect(operation)`) pass it.
+   */
+  readonly operation?: Pick<Operation, "name" | "meta">;
 };
 
 export type SimulateOptions = {

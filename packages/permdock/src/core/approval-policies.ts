@@ -1,6 +1,11 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
+  OperationEffect,
+  OperationMeta,
+  OperationRisk,
+} from "./operations.ts";
+import type {
   ApprovalOption,
   ApprovalRequirement,
   ApprovalStage,
@@ -18,6 +23,7 @@ import {
 import { compact, isRecord } from "./compact.ts";
 import { authenticated } from "./grantee.ts";
 import { isPortableCondition } from "./hosted.ts";
+import { isOperationEffect, isOperationRisk } from "./operations.ts";
 import { findPermission } from "./permission-registry.ts";
 import { type Scope, rootMembershipId } from "./scopes.ts";
 import { isThenable } from "./thenable.ts";
@@ -28,8 +34,15 @@ import { durationOf } from "./time.ts";
  * It adds to what the code requires and never removes a requirement.
  */
 export type ApprovalPolicy = {
-  /** The permission key; a former key from `renamed` resolves. */
-  readonly permission: string;
+  /**
+   * The permission key; a former key from `renamed` resolves. Absent: every
+   * permission, which needs `risk` or `effects`.
+   */
+  readonly permission?: string;
+  /** Matches an operation call whose `meta.risk` is one of these; a call that names no operation never matches. */
+  readonly risk?: readonly OperationRisk[];
+  /** Matches an operation call whose `meta.effects` includes one of these; a call that names no operation never matches. */
+  readonly effects?: readonly OperationEffect[];
   /** Absent: every tenant. */
   readonly tenant?: string;
   /** Actor kinds it applies to (`['agent']`); absent: every call. A call without an actor never matches a list. */
@@ -78,7 +91,9 @@ export function memoryApprovalPolicySource(
 
 /** An entry checked against the policy and ready to match. */
 export type LoadedApprovalPolicy = {
-  readonly permission: string;
+  readonly permission?: string;
+  readonly risk?: ReadonlySet<OperationRisk>;
+  readonly effects?: ReadonlySet<OperationEffect>;
   readonly tenant?: string;
   readonly actors?: ReadonlySet<string>;
   readonly where?: Condition;
@@ -118,8 +133,74 @@ type Checked =
   | { readonly entry: LoadedApprovalPolicy }
   | { readonly problem: ApprovalPolicyProblem };
 
+function metaList<T>(
+  value: unknown,
+  is: (item: unknown) => item is T,
+): ReadonlySet<T> | undefined | "invalid" {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value) || value.length === 0 || !value.every(is)) {
+    return "invalid";
+  }
+  return new Set(value);
+}
+
+/** An entry with no permission, matched on operation meta alone. */
+function checkMetaOnly(
+  raw: Readonly<Record<string, unknown>>,
+  risk: ReadonlySet<OperationRisk> | undefined,
+  effects: ReadonlySet<OperationEffect> | undefined,
+): Checked {
+  const { tenant, actors, where, check, approval } = raw;
+  if (
+    (risk === undefined && effects === undefined) ||
+    where !== undefined ||
+    (tenant !== undefined && typeof tenant !== "string") ||
+    (actors !== undefined && !isStringList(actors)) ||
+    (check !== undefined && !isPortableCondition(check)) ||
+    (approval !== "human" && !isRecord(approval))
+  ) {
+    return { problem: "invalid" };
+  }
+  let normalized: Grant["approval"];
+  try {
+    // SAFETY: approval is "human" or a record; normalizeApproval throws on any field it cannot accept.
+    normalized = normalizeApproval(approval as ApprovalOption);
+  } catch {
+    return { problem: "invalid" };
+  }
+  if (
+    normalized === undefined ||
+    (normalized !== "human" && normalized.staleOn !== undefined)
+  ) {
+    return { problem: "invalid" };
+  }
+  return {
+    entry: compact<LoadedApprovalPolicy>({
+      risk,
+      effects,
+      tenant,
+      actors: actors === undefined ? undefined : new Set(actors),
+      check: check === undefined ? undefined : normalizeWhere(check),
+      approval: normalized,
+    }),
+  };
+}
+
 function checkOne(policy: Policy, raw: unknown): Checked {
-  if (!isRecord(raw) || typeof raw["permission"] !== "string") {
+  if (!isRecord(raw)) {
+    return { problem: "invalid" };
+  }
+  const risk = metaList(raw["risk"], isOperationRisk);
+  const effects = metaList(raw["effects"], isOperationEffect);
+  if (risk === "invalid" || effects === "invalid") {
+    return { problem: "invalid" };
+  }
+  if (raw["permission"] === undefined) {
+    return checkMetaOnly(raw, risk, effects);
+  }
+  if (typeof raw["permission"] !== "string") {
     return { problem: "invalid" };
   }
   const permission = findPermission(policy.permissions, raw["permission"]);
@@ -166,6 +247,8 @@ function checkOne(policy: Policy, raw: unknown): Checked {
   return {
     entry: compact<LoadedApprovalPolicy>({
       permission: permission.key,
+      risk,
+      effects,
       tenant,
       actors: actors === undefined ? undefined : new Set(actors),
       where: where === undefined ? undefined : normalizeWhere(where),
@@ -251,6 +334,29 @@ export function approvalPoliciesFor(
     return Promise.resolve(raw).then((value) => loadAll(policy, value), threw);
   }
   return loadAll(policy, raw);
+}
+
+function metaMatches(
+  entry: LoadedApprovalPolicy,
+  operation: OperationMeta | undefined,
+): boolean {
+  if (entry.risk === undefined && entry.effects === undefined) {
+    return true;
+  }
+  if (operation === undefined) {
+    return false;
+  }
+  if (
+    entry.risk !== undefined &&
+    (operation.risk === undefined || !entry.risk.has(operation.risk))
+  ) {
+    return false;
+  }
+  const effects = entry.effects;
+  return (
+    effects === undefined ||
+    (operation.effects ?? []).some((effect) => effects.has(effect))
+  );
 }
 
 function matches(
@@ -350,11 +456,15 @@ export function tightenApproval(
     readonly next: unknown;
     readonly now: number;
     readonly scopes: readonly Scope[];
+    /** The meta of the operation the call decides, when it names one. */
+    readonly operation?: OperationMeta | undefined;
   },
 ): Grant["approval"] {
   const extra = entries.filter(
     (entry) =>
-      entry.permission === input.permission &&
+      (entry.permission === undefined ||
+        entry.permission === input.permission) &&
+      metaMatches(entry, input.operation) &&
       matches(
         entry,
         input.tenant,

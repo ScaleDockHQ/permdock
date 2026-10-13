@@ -8,6 +8,7 @@ import {
   defineOperations,
   definePermissions,
   definePolicy,
+  memoryApprovalPolicySource,
   principal,
   resource,
   role,
@@ -170,6 +171,22 @@ describe("permdock/agent createPermDock", () => {
     expect(await agentFor().gatewayOptions({ user: null })).toEqual({
       gateway: {},
     });
+  });
+
+  it("passes operation meta to approval policies", async () => {
+    const agent = createPermDock(policy, {
+      subject: (context: Context) => context.user,
+      operations,
+      approvalPolicies: memoryApprovalPolicySource([
+        { effects: ["read"], risk: ["low"], approval: "human" },
+      ]),
+    });
+    expect(
+      (await agent.decideOperation("search_docs", {}, member)).outcome,
+    ).toBe("approval-required");
+    expect(
+      (await agent.decideOperation("read_doc", { id: "d1" }, member)).outcome,
+    ).toBe("granted");
   });
 
   it("gives tokenFor nothing for an unlisted operation", async () => {

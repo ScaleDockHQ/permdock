@@ -756,6 +756,7 @@ function approvalOf(
         next: state.next,
         now: state.now,
         scopes: state.scopes,
+        operation: state.options.operation?.meta,
       });
 }
 

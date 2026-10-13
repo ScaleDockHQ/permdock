@@ -1,5 +1,5 @@
 import type { Decision } from "../core/decision.ts";
-import type { PermDock } from "../core/permdock.ts";
+import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
@@ -45,6 +45,7 @@ function runDecide(
     readonly adapter: string;
     readonly boundary: Boundary;
     readonly call: "adapter" | "simulate";
+    readonly operation?: NonNullable<DecideOptions["operation"]>;
   },
 ): Decision {
   // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
@@ -52,11 +53,7 @@ function runDecide(
     permdock.decide as (
       next: Permission,
       row?: unknown,
-      decideOptions?: {
-        readonly call: "adapter" | "simulate";
-        readonly adapter: string;
-        readonly boundary: Boundary;
-      },
+      decideOptions?: DecideOptions,
     ) => Decision
   )(permission, data, how);
 }
@@ -195,11 +192,20 @@ export function createAgentKernel<
           return { ok: false, failure: "no-data", permdock };
         }
       }
-      const raw = runDecide(permdock, binding.permission, data, {
-        adapter: options.adapter,
-        boundary,
-        call: how.call,
-      });
+      const raw = runDecide(
+        permdock,
+        binding.permission,
+        data,
+        compact({
+          adapter: options.adapter,
+          boundary,
+          call: how.call,
+          operation:
+            binding.meta === undefined
+              ? undefined
+              : { name: binding.name ?? "", meta: binding.meta },
+        }),
+      );
       const decision = how.resume
         ? await resumeDecision({
             decision: raw,
