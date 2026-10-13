@@ -298,7 +298,7 @@ describe("toCloudEvent", () => {
         principal: "u1",
         permissions: [],
         createdBy: "u1",
-        createdAt: 1_790_000_000,
+        createdAt: "2026-09-21T13:46:40.000Z",
       },
     });
     expect(toCloudEvent(credential, { source }).type).toBe(type);
@@ -343,10 +343,7 @@ describe("toCloudEvent", () => {
 
   it("refuses a signing memoryDecisionSink without an absolute source", () => {
     expect(() =>
-      memoryDecisionSink({
-        signer: { sign: async () => "jws" },
-        source: "app",
-      }),
+      memoryDecisionSink({ signer: { sign: async () => "jws" }, source: "app" }),
     ).toThrow(TypeError);
   });
 });

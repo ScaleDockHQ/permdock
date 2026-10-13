@@ -255,7 +255,7 @@ describe("contact principals", () => {
         kind: "user",
         id: "k",
         permissions: [permissions.invoice.read],
-        expiresAt: Math.floor(Date.now() / 1000) + 3600,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
       }),
     ).toMatchObject({
       outcome: "denied",

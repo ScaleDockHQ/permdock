@@ -238,8 +238,8 @@ export function testCredentialVerifier(
       const key = await live();
       const before = parseCredential(await verifier.verify(key));
       const id = parseApiKey(key)?.id ?? "";
-      await verifier.touch?.(id, Math.floor(Date.now() / 1000));
-      await verifier.touch?.("unknown-id", Math.floor(Date.now() / 1000));
+      await verifier.touch?.(id, { epochMilliseconds: Date.now() });
+      await verifier.touch?.("unknown-id", { epochMilliseconds: Date.now() });
       expect(parseCredential(await verifier.verify(key))).toEqual(before);
     });
   }

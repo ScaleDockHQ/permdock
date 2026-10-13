@@ -230,7 +230,7 @@ describe("testCredentialVerifier on a key ending in A", () => {
               principal: "u_1",
               permissions: [{ permission: "repo.read" }],
               createdBy: "u_1",
-              createdAt: 1_700_000_000,
+              createdAt: "2023-11-14T22:13:20.000Z",
             }
           : null,
     },
