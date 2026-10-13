@@ -24,7 +24,7 @@ export type MemoryEdge = {
   readonly expiresAt?: number;
 };
 
-export type MemoryRelationsData = {
+export type MemoryRelationSourceData = {
   /** Rows per resource: parent pointers, links, restricted flags and relation columns are read from them. */
   readonly rows?: Readonly<
     Record<string, readonly Readonly<Record<string, unknown>>[]>
@@ -158,9 +158,9 @@ function edgeHolder(edge: MemoryEdge): RelationHolder {
  * An in-process `RelationSource` over plain rows and edges, read against the
  * resource definitions in `permissions`. For tests, fixtures and small apps.
  */
-export function memoryRelations(
+export function memoryRelationSource(
   permissions: PermissionTree,
-  data: MemoryRelationsData = {},
+  data: MemoryRelationSourceData = {},
 ): RelationSource {
   const registry = getRegistry(permissions);
   const byId = new Map<

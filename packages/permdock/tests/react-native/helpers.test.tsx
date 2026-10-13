@@ -19,7 +19,10 @@ import {
   secureStoreStorage,
   type SecureStoreModule,
 } from "../../src/react-native/storage-adapters.ts";
-import { memoryStorage, SNAPSHOT_KEY } from "../../src/react-native/storage.ts";
+import {
+  memorySnapshotStorage,
+  SNAPSHOT_KEY,
+} from "../../src/react-native/storage.ts";
 import {
   appStateForeground,
   netInfoOnline,
@@ -222,7 +225,7 @@ describe("useSnapshotReady and usePermissionGuard", () => {
   it("allow only when every permission is allowed for the row", async () => {
     // SAFETY: memberUser is a quick-start user fixture; only the policy generic is erased.
     const server = await createPermDock(policy as never, memberUser);
-    const storage = memoryStorage({
+    const storage = memorySnapshotStorage({
       [SNAPSHOT_KEY]: JSON.stringify(server.snapshot()),
     });
     const { post } = permissions;

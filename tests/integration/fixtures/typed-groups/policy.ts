@@ -2,7 +2,7 @@ import {
   allow,
   definePermissions,
   definePolicy,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
 } from "permdock";
@@ -89,7 +89,7 @@ export const tables: Readonly<Record<string, readonly Row[]>> = {
   ],
 };
 
-export const relations = memoryRelations(permissions, { rows, tables });
+export const relations = memoryRelationSource(permissions, { rows, tables });
 
 export const users = ["dana", "uma", "nina", "ivy", "otis", "nobody"];
 

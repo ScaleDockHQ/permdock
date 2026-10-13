@@ -8,7 +8,7 @@ import { isThenable } from "../core/thenable.ts";
 export const SNAPSHOT_KEY = "permdock.snapshot";
 export const TENANT_KEY = "permdock.tenant";
 
-export function memoryStorage(
+export function memorySnapshotStorage(
   initial: Readonly<Record<string, string>> = {},
 ): PermDockStorage {
   const map = new Map<string, string>(Object.entries(initial));

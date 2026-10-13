@@ -17,7 +17,7 @@ import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import {
   generateFeedKey,
-  memoryCredentials,
+  memoryCredentialStore,
   parseApiKey,
   parseFeedKey,
   subjectFromApiKey,
@@ -89,7 +89,7 @@ describe("feed credentials", () => {
       createdAt: 1_700_000_000,
     });
     expect(credential?.expiresAt).toBeUndefined();
-    const store = memoryCredentials();
+    const store = memoryCredentialStore();
     if (credential === undefined) {
       throw new Error("expected a feed credential");
     }
@@ -166,7 +166,7 @@ describe("feed credentials", () => {
       ),
     ).toThrow(/feed/u);
 
-    const store = memoryCredentials();
+    const store = memoryCredentialStore();
     const key = await store.issue(decision.credential);
     const resolved = await subjectFromApiKey({
       verifier: store,

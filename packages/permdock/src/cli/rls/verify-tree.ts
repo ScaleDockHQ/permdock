@@ -13,7 +13,7 @@ import {
   type ResourceNode,
   createPermDock,
   listPermissions,
-  memoryRelations,
+  memoryRelationSource,
 } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { columnTypesOf } from "../sql/columns.ts";
@@ -467,7 +467,7 @@ export async function verifyTree(input: {
       ];
     }
   }
-  const relations = memoryRelations(policy.permissions, { rows, edges });
+  const relations = memoryRelationSource(policy.permissions, { rows, edges });
   const mismatches: string[] = [];
   let checked = 0;
   let granted = 0;

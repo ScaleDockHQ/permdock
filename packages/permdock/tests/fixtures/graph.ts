@@ -7,7 +7,7 @@ import {
   definePermissions,
   definePolicy,
   defineRoles,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
   role,
@@ -189,7 +189,7 @@ const tables = {
 } as const;
 
 /** The graph above as an in-memory `RelationSource`. */
-export const relations = memoryRelations(permissions, { rows, tables });
+export const relations = memoryRelationSource(permissions, { rows, tables });
 
 /** A folder administrator on `eng`: reaches every document below it, never above. */
 export const engAdmin = {

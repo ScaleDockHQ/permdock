@@ -12,7 +12,7 @@ import type {
 } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
-import { membershipEvent, memorySink } from "../core/sink.ts";
+import { membershipEvent, memoryDecisionSink } from "../core/sink.ts";
 
 export function reportUnknownRoles(
   roles: readonly string[] | undefined,
@@ -91,7 +91,7 @@ export async function emitDirectory(
     event.resource.type === "User" && event.active === false
       ? "session-revoked"
       : "changed";
-  const sink = options.sink ?? memorySink();
+  const sink = options.sink ?? memoryDecisionSink();
   try {
     await sink.write([event, ...extra]);
   } catch {

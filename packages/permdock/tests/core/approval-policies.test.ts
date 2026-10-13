@@ -6,7 +6,7 @@ import type { Subject } from "../../src/core/subject.ts";
 import {
   type ApprovalPolicy,
   type ApprovalPolicySource,
-  memoryApprovalPolicies,
+  memoryApprovalPolicySource,
   validateApprovalPolicy,
 } from "../../src/core/approval-policies.ts";
 import { describe as describeDecision } from "../../src/core/describe.ts";
@@ -59,7 +59,7 @@ const overLimit: ApprovalPolicy = {
 
 describe("ApprovalPolicySource", () => {
   testApprovalPolicySource(
-    memoryApprovalPolicies([
+    memoryApprovalPolicySource([
       overLimit,
       { permission: "expense.read", tenant: "o2", approval: "human" },
       {
@@ -71,7 +71,7 @@ describe("ApprovalPolicySource", () => {
   );
 
   it("turns a grant into approval-required when an entry matches", async () => {
-    const source = memoryApprovalPolicies([overLimit]);
+    const source = memoryApprovalPolicySource([overLimit]);
     const asked = await decide(source, permissions.expense.read, large);
     expect(asked).toMatchObject({
       outcome: "approval-required",
@@ -88,11 +88,13 @@ describe("ApprovalPolicySource", () => {
   });
 
   it("applies only in its tenant and to its actor kinds", async () => {
-    const elsewhere = memoryApprovalPolicies([{ ...overLimit, tenant: "o2" }]);
+    const elsewhere = memoryApprovalPolicySource([
+      { ...overLimit, tenant: "o2" },
+    ]);
     expect(
       (await decide(elsewhere, permissions.expense.read, large)).outcome,
     ).toBe("granted");
-    const agents = memoryApprovalPolicies([
+    const agents = memoryApprovalPolicySource([
       { permission: "expense.read", actors: ["agent"], approval: "human" },
     ]);
     expect(
@@ -108,7 +110,7 @@ describe("ApprovalPolicySource", () => {
   });
 
   it("adds stages after the code's and keeps its order", async () => {
-    const source = memoryApprovalPolicies([
+    const source = memoryApprovalPolicySource([
       {
         permission: "expense.pay",
         approval: { by: { kind: "user", id: "cfo" }, ttl: "1h" },
@@ -143,7 +145,7 @@ describe("ApprovalPolicySource", () => {
         throw new Error("down");
       },
     };
-    const escalating = memoryApprovalPolicies([
+    const escalating = memoryApprovalPolicySource([
       {
         permission: "expense.read",
         approval: { by: "finance", escalation: { after: "soon", to: "x" } },
@@ -154,7 +156,7 @@ describe("ApprovalPolicySource", () => {
         // SAFETY: deliberately malformed input to check the runtime guard.
         [{ permission: "expense.read", approval: 42 }] as never,
     };
-    const opaque = memoryApprovalPolicies([
+    const opaque = memoryApprovalPolicySource([
       {
         ...overLimit,
         // SAFETY: deliberately non-portable input to check the runtime guard.
@@ -243,7 +245,7 @@ describe("ApprovalPolicySource", () => {
       permission: "expense.read",
       approval: { by: "finance", quorum: 2, distinct: false, ttl: "2h" },
     } as const;
-    const source = memoryApprovalPolicies([
+    const source = memoryApprovalPolicySource([
       finance,
       finance,
       {
@@ -269,7 +271,7 @@ describe("ApprovalPolicySource", () => {
         },
       },
     });
-    const human = memoryApprovalPolicies([
+    const human = memoryApprovalPolicySource([
       { permission: "expense.pay", approval: "human" },
     ]);
     const paid = await decide(human, permissions.expense.pay, large);
@@ -280,7 +282,7 @@ describe("ApprovalPolicySource", () => {
   });
 
   it("skips an entry for a permission the policy does not declare", async () => {
-    const source = memoryApprovalPolicies([
+    const source = memoryApprovalPolicySource([
       { permission: "expense.archive", approval: "human" },
     ]);
     expect(
@@ -289,7 +291,7 @@ describe("ApprovalPolicySource", () => {
   });
 
   it("leaves a denial denied", async () => {
-    const source = memoryApprovalPolicies([overLimit]);
+    const source = memoryApprovalPolicySource([overLimit]);
     const permdock = await createPermDock(
       policy,
       { principal: { id: "eve", memberships: [] }, context: {} },
@@ -338,7 +340,7 @@ describe("ApprovalPolicySource", () => {
     const decideCreate = async (entry: ApprovalPolicy): Promise<Decision> =>
       (
         await createPermDock(ledgerPolicy, clerk, {
-          approvalPolicies: memoryApprovalPolicies([entry]),
+          approvalPolicies: memoryApprovalPolicySource([entry]),
         })
       ).decide(ledger.invoice.create, big);
 

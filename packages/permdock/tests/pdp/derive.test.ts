@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { memoryApprovalPolicies } from "../../src/core/approval-policies.ts";
+import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -34,7 +34,7 @@ describe("permdock/pdp derive", () => {
       approvalPolicies: {
         approvalPoliciesFor: () =>
           Promise.resolve(
-            memoryApprovalPolicies([
+            memoryApprovalPolicySource([
               { permission: "post.read", approval: "human" },
             ]).approvalPoliciesFor({ tenants: [] }),
           ),

@@ -5,7 +5,7 @@ import {
   definePermissions,
   definePolicy,
   defineRoles,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
   role,
@@ -226,7 +226,7 @@ export const tables: Readonly<Record<string, readonly EdgeRow[]>> = {
   ],
 };
 
-export const relations = memoryRelations(permissions, { rows, tables });
+export const relations = memoryRelationSource(permissions, { rows, tables });
 
 export const users: readonly WorkspaceUser[] = [
   ...[

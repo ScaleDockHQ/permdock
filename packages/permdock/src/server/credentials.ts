@@ -273,7 +273,7 @@ export function apiKeyVerifier(options: {
   });
 }
 
-export type MemoryCredentials = CredentialVerifier & {
+export type MemoryCredentialStore = CredentialVerifier & {
   /** Stores `credential` and returns its key; the key is never stored. */
   issue(credential: Credential): Promise<string>;
   /** A new secret for the same id; the old key stops verifying at once. */
@@ -303,9 +303,9 @@ function write(
  * In-process credentials for tests and single-replica apps. `issue`, `rotate`
  * and `revoke` write `credential` events to `sink` when one is given.
  */
-export function memoryCredentials(
+export function memoryCredentialStore(
   options: { readonly sink?: DecisionSink; readonly source?: string } = {},
-): MemoryCredentials {
+): MemoryCredentialStore {
   const records = new Map<string, StoredCredential>();
   const used = new Map<string, number>();
   const verifier = apiKeyVerifier({ find: (id) => records.get(id) });

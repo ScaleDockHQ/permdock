@@ -6,7 +6,7 @@ import type {
 } from "../../index.ts";
 import type { SaasDoc, SaasFolder, SaasProject } from "./permissions.ts";
 
-import { memoryRelations } from "../../index.ts";
+import { memoryRelationSource } from "../../index.ts";
 import { saasPermissions } from "./permissions.ts";
 
 export type SaasPlan = "free" | "pro";
@@ -260,7 +260,7 @@ export function saasRelations(seed: SaasSeed = saasSeed): RelationSource {
               expiresAt: share.expiresAt,
             },
       );
-  return memoryRelations(saasPermissions, {
+  return memoryRelationSource(saasPermissions, {
     rows: { folder: seed.folders },
     edges: { folder: { viewer: edges("viewer"), editor: edges("editor") } },
   });

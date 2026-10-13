@@ -7,7 +7,7 @@ import type { DirectoryChange } from "../../src/scim/types.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import {
   allow,
   definePermissions,
@@ -386,7 +386,7 @@ describe("scimHandler", () => {
   });
 
   it("creates, lists, patches and deactivates a user", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const { handle, store } = handler({ sink });
     const created = await handle(
       request("/Users", {
@@ -528,7 +528,7 @@ describe("scimHandler", () => {
   });
 
   it("emits a membership event per affected group member", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const { handle } = handler({ sink });
     const user = await json(
       await handle(

@@ -33,12 +33,15 @@ These steps build a native Expo Router app with tabs that a role hides, a snapsh
 
 ```ts title="src/storage.ts"
 import * as SecureStore from "expo-secure-store";
-import { memoryStorage, type PermDockStorage } from "permdock/react-native";
+import {
+  memorySnapshotStorage,
+  type PermDockStorage,
+} from "permdock/react-native";
 import { Platform } from "react-native";
 
 export const storage: PermDockStorage =
   Platform.OS === "web"
-    ? memoryStorage()
+    ? memorySnapshotStorage()
     : {
         getItem: (key) => SecureStore.getItem(key),
         setItem: (key, value) => {
@@ -251,7 +254,7 @@ const source = powersyncSource(db, {
 - The snapshot's principal id against `subjectId`, which the provider requires (`null` when signed out). A mismatch clears the stored snapshot and tenant, and is treated as empty storage.
 - Nothing else client-side. As on the web, on-device answers are UI hints; every mutation is re-checked by the API.
 
-The snapshot is stored as the `storage` implementation stores it. The entry ships only `memoryStorage` and the three-method interface; an app that wants the snapshot encrypted at rest (it reveals role names, condition shapes and, with `tenants: 'all'`, every organisation the user belongs to, but no rows) passes `expo-secure-store` or an encrypted MMKV instance. Memberships whose `expiresAt` has passed are ignored by the evaluator at read time. A persisted snapshot keeps serving grants that the server has since removed until the next revalidation; the [threat model](/docs/security/threat-model) accepts this for UI hints because every mutation is re-checked server-side.
+The snapshot is stored as the `storage` implementation stores it. The entry ships only `memorySnapshotStorage` and the three-method interface; an app that wants the snapshot encrypted at rest (it reveals role names, condition shapes and, with `tenants: 'all'`, every organisation the user belongs to, but no rows) passes `expo-secure-store` or an encrypted MMKV instance. Memberships whose `expiresAt` has passed are ignored by the evaluator at read time. A persisted snapshot keeps serving grants that the server has since removed until the next revalidation; the [threat model](/docs/security/threat-model) accepts this for UI hints because every mutation is re-checked server-side.
 
 ## How denials surface
 
@@ -261,7 +264,7 @@ The snapshot is stored as the `storage` implementation stores it. The entry ship
 
 ## Example app
 
-`apps/examples/expo`: an Expo Router app with `expo-secure-store` storage (`memoryStorage` on web), a `localSnapshot` over in-memory rows that stand in for a sync engine, an `AppState` foreground listener, `Tabs.Protected` and `Protected`. `pnpm gen` writes `src/permdock-manifest.json` from the policy; the app bundle never imports the policy. `http://127.0.0.1:3486/` shows `edit`, `locked` for publish and one tab; "Sync admin role" changes the row, and `publish` and the Publish tab appear with no request.
+`apps/examples/expo`: an Expo Router app with `expo-secure-store` storage (`memorySnapshotStorage` on web), a `localSnapshot` over in-memory rows that stand in for a sync engine, an `AppState` foreground listener, `Tabs.Protected` and `Protected`. `pnpm gen` writes `src/permdock-manifest.json` from the policy; the app bundle never imports the policy. `http://127.0.0.1:3486/` shows `edit`, `locked` for publish and one tab; "Sync admin role" changes the row, and `publish` and the Publish tab appear with no request.
 
 ## Related standards
 

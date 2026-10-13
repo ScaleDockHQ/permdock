@@ -11,7 +11,7 @@ import {
   cloudEventType,
   credentialEvent,
   membershipEvent,
-  memorySink,
+  memoryDecisionSink,
   signDecisionBatch,
   toCloudEvent,
 } from "../../src/core/sink.ts";
@@ -29,9 +29,9 @@ const event = (id: string): DecisionEvent => ({
   call: "decide",
 });
 
-describe("memorySink", () => {
+describe("memoryDecisionSink", () => {
   it("buffers events and drops the oldest past capacity", () => {
-    const sink = memorySink({ capacity: 2 });
+    const sink = memoryDecisionSink({ capacity: 2 });
     sink.write([event("1"), event("2"), event("3")]);
     expect(
       sink
@@ -52,7 +52,7 @@ describe("memorySink", () => {
         return "jws.batch";
       },
     };
-    const sink = memorySink({
+    const sink = memoryDecisionSink({
       signer,
       audience: "https://siem.example.com",
       source: "https://app.example.com",
@@ -77,7 +77,7 @@ describe("memorySink", () => {
   });
 
   it("swallows signer failures so a write never throws", async () => {
-    const sink = memorySink({
+    const sink = memoryDecisionSink({
       signer: {
         sign() {
           return Promise.reject(new Error("unavailable"));
@@ -341,9 +341,12 @@ describe("toCloudEvent", () => {
     }
   });
 
-  it("refuses a signing memorySink without an absolute source", () => {
+  it("refuses a signing memoryDecisionSink without an absolute source", () => {
     expect(() =>
-      memorySink({ signer: { sign: async () => "jws" }, source: "app" }),
+      memoryDecisionSink({
+        signer: { sign: async () => "jws" },
+        source: "app",
+      }),
     ).toThrow(TypeError);
   });
 });

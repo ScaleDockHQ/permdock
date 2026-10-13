@@ -5,12 +5,12 @@ import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { policy, tree } from "../fixtures/org-tree.ts";
 
 describe("instance edges", () => {
   it("answers checks, isolates throwing listeners and sinks, signs snapshots and simulates", async () => {
-    const sink = memorySink({ capacity: 8 });
+    const sink = memoryDecisionSink({ capacity: 8 });
     const throwingSink = {
       write(): void {
         throw new Error("sink");

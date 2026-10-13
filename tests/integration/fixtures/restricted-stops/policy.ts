@@ -5,7 +5,7 @@ import {
   definePermissions,
   definePolicy,
   inherit,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
   role,
@@ -202,7 +202,7 @@ export const shares = {
   ],
 };
 
-export const relations = memoryRelations(permissions, {
+export const relations = memoryRelationSource(permissions, {
   rows: { drive: drives, node: rows, item: rows, entry: rows },
   tables: {
     drive_shares: shares.drive.map((row) => ({

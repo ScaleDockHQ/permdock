@@ -33,10 +33,10 @@ The store's `ttl` is the window a request stays open when the call sets none; `r
 ## Approval policies as data
 
 ```ts
-import { memoryApprovalPolicies } from "permdock";
+import { memoryApprovalPolicySource } from "permdock";
 
 const permdock = await createPermDock(policy, user, {
-  approvalPolicies: memoryApprovalPolicies([
+  approvalPolicies: memoryApprovalPolicySource([
     {
       permission: "expense.pay",
       tenant: "o_acme", // absent: every tenant
@@ -70,7 +70,7 @@ A bad resume is denied with detail `approval-not-found`, `approval-pending`, `ap
 
 ## Delegation
 
-Pass `delegations` (`memoryApprovalDelegations` or your table) and `subjectFor` to `approvalsHandler`. A delegate may approve what the delegator could, inside `from` (inclusive) and `until` (exclusive). The signature records `by` as the delegate and `onBehalfOf` plus `delegation` for the person covered. The store checks the delegator again. A link or a feed cannot approve. See [delegation](https://permdock.com/docs/adapters/approvals#delegation).
+Pass `delegations` (`memoryApprovalDelegationSource` or your table) and `subjectFor` to `approvalsHandler`. A delegate may approve what the delegator could, inside `from` (inclusive) and `until` (exclusive). The signature records `by` as the delegate and `onBehalfOf` plus `delegation` for the person covered. The store checks the delegator again. A link or a feed cannot approve. See [delegation](https://permdock.com/docs/adapters/approvals#delegation).
 
 ## Access reviews
 

@@ -7,7 +7,7 @@ import {
   applyApprovalVerdict,
   approvalsHandler,
   matchDelegation,
-  memoryApprovalDelegations,
+  memoryApprovalDelegationSource,
   memoryApprovalStore,
   parseApprovalDelegation,
   requestApproval,
@@ -122,7 +122,7 @@ async function pending(
 const now = new Date();
 
 describe("approver delegation", () => {
-  const delegations = memoryApprovalDelegations([
+  const delegations = memoryApprovalDelegationSource([
     {
       id: "d1",
       delegator: "cfo",
@@ -140,7 +140,7 @@ describe("approver delegation", () => {
   });
 
   it("treats from as inclusive and until as exclusive", () => {
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "edge",
         delegator: "cfo",
@@ -186,7 +186,7 @@ describe("approver delegation", () => {
 
   it("refuses a delegate who is the requester", async () => {
     const { request } = await pending();
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "self",
         delegator: "cfo",
@@ -240,7 +240,7 @@ describe("approver delegation", () => {
 
   it("does not follow a second hop", async () => {
     const { store, request } = await pending();
-    const chain = memoryApprovalDelegations([
+    const chain = memoryApprovalDelegationSource([
       {
         id: "hop",
         delegator: "erin",
@@ -278,7 +278,7 @@ describe("approver delegation", () => {
       resource: { type: "payment", id: "p1" },
       subject: payer.subject,
     });
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "hold",
         delegator: "dana",
@@ -374,7 +374,7 @@ describe("approver delegation", () => {
 
   it("ignores a delegation outside its permission or resource", async () => {
     const { store, request } = await pending();
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "narrow",
         delegator: "cfo",
@@ -455,7 +455,7 @@ describe("approver delegation", () => {
         request,
         { principal: null, context: {} },
         {
-          delegations: memoryApprovalDelegations([]),
+          delegations: memoryApprovalDelegationSource([]),
           subjectFor: () => inTenant("cfo"),
           requireDistinct: true,
           factsFor,
@@ -524,7 +524,7 @@ describe("approver delegation", () => {
         until: "2026-10-02T00:00:00.000Z",
       }),
     ).toBeUndefined();
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "open",
         delegator: "cfo",

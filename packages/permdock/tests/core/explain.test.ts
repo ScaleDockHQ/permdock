@@ -9,7 +9,7 @@ import {
   definePolicy,
   deny,
   fromSnapshot,
-  memorySink,
+  memoryDecisionSink,
   resource,
   role,
   type Subject,
@@ -123,7 +123,7 @@ describe("explain", () => {
   });
 
   it("attaches no trace to a plain decide and never emits one", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const permdock = await createPermDock(
       policy,
       { id: "u1", roles: ["editor"] },

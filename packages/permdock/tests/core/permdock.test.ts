@@ -15,7 +15,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { isDecisionEvent } from "../fixtures/decisions.ts";
 import {
@@ -125,7 +125,7 @@ describe("createPermDock", () => {
   });
 
   it("filters rows and emits one event with counts", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const permdock = await permdockFor(memberUser, { sink });
     const rows = permdock.filter(permissions.post.update, [ownPost, otherPost]);
     expect(rows).toEqual([ownPost]);

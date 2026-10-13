@@ -5,7 +5,7 @@ import {
   definePermissions,
   definePolicy,
   deny,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
   role,
@@ -86,7 +86,7 @@ export const shares = users.flatMap((user) =>
   ["d-acme", "d-globex"].map((drive_id) => ({ drive_id, user_id: user.id })),
 );
 
-export const relations = memoryRelations(permissions, {
+export const relations = memoryRelationSource(permissions, {
   tables: { drive_shares: shares },
 });
 

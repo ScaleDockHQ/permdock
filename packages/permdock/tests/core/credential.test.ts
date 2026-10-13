@@ -15,7 +15,7 @@ import {
 } from "../../src/core/credential.ts";
 import { eventInstant } from "../../src/core/event-time.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { memorySettings } from "../../src/core/memory-sources.ts";
+import { memorySettingsSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -487,7 +487,7 @@ describe("decideCredential", () => {
 
   it("applies the credentials settings of the key tenant", async () => {
     const long = { ...readKey, expiresAt: NOW + 90 * DAY };
-    const capped = memorySettings({
+    const capped = memorySettingsSource({
       o_1: { credentials: { maxTtl: 30 * DAY } },
     });
     expect(
@@ -495,13 +495,15 @@ describe("decideCredential", () => {
     ).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
     });
-    const services = memorySettings({
+    const services = memorySettingsSource({
       o_1: { credentials: { kinds: ["service"] } },
     });
     expect(
       await decideCredential(developer, long, { now: NOW, settings: services }),
     ).toMatchObject({ denials: [{ detail: { rule: "kind" } }] });
-    const elsewhere = memorySettings({ o_2: { credentials: { maxTtl: 1 } } });
+    const elsewhere = memorySettingsSource({
+      o_2: { credentials: { maxTtl: 1 } },
+    });
     expect(
       (
         await decideCredential(developer, long, {
@@ -520,7 +522,7 @@ describe("decideCredential", () => {
     ).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "no-expiry" } }],
     });
-    const open = memorySettings({
+    const open = memorySettingsSource({
       o_1: { credentials: { allowNoExpiry: true } },
     });
     expect(
@@ -542,7 +544,9 @@ describe("decideCredential", () => {
       },
       context: {},
     });
-    const settings = memorySettings({ o_2: { credentials: { maxTtl: 60 } } });
+    const settings = memorySettingsSource({
+      o_2: { credentials: { maxTtl: 60 } },
+    });
     expect(
       await decideCredential(
         owner,
@@ -578,7 +582,7 @@ describe("decideCredential", () => {
   });
 
   it("asks for approval and resumes only with the matching token", async () => {
-    const settings = memorySettings({
+    const settings = memorySettingsSource({
       o_1: { credentials: { approval: true } },
     });
     const pending = await decideCredential(developer, readKey, {

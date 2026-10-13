@@ -9,7 +9,7 @@ import {
 } from "../../src/better-auth/index.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import {
   testRoleSource,
   testSubjectResolver,
@@ -462,7 +462,7 @@ describe("onRoleChange", () => {
   });
 
   it("writes a membership event when a sink is given", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const hook = onRoleChange(() => undefined, { sink });
     await hook({
       userId: "user-1",

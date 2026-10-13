@@ -8,12 +8,12 @@ An access review asks a named reviewer to keep or revoke each holding of a set o
 ```ts
 import { createPermDock, holder } from "permdock";
 import {
-  memoryAccessReviews,
+  memoryAccessReviewStore,
   startAccessReview,
   accessReviewsHandler,
 } from "permdock/approvals";
 
-const reviews = memoryAccessReviews();
+const reviews = memoryAccessReviewStore();
 
 const review = await startAccessReview(
   permdock,

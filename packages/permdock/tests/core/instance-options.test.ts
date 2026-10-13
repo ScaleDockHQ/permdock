@@ -6,7 +6,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { createAgentKernel } from "../../src/agent/kernel.ts";
 import { createPermDock as createConvexPermDock } from "../../src/convex/create.ts";
-import { memoryApprovalPolicies } from "../../src/core/approval-policies.ts";
+import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
 import { instanceOptions } from "../../src/core/instance-options.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/create.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/create.ts";
@@ -23,7 +23,7 @@ const alice: Subject = {
   context: {},
 };
 
-const approvalPolicies = memoryApprovalPolicies([
+const approvalPolicies = memoryApprovalPolicySource([
   {
     permission: "expense.read",
     tenant: "o1",

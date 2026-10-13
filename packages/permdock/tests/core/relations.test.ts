@@ -11,7 +11,7 @@ import {
   parsePolicyDocument,
 } from "../../src/core/hosted.ts";
 import { mayAccess } from "../../src/core/may-access.ts";
-import { memoryRelations } from "../../src/core/memory-relations.ts";
+import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -138,7 +138,7 @@ const doc = (id: string, folderId: string, ownerId = "nobody") => ({
   ownerId,
 });
 
-const source = memoryRelations(permissions, {
+const source = memoryRelationSource(permissions, {
   rows: { folder: folders },
   edges: {
     folder: {
@@ -196,7 +196,7 @@ describe("relationship graph", () => {
   });
 
   it("denies a cycle with relation-depth", async () => {
-    const cyclic = memoryRelations(permissions, {
+    const cyclic = memoryRelationSource(permissions, {
       rows: {
         folder: [
           { id: "a", parentId: "b", restricted: false, ownerId: "x" },
@@ -300,7 +300,7 @@ describe("relationship graph", () => {
   });
 
   it("follows reporting lines to skip-level managers", async () => {
-    const people = memoryRelations(permissions, {
+    const people = memoryRelationSource(permissions, {
       rows: {
         employee: [
           { id: "ceo", managerId: null },
@@ -566,7 +566,7 @@ describe("hosted graph grants", () => {
   });
 });
 
-describe("memoryRelations conformance", () => {
+describe("memoryRelationSource conformance", () => {
   testRelationSource(source, {
     objects: [
       { resource: "folder", id: "deeper", relation: "viewer" },

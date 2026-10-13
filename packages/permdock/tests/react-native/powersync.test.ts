@@ -5,7 +5,7 @@ import type { PowerSyncWatchable } from "../../src/react-native/powersync.ts";
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { powersyncSource } from "../../src/react-native/powersync.ts";
-import { memoryStorage } from "../../src/react-native/storage.ts";
+import { memorySnapshotStorage } from "../../src/react-native/storage.ts";
 import { connectSource, nativeStore } from "../../src/react-native/store.ts";
 import { ownPost, permissions, policy } from "../fixtures/quick-start.ts";
 

@@ -21,7 +21,7 @@ import {
   buildLocalSnapshot,
   localSnapshot,
 } from "../../src/react-native/local.ts";
-import { memoryStorage } from "../../src/react-native/storage.ts";
+import { memorySnapshotStorage } from "../../src/react-native/storage.ts";
 import { connectSource, nativeStore } from "../../src/react-native/store.ts";
 import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 

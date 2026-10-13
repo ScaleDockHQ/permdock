@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { RelationSource } from "../../src/core/interfaces.ts";
 
-import { memoryRelations } from "../../src/core/memory-relations.ts";
+import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import {
@@ -37,7 +37,7 @@ const permissions = definePermissions({
 
 const at = Date.UTC(2026, 0, 1);
 
-const source = memoryRelations(permissions, {
+const source = memoryRelationSource(permissions, {
   rows: {
     room: [
       { guestId: "ghost" },
@@ -65,7 +65,7 @@ function related(id: string, relation: string): unknown {
   return source.related({ resource: "room", id, relation });
 }
 
-describe("memoryRelations", () => {
+describe("memoryRelationSource", () => {
   it.each([
     {
       name: "a Date period",
@@ -114,7 +114,7 @@ describe("memoryRelations", () => {
 
   it("reads nothing without data", () => {
     expect(
-      memoryRelations(permissions).related({
+      memoryRelationSource(permissions).related({
         resource: "room",
         id: "date",
         relation: "guest",

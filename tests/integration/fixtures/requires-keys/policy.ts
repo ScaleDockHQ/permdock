@@ -4,7 +4,7 @@ import {
   allow,
   definePermissions,
   definePolicy,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
   role,
@@ -91,7 +91,7 @@ export const shares = [
   { node_id: "n-edit", user_id: uuid(4), role: "editor" },
 ];
 
-export const relations = memoryRelations(permissions, {
+export const relations = memoryRelationSource(permissions, {
   tables: { node_shares: shares },
 });
 

@@ -106,7 +106,7 @@ const WITH_EXPORTS: Readonly<Record<string, readonly string[]>> = {
 
 /** Interfaces named like a store, sink or source that are not extension points. */
 const NOT_EXTENSION_POINTS = new Set([
-  "MemorySink",
+  "MemoryDecisionSink",
   "MemoryApprovalStore",
   "SqlMembershipSource",
   "TokenSource",

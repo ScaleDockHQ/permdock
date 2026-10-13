@@ -57,7 +57,7 @@ metadata:
    ✓ `permdock doctor` reports no PD018 (exclusive roles held together).
 4. **Store and handler.** Create one `ApprovalStore`, pass it as `store` to every adapter, and mount `approvalsHandler(store, { subject })` for approvers; add `relations` and `permissions` when a grant uses `relation()` approvers. -> [references/stores-and-resume.md](references/stores-and-resume.md)
    ✓ A second authenticated user can approve; the actor and the requester get `403`.
-5. **Rules as data (optional).** Pass `approvalPolicies` (an `ApprovalPolicySource`, `memoryApprovalPolicies` in process) to `createPermDock` for approval rules organisations configure. -> [references/stores-and-resume.md](references/stores-and-resume.md#approval-policies-as-data)
+5. **Rules as data (optional).** Pass `approvalPolicies` (an `ApprovalPolicySource`, `memoryApprovalPolicySource` in process) to `createPermDock` for approval rules organisations configure. -> [references/stores-and-resume.md](references/stores-and-resume.md#approval-policies-as-data)
    ✓ `testApprovalPolicySource` from `permdock/testing` passes on the source.
 6. **Surface and resume.** Map the outcome to each runtime's approval hook and resume with the token: the `PermDock-Approval` header over HTTP, the runtime's own resume for agents. -> [references/stores-and-resume.md](references/stores-and-resume.md#surfaces)
    ✓ The approved call runs once; a second resume is denied with `approval-consumed`.

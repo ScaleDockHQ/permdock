@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   createPermDock,
   findPermission,
-  memoryRelations,
+  memoryRelationSource,
   memoryRoleSource,
   validateCustomRole,
 } from "permdock";
@@ -435,7 +435,7 @@ describe("CentraKit adoption shapes", () => {
       report_id: REPORT,
       amount: 5000,
     };
-    const relations = memoryRelations(permissions, {
+    const relations = memoryRelationSource(permissions, {
       rows: {
         expenses: [expense],
         reports: [

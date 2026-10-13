@@ -8,7 +8,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { compact } from "../../src/core/compact.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { memorySettings } from "../../src/core/memory-sources.ts";
+import { memorySettingsSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { listPermissions } from "../../src/core/permission-registry.ts";
@@ -16,14 +16,14 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { memoryPrincipalSource } from "../../src/core/principal-source.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/index.ts";
 import {
   type ApiKeySubjectOptions,
   apiKeyVerifier,
   generateApiKey,
   hashApiKey,
-  memoryCredentials,
+  memoryCredentialStore,
   parseApiKey,
   subjectFromApiKey,
 } from "../../src/server/credentials.ts";
@@ -92,7 +92,7 @@ function permdockFor(subject: Subject) {
 }
 
 async function issue(overrides: Record<string, unknown> = {}) {
-  const store = memoryCredentials();
+  const store = memoryCredentialStore();
   const key = await store.issue(credential(overrides));
   return { store, key };
 }
@@ -108,8 +108,8 @@ function resolve(
   );
 }
 
-describe("testCredentialVerifier on memoryCredentials", () => {
-  const conformance = memoryCredentials();
+describe("testCredentialVerifier on memoryCredentialStore", () => {
+  const conformance = memoryCredentialStore();
   testCredentialVerifier(conformance, {
     key: () => conformance.issue(credential(service)),
     revoke: () => {
@@ -192,10 +192,10 @@ describe("API key format", () => {
   });
 });
 
-describe("memoryCredentials", () => {
+describe("memoryCredentialStore", () => {
   it("issues, rotates and revokes, reporting each to the sink", async () => {
-    const sink = memorySink();
-    const store = memoryCredentials({ sink, source: "app" });
+    const sink = memoryDecisionSink();
+    const store = memoryCredentialStore({ sink, source: "app" });
     const first = await store.issue(credential());
     expect(parseApiKey(first)?.id).toBe("key_1");
     expect(store.list()).toEqual([credential()]);
@@ -229,7 +229,7 @@ describe("memoryCredentials", () => {
   });
 
   it("keeps working when the sink throws", async () => {
-    const store = memoryCredentials({
+    const store = memoryCredentialStore({
       sink: {
         write() {
           throw new Error("down");
@@ -269,12 +269,12 @@ describe("apiKeyVerifier", () => {
 
 describe("subjectFromApiKey", () => {
   testSubjectResolver(
-    subjectFromApiKey({ verifier: memoryCredentials(), permissions }),
+    subjectFromApiKey({ verifier: memoryCredentialStore(), permissions }),
     { invalid: `pdk_nope_${"a".repeat(49)}` },
   );
 
   it("checks a service key against its tenant and a user key against the request tenant", async () => {
-    const settings = memorySettings({
+    const settings = memorySettingsSource({
       o_1: { credentials: { maxTtl: 60 } },
     });
     const serviceKey = await issue(service);
@@ -421,7 +421,9 @@ describe("subjectFromApiKey", () => {
       {
         key,
         options: {
-          settings: memorySettings({ o_1: { credentials: { maxTtl: 60 } } }),
+          settings: memorySettingsSource({
+            o_1: { credentials: { maxTtl: 60 } },
+          }),
         },
         tenant: "o_1",
         cause: "credential-policy",
@@ -504,7 +506,7 @@ describe("subjectFromApiKey", () => {
 
   it("reports sampled uses to the sink and never lets the sink decide", async () => {
     const { store, key } = await issue();
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     await resolve(key, {
       verifier: store,
       permissions,
@@ -521,7 +523,7 @@ describe("subjectFromApiKey", () => {
         sample: 1,
       }),
     ]);
-    const quiet = memorySink();
+    const quiet = memoryDecisionSink();
     for (const sample of [0, 2, Number.NaN]) {
       await resolve(key, {
         verifier: store,
@@ -541,7 +543,7 @@ describe("subjectFromApiKey", () => {
       },
     });
     expect(subject.principal?.id).toBe("u_1");
-    const counted = memorySink();
+    const counted = memoryDecisionSink();
     for (let index = 0; index < 200; index += 1) {
       await resolve(key, {
         verifier: store,
@@ -587,7 +589,7 @@ describe("subjectFromApiKey: a key over many permissions", () => {
   );
 
   it("resolves a verified key that delegates 200 permissions", async () => {
-    const store = memoryCredentials();
+    const store = memoryCredentialStore();
     const key = await store.issue(
       credential({
         permissions: delegated.map((leaf) => ({ permission: leaf.key })),

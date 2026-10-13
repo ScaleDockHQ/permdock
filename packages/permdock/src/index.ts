@@ -66,7 +66,7 @@ export {
   memoryMembershipSource,
   memoryRoleSource,
   memorySnapshotSource,
-  memorySettings,
+  memorySettingsSource,
 } from "./core/memory-sources.ts";
 export { memoryPrincipalSource } from "./core/principal-source.ts";
 export type {
@@ -76,7 +76,7 @@ export type {
 } from "./core/principal-source.ts";
 export {
   APPROVAL_POLICY_UNAVAILABLE,
-  memoryApprovalPolicies,
+  memoryApprovalPolicySource,
   validateApprovalPolicy,
 } from "./core/approval-policies.ts";
 export type {
@@ -94,10 +94,10 @@ export {
 export { fromStripeEntitlements } from "./core/stripe-entitlements.ts";
 export type { StripeEntitlementsClient } from "./core/stripe-entitlements.ts";
 export { memoryLimitStore } from "./core/limits.ts";
-export { memoryRelations } from "./core/memory-relations.ts";
+export { memoryRelationSource } from "./core/memory-relations.ts";
 export type {
   MemoryEdge,
-  MemoryRelationsData,
+  MemoryRelationSourceData,
 } from "./core/memory-relations.ts";
 export type { Holder, HoldingVia, WhoCan } from "./core/who-can.ts";
 export {
@@ -370,7 +370,7 @@ export {
   cloudEventType,
   credentialEvent,
   membershipEvent,
-  memorySink,
+  memoryDecisionSink,
   signDecisionBatch,
   toCloudEvent,
 } from "./core/sink.ts";
@@ -381,8 +381,8 @@ export type {
   CloudEvent,
   CloudEventOptions,
   CloudEventType,
-  MemorySink,
-  MemorySinkOptions,
+  MemoryDecisionSink,
+  MemoryDecisionSinkOptions,
   SignDecisionBatchOptions,
 } from "./core/sink.ts";
 export {

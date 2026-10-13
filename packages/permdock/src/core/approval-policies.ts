@@ -60,7 +60,7 @@ export type ApprovalPolicySource = {
 /** The denial detail when an `ApprovalPolicySource` fails: every call an allow would grant denies with reason `approval`. */
 export const APPROVAL_POLICY_UNAVAILABLE = "approval-policy-unavailable";
 
-export function memoryApprovalPolicies(
+export function memoryApprovalPolicySource(
   policies: readonly ApprovalPolicy[],
 ): ApprovalPolicySource {
   const entries = [...policies];

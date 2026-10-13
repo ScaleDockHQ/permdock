@@ -40,7 +40,7 @@ export type {
   PowerSyncWatchable,
 } from "./powersync.ts";
 export { PermDockProvider } from "./provider.tsx";
-export { memoryStorage } from "./storage.ts";
+export { memorySnapshotStorage } from "./storage.ts";
 export { mmkvStorage, secureStoreStorage } from "./storage-adapters.ts";
 export type { MmkvInstance, SecureStoreModule } from "./storage-adapters.ts";
 export { appStateForeground, netInfoOnline } from "./subscriptions.ts";

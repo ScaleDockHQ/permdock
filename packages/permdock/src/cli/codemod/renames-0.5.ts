@@ -188,9 +188,39 @@ const rows: readonly Rename[] = [
     entries: ["permdock/approvals"],
   },
   {
+    from: "MemoryAccessReviews",
+    to: "MemoryAccessReviewStore",
+    entries: ["permdock/approvals"],
+    kind: "type",
+  },
+  {
+    from: "MemoryRelationsData",
+    to: "MemoryRelationSourceData",
+    entries: ["permdock"],
+    kind: "type",
+  },
+  {
+    from: "MemorySink",
+    to: "MemoryDecisionSink",
+    entries: ["permdock"],
+    kind: "type",
+  },
+  {
+    from: "MemorySinkOptions",
+    to: "MemoryDecisionSinkOptions",
+    entries: ["permdock"],
+    kind: "type",
+  },
+  {
     from: "memoryCredentials",
     to: "memoryCredentialStore",
     entries: ["permdock/server"],
+  },
+  {
+    from: "MemoryCredentials",
+    to: "MemoryCredentialStore",
+    entries: ["permdock/server"],
+    kind: "type",
   },
   {
     from: "memoryStorage",

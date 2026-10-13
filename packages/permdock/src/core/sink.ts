@@ -161,7 +161,7 @@ export type SignDecisionBatchOptions = {
   readonly source: string;
 };
 
-export type MemorySinkOptions = {
+export type MemoryDecisionSinkOptions = {
   readonly capacity?: number;
 } & (
   | {
@@ -178,7 +178,7 @@ export type MemorySinkOptions = {
     }
 );
 
-export type MemorySink = DecisionSink & {
+export type MemoryDecisionSink = DecisionSink & {
   readonly events: () => readonly SinkEvent[];
   readonly batches: () => readonly string[];
 };
@@ -485,7 +485,9 @@ export function signDecisionBatch(
   );
 }
 
-export function memorySink(options: MemorySinkOptions = {}): MemorySink {
+export function memoryDecisionSink(
+  options: MemoryDecisionSinkOptions = {},
+): MemoryDecisionSink {
   const capacity = options.capacity ?? 10_000;
   const buffer: SinkEvent[] = [];
   const signed: string[] = [];

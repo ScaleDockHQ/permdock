@@ -91,7 +91,7 @@ export function parseApprovalDelegation(
 }
 
 /** In-process delegations. An entry that does not parse is dropped. */
-export function memoryApprovalDelegations(
+export function memoryApprovalDelegationSource(
   entries: readonly unknown[],
 ): ApprovalDelegationSource {
   const stored = entries.flatMap((entry) => {

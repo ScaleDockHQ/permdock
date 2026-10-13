@@ -13,7 +13,7 @@ import {
   definePermissions,
   definePolicy,
   deny,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
   role,
@@ -71,7 +71,7 @@ const drives = [
   { id: "d-globex", orgId: "globex" },
 ];
 
-const relations = memoryRelations(permissions, {
+const relations = memoryRelationSource(permissions, {
   tables: {
     drive_shares: ["ana", "gus", "bob", "cora", "eve", "aud", "own"].flatMap(
       (user_id) => [
@@ -243,7 +243,7 @@ describe("requires with a list of permissions", () => {
       memberships: user.memberships ?? [],
     }),
   });
-  const shares = memoryRelations(listed, {
+  const shares = memoryRelationSource(listed, {
     tables: {
       drive_shares: drives.map((row) => ({ drive_id: row.id, user_id: "ana" })),
     },
@@ -545,7 +545,7 @@ describe("requires and a key's scopes on a write", () => {
     { id: "n-edit", orgId: "acme" },
     { id: "n-other", orgId: "acme" },
   ];
-  const nodeRelations = memoryRelations(shared, {
+  const nodeRelations = memoryRelationSource(shared, {
     tables: {
       node_shares: [{ node_id: "n-edit", user_id: "ana", role: "editor" }],
     },

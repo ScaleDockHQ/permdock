@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock, memoryRelations } from "permdock";
+import { createPermDock, memoryRelationSource } from "permdock";
 import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -147,7 +147,7 @@ async function inProcess(
   table: "doc" | "folder",
   folders: readonly Record<string, unknown>[],
 ): Promise<readonly string[]> {
-  const relations = memoryRelations(permissions, {
+  const relations = memoryRelationSource(permissions, {
     rows: { folder: folders },
     edges: {
       folder: {

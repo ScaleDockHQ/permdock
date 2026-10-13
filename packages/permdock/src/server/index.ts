@@ -22,7 +22,7 @@ export {
   generateApiKey,
   generateFeedKey,
   hashApiKey,
-  memoryCredentials,
+  memoryCredentialStore,
   parseApiKey,
   parseFeedKey,
   subjectFromApiKey,
@@ -31,7 +31,7 @@ export type {
   ApiKeyFailureCause,
   ApiKeyParts,
   ApiKeySubjectOptions,
-  MemoryCredentials,
+  MemoryCredentialStore,
   StoredCredential,
 } from "./credentials.ts";
 export {

@@ -22,7 +22,7 @@ export function memoryEntitlementSource(
   };
 }
 
-export function memorySettings(
+export function memorySettingsSource(
   settings: Readonly<Record<string, TenantSettings>>,
 ): SettingsSource {
   const byTenant = new Map(Object.entries(settings));

@@ -19,10 +19,10 @@ export type {
   StartAccessReviewOptions,
 } from "./access-reviews/start.ts";
 export {
-  memoryAccessReviews,
+  memoryAccessReviewStore,
   pageAccessReviewItems,
 } from "./access-reviews/store.ts";
-export type { MemoryAccessReviews } from "./access-reviews/store.ts";
+export type { MemoryAccessReviewStore } from "./access-reviews/store.ts";
 export type {
   AccessReview,
   AccessReviewDecision,
@@ -35,7 +35,7 @@ export type {
 } from "./access-reviews/types.ts";
 export {
   matchDelegation,
-  memoryApprovalDelegations,
+  memoryApprovalDelegationSource,
   parseApprovalDelegation,
 } from "./delegation.ts";
 export type {

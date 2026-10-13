@@ -248,7 +248,7 @@ The Supabase token hook copies `supabase.hook.attrs` into the `attrs` claim, whi
 
 ### PD029: API keys that never expire
 
-When `doctor.credentials` points at a JSON fixture `{ credentials?, settings? }` (a sample of the API-key records the application stores, and per-tenant settings in the `memorySettings` shape), the check warns on every credential without `expiresAt`, every record `parseCredential` rejects (it would verify to no subject), and every tenant whose `credentials` settings set `allowNoExpiry`. A key that never expires stays live after it leaks until someone revokes it, so each opt-in should be deliberate ([API keys](/docs/concepts/credentials)). `--only credentials` runs this check.
+When `doctor.credentials` points at a JSON fixture `{ credentials?, settings? }` (a sample of the API-key records the application stores, and per-tenant settings in the `memorySettingsSource` shape), the check warns on every credential without `expiresAt`, every record `parseCredential` rejects (it would verify to no subject), and every tenant whose `credentials` settings set `allowNoExpiry`. A key that never expires stays live after it leaks until someone revokes it, so each opt-in should be deliberate ([API keys](/docs/concepts/credentials)). `--only credentials` runs this check.
 
 ### PD030: field-limited columns the database still returns
 

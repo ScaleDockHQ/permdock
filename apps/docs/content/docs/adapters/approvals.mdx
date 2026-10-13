@@ -151,10 +151,10 @@ A custom resolve path calls `resolveApproval(store, token, verdict, { relations,
 `approvalPolicies` on `createPermDock` takes an `ApprovalPolicySource`, on the core factory and on every adapter that builds an instance (`permdock/next`, `permdock/server` and the HTTP adapters, `permdock/supabase/middleware`, `permdock/mcp`, `permdock/a2a`, `permdock/authzen`, `permdock/terminal` and the agent adapters `ai-sdk`, `claude-agent`, `eve` and `openai`), for approval rules an organisation configures at runtime, such as "payments over 1000 need finance". An entry adds stages to a matching allow; it never grants, never removes a code requirement and never lowers a quorum.
 
 ```ts
-import { memoryApprovalPolicies } from "permdock";
+import { memoryApprovalPolicySource } from "permdock";
 
 const permdock = await createPermDock(policy, user, {
-  approvalPolicies: memoryApprovalPolicies([
+  approvalPolicies: memoryApprovalPolicySource([
     {
       permission: "expense.pay", // a key; a former key from renamed resolves
       tenant: "o_acme", // absent: every tenant
@@ -533,11 +533,11 @@ A delegate may approve whatever the delegator could approve, inside a time windo
 ```ts
 import {
   approvalsHandler,
-  memoryApprovalDelegations,
+  memoryApprovalDelegationSource,
 } from "permdock/approvals";
 
 const handler = approvalsHandler(store, {
-  delegations: memoryApprovalDelegations([
+  delegations: memoryApprovalDelegationSource([
     {
       id: "del_1",
       delegator: "u_owner",

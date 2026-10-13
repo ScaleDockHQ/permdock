@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createPermDock } from "../../src/authzen/index.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import {
   adminUser,
   memberUser,
@@ -176,7 +176,7 @@ describe("permdock/authzen", () => {
   });
 
   it("ignores a body actor and delegation from an untrusted PEP", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const response = await createPermDock(policy, {
       subject: () => ({ id: "pep", orgId: "o1", roles: ["admin"] }),
       sink,

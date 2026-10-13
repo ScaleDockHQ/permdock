@@ -10,7 +10,7 @@ import {
   acceptStored,
   clearStorage,
   guardStorage,
-  memoryStorage,
+  memorySnapshotStorage,
   persistSnapshot,
   readStored,
   readStoredSync,
@@ -53,7 +53,7 @@ const signedVerifier = (snapshot: Snapshot) => ({
 describe("permdock/react-native", () => {
   it("answers portable grants from sync storage on the first frame", async () => {
     const snapshot = await memberSnapshot();
-    const storage = memoryStorage({
+    const storage = memorySnapshotStorage({
       [SNAPSHOT_KEY]: JSON.stringify(snapshot),
     });
     const html = renderToStaticMarkup(
@@ -82,7 +82,7 @@ describe("permdock/react-native", () => {
 
   it("clears persisted grants so the next launch is empty", async () => {
     const snapshot = await memberSnapshot();
-    const storage = memoryStorage({
+    const storage = memorySnapshotStorage({
       [SNAPSHOT_KEY]: JSON.stringify(snapshot),
     });
     const store = nativeStore({ storage, subjectId: "u1" });
@@ -198,11 +198,11 @@ describe("permdock/react-native storage", () => {
       [TENANT_KEY]: "o1",
     };
     expect(
-      readStoredSync(guardStorage(memoryStorage(values)), "u1", false),
+      readStoredSync(guardStorage(memorySnapshotStorage(values)), "u1", false),
     ).toMatchObject({ tenant: "o1" });
     expect(
       readStoredSync(
-        guardStorage(memoryStorage({ [TENANT_KEY]: "o1" })),
+        guardStorage(memorySnapshotStorage({ [TENANT_KEY]: "o1" })),
         "u1",
         false,
       ),
@@ -257,7 +257,7 @@ describe("permdock/react-native storage", () => {
       persistSnapshot(throwing, raw, "o1");
       clearStorage(throwing);
     }).not.toThrow();
-    const sync = memoryStorage();
+    const sync = memorySnapshotStorage();
     persistSnapshot(guardStorage(sync), raw, "o1");
     expect(sync.getItem(TENANT_KEY)).toBe("o1");
   });

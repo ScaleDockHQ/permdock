@@ -16,7 +16,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy, grantList } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { definePlans } from "../../src/core/vocabulary.ts";
 
 const Invoice = z.object({
@@ -460,7 +460,7 @@ describe("hosted grants", () => {
   });
 
   it("records the hosted grant on the decision event", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const permdock = await createPermDock(policy, proUser, {
       sink,
       policies: memoryPolicySource(

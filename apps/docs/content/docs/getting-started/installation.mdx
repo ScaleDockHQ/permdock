@@ -42,7 +42,7 @@ Core uses only the [WinterTC Minimum Common API](https://min-common-api.proposal
 | AWS Lambda                      | Yes                                     | Through `permdock/node` or a Fetch adapter such as Hono's; approvals need an external `ApprovalStore`                                                                                                                         |
 | Browsers, React Native (Hermes) | Client entries only                     | `permdock/react`, `permdock/react-native`, `permdock/webmcp`; no policy code ships (invariant 8)                                                                                                                              |
 
-The one runtime-specific caveat is state: any store or sink that defaults to memory (`memoryApprovalStore`, `memorySink`) is per process or per isolate and resets on cold start. `permdock doctor` warns when the memory store is the configured `ApprovalStore` in a serverless target. Recipes for Durable Objects, KV, Redis and Postgres stores live on the [approvals](/docs/adapters/approvals) and [audit and observability](/docs/concepts/audit-and-observability) pages; none is a package.
+The one runtime-specific caveat is state: any store or sink that defaults to memory (`memoryApprovalStore`, `memoryDecisionSink`) is per process or per isolate and resets on cold start. `permdock doctor` warns when the memory store is the configured `ApprovalStore` in a serverless target. Recipes for Durable Objects, KV, Redis and Postgres stores live on the [approvals](/docs/adapters/approvals) and [audit and observability](/docs/concepts/audit-and-observability) pages; none is a package.
 
 ## A Standard Schema validator
 
