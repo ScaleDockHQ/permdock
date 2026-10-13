@@ -1,0 +1,101 @@
+{
+  "$schema": "https://permdock.com/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-10-13T23:44:22.880Z",
+  "generator": "permdock@0.4.0",
+  "fingerprint": "sha-256:zwt8bBMVSc9cL40sxR1N5ZSwOCwsZ7G79OcMVkDrJG8",
+  "resources": {
+    "invoice": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "orgId"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/permissions.ts",
+      "relations": {
+        "org": {
+          "field": "orgId",
+          "memberOf": "tenant"
+        }
+      }
+    }
+  },
+  "permissions": [
+    {
+      "key": "invoice.pay",
+      "scope": "invoice:pay",
+      "resource": "invoice",
+      "action": "pay",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/send.ts",
+          "line": 65,
+          "call": "decide"
+        },
+        {
+          "file": "src/send.ts",
+          "line": 70,
+          "call": "tools"
+        },
+        {
+          "file": "src/send.ts",
+          "line": 75,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "invoice.read",
+      "scope": "invoice:read",
+      "resource": "invoice",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/send.ts",
+          "line": 47,
+          "call": "reference"
+        },
+        {
+          "file": "src/send.ts",
+          "line": 76,
+          "call": "reference"
+        },
+        {
+          "file": "src/send.ts",
+          "line": 84,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": true
+    }
+  ],
+  "roles": [
+    {
+      "key": "billing"
+    },
+    {
+      "key": "customer"
+    },
+    {
+      "key": "member"
+    }
+  ]
+}

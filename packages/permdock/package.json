@@ -462,6 +462,9 @@
     "better-supabase": {
       "optional": true
     },
+    "chat": {
+      "optional": true
+    },
     "drizzle-orm": {
       "optional": true
     },
@@ -502,6 +505,9 @@
       "optional": true
     },
     "reflect-metadata": {
+      "optional": true
+    },
+    "resend": {
       "optional": true
     },
     "rxjs": {

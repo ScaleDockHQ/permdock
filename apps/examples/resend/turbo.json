@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tags": ["example"],
+  "tasks": {
+    "dev": {
+      "passThroughEnv": [
+        "HOST",
+        "PORT",
+        "RESEND_API_KEY",
+        "RESEND_WEBHOOK_SECRET"
+      ]
+    }
+  }
+}
