@@ -173,7 +173,7 @@
     "resumeFromHeader",
     "startAccessReview",
     "storedApprovalToken",
-    "summariseSubject",
+    "summarizeSubject",
     "vouchApproval"
   ],
   "./jwt": [
@@ -220,7 +220,7 @@
     "nativeStore",
     "netInfoOnline",
     "parseLocalSnapshotManifest",
-    "powersyncSource",
+    "powerSyncSource",
     "requiredPlans",
     "secureStoreStorage",
     "useApproval",
@@ -542,7 +542,7 @@
     "testApprovalDelegationSource",
     "testApprovalPolicySource",
     "testApprovalStore",
-    "testAuthZen",
+    "testAuthzen",
     "testClientParity",
     "testClientStore",
     "testCredentialVerifier",
