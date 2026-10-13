@@ -29,6 +29,7 @@ export type {
   EmailUnsubscribe,
   OutgoingEmail,
   Recipient,
+  TransportItem,
   TransportMessages,
   TransportOptions,
   WebhookMessage,

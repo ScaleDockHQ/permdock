@@ -131,6 +131,13 @@ export type DeliveryResult =
       readonly reason?: string;
     };
 
+/** One delivery as a transport receives it. */
+export type TransportItem<C extends DeliveryChannel = DeliveryChannel> = {
+  readonly target: DeliveryTarget<C>;
+  readonly message: TransportMessages[C];
+  readonly options: TransportOptions;
+};
+
 /**
  * One channel's sender. `deliver` resolves to a result; a throw or a
  * rejection counts as a retryable `unavailable` failure.
@@ -144,6 +151,15 @@ export type DeliveryTransport<C extends DeliveryChannel = DeliveryChannel> = {
     message: TransportMessages[C],
     options: TransportOptions,
   ): DeliveryResult | Promise<DeliveryResult>;
+  /**
+   * Sends several deliveries in one provider call, one result per item in
+   * item order. The router uses it for two or more ready recipients.
+   */
+  deliverBatch?(
+    items: readonly TransportItem<C>[],
+  ): readonly DeliveryResult[] | Promise<readonly DeliveryResult[]>;
+  /** The most items one `deliverBatch` call takes. Defaults to 100. */
+  readonly batchSize?: number;
 };
 
 export type EmailTransport = DeliveryTransport<"email">;

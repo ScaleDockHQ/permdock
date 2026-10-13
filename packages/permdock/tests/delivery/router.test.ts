@@ -290,6 +290,82 @@ describe("createPermDock (delivery)", () => {
     ]);
   });
 
+  it("sends two or more ready recipients through deliverBatch in chunks", async () => {
+    const batches: number[] = [];
+    const delivery = createPermDock(deliveryPolicy, {
+      transports: {
+        email: {
+          channel: "email",
+          name: "batcher",
+          batchSize: 2,
+          deliver: () => ({ status: "sent", providerId: "single" }),
+          deliverBatch: (items) => {
+            batches.push(items.length);
+            return items.map((item) =>
+              item.target.principal === "c_1"
+                ? { status: "failed", cause: "suppressed", retryable: false }
+                : { status: "sent", providerId: `b_${item.target.principal}` },
+            );
+          },
+        },
+      },
+      principals: deliveryPrincipals,
+      from: "billing@acme.test",
+    });
+    const report = await delivery.deliver(
+      await sender(),
+      p.invoice.read,
+      invoice,
+      [
+        { principal: "u_2", channel: "email", address: "ann@acme.test" },
+        { principal: "u_3", channel: "email", address: "otto@globex.test" },
+        { principal: "u_1", channel: "email", address: "bob@acme.test" },
+        { principal: "c_1", channel: "email", address: "cleo@client.test" },
+      ],
+      { email },
+    );
+    expect(batches).toEqual([2, 1]);
+    expect(
+      report.events.map((event) => event.provider?.id ?? event.cause),
+    ).toEqual(["b_u_2", "denied", "b_u_1", "suppressed"]);
+  });
+
+  it("fails every item of a batch that throws or returns the wrong count", async () => {
+    for (const deliverBatch of [
+      () => {
+        throw new Error("down");
+      },
+      () => [{ status: "sent" as const }],
+    ]) {
+      const delivery = createPermDock(deliveryPolicy, {
+        transports: {
+          email: {
+            channel: "email",
+            name: "batcher",
+            deliver: () => ({ status: "sent" }),
+            deliverBatch,
+          },
+        },
+        principals: deliveryPrincipals,
+        from: "billing@acme.test",
+      });
+      const report = await delivery.deliver(
+        await sender(),
+        p.invoice.read,
+        invoice,
+        [
+          { principal: "u_2", channel: "email", address: "ann@acme.test" },
+          { principal: "u_1", channel: "email", address: "bob@acme.test" },
+        ],
+        { email },
+      );
+      expect(report.events).toMatchObject([
+        { cause: "unavailable", retryable: true },
+        { cause: "unavailable", retryable: true },
+      ]);
+    }
+  });
+
   it("never rejects when the sink throws", async () => {
     const delivery = createPermDock(deliveryPolicy, {
       transports: { email: memoryDeliveryTransport("email") },

@@ -8,6 +8,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
 import type { Principal } from "../core/subject.ts";
 import type {
+  ChatMessage,
   DeliverOptions,
   DeliveryChannel,
   DeliveryFailureCause,
@@ -18,6 +19,8 @@ import type {
   DeliveryTransport,
   DeliveryTransports,
   Recipient,
+  TransportItem,
+  WebhookMessage,
 } from "./types.ts";
 
 import { ownRecord } from "../core/capability.ts";
@@ -182,6 +185,106 @@ function resultOf(value: unknown): DeliveryResult | Failure {
   };
 }
 
+type Ready = {
+  readonly transport: DeliveryTransport;
+  readonly item: TransportItem;
+  finish(result: DeliveryResult | Failure): DeliveryEvent;
+};
+
+const THREW: Failure = Object.freeze({
+  cause: "unavailable",
+  retryable: true,
+  reason: "transport threw",
+});
+
+async function sendOne(ready: Ready): Promise<DeliveryEvent> {
+  try {
+    return ready.finish(
+      resultOf(
+        await ready.transport.deliver(
+          ready.item.target,
+          // SAFETY: the item's message was built for the target's channel, the transport's channel.
+          ready.item.message as never,
+          ready.item.options,
+        ),
+      ),
+    );
+  } catch {
+    return ready.finish(THREW);
+  }
+}
+
+async function sendBatch(
+  transport: DeliveryTransport,
+  batch: readonly Ready[],
+): Promise<DeliveryEvent[]> {
+  let results: readonly unknown[] = [];
+  try {
+    results =
+      (await transport.deliverBatch?.(batch.map((ready) => ready.item))) ?? [];
+  } catch {
+    return batch.map((ready) => ready.finish(THREW));
+  }
+  return batch.map((ready, index) =>
+    ready.finish(
+      results.length === batch.length
+        ? resultOf(results[index])
+        : {
+            cause: "unavailable",
+            retryable: true,
+            reason: "batch returned the wrong number of results",
+          },
+    ),
+  );
+}
+
+/**
+ * Sends every ready item: one batch call per `batchSize` items for a
+ * transport with `deliverBatch`, one `deliver` call each otherwise. Events
+ * keep recipient order.
+ */
+async function send(
+  prepared: readonly (DeliveryEvent | Ready)[],
+): Promise<DeliveryEvent[]> {
+  const events: (DeliveryEvent | undefined)[] = prepared.map((entry) =>
+    "transport" in entry ? undefined : entry,
+  );
+  const groups = new Map<DeliveryTransport, number[]>();
+  for (const [index, entry] of prepared.entries()) {
+    if ("transport" in entry) {
+      const group = groups.get(entry.transport) ?? [];
+      group.push(index);
+      groups.set(entry.transport, group);
+    }
+  }
+  const ready = (index: number): Ready =>
+    // SAFETY: groups holds only the indexes of Ready entries.
+    prepared[index] as Ready;
+  await Promise.all(
+    [...groups].map(async ([transport, indexes]) => {
+      if (transport.deliverBatch === undefined || indexes.length < 2) {
+        await Promise.all(
+          indexes.map(async (index) => {
+            events[index] = await sendOne(ready(index));
+          }),
+        );
+        return;
+      }
+      const size = Math.max(1, Math.min(transport.batchSize ?? 100, 1000));
+      for (let start = 0; start < indexes.length; start += size) {
+        const chunk = indexes.slice(start, start + size);
+        // oxlint-disable-next-line no-await-in-loop -- one batch at a time keeps a fan-out under the provider's rate limit
+        const sent = await sendBatch(transport, chunk.map(ready));
+        for (const [offset, index] of chunk.entries()) {
+          events[index] = sent[offset];
+        }
+      }
+    }),
+  );
+  // SAFETY: every index was filled above, from `prepared` or by its transport.
+  return events as DeliveryEvent[];
+}
+
 /** Routes checked recipients to channel transports and records a delivery event for each. */
 export function createPermDock<
   TUser,
@@ -240,7 +343,7 @@ export function createPermDock<
     };
   };
 
-  const deliverOne = async (
+  const prepare = async (
     permdock: PermDock<V>,
     recipient: Recipient,
     permission: Permission,
@@ -248,7 +351,7 @@ export function createPermDock<
     messages: Partial<DeliveryMessages>,
     id: string,
     base: Pick<DeliveryEvent, "permission" | "tenant" | "approval">,
-  ): Promise<DeliveryEvent> => {
+  ): Promise<DeliveryEvent | Ready> => {
     const checked = checkRecipient(recipient);
     const rawChannel = ownRecord(recipient)?.["channel"];
     const channel: DeliveryChannel =
@@ -357,7 +460,7 @@ export function createPermDock<
         decision: decided.decision satisfies GrantedDecision,
       }),
     );
-    let outgoing: unknown = message;
+    let outgoing: TransportItem["message"];
     if (checked.channel === "email") {
       try {
         const built = outgoingEmail(
@@ -382,30 +485,26 @@ export function createPermDock<
           reason: "unsubscribe threw",
         });
       }
+    } else {
+      // SAFETY: a chat or webhook message reaches its transport unchanged.
+      outgoing = message as ChatMessage | WebhookMessage;
     }
     provider = { name: transport.name };
-    let result: DeliveryResult | Failure;
-    try {
-      result = resultOf(
-        await transport.deliver(
-          target,
-          // SAFETY: `outgoing` is the message for `target.channel`, the transport's channel.
-          outgoing as never,
-          { idempotencyKey: key, delivery: id },
-        ),
-      );
-    } catch {
-      result = {
-        cause: "unavailable",
-        retryable: true,
-        reason: "transport threw",
-      };
-    }
-    if ("status" in result && result.status === "sent") {
-      provider = compact({ name: transport.name, id: result.providerId });
-      return event("sent");
-    }
-    return fail(result);
+    return {
+      transport,
+      item: Object.freeze({
+        target,
+        message: outgoing,
+        options: Object.freeze({ idempotencyKey: key, delivery: id }),
+      }),
+      finish(result: DeliveryResult | Failure): DeliveryEvent {
+        if ("status" in result && result.status === "sent") {
+          provider = compact({ name: transport.name, id: result.providerId });
+          return event("sent");
+        }
+        return fail(result);
+      },
+    };
   };
 
   return Object.freeze({
@@ -426,11 +525,12 @@ export function createPermDock<
         tenant: permdock.subject.principal?.tenant,
         approval: deliverOptions.approval,
       });
-      const events = await Promise.all(
+      const prepared = await Promise.all(
         recipients.map((recipient) =>
-          deliverOne(permdock, recipient, permission, row, messages, id, base),
+          prepare(permdock, recipient, permission, row, messages, id, base),
         ),
       );
+      const events = await send(prepared);
       try {
         await options.sink?.write(events);
       } catch {
