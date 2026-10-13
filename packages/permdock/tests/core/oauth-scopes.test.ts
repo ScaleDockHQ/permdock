@@ -8,7 +8,6 @@ import {
   definePermissions,
   definePolicy,
   fromSnapshot,
-  mayUse,
   resource,
   role,
 } from "../../src/index.ts";
@@ -64,7 +63,7 @@ describe("oauthScopes", () => {
     expect(permdock.can(permissions.project.read, {})).toBe(true);
     expect(permdock.can(permissions.task.update, {})).toBe(false);
     expect(permdock.can(permissions.billing.read, {})).toBe(false);
-    expect(mayUse(permdock, permissions.task.update)).toBe(false);
+    expect(permdock.mayUse(permissions.task.update)).toBe(false);
     expect(permdock.subject.delegation?.scopes?.slice(0, 2)).toEqual([
       "openid",
       "mcp:read",

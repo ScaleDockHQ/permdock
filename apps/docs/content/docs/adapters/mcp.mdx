@@ -159,7 +159,7 @@ export { authed as GET, authed as POST };
 
   ```ts
   import { createMcp, defineTool } from "better-supabase/mcp";
-  import { createPermDock, isPermission, mayUse } from "permdock";
+  import { createPermDock, isPermission } from "permdock";
   import { subjectFromBetterSupabase } from "permdock/better-supabase";
   import { betterSupabase } from "@/lib/supabase";
   import { policy, permissions } from "@/permissions";
@@ -199,7 +199,7 @@ export { authed as GET, authed as POST };
       }),
     ],
     visible: async (ctx, tool) =>
-      isPermission(tool.meta) && mayUse(await permdockFor(ctx), tool.meta),
+      isPermission(tool.meta) && (await permdockFor(ctx)).mayUse(tool.meta),
     authorize: async (ctx, tool, args) => {
       if (!isPermission(tool.meta))
         return { allowed: false, reason: "no-grant" };

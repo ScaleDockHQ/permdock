@@ -11,7 +11,6 @@ import {
   credentialDelegation,
   credentialPolicyViolation,
   credentialSubject,
-  decideCredential,
   parseCredential,
 } from "../../src/core/credential.ts";
 import { eventInstant } from "../../src/core/event-time.ts";
@@ -337,8 +336,7 @@ describe("decideCredential", () => {
   };
 
   it("creates a user key bound to its creator", async () => {
-    const decision = await decideCredential(
-      developer,
+    const decision = await developer.decideCredential(
       {
         kind: "user",
         id: "key_1",
@@ -368,8 +366,7 @@ describe("decideCredential", () => {
   });
 
   it("creates a service key within the creator ceiling", async () => {
-    const decision = await decideCredential(
-      developer,
+    const decision = await developer.decideCredential(
       {
         kind: "service",
         id: "svc_1",
@@ -412,7 +409,7 @@ describe("decideCredential", () => {
       [{ ...base, tenant: "o_2" }, { tenant: "o_2" }],
     ] as const;
     for (const [request, detail] of rows) {
-      expect(await decideCredential(developer, request, { now: NOW })).toEqual({
+      expect(await developer.decideCredential(request, { now: NOW })).toEqual({
         outcome: "denied",
         denials: [{ role: null, reason: "exceeds-creator", detail }],
       });
@@ -421,7 +418,7 @@ describe("decideCredential", () => {
 
   it("refuses anonymous creators, links and keys minting keys", async () => {
     const anonymous = permdockFor({ principal: null, context: {} });
-    expect(await decideCredential(anonymous, readKey)).toMatchObject({
+    expect(await anonymous.decideCredential(readKey)).toMatchObject({
       outcome: "denied",
       denials: [{ reason: "anonymous" }],
     });
@@ -435,11 +432,11 @@ describe("decideCredential", () => {
         expiresAt: NOW_SECONDS + DAY,
       }),
     );
-    expect(await decideCredential(link, readKey)).toMatchObject({
+    expect(await link.decideCredential(readKey)).toMatchObject({
       denials: [{ reason: "exceeds-creator", detail: { creator: "link" } }],
     });
     const key = permdockFor(credentialSubject(serviceKey, { permissions }));
-    expect(await decideCredential(key, readKey)).toMatchObject({
+    expect(await key.decideCredential(readKey)).toMatchObject({
       denials: [
         { reason: "exceeds-creator", detail: { creator: "credential" } },
       ],
@@ -451,11 +448,10 @@ describe("decideCredential", () => {
       userSubject("u_1", ["owner"], { delegation: { scopes: ["repo:read"] } }),
     );
     expect(
-      (await decideCredential(delegated, readKey, { now: NOW })).outcome,
+      (await delegated.decideCredential(readKey, { now: NOW })).outcome,
     ).toBe("granted");
     expect(
-      await decideCredential(
-        delegated,
+      await delegated.decideCredential(
         { ...readKey, permissions: [repo.write] },
         { now: NOW },
       ),
@@ -484,7 +480,7 @@ describe("decideCredential", () => {
     ];
     for (const request of rows) {
       expect(
-        await decideCredential(developer, request, { now: NOW }),
+        await developer.decideCredential(request, { now: NOW }),
       ).toMatchObject({ denials: [{ reason: "validation" }] });
     }
   });
@@ -495,7 +491,7 @@ describe("decideCredential", () => {
       o_1: { credentials: { maxTtl: 30 * DAY } },
     });
     expect(
-      await decideCredential(developer, long, { now: NOW, settings: capped }),
+      await developer.decideCredential(long, { now: NOW, settings: capped }),
     ).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
     });
@@ -503,14 +499,14 @@ describe("decideCredential", () => {
       o_1: { credentials: { kinds: ["service"] } },
     });
     expect(
-      await decideCredential(developer, long, { now: NOW, settings: services }),
+      await developer.decideCredential(long, { now: NOW, settings: services }),
     ).toMatchObject({ denials: [{ detail: { rule: "kind" } }] });
     const elsewhere = memorySettingsSource({
       o_2: { credentials: { maxTtl: 1 } },
     });
     expect(
       (
-        await decideCredential(developer, long, {
+        await developer.decideCredential(long, {
           now: NOW,
           settings: elsewhere,
         })
@@ -522,7 +518,7 @@ describe("decideCredential", () => {
       permissions: [repo.read],
     };
     expect(
-      await decideCredential(developer, forever, { now: NOW }),
+      await developer.decideCredential(forever, { now: NOW }),
     ).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "no-expiry" } }],
     });
@@ -530,7 +526,7 @@ describe("decideCredential", () => {
       o_1: { credentials: { allowNoExpiry: true } },
     });
     expect(
-      (await decideCredential(developer, forever, { now: NOW, settings: open }))
+      (await developer.decideCredential(forever, { now: NOW, settings: open }))
         .outcome,
     ).toBe("granted");
   });
@@ -552,8 +548,7 @@ describe("decideCredential", () => {
       o_2: { credentials: { maxTtl: 60 } },
     });
     expect(
-      await decideCredential(
-        owner,
+      await owner.decideCredential(
         {
           kind: "service",
           id: "svc_2",
@@ -574,7 +569,7 @@ describe("decideCredential", () => {
       },
     };
     expect(
-      await decideCredential(developer, readKey, {
+      await developer.decideCredential(readKey, {
         now: NOW,
         settings: broken,
       }),
@@ -589,7 +584,7 @@ describe("decideCredential", () => {
     const settings = memorySettingsSource({
       o_1: { credentials: { approval: true } },
     });
-    const pending = await decideCredential(developer, readKey, {
+    const pending = await developer.decideCredential(readKey, {
       now: NOW,
       settings,
     });
@@ -598,23 +593,24 @@ describe("decideCredential", () => {
       return;
     }
     expect(pending.token).toMatch(/^sha-256:[\w-]{43}$/u);
-    const later = await decideCredential(developer, readKey, {
+    const later = await developer.decideCredential(readKey, {
       now: NOW.add({ seconds: 60 }),
       settings,
       approved: pending.token,
     });
     expect(later.outcome).toBe("granted");
-    const widened = await decideCredential(
-      developer,
+    const widened = await developer.decideCredential(
       { ...readKey, permissions: [repo.read, repo.write] },
       { now: NOW, settings, approved: pending.token },
     );
     expect(widened.outcome).toBe("approval-required");
-    const otherCreator = await decideCredential(
-      permdockFor(userSubject("u_2", ["developer"])),
-      readKey,
-      { now: NOW, settings, approved: pending.token },
-    );
+    const otherCreator = await permdockFor(
+      userSubject("u_2", ["developer"]),
+    ).decideCredential(readKey, {
+      now: NOW,
+      settings,
+      approved: pending.token,
+    });
     expect(otherCreator.outcome).toBe("approval-required");
   });
 });
@@ -695,7 +691,7 @@ describe("decideCredential: expired creator memberships", () => {
         },
       ],
     });
-    const decision = await decideCredential(expiredAdmin, {
+    const decision = await expiredAdmin.decideCredential({
       kind: "service",
       id: "k1",
       tenant: "T",
@@ -807,15 +803,14 @@ describe("a user key held to one tenant", () => {
       permissions: [repo.read],
       expiresAt: at(DAY),
     };
+    expect(await creator.decideCredential(request, { now: NOW })).toMatchObject(
+      {
+        outcome: "granted",
+        credential: { kind: "user", principal: "u_1", tenant: "o_2" },
+      },
+    );
     expect(
-      await decideCredential(creator, request, { now: NOW }),
-    ).toMatchObject({
-      outcome: "granted",
-      credential: { kind: "user", principal: "u_1", tenant: "o_2" },
-    });
-    expect(
-      await decideCredential(
-        creator,
+      await creator.decideCredential(
         { ...request, tenant: "o_3" },
         { now: NOW },
       ),

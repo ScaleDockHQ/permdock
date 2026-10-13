@@ -343,14 +343,14 @@ export const SIGNATURE_CHANGES_0_5: readonly SignatureChange[] = Object.freeze([
   {
     name: "permittedIds",
     entries: ["permdock"],
-    before: "permittedIds(permdock, permission, rows)",
-    after: "permdock.permittedIds(permission, rows)",
+    before: "permittedIds(permdock, permission, scope)",
+    after: "permdock.permittedIds(permission, scope)",
   },
   {
     name: "mayUse",
     entries: ["permdock"],
-    before: "mayUse(permdock, ...)",
-    after: "permdock.mayUse(...)",
+    before: "mayUse(permdock, permission)",
+    after: "permdock.mayUse(permission)",
   },
   {
     name: "subjectFromApiKey",

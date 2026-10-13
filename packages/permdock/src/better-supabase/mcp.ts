@@ -2,7 +2,6 @@ import type { ToolDecision, ToolRef } from "better-supabase/mcp";
 
 import type { PermDock } from "../core/permdock.ts";
 
-import { mayUse } from "../core/may-use.ts";
 import { isPermission } from "../core/permission-registry.ts";
 
 /** What better-supabase's `createMcp` hooks see of a tool. */
@@ -80,7 +79,7 @@ export function toolPolicy<C>(options: ToolPolicyOptions<C>): ToolPolicy<C> {
       const permission = tool.meta;
       if (!isPermission(permission)) return false;
       try {
-        return mayUse(await options.permdock(ctx), permission);
+        return (await options.permdock(ctx)).mayUse(permission);
       } catch {
         return false;
       }

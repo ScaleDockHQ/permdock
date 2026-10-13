@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { createAgentKernel } from "../../src/agent/kernel.ts";
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
-import { mayUse } from "../../src/core/may-use.ts";
 import {
   allow,
   anyone,
@@ -115,7 +114,7 @@ describe("createAgentKernel", () => {
     const permdock = await kernel.instance({});
     expect(permdock.subject.principal).toBeNull();
     expect(permdock.subject.actor).toBeUndefined();
-    expect(mayUse(permdock, permissions.post.list)).toBe(false);
+    expect(permdock.mayUse(permissions.post.list)).toBe(false);
 
     const denied = await kernel.decideTool("list_posts", {}, {});
     expect(denied.outcome).toBe("denied");
@@ -252,8 +251,8 @@ describe("createAgentKernel", () => {
     const delegated = await createPermDock(policy, memberUser, {
       delegation: { scopes: ["post:list"] },
     });
-    expect(mayUse(delegated, permissions.post.list)).toBe(true);
-    expect(mayUse(delegated, permissions.post.delete)).toBe(false);
+    expect(delegated.mayUse(permissions.post.list)).toBe(true);
+    expect(delegated.mayUse(permissions.post.delete)).toBe(false);
   });
 
   it("resumes a stored approval from the recomputed token, once", async () => {

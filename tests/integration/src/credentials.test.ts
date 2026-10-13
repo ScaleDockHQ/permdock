@@ -10,7 +10,6 @@ import type { StoredCredential } from "permdock/server";
 import {
   allow,
   createPermDock,
-  decideCredential,
   definePermissions,
   definePolicy,
   resource,
@@ -189,8 +188,7 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
 
   it("stores only the hash and finds the key by its id", async () => {
     const creating = await creator("u_1");
-    const decision = await decideCredential(
-      creating,
+    const decision = await creating.decideCredential(
       {
         kind: "user",
         id: "key_user",
@@ -240,8 +238,7 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
   it("creates a service key inside the creator ceiling and the tenant policy", async () => {
     const developer = await creator("u_1");
     const expiresAt = Math.floor(Date.now() / 1000) + DAY;
-    const tooWide = await decideCredential(
-      developer,
+    const tooWide = await developer.decideCredential(
       {
         kind: "service",
         id: "svc_wide",
@@ -256,8 +253,7 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
       outcome: "denied",
       denials: [{ reason: "exceeds-creator" }],
     });
-    const tooLong = await decideCredential(
-      developer,
+    const tooLong = await developer.decideCredential(
       {
         kind: "service",
         id: "svc_long",
@@ -271,8 +267,7 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
     expect(tooLong).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
     });
-    const decision = await decideCredential(
-      developer,
+    const decision = await developer.decideCredential(
       {
         kind: "service",
         id: "svc_ci",

@@ -23,6 +23,7 @@ import {
 import { assertDecision } from "./assert-decision.ts";
 import { type Assignable, assignableIn } from "./assignable.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
+import { decideCredential } from "./credential.ts";
 import { customGrantsFor } from "./custom-roles.ts";
 import { decideForTarget } from "./decide-for.ts";
 import { type ActivateInput, activate } from "./elevated.ts";
@@ -33,6 +34,7 @@ import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { type InstanceEnv, deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
+import { mayUse, permittedIds } from "./may-use.ts";
 import {
   type RoleChange,
   type RoleChangeDecision,
@@ -605,6 +607,15 @@ export function buildInstance(
         nowSeconds(),
         options,
       );
+    },
+    decideCredential(request, options) {
+      return decideCredential(instance, request, options);
+    },
+    mayUse(permission) {
+      return mayUse(instance, permission);
+    },
+    permittedIds(permission, scope, options) {
+      return permittedIds(instance, permission, scope, options);
     },
     activate(input: ActivateInput): Decision {
       return activate(policy, subject, input, nowSeconds());

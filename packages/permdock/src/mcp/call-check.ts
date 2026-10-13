@@ -8,7 +8,6 @@ import type { McpAuthInfo, McpPermDockOptions } from "./types.ts";
 
 import { deniedText } from "../agent/denied-text.ts";
 import { compact } from "../core/compact.ts";
-import { mayUse } from "../core/may-use.ts";
 import {
   challengeScope,
   hasScope,
@@ -331,7 +330,7 @@ export async function visible(
     return shown;
   }
   for (const entry of guarded) {
-    if (mayUse(permdock, entry.permission)) {
+    if (permdock.mayUse(entry.permission)) {
       shown.add(entry.key);
     }
   }

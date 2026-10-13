@@ -28,11 +28,9 @@ const subject = await resolve(token, request);
 ## API keys and service accounts
 
 ```ts
-import { decideCredential } from "permdock";
 import { generateApiKey, hashApiKey } from "permdock/server";
 
-const decision = await decideCredential(
-  permdock,
+const decision = await permdock.decideCredential(
   {
     kind: "service", // or 'user'
     id: "svc_01J8",

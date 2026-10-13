@@ -20,6 +20,7 @@ import {
 } from "./errors.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
+import { mayUse, permittedIds } from "./may-use.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
@@ -331,6 +332,21 @@ export function fromSnapshot(
         change,
         denials: [{ role: null, reason: "unsupported" as const }],
       });
+    },
+    decideCredential() {
+      // Credential creation is a server decision: a snapshot carries no settings or assignable ceilings to check.
+      return Promise.resolve(
+        freezeDeep({
+          outcome: "denied" as const,
+          denials: [{ role: null, reason: "unsupported" as const }],
+        }),
+      );
+    },
+    mayUse(permission) {
+      return mayUse(instance, permission);
+    },
+    permittedIds(permission, scope, query) {
+      return permittedIds(instance, permission, scope, query);
     },
     derive() {
       // A snapshot carries its grants already resolved: no source applies to it.

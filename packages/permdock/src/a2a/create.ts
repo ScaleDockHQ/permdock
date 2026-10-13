@@ -25,7 +25,6 @@ import {
 } from "../core/errors.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { mayUse } from "../core/may-use.ts";
 import {
   challengeScope,
   hasScope,
@@ -286,7 +285,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     const scheme = firstScheme(options);
     const skills: A2aSkill[] = [];
     for (const [id, config] of Object.entries(options.skills)) {
-      if (mayUse(permdock, config.permission)) {
+      if (permdock.mayUse(config.permission)) {
         skills.push(skillOf(id, config, scheme));
       }
     }

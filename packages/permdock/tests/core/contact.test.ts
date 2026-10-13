@@ -11,7 +11,6 @@ import {
   requestApproval,
 } from "../../src/approvals/index.ts";
 import { user as userApprover } from "../../src/core/approvers.ts";
-import { decideCredential } from "../../src/core/credential.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { authenticated } from "../../src/core/grantee.ts";
@@ -252,7 +251,7 @@ describe("contact principals", () => {
     ).toBe(true);
     const permdock = await createPermDock(policy, contact);
     expect(
-      await decideCredential(permdock, {
+      await permdock.decideCredential({
         kind: "user",
         id: "k",
         permissions: [permissions.invoice.read],

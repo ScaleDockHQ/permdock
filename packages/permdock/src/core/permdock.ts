@@ -1,5 +1,10 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
+import type {
+  CredentialDecision,
+  CredentialRequest,
+  DecideCredentialOptions,
+} from "./credential.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { ActivateInput } from "./elevated.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
@@ -14,6 +19,7 @@ import type {
   RoleSourceFactory,
   TokenSigner,
 } from "./interfaces.ts";
+import type { PermittedIdsOptions } from "./may-use.ts";
 import type {
   RoleChange,
   RoleChangeDecision,
@@ -322,6 +328,32 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     change: RoleChange,
     options?: RoleChangeOptions,
   ) => RoleChangeDecision;
+  /**
+   * Decides whether the subject may create the credential in `request`: the
+   * creator's own reach, the `credentials` policy of the key's tenant, and
+   * `approval`. PermDock never stores the credential; the application does,
+   * after a `granted` result. An instance built from a snapshot denies with
+   * `unsupported`.
+   */
+  readonly decideCredential: (
+    request: CredentialRequest,
+    options?: DecideCredentialOptions,
+  ) => Promise<CredentialDecision>;
+  /**
+   * Whether `permission` could be granted to the subject for some row, within
+   * its delegation. A listing hint for tools and skills, never a decision.
+   */
+  readonly mayUse: (permission: Permission) => boolean;
+  /**
+   * The instances of `scope` in which the subject holds `permission`, the
+   * in-process mirror of the SQL `permitted_<scope>_ids_by_permission`. A
+   * listing, never a decision: a row's own check still runs `can`.
+   */
+  readonly permittedIds: (
+    permission: Permission,
+    scope: string,
+    options?: PermittedIdsOptions,
+  ) => readonly string[];
   /**
    * Loads the relation facts `permission` needs for `rows` into this
    * instance's cache, so `can`, `decide` and `filter` answer synchronously

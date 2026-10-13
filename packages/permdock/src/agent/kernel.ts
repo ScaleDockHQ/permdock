@@ -17,7 +17,6 @@ import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
-import { mayUse } from "../core/may-use.ts";
 import {
   buildReportingInstance,
   requestContext,
@@ -399,7 +398,7 @@ export function createAgentKernel<
     const permdock = await instance(context);
     const allowed = new Set<string>();
     for (const [name, binding] of Object.entries(tools)) {
-      if (mayUse(permdock, binding.permission)) {
+      if (permdock.mayUse(binding.permission)) {
         allowed.add(name);
       }
     }
