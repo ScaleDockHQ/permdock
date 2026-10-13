@@ -277,7 +277,7 @@
     "subjectFromRunTicket",
     "tenantScope",
     "validationProblem",
-    "verifyWebBotAuth",
+    "webBotAuthVerifier",
     "webhookSigner",
     "webhookVerifier",
     "wwwAuthenticate"
@@ -286,7 +286,7 @@
     "InvalidSignatureError",
     "createPermDock",
     "discoverViaSignatureAgent",
-    "verifyWebBotAuth"
+    "webBotAuthVerifier"
   ],
   "./express": [
     "InvalidSignatureError",
@@ -294,7 +294,7 @@
     "discoverViaSignatureAgent",
     "sendResponse",
     "toRequest",
-    "verifyWebBotAuth"
+    "webBotAuthVerifier"
   ],
   "./fastify": [
     "InvalidSignatureError",
@@ -302,13 +302,13 @@
     "discoverViaSignatureAgent",
     "sendReply",
     "toRequest",
-    "verifyWebBotAuth"
+    "webBotAuthVerifier"
   ],
   "./elysia": [
     "InvalidSignatureError",
     "createPermDock",
     "discoverViaSignatureAgent",
-    "verifyWebBotAuth"
+    "webBotAuthVerifier"
   ],
   "./nest": [
     "InvalidSignatureError",
@@ -317,7 +317,7 @@
     "discoverViaSignatureAgent",
     "sendResponse",
     "toRequest",
-    "verifyWebBotAuth"
+    "webBotAuthVerifier"
   ],
   "./node": [
     "InvalidSignatureError",
@@ -327,7 +327,7 @@
     "isServerResponse",
     "sendResponse",
     "toRequest",
-    "verifyWebBotAuth"
+    "webBotAuthVerifier"
   ],
   "./trpc": ["createPermDock", "errorFormatter"],
   "./orpc": ["createPermDock", "permissionOf"],

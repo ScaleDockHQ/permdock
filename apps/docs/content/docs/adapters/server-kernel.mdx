@@ -15,7 +15,7 @@ permix adapters each copy request isolation onto the framework context; PermDock
 import {
   createPermDock,
   discoverViaSignatureAgent,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "permdock/server";
 import { policy } from "./policy";
 
@@ -23,12 +23,11 @@ export const { getPermDock, protect, connection, problem, openapi } =
   createPermDock(policy, {
     subject: async (request) => userFromSession(request.headers.get("cookie")),
     actor: async (request) => agentFrom(request), // optional; Web Bot Auth fills this automatically when enabled
-    webBotAuth: (request) =>
-      verifyWebBotAuth(request, {
-        // optional RFC 9421 verification
-        keys: discoverViaSignatureAgent({ allow: ["agents.example.com"] }),
-        required: false,
-      }),
+    webBotAuth: webBotAuthVerifier({
+      // optional RFC 9421 verification
+      keys: discoverViaSignatureAgent({ allow: ["agents.example.com"] }),
+      required: false,
+    }),
     tenant: (request) => orgFromPath(request), // optional; resolved again on every protect
     limits: memoryLimitStore(), // optional LimitStore for quota grants
   });

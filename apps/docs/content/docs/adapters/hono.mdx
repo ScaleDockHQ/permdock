@@ -14,17 +14,16 @@ import { Hono } from "hono";
 import {
   createPermDock,
   discoverViaSignatureAgent,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "permdock/hono";
 import { policy } from "./policy";
 import { permissions } from "./permissions";
 
 export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
-  webBotAuth: (request) =>
-    verifyWebBotAuth(request, {
-      keys: discoverViaSignatureAgent({ allow: ["agents.example.com"] }),
-    }),
+  webBotAuth: webBotAuthVerifier({
+    keys: discoverViaSignatureAgent({ allow: ["agents.example.com"] }),
+  }),
 });
 
 const app = new Hono<Env>();

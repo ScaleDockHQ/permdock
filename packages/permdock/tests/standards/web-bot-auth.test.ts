@@ -9,7 +9,7 @@ import {
 } from "../../src/server/index.ts";
 import {
   verifyMessageSignature,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "../../src/server/web-bot-auth.ts";
 import { fakeFetch, json } from "../fakes/fetch.ts";
 import { memberUser, policy } from "../fixtures/quick-start.ts";
@@ -269,10 +269,10 @@ describe("RFC 9421 HTTP Message Signatures (February 2024)", () => {
 describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
   it("rejects with Problem Details of type invalid-signature, never as anonymous", async () => {
     const failure = await rejection(
-      verifyWebBotAuth(vectorRequest({ Signature: "sig-b26=:AAAA:" }), {
+      webBotAuthVerifier({
         keys: () => publicKey,
         now: at,
-      }),
+      })(vectorRequest({ Signature: "sig-b26=:AAAA:" })),
     );
     expect(failure.status).toBe(403);
     expect(failure.contentType).toBe("application/problem+json");
@@ -286,43 +286,44 @@ describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
   it("an unsigned request has no actor unless a signature is required", async () => {
     const unsigned = new Request("https://example.com/foo");
     await expect(
-      verifyWebBotAuth(unsigned, { keys: () => publicKey }),
+      webBotAuthVerifier({ keys: () => publicKey })(unsigned),
     ).resolves.toBeUndefined();
     const failure = await rejection(
-      verifyWebBotAuth(unsigned, { keys: () => publicKey, required: true }),
+      webBotAuthVerifier({ keys: () => publicKey, required: true })(unsigned),
     );
     expect(failure.body["detail"]).toBe("Signature-Input is required");
   });
 
   it("a request signed under the profile verifies", async () => {
     await expect(
-      verifyWebBotAuth(await agentRequest(), { keys: () => agentKey, now: at }),
+      webBotAuthVerifier({ keys: () => agentKey, now: at })(
+        await agentRequest(),
+      ),
     ).resolves.toEqual({ id: "agent-key", kind: "web-bot-auth" });
   });
 
   it("the tag is web-bot-auth, @authority is covered, and so is a sent Signature-Agent", async () => {
     const untagged = await rejection(
-      verifyWebBotAuth(vectorRequest(), { keys: () => publicKey, now: at }),
+      webBotAuthVerifier({ keys: () => publicKey, now: at })(vectorRequest()),
     );
     expect(untagged.body["detail"]).toBe(
       'Signature-Input tag must be "web-bot-auth"',
     );
     const noAuthority = await rejection(
-      verifyWebBotAuth(await agentRequest({}, ["@method", "@path"]), {
+      webBotAuthVerifier({
         keys: () => agentKey,
         now: at,
-      }),
+      })(await agentRequest({}, ["@method", "@path"])),
     );
     expect(noAuthority.body["detail"]).toBe(
       "Signature-Input must cover @authority",
     );
     const uncovered = await rejection(
-      verifyWebBotAuth(
+      webBotAuthVerifier({ keys: () => agentKey, now: at })(
         await agentRequest(
           { "Signature-Agent": '"https://agents.example.com"' },
           ["@method", "@authority", "@path"],
         ),
-        { keys: () => agentKey, now: at },
       ),
     );
     expect(uncovered.body["detail"]).toBe(
@@ -332,19 +333,19 @@ describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
 
   it("a key the lookup does not know rejects, and a throwing lookup rejects", async () => {
     const unknown = await rejection(
-      verifyWebBotAuth(await agentRequest(), {
+      webBotAuthVerifier({
         keys: () => undefined,
         now: at,
-      }),
+      })(await agentRequest()),
     );
     expect(unknown.body["detail"]).toBe("Web Bot Auth key was not found");
     const thrown = await rejection(
-      verifyWebBotAuth(await agentRequest(), {
+      webBotAuthVerifier({
         keys: () => {
           throw new Error("directory down");
         },
         now: at,
-      }),
+      })(await agentRequest()),
     );
     expect(thrown.body["detail"]).toBe("Web Bot Auth key lookup failed");
   });
@@ -352,12 +353,11 @@ describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
   it("the HTTP kernel fills actor from a verified signature", async () => {
     const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: (request) =>
-        verifyWebBotAuth(request, {
-          verify: true,
-          keys: () => agentKey,
-          now: at,
-        }),
+      webBotAuth: webBotAuthVerifier({
+        verify: true,
+        keys: () => agentKey,
+        now: at,
+      }),
     });
     const permdock = await permdockFor(await agentRequest());
     expect(permdock.subject.actor).toEqual({
@@ -378,9 +378,8 @@ describe("draft-meunier-http-message-signatures-directory-05", () => {
       allow: ["agents.example.com"],
       fetch: remote.fetch,
     });
-    const actor = await verifyWebBotAuth(
+    const actor = await webBotAuthVerifier({ keys, now: at })(
       await agentRequest({ "Signature-Agent": '"https://agents.example.com"' }),
-      { keys, now: at },
     );
     expect(actor?.id).toBe("agent-key");
     expect(remote.calls.map((call) => call.url)).toEqual([
@@ -398,11 +397,10 @@ describe("draft-meunier-http-message-signatures-directory-05", () => {
       fetch: remote.fetch,
     });
     await expect(
-      verifyWebBotAuth(
+      webBotAuthVerifier({ keys, now: at })(
         await agentRequest({
           "Signature-Agent": 'sig1="https://agents.example.com/keys.json"',
         }),
-        { keys, now: at },
       ),
     ).resolves.toBeDefined();
     expect(remote.calls[0]?.url).toBe("https://agents.example.com/keys.json");
@@ -415,8 +413,8 @@ describe("draft-meunier-http-message-signatures-directory-05", () => {
       fetch: remote.fetch,
     });
     const agent = { "Signature-Agent": '"https://agents.example.com"' };
-    await verifyWebBotAuth(await agentRequest(agent), { keys, now: at });
-    await verifyWebBotAuth(await agentRequest(agent), { keys, now: at });
+    await webBotAuthVerifier({ keys, now: at })(await agentRequest(agent));
+    await webBotAuthVerifier({ keys, now: at })(await agentRequest(agent));
     expect(remote.calls).toHaveLength(1);
   });
 
@@ -432,14 +430,16 @@ describe("draft-meunier-http-message-signatures-directory-05", () => {
       '"not a url"',
     ]) {
       const failure = await rejection(
-        verifyWebBotAuth(await agentRequest({ "Signature-Agent": agent }), {
+        webBotAuthVerifier({
           keys,
           now: at,
-        }),
+        })(await agentRequest({ "Signature-Agent": agent })),
       );
       expect(failure.body["detail"]).toBe("Web Bot Auth key was not found");
     }
-    await rejection(verifyWebBotAuth(await agentRequest(), { keys, now: at }));
+    await rejection(
+      webBotAuthVerifier({ keys, now: at })(await agentRequest()),
+    );
     expect(remote.calls).toHaveLength(0);
   });
 
@@ -454,11 +454,11 @@ describe("draft-meunier-http-message-signatures-directory-05", () => {
     });
     const agent = { "Signature-Agent": '"https://agents.example.com"' };
     await rejection(
-      verifyWebBotAuth(await agentRequest(agent), { keys, now: at }),
+      webBotAuthVerifier({ keys, now: at })(await agentRequest(agent)),
     );
     up = true;
     await expect(
-      verifyWebBotAuth(await agentRequest(agent), { keys, now: at }),
+      webBotAuthVerifier({ keys, now: at })(await agentRequest(agent)),
     ).resolves.toBeDefined();
     expect(remote.calls).toHaveLength(2);
   });
@@ -471,11 +471,10 @@ describe("draft-meunier-http-message-signatures-directory-05", () => {
         fetch: remote.fetch,
       });
       await rejection(
-        verifyWebBotAuth(
+        webBotAuthVerifier({ keys, now: at })(
           await agentRequest({
             "Signature-Agent": '"https://agents.example.com"',
           }),
-          { keys, now: at },
         ),
       );
     }

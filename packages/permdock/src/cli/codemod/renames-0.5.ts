@@ -446,4 +446,10 @@ export const SIGNATURE_CHANGES_0_5: readonly SignatureChange[] = Object.freeze([
     before: "MappedSubject",
     after: "Subject<JwtPrincipal>",
   },
+  {
+    name: "verifyWebBotAuth",
+    entries: SERVER_ADAPTERS,
+    before: "verifyWebBotAuth(request, options)",
+    after: "webBotAuthVerifier(options)(request)",
+  },
 ]);

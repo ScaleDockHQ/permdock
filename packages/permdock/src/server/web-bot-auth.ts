@@ -39,7 +39,7 @@ export type WebBotAuthOptions = {
 };
 
 /**
- * An adapter's `webBotAuth` option: `(request) => verifyWebBotAuth(request, options)`,
+ * An adapter's `webBotAuth` option: `webBotAuthVerifier(options)`,
  * so an app without it does not bundle RFC 9421 verification.
  */
 export type WebBotAuthVerifier = (
@@ -122,15 +122,14 @@ export function discoverViaSignatureAgent(
 }
 
 /**
- * Verifies a Web Bot Auth request: an RFC 9421 signature tagged `web-bot-auth`
+ * Verifies Web Bot Auth requests: an RFC 9421 signature tagged `web-bot-auth`
  * that covers `@authority`, and `signature-agent` when the request sends
  * `Signature-Agent` (draft-meunier-webbotauth-httpsig-protocol).
  */
-export function verifyWebBotAuth(
-  request: Request,
-  options: WebBotAuthOptions | undefined,
-): Promise<Actor | undefined> {
-  return verifySignature(request, options, true);
+export function webBotAuthVerifier(
+  options?: WebBotAuthOptions,
+): WebBotAuthVerifier {
+  return (request) => verifySignature(request, options, true);
 }
 
 /** RFC 9421 verification without the Web Bot Auth profile checks. */

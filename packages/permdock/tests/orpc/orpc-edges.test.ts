@@ -9,7 +9,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { createPermDock } from "../../src/orpc/index.ts";
-import { verifyWebBotAuth } from "../../src/server/web-bot-auth.ts";
+import { webBotAuthVerifier } from "../../src/server/web-bot-auth.ts";
 import {
   memberUser,
   ownPost,
@@ -39,11 +39,10 @@ describe("permdock/orpc request discovery and failures", () => {
   it("reads ctx.request and rejects a bad Web Bot Auth signature", async () => {
     const { middleware } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,
-      webBotAuth: (request) =>
-        verifyWebBotAuth(request, {
-          verify: true,
-          keys: { lookup: () => undefined },
-        }),
+      webBotAuth: webBotAuthVerifier({
+        verify: true,
+        keys: { lookup: () => undefined },
+      }),
     });
     const read = os
       .$context<Ctx>()

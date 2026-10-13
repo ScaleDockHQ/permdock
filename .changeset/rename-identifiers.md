@@ -37,6 +37,7 @@ Breaking: `subjectFrom*` resolvers take the input first and options second and r
 | `fromTable`                   | `tableMembershipSource`             |
 | `fromJunction`                | `junctionMembershipSource`          |
 | `fromSupabasePostgres`        | `supabasePostgresQuery`             |
+| `verifyWebBotAuth`            | `webBotAuthVerifier`                |
 
 | Before                                                   | After                                                                                         |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
@@ -45,3 +46,4 @@ Breaking: `subjectFrom*` resolvers take the input first and options second and r
 | `capabilitySubject(capability)` from `permdock`          | `subjectFromCapability(token, options)` from `permdock/jwt`                                   |
 | `credentialSubject(credential, options)` from `permdock` | `subjectFromApiKey(key, options)` from `permdock/server`                                      |
 | `MappedSubject` from `permdock/jwt`                      | `Subject<JwtPrincipal>`; `subjectFromIntrospection` returns `Subject<IntrospectionPrincipal>` |
+| `verifyWebBotAuth(request, options)`                     | `webBotAuthVerifier(options)(request)`, or `webBotAuth: webBotAuthVerifier(options)`          |

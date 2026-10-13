@@ -8,7 +8,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { verifyWebBotAuth } from "../../src/server/web-bot-auth.ts";
+import { webBotAuthVerifier } from "../../src/server/web-bot-auth.ts";
 import { createPermDock } from "../../src/trpc/index.ts";
 import {
   memberUser,
@@ -40,11 +40,10 @@ describe("permdock/trpc request discovery and failures", () => {
     const t = initTRPC.context<Ctx>().create();
     const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: (request) =>
-        verifyWebBotAuth(request, {
-          verify: true,
-          keys: { lookup: () => undefined },
-        }),
+      webBotAuth: webBotAuthVerifier({
+        verify: true,
+        keys: { lookup: () => undefined },
+      }),
     });
     const router = t.router({
       read: t.procedure.use(middleware()).query(() => "ok"),

@@ -87,7 +87,7 @@ export {
   discoverViaSignatureAgent,
   invalidSignatureProblem,
   invalidSignatureResponse,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "./web-bot-auth.ts";
 export type {
   DiscoverViaSignatureAgentOptions,

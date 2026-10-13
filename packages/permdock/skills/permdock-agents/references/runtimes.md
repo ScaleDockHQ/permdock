@@ -183,14 +183,14 @@ Never import a policy into this entry. A missing `document.modelContext` is a no
 import {
   createPermDock,
   discoverViaSignatureAgent,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "permdock/hono";
 
 const keys = discoverViaSignatureAgent({ allow: ["agents.example.com"] });
 
 export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
-  webBotAuth: (request) => verifyWebBotAuth(request, { verify: true, keys }),
+  webBotAuth: webBotAuthVerifier({ verify: true, keys }),
 });
 ```
 

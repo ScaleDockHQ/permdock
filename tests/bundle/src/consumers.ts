@@ -15,7 +15,7 @@ const CONSUMERS = {
   "react-native PermDockProvider + localSnapshot": `export { PermDockProvider, localSnapshot, usePermission } from 'permdock/react-native';`,
   "next createPermDock": `export { createPermDock } from 'permdock/next';`,
   "server createPermDock": `export { createPermDock } from 'permdock/server';`,
-  "server createPermDock + verifyWebBotAuth": `export { createPermDock, verifyWebBotAuth } from 'permdock/server';`,
+  "server createPermDock + webBotAuthVerifier": `export { createPermDock, webBotAuthVerifier } from 'permdock/server';`,
   "hono createPermDock": `export { createPermDock } from 'permdock/hono';`,
   "hono createPermDock + withOtel": `export { createPermDock } from 'permdock/hono'; export { withOtel } from 'permdock/otel';`,
   "express createPermDock": `export { createPermDock } from 'permdock/express';`,

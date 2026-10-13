@@ -5,7 +5,7 @@
   "react-native PermDockProvider + localSnapshot": 23196,
   "next createPermDock": 55954,
   "server createPermDock": 51921,
-  "server createPermDock + verifyWebBotAuth": 53714,
+  "server createPermDock + webBotAuthVerifier": 53714,
   "hono createPermDock": 53300,
   "hono createPermDock + withOtel": 54846,
   "express createPermDock": 53332,

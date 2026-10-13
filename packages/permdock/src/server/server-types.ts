@@ -22,7 +22,7 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
     request: Request,
   ) => TUser | Subject | null | Promise<TUser | Subject | null>;
   readonly actor?: (request: Request) => unknown;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  /** `webBotAuthVerifier(options)`; a verified bot becomes the actor. */
   readonly webBotAuth?: WebBotAuthVerifier;
   readonly tenant?:
     | string

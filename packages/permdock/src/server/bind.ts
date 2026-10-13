@@ -56,7 +56,7 @@ export type ServerAdapterServices = {
   readonly pdp?: PdpFactory;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  /** `webBotAuthVerifier(options)`; a verified bot becomes the actor. */
   readonly webBotAuth?: WebBotAuthVerifier;
   /** Wraps each instance after `otel`; build it with `wrapPermDock` to cover derived instances. */
   readonly wrap?: PermDockWrap;
