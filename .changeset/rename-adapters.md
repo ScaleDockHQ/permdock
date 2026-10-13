@@ -14,6 +14,7 @@ Breaking: adapters use one name per meaning. `permdock/server` exports `createPe
 | `permdock`                    | `getPermDock`                      | `permdock/server`, `node`, `terminal`, `openai`, `claude-agent`, `eve`                                           |
 | `permdock`                    | `middleware`                       | `permdock/hono`, `express`, `elysia`, `trpc`, `orpc`                                                             |
 | `load`                        | `data`                             | `permdock/authzen`                                                                                               |
+| `loadData`                    | `data`                             | `permdock/nest`                                                                                                  |
 | `onDenied`                    | `deniedResponse`                   | `permdock/server`, `hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `trpc`, `orpc`, `supabase/middleware` |
 | `onDenied`                    | `deniedText`                       | `permdock/ai-sdk`, `mcp`                                                                                         |
 | `tools`                       | `operations`                       | `permdock/ai-sdk`, `openai`, `claude-agent`, `eve`                                                               |
