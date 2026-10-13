@@ -1,12 +1,11 @@
+import type { AgentPermDock } from "../agent/create.ts";
 import type { AgentAdapterOptions, ToolVerdict } from "../agent/types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 
-import { createAgentKernel } from "../agent/kernel.ts";
+import { agentRuntime } from "../agent/create.ts";
 import { compact, isRecord } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { composeWraps } from "../core/wrap.ts";
 
 /** Structural `McpServerProvenance` from `@anthropic-ai/claude-agent-sdk`. */
 export type ClaudeMcpServer = {
@@ -69,7 +68,7 @@ export type PermissionRequestHookOutput =
   | Record<string, never>;
 
 export type ClaudeAgentPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
-  {
+  AgentPermDock<ClaudeAgentContext, V> & {
     /** A `CanUseTool`: pass it as the query's `canUseTool` option. */
     readonly canUseTool: (
       toolName: string,
@@ -133,21 +132,7 @@ export function createPermDock<
   options: ClaudeAgentPermDockOptions<TUser>,
 ): ClaudeAgentPermDock<V> {
   const sources = options.mcpSources ?? ["sdk"];
-  const kernel = createAgentKernel<ClaudeAgentContext, TUser, V>(policy, {
-    ...compact({
-      actor: options.actor,
-      delegation: options.delegation,
-      tenant: options.tenant,
-      store: options.store,
-      context: options.context,
-      wrap: composeWraps(options.otel, options.wrap),
-      deniedText: options.deniedText,
-    }),
-    ...instanceOptions(options),
-    subject: options.subject,
-    tools: options.operations,
-    adapter: "claude-agent",
-  });
+  const { agent, kernel } = agentRuntime(policy, options, "claude-agent");
 
   /** `null`: an unmapped tool under `unmapped: 'allow'`, which PermDock does not decide. */
   const decide = async (
@@ -208,9 +193,9 @@ export function createPermDock<
     };
   };
 
-  return {
+  return Object.freeze({
+    ...agent,
     canUseTool,
     permissionRequestHook,
-    getPermDock: (context) => kernel.instance(context),
-  };
+  });
 }

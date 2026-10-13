@@ -116,6 +116,7 @@ export default defineConfig({
     "src/svelte/source.ts",
     "src/svelte/runtime.ts",
     "src/solid/index.ts",
+    "src/agent/index.ts",
     "src/ai-sdk/index.ts",
     "src/claude-agent/index.ts",
     "src/eve/index.ts",

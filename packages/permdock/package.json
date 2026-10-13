@@ -123,6 +123,10 @@
       "types": "./dist/solid/index.d.ts",
       "default": "./dist/solid/index.js"
     },
+    "./agent": {
+      "types": "./dist/agent/index.d.ts",
+      "default": "./dist/agent/index.js"
+    },
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
       "default": "./dist/ai-sdk/index.js"

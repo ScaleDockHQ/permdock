@@ -13,9 +13,18 @@ import type { OtelWrap } from "../otel/types.ts";
 import type { DeniedText } from "./denied-text.ts";
 
 /** The part of an operation a tool decision reads; an `OperationMap` entry is one. */
-export type ToolBinding = Pick<Operation, "permission" | "data">;
+export type ToolBinding = Pick<Operation, "permission" | "data" | "results"> & {
+  readonly meta?: Operation["meta"];
+};
 
 export type ToolMap = Readonly<Record<string, ToolBinding>>;
+
+/**
+ * The models an agent may call, by model id (`'openai/gpt-5'`), each bound to
+ * the permission that grants it. An instance permission is decided on the
+ * row `{ id }`.
+ */
+export type ModelMap = Readonly<Record<string, Permission>>;
 
 /** The options `permdock/ai-sdk`, `permdock/openai`, `permdock/claude-agent` and `permdock/eve` share. */
 export type AgentAdapterOptions<TContext, TUser = unknown> = InstanceOptions & {
@@ -29,6 +38,11 @@ export type AgentAdapterOptions<TContext, TUser = unknown> = InstanceOptions & {
     | ((context: TContext) => string | undefined | Promise<string | undefined>);
   /** The tools the agent may call, by tool name: the map `defineOperations` returns. */
   readonly operations: ToolMap;
+  /**
+   * The model gate. Absent: the adapter never checks a model. Present: a
+   * model id it does not name is denied.
+   */
+  readonly models?: ModelMap;
   readonly store?: ApprovalStore;
   /**
    * Tools `operations` does not name. `'deny'` (default) denies them.

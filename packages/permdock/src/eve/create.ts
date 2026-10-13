@@ -1,3 +1,4 @@
+import type { AgentPermDock } from "../agent/create.ts";
 import type {
   AgentAdapterOptions,
   ToolBinding,
@@ -9,14 +10,12 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 
-import { createAgentKernel } from "../agent/kernel.ts";
+import { agentRuntime } from "../agent/create.ts";
 import { boundedMap } from "../agent/lru.ts";
 import { isApprovalError } from "../approvals/errors.ts";
 import { resolveApproval } from "../approvals/helpers.ts";
 import { memoryApprovalStore } from "../approvals/store.ts";
 import { compact } from "../core/compact.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { composeWraps } from "../core/wrap.ts";
 
 /** Structural `SessionAuthContext` from `eve`. */
 export type EvePrincipal = {
@@ -92,14 +91,15 @@ export type EveApprovalPair = {
   readonly response: (ctx: EveResponseContext) => Promise<EveResponseResult>;
 };
 
-export type EvePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly approval: EveApprovalPair;
-  readonly approvalFor: (
-    permission: Permission,
-    data?: (input: unknown) => unknown,
-  ) => EveApprovalPair;
-  readonly getPermDock: (ctx: EveContext) => Promise<PermDock<V>>;
-};
+export type EvePermDock<V extends PolicyVocabulary = PolicyVocabulary> =
+  AgentPermDock<EveContext, V> & {
+    readonly approval: EveApprovalPair;
+    readonly approvalFor: (
+      permission: Permission,
+      data?: (input: unknown) => unknown,
+    ) => EveApprovalPair;
+    readonly getPermDock: (ctx: EveContext) => Promise<PermDock<V>>;
+  };
 
 const TOKENS_PER_PROCESS = 1000;
 
@@ -178,23 +178,18 @@ export function createPermDock<
   const store = options.store ?? memoryApprovalStore();
   const tokensByCall = boundedMap<string, string>(TOKENS_PER_PROCESS);
   // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromEve builds, or null.
-  const kernel = createAgentKernel<EveContext, TUser, V>(policy, {
-    ...compact({
-      tenant: options.tenant,
-      delegation: options.delegation,
-      context: options.context,
-      wrap: composeWraps(options.otel, options.wrap),
-      deniedText: options.deniedText,
-    }),
-    ...instanceOptions(options),
-    subject:
-      options.subject ??
-      (subjectFromEve as (context: EveContext) => TUser | Promise<TUser>),
-    actor: options.actor ?? actorFromEve,
-    tools: options.operations,
-    store,
-    adapter: "eve",
-  });
+  const { agent, kernel } = agentRuntime(
+    policy,
+    {
+      ...options,
+      subject:
+        options.subject ??
+        (subjectFromEve as (context: EveContext) => TUser | Promise<TUser>),
+      actor: options.actor ?? actorFromEve,
+      store,
+    },
+    "eve",
+  );
 
   // The responder is mapped by the same `subject` as an initiator, so the
   // approver carries the memberships and tenant the grant's `by` checks.
@@ -322,9 +317,9 @@ export function createPermDock<
     return pairFor(() => binding);
   };
 
-  return {
+  return Object.freeze({
+    ...agent,
     approval,
     approvalFor,
-    getPermDock: (ctx) => kernel.instance(ctx),
-  };
+  });
 }
