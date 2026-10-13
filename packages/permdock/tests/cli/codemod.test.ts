@@ -316,6 +316,30 @@ describe("transformSource", () => {
     expect(result.followUps.map((item) => item.line)).toEqual([5]);
   });
 
+  it("tracks only plain const bindings of a direct call to an imported factory", () => {
+    const result = apply(
+      [
+        'import { createPermDock } from "permdock/hono";',
+        "const direct = createPermDock(policy);",
+        "let mutable = createPermDock(policy);",
+        "const { nested } = createPermDock(policy);",
+        "const value = 1;",
+        "const viaMember = lib.createPermDock(policy);",
+        "const viaLocal = local(policy);",
+        "direct.permdock();",
+        "mutable.permdock();",
+        "nested.permdock();",
+        "viaMember.permdock();",
+        "viaLocal.permdock();",
+        "make().permdock();",
+      ].join("\n"),
+    );
+    expect(result.changes.map((item) => item.line)).toEqual([8]);
+    expect(result.followUps.map((item) => item.line)).toEqual([
+      9, 10, 11, 12, 13,
+    ]);
+  });
+
   it("leaves a member alone on a factory result from another entry", () => {
     const source = [
       'import { createPermDock } from "permdock";',

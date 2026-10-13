@@ -395,10 +395,10 @@ function visitMember(
   if (rename !== undefined) {
     replace(ctx, property, rename.to, rename.from);
   } else if (member) {
+    const receiver = object?.type === "Identifier" ? object.name : undefined;
     const origin =
-      object?.type === "Identifier" &&
-      isModuleBinding(ctx, object.name ?? "", ancestors)
-        ? ctx.factories.get(object.name ?? "")
+      receiver !== undefined && isModuleBinding(ctx, receiver, ancestors)
+        ? ctx.factories.get(receiver)
         : undefined;
     const method =
       origin === undefined
@@ -437,10 +437,9 @@ function factoryValues(
           ? declarator.init.argument
           : declarator.init;
       const callee = init?.type === "CallExpression" ? init.callee : undefined;
+      const factory = callee?.type === "Identifier" ? callee.name : undefined;
       const entry =
-        callee?.type === "Identifier"
-          ? bindings.get(callee.name ?? "")?.entry
-          : undefined;
+        factory === undefined ? undefined : bindings.get(factory)?.entry;
       const name =
         declarator.id?.type === "Identifier" ? declarator.id.name : undefined;
       if (entry !== undefined && name !== undefined) {
