@@ -104,6 +104,12 @@ export {
 export type { DecisionProviderRunnerOptions } from "./conformance/providers.ts";
 export { testRelationSource } from "./conformance/relations.ts";
 export { testPrincipalSource } from "./conformance/principals.ts";
+export { testDeliveryTransport } from "./delivery-transport.ts";
+export type {
+  DeliveryFailureKind,
+  DeliveryTransportHarness,
+  DeliveryTransportOptions,
+} from "./delivery-transport.ts";
 export {
   testEntitlementSource,
   testDirectoryStore,

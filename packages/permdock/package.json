@@ -207,6 +207,10 @@
       "types": "./dist/workflow/index.d.ts",
       "default": "./dist/workflow/index.js"
     },
+    "./delivery": {
+      "types": "./dist/delivery/index.d.ts",
+      "default": "./dist/delivery/index.js"
+    },
     "./prisma": {
       "types": "./dist/prisma/index.d.ts",
       "default": "./dist/prisma/index.js"
@@ -374,11 +378,11 @@
     "@openai/agents": "catalog:peers",
     "@opentelemetry/api": "catalog:peers",
     "@orpc/server": "catalog:peers",
-    "@supabase/middleware": "catalog:peers",
-    "@trpc/server": "catalog:peers",
     "@solidjs/start": "catalog:peers",
+    "@supabase/middleware": "catalog:peers",
     "@sveltejs/kit": "catalog:peers",
     "@tanstack/react-start": "catalog:peers",
+    "@trpc/server": "catalog:peers",
     "ai": "catalog:peers",
     "astro": "catalog:peers",
     "better-supabase": "catalog:peers",

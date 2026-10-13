@@ -137,6 +137,7 @@ export default defineConfig({
     "src/cloud/index.ts",
     "src/drizzle/index.ts",
     "src/workflow/index.ts",
+    "src/delivery/index.ts",
     "src/prisma/index.ts",
     "src/kysely/index.ts",
     "src/supabase/index.ts",

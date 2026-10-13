@@ -463,6 +463,17 @@
     "tenantFromPath"
   ],
   "./cloud": ["cloud", "cloudEndpoints", "parseCloudEvent", "verifyWebhook"],
+  "./delivery": [
+    "approvalPrompt",
+    "approvalUrlFor",
+    "audience",
+    "createPermDock",
+    "isAddrSpec",
+    "isDeliveryTarget",
+    "memoryDeliveryTransport",
+    "subscribersFor",
+    "webhookTransport"
+  ],
   "./drizzle": ["checkRow", "toWhere", "withSubject"],
   "./prisma": [
     "checkRow",
@@ -551,6 +562,7 @@
     "testCustomRoleSource",
     "testDecisionProvider",
     "testDecisionSink",
+    "testDeliveryTransport",
     "testDirectoryStore",
     "testEntitlementSource",
     "testHttpAdapter",

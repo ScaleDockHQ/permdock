@@ -29,6 +29,12 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
     expect(packageImports(walk(ENTRIES["."]))).toEqual([]);
   });
 
+  it("keeps the delivery and chat feature entries free of every vendor package", () => {
+    for (const entry of ["./delivery"] as const) {
+      expect(packageImports(walk(ENTRIES[entry]))).toEqual([]);
+    }
+  });
+
   it("declares only @standard-schema/spec and the CLI packages as dependencies", () => {
     // SAFETY: dist/../package.json is the built package's own manifest
     const manifest = JSON.parse(
