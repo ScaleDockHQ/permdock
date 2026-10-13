@@ -66,15 +66,15 @@ export async function shareQuote(permdock: PermDock, quote: Quote) {
 }
 ```
 
-| Field         | Meaning                                                                                                                    |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `id`          | The link id: the token's `sub` and the handle the application revokes. Keep a row per link.                                |
-| `on`          | The resource reference and instance id the roles are held on.                                                              |
-| `roles`       | Resource-scoped role names. A scope or global role in the list grants nothing, because a link has no scope membership.     |
-| `permissions` | Optional permission references that narrow the roles further, for example a read-only copy of an editor link.              |
-| `redeemer`    | Who may open it: `'anyone'` (the default), `'signed-in'`, `{ user }` or `{ scope, id }`.                                   |
-| `once`        | One request per token.                                                                                                     |
-| `expiresAt`   | Required. It is the token's `exp` and the membership's `expiresAt`; a long-lived link pairs a long expiry with revocation. |
+| Field         | Meaning                                                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | The link id: the token's `sub` and the handle the application revokes. Keep a row per link.                                                                         |
+| `on`          | The resource reference and instance id the roles are held on.                                                                                                       |
+| `roles`       | Resource-scoped role names. A scope or global role in the list grants nothing, because a link has no scope membership.                                              |
+| `permissions` | Optional permission references that narrow the roles further, for example a read-only copy of an editor link.                                                       |
+| `redeemer`    | Who may open it: `'anyone'` (the default), `'signed-in'`, `{ user }` or `{ scope, id }`.                                                                            |
+| `once`        | One request per token.                                                                                                                                              |
+| `expiresAt`   | Required. It is the token's `exp` and the membership's `expiresAt`. A feed that must not expire is a [feed key](/docs/concepts/credentials#feeds), rotated instead. |
 
 Issuing is application code. Guard it with its own permission (`quote.share` above) so only someone who may share the quote can mint a link for it.
 

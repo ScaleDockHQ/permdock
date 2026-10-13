@@ -518,9 +518,47 @@ Other surfaces implement the same three steps (send, wait, resolve with a verifi
 | Email and notification infrastructure (Resend, Knock, Novu, Courier, Twilio) | Send a message with a link to `approvalsHandler`                                                                              | The approver's session on the approval page                                                             | A channel only; a link is never an approval by itself, and the approver always authenticates on the page |
 | PermDock Cloud                                                               | Inbox UI plus Slack and Teams through the Chat SDK recipe above                                                               | Cloud authentication and the platform signature                                                         | The hosted implementation of the same store and the same recipe ([Cloud adapter](/docs/adapters/cloud))  |
 
+## Delegation
+
+A delegate may approve whatever the delegator could approve, inside a time window. PermDock records the approval as the delegate's, acting for the delegator. There is one hop: a delegate's own delegations are never followed.
+
+```ts
+import {
+  approvalsHandler,
+  memoryApprovalDelegations,
+} from "permdock/approvals";
+
+const handler = approvalsHandler(store, {
+  delegations: memoryApprovalDelegations([
+    {
+      id: "del_1",
+      delegator: "u_owner",
+      delegate: "u_cover",
+      from: "2026-10-01T00:00:00.000Z",
+      until: "2026-10-15T00:00:00.000Z",
+    },
+  ]),
+  subjectFor: (principalId) => loadSubject(principalId),
+  approverRelations: (approver, request) => loadRelations(approver, request),
+  permdockFor: (approver, request) =>
+    createPermDock(policy, approver, {
+      tenant: request.subject.principal?.tenant,
+    }),
+});
+```
+
+`from` is inclusive and `until` is exclusive. Both are required: there is no open-ended delegation. `permissions` and `resources` narrow what the delegation covers; absent, it covers every request. `tenant` holds it to one tenant. A delegation whose delegator and delegate are the same person is dropped.
+
+Without both `delegations` and `subjectFor`, nobody matches through a delegation. If either throws, nobody matches, so it fails closed.
+
+The handler tries the caller as themselves first. Only an `approver-not-eligible` result continues to delegations. For each active match it builds the delegator's relation facts and permission facts, then runs the same approver check on the delegator's subject. The delegate is never the request's actor, and never its principal unless the grant sets `distinct: false`. The delegator is checked the same way, so a delegate cannot approve their own request through someone else's rights. One delegator counts once, whether they signed themselves or through a delegate.
+
+The signature stores `by` as the delegate, `onBehalfOf` as the delegator's principal id, and `delegation` as the delegation id. The store runs the delegator check again from the verdict, so it does not trust the handler.
+
 ## Why
 
-- **The requester never approves by default.** An approval exists so a second person looks at the call. If `approval: 'human'` let the principal approve, a user could ask their own agent to issue a refund and approve it themselves, and the approval would add a click, not a check. So every approval refuses the principal as well as the actor, and a grant that really wants the user to confirm their own agent's call says so with `approval: { distinct: false }`, which `permdock doctor` PD024 lists. `requireDistinctApprover` is a handler-wide floor, for an app where no grant may opt out.
+- **The requester never approves by default.** An approval exists so a second person looks at the call. If `approval: 'human'` let the principal approve, a user could ask their own agent to issue a refund and approve it themselves, and the approval would add a click, not a check. So every approval refuses the principal as well as the actor, and a grant that really wants the user to confirm their own agent's call says so with `approval: { distinct: false }`, which `permdock doctor` PD024 lists. `requireDistinctApprover` is a handler-wide floor, for an app where no grant may opt out. A delegate is held to the same rule, and so is the person they approve for: covering someone's inbox does not let you approve a request you made, or one they made.
+- **One hop, and a closed window.** Following a delegate's own delegations would let a chain of covers approve as someone none of them was asked to cover. The handler never looks up the delegator's delegations. `until` is required so a cover someone forgot to end does not stay valid.
 - **Keyset pages with an opaque cursor.** An inbox or an access review over a busy environment can hold thousands of requests, and an unbounded `list` makes every store load all of them. Offsets skip or repeat rows while `expire` and new asks change the set; ordering by `(createdAt, token)` and resuming after the last pair is stable under both, and every database the recipes target can index it. The cursor stays opaque so a store may encode its own position (the Cloud uses its own), and an unreadable one ends the listing instead of restarting it, so a tampered cursor can never loop a client.
 - **No approval without a session.** An emailed or chat link carries only the token and opens an authenticated page that calls `approvalsHandler`; the approver is whoever that page authenticated. A signed link that approves on its own would make possession of an email the approver's identity, bypass `approvers`, `distinct` and tenant membership, and turn every forwarded message or link-preview bot into an approver. The Chat SDK recipe below is the same rule: the platform's signature-verified user is mapped to an application subject, never read from the message.
 

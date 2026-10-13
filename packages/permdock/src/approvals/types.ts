@@ -32,6 +32,43 @@ export type ApprovalSignature = {
   readonly at: string;
   readonly stage?: number;
   readonly vouched?: string;
+  /** The principal `by` approved for, when `by` acted under an `ApprovalDelegation`. */
+  readonly onBehalfOf?: string;
+  /** The `ApprovalDelegation` id `onBehalfOf` was read from. */
+  readonly delegation?: string;
+};
+
+/**
+ * One out-of-office delegation: `delegate` may approve what `delegator`
+ * could approve, from `from` until `until`. Both instants are required, so
+ * a delegation cannot be open-ended. `permissions` and `resources` narrow
+ * it; absent, it covers every request. `tenant` holds it to one tenant.
+ */
+export type ApprovalDelegation = {
+  readonly id: string;
+  readonly delegator: string;
+  readonly delegate: string;
+  readonly tenant?: string;
+  readonly permissions?: readonly string[];
+  readonly resources?: readonly string[];
+  /** RFC 3339. Inclusive. */
+  readonly from: string;
+  /** RFC 3339. Exclusive. */
+  readonly until: string;
+};
+
+/**
+ * Active approval delegations for one delegate, a subject input the handler
+ * reads when the caller is not an approver on their own. A throw matches
+ * nobody. One hop: the handler never reads the delegator's own delegations.
+ */
+export type ApprovalDelegationSource = {
+  delegationsFor(query: {
+    readonly delegate: string;
+    readonly tenant?: string;
+    /** RFC 3339. The source returns delegations active at this instant. */
+    readonly at: string;
+  }): readonly ApprovalDelegation[] | Promise<readonly ApprovalDelegation[]>;
 };
 
 export type ApprovalSubjectSummary = {
@@ -91,6 +128,18 @@ export type ApprovalVerdict = {
    */
   readonly permissions?: readonly string[];
   readonly vouched?: string;
+  /**
+   * Set when `by` is not an approver and acts for this principal under an
+   * `ApprovalDelegation`. Server-side input: the handler resolves the
+   * delegator, and `applyApprovalVerdict` checks them again. `relations`
+   * and `permissions` are that principal's facts, never the delegate's.
+   */
+  readonly onBehalfOf?: {
+    readonly subject: Subject;
+    readonly delegation: string;
+    readonly relations?: readonly string[];
+    readonly permissions?: readonly string[];
+  };
 };
 
 export type ApprovalListFilter = {

@@ -335,7 +335,8 @@ export function testSettingsSource(
         expect(
           credentials.kinds === undefined ||
             credentials.kinds.every(
-              (kind) => kind === "user" || kind === "service",
+              (kind) =>
+                kind === "user" || kind === "service" || kind === "feed",
             ),
         ).toBe(true);
       }

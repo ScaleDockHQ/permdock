@@ -1,6 +1,6 @@
 ---
 name: permdock-approvals
-description: Requires human approval on PermDock grants and resumes the approved call. Use when adding approval to a destructive or money-moving action (delete, publish, pay, refund, approve, transfer), choosing approvers with approval by, user(), relation(), distinct, quorum, ttl, escalation or staleOn, ordering approvers with mode and stages, loading approval rules as data with an ApprovalPolicySource, separating preparer and approver with exclusiveWith, mounting approvalsHandler with an ApprovalStore, resuming with the PermDock-Approval header, mapping approval-required to an agent runtime, MCP elicitation or AG-UI interrupt, or fixing doctor PD017, PD018 or PD024.
+description: Requires human approval on PermDock grants and resumes the approved call. Use when adding approval to a destructive or money-moving action (delete, publish, pay, refund, approve, transfer), choosing approvers with approval by, user(), relation(), distinct, quorum, ttl, escalation or staleOn, ordering approvers with mode and stages, covering an approver with an ApprovalDelegation, recording an access review, loading approval rules as data with an ApprovalPolicySource, separating preparer and approver with exclusiveWith, mounting approvalsHandler with an ApprovalStore, resuming with the PermDock-Approval header, mapping approval-required to an agent runtime, MCP elicitation or AG-UI interrupt, or fixing doctor PD017, PD018 or PD024.
 license: MIT
 metadata:
   author: ScaleDockHQ
@@ -24,7 +24,7 @@ metadata:
 
 ## Invariants
 
-1. The requester never approves by default. The actor is always refused. The principal is refused unless the grant sets `distinct: false`, and `requireDistinctApprover` on the handler refuses it even then.
+1. The requester never approves by default. The actor is always refused. The principal is refused unless the grant sets `distinct: false`, and `requireDistinctApprover` on the handler refuses it even then. A delegate is held to the same rule, and so is the delegator. One hop, and `until` is required.
 2. The approver comes from authentication on the approval surface, never from the request body, a tool argument or a link.
 3. One approval resumes one call. The token binds permission, resource, subject and actor, the resume re-runs `decide`, and `consume` spends the approval once.
 4. `can` returns `false` for `approval-required`. Only `decide`, `assert` and the adapters see the third outcome.

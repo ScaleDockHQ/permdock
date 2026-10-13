@@ -389,6 +389,7 @@ export {
   credentialPolicyViolation,
   credentialSubject,
   decideCredential,
+  isFeedId,
   parseCredential,
 } from "./core/credential.ts";
 export type {

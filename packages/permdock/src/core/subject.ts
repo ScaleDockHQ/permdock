@@ -128,7 +128,7 @@ export type CustomRole = TenantCustomRole | GlobalCustomRole;
 export type Principal = {
   readonly id: string;
   readonly issuer?: string;
-  readonly kind?: "user" | "service" | "workload" | "link";
+  readonly kind?: "user" | "service" | "workload" | "link" | "feed";
   readonly roles?: readonly string[];
   readonly plans?: readonly string[];
   readonly memberships?: readonly Membership[];
@@ -210,6 +210,7 @@ export function isPrincipal(value: unknown): value is Principal {
     record.kind === "service" ||
     record.kind === "workload" ||
     record.kind === "link" ||
+    record.kind === "feed" ||
     typeof record.issuer === "string"
   );
 }

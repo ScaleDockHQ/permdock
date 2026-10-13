@@ -22,9 +22,11 @@ export type {
 export {
   apiKeyVerifier,
   generateApiKey,
+  generateFeedKey,
   hashApiKey,
   memoryCredentials,
   parseApiKey,
+  parseFeedKey,
   subjectFromApiKey,
 } from "./credentials.ts";
 export type {

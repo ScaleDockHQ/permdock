@@ -7,6 +7,7 @@ import { idList, isId, ownRecord } from "./capability.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { coveredByDelegation } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
+import { type Grantee, flattenGrantee } from "./grantee.ts";
 import { formerKeys } from "./permission-leaf.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { bytesToBase64Url, sha256 } from "./sha256.ts";
@@ -19,7 +20,12 @@ import {
   anonymousSubject,
 } from "./subject.ts";
 
-export type CredentialKind = "user" | "service";
+export type CredentialKind = "user" | "service" | "feed";
+
+/** A feed id: lowercase, so a mail system that lowercases a local part still matches. At most 16 characters, so `pdfeed_<id>_<secret>` fits an email local part. */
+export function isFeedId(value: string): boolean {
+  return /^[a-z0-9-]{1,16}$/u.test(value);
+}
 
 /** One permission (a key) a credential may use: on every instance, or only on `ids`. */
 export type CredentialPermission = {
@@ -46,8 +52,10 @@ export type Credential = {
    * credential, where it keeps only the owner's memberships inside it.
    */
   readonly tenant?: string;
-  /** Service only: the roles it holds in `tenant`. */
+  /** Service: the roles it holds in `tenant`. Feed: the resource roles it holds on `on`. */
   readonly roles?: readonly string[];
+  /** Feed only: the resource instance the roles are held on. */
+  readonly on?: { readonly resource: string; readonly id: string };
   readonly permissions: readonly CredentialPermission[];
   readonly createdBy: string;
   /** Seconds since the epoch. */
@@ -101,6 +109,16 @@ export type CredentialRequest =
       readonly principal?: string;
       readonly tenant: string;
       readonly roles: readonly string[];
+    })
+  | (CredentialRequestBase & {
+      readonly kind: "feed";
+      readonly on: {
+        readonly resource: Permission | PermissionTree;
+        readonly id: string;
+      };
+      readonly roles: readonly string[];
+      /** A row the server loaded. Each permission must be granted on it. */
+      readonly row: unknown;
     });
 
 export type CredentialDecision =
@@ -146,6 +164,9 @@ export function credentialPolicyViolation(
     }
   }
   if (credential.expiresAt === undefined) {
+    if (credential.kind === "feed") {
+      return undefined;
+    }
     const allowed =
       list.some((item) => item.allowNoExpiry === true) &&
       list.every((item) => item.maxTtl === undefined);
@@ -204,7 +225,11 @@ export function parseCredential(input: unknown): Credential | undefined {
   if (value === undefined || value["v"] !== 1 || !isId(value["id"])) {
     return undefined;
   }
-  if (value["kind"] !== "user" && value["kind"] !== "service") {
+  if (
+    value["kind"] !== "user" &&
+    value["kind"] !== "service" &&
+    value["kind"] !== "feed"
+  ) {
     return undefined;
   }
   if (!isId(value["principal"]) || !isId(value["createdBy"])) {
@@ -225,14 +250,38 @@ export function parseCredential(input: unknown): Credential | undefined {
   }
   let tenant: string | undefined;
   let roles: readonly string[] | undefined;
+  let on: Credential["on"];
   if (value["kind"] === "service") {
     roles = idList(value["roles"]);
-    if (!isId(value["tenant"]) || roles === undefined) {
+    if (
+      !isId(value["tenant"]) ||
+      roles === undefined ||
+      value["on"] !== undefined
+    ) {
       return undefined;
     }
     tenant = value["tenant"];
+  } else if (value["kind"] === "feed") {
+    roles = idList(value["roles"]);
+    const target = ownRecord(value["on"]);
+    if (
+      roles === undefined ||
+      target === undefined ||
+      !isId(target["resource"]) ||
+      !isId(target["id"]) ||
+      value["principal"] !== value["id"] ||
+      !isFeedId(value["id"])
+    ) {
+      return undefined;
+    }
+    if (value["tenant"] !== undefined && !isId(value["tenant"])) {
+      return undefined;
+    }
+    tenant = typeof value["tenant"] === "string" ? value["tenant"] : undefined;
+    on = { resource: target["resource"], id: target["id"] };
   } else if (
     value["roles"] !== undefined ||
+    value["on"] !== undefined ||
     (value["tenant"] !== undefined && !isId(value["tenant"]))
   ) {
     return undefined;
@@ -247,6 +296,7 @@ export function parseCredential(input: unknown): Credential | undefined {
       principal: value["principal"],
       tenant,
       roles,
+      on,
       permissions,
       createdBy: value["createdBy"],
       createdAt: value["createdAt"],
@@ -322,7 +372,22 @@ export function credentialSubject(
 ): Subject<CredentialPrincipal> | Subject {
   const delegation = credentialDelegation(credential, options.permissions);
   let principal: CredentialPrincipal;
-  if (credential.kind === "user") {
+  if (credential.kind === "feed") {
+    if (credential.on === undefined || credential.roles === undefined) {
+      return anonymousSubject();
+    }
+    const membership = compact<Membership>({
+      on: credential.on,
+      roles: credential.roles,
+      via: "feed",
+    });
+    principal = compact<CredentialPrincipal>({
+      id: credential.id,
+      kind: "feed",
+      memberships: [membership],
+      credential,
+    });
+  } else if (credential.kind === "user") {
     const owner = options.owner ?? { id: credential.principal, kind: "user" };
     if (
       owner.id !== credential.principal ||
@@ -369,6 +434,7 @@ function credentialToken(credential: Credential): string {
     tenant: credential.tenant ?? null,
     roles: credential.roles ?? null,
     permissions: credential.permissions,
+    ...(credential.on === undefined ? {} : { on: credential.on }),
     createdBy: credential.createdBy,
     expiresAt: credential.expiresAt ?? null,
     name: credential.name ?? null,
@@ -437,6 +503,138 @@ function refuse(reason: Denial["reason"], detail?: unknown): Checked {
   return { ok: false, decision: denied(reason, detail) };
 }
 
+function oneResource(
+  resource: Permission | PermissionTree,
+): string | undefined {
+  const names = new Set(listPermissions(resource).map((leaf) => leaf.resource));
+  const [name] = names;
+  return names.size === 1 && name !== undefined ? name : undefined;
+}
+
+function granteeOnResource(
+  to: Grantee | readonly Grantee[] | undefined,
+  resource: string,
+  role: string,
+): boolean {
+  for (const grant of flattenGrantee(to)) {
+    if (
+      grant.kind === "role" &&
+      grant.role === role &&
+      typeof grant.scope === "object" &&
+      grant.scope.resource === resource
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function roleDeclaredOn(
+  permdock: PermDock,
+  resource: Permission | PermissionTree,
+  resourceName: string,
+  roleName: string,
+  id: string,
+  row: unknown,
+): boolean {
+  const preview = permdock.simulate({
+    roles: [],
+    memberships: [{ on: { resource: resourceName, id }, roles: [roleName] }],
+  });
+  for (const leaf of listPermissions(resource)) {
+    if (leaf.resource !== resourceName) {
+      continue;
+    }
+    const decision = preview.explain(leaf, row, { trusted: true });
+    const seen: readonly {
+      readonly role: string | null;
+      readonly to?: Grantee | readonly Grantee[];
+    }[] = [
+      ...("matched" in decision && decision.matched !== undefined
+        ? [decision.matched]
+        : []),
+      ...(decision.trace?.allows ?? []),
+      ...(decision.trace?.denies ?? []),
+      ...("denials" in decision ? decision.denials : []),
+    ];
+    for (const grant of seen) {
+      if (grant.role !== roleName) {
+        continue;
+      }
+      if (granteeOnResource(grant.to, resourceName, roleName)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function feedTarget(
+  permdock: PermDock,
+  request: Extract<CredentialRequest, { readonly kind: "feed" }>,
+  entries: readonly {
+    readonly leaf: Permission;
+    readonly ids?: readonly string[];
+  }[],
+): Checked | { readonly ok: true; readonly resource: string } {
+  const resource = oneResource(request.on.resource);
+  if (
+    resource === undefined ||
+    !isFeedId(request.id) ||
+    !isId(request.on.id) ||
+    request.row === undefined ||
+    request.row === null ||
+    request.roles.length === 0
+  ) {
+    return refuse("validation");
+  }
+  for (const entry of entries) {
+    if (entry.leaf.resource !== resource) {
+      return refuse("exceeds-creator", { permission: entry.leaf.key });
+    }
+    if (
+      entry.ids !== undefined &&
+      (entry.ids.length !== 1 || entry.ids[0] !== request.on.id)
+    ) {
+      return refuse("exceeds-creator", { permission: entry.leaf.key });
+    }
+    const decision = permdock.decide(entry.leaf, request.row, {
+      trusted: true,
+    });
+    if (decision.outcome !== "granted") {
+      return refuse("exceeds-creator", { permission: entry.leaf.key });
+    }
+  }
+  for (const name of request.roles) {
+    if (
+      !roleDeclaredOn(
+        permdock,
+        request.on.resource,
+        resource,
+        name,
+        request.on.id,
+        request.row,
+      )
+    ) {
+      return refuse("exceeds-creator", { role: name });
+    }
+  }
+  return { ok: true, resource };
+}
+
+function feedOn(
+  request: CredentialRequest,
+  feed: Checked | { readonly ok: true; readonly resource: string } | undefined,
+): Credential["on"] {
+  if (request.kind !== "feed" || feed === undefined) {
+    return undefined;
+  }
+  if (feed.ok && "resource" in feed) {
+    return { resource: feed.resource, id: request.on.id };
+  }
+  return undefined;
+}
+
 function checkRequest(
   permdock: PermDock,
   request: CredentialRequest,
@@ -446,10 +644,11 @@ function checkRequest(
   if (creator === null) {
     return refuse("anonymous");
   }
-  if (creator.kind === "link" || "credential" in creator) {
-    return refuse("exceeds-creator", {
-      creator: creator.kind === "link" ? "link" : "credential",
-    });
+  if (creator.kind === "link" || creator.kind === "feed") {
+    return refuse("exceeds-creator", { creator: creator.kind });
+  }
+  if ("credential" in creator) {
+    return refuse("exceeds-creator", { creator: "credential" });
   }
   const entries = permissionEntries(request, leafByKey(permdock.permissions));
   if (
@@ -459,6 +658,13 @@ function checkRequest(
       (!isTime(request.expiresAt) || request.expiresAt <= now))
   ) {
     return refuse("validation");
+  }
+  const feed =
+    request.kind === "feed"
+      ? feedTarget(permdock, request, entries)
+      : undefined;
+  if (feed !== undefined && !feed.ok) {
+    return feed;
   }
   const subject = permdock.subject;
   for (const entry of entries) {
@@ -483,11 +689,20 @@ function checkRequest(
       principal:
         request.kind === "service"
           ? (request.principal ?? request.id)
-          : creator.id,
-      tenant: request.tenant,
-      roles: request.kind === "service" ? request.roles : undefined,
+          : request.kind === "feed"
+            ? request.id
+            : creator.id,
+      tenant: "tenant" in request ? request.tenant : undefined,
+      roles:
+        request.kind === "service" || request.kind === "feed"
+          ? request.roles
+          : undefined,
+      on: feedOn(request, feed),
       permissions: entries.map((entry) =>
-        compact({ permission: entry.leaf.key, ids: entry.ids }),
+        compact({
+          permission: entry.leaf.key,
+          ids: request.kind === "feed" ? [request.on.id] : entry.ids,
+        }),
       ),
       createdBy: creator.id,
       createdAt: now,

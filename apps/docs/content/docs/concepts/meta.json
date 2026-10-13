@@ -20,6 +20,7 @@
     "streams",
     "validation",
     "audit-and-observability",
+    "access-reviews",
     "extension-interfaces",
     "ui",
     "errors",

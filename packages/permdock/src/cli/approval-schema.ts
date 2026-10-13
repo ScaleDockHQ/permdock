@@ -93,6 +93,8 @@ export const APPROVAL_REQUEST_SCHEMA: Readonly<Record<string, unknown>> = {
         at: { $ref: "#/$defs/instant" },
         stage: { type: "integer", minimum: 0 },
         vouched: { type: "string" },
+        onBehalfOf: { type: "string" },
+        delegation: { type: "string" },
       },
     },
   },

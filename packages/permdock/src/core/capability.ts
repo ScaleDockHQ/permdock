@@ -338,7 +338,11 @@ export function redeemerAllows(
     return true;
   }
   const principal = viewer?.principal ?? null;
-  if (principal === null || principal.kind === "link") {
+  if (
+    principal === null ||
+    principal.kind === "link" ||
+    principal.kind === "feed"
+  ) {
     return false;
   }
   if (redeemer === "signed-in") {
