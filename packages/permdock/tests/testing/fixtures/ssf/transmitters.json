@@ -126,10 +126,12 @@
           "type": "session-revoked",
           "subject": "auth0|64f1c2b3a4d5e6f7a8b9c0d1",
           "session": "s_9f8e7d6c5b4a"
+        },
+        {
+          "type": "account-disabled",
+          "subject": "auth0|64f1c2b3a4d5e6f7a8b9c0d1",
+          "session": "s_9f8e7d6c5b4a"
         }
-      ],
-      "unknown": [
-        "https://schemas.openid.net/secevent/risc/event-type/account-disabled"
       ]
     }
   ]
