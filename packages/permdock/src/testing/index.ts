@@ -97,6 +97,7 @@ export {
   testSnapshotSource,
 } from "./conformance/runtime-stores.ts";
 export { testRelationSource } from "./conformance/relations.ts";
+export { testPrincipalSource } from "./conformance/principals.ts";
 export {
   testEntitlementSource,
   testDirectoryStore,

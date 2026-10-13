@@ -14,6 +14,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { listPermissions } from "../../src/core/permission-registry.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
+import { memoryPrincipalSource } from "../../src/core/principal-source.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { memorySink } from "../../src/core/sink.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/index.ts";
@@ -300,7 +301,7 @@ describe("subjectFromApiKey", () => {
     const subject = await resolve(key, {
       verifier: store,
       permissions,
-      owner: (id) => (id === "u_1" ? owner : null),
+      principals: { principal: (id) => (id === "u_1" ? owner : null) },
     });
     expect(subject.principal).toMatchObject({
       id: "u_1",
@@ -315,7 +316,11 @@ describe("subjectFromApiKey", () => {
 
   it("touches the verifier on a resolved key only, and ignores a throwing touch", async () => {
     const { store, key } = await issue();
-    const options = { verifier: store, permissions, owner: () => owner };
+    const options = {
+      verifier: store,
+      permissions,
+      principals: { principal: () => owner },
+    };
     const wrong = key.endsWith("x") ? "y" : "x";
     await resolve(`${key.slice(0, -1)}${wrong}`, options);
     expect(store.lastUsedAt("key_1")).toBeUndefined();
@@ -336,6 +341,28 @@ describe("subjectFromApiKey", () => {
     expect(
       (await resolve(key, { ...options, verifier: rejecting })).principal?.id,
     ).toBe("u_1");
+  });
+
+  it("asks principals for the owner in the key's tenant", async () => {
+    const { store, key } = await issue({ tenant: "o_1" });
+    const asked: unknown[] = [];
+    const subject = await resolve(key, {
+      verifier: store,
+      permissions,
+      principals: memoryPrincipalSource({ principals: [owner] }),
+    });
+    await resolve(key, {
+      verifier: store,
+      permissions,
+      principals: {
+        principal: (id, options) => {
+          asked.push([id, options]);
+          return owner;
+        },
+      },
+    });
+    expect(subject.principal?.id).toBe("u_1");
+    expect(asked).toEqual([["u_1", { tenant: "o_1" }]]);
   });
 
   it("takes the owner rights from createPermDock memberships without an owner loader", async () => {
@@ -404,10 +431,16 @@ describe("subjectFromApiKey", () => {
         options: { revoked: (id) => id === "key_1" },
         cause: "credential-revoked",
       },
-      { key, options: { owner: () => null }, cause: "owner-unavailable" },
       {
         key,
-        options: { owner: () => ({ id: "u_1", kind: "service" }) },
+        options: { principals: { principal: () => null } },
+        cause: "owner-unavailable",
+      },
+      {
+        key,
+        options: {
+          principals: { principal: () => ({ id: "u_1", kind: "service" }) },
+        },
         cause: "owner-unavailable",
       },
       {
@@ -415,7 +448,11 @@ describe("subjectFromApiKey", () => {
         options: { verifier: { verify: () => credential({ id: "key_2" }) } },
         cause: "invalid-claims",
       },
-      { key, options: { owner: thrower }, reason: "source-threw" },
+      {
+        key,
+        options: { principals: { principal: thrower } },
+        reason: "source-threw",
+      },
       {
         key,
         options: { settings: { settingsFor: thrower } },
@@ -560,12 +597,14 @@ describe("subjectFromApiKey: a key over many permissions", () => {
     const subject = await resolve(key, {
       verifier: store,
       permissions: wide,
-      owner: () => ({
-        id: "u_1",
-        kind: "user",
-        tenant: "o_1",
-        memberships: [{ tenant: "o_1", roles: ["admin"] }],
-      }),
+      principals: {
+        principal: () => ({
+          id: "u_1",
+          kind: "user",
+          tenant: "o_1",
+          memberships: [{ tenant: "o_1", roles: ["admin"] }],
+        }),
+      },
       onAuth: (event) => {
         causes.push(event);
       },
@@ -600,7 +639,7 @@ describe("a user key held to one tenant on a route of another", () => {
     const resolver = subjectFromApiKey({
       verifier: store,
       permissions,
-      owner: () => twoTenants,
+      principals: { principal: () => twoTenants },
     });
     return { key, resolver };
   }

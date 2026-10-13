@@ -6,6 +6,7 @@ import type {
   SubjectResolver,
 } from "../core/interfaces.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
+import type { PrincipalSource } from "../core/principal-source.ts";
 
 import { compact } from "../core/compact.ts";
 import {
@@ -380,14 +381,13 @@ export type ApiKeySubjectOptions = {
   /** The definitions, to turn the credential's permission keys into its delegation. */
   readonly permissions: PermissionTree;
   /**
-   * The live owner of a user-bound key: roles and memberships as of this
-   * request. `null` (a deleted or suspended user) is anonymous. Without it
-   * the owner is `{ id, kind: 'user' }` and its rights come from the
-   * `memberships` source passed to `createPermDock`.
+   * Loads the live owner of a user-bound key: roles and memberships as of
+   * this request, asked with the key's tenant. `null` (a deleted or
+   * suspended user) is anonymous with `owner-unavailable`, and a throw is
+   * `source-threw`. Without it the owner is `{ id, kind: 'user' }` and its
+   * rights come from the `memberships` source passed to `createPermDock`.
    */
-  readonly owner?: (
-    id: string,
-  ) => Principal | null | undefined | Promise<Principal | null | undefined>;
+  readonly principals?: PrincipalSource;
   /** `true` when the application revoked the credential id; a throw denies. */
   readonly revoked?: (id: string) => boolean | Promise<boolean>;
   /**
@@ -412,6 +412,17 @@ type Checked =
   | { readonly ok: true; readonly owner?: Principal }
   | { readonly ok: false; readonly cause?: ApiKeyFailureCause };
 
+function isPrincipalRecord(value: unknown): value is Principal {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.hasOwn(value, "id") &&
+    "id" in value &&
+    typeof value.id === "string"
+  );
+}
+
 async function checkStores(
   options: ApiKeySubjectOptions,
   credential: Credential,
@@ -435,11 +446,14 @@ async function checkStores(
     ) {
       return { ok: false, cause: "credential-revoked" };
     }
-    if (credential.kind !== "user" || options.owner === undefined) {
+    if (credential.kind !== "user" || options.principals === undefined) {
       return { ok: true };
     }
-    const owner = await options.owner(credential.principal);
-    if (owner === null || owner === undefined) {
+    const owner: unknown = await options.principals.principal(
+      credential.principal,
+      tenant === undefined ? {} : { tenant },
+    );
+    if (!isPrincipalRecord(owner)) {
       return { ok: false, cause: "owner-unavailable" };
     }
     return { ok: true, owner };
@@ -502,7 +516,7 @@ function reportUse(
  * resolves a key into the subject its credential acts as. Every failure (a
  * malformed or unknown key, a record that is not a valid credential, expiry,
  * a tenant policy the key breaks, a revoked id, a missing owner, a throwing
- * verifier or callback) is the anonymous subject, never a throw.
+ * verifier, source or callback) is the anonymous subject, never a throw.
  */
 export function subjectFromApiKey(
   options: ApiKeySubjectOptions,

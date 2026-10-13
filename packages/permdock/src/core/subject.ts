@@ -128,7 +128,13 @@ export type CustomRole = TenantCustomRole | GlobalCustomRole;
 export type Principal = {
   readonly id: string;
   readonly issuer?: string;
-  readonly kind?: "user" | "service" | "workload" | "link" | "feed";
+  /**
+   * `contact`: an external person (a customer contact, a portal user). Only
+   * its `{ on }` memberships count; it never approves, creates keys or
+   * publishes, and is read-only unless a role whose `for` lists `contact`
+   * grants the write.
+   */
+  readonly kind?: "user" | "service" | "workload" | "link" | "feed" | "contact";
   readonly roles?: readonly string[];
   readonly plans?: readonly string[];
   readonly memberships?: readonly Membership[];
@@ -211,6 +217,7 @@ export function isPrincipal(value: unknown): value is Principal {
     record.kind === "workload" ||
     record.kind === "link" ||
     record.kind === "feed" ||
+    record.kind === "contact" ||
     typeof record.issuer === "string"
   );
 }

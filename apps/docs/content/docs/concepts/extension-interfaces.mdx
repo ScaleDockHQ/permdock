@@ -1,6 +1,6 @@
 ---
 title: Extension interfaces
-description: The fixed set of interfaces through which providers, verifiers, signers, stores, sinks and compilers plug into PermDock (SubjectResolver, TokenVerifier, TokenSigner, MembershipSource, RoleSource, ApprovalPolicySource, DirectoryStore, ApprovalStore, DecisionSink, SnapshotSource, LimitStore, ReplayStore, RevocationFeed, WhereCompiler, on() events), their trust classes, the in-process default each ships with, how provider principal types are extended without global augmentation, and the conformance runners in permdock/testing.
+description: The fixed set of interfaces through which providers, verifiers, signers, stores, sinks and compilers plug into PermDock (SubjectResolver, TokenVerifier, TokenSigner, PrincipalSource, MembershipSource, RoleSource, ApprovalPolicySource, DirectoryStore, ApprovalStore, DecisionSink, SnapshotSource, LimitStore, ReplayStore, RevocationFeed, WhereCompiler, on() events), their trust classes, the in-process default each ships with, how provider principal types are extended without global augmentation, and the conformance runners in permdock/testing.
 ---
 
 PermDock has no plugin system. What it has instead is a short list of interfaces, each with one job, one trust class and one in-process default, passed explicitly to `createPermDock`. A provider (Supabase, Clerk, Better Auth), a store (Postgres, Redis, PermDock Cloud), a sink (OpenTelemetry, a SIEM) or a compile target (Drizzle, MongoDB, a sync engine) implements one of them; nothing else can reach the evaluator. This page is the list. If an integration needs something not on it, that is an RFC-lite issue and a change to this page, not a new option. Application data on definitions and memberships, app obligations, UI defaults and adapter hooks are options, not interfaces: [extend PermDock](/docs/guides/extending) maps each need to one.
@@ -12,6 +12,7 @@ PermDock has no plugin system. What it has instead is a short list of interfaces
 | `SubjectResolver<TInput, TPrincipal>` | Turn verified auth material into a `Subject`                                                                                                                                                                                                                           | Subject input: shapes the outcome                                                                                       | The policy's own `subject` function                                                                 | `subjectFromJwt`, `subjectFromSupabase`, `subjectFromClerk`, `subjectFromBetterAuth`, `subjectFromBetterSupabase`, `subjectFromMcp`, `subjectFromApiKey`, `subjectFromCapability`, yours                                                           |
 | `TokenVerifier<TClaims>`              | Establish that a JWS (or nested JWE) is genuine and return its claims, never throwing                                                                                                                                                                                  | Subject input: feeds `SubjectResolver`; a wrong verifier admits a forged principal                                      | None in core (type only); `joseTokenVerifier` in `permdock/jwt`                                     | Another JOSE library, a KMS-backed verifier, an introspection client ([JOSE](/docs/standards/jose))                                                                                                                                                |
 | `TokenSigner`                         | Produce compact JWS for PermDock's own outputs (snapshots, approval tokens, decision exports)                                                                                                                                                                          | Operational: signs what core already computed; never influences an outcome                                              | None in core (type only); `joseTokenSigner` in `permdock/jwt`                                       | A KMS or HSM signer, `permdock/cloud` ([wire formats](/docs/concepts/wire-formats))                                                                                                                                                                |
+| `PrincipalSource`                     | Load a live principal by id (`principal(id, { tenant })`), or by an app-owned email or chat identity link (`principalByIdentity`)                                                                                                                                      | Subject input: `null`, a throw or a missing method is no principal                                                      | `memoryPrincipalSource({ principals, identities })`                                                 | Your users and contacts tables; `subjectFromApiKey({ principals })`, `subjectFromRunTicket`, `permdock.decideFor`                                                                                                                                  |
 | `MembershipSource`                    | Add named-scope and resource memberships to a principal                                                                                                                                                                                                                | Subject input                                                                                                           | What `subject` and `context` returned; `memoryMembershipSource(entries)`                            | Provider mappers, your `document_members` table                                                                                                                                                                                                    |
 | `RelationSource`                      | Answer the object graph: `ancestors` (an object's parent chain, with restricted flags) and `related` (who holds a relation on one object)                                                                                                                              | Decision input, read per request through the instance's cache; it answers facts and never decides, and a failure denies | `memoryRelations(permissions, { rows, edges })`                                                     | Your folder and edge tables, an OpenFGA or SpiceDB read client ([relationships](/docs/concepts/relationships))                                                                                                                                     |
 | `RoleSource`                          | Resolve tenant-defined custom roles to declared roles; list assignable roles                                                                                                                                                                                           | Subject input                                                                                                           | `memoryRoleSource(customRoles)`                                                                     | Better Auth `organizationRole`, Supabase `role_permissions`, WorkOS, Clerk, Auth0 organisation roles, your table                                                                                                                                   |
@@ -255,6 +256,46 @@ type RelationHolder = { startsAt?: number; expiresAt?: number } & (
 
 `createPermDock(policy, user, { relations })` takes one source for the `through` and edge-table relation grants ([relationships](/docs/concepts/relationships)). Unlike the subject inputs it is read during `can` and `decide`, because what it answers depends on the row, so it follows the `LimitStore` rules for synchronous evaluation: a synchronous answer is used, a Promise is never awaited on the decision path, and `permdock.loadRelations(permission, rows)` is the async step that loads what those rows need into the instance's cache. Answers are cached per instance and query, never at module level. A missing source, a throw, a rejection, an answer that is not a chain or a holder list, or a Promise that was not loaded denies with `relation-unavailable`; a cycle, or a chain past `depth` with no holder within it, denies with `relation-depth`. `ancestors` returns at most `depth` entries nearest first and sets `truncated` when the chain goes on to a row that exists. It flags every restricted entry, and the start in `restricted`, and ends the walk after a restricted entry only when the resource's `restricted` closes `'parent'` ([what a restricted row stops](/docs/concepts/relationships#what-a-restricted-row-stops)); core stops the walk where the resource says and checks for cycles itself, so a source may return more. `related` may return expired holders: core compares `startsAt` and `expiresAt` with the decision's clock. `whoCan` reads `related` for every instance on the chain.
 
+### PrincipalSource
+
+```ts
+type PrincipalIdentity = {
+  kind: "email" | "chat";
+  provider?: string; // the chat platform; absent for email
+  value: string; // an RFC 5322 addr-spec, or the platform user id
+  workspace?: string; // the chat workspace or team id
+};
+
+interface PrincipalSource {
+  principal(
+    id: string,
+    options?: { tenant?: string },
+  ): Principal | null | Promise<Principal | null>;
+  principalByIdentity?(
+    identity: PrincipalIdentity,
+  ): Principal | null | Promise<Principal | null>;
+}
+```
+
+A `PrincipalSource` is the one place PermDock loads a principal that is not the caller: the owner of an API key (`subjectFromApiKey({ principals })`), the principal a run ticket runs as (`subjectFromRunTicket`) and the target of `permdock.decideFor`. Every reader fails closed: `null`, a throw, a rejection, a principal with another id or a missing `principalByIdentity` is no principal. `principalByIdentity` answers only links the application created, through a signed-in link flow or a verified address; core hands it an email trimmed and lower-cased, so a source compares emails case-insensitively. `memoryPrincipalSource({ principals, identities })` returns a fresh frozen copy per call; `identities` lists `{ identity, principal }` links by principal id.
+
+```ts
+import { memoryPrincipalSource } from "permdock";
+
+const principals = memoryPrincipalSource({
+  principals: [
+    {
+      id: "u_1",
+      kind: "user",
+      memberships: [{ tenant: "acme", roles: ["admin"] }],
+    },
+  ],
+  identities: [
+    { identity: { kind: "email", value: "ada@acme.test" }, principal: "u_1" },
+  ],
+});
+```
+
 ### CredentialVerifier and SettingsSource
 
 ```ts
@@ -401,6 +442,7 @@ import {
   testSubjectResolver,
   testTokenVerifier,
   testTokenSigner,
+  testPrincipalSource,
   testMembershipSource,
   testEntitlementSource,
   testRelationSource,
@@ -426,6 +468,15 @@ testSubjectResolver((claims) => subjectFromSupabase(claims, { schema }), {
 testTokenVerifier(myVerifier, { jwks: fixtureJwks }); // runs the JWT adapter behaviour table against the fixture tokens
 testTokenSigner(kmsSigner, {
   verifier: joseTokenVerifier({ jwks: await kmsSigner.jwks() }),
+});
+testPrincipalSource(usersTable, {
+  principals: [
+    { id: "u_1", expect: alice },
+    { id: "u_gone", expect: null },
+  ],
+  identities: [
+    { identity: { kind: "email", value: "ada@acme.test" }, expect: "u_1" },
+  ],
 });
 testMembershipSource(documentMembers, {
   principals: [alice],
@@ -459,6 +510,7 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures });
 | `testSubjectResolver`          | Never throws; invalid material yields the anonymous subject and an `auth` event; valid material yields a frozen principal whose fields match the base type and the schema; `tenant` is set only on a membership match                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `testTokenVerifier`            | Never throws; every fixture token in the behaviour table produces the listed `cause` (`alg: none`, wrong `typ`, `jku` header ignored, JWE without keys, `EdDSA` on a non-Ed25519 key, expired, wrong audience, unknown `kid`); a valid `at+jwt` returns `ok: true` with the fixture claims and header; `RSA1_5` and `none` are rejected regardless of configuration                                                                                                                                                                                                                                                                                                                                         |
 | `testTokenSigner`              | Output is compact JWS whose protected header has exactly `alg`, `kid`, `typ`; `alg` is in the allow-list; `iat`, `jti` and `iss` are set; the supplied verifier accepts it with the same `typ`; `jwks()` when present contains the signing key's public half                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `testPrincipalSource`          | `principal(id)` answers each listed id with the expected principal or `null`, never one with another id; an empty or unknown id is `null`; answers are deeply frozen; each listed identity resolves to the expected principal id or `null`, and an email matches trimmed and in any case                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `testMembershipSource`         | Returns only well-formed memberships (one shape each: a named scope instance, the `tenant` / `team` input form, or `on`); with `policy`, every membership normalises under its [named scopes](/docs/concepts/scopes); a throw yields an empty list; results are JSON; with `list`, every instance a principal holds lists that principal; with `version`, the version is a finite number or absent; `tenant` is passed to every `membershipsFor`, for a source keyed by tenant                                                                                                                                                                                                                              |
 | `testEntitlementSource`        | Returns plan names as strings for a tenant (matching `expect` when given) and none without a tenant                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `testRelationSource`           | Chains are nearest first with non-empty string ids and no longer than `depth`; `depth: 1` returns the first ancestor with `truncated` when there are more; `depth: 0` returns none; holders have a string principal id or a group with string `resource`, `id` and `relation`, and finite `startsAt` / `expiresAt`; `expect.links` pins the instance a link points to (`resource:id>link`), and a group holder is pinned as `resource:id#relation`; a source with `row` answers each object with an object or `null`, and an unknown id with `null`; an unknown object answers an empty chain and no holders instead of throwing; `expect` pins chains (`resource:id`) and holders (`resource:id#relation`) |

@@ -68,7 +68,7 @@ import { apiKeyVerifier, subjectFromApiKey } from "permdock/server";
 const resolveKey = subjectFromApiKey({
   verifier: apiKeyVerifier({ find: (id) => findKeyRow(id) }), // returns { credential, hash }
   permissions,
-  owner: (id) => loadOwner(id), // the live owner of a user key
+  principals, // a PrincipalSource: the live owner of a user key
   revoked: (id) => isRevoked(id),
   settings,
   sink,

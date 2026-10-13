@@ -68,6 +68,12 @@ export {
   memorySnapshotSource,
   memorySettings,
 } from "./core/memory-sources.ts";
+export { memoryPrincipalSource } from "./core/principal-source.ts";
+export type {
+  PrincipalIdentity,
+  PrincipalIdentityLink,
+  PrincipalSource,
+} from "./core/principal-source.ts";
 export {
   APPROVAL_POLICY_UNAVAILABLE,
   memoryApprovalPolicies,
