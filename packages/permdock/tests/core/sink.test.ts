@@ -343,7 +343,10 @@ describe("toCloudEvent", () => {
 
   it("refuses a signing memoryDecisionSink without an absolute source", () => {
     expect(() =>
-      memoryDecisionSink({ signer: { sign: async () => "jws" }, source: "app" }),
+      memoryDecisionSink({
+        signer: { sign: async () => "jws" },
+        source: "app",
+      }),
     ).toThrow(TypeError);
   });
 });

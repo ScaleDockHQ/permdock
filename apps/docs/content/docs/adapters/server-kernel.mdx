@@ -83,10 +83,10 @@ export default async function handler(request: Request): Promise<Response> {
 
 `createPermDock(policy, options)` from `permdock/server` is the kernel every in-tree HTTP and RPC adapter builds on; an out-of-tree adapter uses it the same way. Every member of the `ServerPermDock` it returns takes an optional `TenantScope` (`{ tenant }`) as its last argument. The adapter resolves its own `tenant` option against its framework context with `tenantScope(option, context)` and passes the result, so the kernel never reads the framework context. Two `ServerPermDockOptions` serve adapters:
 
-| Option    | Role                                                                                                                                               |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `adapter` | The label on decision events, revocations and approval records. Defaults to `server`.                                                              |
-| `wrap`    | Replaces the public `wrap` with the composed wrapper the adapter applies: its `otel` first, then the application's `wrap`. Defaults to no wrapper. |
+| Option    | Role                                                                                                                         |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `adapter` | The label on decision events, revocations and approval records. Defaults to `server`.                                        |
+| `wrap`    | The composed wrapper the adapter applies: its `otel` first, then the application's `wrap`. Typed over the policy vocabulary. |
 
 ```ts
 import { createPermDock, tenantScope } from "permdock/server";
