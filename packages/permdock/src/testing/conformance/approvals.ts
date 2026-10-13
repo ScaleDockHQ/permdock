@@ -5,6 +5,8 @@ import type {
   ApprovalDelegationSource,
   ApprovalRequest,
   ApprovalStore,
+  IdempotencyStore,
+  IdempotentResponse,
 } from "../../approvals/index.ts";
 import type { ApprovalPolicySource, Policy, Subject } from "../../index.ts";
 
@@ -543,5 +545,31 @@ export function testApprovalDelegationSource(
         at,
       }),
     ).toEqual([]);
+  });
+}
+
+/**
+ * Checks an `IdempotencyStore`: a stored response comes back as written
+ * until it expires, keys never share an entry, and a later `set` replaces an
+ * earlier one.
+ */
+export function testIdempotencyStore(store: IdempotencyStore): void {
+  it("replays a stored response per key and keeps keys apart", async () => {
+    const key = `u_1\n${crypto.randomUUID()}`;
+    const other = `u_2\n${crypto.randomUUID()}`;
+    const response: IdempotentResponse = {
+      fingerprint: "approve apr_1 sha-256:abc",
+      status: 200,
+      headers: [["content-type", "application/json"]],
+      body: '{"status":"approved"}',
+    };
+    const later = Date.now() + 60 * 60 * 1000;
+    expect(await store.get(key)).toBeUndefined();
+    await store.set(key, response, later);
+    expect(await store.get(key)).toEqual(response);
+    expect(await store.get(other)).toBeUndefined();
+    const replaced = { ...response, status: 201 };
+    await store.set(key, replaced, later);
+    expect(await store.get(key)).toEqual(replaced);
   });
 }

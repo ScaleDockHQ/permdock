@@ -51,7 +51,7 @@ Approvals HTTP API and the Cloud store:
 | Cloud `POST /approvals/{token}/resolve`, `/consume` | `POST /approvals/by-token/resolve`, `/by-token/consume` with the `PermDock-Approval` header            |
 | `PermDock-Approval: <any string>`                   | One RFC 9651 sf-token; anything else reads as no token, and `approvalHeaders` throws on it             |
 
-`memoryIdempotencyStore`, `IdempotencyStore` and `ApprovalView` are new on `permdock/approvals`.
+`memoryIdempotencyStore`, `IdempotencyStore` and `ApprovalView` are new on `permdock/approvals`. `testIdempotencyStore` in `permdock/testing` is the store's conformance runner.
 
 Problem Details, AuthZEN, SCIM, SSF, OpenTelemetry, OCSF and Web Bot Auth:
 

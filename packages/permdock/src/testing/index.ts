@@ -81,6 +81,7 @@ export {
   testApprovalDelegationSource,
   testApprovalPolicySource,
   testApprovalStore,
+  testIdempotencyStore,
 } from "./conformance/approvals.ts";
 export { testWhereCompiler } from "./conformance/where.ts";
 export {

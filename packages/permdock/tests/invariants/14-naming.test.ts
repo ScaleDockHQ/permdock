@@ -159,7 +159,7 @@ describe("invariant 14: the naming convention", () => {
         principal: provider.types.some((name) => name.endsWith("Principal")),
       }).toEqual({
         entry: provider.entry,
-        principal: provider.entry !== "./server" && provider.entry !== ".",
+        principal: provider.entry !== ".",
       });
     }
   });
