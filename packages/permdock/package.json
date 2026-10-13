@@ -102,6 +102,26 @@
       "types": "./dist/node/index.d.ts",
       "default": "./dist/node/index.js"
     },
+    "./h3": {
+      "types": "./dist/h3/index.d.ts",
+      "default": "./dist/h3/index.js"
+    },
+    "./sveltekit": {
+      "types": "./dist/sveltekit/index.d.ts",
+      "default": "./dist/sveltekit/index.js"
+    },
+    "./astro": {
+      "types": "./dist/astro/index.d.ts",
+      "default": "./dist/astro/index.js"
+    },
+    "./solid-start": {
+      "types": "./dist/solid-start/index.d.ts",
+      "default": "./dist/solid-start/index.js"
+    },
+    "./tanstack-start": {
+      "types": "./dist/tanstack-start/index.d.ts",
+      "default": "./dist/tanstack-start/index.js"
+    },
     "./trpc": {
       "types": "./dist/trpc/index.d.ts",
       "default": "./dist/trpc/index.js"
@@ -356,7 +376,11 @@
     "@orpc/server": "catalog:peers",
     "@supabase/middleware": "catalog:peers",
     "@trpc/server": "catalog:peers",
+    "@solidjs/start": "catalog:peers",
+    "@sveltejs/kit": "catalog:peers",
+    "@tanstack/react-start": "catalog:peers",
     "ai": "catalog:peers",
+    "astro": "catalog:peers",
     "better-supabase": "catalog:peers",
     "chat": "catalog:peers",
     "drizzle-orm": "catalog:peers",
@@ -364,6 +388,7 @@
     "eve": "catalog:peers",
     "express": "catalog:peers",
     "fastify": "catalog:peers",
+    "h3": "catalog:peers",
     "hono": "catalog:peers",
     "jose": "catalog:peers",
     "kysely": "catalog:peers",
@@ -411,7 +436,19 @@
     "@trpc/server": {
       "optional": true
     },
+    "@solidjs/start": {
+      "optional": true
+    },
+    "@sveltejs/kit": {
+      "optional": true
+    },
+    "@tanstack/react-start": {
+      "optional": true
+    },
     "ai": {
+      "optional": true
+    },
+    "astro": {
       "optional": true
     },
     "better-supabase": {
@@ -430,6 +467,9 @@
       "optional": true
     },
     "fastify": {
+      "optional": true
+    },
+    "h3": {
       "optional": true
     },
     "hono": {
