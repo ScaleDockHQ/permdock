@@ -545,7 +545,7 @@ describe("hosted graph grants", () => {
         id: "doc",
         fingerprint: "fp",
         catalog: "cat",
-        issuedAt: 1,
+        issuedAt: "1970-01-01T00:00:01Z",
         grants: [
           grant("ok", { through: "parent", depth: 3 }),
           grant("deep", { through: "parent", depth: 99 }),

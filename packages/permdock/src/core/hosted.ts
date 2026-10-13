@@ -13,6 +13,7 @@ import { declaredRoleNames, indexPolicy } from "./policy.ts";
 import { isSelfParented } from "./resource-relations.ts";
 import { role } from "./role-builder.ts";
 import { bytesToBase64Url, sha256 } from "./sha256.ts";
+import { isRfc3339, rfc3339 } from "./time.ts";
 import { findRole, listPlans } from "./vocabulary.ts";
 
 /** One grant authored in PermDock Cloud; its grantee is a declared role, plan or relation. */
@@ -27,14 +28,19 @@ export type HostedGrant = {
   readonly fields?: readonly string[];
 };
 
-/** PolicyDocument v1: the payload of a `permdock-policy+jwt` under the `policy` claim. */
+/**
+ * PolicyDocument v1. Signed as a `vnd.permdock.policy+jwt`, the `policy`
+ * claim carries every field but `id` and `issuedAt`, which are the token's
+ * `jti` and `iat` (`policyDocumentFromClaims`).
+ */
 export type PolicyDocument = {
   readonly v: 1;
   readonly id: string;
   readonly fingerprint: string;
   /** The catalog fingerprint the document was authored against. */
   readonly catalog: string;
-  readonly issuedAt: number;
+  /** RFC 3339. */
+  readonly issuedAt: string;
   readonly grants: readonly HostedGrant[];
 };
 
@@ -110,13 +116,26 @@ export function parsePolicyDocument(json: unknown): PolicyDocument {
     typeof copy["id"] !== "string" ||
     typeof copy["fingerprint"] !== "string" ||
     typeof copy["catalog"] !== "string" ||
-    typeof copy["issuedAt"] !== "number" ||
+    !isRfc3339(copy["issuedAt"]) ||
     !Array.isArray(copy["grants"])
   ) {
     throw new TypeError("PermDock: malformed policy document");
   }
   // SAFETY: the envelope fields are checked above; each grant is checked by buildGrant at merge.
   return freezeDeep(copy) as unknown as PolicyDocument;
+}
+
+/** The document verified `vnd.permdock.policy+jwt` claims carry: `policy`, with `jti` as `id` and `iat` as `issuedAt`. Throws like `parsePolicyDocument`. */
+export function policyDocumentFromClaims(
+  claims: Readonly<Record<string, unknown>>,
+): PolicyDocument {
+  const claim = claims["policy"];
+  const jti = claims["jti"];
+  const iat = claims["iat"];
+  if (!isRecord(claim) || typeof jti !== "string" || typeof iat !== "number") {
+    throw new TypeError("PermDock: malformed policy document");
+  }
+  return parsePolicyDocument({ ...claim, id: jti, issuedAt: rfc3339(iat) });
 }
 
 const COMPARISONS = new Set(["eq", "ne", "gt", "gte", "lt", "lte", "contains"]);

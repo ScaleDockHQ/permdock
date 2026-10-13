@@ -28,7 +28,7 @@ const CLOUD_ENV = `${CLOUD_URL}/v1/environments/production`;
 const KEY = "env-key";
 const SNAPSHOT: Snapshot = {
   v: 1,
-  issuedAt: 1,
+  issuedAt: "1970-01-01T00:00:01Z",
   subject: { principal: { id: "u_1", roles: ["member"] }, context: {} },
   roles: ["member"],
   grants: [],
@@ -541,27 +541,29 @@ describe("cloud", () => {
     });
     const policy = {
       v: 1,
-      id: "doc_1",
       fingerprint: "fp_1",
       catalog: "cat_1",
-      issuedAt: 1,
       grants: [],
     };
     const good = await signer.sign(
       { policy },
-      { typ: "permdock-policy+jwt", audience: ENV_URL },
+      { typ: "vnd.permdock.policy+jwt", audience: ENV_URL, jti: "doc_1" },
     );
     const wrongTyp = await signer.sign(
-      { policy: { ...policy, id: "doc_2" } },
-      { typ: "permdock-snapshot+jwt", audience: ENV_URL },
+      { policy },
+      { typ: "vnd.permdock.snapshot+jwt", audience: ENV_URL, jti: "doc_2" },
     );
     const appAudience = await signer.sign(
-      { policy: { ...policy, id: "doc_3" } },
-      { typ: "permdock-policy+jwt", audience: "https://app.example.com" },
+      { policy },
+      {
+        typ: "vnd.permdock.policy+jwt",
+        audience: "https://app.example.com",
+        jti: "doc_3",
+      },
     );
     const wrongIssuer = await foreign.sign(
-      { policy: { ...policy, id: "doc_4" } },
-      { typ: "permdock-policy+jwt", audience: ENV_URL },
+      { policy },
+      { typ: "vnd.permdock.policy+jwt", audience: ENV_URL, jti: "doc_4" },
     );
     const bodies = [
       good,

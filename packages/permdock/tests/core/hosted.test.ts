@@ -9,6 +9,7 @@ import {
   memoryPolicySource,
   mergeHostedGrants,
   parsePolicyDocument,
+  policyDocumentFromClaims,
 } from "../../src/core/hosted.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
@@ -71,7 +72,7 @@ function document(grants: readonly unknown[]): PolicyDocument {
     id: "doc_1",
     fingerprint: "fp_doc_1",
     catalog: "cat_1",
-    issuedAt: 1,
+    issuedAt: "1970-01-01T00:00:01Z",
     grants,
   });
 }
@@ -483,7 +484,7 @@ describe("hosted grants", () => {
     expect(() => parsePolicyDocument({ v: 2 })).toThrow(/version/);
     expect(() =>
       parsePolicyDocument(
-        '{"v":1,"id":"d","fingerprint":"f","catalog":"c","issuedAt":1,"grants":[{"__proto__":{}}]}',
+        '{"v":1,"id":"d","fingerprint":"f","catalog":"c","issuedAt":"1970-01-01T00:00:01Z","grants":[{"__proto__":{}}]}',
       ),
     ).toThrow(/unsafe/);
   });
@@ -649,12 +650,38 @@ describe("hosted grant validation", () => {
           id: "d",
           fingerprint: "f",
           catalog: "c",
-          issuedAt: 1,
+          issuedAt: "1970-01-01T00:00:01Z",
           grants: [],
         }),
       ),
     ).not.toThrow();
+    expect(() =>
+      parsePolicyDocument({
+        v: 1,
+        id: "d",
+        fingerprint: "f",
+        catalog: "c",
+        issuedAt: 1,
+        grants: [],
+      }),
+    ).toThrow(/malformed policy document/u);
     expect(mergeHostedGrants(policy, null)).toEqual({ policy, dropped: [] });
+  });
+
+  it("rebuilds a document from verified claims, taking id from jti and issuedAt from iat", () => {
+    const claim = { v: 1, fingerprint: "f", catalog: "c", grants: [] };
+    expect(
+      policyDocumentFromClaims({ policy: claim, jti: "d", iat: 1 }),
+    ).toEqual({ ...claim, id: "d", issuedAt: "1970-01-01T00:00:01.000Z" });
+    for (const claims of [
+      { policy: claim, iat: 1 },
+      { policy: claim, jti: "d" },
+      { policy: "nope", jti: "d", iat: 1 },
+    ]) {
+      expect(() => policyDocumentFromClaims(claims)).toThrow(
+        /malformed policy document/u,
+      );
+    }
   });
 
   it("drops malformed grants as invalid and names an id-less one by an empty string", () => {

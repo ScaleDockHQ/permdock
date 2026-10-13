@@ -22,7 +22,7 @@ import { freezeDeep } from "../core/freeze.ts";
 import {
   type PolicyDocument,
   type PolicySource,
-  parsePolicyDocument,
+  policyDocumentFromClaims,
 } from "../core/hosted.ts";
 import {
   CLOUDEVENTS_BATCH_CONTENT_TYPE,
@@ -400,7 +400,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
         return;
       }
       const verified = await verifier.verify(token, {
-        typ: "permdock-policy+jwt",
+        typ: "vnd.permdock.policy+jwt",
         issuer: root,
         audience: root,
       });
@@ -409,7 +409,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       }
       let next: PolicyDocument;
       try {
-        next = parsePolicyDocument(verified.claims["policy"]);
+        next = policyDocumentFromClaims(verified.claims);
       } catch {
         return;
       }
