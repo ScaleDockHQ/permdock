@@ -14,8 +14,6 @@ import type {
   ProtectOptions,
   Resolved,
   ScopeGuard,
-  ServerKernel,
-  ServerKernelOptions,
   ServerPermDock,
   ServerPermDockOptions,
   SnapshotQuery,
@@ -42,7 +40,7 @@ import {
   type Report,
   type RequestContext,
 } from "../core/request-context.ts";
-import { createEvaluationsHandler } from "./evaluations.ts";
+import { evaluationsHandler } from "./evaluations.ts";
 import { type RouteGuardDeps, guardOn, routeScopes } from "./route-guard.ts";
 
 export type { RequestContext };
@@ -60,6 +58,12 @@ async function resolveActor(
 
 const NO_TENANT = "\u0000";
 
+/**
+ * The Fetch factory behind every HTTP adapter. The subject and actor are
+ * resolved once per `Request`; one instance is cached per `(Request, tenant)`,
+ * so a global middleware and a later tenant-scoped `protect` never share a
+ * tenant.
+ */
 export function createPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
@@ -68,22 +72,6 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   options: ServerPermDockOptions<TUser>,
 ): ServerPermDock<V> {
-  return createServerKernel<TUser, TPrincipal, V>(policy, options);
-}
-
-/**
- * The kernel behind every HTTP adapter. The subject and actor are resolved
- * once per `Request`; one instance is cached per `(Request, tenant)`, so a
- * global middleware and a later tenant-scoped `protect` never share a tenant.
- */
-export function createServerKernel<
-  TUser,
-  TPrincipal extends Principal = Principal,
-  V extends PolicyVocabulary = PolicyVocabulary,
->(
-  policy: Policy<TUser, TPrincipal, V>,
-  options: ServerKernelOptions<TUser, V>,
-): ServerKernel<V> {
   const adapter = options.adapter ?? "server";
   const subjects = new WeakMap<Request, Promise<Resolved<TUser>>>();
   const instances = new WeakMap<Request, Map<string, Promise<Built<V>>>>();
@@ -118,7 +106,8 @@ export function createServerKernel<
       sources: options,
       scope: { tenant, actor, context },
       errors,
-      wrap: options.wrap,
+      wrap: (created: PermDock<V>): PermDock<V> =>
+        options.wrap === undefined ? created : options.wrap(created),
     });
     const remote =
       options.pdp === undefined
@@ -189,7 +178,7 @@ export function createServerKernel<
     );
   };
 
-  const deps: RouteGuardDeps<V> = {
+  const deps: RouteGuardDeps = {
     // SAFETY: the guard reads the policy's resources and scopes, which do not depend on TUser or TPrincipal.
     policy: policy as unknown as Policy,
     options,
@@ -265,8 +254,8 @@ export function createServerKernel<
 
   const permdockHandler = (
     scope?: (request: Request) => TenantScope | Promise<TenantScope>,
-  ): ReturnType<typeof createEvaluationsHandler> =>
-    createEvaluationsHandler(
+  ): ReturnType<typeof evaluationsHandler> =>
+    evaluationsHandler(
       compact({
         policy,
         resolve:

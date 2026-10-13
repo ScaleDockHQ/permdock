@@ -6,10 +6,7 @@ import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { powersyncSource } from "../../src/react-native/powersync.ts";
 import { memoryStorage } from "../../src/react-native/storage.ts";
-import {
-  connectSource,
-  createNativeStore,
-} from "../../src/react-native/store.ts";
+import { connectSource, nativeStore } from "../../src/react-native/store.ts";
 import { ownPost, permissions, policy } from "../fixtures/quick-start.ts";
 
 type Row = { readonly user_id: string; readonly role: string };
@@ -81,8 +78,8 @@ describe("powersyncSource", () => {
         },
       }),
     });
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: "u1",
     });
     let notified = 0;
@@ -119,8 +116,8 @@ describe("powersyncSource", () => {
       read: () => ({ principal: { id: "u1", roles: ["member"] } }),
     });
     const snapshot = await source.get();
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: "u1",
       snapshot,
     });

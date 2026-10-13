@@ -25,7 +25,7 @@ import { compact } from "../core/compact.ts";
 import { type Decision, NO_GRANT } from "../core/decision.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
 import { wrapPermDock } from "../core/wrap.ts";
-import { createEvaluationsHandler } from "../server/evaluations.ts";
+import { evaluationsHandler } from "../server/evaluations.ts";
 import { renderClientProvider } from "./provider.tsx";
 
 type GrantedDecision = Extract<Decision, { readonly outcome: "granted" }>;
@@ -278,8 +278,8 @@ export function createPermDock<
     );
   };
 
-  const permdockHandler = (): ReturnType<typeof createEvaluationsHandler> =>
-    createEvaluationsHandler(
+  const permdockHandler = (): ReturnType<typeof evaluationsHandler> =>
+    evaluationsHandler(
       compact({
         policy,
         getPermDock,

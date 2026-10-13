@@ -10,7 +10,7 @@ import type {
   Loader,
   ProtectOptions,
   ScopeGuard,
-  ServerKernelOptions,
+  ServerPermDockOptions,
 } from "./server-types.ts";
 
 import { compact } from "../core/compact.ts";
@@ -32,10 +32,10 @@ import {
 } from "./problem.ts";
 
 /** What `guardOn` reads besides the request: the policy, the kernel options it honours and the adapter name. */
-export type RouteGuardDeps<V extends PolicyVocabulary> = {
+export type RouteGuardDeps = {
   readonly policy: Policy;
   readonly options: Pick<
-    ServerKernelOptions<unknown, V>,
+    ServerPermDockOptions<unknown>,
     "operations" | "onDenied" | "store" | "approval"
   >;
   readonly adapter: string;
@@ -58,7 +58,7 @@ export function routeScopes(value: unknown): readonly string[] | undefined {
 }
 
 async function refused(
-  hook: ServerKernelOptions<unknown>["onDenied"],
+  hook: ServerPermDockOptions<unknown>["onDenied"],
   fallback: Response,
   decision: Exclude<Decision, { readonly outcome: "granted" }>,
   request: Request | undefined,
@@ -102,7 +102,7 @@ async function refused(
 }
 
 export async function guardOn<T, V extends PolicyVocabulary>(
-  deps: RouteGuardDeps<V>,
+  deps: RouteGuardDeps,
   instance: PermDock<V>,
   remote: PdpPermDock | undefined,
   report: Report,

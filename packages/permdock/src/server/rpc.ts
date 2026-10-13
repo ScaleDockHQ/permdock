@@ -4,7 +4,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";
-import type { ServerKernel } from "./server-types.ts";
+import type { ServerPermDock } from "./server-types.ts";
 
 import { compact } from "../core/compact.ts";
 import {
@@ -63,7 +63,7 @@ export type RpcAdapterOptions<TOpts, TCtx, TUser> = ServerAdapterOptions<
 };
 
 export type RpcKernel<TOpts, V extends PolicyVocabulary> = {
-  readonly kernel: ServerKernel<V>;
+  readonly kernel: ServerPermDock<V>;
   /**
    * One `Request` per HTTP request, shared by every procedure in a batch. The
    * subject reads the first procedure's opts; the tenant is resolved from each

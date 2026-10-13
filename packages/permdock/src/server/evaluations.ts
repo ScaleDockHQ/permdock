@@ -300,7 +300,7 @@ async function resolvePermdock(
   throw new TypeError("evaluations handler needs resolve or getPermDock");
 }
 
-export function createEvaluationsHandler(options: {
+export function evaluationsHandler(options: {
   readonly policy: Policy;
   readonly resolve?: (request: Request) => Promise<PermDock>;
   readonly getPermDock?: (query?: {

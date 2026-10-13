@@ -7,7 +7,7 @@ import type { DecisionEvent } from "../../src/core/event-types.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { accessToOcsf, toOcsf } from "../../src/core/ocsf.ts";
-import { createPermDock as createServerKernel } from "../../src/core/permdock.ts";
+import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -317,7 +317,7 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.9.0", () => {
   async function decisionEvents(): Promise<DecisionEvent[]> {
     const events: DecisionEvent[] = [];
     for (const user of [{ id: "u_1" }, null]) {
-      const permdock = await createServerKernel(policy, user);
+      const permdock = await createCorePermDock(policy, user);
       permdock.on("decision", (event) => {
         // SAFETY: the decision channel carries DecisionEvent payloads.
         events.push(event as DecisionEvent);

@@ -120,7 +120,7 @@ function parseSeed(
   }
 }
 
-export function createNativeStore(options: NativeStoreOptions): ClientStore {
+export function nativeStore(options: NativeStoreOptions): ClientStore {
   const storage = guardStorage(options.storage);
   const signed = options.verifier !== undefined;
   const revalidates =

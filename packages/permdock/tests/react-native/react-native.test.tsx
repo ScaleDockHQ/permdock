@@ -17,10 +17,7 @@ import {
   SNAPSHOT_KEY,
   TENANT_KEY,
 } from "../../src/react-native/storage.ts";
-import {
-  connectSource,
-  createNativeStore,
-} from "../../src/react-native/store.ts";
+import { connectSource, nativeStore } from "../../src/react-native/store.ts";
 import { usePermission } from "../../src/react/hooks.ts";
 import {
   adminUser,
@@ -70,15 +67,15 @@ describe("permdock/react-native", () => {
   it("discards a persisted snapshot for a different subject or nobody", async () => {
     const snapshot = await memberSnapshot();
     const values = { [SNAPSHOT_KEY]: JSON.stringify(snapshot) };
-    const other = createNativeStore({
-      storage: memoryStorage(values),
+    const other = nativeStore({
+      storage: memorySnapshotStorage(values),
       subjectId: "other-user",
     });
     expect(
       other.permissionState(permissions.post.update, ownPost).allowed,
     ).toBe(false);
-    const signedOut = memoryStorage(values);
-    const nobody = createNativeStore({ storage: signedOut, subjectId: null });
+    const signedOut = memorySnapshotStorage(values);
+    const nobody = nativeStore({ storage: signedOut, subjectId: null });
     expect(nobody.get().subject.principal).toBeNull();
     expect(signedOut.getItem(SNAPSHOT_KEY)).toBeNull();
   });
@@ -88,7 +85,7 @@ describe("permdock/react-native", () => {
     const storage = memoryStorage({
       [SNAPSHOT_KEY]: JSON.stringify(snapshot),
     });
-    const store = createNativeStore({ storage, subjectId: "u1" });
+    const store = nativeStore({ storage, subjectId: "u1" });
     expect(
       store.permissionState(permissions.post.update, ownPost).allowed,
     ).toBe(true);
@@ -103,8 +100,8 @@ describe("permdock/react-native", () => {
     const snapshot = await memberSnapshot();
     const admin = await snapshotOf(adminUser);
     let next = snapshot;
-    const storage = memoryStorage();
-    const store = createNativeStore({
+    const storage = memorySnapshotStorage();
+    const store = nativeStore({
       storage,
       subjectId: "u1",
       snapshotUrl: "https://api.example.com/permdock/snapshot",
@@ -266,11 +263,11 @@ describe("permdock/react-native storage", () => {
   });
 });
 
-describe("permdock/react-native createNativeStore", () => {
+describe("permdock/react-native nativeStore", () => {
   it("seeds from a snapshot string or object and persists it with the tenant", async () => {
     const snapshot = await memberSnapshot();
-    const fromString = memoryStorage();
-    const seeded = createNativeStore({
+    const fromString = memorySnapshotStorage();
+    const seeded = nativeStore({
       storage: fromString,
       subjectId: "u1",
       snapshot: JSON.stringify(snapshot),
@@ -281,15 +278,15 @@ describe("permdock/react-native createNativeStore", () => {
     ).toBe(true);
     expect(fromString.getItem(SNAPSHOT_KEY)).toBe(JSON.stringify(snapshot));
     expect(fromString.getItem(TENANT_KEY)).toBe("o1");
-    const fromObject = memoryStorage();
-    createNativeStore({ storage: fromObject, subjectId: "u1", snapshot });
+    const fromObject = memorySnapshotStorage();
+    nativeStore({ storage: fromObject, subjectId: "u1", snapshot });
     expect(fromObject.getItem(SNAPSHOT_KEY)).toBe(JSON.stringify(snapshot));
   });
 
   it("keeps a signed snapshot signed in storage and verifies it again on launch", async () => {
     const snapshot = await memberSnapshot();
-    const storage = memoryStorage();
-    const store = createNativeStore({
+    const storage = memorySnapshotStorage();
+    const store = nativeStore({
       storage,
       subjectId: "u1",
       snapshot: "a.b.c",
@@ -302,7 +299,7 @@ describe("permdock/react-native createNativeStore", () => {
     ).toBe(true);
     expect(storage.getItem(SNAPSHOT_KEY)).toBe("a.b.c");
 
-    const relaunch = createNativeStore({
+    const relaunch = nativeStore({
       storage,
       subjectId: "u1",
       verifier: signedVerifier(snapshot),
@@ -315,8 +312,10 @@ describe("permdock/react-native createNativeStore", () => {
 
   it("refuses an unsigned persisted copy when a verifier is configured", async () => {
     const snapshot = await memberSnapshot();
-    const store = createNativeStore({
-      storage: memoryStorage({ [SNAPSHOT_KEY]: JSON.stringify(snapshot) }),
+    const store = nativeStore({
+      storage: memorySnapshotStorage({
+        [SNAPSHOT_KEY]: JSON.stringify(snapshot),
+      }),
       subjectId: "u1",
       verifier: signedVerifier(snapshot),
     });
@@ -333,7 +332,7 @@ describe("permdock/react-native createNativeStore", () => {
       [SNAPSHOT_KEY]: JSON.stringify(multi),
       [TENANT_KEY]: "o2",
     });
-    const store = createNativeStore({ storage, subjectId: "u1" });
+    const store = nativeStore({ storage, subjectId: "u1" });
     expect(store.get().status()).toBe("pending");
     expect(
       store.permissionState(permissions.post.update, ownPost).allowed,
@@ -349,8 +348,10 @@ describe("permdock/react-native createNativeStore", () => {
   it("reports a persisted snapshot stale until the refresh lands", async () => {
     const snapshot = await memberSnapshot();
     let release: (response: Response) => void = () => undefined;
-    const store = createNativeStore({
-      storage: memoryStorage({ [SNAPSHOT_KEY]: JSON.stringify(snapshot) }),
+    const store = nativeStore({
+      storage: memorySnapshotStorage({
+        [SNAPSHOT_KEY]: JSON.stringify(snapshot),
+      }),
       subjectId: "u1",
       snapshotUrl: "/snap",
       fetch: () =>
@@ -371,13 +372,13 @@ describe("permdock/react-native createNativeStore", () => {
   it("server-only after an empty async read; a cleared store ignores the read", async () => {
     const snapshot = await memberSnapshot();
     const storage = asyncStorage({ [SNAPSHOT_KEY]: JSON.stringify(snapshot) });
-    const store = createNativeStore({ storage, subjectId: "u1" });
+    const store = nativeStore({ storage, subjectId: "u1" });
     store.get().clear();
     await settle();
     expect(
       store.permissionState(permissions.post.update, ownPost).allowed,
     ).toBe(false);
-    const empty = createNativeStore({
+    const empty = nativeStore({
       storage: asyncStorage(),
       subjectId: "u1",
     });
@@ -388,7 +389,7 @@ describe("permdock/react-native createNativeStore", () => {
 
   it("does not crash on a storage that throws", async () => {
     const snapshot = await memberSnapshot();
-    const store = createNativeStore({
+    const store = nativeStore({
       storage: throwingStorage(),
       subjectId: "u1",
       snapshot,
@@ -404,9 +405,9 @@ describe("permdock/react-native createNativeStore", () => {
   it("seeds a rebuilt store from the one it replaces, so guards never flip", async () => {
     const snapshot = await memberSnapshot();
     const storage = asyncStorage({ [SNAPSHOT_KEY]: JSON.stringify(snapshot) });
-    const first = createNativeStore({ storage, subjectId: "u1" });
+    const first = nativeStore({ storage, subjectId: "u1" });
     await settle();
-    const second = createNativeStore({
+    const second = nativeStore({
       storage,
       subjectId: "u1",
       previous: first,
@@ -415,7 +416,7 @@ describe("permdock/react-native createNativeStore", () => {
     expect(
       second.permissionState(permissions.post.update, ownPost).allowed,
     ).toBe(true);
-    const otherUser = createNativeStore({
+    const otherUser = nativeStore({
       storage,
       subjectId: "u2",
       previous: second,
@@ -428,8 +429,8 @@ describe("permdock/react-native createNativeStore", () => {
   it("applies only the latest of two overlapping local reads", async () => {
     const snapshot = await memberSnapshot();
     const admin = await snapshotOf(adminUser);
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: "u1",
     });
     const releases: ((value: Snapshot) => void)[] = [];
@@ -464,8 +465,8 @@ function Probe(): string {
 describe("permdock/react-native connectSource", () => {
   it("re-renders nothing for a local read whose content did not change", async () => {
     const snapshot = await memberSnapshot();
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: "u1",
       snapshot,
     });
@@ -495,8 +496,8 @@ describe("permdock/react-native connectSource", () => {
 
 describe("permdock/react-native connectSource foreground", () => {
   it("re-reads the source on a return to the foreground only", async () => {
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: null,
     });
     let reads = 0;

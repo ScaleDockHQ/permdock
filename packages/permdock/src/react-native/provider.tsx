@@ -7,7 +7,7 @@ import { compact } from "../core/compact.ts";
 import { PermDockStoreContext, PermDockUiContext } from "../react/context.ts";
 import { useKeyed } from "../react/keyed.ts";
 import { useLiveOptions } from "../react/live-options.ts";
-import { connectSource, createNativeStore } from "./store.ts";
+import { connectSource, nativeStore } from "./store.ts";
 
 export function PermDockProvider(
   props: NativePermDockProviderProps,
@@ -16,7 +16,7 @@ export function PermDockProvider(
   const shown = useRef<ClientStore | null>(null);
   const store = useKeyed(
     () =>
-      createNativeStore(
+      nativeStore(
         compact({
           storage: props.storage,
           subjectId: props.subjectId,

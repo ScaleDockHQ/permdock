@@ -12,7 +12,7 @@ import type {
   OnDenied,
   ProtectOptions,
   ScopeGuard,
-  ServerKernel,
+  ServerPermDock,
 } from "./server-types.ts";
 
 import { compact } from "../core/compact.ts";
@@ -25,7 +25,7 @@ import {
   type RequestContext,
   type TenantOption,
   type TenantScope,
-  createServerKernel,
+  createPermDock,
   tenantScope,
 } from "./create.ts";
 import {
@@ -74,7 +74,7 @@ export type AnyGuard<V extends PolicyVocabulary = PolicyVocabulary> =
   | ScopeGuard<unknown, V>;
 
 export type BoundKernel<TContext, V extends PolicyVocabulary> = {
-  readonly kernel: ServerKernel<V>;
+  readonly kernel: ServerPermDock<V>;
   /** The `Request` for `context`, built once and mapped back to it for the option callbacks. */
   readonly bind: (context: TContext) => Request;
   /**
@@ -109,8 +109,8 @@ export function adapterKernel<
   },
   adapter: string,
   contextOf: (request: Request) => TContext | undefined,
-): ServerKernel<V> {
-  return createServerKernel(
+): ServerPermDock<V> {
+  return createPermDock(
     policy,
     compact({
       subject: (request: Request) => {

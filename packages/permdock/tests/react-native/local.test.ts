@@ -22,10 +22,7 @@ import {
   localSnapshot,
 } from "../../src/react-native/local.ts";
 import { memoryStorage } from "../../src/react-native/storage.ts";
-import {
-  connectSource,
-  createNativeStore,
-} from "../../src/react-native/store.ts";
+import { connectSource, nativeStore } from "../../src/react-native/store.ts";
 import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
 const permissions = definePermissions({
@@ -362,8 +359,8 @@ describe("localSnapshot", () => {
         };
       },
     });
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: null,
     });
     const disconnect = connectSource(store, source);
@@ -383,8 +380,8 @@ describe("localSnapshot", () => {
   });
 
   it("drops a read that settles after disconnect", async () => {
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: null,
     });
     const before = store.snapshot();
@@ -427,8 +424,8 @@ describe("localSnapshot", () => {
   });
 
   it("keeps the current snapshot when a read fails", async () => {
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: null,
     });
     const before = store.snapshot();

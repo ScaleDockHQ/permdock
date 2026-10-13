@@ -1,4 +1,4 @@
-export { createPermDock, createServerKernel, tenantScope } from "./create.ts";
+export { createPermDock, tenantScope } from "./create.ts";
 export type { RequestContext, TenantOption, TenantScope } from "./create.ts";
 export type {
   Guard,
@@ -8,8 +8,6 @@ export type {
   OperationScopes,
   ProtectOptions,
   ScopeGuard,
-  ServerKernel,
-  ServerKernelOptions,
   ServerPermDock,
   ServerPermDockOptions,
   SnapshotQuery,
@@ -65,7 +63,7 @@ export type {
   SnapshotHeaders,
   SnapshotHeadersOptions,
 } from "../core/snapshot-cache.ts";
-export { createEvaluationsHandler } from "./evaluations.ts";
+export { evaluationsHandler } from "./evaluations.ts";
 export { problemFromError } from "./map-error.ts";
 export type { ProblemFromErrorOptions } from "./map-error.ts";
 export {

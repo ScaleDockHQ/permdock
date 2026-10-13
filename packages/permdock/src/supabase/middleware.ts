@@ -14,7 +14,10 @@ import {
 } from "../core/instance-options.ts";
 import { composeWraps } from "../core/wrap.ts";
 import { type ServerAdapterServices, attached } from "../server/bind.ts";
-import { type RequestContext, createServerKernel } from "../server/create.ts";
+import {
+  type RequestContext,
+  createPermDock as createServerPermDock,
+} from "../server/create.ts";
 import { methodNotAllowed } from "../server/problem.ts";
 
 /**
@@ -203,7 +206,7 @@ export function createPermDock<
     contexts.get(request) ?? { jwtClaims: null };
   const secretKeys = secretKeySubjects(options.secretKeys, policy.permissions);
 
-  const kernel = createServerKernel(
+  const kernel = createServerPermDock(
     policy,
     compact({
       subject: (request: Request) => {
