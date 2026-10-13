@@ -599,7 +599,7 @@ describe("approver delegation", () => {
         subjectFor,
         requireDistinct: true,
         factsFor,
-        now,
+        now: { epochMilliseconds: now.getTime() },
       });
     const entry = { id: "d1", delegator: "cfo", delegate: "dana", ...open };
     expect(await match(inTenant("dana"), [entry])).toBeDefined();

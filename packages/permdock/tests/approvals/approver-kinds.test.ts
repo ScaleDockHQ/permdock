@@ -113,7 +113,14 @@ describe("approver kinds", () => {
     );
     expect(held).toEqual(["payment.approve"]);
     expect(() =>
-      assertApprover(request, dana, false, new Date(), [], held),
+      assertApprover(
+        request,
+        dana,
+        false,
+        { epochMilliseconds: Date.now() },
+        [],
+        held,
+      ),
     ).not.toThrow();
   });
 
@@ -298,15 +305,21 @@ describe("escalation in data and per stage", () => {
       permission: permissions.payment.send,
       resource: { type: "payment", id: "p1" },
       subject: permdock.subject,
-      now: created,
+      now: { epochMilliseconds: created.getTime() },
       ttl: 24 * 60 * 60,
     });
     const auditor = inTenant("ann", ["auditor"]);
     const early = new Date("2026-10-05T09:00:00Z");
     const late = new Date("2026-10-05T13:00:00Z");
-    expect(() => assertApprover(request, auditor, false, early)).toThrow(
-      /eligible/u,
-    );
-    expect(assertApprover(request, auditor, false, late)).toBe(1);
+    expect(() =>
+      assertApprover(request, auditor, false, {
+        epochMilliseconds: early.getTime(),
+      }),
+    ).toThrow(/eligible/u);
+    expect(
+      assertApprover(request, auditor, false, {
+        epochMilliseconds: late.getTime(),
+      }),
+    ).toBe(1);
   });
 });

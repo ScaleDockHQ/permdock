@@ -76,7 +76,44 @@ export function nowSeconds(now?: Instant): number {
   return Math.floor(nowMillis(now) / 1000);
 }
 
-/** Milliseconds since the epoch of `now`, or of the clock when absent. */
+/** The `validation` denial detail for a `now` option that is not an `Instant`. */
+export const INVALID_NOW: { readonly field: "now"; readonly message: string } =
+  Object.freeze({
+    field: "now",
+    message:
+      "now must be an Instant ({ epochMilliseconds }), such as a Temporal.Instant",
+  });
+
+/** The `Date` of `now`, or of the clock when absent; throws a `RangeError` for a `now` that is not an `Instant`. */
+export function dateAt(now?: Instant): Date {
+  const millis = nowMillis(now);
+  if (!Number.isFinite(millis)) {
+    throw new RangeError(`PermDock: ${INVALID_NOW.message}`);
+  }
+  return new Date(millis);
+}
+
+/** Whole seconds since the epoch of `now`, or of the clock when absent; throws a `RangeError` for a `now` that is not an `Instant`. */
+export function secondsAt(now?: Instant): number {
+  return Math.floor(dateAt(now).getTime() / 1000);
+}
+
+/** The instant `seconds` after the epoch. */
+export function instantAt(seconds: number): Instant {
+  return { epochMilliseconds: seconds * 1000 };
+}
+
+/** Seconds since the epoch of `now`, fraction kept, or of the clock when absent. */
+export function epochSeconds(now?: Instant): number {
+  return nowMillis(now) / 1000;
+}
+
+/** Milliseconds since the epoch of `now`, or of the clock when absent; `NaN` for a `now` that is not an `Instant`. */
 export function nowMillis(now?: Instant): number {
-  return now === undefined ? Date.now() : now.epochMilliseconds;
+  if (now === undefined) {
+    return Date.now();
+  }
+  const millis: unknown =
+    typeof now === "object" && now !== null ? now.epochMilliseconds : undefined;
+  return typeof millis === "number" ? millis : Number.NaN;
 }

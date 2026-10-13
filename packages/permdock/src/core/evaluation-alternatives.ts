@@ -7,6 +7,7 @@ import type { RelatedVerdict } from "./relations.ts";
 import type { Subject } from "./subject.ts";
 
 import { findPermission, listPermissions } from "./permission-registry.ts";
+import { instantAt } from "./time.ts";
 
 /** The signature of `evaluate`, passed in so this module never imports it. */
 export type Evaluate = (
@@ -36,7 +37,7 @@ export function alternativesFor(
       subject,
       leaf,
       undefined,
-      { trusted: true, call: "simulate", now },
+      { trusted: true, call: "simulate", now: instantAt(now) },
       { ...env, emit: false, skipAlternatives: true, outcomeOnly: true },
     );
     return decision.outcome === "granted";
@@ -69,7 +70,7 @@ export function inheritedVerdict(
     subject,
     leaf,
     loaded.row,
-    { trusted: true, call: "simulate", now },
+    { trusted: true, call: "simulate", now: instantAt(now) },
     { ...env, emit: false, skipAlternatives: true, outcomeOnly: true },
   );
   if (decision.outcome === "granted") {

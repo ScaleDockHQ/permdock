@@ -8,10 +8,15 @@ import type { Condition, RelatedCondition } from "../../src/conditions/ast.ts";
 import type { MembershipsMapping } from "../../src/conditions/compile.ts";
 import type { WhereResult } from "../../src/core/permdock.ts";
 import type { Subject } from "../../src/core/subject.ts";
+import type { Instant } from "../../src/core/time.ts";
 
 import { getRegistry } from "../../src/core/permission-registry.ts";
 import { checkRow, toWhere, withSubject } from "../../src/drizzle/to-where.ts";
 import { permissions as graph } from "../fixtures/graph.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 const posts = pgTable("posts", {
   id: text("id"),
@@ -239,7 +244,7 @@ describe("permdock/drizzle memberships tables", () => {
           field: "orgId",
           roles: ["viewer", "admin"],
         },
-        { subject, memberships, now: 10.5 },
+        { subject, memberships, now: at(10.5) },
       ),
     ).toEqual({
       sql: 'exists (select 1 from org_members m where m.org_id = "posts"."org_id" and m.user_id = $1 and m.role in ($2, $3) and (m.expires_at is null or m.expires_at > $4) and (m.org_id is null or m.org_id = $5))',

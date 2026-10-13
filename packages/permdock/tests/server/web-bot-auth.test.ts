@@ -136,7 +136,7 @@ function options(
   keys: WebBotAuthOptions["keys"],
   extra: Partial<WebBotAuthOptions> = {},
 ): WebBotAuthOptions {
-  return { keys, now: () => NOW, ...extra };
+  return { keys, now: () => ({ epochMilliseconds: NOW * 1000 }), ...extra };
 }
 
 async function detailOf(promise: Promise<unknown>): Promise<string> {

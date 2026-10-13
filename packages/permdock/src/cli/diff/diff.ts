@@ -651,7 +651,9 @@ async function impactOf(input: {
     input.cwd,
     input.fixtures,
   );
-  const now = Math.floor(input.now.getTime() / 1000);
+  const now = {
+    epochMilliseconds: Math.floor(input.now.getTime() / 1000) * 1000,
+  };
   const outcome = async (
     policy: Policy,
     fixture: (typeof fixtures)[number],

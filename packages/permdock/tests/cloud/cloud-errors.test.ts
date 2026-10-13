@@ -69,9 +69,9 @@ describe("cloud approvals over a failing API", () => {
     );
     expect({
       get: await failing.approvals.get("t"),
-      consume: await failing.approvals.consume("t", new Date(0)),
+      consume: await failing.approvals.consume("t", { epochMilliseconds: 0 }),
       list: await failing.approvals.list({}),
-      expire: await failing.approvals.expire(new Date(0)),
+      expire: await failing.approvals.expire({ epochMilliseconds: 0 }),
     }).toEqual({ get: null, consume: null, list: { items: [] }, expire: 0 });
 
     const { client: shaped } = client(() => json({ items: "x", expired: "x" }));

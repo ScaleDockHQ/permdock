@@ -8,7 +8,7 @@ import { parseApprovalHeader } from "../core/approval-header.ts";
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { durationOf } from "../core/time.ts";
+import { dateAt, durationOf, type Instant } from "../core/time.ts";
 import { toWireDelegation } from "../core/wire-delegation.ts";
 import { ApprovalError } from "./errors.ts";
 import { listAllApprovals } from "./page.ts";
@@ -115,11 +115,11 @@ export async function requestApproval(
     readonly membership?: Membership;
     readonly adapter?: string;
     readonly ttl?: number;
-    readonly now?: Date;
+    readonly now?: Instant;
     readonly detail?: string;
   },
 ): Promise<ApprovalRequest> {
-  const now = meta.now ?? new Date();
+  const now = dateAt(meta.now);
   const leaf = permissionMeta(meta.permission);
   const approval = decision.grant.approval;
   const approvers: ApprovalApprovers | undefined =
@@ -223,9 +223,10 @@ export async function vouchApproval(
 export async function inspectApproval(
   store: ApprovalStore,
   token: string,
-  now: Date = new Date(),
+  at?: Instant,
 ): Promise<ApprovalInspectResult> {
-  await store.expire(now);
+  const now = dateAt(at).getTime();
+  await store.expire({ epochMilliseconds: now });
   const request = await store.get(token);
   if (request === null) {
     return { ok: false, detail: "approval-not-found" };
@@ -239,10 +240,7 @@ export async function inspectApproval(
   if (request.consumedAt !== undefined) {
     return { ok: false, detail: "approval-consumed" };
   }
-  if (
-    request.status === "expired" ||
-    Date.parse(request.expiresAt) <= now.getTime()
-  ) {
+  if (request.status === "expired" || Date.parse(request.expiresAt) <= now) {
     return { ok: false, detail: "approval-expired" };
   }
   return { ok: true, request };
@@ -252,8 +250,9 @@ export async function inspectApproval(
 export async function consumeApproval(
   store: ApprovalStore,
   token: string,
-  now: Date = new Date(),
+  at?: Instant,
 ): Promise<ApprovalInspectResult> {
+  const now = { epochMilliseconds: dateAt(at).getTime() };
   const inspected = await inspectApproval(store, token, now);
   if (!inspected.ok) {
     return inspected;
@@ -347,7 +346,7 @@ export async function resumeDecision(input: {
   readonly token: string | undefined;
   /** `false` for checks that do not run the action, such as the decision endpoint. */
   readonly consume?: boolean;
-  readonly now?: Date;
+  readonly now?: Instant;
   /**
    * Seconds a request this call opens stays open; absent means the
    * store's `ttl`, else `DEFAULT_APPROVAL_TTL`. The grant's `approval.ttl`
@@ -473,7 +472,7 @@ export function readApprovalHeader(
 export function resumeFromHeader(
   store: ApprovalStore,
   headers: Headers | { readonly get: (name: string) => string | null },
-  now?: Date,
+  now?: Instant,
 ): Promise<ApprovalInspectResult> {
   const token = readApprovalHeader(headers);
   if (token === undefined) {
@@ -496,12 +495,12 @@ export function resumeFromHeader(
 export async function storedApprovalToken(
   store: ApprovalStore | undefined,
   decision: Decision,
-  options: { readonly denyPending?: boolean; readonly now?: Date } = {},
+  options: { readonly denyPending?: boolean; readonly now?: Instant } = {},
 ): Promise<string | undefined> {
   if (store === undefined || decision.outcome !== "approval-required") {
     return undefined;
   }
-  const now = (options.now ?? new Date()).getTime();
+  const now = dateAt(options.now).getTime();
   try {
     const record = await store.get(decision.token);
     if (

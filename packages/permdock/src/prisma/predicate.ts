@@ -1,6 +1,7 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { WhereResult } from "../core/permdock.ts";
 import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 import type { PrismaModelFields } from "./model-fields.ts";
 
 import {
@@ -37,7 +38,8 @@ export type PrismaCombinators = {
 export type PrismaPredicateOptions = {
   readonly fields?: Readonly<Record<string, string>>;
   readonly subject?: Subject;
-  readonly now?: number;
+  /** The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults to the current time. */
+  readonly now?: Instant;
   /** Required and list fields from `prismaModelFields`; `contains` on a list field is refused. */
   readonly model?: PrismaModelFields;
   readonly listFields?: readonly string[];

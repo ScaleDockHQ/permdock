@@ -278,11 +278,9 @@ describe("localSnapshot", () => {
       for (const tenant of ["acme", "globex", undefined]) {
         const serverRaw = await serverSnapshot(user, tenant);
         const server = fromSnapshot(serverRaw);
-        const snapshot = buildLocalSnapshot(
-          manifest,
-          local(user, tenant),
-          1_700_000_000,
-        );
+        const snapshot = buildLocalSnapshot(manifest, local(user, tenant), {
+          epochMilliseconds: 1_700_000_000_000,
+        });
         const device = fromSnapshot(parseSnapshot(JSON.stringify(snapshot)));
         expect(snapshot.roles, `${user.id} in ${String(tenant)}`).toEqual(
           serverRaw.roles,

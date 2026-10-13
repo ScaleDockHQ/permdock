@@ -18,6 +18,7 @@ import {
 import { applyApprovalVerdict } from "../approvals/store.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { compact, isRecord } from "../core/compact.ts";
+import { dateAt } from "../core/time.ts";
 import { callRpc } from "./postgrest.ts";
 import { PERMDOCK_SCHEMA } from "./sources.ts";
 
@@ -121,11 +122,11 @@ export function supabaseApprovalStore(
       }
       return written;
     },
-    async consume(token, now = new Date()) {
+    async consume(token, now) {
       return requestOf(
         await call("permdock_approval_consume", {
           p_token: token,
-          p_now: now.toISOString(),
+          p_now: dateAt(now).toISOString(),
         }),
       );
     },
@@ -156,9 +157,9 @@ export function supabaseApprovalStore(
         ? { items, next: encodeApprovalCursor(last) }
         : { items };
     },
-    async expire(now = new Date()) {
+    async expire(now) {
       const count = await call("permdock_approval_expire", {
-        p_now: now.toISOString(),
+        p_now: dateAt(now).toISOString(),
       });
       return typeof count === "number" ? count : 0;
     },

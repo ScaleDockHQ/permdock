@@ -154,9 +154,9 @@ export function testApprovalStore(
       ),
     ).rejects.toThrow(/not pending/);
     await store.create(sampleApproval("stale-token"));
-    const expired = await store.expire(
-      new Date(Date.now() + 2 * 60 * 60 * 1000),
-    );
+    const expired = await store.expire({
+      epochMilliseconds: Date.now() + 2 * 60 * 60 * 1000,
+    });
     expect(expired).toBeGreaterThanOrEqual(1);
   });
 

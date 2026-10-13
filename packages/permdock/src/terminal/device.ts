@@ -5,6 +5,7 @@ import type {
 } from "./types.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
+import { secondsAt } from "../core/time.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 
 /** Milliseconds an authorization server request may take. */
@@ -155,7 +156,7 @@ export async function runDeviceFlow(
   write: (text: string) => void,
 ): Promise<StoredCredential | null> {
   const sleep = runtime.sleep ?? defaultSleep;
-  const now = runtime.now ?? ((): number => Math.floor(Date.now() / 1000));
+  const now = (): number => secondsAt(runtime.now?.());
   let authorizationEndpoint = device.authorizationEndpoint;
   let tokenEndpoint = device.tokenEndpoint;
   if (
@@ -228,7 +229,7 @@ export async function refreshCredential(
   if (credential.refresh_token === undefined) {
     return null;
   }
-  const now = runtime.now ?? ((): number => Math.floor(Date.now() / 1000));
+  const now = (): number => secondsAt(runtime.now?.());
   let tokenEndpoint = device.tokenEndpoint;
   if (tokenEndpoint === undefined && device.issuer !== undefined) {
     tokenEndpoint = (await discoverDeviceEndpoints(device.issuer, runtime))

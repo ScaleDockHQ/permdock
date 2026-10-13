@@ -86,9 +86,15 @@ describe("supabaseApprovalStore", () => {
     expect(page.next).toBe(JSON.stringify([request.createdAt, "t1"]));
     expect(await store.list({ cursor: "not json" })).toEqual({ items: [] });
     expect(
-      await store.consume("t1", new Date("2026-10-05T11:00:00Z")),
+      await store.consume("t1", {
+        epochMilliseconds: Date.parse("2026-10-05T11:00:00Z"),
+      }),
     ).toBeNull();
-    expect(await store.expire(new Date("2026-10-05T11:00:00Z"))).toBe(2);
+    expect(
+      await store.expire({
+        epochMilliseconds: Date.parse("2026-10-05T11:00:00Z"),
+      }),
+    ).toBe(2);
     expect(await store.cancel?.({ tenant: "o1" }, { by: "cleanup" })).toBe(2);
     expect(
       calls.find((call) => call.fn === "permdock_approval_list")?.args,

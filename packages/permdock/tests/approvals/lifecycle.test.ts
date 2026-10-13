@@ -229,9 +229,9 @@ describe("memory store retention", () => {
     store.create(pending("pd1.old", "o_1", { expiresAt }));
     store.create(pending("pd1.new", "o_1"));
     const later = new Date(Date.now() + 1500);
-    expect(store.expire(later)).toBe(1);
+    expect(store.expire({ epochMilliseconds: later.getTime() })).toBe(1);
     expect((await store.get("pd1.old"))?.status).toBe("expired");
-    store.expire(new Date(Date.now() + 2500));
+    store.expire({ epochMilliseconds: Date.now() + 2500 });
     expect(store.get("pd1.old")).toBeNull();
     expect((await store.get("pd1.new"))?.status).toBe("pending");
   });

@@ -13,6 +13,7 @@ import {
   pendingRelations,
   relationReader,
 } from "../core/relations.ts";
+import { dateAt, type Instant } from "../core/time.ts";
 import { type ApprovalRequest, approverRelationKey } from "./types.ts";
 
 export type ApproverRelationsOptions = {
@@ -20,7 +21,8 @@ export type ApproverRelationsOptions = {
   readonly relations?: RelationSource;
   /** The permission tree the policy declares; needed to follow `through` links and `includes`. */
   readonly permissions?: PermissionTree;
-  readonly now?: Date;
+  /** The clock relation expiry is read at; defaults to the current time. */
+  readonly now?: Instant;
 };
 
 const DEFAULT_PARENT_DEPTH = 16;
@@ -143,7 +145,7 @@ export async function approverRelations(
   const registry = getRegistry(options.permissions);
   const cache: RelationCache = new Map();
   const reader = relationReader(options.relations, cache, registry);
-  const now = (options.now ?? new Date()).getTime() / 1000;
+  const now = dateAt(options.now).getTime() / 1000;
   const holds = async (item: RelationGrantee): Promise<boolean> => {
     const start = await startOf(
       item,

@@ -37,6 +37,7 @@ import type {
   Principal,
   Subject,
 } from "./subject.ts";
+import type { Instant } from "./time.ts";
 import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 import type { WhoCan } from "./who-can.ts";
@@ -70,8 +71,8 @@ export type DecideOptions = {
   readonly trusted?: boolean;
   /** Where untrusted data came from, reported on validation errors. Defaults to `'manual'`. */
   readonly boundary?: Boundary;
-  /** Decision clock in Unix seconds, for expiries and limits. Defaults to the current time. */
-  readonly now?: number;
+  /** Decision clock, for expiries and limits; a `Temporal.Instant` fits. Defaults to the current time. */
+  readonly now?: Instant;
   /** The call that produced the decision, reported on the decision event. Defaults to `'decide'`. */
   readonly call?: DecisionEvent["call"];
   /** The adapter that made the call, reported on the decision event. */
@@ -92,8 +93,8 @@ export type DecideOptions = {
 };
 
 export type SimulateOptions = {
-  /** Decision clock in Unix seconds for the whole batch: grant validity, membership expiry and limits are read as of this instant. Defaults to the current time. */
-  readonly now?: number;
+  /** Decision clock for the whole batch: grant validity, membership expiry and limits are read as of this instant. Defaults to the current time. */
+  readonly now?: Instant;
 };
 
 export type RowPair<T> = {

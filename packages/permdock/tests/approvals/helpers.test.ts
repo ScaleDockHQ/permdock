@@ -6,6 +6,7 @@ import type {
 } from "../../src/approvals/index.ts";
 import type { Decision } from "../../src/core/decision.ts";
 import type { Subject } from "../../src/core/subject.ts";
+import type { Instant } from "../../src/core/time.ts";
 
 import {
   DEFAULT_APPROVAL_TTL,
@@ -130,6 +131,24 @@ describe("summariseSubject", () => {
 });
 
 describe("requestApproval", () => {
+  it.each([
+    ["Unix seconds", 1_700_000_000],
+    ["a Date", new Date("2026-03-01T10:00:00.000Z")],
+    ["a NaN instant", { epochMilliseconds: Number.NaN }],
+  ])("throws a RangeError when now is %s", async (_, now) => {
+    const store = memoryApprovalStore();
+    // SAFETY: the values test what a caller without types can pass.
+    const at = now as Instant;
+    await expect(
+      requestApproval(store, pendingOf("t-now"), {
+        permission: deletePost,
+        subject: requester,
+        now: at,
+      }),
+    ).rejects.toThrow(RangeError);
+    expect(() => store.expire(at)).toThrow(RangeError);
+  });
+
   it("copies quorum and escalation onto the request and caps the ttl by the grant", async () => {
     const store = memoryApprovalStore();
     const now = new Date("2026-03-01T10:00:00.000Z");
@@ -145,7 +164,7 @@ describe("requestApproval", () => {
     const request = await requestApproval(store, pendingOf("t-q", grant), {
       permission: deletePost,
       subject: requester,
-      now,
+      now: { epochMilliseconds: now.getTime() },
     });
     const { ttl: _ttl, ...approvers } = grant;
     expect(request.approvers).toEqual(approvers);
@@ -154,13 +173,18 @@ describe("requestApproval", () => {
     const longer = await requestApproval(
       store,
       pendingOf("t-long", { ...grant, ttl: 14_400 }),
-      { permission: deletePost, subject: requester, now, ttl: 60 * 60 },
+      {
+        permission: deletePost,
+        subject: requester,
+        now: { epochMilliseconds: now.getTime() },
+        ttl: 60 * 60,
+      },
     );
     expect(longer.expiresAt).toBe("2026-03-01T11:00:00.000Z");
     const plain = await requestApproval(store, pendingOf("t-plain"), {
       permission: deletePost,
       subject: requester,
-      now,
+      now: { epochMilliseconds: now.getTime() },
       ttl: 60,
     });
     expect(plain.expiresAt).toBe("2026-03-01T10:01:00.000Z");
@@ -445,7 +469,9 @@ describe("storedApprovalToken", () => {
     const later = new Date(Date.parse(future) + 1_000);
     expect([
       await storedApprovalToken(store, required("t1")),
-      await storedApprovalToken(store, required("t1"), { now: later }),
+      await storedApprovalToken(store, required("t1"), {
+        now: { epochMilliseconds: later.getTime() },
+      }),
     ]).toEqual(["t1", undefined]);
   });
 

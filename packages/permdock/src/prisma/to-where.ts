@@ -1,6 +1,7 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { WhereResult } from "../core/permdock.ts";
 import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 import type { PrismaModelFields } from "./model-fields.ts";
 
 import {
@@ -20,7 +21,8 @@ import { assertSafeKey } from "../core/paths.ts";
 export type PrismaWhereOptions = {
   readonly fields?: Readonly<Record<string, string>>;
   readonly subject?: Subject;
-  readonly now?: number;
+  /** The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults to the current time. */
+  readonly now?: Instant;
   readonly listFields?: readonly string[];
   // Prisma rejects a null filter on a required field, and its runtime data
   // model does not say which fields are required.

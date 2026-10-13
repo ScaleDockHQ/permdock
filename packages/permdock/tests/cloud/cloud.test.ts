@@ -156,7 +156,9 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       // SAFETY: the cloud client under test posts this expire body.
       const body = (await request.json()) as { readonly now?: string };
       const expired = store.expire(
-        body.now === undefined ? undefined : new Date(body.now),
+        body.now === undefined
+          ? undefined
+          : { epochMilliseconds: Date.parse(body.now) },
       );
       return json({ expired });
     }
@@ -450,9 +452,9 @@ describe("cloud", () => {
       token: "stale-token",
       status: "pending",
     });
-    const expired = await client.approvals.expire(
-      new Date(Date.now() + 2 * 60 * 60 * 1000),
-    );
+    const expired = await client.approvals.expire({
+      epochMilliseconds: Date.now() + 2 * 60 * 60 * 1000,
+    });
     expect(expired).toBeGreaterThanOrEqual(1);
   });
 

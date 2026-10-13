@@ -313,7 +313,7 @@ async function actingApprover(
       request,
       subject,
       requireDistinct,
-      new Date(),
+      undefined,
       facts.relations,
       facts.permissions,
     );

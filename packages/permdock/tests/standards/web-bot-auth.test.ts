@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
+import type { Instant } from "../../src/core/time.ts";
 import type { WebBotAuthJwk } from "../../src/server/index.ts";
 
 import {
@@ -18,7 +19,10 @@ import { standardsFixture } from "./fixtures.ts";
 const vector = standardsFixture("rfc9421-ed25519.json");
 const created = 1_618_884_473;
 const { d: _private, ...publicKey } = vector.key;
-const at = (): number => created + 10;
+const instant = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
+const at = (): Instant => instant(created + 10);
 
 function vectorRequest(
   overrides: Readonly<Record<string, string>> = {},
@@ -230,14 +234,14 @@ describe("RFC 9421 HTTP Message Signatures (February 2024)", () => {
     const stale = await rejection(
       verifyMessageSignature(vectorRequest(), {
         keys: () => publicKey,
-        now: () => created + 301,
+        now: () => instant(created + 301),
       }),
     );
     expect(stale.body["detail"]).toBe("Signature-Input created is too old");
     const future = await rejection(
       verifyMessageSignature(vectorRequest(), {
         keys: () => publicKey,
-        now: () => created - 61,
+        now: () => instant(created - 61),
       }),
     );
     expect(future.body["detail"]).toBe(
@@ -246,7 +250,7 @@ describe("RFC 9421 HTTP Message Signatures (February 2024)", () => {
     await expect(
       verifyMessageSignature(vectorRequest(), {
         keys: () => publicKey,
-        now: () => created + 3600,
+        now: () => instant(created + 3600),
         maxAge: 3600,
       }),
     ).resolves.toBeDefined();

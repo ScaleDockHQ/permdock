@@ -26,6 +26,7 @@ import {
   nowSeconds,
   resolveActiveTenant,
 } from "./tenancy.ts";
+import { instantAt } from "./time.ts";
 import {
   type Role,
   listRoles,
@@ -162,7 +163,7 @@ export function assignableIn(
           scoped,
           leaf,
           undefined,
-          { call: "simulate", trusted: true, now },
+          { call: "simulate", trusted: true, now: instantAt(now) },
           quiet,
         ).outcome === "granted",
     );

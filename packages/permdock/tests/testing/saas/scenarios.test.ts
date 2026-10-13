@@ -200,7 +200,9 @@ describe("saas seed", () => {
 
 describe("saas tokens", () => {
   it("signs an ES256 token jose verifies against the published JWKS", async () => {
-    const token = await signSaasToken("alice", { now: 1_900_000_000 });
+    const token = await signSaasToken("alice", {
+      now: { epochMilliseconds: 1_900_000_000_000 },
+    });
     const { payload, protectedHeader } = await jwtVerify(
       token,
       createLocalJWKSet({

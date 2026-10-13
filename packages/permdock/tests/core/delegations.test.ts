@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { Instant } from "../../src/core/time.ts";
 import type { Permission, Snapshot } from "../../src/index.ts";
 
 import { catalogDelegations } from "../../src/cli/catalog-doc.ts";
@@ -19,6 +20,9 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 const Post = z.object({ id: z.string(), authorId: z.string() });
 const permissions = definePermissions({
@@ -246,11 +250,11 @@ describe("policy delegations", () => {
   it("stops applying after validUntil", async () => {
     const permdock = await createPermDock(policy, member, { actor: eve });
     const [during] = permdock.simulate([[permissions.post.read, post]], {
-      now: UNTIL - 60,
+      now: at(UNTIL - 60),
     });
     expect(during?.outcome).toBe("granted");
     const [expired] = permdock.simulate([[permissions.post.read, post]], {
-      now: UNTIL + 60,
+      now: at(UNTIL + 60),
     });
     expect(expired?.outcome === "denied" && expired.denials[0]?.reason).toBe(
       "no-delegation",

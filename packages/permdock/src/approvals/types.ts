@@ -4,7 +4,7 @@ import type { Approver } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 import type { WireDelegation } from "../core/wire-delegation.ts";
 
-import { durationOf } from "../core/time.ts";
+import { durationOf, type Instant } from "../core/time.ts";
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 
@@ -193,7 +193,7 @@ export type ApprovalStore = {
     verdict: ApprovalVerdict,
   ): Promise<ApprovalRequest> | ApprovalRequest;
   list(query: ApprovalListQuery): Promise<ApprovalPage> | ApprovalPage;
-  expire(now?: Date): Promise<number> | number;
+  expire(now?: Instant): Promise<number> | number;
   /**
    * Marks an approved, unexpired, unconsumed request consumed and returns it;
    * returns `null` otherwise. Must be atomic: two concurrent calls for one
@@ -201,7 +201,7 @@ export type ApprovalStore = {
    */
   consume(
     token: string,
-    now?: Date,
+    now?: Instant,
   ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   cancel?(
     filter: ApprovalListFilter,

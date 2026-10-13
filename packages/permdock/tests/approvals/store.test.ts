@@ -127,9 +127,9 @@ describe("memoryApprovalStore", () => {
   it("marks stale pending requests expired", async () => {
     const store = memoryApprovalStore();
     store.create(pending({ expiresAt: past }));
-    expect(store.expire(new Date())).toBe(1);
+    expect(store.expire({ epochMilliseconds: Date.now() })).toBe(1);
     expect((await store.get("pd1.token-1"))?.status).toBe("expired");
-    expect(store.expire(new Date())).toBe(0);
+    expect(store.expire({ epochMilliseconds: Date.now() })).toBe(0);
   });
 
   it("refuses resolve on an expired pending request", () => {

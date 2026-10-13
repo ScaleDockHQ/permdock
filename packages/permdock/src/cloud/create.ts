@@ -30,6 +30,7 @@ import {
   isAbsoluteUri,
   toCloudEvent,
 } from "../core/sink.ts";
+import { dateAt, type Instant } from "../core/time.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 
 /** Milliseconds a PermDock Cloud request may take; a slower one fails like an unreachable Cloud. */
@@ -223,14 +224,17 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       }
       return parsed;
     },
-    async consume(token: string, now?: Date): Promise<ApprovalRequest | null> {
+    async consume(
+      token: string,
+      now?: Instant,
+    ): Promise<ApprovalRequest | null> {
       try {
         const response = await request("/approvals/by-token/consume", {
           method: "POST",
           headers: { [APPROVAL_HEADER]: token },
           body: JSON.stringify(
             compact({
-              now: now === undefined ? undefined : now.toISOString(),
+              now: now === undefined ? undefined : dateAt(now).toISOString(),
             }),
           ),
         });
@@ -292,13 +296,13 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       }
       return body["cancelled"];
     },
-    async expire(now?: Date): Promise<number> {
+    async expire(now?: Instant): Promise<number> {
       try {
         const response = await request("/approvals/expire", {
           method: "POST",
           body: JSON.stringify(
             compact({
-              now: now === undefined ? undefined : now.toISOString(),
+              now: now === undefined ? undefined : dateAt(now).toISOString(),
             }),
           ),
         });

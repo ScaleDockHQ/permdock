@@ -2,7 +2,7 @@ import type { ProblemDetails } from "../core/errors.ts";
 import type { Actor, JsonWebKeyLike } from "../core/subject.ts";
 
 import { compact } from "../core/compact.ts";
-import { nowSeconds } from "../core/time.ts";
+import { type Instant, secondsAt } from "../core/time.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 import { PROBLEM_BASE, problemResponse } from "./problem.ts";
 
@@ -34,8 +34,8 @@ export type WebBotAuthOptions = {
   readonly keys: WebBotAuthKeys | WebBotAuthKeyLookup;
   readonly required?: boolean;
   readonly maxAge?: number;
-  /** Unix seconds; defaults to the system clock. */
-  readonly now?: () => number;
+  /** The clock; defaults to the system clock. */
+  readonly now?: () => Instant;
 };
 
 /**
@@ -166,7 +166,7 @@ async function verifySignature(
   if (signature === undefined) {
     throw reject("Signature could not be parsed");
   }
-  const now = options.now?.() ?? nowSeconds();
+  const now = secondsAt(options.now?.());
   const maxAge = options.maxAge ?? DEFAULT_MAX_AGE;
   if (typeof parsed.created !== "number") {
     throw reject("Signature-Input created is required");

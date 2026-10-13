@@ -6,6 +6,7 @@ import type {
   TokenSourceName,
 } from "./types.ts";
 
+import { secondsAt } from "../core/time.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 import {
   TERMINAL_TIMEOUT_MS,
@@ -121,8 +122,7 @@ export async function resolveToken(
   },
 ): Promise<string | null> {
   const walk = options.force === undefined ? sources : [options.force];
-  const now =
-    options.runtime.now ?? ((): number => Math.floor(Date.now() / 1000));
+  const now = (): number => secondsAt(options.runtime.now?.());
   for (const source of walk) {
     const name = sourceName(source);
     switch (name) {

@@ -8,6 +8,7 @@ import type {
 import { ownRecord } from "../core/capability.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { rootMembershipId } from "../core/scopes.ts";
+import { dateAt, type Instant } from "../core/time.ts";
 import { assertApprover } from "./store.ts";
 
 const MAX_ID = 256;
@@ -185,7 +186,7 @@ export type MatchDelegationOptions = {
     principalId: string,
     request: ApprovalRequest,
   ) => Subject | null | undefined | Promise<Subject | null | undefined>;
-  readonly now?: Date;
+  readonly now?: Instant;
   readonly requireDistinct: boolean;
   readonly factsFor: (subject: Subject) => Promise<{
     readonly relations: readonly string[];
@@ -218,7 +219,7 @@ export async function matchDelegation(
   ) {
     return undefined;
   }
-  const now = options.now ?? new Date();
+  const now = dateAt(options.now);
   const tenant = request.subject.principal?.tenant;
   if (!inTenant(delegate, tenant)) {
     return undefined;
@@ -264,7 +265,7 @@ export async function matchDelegation(
           request,
           resolved,
           options.requireDistinct,
-          now,
+          { epochMilliseconds: now.getTime() },
           facts.relations,
           facts.permissions,
         );

@@ -138,7 +138,10 @@ describe("resolveToken keychain", () => {
       { access_token: "old", expires_at: 1000 },
       { configDir: dir },
     );
-    const runtime = { configDir: dir, now: () => 1500 };
+    const runtime = {
+      configDir: dir,
+      now: () => ({ epochMilliseconds: 1_500_000 }),
+    };
     expect([
       await resolveToken(["keychain"], {
         profile: "live",
@@ -167,7 +170,11 @@ describe("resolveToken keychain", () => {
     const fake = fakeFetch(() =>
       json({ access_token: "fresh", refresh_token: "rt2", expires_in: 60 }),
     );
-    const runtime = { configDir: dir, now: () => 1500, fetch: fake.fetch };
+    const runtime = {
+      configDir: dir,
+      now: () => ({ epochMilliseconds: 1_500_000 }),
+      fetch: fake.fetch,
+    };
     const token = await resolveToken(["keychain"], {
       profile: "default",
       storage,
@@ -196,7 +203,7 @@ describe("resolveToken keychain", () => {
       device: { clientId: "cli", tokenEndpoint: "https://auth.test/token" },
       runtime: {
         configDir: dir,
-        now: () => 1500,
+        now: () => ({ epochMilliseconds: 1_500_000 }),
         fetch: fakeFetch(() => json({ error: "invalid_grant" }, 400)).fetch,
       },
       write: silent,
@@ -308,7 +315,7 @@ describe("resolveToken device", () => {
         runtime: {
           fetch: fake.fetch,
           sleep: async () => undefined,
-          now: () => 0,
+          now: () => ({ epochMilliseconds: 0 }),
         },
         write: silent,
       }),
@@ -325,7 +332,7 @@ describe("resolveToken device", () => {
           env: { NEXT: "next" },
           fetch: fake.fetch,
           sleep: async () => undefined,
-          now: () => 0,
+          now: () => ({ epochMilliseconds: 0 }),
         },
         write: silent,
       }),
@@ -339,7 +346,7 @@ describe("resolveToken device", () => {
       const pending = resolveToken(["device"], {
         profile: "default",
         device,
-        runtime: { fetch: fake.fetch, now: () => 0 },
+        runtime: { fetch: fake.fetch, now: () => ({ epochMilliseconds: 0 }) },
         write: silent,
       });
       await vi.advanceTimersByTimeAsync(1000);

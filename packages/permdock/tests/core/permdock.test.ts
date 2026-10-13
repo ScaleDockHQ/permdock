@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { Instant } from "../../src/core/time.ts";
+
 import { opaque } from "../../src/conditions/opaque.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import { sqlFunction } from "../../src/conditions/sql-function.ts";
@@ -27,6 +29,10 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 import { unsigned } from "../fixtures/snapshots.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 async function permdockFor(
   user: Parameters<typeof createPermDock>[1],
@@ -526,7 +532,7 @@ describe("decide alternatives", () => {
       tenant: "T",
     });
     const decision = permdock.decide(tenancy.doc.create, undefined, {
-      now: 500,
+      now: at(500),
     });
     expect(decision.outcome).toBe("denied");
     if (decision.outcome !== "denied") return;

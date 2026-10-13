@@ -10,6 +10,7 @@ import type {
 } from "./types.ts";
 
 import { flattenGrantee } from "../../core/grantee.ts";
+import { dateAt, type Instant } from "../../core/time.ts";
 import { AccessReviewError } from "./errors.ts";
 
 export type AccessReviewHolder = {
@@ -47,7 +48,7 @@ export type StartAccessReviewOptions = {
    * path is incomplete, because those holders cannot be listed from a tenant.
    */
   readonly policy?: Policy;
-  readonly now?: Date;
+  readonly now?: Instant;
 };
 
 function itemId(review: string, principal: string, permission: string): string {
@@ -194,7 +195,7 @@ export async function startAccessReview(
     );
   }
   const keys = new Set(input.permissions.map((permission) => permission.key));
-  const now = options.now ?? new Date();
+  const now = dateAt(options.now);
   const listed =
     options.holders === undefined
       ? await fromMembers(tenant, input.permissions, options)

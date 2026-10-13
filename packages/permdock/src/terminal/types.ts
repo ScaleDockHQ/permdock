@@ -8,6 +8,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Actor, Delegation, Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 export type TokenSourceName = "device" | "keychain" | "env" | "ci-oidc";
 
@@ -71,7 +72,8 @@ export type TerminalRuntime = {
   readonly env?: Readonly<Record<string, string | undefined>>;
   readonly stdoutIsTTY?: boolean;
   readonly platform?: string;
-  readonly now?: () => number;
+  /** The clock; defaults to the system clock. */
+  readonly now?: () => Instant;
   readonly write?: (text: string) => void;
   readonly exit?: (code: number) => never;
   readonly fetch?: typeof fetch;

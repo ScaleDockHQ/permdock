@@ -72,9 +72,9 @@ import {
   inTeam,
   isMembershipExpired,
   matchScopedMembership,
-  nowSeconds,
   type ResourceRoleWalk,
 } from "./tenancy.ts";
+import { epochSeconds, INVALID_NOW } from "./time.ts";
 import { decisionToken, payloadDigest, versionOf } from "./token.ts";
 import { PermDockValidationError } from "./validation-error.ts";
 import { validateBoundary } from "./validation.ts";
@@ -881,13 +881,19 @@ export function evaluate(
     permission,
     options,
     env,
-    now: options.now ?? nowSeconds(),
+    now: epochSeconds(options.now),
     resource: getResource(policy.permissions, permission.resource),
     tracer:
       options.explain === true
         ? { evaluated: 0, allows: [], denies: [], skipped: [] }
         : undefined,
   };
+  if (!Number.isFinite(call.now)) {
+    return deniedNow(
+      { ...call, now: epochSeconds(), current: data },
+      { role: null, reason: "validation", detail: INVALID_NOW },
+    );
+  }
   const rows = validatedRows(call, data, rowValues(permission, data));
   if (rows.invalid !== undefined) {
     return deniedNow(

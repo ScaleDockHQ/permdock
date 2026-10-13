@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { LimitStore } from "../../src/core/interfaces.ts";
 import type { RoleBinding } from "../../src/core/policy-types.ts";
+import type { Instant } from "../../src/core/time.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryLimitStore } from "../../src/core/limits.ts";
@@ -11,6 +12,10 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 const Report = z.object({
   id: z.string(),
@@ -206,14 +211,16 @@ describe("quota grants", () => {
     const permdock = await permdockFor([once], "member", { limits });
     const now = 1_700_000_000;
     expect(
-      permdock.decide(permissions.report.export, report, { now }).outcome,
+      permdock.decide(permissions.report.export, report, { now: at(now) })
+        .outcome,
     ).toBe("granted");
     expect(
-      permdock.decide(permissions.report.export, report, { now }).outcome,
+      permdock.decide(permissions.report.export, report, { now: at(now) })
+        .outcome,
     ).toBe("denied");
     expect(
       permdock.decide(permissions.report.export, report, {
-        now: now + 3600,
+        now: at(now + 3600),
       }).outcome,
     ).toBe("granted");
   });
@@ -244,18 +251,24 @@ describe("soft and hard quotas", () => {
     const permdock = await permdockFor([limited], "member", {
       limits: memoryLimitStore(),
     });
-    const first = permdock.decide(permissions.report.export, report, { now });
+    const first = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(first.outcome).toBe("granted");
     if (first.outcome === "granted") {
       expect(first.quota).toEqual({ remaining: 1, resetsAt });
       expect(first).not.toHaveProperty("obligations");
     }
-    const second = permdock.decide(permissions.report.export, report, { now });
+    const second = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(second.outcome === "granted" && second.quota).toEqual({
       remaining: 0,
       resetsAt,
     });
-    const read = permdock.decide(permissions.report.read, report, { now });
+    const read = permdock.decide(permissions.report.read, report, {
+      now: at(now),
+    });
     expect(read).not.toHaveProperty("quota");
   });
 
@@ -281,9 +294,12 @@ describe("soft and hard quotas", () => {
       limits: memoryLimitStore(),
     });
     expect(
-      permdock.decide(permissions.report.export, report, { now }).outcome,
+      permdock.decide(permissions.report.export, report, { now: at(now) })
+        .outcome,
     ).toBe("granted");
-    const over = permdock.decide(permissions.report.export, report, { now });
+    const over = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(over.outcome === "denied" && over.denials[0]?.reason).toBe("limit");
   });
 
@@ -296,15 +312,21 @@ describe("soft and hard quotas", () => {
     const permdock = await permdockFor([soft], "member", {
       limits: memoryLimitStore(),
     });
-    const within = permdock.decide(permissions.report.export, report, { now });
+    const within = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(within.outcome === "granted" && within.obligations).toBeUndefined();
-    const over = permdock.decide(permissions.report.export, report, { now });
+    const over = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(over.outcome).toBe("granted");
     if (over.outcome === "granted") {
       expect(over.obligations).toEqual([{ kind: "over-limit" }]);
       expect(over.quota).toEqual({ remaining: 0, resetsAt });
     }
-    expect(permdock.can(permissions.report.export, report, { now })).toBe(true);
+    expect(
+      permdock.can(permissions.report.export, report, { now: at(now) }),
+    ).toBe(true);
   });
 
   it("adds a near-limit obligation once usage reaches alertAt", async () => {
@@ -319,7 +341,7 @@ describe("soft and hard quotas", () => {
     const kinds: (string | undefined)[] = [];
     for (let call = 0; call < 10; call += 1) {
       const decision = permdock.decide(permissions.report.export, report, {
-        now,
+        now: at(now),
       });
       kinds.push(
         decision.outcome === "granted"
