@@ -206,6 +206,16 @@ export type {
   WhereResult,
 } from "./core/permdock.ts";
 export { definePermissions } from "./core/permissions.ts";
+export { defineOperations } from "./core/operations.ts";
+export type {
+  Operation,
+  OperationDefinition,
+  OperationEffect,
+  OperationInput,
+  OperationMap,
+  OperationMeta,
+  OperationRisk,
+} from "./core/operations.ts";
 export {
   findPermission,
   getResource,

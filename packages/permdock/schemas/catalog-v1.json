@@ -536,6 +536,52 @@
           }
         }
       }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "permission", "meta"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+          },
+          "permission": {
+            "type": "string"
+          },
+          "results": {
+            "type": "string"
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "risk": {
+                "enum": ["low", "medium", "high", "critical"]
+              },
+              "effects": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "enum": [
+                    "read",
+                    "write",
+                    "delete",
+                    "send",
+                    "spend",
+                    "external"
+                  ]
+                }
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

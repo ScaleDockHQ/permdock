@@ -102,6 +102,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD064` | `rls.assignments` guards a table (a membership table, the global-roles table or a listed table) that no `permdock_assignment` trigger is created on in the migrations or the `rls generate` output                                                                                                         | warning         |
 | `PD065` | A file that imports `permdock/react-native` reads a permission whose grant the snapshot cannot answer, so the device denies it offline                                                                                                                                                                     | warning         |
 | `PD066` | An `rls.migrate.tables` table that the migrations still create, with what still reads it or a note that `rls migrate --retire-out` can drop it                                                                                                                                                             | warning         |
+| `PD067` | An operation in the configured `operations` module whose `permission` or `results` key the permissions module does not declare                                                                                                                                                                             | error           |
 
 ### PD001: server-only imports in client entries
 
@@ -402,6 +403,10 @@ A React Native app answers portable grants from the persisted snapshot, offline 
 ### PD066: a materialised table still created
 
 With `rls.migrate.tables` set, the check replays the migration folders the way [`rls migrate`](/docs/cli/rls#retire-a-materialised-table) does and warns once per listed table that a migration still creates and none drops. While a policy on another table, a view or a function still reads it, the message counts the readers and names the first with its file and line; rewrite them onto the PermDock helpers. With no reader left, the message says so: run `permdock rls migrate --retire-out` and apply the migration it writes. `--only shims` (or `--only sql`) runs PD066.
+
+### PD067: an operation bound to an undeclared permission
+
+With `operations` set in `permdock.config.ts`, the check reads the `operations` the catalog would carry and reports each operation whose `permission` or `results` key is not a permission of the configured `permissions` module. `defineOperations` already throws for a permission outside the tree it is given, so this fires when the operations module builds on another tree than the one the config names, such as a stale copy or a merged tree.
 
 ## Why
 

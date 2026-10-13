@@ -619,6 +619,8 @@ export type DoctorConfig = {
 export type PermDockConfig = {
   readonly permissions?: string;
   readonly policy?: string;
+  /** A module exporting the `defineOperations` map as `operations` or default; `collect` writes it to the catalog's `operations`. */
+  readonly operations?: string;
   readonly collect?: CollectConfig;
   readonly catalog?: CatalogConfig;
   readonly openapi?: {
@@ -649,6 +651,7 @@ export type {
   CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
+  CatalogOperation,
   CatalogPermission,
   CatalogResource,
   CatalogRole,

@@ -12,6 +12,7 @@ import type {
   CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
+  CatalogOperation,
   ScanResult,
 } from "./types.ts";
 
@@ -45,6 +46,7 @@ export function buildCatalog(
   scan: ScanResult,
   generatedAt: string,
   policy?: Policy,
+  operations?: readonly CatalogOperation[],
 ): CatalogDocument {
   const hostable = new Set(policy?.hostable ?? []);
   const rowConditions =
@@ -113,6 +115,7 @@ export function buildCatalog(
     ...(policy?.delegations === undefined
       ? {}
       : { delegations: catalogDelegations(policy) }),
+    ...(operations === undefined ? {} : { operations }),
   };
   const head = {
     $schema: CATALOG_SCHEMA,

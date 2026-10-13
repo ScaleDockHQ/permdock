@@ -1,3 +1,4 @@
+import type { OperationMeta } from "../core/operations.ts";
 import type { ResourceRelation } from "../core/permission-types.ts";
 
 export type CatalogUsage = {
@@ -177,6 +178,16 @@ export type CatalogDocument = {
   readonly grants?: readonly CatalogGrant[];
   /** The policy's standing delegations, canonically ordered; present when the policy declares any. */
   readonly delegations?: readonly CatalogDelegation[];
+  /** The `defineOperations` map in definition order; present when the config names an `operations` module. */
+  readonly operations?: readonly CatalogOperation[];
+};
+
+/** One `defineOperations` entry: its name, the permission keys it is bound to, and its meta. */
+export type CatalogOperation = {
+  readonly name: string;
+  readonly permission: string;
+  readonly results?: string;
+  readonly meta: OperationMeta;
 };
 
 /** One `definePolicy({ delegations })` entry: who hands over, to which actor, which permission keys, and when. */

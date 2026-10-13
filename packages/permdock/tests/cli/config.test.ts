@@ -21,7 +21,7 @@ describe("parseConfig", () => {
     expect(parsed.warnings).toEqual([
       "permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel",
       expect.stringMatching(
-        /^permdock\.config\.ts: unknown key polcy; PermDock reads permissions, policy, collect/u,
+        /^permdock\.config\.ts: unknown key polcy; PermDock reads permissions, policy, operations, collect/u,
       ),
     ]);
   });

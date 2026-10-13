@@ -15,6 +15,7 @@ import {
   catalogForCompare,
   formatCatalogJson,
 } from "./catalog-doc.ts";
+import { loadConfiguredOperations } from "./catalog-operations.ts";
 import { catalogPath } from "./catalog-path.ts";
 import { describeError } from "./errors.ts";
 import {
@@ -102,8 +103,24 @@ export async function runCollect(input: {
     input.loadPolicy === undefined
       ? await loadConfiguredPolicy(input.cwd, input.config.policy, load)
       : await input.loadPolicy();
+  let operations;
+  try {
+    operations = await loadConfiguredOperations(
+      input.cwd,
+      input.config.operations,
+      load,
+    );
+  } catch (error) {
+    return {
+      code: 2,
+      document: undefined,
+      scan: undefined,
+      outPath,
+      message: describeError(error),
+    };
+  }
   const generatedAt = input.now.toISOString();
-  const document = buildCatalog(tree, scan, generatedAt, policy);
+  const document = buildCatalog(tree, scan, generatedAt, policy, operations);
   const next = formatCatalogJson(document);
   if (input.check) {
     if (!existsSync(outPath)) {
@@ -131,6 +148,7 @@ export async function runCollect(input: {
             ),
             generatedAt,
             policy,
+            operations,
           ),
     );
     if (onDisk !== generated) {

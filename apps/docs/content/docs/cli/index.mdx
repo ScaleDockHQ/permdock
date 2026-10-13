@@ -25,6 +25,7 @@ import { defineConfig } from "permdock/cli";
 export default defineConfig({
   permissions: "./src/permissions.ts", // the merged definition module
   policy: "./src/policy.ts", // server-only; used by usage, rls, doctor
+  operations: "./src/operations.ts", // the defineOperations map; collect writes it to the catalog
   collect: { srcPath: ["./src", "../ui/src", "./node_modules/@acme/*"] },
   catalog: { out: "./permissions.catalog.json" },
   rls: { tables: { post: "posts" }, dialect: "supabase" },

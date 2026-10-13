@@ -6,6 +6,7 @@ export type {
   CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
+  CatalogOperation,
   CatalogPermission,
   CatalogResource,
   CatalogRole,

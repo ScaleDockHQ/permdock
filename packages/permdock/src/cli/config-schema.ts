@@ -11,7 +11,10 @@ import type {
 import { isRecord } from "../core/compact.ts";
 import { CliError } from "./errors.ts";
 
-type Section = Exclude<keyof PermDockConfig, "permissions" | "policy">;
+type Section = Exclude<
+  keyof PermDockConfig,
+  "permissions" | "policy" | "operations"
+>;
 
 const COLLECT = {
   srcPath: true,
@@ -116,6 +119,7 @@ const SECTIONS: Readonly<Record<Section, Readonly<Record<string, true>>>> = {
 const TOP_LEVEL = new Set<string>([
   "permissions",
   "policy",
+  "operations",
   ...Object.keys(SECTIONS),
 ]);
 
@@ -148,7 +152,7 @@ export function parseConfig(value: unknown, file: string): ParsedConfig {
   const unknown = (path: string, known: Iterable<string>): string =>
     `${file}: unknown key ${path}; PermDock reads ${[...known].join(", ")}`;
   for (const [key, entry] of Object.entries(value)) {
-    if (key === "permissions" || key === "policy") {
+    if (key === "permissions" || key === "policy" || key === "operations") {
       if (entry !== undefined && typeof entry !== "string") {
         throw new CliError(
           "usage",
