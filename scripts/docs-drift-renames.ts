@@ -12,7 +12,7 @@ import {
   tableRows,
 } from "./docs-drift-renamed-section.ts";
 
-export type RenameDriftPaths = {
+type RenameDriftPaths = {
   readonly root: string;
   readonly docPages: readonly string[];
   readonly namingPage: string;

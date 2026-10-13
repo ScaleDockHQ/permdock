@@ -479,14 +479,22 @@ function renameOptions(
   }
 }
 
+/**
+ * Rows with `calls` are renamed at those calls and nowhere else: their old
+ * key (`store`) is still a valid option on every other factory.
+ */
 function reportOptions(ctx: Context, node: Estree): void {
   for (const key of propertyKeys(node)) {
     for (const row of ctx.optionRows) {
-      if (nameOf(key) === row.from && !ctx.handledKeys.has(key)) {
+      if (
+        row.calls === undefined &&
+        nameOf(key) === row.from &&
+        !ctx.handledKeys.has(key)
+      ) {
         ctx.followUps.push({
           at: key.start,
           name: row.from,
-          message: `option \`${row.from}\` is \`${row.to}\` when this object reaches ${listOf(row.calls ?? row.entries)}`,
+          message: `option \`${row.from}\` is \`${row.to}\` when this object reaches ${listOf(row.entries)}`,
         });
       }
     }

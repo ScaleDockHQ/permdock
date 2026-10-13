@@ -234,6 +234,15 @@ describe("transformSource", () => {
     expect(result.followUps).toEqual([]);
   });
 
+  it("leaves a listed-call option key elsewhere alone", () => {
+    const source = [
+      'import { memoryApprovalStore } from "permdock/approvals";',
+      'import { createPermDock } from "permdock/claude-agent";',
+      "createPermDock(policy, { store: memoryApprovalStore() });",
+    ].join("\n");
+    expect(apply(source)).toEqual({ source, changes: [], followUps: [] });
+  });
+
   it("reports option keys and methods it cannot match safely", () => {
     const result = apply(
       [
