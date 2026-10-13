@@ -404,7 +404,7 @@ export function fromSnapshot(
 export function emptySnapshot(): Snapshot {
   return freezeDeep({
     v: 1 as const,
-    issuedAt: 0,
+    issuedAt: "1970-01-01T00:00:00.000Z",
     subject: { principal: null, context: {} },
     roles: [],
     grants: [],

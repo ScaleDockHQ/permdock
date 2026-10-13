@@ -21,6 +21,7 @@ import {
 } from "../core/scopes.ts";
 import { heldRoleNames } from "../core/snapshot-subject.ts";
 import { nowSeconds, resolveActiveTenant } from "../core/tenancy.ts";
+import { rfc3339 } from "../core/time.ts";
 
 /** What the device holds for the signed-in user, read from its local database. */
 export type LocalSnapshotData = {
@@ -319,7 +320,7 @@ export function buildLocalSnapshot(
   return freezeDeep(
     compact<Snapshot>({
       v: 1 as const,
-      issuedAt: now,
+      issuedAt: rfc3339(now),
       subject: { principal, context: {} },
       roles,
       grants,

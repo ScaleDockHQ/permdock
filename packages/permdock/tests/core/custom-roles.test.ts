@@ -1,3 +1,4 @@
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import type { CustomRole, Membership } from "../../src/core/subject.ts";
@@ -834,7 +835,7 @@ describe("snapshot parity", () => {
       const cached = snapshotFor(policy, subjectIn([membership]), {
         tenant: "acme",
         customRoles: [fixture.custom],
-        now: snapshot.issuedAt,
+        now: Temporal.Instant.from(snapshot.issuedAt),
       });
       expect(cached).toEqual(snapshot);
       const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));

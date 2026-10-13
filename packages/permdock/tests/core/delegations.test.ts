@@ -300,7 +300,7 @@ describe("policy delegations", () => {
       }),
     );
     expect(other.delegated).toBeUndefined();
-    expect(other.subject.delegation).toEqual({ scopes: [] });
+    expect(other.subject.delegation).toEqual({ scope: "" });
   });
 });
 

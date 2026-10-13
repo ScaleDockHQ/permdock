@@ -76,7 +76,7 @@ describe("instance edges", () => {
     if (json instanceof Promise) {
       throw new Error("expected json");
     }
-    expect(json.expiresAt).toBe(9_999_999_999);
+    expect(json.expiresAt).toBe("2286-11-20T17:46:39.000Z");
     expect(permdock.memberships()).toEqual([]);
     expect(permdock.heldRoles().map((item) => item.key)).toEqual(["member"]);
     // Every scoped role grants only post.read, which the global member holds.

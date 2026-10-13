@@ -7,12 +7,14 @@ import type {
   GrantMeta,
   GrantValidity,
 } from "./policy-types.ts";
-import type { Membership, Subject } from "./subject.ts";
+import type { Membership } from "./subject.ts";
 import type { Plan, Role } from "./vocabulary.ts";
+import type { WireDelegation } from "./wire-delegation.ts";
 
 export type Snapshot = {
   readonly v: 1;
-  readonly issuedAt: number;
+  /** RFC 3339. The epoch for a snapshot built without a clock. Signed, it is the token's `iat`. */
+  readonly issuedAt: string;
   readonly subject: {
     readonly principal: {
       readonly id: string;
@@ -21,7 +23,8 @@ export type Snapshot = {
       readonly tenant?: string;
       readonly memberships?: readonly Membership[];
     } | null;
-    readonly delegation?: Subject["delegation"];
+    /** OAuth `scope` and RFC 9396 `authorization_details`, as the token carried them. */
+    readonly delegation?: WireDelegation;
     readonly context: Readonly<Record<string, unknown>>;
   };
   /** Roles held in the active tenant, in rank order. */
@@ -32,7 +35,8 @@ export type Snapshot = {
   readonly tenants: readonly string[];
   readonly include?: readonly string[];
   readonly simulated?: true;
-  readonly expiresAt?: number;
+  /** RFC 3339. Signed, it is the token's `exp`. */
+  readonly expiresAt?: string;
   readonly vocabulary?: {
     readonly roles?: Readonly<Record<string, Role>>;
     readonly plans?: Readonly<Record<string, Plan>>;

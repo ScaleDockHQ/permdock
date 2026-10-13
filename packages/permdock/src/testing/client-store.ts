@@ -135,7 +135,7 @@ function stubVerifier(tokens: ReadonlyMap<string, Snapshot>): TokenVerifier {
           : {
               ok: true,
               claims: { snapshot },
-              header: { alg: "ES256", typ: "permdock-snapshot+jwt" },
+              header: { alg: "ES256", typ: "vnd.permdock.snapshot+jwt" },
             },
       );
     },
@@ -278,7 +278,10 @@ export function testClientStore(
     it("marks an expired snapshot stale until a fresh one replaces it", () => {
       const net = recorder(unreachable);
       const store = createStore({
-        snapshot: { ...snapshotOf("erin", "acme"), expiresAt: 1 },
+        snapshot: {
+          ...snapshotOf("erin", "acme"),
+          expiresAt: "1970-01-01T00:00:01.000Z",
+        },
         tenant: "acme",
         fetch: net.fetch,
       });

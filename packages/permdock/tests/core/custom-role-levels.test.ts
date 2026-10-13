@@ -1,3 +1,4 @@
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import type { ScanResult } from "../../src/cli/types.ts";
@@ -336,7 +337,7 @@ describe("resolveCustomRole with levels", () => {
     const cached = snapshotFor(policy, subjectIn(memberships), {
       tenant: "acme",
       customRoles: [dispatcher],
-      now: snapshot.issuedAt,
+      now: Temporal.Instant.from(snapshot.issuedAt),
     });
     expect(cached).toEqual(snapshot);
   });

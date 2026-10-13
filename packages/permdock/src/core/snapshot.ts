@@ -14,7 +14,9 @@ import { freezeDeep } from "./freeze.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";
+import { isRfc3339, rfc3339 } from "./time.ts";
 import { listPlans, listRoles, type Plan, type Role } from "./vocabulary.ts";
+import { toWireDelegation } from "./wire-delegation.ts";
 
 function plainPermission(leaf: Permission): Permission {
   return {
@@ -196,7 +198,7 @@ export function buildSnapshot(input: {
   const snapshot = freezeDeep(
     compact<Snapshot>({
       v: 1 as const,
-      issuedAt: now,
+      issuedAt: rfc3339(now),
       subject: compact<Snapshot["subject"]>({
         principal:
           principal === null
@@ -208,9 +210,8 @@ export function buildSnapshot(input: {
                 tenant: principal.tenant,
                 memberships: principal.memberships,
               }),
-        delegation: snapshotDelegation(
-          input.subject,
-          input.delegated !== undefined,
+        delegation: toWireDelegation(
+          snapshotDelegation(input.subject, input.delegated !== undefined),
         ),
         context: input.subject.context,
       }),
@@ -220,7 +221,10 @@ export function buildSnapshot(input: {
       tenants,
       include,
       simulated: input.simulated === true ? true : undefined,
-      expiresAt: input.subject.expiresAt,
+      expiresAt:
+        input.subject.expiresAt === undefined
+          ? undefined
+          : rfc3339(input.subject.expiresAt),
       scopes: input.scopes,
       ids: Object.keys(ids).length === 0 ? undefined : ids,
       assignable: assignable.length > 0 ? assignable : undefined,
@@ -325,6 +329,12 @@ export function parseSnapshot(json: unknown): Snapshot {
       `PermDock: unsupported snapshot version '${String(version)}'`,
     );
   }
-  // SAFETY: only the version and unsafe keys are checked; the other fields are not validated here.
+  if (
+    !isRfc3339(record["issuedAt"]) ||
+    (record["expiresAt"] !== undefined && !isRfc3339(record["expiresAt"]))
+  ) {
+    throw new Error("PermDock: snapshot times must be RFC 3339");
+  }
+  // SAFETY: only the version, times and unsafe keys are checked; the other fields are not validated here.
   return freezeDeep(value) as Snapshot;
 }

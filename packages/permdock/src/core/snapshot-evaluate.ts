@@ -455,7 +455,7 @@ export function evaluateSnapshot(
         resourceId,
         principal: subject.principal,
         actor: subject.actor,
-        fingerprint: `snapshot:${String(snapshot.issuedAt)}`,
+        fingerprint: `snapshot:${snapshot.issuedAt}`,
         payload:
           resourceId === "*" && (next ?? current) !== undefined
             ? payloadDigest(next ?? current)

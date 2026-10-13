@@ -477,7 +477,7 @@ describe("permdock/react-native connectSource", () => {
     let issuedAt = snapshot.issuedAt;
     const stop = connectSource(store, {
       get: () => {
-        issuedAt += 1;
+        issuedAt = new Date(Date.parse(issuedAt) + 1000).toISOString();
         return { ...snapshot, issuedAt };
       },
       subscribe: (listener) => {

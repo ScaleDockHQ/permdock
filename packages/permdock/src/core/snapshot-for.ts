@@ -10,6 +10,7 @@ import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
+import { nowSeconds } from "./time.ts";
 
 export type SnapshotForOptions = {
   /** Active tenant; ignored unless the subject holds a membership in it. */
@@ -24,8 +25,8 @@ export type SnapshotForOptions = {
   readonly plans?: readonly string[];
   readonly include?: SnapshotInclude;
   readonly tenants?: "all";
-  /** Epoch seconds for `issuedAt` and membership expiry. Defaults to the clock. */
-  readonly now?: number;
+  /** The instant for `issuedAt` and membership expiry. Defaults to the clock. */
+  readonly now?: Temporal.Instant;
 };
 
 function withPlans(
@@ -110,7 +111,7 @@ export function snapshotFor<
       assignable,
       include: options.include,
       tenants: options.tenants,
-      now: options.now,
+      now: options.now === undefined ? undefined : nowSeconds(options.now),
     }),
   );
 }

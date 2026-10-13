@@ -33,7 +33,7 @@ export type NativeStoreOptions = Omit<
 
 /** The snapshot's content without `issuedAt`, which every local rebuild changes. */
 function contentKey(snapshot: Snapshot): string {
-  return JSON.stringify({ ...snapshot, issuedAt: 0 });
+  return JSON.stringify({ ...snapshot, issuedAt: "" });
 }
 
 /**

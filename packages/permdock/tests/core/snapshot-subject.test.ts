@@ -80,12 +80,12 @@ describe("heldRoleNames", () => {
 describe("subjectFromSnapshot", () => {
   const base: Snapshot = {
     v: 1,
-    issuedAt: 0,
+    issuedAt: "1970-01-01T00:00:00Z",
     subject: { principal: { id: "u1", roles: [], tenant: "t1" }, context: {} },
     roles: [],
     grants: [],
     tenants: [],
-    expiresAt: 99,
+    expiresAt: "1970-01-01T00:01:39Z",
   };
 
   it("keeps the snapshot tenant, and selects a requested one only with a membership", () => {
