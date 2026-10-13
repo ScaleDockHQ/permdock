@@ -516,6 +516,9 @@ describe("access reviews", () => {
       [only, { ...only, id: "http:cara:billing.view", principal: "cara" }],
       { review: "http", limit: 1 },
     );
+    if (paged.next === undefined) {
+      throw new Error("expected a next cursor");
+    }
     expect(
       pageAccessReviewItems(
         [only, { ...only, id: "http:cara:billing.view", principal: "cara" }],
