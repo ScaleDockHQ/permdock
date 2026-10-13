@@ -13,14 +13,14 @@ export type OperationEffect =
   | "spend"
   | "external";
 
-export const OPERATION_RISKS: readonly OperationRisk[] = Object.freeze([
+const OPERATION_RISKS: readonly OperationRisk[] = Object.freeze([
   "low",
   "medium",
   "high",
   "critical",
 ]);
 
-export const OPERATION_EFFECTS: readonly OperationEffect[] = Object.freeze([
+const OPERATION_EFFECTS: readonly OperationEffect[] = Object.freeze([
   "read",
   "write",
   "delete",

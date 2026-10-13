@@ -36,7 +36,7 @@ function hasUnsafeKey(value: unknown): boolean {
 }
 
 /** A JSON copy of `value` that matches `schema`, or `null`. */
-export function jsonMatching(
+function jsonMatching(
   value: unknown,
   schema: JsonSchemaNode,
 ): Record<string, unknown> | null {
