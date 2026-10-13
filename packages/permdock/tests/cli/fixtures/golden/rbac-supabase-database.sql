@@ -620,6 +620,32 @@ as $$
 $$;
 revoke execute on function "permdock".permitted_tenant_permission_keys_for(uuid, uuid, text[]) from public, anon, authenticated;
 
+-- the users who hold a permission on one tenant: its members and the global-role holders for whom the _for helpers answer; no client role may execute it
+create or replace function "permdock".permitted_tenant_users(p_permission text, p_id uuid)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select c.user_id
+  from (
+    select m."user_id"::uuid
+    from "public"."organization_members" m
+    where m."organization_id" = p_id
+    union
+    select ur.user_id::uuid
+    from "permdock".user_roles ur
+  ) c(user_id)
+  where c.user_id is not null
+    and (
+      p_id in (select "permdock".permitted_tenant_ids_by_permission_for(c.user_id, p_permission))
+      or "permdock".permdock_has_permission_for(c.user_id, p_permission)
+    )
+  order by 1
+$$;
+revoke execute on function "permdock".permitted_tenant_users(text, uuid) from public, anon, authenticated;
+
 create or replace function "permdock"."authorize"(
   requested_permission "permdock"."app_permission",
   requested_tenant text default null

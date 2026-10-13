@@ -46,6 +46,7 @@ import { graphSql } from "./graph.ts";
 import { helpersSql, seedSql } from "./helpers.ts";
 import { type IndexTarget, indexTargets, indexesSql } from "./indexes.ts";
 import { ownershipSql } from "./ownership.ts";
+import { permissionHoldersSql } from "./permission-holders.ts";
 import { permissionHelpersSql } from "./permission-keys.ts";
 import { rbacScaffold } from "./rbac.ts";
 import { inheritTargets, rowHelpersSql } from "./rows.ts";
@@ -312,6 +313,7 @@ function preambleSql(
         : { trustedReaders: rls.trustedReaders }),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
+    permissionHoldersSql(ctx) || undefined,
     usesLiveSession ? sessionLiveHelperSql(ctx) : undefined,
     ...sections,
     shims,

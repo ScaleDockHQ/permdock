@@ -11,7 +11,7 @@ import { type Body, functionBody } from "./helper-bodies.ts";
 import { forUserContext, grantBodies } from "./helpers.ts";
 
 /** The helpers that take a permission key instead of a grant key. Names are part of the SQL contract. */
-const PERMISSION_HELPERS = {
+export const PERMISSION_HELPERS = {
   grantKeys: "grant_keys",
   has: "permdock_has_permission",
   hasFor: "permdock_has_permission_for",
@@ -57,7 +57,7 @@ export function requiresSql(
 }
 
 /** Postgres truncates an identifier past 63 bytes, which would merge two helpers. */
-function checkName(name: string): string {
+export function checkName(name: string): string {
   if (new TextEncoder().encode(name).length > 63) {
     throw new Error(
       `PermDock CLI: the helper name ${name} is longer than 63 bytes; use a shorter scope name`,
