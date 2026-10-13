@@ -27,6 +27,8 @@ export type Parts = {
   readonly helpers: {
     readonly schema: string;
     readonly memberFor: readonly string[];
+    /** The scopes `rls generate` emits `permitted_<scope>_users` for in `database` mode. */
+    readonly holders: readonly string[];
     /** The sources `member_<scope>_ids_for` reads, deduplicated across scopes. */
     readonly memberships: readonly SupabaseManifestMembership[];
   };

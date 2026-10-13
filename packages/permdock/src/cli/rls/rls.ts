@@ -16,6 +16,7 @@ import {
   introspectRls,
   missingIndexes,
 } from "./introspect.ts";
+import { readOnlyActorKinds } from "./policies.ts";
 import { parseRbacAuthorize } from "./rbac.ts";
 import { runRlsVerify } from "./verify.ts";
 
@@ -213,6 +214,7 @@ async function introspectHelpersOnly(
   expected: ExpectedRls,
   generated: GenerateOutcome,
   connect: SqlConnect | undefined,
+  readOnlyActors: boolean,
 ): Promise<CommandResult> {
   const schema = generated.schema ?? PERMDOCK_SCHEMA;
   try {
@@ -225,6 +227,7 @@ async function introspectHelpersOnly(
         seeds: generated.seeds ?? [],
         permissions: generated.keys?.permissions ?? [],
         rowConditions: generated.keys?.rowConditions ?? [],
+        readOnlyActors,
       },
       await introspectMixed(db, schema, connect),
     );
@@ -275,7 +278,13 @@ async function introspect(input: RlsRunInput): Promise<CommandResult> {
     generated.indexes,
   );
   if (generated.helpersOnly === true) {
-    return introspectHelpersOnly(input.db, expected, generated, input.connect);
+    return introspectHelpersOnly(
+      input.db,
+      expected,
+      generated,
+      input.connect,
+      readOnlyActorKinds(input.config.rls?.readOnlyActors) !== undefined,
+    );
   }
   try {
     const actual = await introspectRls(input.db, expected, input.connect);

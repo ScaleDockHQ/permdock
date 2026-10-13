@@ -218,6 +218,7 @@ describe("permdock supabase inspect", () => {
         memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', tenant: 'organization_id' } } },
         roles: { table: 'app.user_roles', user: 'member_id', role: { through: 'app.roles', on: { role_id: 'id' }, column: 'key' } },
         suspension: { users: { table: 'profiles', id: 'user_id', disabledAt: 'disabled_at' }, scopes: { organization: { table: 'organizations', id: 'id', status: 'status', active: ['active'] } } },
+        readOnlyActors: true,
       }`,
     );
     const inspect = await run(["supabase", "inspect", "--json"], {
@@ -225,6 +226,18 @@ describe("permdock supabase inspect", () => {
     });
     expect(inspect.code).toBe(0);
     const manifest: SupabaseHookManifest = JSON.parse(inspect.stdout);
+    expect(manifest.rls.helpers).toContainEqual({
+      name: "permitted_organization_users",
+      args: "p_permission text, p_id uuid",
+      returns: "setof uuid",
+      execute: [],
+    });
+    expect(manifest.rls.helpers).toContainEqual({
+      name: "permdock_actor_may_write",
+      args: "",
+      returns: "boolean",
+      execute: ["authenticated"],
+    });
     const names = manifest.rls.helpers.map((helper) => helper.name);
     expect(names).toEqual(
       expect.arrayContaining([

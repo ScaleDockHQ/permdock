@@ -374,6 +374,47 @@ describe("CentraKit adoption shapes", () => {
     ).toBe(true);
   });
 
+  it("lists who holds a permission in one organization", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const pg = db;
+    const users = async (permission: string, org: string) =>
+      (
+        await pg.admin.query<{ user_id: string }>(
+          "select u as user_id from permdock.permitted_organization_users($1, $2::uuid) u",
+          [permission, org],
+        )
+      ).rows.map((row) => row.user_id);
+    expect(await users("customers.view", ORG_A)).toEqual(
+      [ADMIN, MEMBER, VIEWER, TIER2, DISPATCHER].toSorted(),
+    );
+    expect(await users("customers.view", ORG_B)).toEqual([TIER2]);
+    expect(await users("billing.view", ORG_A)).toEqual([ADMIN]);
+    expect(await users("billing.view", ORG_B)).toEqual([DISPATCHER]);
+    expect(await users("customers.archive", ORG_A)).toEqual([ADMIN]);
+    expect(await users("organization.customers.view", ORG_B)).toEqual([TIER2]);
+    for (const [user, roles] of [
+      [ADMIN, ["admin"]],
+      [MEMBER, ["member"]],
+      [VIEWER, ["viewer"]],
+    ] as const) {
+      const permdock = await createPermDock(policy, staff(user, roles));
+      const row = { id: BILL_A, organization_id: ORG_A };
+      expect(permdock.can(permissions.billing.view, row)).toBe(
+        (await users("billing.view", ORG_A)).includes(user),
+      );
+    }
+    await expect(
+      as(ADMIN, (client) =>
+        client.query(
+          "select permdock.permitted_organization_users('customers.view', $1::uuid)",
+          [ORG_A],
+        ),
+      ),
+    ).rejects.toThrow(/permission denied/u);
+  });
+
   it("resolves a custom-role row stored under a former key in SQL", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");

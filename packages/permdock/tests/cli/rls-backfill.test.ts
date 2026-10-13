@@ -369,4 +369,58 @@ describe("rls generate --backfill-out", () => {
       "backfill: missing supabase/migrations/20261001000002_permdock_backfill.sql",
     );
   });
+
+  it("gives seeds and backfill in one directory different versions", async () => {
+    const dir = path.join(cwd, "db/migrations");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "20261001000000_init.sql"), "select 1;\n");
+    const run = (check = false) =>
+      runRlsGenerate({
+        cwd,
+        config: {
+          policy: "./policy.ts",
+          rls: {
+            authorize: "database",
+            memberships: {
+              tenant: {
+                table: "organization_members",
+                tenant: "organization_id",
+                user: "user_id",
+                role: "role",
+              },
+            },
+            customRoleWrites: { roles },
+            customRoles: { from },
+          },
+        },
+        target: "sql",
+        dialect: "supabase",
+        rbac: false,
+        check,
+        skipClosures: false,
+        inlineFunctions: false,
+        split: "helpers,seeds",
+        out: "db/schemas/permdock_{part}.sql",
+        seedsOut: "db/migrations/",
+        backfillOut: "db/migrations/",
+        io,
+      });
+    const missing = await run(true);
+    expect(missing.code).toBe(1);
+    expect(missing.output).toContain(
+      "seeds: missing db/migrations/20261001000001_permdock_seeds.sql",
+    );
+    expect(missing.output).toContain(
+      "backfill: missing db/migrations/20261001000002_permdock_backfill.sql",
+    );
+    expect((await run()).code).toBe(0);
+    expect(readdirSync(dir).toSorted()).toEqual([
+      "20261001000000_init.sql",
+      "20261001000001_permdock_seeds.sql",
+      "20261001000002_permdock_backfill.sql",
+    ]);
+    expect((await run()).code).toBe(0);
+    expect(readdirSync(dir)).toHaveLength(3);
+    expect((await run(true)).code).toBe(0);
+  });
 });

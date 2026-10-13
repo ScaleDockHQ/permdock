@@ -9,6 +9,7 @@ import {
   helperCallKeys,
 } from "../sql/helper-calls.ts";
 import { COLUMNS_SQL, type IndexTarget } from "./indexes.ts";
+import { ACTOR_MAY_WRITE } from "./policies.ts";
 
 const ROLES = ["anon", "authenticated"] as const;
 /** Neon's `anonymous` is the role `rls generate` writes as `anon` for the other dialects. */
@@ -372,6 +373,8 @@ export type ExpectedMixed = {
   readonly seeds: readonly RolePermission[];
   readonly permissions: readonly string[];
   readonly rowConditions: readonly string[];
+  /** `rls.readOnlyActors` is set: every write a client role reaches calls `permdock_actor_may_write()`. */
+  readonly readOnlyActors?: boolean;
 };
 
 /** Every policy and RLS table outside the system schemas, and the seeded rows. */
@@ -381,9 +384,59 @@ export type ActualMixed = {
     readonly table: string;
     readonly name: string;
     readonly expression: string;
+    /** `pg_policies.cmd` in lower case: `select`, `insert`, `update`, `delete` or `all`. */
+    readonly command?: string;
+    readonly restrictive?: boolean;
+    readonly roles?: readonly string[];
   }[];
   readonly rlsTables: readonly string[];
 };
+
+const WRITES = ["insert", "update", "delete"] as const;
+
+/**
+ * Each table and write command whose permissive policies reach
+ * `authenticated` (or `public`) without the read-only actor check: no
+ * restrictive policy for the command calls `permdock_actor_may_write()`, and
+ * some permissive one does not.
+ */
+function unguardedWrites(
+  policies: ActualMixed["policies"],
+  fn: string,
+): readonly string[] {
+  const out: string[] = [];
+  const tables = [...new Set(policies.map((policy) => policy.table))];
+  for (const table of tables) {
+    for (const command of WRITES) {
+      const applying = policies.filter(
+        (policy) =>
+          policy.table === table &&
+          (policy.command === command || policy.command === "all"),
+      );
+      const permissive = applying.filter(
+        (policy) =>
+          policy.restrictive !== true &&
+          (policy.roles ?? []).some(
+            (role) => role === "authenticated" || role === "public",
+          ),
+      );
+      if (permissive.length === 0) {
+        continue;
+      }
+      const calls = (expression: string): boolean => expression.includes(fn);
+      const guarded =
+        applying.some(
+          (policy) => policy.restrictive === true && calls(policy.expression),
+        ) || permissive.every((policy) => calls(policy.expression));
+      if (!guarded) {
+        out.push(
+          `${table}: ${command} policies for authenticated do not call ${fn}(), so a read-only support or impersonation session can write (rls.readOnlyActors)`,
+        );
+      }
+    }
+  }
+  return out;
+}
 
 const SYSTEM_SCHEMAS = [
   "pg_catalog",
@@ -456,6 +509,9 @@ export function diffMixed(
       }
     }
   }
+  if (expected.readOnlyActors === true) {
+    drift.push(...unguardedWrites(actual.policies, ACTOR_MAY_WRITE));
+  }
   const info = actual.rlsTables
     .filter((table) => !covered.has(table))
     .map((table) => `${table}: no policy calls a PermDock helper`);
@@ -463,7 +519,9 @@ export function diffMixed(
 }
 
 const ALL_POLICIES_SQL = `select schemaname || '.' || tablename as target, policyname,
-  coalesce(qual, '') || ' ' || coalesce(with_check, '') as expression
+  coalesce(qual, '') || ' ' || coalesce(with_check, '') as expression,
+  lower(cmd) as command, permissive = 'RESTRICTIVE' as restrictive,
+  array_to_string(roles, ',') as roles
 from pg_policies`;
 
 const RLS_TABLES_SQL = `select n.nspname || '.' || c.relname as target
@@ -502,6 +560,11 @@ export async function introspectMixed(
           table: String(row["target"]),
           name: String(row["policyname"]),
           expression: String(row["expression"]),
+          command: String(row["command"]),
+          restrictive: row["restrictive"] === true,
+          roles: String(row["roles"] ?? "")
+            .split(",")
+            .filter((role) => role !== ""),
         }))
         .filter((row) => inScope(row.table)),
       rlsTables: tables.rows

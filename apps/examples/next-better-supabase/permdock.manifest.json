@@ -178,6 +178,12 @@
         "execute": ["authenticated"]
       },
       {
+        "name": "permdock_actor_may_write",
+        "args": "",
+        "returns": "boolean",
+        "execute": ["authenticated"]
+      },
+      {
         "name": "permdock_has_for",
         "args": "p_user uuid, p_grant text",
         "returns": "boolean",
@@ -205,6 +211,18 @@
         "name": "permitted_customer_permission_keys_for",
         "args": "p_user uuid, p_id uuid",
         "returns": "setof text",
+        "execute": []
+      },
+      {
+        "name": "permitted_organization_users",
+        "args": "p_permission text, p_id uuid",
+        "returns": "setof uuid",
+        "execute": []
+      },
+      {
+        "name": "permitted_customer_users",
+        "args": "p_permission text, p_id uuid",
+        "returns": "setof uuid",
         "execute": []
       }
     ],

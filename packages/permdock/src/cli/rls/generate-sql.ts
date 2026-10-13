@@ -46,7 +46,9 @@ import { graphSql } from "./graph.ts";
 import { helpersSql, seedSql } from "./helpers.ts";
 import { type IndexTarget, indexTargets, indexesSql } from "./indexes.ts";
 import { ownershipSql } from "./ownership.ts";
+import { permissionHoldersSql } from "./permission-holders.ts";
 import { permissionHelpersSql } from "./permission-keys.ts";
+import { actorMayWriteSql, readOnlyActorKinds } from "./policies.ts";
 import { rbacScaffold } from "./rbac.ts";
 import { inheritTargets, rowHelpersSql } from "./rows.ts";
 import { shimGrants, shimsSql } from "./shims.ts";
@@ -288,6 +290,7 @@ function preambleSql(
     renamed,
   );
   const anonExecute = anonExecutes(input, generated);
+  const actorKinds = readOnlyActorKinds(rls?.readOnlyActors);
   const usesLiveSession = compiled.branches.some((branch) =>
     [branch.access, branch.using, branch.check].some(
       (sql) => sql?.includes(SESSION_LIVE_HELPER) === true,
@@ -312,6 +315,8 @@ function preambleSql(
         : { trustedReaders: rls.trustedReaders }),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
+    permissionHoldersSql(ctx) || undefined,
+    actorKinds === undefined ? undefined : actorMayWriteSql(ctx, actorKinds),
     usesLiveSession ? sessionLiveHelperSql(ctx) : undefined,
     ...sections,
     shims,

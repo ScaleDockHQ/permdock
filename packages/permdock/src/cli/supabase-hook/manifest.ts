@@ -21,7 +21,9 @@ import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
 import { guardedTables } from "../rls/assignments.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "../rls/ownership-names.ts";
 import { ownershipRules } from "../rls/ownership.ts";
+import { permittedUsersHelper } from "../rls/permission-holders.ts";
 import { permissionKeysForHelper } from "../rls/permission-keys.ts";
+import { ACTOR_MAY_WRITE, readOnlyActorKinds } from "../rls/policies.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
 import { checkSuspension } from "../sql/active.ts";
 import { scopeTypeOf, tenantTypeOf } from "../sql/columns.ts";
@@ -121,6 +123,16 @@ function trustedHelpers(
             [],
           ),
         ),
+        ...scopeTypes
+          .filter(([scope]) => parts.helpers.holders.includes(scope))
+          .map(([scope, type]) =>
+            helperEntry(
+              permittedUsersHelper(scope),
+              `p_permission text, p_id ${type}`,
+              "setof uuid",
+              [],
+            ),
+          ),
       ]
     : [];
   const keyed = [
@@ -128,6 +140,9 @@ function trustedHelpers(
     ...(config.rls?.apiKeys === undefined
       ? []
       : [helperEntry(API_KEY_ALLOWS, "p_grant text", "boolean", client)]),
+    ...(readOnlyActorKinds(config.rls?.readOnlyActors) === undefined
+      ? []
+      : [helperEntry(ACTOR_MAY_WRITE, "", "boolean", client)]),
     ...forUser,
   ];
   const assigns =

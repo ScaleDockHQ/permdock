@@ -135,3 +135,112 @@ describe("rls.readOnlyActors", () => {
     });
   });
 });
+
+const HAND_WRITTEN = `
+alter table public.job enable row level security;
+create policy job_select on public.job for select to authenticated using (true);
+create policy job_update on public.job for update to authenticated using (true) with check (true);
+create policy job_update_actor on public.job as restrictive for update to authenticated
+  using ((select permdock.permdock_actor_may_write()))
+  with check ((select permdock.permdock_actor_may_write()));
+`;
+
+describe("rls.readOnlyActors with --helpers-only", () => {
+  const dir = mkdtempSync(join(tmpdir(), "permdock-read-only-helpers-"));
+  const fixture = join(HERE, "../fixtures/read-only-actors");
+  let db: Postgres | undefined;
+
+  beforeAll(async () => {
+    const out = join(dir, "rls.sql");
+    const result = await run(
+      ["rls", "generate", "--target", "sql", "--helpers-only", "--out", out],
+      { cwd: fixture },
+    );
+    if (result.code !== 0) {
+      throw new Error(`rls generate: ${result.stdout}`);
+    }
+    db = await startPostgres([SETUP, readFileSync(out, "utf8"), HAND_WRITTEN]);
+  }, 240_000);
+
+  afterAll(async () => {
+    rmSync(dir, { recursive: true, force: true });
+    await db?.stop();
+  });
+
+  const started = (): Postgres => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    return db;
+  };
+
+  const updates = async (
+    act?: Readonly<Record<string, unknown>>,
+  ): Promise<number> => {
+    const target = started();
+    let updated = 0;
+    await target.as(
+      {
+        role: "authenticated",
+        settings: {
+          "request.jwt.claims": JSON.stringify({
+            sub: OWNER,
+            role: "authenticated",
+            ...(act === undefined ? {} : { act }),
+          }),
+        },
+      },
+      async () => {
+        updated =
+          (
+            await target.tester.query(
+              "update public.job set title = 'changed' where id = 'j1'",
+            )
+          ).rowCount ?? 0;
+      },
+    );
+    return updated;
+  };
+
+  const verify = async () => {
+    const result = await run(
+      [
+        "rls",
+        "verify",
+        "--introspect",
+        "--helpers-only",
+        "--db",
+        started().uri,
+        "--dialect",
+        "supabase",
+      ],
+      { cwd: fixture },
+    );
+    return { code: result.code, out: `${result.stdout}${result.stderr}` };
+  };
+
+  it("refuses a read-only support session through a hand-written policy that calls permdock_actor_may_write", async () => {
+    expect(await updates()).toBe(1);
+    expect(
+      await updates({ sub: STAFF, kind: "support", session_id: "s1" }),
+    ).toBe(0);
+    expect(
+      await updates({
+        sub: STAFF,
+        kind: "support",
+        session_id: "s1",
+        read_only: false,
+      }),
+    ).toBe(1);
+  });
+
+  it("verify --introspect names a write policy without the check", async () => {
+    expect((await verify()).code).toBe(0);
+    await started().admin.query("drop policy job_update_actor on public.job");
+    const drift = await verify();
+    expect(drift.code).toBe(1);
+    expect(drift.out).toContain(
+      "public.job: update policies for authenticated do not call permdock_actor_may_write()",
+    );
+  });
+});
