@@ -48,6 +48,18 @@ const rows: readonly Rename[] = [
     entries: ["permdock/server"],
   },
   {
+    from: "ServerKernel",
+    to: "ServerPermDock",
+    entries: ["permdock/server"],
+    kind: "type",
+  },
+  {
+    from: "ServerKernelOptions",
+    to: "ServerPermDockOptions",
+    entries: ["permdock/server"],
+    kind: "type",
+  },
+  {
     from: "createEvaluationsHandler",
     to: "evaluationsHandler",
     entries: ["permdock/server"],
