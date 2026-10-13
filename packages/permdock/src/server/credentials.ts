@@ -10,10 +10,12 @@ import type { PermissionTree } from "../core/permission-types.ts";
 import { compact } from "../core/compact.ts";
 import {
   type Credential,
+  type CredentialKind,
   type CredentialPrincipal,
   credentialPolicyViolation,
   credentialSubject,
   credentialTenant,
+  isFeedId,
   parseCredential,
 } from "../core/credential.ts";
 import { bytesToBase64Url } from "../core/sha256.ts";
@@ -46,8 +48,8 @@ const CRC_TABLE = ((): Uint32Array => {
   return table;
 })();
 
-/** CRC-32 (IEEE 802.3) of the key's ASCII bytes, as 6 base62 characters. */
-function checksum(text: string): string {
+/** CRC-32 (IEEE 802.3) of the key's ASCII bytes, as 6 characters of `alphabet`. */
+function checksum(text: string, alphabet: string): string {
   let crc = 0xff_ff_ff_ff;
   for (let index = 0; index < text.length; index += 1) {
     crc =
@@ -56,9 +58,10 @@ function checksum(text: string): string {
   }
   let value = (crc ^ 0xff_ff_ff_ff) >>> 0;
   let out = "";
+  const base = alphabet.length;
   for (let index = 0; index < CHECKSUM_LENGTH; index += 1) {
-    out = (ALPHABET[value % 62] ?? "") + out;
-    value = Math.floor(value / 62);
+    out = (alphabet[value % base] ?? "") + out;
+    value = Math.floor(value / base);
   }
   return out;
 }
@@ -110,9 +113,71 @@ export function parseApiKey(key: unknown): ApiKeyParts | undefined {
     return undefined;
   }
   const secret = tail.slice(0, SECRET_LENGTH);
-  return tail.slice(SECRET_LENGTH) === checksum(`${PREFIX}${id}_${secret}`)
+  return tail.slice(SECRET_LENGTH) ===
+    checksum(`${PREFIX}${id}_${secret}`, ALPHABET)
     ? { id, secret }
     : undefined;
+}
+
+const FEED_PREFIX = "pdfeed_";
+const FEED_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
+const FEED_SECRET_LENGTH = 26;
+const FEED_TAIL = new RegExp(
+  `^[a-z2-7]{${String(FEED_SECRET_LENGTH + CHECKSUM_LENGTH)}}$`,
+  "u",
+);
+
+/**
+ * Splits `pdfeed_<id>_<secret><checksum>`. `id` is `isFeedId`, the secret is
+ * 26 lowercase base32 characters and the checksum is 6 more. A checksum that
+ * does not match is `undefined`.
+ */
+export function parseFeedKey(key: unknown): ApiKeyParts | undefined {
+  if (
+    typeof key !== "string" ||
+    key.length >
+      FEED_PREFIX.length + 16 + 1 + FEED_SECRET_LENGTH + CHECKSUM_LENGTH ||
+    !key.startsWith(FEED_PREFIX)
+  ) {
+    return undefined;
+  }
+  const body = key.slice(FEED_PREFIX.length);
+  const cut = body.lastIndexOf("_");
+  if (cut <= 0) {
+    return undefined;
+  }
+  const id = body.slice(0, cut);
+  const tail = body.slice(cut + 1);
+  if (!isFeedId(id) || !FEED_TAIL.test(tail)) {
+    return undefined;
+  }
+  const secret = tail.slice(0, FEED_SECRET_LENGTH);
+  return tail.slice(FEED_SECRET_LENGTH) ===
+    checksum(`${FEED_PREFIX}${id}_${secret}`, FEED_ALPHABET)
+    ? { id, secret }
+    : undefined;
+}
+
+/**
+ * A fresh `pdfeed_<id>_<secret><checksum>`: 26 lowercase base32 characters
+ * (130 bits) and a 6-character CRC-32 checksum. The whole key is lowercase.
+ */
+export function generateFeedKey(id: string): string {
+  if (!isFeedId(id)) {
+    throw new TypeError("PermDock: a feed id is 1 to 16 of a-z, 0-9 and -");
+  }
+  let secret = "";
+  const bytes = new Uint8Array(64);
+  while (secret.length < FEED_SECRET_LENGTH) {
+    globalThis.crypto.getRandomValues(bytes);
+    for (const byte of bytes) {
+      if (secret.length < FEED_SECRET_LENGTH) {
+        secret += FEED_ALPHABET[byte % 32];
+      }
+    }
+  }
+  const key = `${FEED_PREFIX}${id}_${secret}`;
+  return `${key}${checksum(key, FEED_ALPHABET)}`;
 }
 
 /**
@@ -138,7 +203,7 @@ export function generateApiKey(id: string): string {
     }
   }
   const key = `${PREFIX}${id}_${secret}`;
-  return `${key}${checksum(key)}`;
+  return `${key}${checksum(key, ALPHABET)}`;
 }
 
 /** base64url SHA-256 of the whole key, the value to store and compare. */
@@ -183,7 +248,9 @@ export function apiKeyVerifier(options: {
   return Object.freeze({
     ...(options.touch === undefined ? {} : { touch: options.touch }),
     async verify(secret: string): Promise<Credential | null> {
-      const parts = parseApiKey(secret);
+      const parts = secret.startsWith(FEED_PREFIX)
+        ? parseFeedKey(secret)
+        : parseApiKey(secret);
       if (parts === undefined) {
         return null;
       }
@@ -254,7 +321,10 @@ export function memoryCredentials(
     }
   };
   const store = async (credential: Credential): Promise<string> => {
-    const key = generateApiKey(credential.id);
+    const key =
+      credential.kind === "feed"
+        ? generateFeedKey(credential.id)
+        : generateApiKey(credential.id);
     records.set(credential.id, { credential, hash: await hashApiKey(key) });
     return key;
   };
@@ -334,6 +404,8 @@ export type ApiKeySubjectOptions = {
   readonly source?: string;
   readonly onAuth?: (event: AuthEvent) => void;
   readonly requestId?: string;
+  /** Accept only these credential kinds. A key of another kind is anonymous. */
+  readonly kinds?: readonly CredentialKind[];
 };
 
 type Checked =
@@ -469,7 +541,8 @@ async function resolveApiKey(
     }
     return anonymous();
   };
-  const parts = parseApiKey(key);
+  const feedKey = key.startsWith(FEED_PREFIX);
+  const parts = feedKey ? parseFeedKey(key) : parseApiKey(key);
   if (parts === undefined) {
     return deny("malformed");
   }
@@ -483,7 +556,12 @@ async function resolveApiKey(
     return deny("unknown-credential");
   }
   const credential = parseCredential(verified);
-  if (credential === undefined || credential.id !== parts.id) {
+  if (
+    credential === undefined ||
+    credential.id !== parts.id ||
+    feedKey !== (credential.kind === "feed") ||
+    (options.kinds !== undefined && !options.kinds.includes(credential.kind))
+  ) {
     return deny("invalid-claims");
   }
   if (

@@ -126,7 +126,8 @@ function validData(
         isRecord(data["credential"]) &&
         typeof data["credential"]["id"] === "string" &&
         (data["credential"]["kind"] === "user" ||
-          data["credential"]["kind"] === "service") &&
+          data["credential"]["kind"] === "service" ||
+          data["credential"]["kind"] === "feed") &&
         isRecord(data["principal"]) &&
         (data["operation"] === "created" ||
           data["operation"] === "used" ||
