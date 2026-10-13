@@ -8,6 +8,7 @@ import type { TokenSigner } from "../../src/core/interfaces.ts";
 
 import {
   accessEvent,
+  cloudEventType,
   credentialEvent,
   membershipEvent,
   memorySink,
@@ -344,5 +345,28 @@ describe("toCloudEvent", () => {
     expect(() =>
       memorySink({ signer: { sign: async () => "jws" }, source: "app" }),
     ).toThrow(TypeError);
+  });
+});
+
+describe("cloudEventType", () => {
+  it("never throws for an operation outside its union", () => {
+    const base = {
+      at: "2026-01-01T00:00:00.000Z",
+      source: "app",
+      principal: { id: "u1" },
+    };
+    // SAFETY: each event carries an operation no producer emits, as a JavaScript caller could.
+    const unknownEvents = [
+      { ...event("1"), phase: "paused" },
+      { ...base, type: "directory", operation: "merge" },
+      { ...base, type: "membership", operation: "moved" },
+      { ...base, type: "credential", operation: "lent" },
+    ] as unknown as readonly Parameters<typeof cloudEventType>[0][];
+    expect(unknownEvents.map((item) => cloudEventType(item))).toEqual([
+      "paused",
+      "merge",
+      "moved",
+      "lent",
+    ]);
   });
 });

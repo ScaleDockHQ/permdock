@@ -341,6 +341,34 @@ describe("approvalsHandler HTTP semantics", () => {
     ).toBe(404);
   });
 
+  it("serves the signature to an earlier quorum approver and not to a stranger, and 404s an undecodable id", async () => {
+    const store = memoryApprovalStore();
+    store.create({
+      ...pending("quorum", { id: "u_3", roles: ["member"] }),
+      status: "approved",
+      approvals: [
+        { by: "u_7", at: new Date().toISOString() },
+        { by: "u_9", at: new Date().toISOString() },
+      ],
+      resolvedBy: "u_9",
+      resolvedAt: new Date().toISOString(),
+    });
+    const as = (id: string) =>
+      approvalsHandler(store, {
+        subject: () => ({ principal: { id, roles: [] }, context: {} }),
+        audience: "https://api.example.com",
+        signer: {
+          sign: (_claims, options) =>
+            Promise.resolve(`signed.${options.jti ?? ""}`),
+        },
+      });
+    const signature = (id: string) =>
+      as(id)(new Request(`${BASE}/quorum/signature`));
+    expect((await signature("u_7")).status).toBe(200);
+    expect((await signature("u_5")).status).toBe(404);
+    expect((await as("u_7")(new Request(`${BASE}/%E0%A4%A`))).status).toBe(404);
+  });
+
   it("types an ineligible approver as approver-not-eligible", async () => {
     const handler = approvalsHandler(closed(), {
       subject: () => ({

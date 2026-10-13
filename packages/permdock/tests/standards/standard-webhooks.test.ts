@@ -280,6 +280,43 @@ describe("Standard Webhooks", () => {
     });
   });
 
+  it("skips a key that does not import and fails closed on a read body or a throwing fetch", async () => {
+    const { privateJwk, publicJwk } = await ed25519Pair();
+    const signer = webhookSigner({
+      keys: [{ alg: "v1a", privateKey: privateJwk }],
+    });
+    const now = Temporal.Now.instant();
+    const headers = await signer.sign({ id: "msg_1", body: "{}", now });
+    const inline = webhookVerifier({
+      jwks: { keys: [{ kty: "OKP", crv: "Ed25519", x: "AA" }, publicJwk] },
+      replay: memoryReplayStore(),
+      now: () => now,
+    });
+    const read = new Request("https://app.example.com/webhooks", {
+      method: "POST",
+      headers,
+      body: "{}",
+    });
+    await read.text();
+    expect(await inline.verify(read)).toEqual({
+      ok: false,
+      cause: "malformed",
+    });
+    expect((await inline.verify({ headers, body: "{}" })).ok).toBe(true);
+    const unreachable = webhookVerifier({
+      jwks: "https://cloud.permdock.test/jwks",
+      replay: memoryReplayStore(),
+      now: () => now,
+      fetch: async () => {
+        throw new Error("offline");
+      },
+    });
+    expect(await unreachable.verify({ headers, body: "{}" })).toEqual({
+      ok: false,
+      cause: "keys-unavailable",
+    });
+  });
+
   it("refuses an invalid configuration", () => {
     expect(() => webhookSigner({ keys: [] })).toThrow(TypeError);
     expect(() =>

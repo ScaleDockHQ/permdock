@@ -217,6 +217,7 @@ describe("approver delegation", () => {
   it("refuses a delegation whose delegator is the requester", () => {
     const request = {
       v: 1 as const,
+      id: "r1",
       token: "t",
       permission: "payment.send",
       scope: "payment:send",
@@ -305,6 +306,7 @@ describe("approver delegation", () => {
     );
     const second: ApprovalRequest = {
       v: 1,
+      id: "rel",
       token: "rel-token",
       permission: "payment.send",
       scope: "payment:send",
@@ -335,6 +337,7 @@ describe("approver delegation", () => {
   it("counts one delegator once, whichever delegate signs", () => {
     const request = {
       v: 1 as const,
+      id: "quorum",
       token: "quorum",
       permission: "payment.send",
       scope: "payment:send",
@@ -428,6 +431,7 @@ describe("approver delegation", () => {
   it("matches nobody when the source or the delegator fails", async () => {
     const request = {
       v: 1 as const,
+      id: "r1",
       token: "t",
       permission: "payment.send",
       scope: "payment:send",
@@ -564,6 +568,84 @@ describe("approver delegation", () => {
         requireDistinct: true,
         factsFor,
       }),
+    ).toBeUndefined();
+  });
+
+  it("refuses a contact, an outsider, a malformed answer and every entry that does not cover the request", async () => {
+    const request: ApprovalRequest = {
+      v: 1,
+      id: "r1",
+      token: "t",
+      permission: "payment.send",
+      scope: "payment:send",
+      resource: { type: "payment", id: "p1" },
+      subject: { principal: { id: "cara", roles: ["clerk"], tenant: "o1" } },
+      detail: "send",
+      createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + HOUR).toISOString(),
+      status: "pending",
+      approvers: { by: user("cfo") },
+    };
+    const factsFor = () => Promise.resolve({ relations: [], permissions: [] });
+    const open = window(now);
+    const match = (
+      delegate: Subject,
+      entries: unknown,
+      subjectFor: (id: string) => Subject | null = (id) => inTenant(id),
+    ) =>
+      matchDelegation(request, delegate, {
+        // SAFETY: a custom source may answer with anything; matchDelegation checks it.
+        delegations: { delegationsFor: () => entries as never },
+        subjectFor,
+        requireDistinct: true,
+        factsFor,
+        now,
+      });
+    const entry = { id: "d1", delegator: "cfo", delegate: "dana", ...open };
+    expect(await match(inTenant("dana"), [entry])).toBeDefined();
+    const contact: Subject = {
+      principal: { id: "dana", kind: "contact", roles: [], tenant: "o1" },
+      context: {},
+    };
+    expect(await match(contact, [entry])).toBeUndefined();
+    const outsider: Subject = {
+      principal: {
+        id: "dana",
+        roles: [],
+        memberships: [{ scope: "tenant", id: "o2", roles: [] }],
+      },
+      context: {},
+    };
+    expect(await match(outsider, [entry])).toBeUndefined();
+    expect(
+      await match({ principal: null, context: {} }, [entry]),
+    ).toBeUndefined();
+    expect(await match(inTenant("dana"), { entries: [entry] })).toBeUndefined();
+    const later = new Date(now.getTime() + HOUR).toISOString();
+    for (const uncovered of [
+      { ...entry, delegate: "erin" },
+      { ...entry, delegator: "dana" },
+      {
+        ...entry,
+        from: later,
+        until: new Date(now.getTime() + 2 * HOUR).toISOString(),
+      },
+      { ...entry, tenant: "o2" },
+      { ...entry, permissions: ["payment.approve"] },
+      { ...entry, resources: ["invoice"] },
+      { ...entry, resources: [1] },
+    ]) {
+      expect({
+        uncovered,
+        match: await match(inTenant("dana"), [uncovered]),
+      }).toEqual({ uncovered, match: undefined });
+    }
+    const contactDelegator = (id: string): Subject => ({
+      principal: { id, kind: "contact", roles: [], tenant: "o1" },
+      context: {},
+    });
+    expect(
+      await match(inTenant("dana"), [entry], contactDelegator),
     ).toBeUndefined();
   });
 });

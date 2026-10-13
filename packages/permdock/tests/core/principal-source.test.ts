@@ -51,6 +51,20 @@ const source = memoryPrincipalSource({
   ],
 });
 
+describe("a principal source that throws for one id", () => {
+  testPrincipalSource(
+    {
+      principal: (id) => {
+        if (id === "u_down") {
+          throw new Error("directory down");
+        }
+        return source.principal(id);
+      },
+    },
+    { principals: [{ id: "u_down" }, { id: alice.id }] },
+  );
+});
+
 describe("memoryPrincipalSource conformance", () => {
   testPrincipalSource(source, {
     principals: [
