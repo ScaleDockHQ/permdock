@@ -387,7 +387,7 @@ A `credential` event records an API key's lifecycle ([API keys](/docs/concepts/c
   "credential": { "id": "svc_01J8", "kind": "service" },
   "principal": { "id": "ci-deploy" },
   "tenant": "o_1",
-  "expiresAt": 1792592000,
+  "expiresAt": "2026-10-22T14:13:20Z",
   "sample": 0.1,
   "by": { "id": "u_1", "kind": "user" }
 }
@@ -412,13 +412,13 @@ The record an API key stands for. The key itself (`pdk_<id>_<secret><checksum>`)
     { "permission": "repo.write", "ids": ["r_1", "r_2"] }
   ],
   "createdBy": "u_1",
-  "createdAt": 1790000000,
-  "expiresAt": 1792592000,
+  "createdAt": "2026-09-22T14:13:20Z",
+  "expiresAt": "2026-10-22T14:13:20Z",
   "name": "deploy pipeline"
 }
 ```
 
-`kind` is `user` (the key acts as `principal`, its owner), `service` (the key is the `service` principal `principal`, holding `roles` in `tenant`) or `feed` (the key is a `feed` principal bound to one resource). `tenant` and `roles` are required for a service credential. A user credential never carries `roles` or `on`; its optional `tenant` holds the key to the owner's memberships inside that instance of the first scope, with no global role. A feed carries `on` (`{ resource, id }`) and `roles`, and omits `expiresAt`. `permissions` holds at least one entry, each a permission key with an optional 1 to 64 resource `ids`. The list has no upper bound: a credential is read from the application's own store through a verifier, never from a token a client holds, so a read-and-write key over every permission of a large catalog is valid. `createdAt` and `expiresAt` are NumericDate seconds; `expiresAt` is absent on a feed, and on a user or service key only where a tenant's settings allow it. `parseCredential` rejects a `v` other than `1` or a wrong type in any field, reads own properties only, and drops unknown fields. An older parser that rejects `kind: 'feed'` fails closed. The resolver turns `permissions` into `delegation.scopes` (entries without `ids`) and RFC 9396 `authorizationDetails` `{ type: <resource>, actions: [<action>], identifier: <id> }` (one per id).
+`kind` is `user` (the key acts as `principal`, its owner), `service` (the key is the `service` principal `principal`, holding `roles` in `tenant`) or `feed` (the key is a `feed` principal bound to one resource). `tenant` and `roles` are required for a service credential. A user credential never carries `roles` or `on`; its optional `tenant` holds the key to the owner's memberships inside that instance of the first scope, with no global role. A feed carries `on` (`{ resource, id }`) and `roles`, and omits `expiresAt`. `permissions` holds at least one entry, each a permission key with an optional 1 to 64 resource `ids`. The list has no upper bound: a credential is read from the application's own store through a verifier, never from a token a client holds, so a read-and-write key over every permission of a large catalog is valid. `createdAt` and `expiresAt` are RFC 3339 date-times; `expiresAt` is absent on a feed, and on a user or service key only where a tenant's settings allow it. `parseCredential` rejects a `v` other than `1` or a wrong type in any field, reads own properties only, and drops unknown fields. An older parser that rejects `kind: 'feed'` fails closed. The resolver turns `permissions` into `delegation.scopes` (entries without `ids`) and RFC 9396 `authorizationDetails` `{ type: <resource>, actions: [<action>], identifier: <id> }` (one per id).
 
 ## Approval request
 

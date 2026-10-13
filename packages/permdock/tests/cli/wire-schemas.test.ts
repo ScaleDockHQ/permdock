@@ -214,9 +214,14 @@ describe("credential-v1.json", () => {
     principal: "u1",
     permissions: [{ permission: "post.read" }],
     createdBy: "u1",
-    createdAt: 1_700_000_000,
-    expiresAt: 1_700_086_400,
+    createdAt: "2023-11-14T22:13:20Z",
+    expiresAt: "2023-11-15T22:13:20Z",
   };
+
+  it("rejects Unix-second times", () => {
+    expect(check({ ...user, createdAt: 1_700_000_000 })).not.toEqual([]);
+    expect(check({ ...user, expiresAt: "2023-11-15" })).not.toEqual([]);
+  });
 
   it("accepts user, service and feed credentials", () => {
     expect(check(user)).toEqual([]);

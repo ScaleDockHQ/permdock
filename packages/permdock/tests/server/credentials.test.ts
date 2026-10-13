@@ -50,6 +50,7 @@ const policy = definePolicy(
 );
 
 const NOW = Math.floor(Date.now() / 1000);
+const iso = (seconds: number): string => new Date(seconds * 1000).toISOString();
 const BASE62 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const r1 = { id: "r_1", orgId: "o_1" };
 
@@ -62,8 +63,8 @@ function credential(overrides: Record<string, unknown> = {}): Credential {
     principal: "u_1",
     permissions: [{ permission: "repo.read" }],
     createdBy: "u_1",
-    createdAt: NOW,
-    expiresAt: NOW + 3600,
+    createdAt: iso(NOW),
+    expiresAt: iso(NOW + 3600),
     ...overrides,
   } as Credential;
 }
@@ -325,7 +326,9 @@ describe("subjectFromApiKey", () => {
     await resolve(`${key.slice(0, -1)}${wrong}`, options);
     expect(store.lastUsedAt("key_1")).toBeUndefined();
     await resolve(key, options);
-    expect(store.lastUsedAt("key_1")).toBeGreaterThanOrEqual(NOW);
+    expect(Date.parse(store.lastUsedAt("key_1") ?? "")).toBeGreaterThanOrEqual(
+      NOW * 1000,
+    );
     const throwing = {
       verify: (secret: string) => store.verify(secret),
       touch: () => {
@@ -400,7 +403,7 @@ describe("subjectFromApiKey", () => {
 
   it("fails closed with a cause for every refusal", async () => {
     const { store, key } = await issue();
-    const expired = await issue({ expiresAt: NOW - 1 });
+    const expired = await issue({ expiresAt: iso(NOW - 1) });
     const thrower = (): never => {
       throw new Error("db down");
     };

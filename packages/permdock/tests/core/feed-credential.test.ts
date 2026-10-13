@@ -86,7 +86,7 @@ describe("feed credentials", () => {
       roles: ["guest"],
       permissions: [{ permission: "calendar.read", ids: ["cal_1"] }],
       createdBy: "u_1",
-      createdAt: 1_700_000_000,
+      createdAt: "2023-11-14T22:13:20.000Z",
     });
     expect(credential?.expiresAt).toBeUndefined();
     const store = memoryCredentialStore();

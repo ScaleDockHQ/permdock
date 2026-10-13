@@ -15,6 +15,7 @@ import {
 } from "../core/credential.ts";
 import { listPermissions } from "../core/permission-registry.ts";
 import { type Subject, anonymousSubject } from "../core/subject.ts";
+import { rfc3339 } from "../core/time.ts";
 import { subjectFromSupabaseSession } from "../supabase/subject.ts";
 import {
   type KeyRecord,
@@ -114,9 +115,9 @@ function apiKeySubject(
     ...(session.createdBy === undefined
       ? {}
       : { createdBy: session.createdBy }),
-    ...(session.createdAt === undefined
+    ...(session.createdAt === undefined || !Number.isFinite(session.createdAt)
       ? {}
-      : { createdAt: session.createdAt }),
+      : { createdAt: rfc3339(session.createdAt) }),
   };
   const credential = keyCredential(
     key,

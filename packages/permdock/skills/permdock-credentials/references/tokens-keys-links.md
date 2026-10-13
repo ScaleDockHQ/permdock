@@ -39,7 +39,9 @@ const decision = await decideCredential(
     tenant: "o_1",
     roles: ["developer"],
     permissions: [permissions.repo.read],
-    expiresAt: Math.floor(Date.now() / 1000) + 30 * 86_400,
+    expiresAt: Temporal.Now.instant()
+      .add({ hours: 30 * 24 })
+      .toString(), // RFC 3339
   },
   { settings },
 );

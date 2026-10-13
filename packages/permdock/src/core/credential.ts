@@ -20,6 +20,13 @@ import {
   type Subject,
   anonymousSubject,
 } from "./subject.ts";
+import {
+  type Instant,
+  isRfc3339,
+  nowSeconds,
+  rfc3339,
+  secondsOf,
+} from "./time.ts";
 
 export type CredentialKind = "user" | "service" | "feed";
 
@@ -59,10 +66,10 @@ export type Credential = {
   readonly on?: { readonly resource: string; readonly id: string };
   readonly permissions: readonly CredentialPermission[];
   readonly createdBy: string;
-  /** Seconds since the epoch. */
-  readonly createdAt: number;
-  /** Seconds since the epoch; absent only where a credential policy allows it. */
-  readonly expiresAt?: number;
+  /** RFC 3339. */
+  readonly createdAt: string;
+  /** RFC 3339; absent only where a credential policy allows it. */
+  readonly expiresAt?: string;
   readonly name?: string;
 };
 
@@ -94,7 +101,8 @@ export type CredentialPermissionInput =
 type CredentialRequestBase = {
   readonly id: string;
   readonly permissions: readonly CredentialPermissionInput[];
-  readonly expiresAt?: number;
+  /** RFC 3339; must be after `now`. */
+  readonly expiresAt?: string;
   readonly name?: string;
 };
 
@@ -137,8 +145,8 @@ export type DecideCredentialOptions = {
   readonly settings?: SettingsSource;
   /** The `token` of an approval the application consumed for this request. */
   readonly approved?: string;
-  /** Seconds since the epoch. */
-  readonly now?: number;
+  /** The creation time; defaults to the clock. */
+  readonly now?: Instant;
 };
 
 const MAX_NAME = 256;
@@ -173,14 +181,14 @@ export function credentialPolicyViolation(
       list.every((item) => item.maxTtl === undefined);
     return allowed ? undefined : "no-expiry";
   }
+  const lifetime =
+    (secondsOf(credential.expiresAt) ?? Number.NaN) -
+    (secondsOf(credential.createdAt) ?? Number.NaN);
   for (const item of list) {
     const max = item.maxTtl;
     if (
       max !== undefined &&
-      (typeof max !== "number" ||
-        !Number.isFinite(max) ||
-        max < 0 ||
-        credential.expiresAt - credential.createdAt > max)
+      (!Number.isSafeInteger(max) || max < 0 || !(lifetime <= max))
     ) {
       return "ttl";
     }
@@ -211,10 +219,6 @@ function parsePermissions(
   return out;
 }
 
-function isTime(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
 /**
  * Validates an untrusted credential record and returns a frozen copy with
  * only the v1 fields, or `undefined`. Unknown fields are dropped; a wrong
@@ -237,10 +241,10 @@ export function parseCredential(input: unknown): Credential | undefined {
     return undefined;
   }
   const permissions = parsePermissions(value["permissions"]);
-  if (permissions === undefined || !isTime(value["createdAt"])) {
+  if (permissions === undefined || !isRfc3339(value["createdAt"])) {
     return undefined;
   }
-  if (value["expiresAt"] !== undefined && !isTime(value["expiresAt"])) {
+  if (value["expiresAt"] !== undefined && !isRfc3339(value["expiresAt"])) {
     return undefined;
   }
   if (
@@ -421,7 +425,7 @@ export function credentialSubject(
       principal,
       delegation,
       context: {},
-      expiresAt: credential.expiresAt,
+      expiresAt: secondsOf(credential.expiresAt),
     }),
   );
 }
@@ -656,11 +660,13 @@ function checkRequest(
     return refuse("exceeds-creator", { creator: "credential" });
   }
   const entries = permissionEntries(request, leafByKey(permdock.permissions));
+  const expires =
+    request.expiresAt === undefined ? undefined : secondsOf(request.expiresAt);
   if (
     entries === undefined ||
     !isId(request.id) ||
     (request.expiresAt !== undefined &&
-      (!isTime(request.expiresAt) || request.expiresAt <= now))
+      (expires === undefined || expires <= now))
   ) {
     return refuse("validation");
   }
@@ -710,11 +716,8 @@ function checkRequest(
         }),
       ),
       createdBy: creator.id,
-      createdAt: now,
-      expiresAt:
-        request.expiresAt === undefined
-          ? undefined
-          : Math.floor(request.expiresAt),
+      createdAt: rfc3339(now),
+      expiresAt: request.expiresAt,
       name: request.name,
     }),
   );
@@ -779,8 +782,7 @@ export async function decideCredential(
   request: CredentialRequest,
   options: DecideCredentialOptions = {},
 ): Promise<CredentialDecision> {
-  const now = options.now ?? Math.floor(Date.now() / 1000);
-  const checked = checkRequest(permdock, request, now);
+  const checked = checkRequest(permdock, request, nowSeconds(options.now));
   if (!checked.ok) {
     return checked.decision;
   }

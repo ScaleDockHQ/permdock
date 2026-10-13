@@ -7,6 +7,7 @@ import type {
 } from "../core/interfaces.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
+import type { Instant } from "../core/time.ts";
 
 import { compact } from "../core/compact.ts";
 import {
@@ -281,8 +282,8 @@ export type MemoryCredentialStore = CredentialVerifier & {
   /** `true` when a credential was removed. */
   revoke(id: string): boolean;
   list(): readonly Credential[];
-  /** When `touch` last recorded a use of `id`, in Unix seconds. */
-  lastUsedAt(id: string): number | undefined;
+  /** When `touch` last recorded a use of `id`, as RFC 3339. */
+  lastUsedAt(id: string): string | undefined;
 };
 
 function write(
@@ -331,12 +332,12 @@ export function memoryCredentialStore(
   };
   return Object.freeze({
     verify: (secret: string) => verifier.verify(secret),
-    touch(id: string, at: number): void {
+    touch(id: string, at: Instant): void {
       if (records.has(id)) {
-        used.set(id, at);
+        used.set(id, new Date(at.epochMilliseconds).toISOString());
       }
     },
-    lastUsedAt(id: string): number | undefined {
+    lastUsedAt(id: string): string | undefined {
       return used.get(id);
     },
     async issue(input: Credential): Promise<string> {
@@ -467,7 +468,7 @@ function touch(verifier: CredentialVerifier, id: string): void {
     return;
   }
   try {
-    const touched = verifier.touch(id, Math.floor(Date.now() / 1000));
+    const touched = verifier.touch(id, { epochMilliseconds: Date.now() });
     if (isThenable(touched)) {
       void Promise.resolve(touched).catch(() => undefined);
     }
@@ -580,7 +581,7 @@ async function resolveApiKey(
   }
   if (
     credential.expiresAt !== undefined &&
-    credential.expiresAt <= Date.now() / 1000
+    Date.parse(credential.expiresAt) <= Date.now()
   ) {
     return deny("expired");
   }

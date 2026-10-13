@@ -150,6 +150,7 @@ async function creator(id: string) {
 }
 
 const DAY = 86_400;
+const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
 const conformanceKey = generateApiKey("conformance");
 
 beforeAll(async () => {
@@ -163,8 +164,8 @@ beforeAll(async () => {
       principal: "u_1",
       permissions: [{ permission: "repo.read" }],
       createdBy: "u_1",
-      createdAt: now,
-      expiresAt: now + DAY,
+      createdAt: at(now),
+      expiresAt: at(now + DAY),
     },
     conformanceKey,
   );
@@ -192,7 +193,7 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
         kind: "user",
         id: "key_user",
         permissions: [repo.read],
-        expiresAt: Math.floor(Date.now() / 1000) + DAY,
+        expiresAt: at(Math.floor(Date.now() / 1000) + DAY),
       },
       { settings },
     );
@@ -223,8 +224,8 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
       principal: "u_2",
       permissions: [{ permission: "repo.delete" }],
       createdBy: "u_2",
-      createdAt: now,
-      expiresAt: now + DAY,
+      createdAt: at(now),
+      expiresAt: at(now + DAY),
     });
     const [r1] = await repos();
     expect((await permdockFor(key)).can(repo.delete, r1)).toBe(true);
@@ -245,7 +246,7 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
         tenant: "o_1",
         roles: ["admin"],
         permissions: [repo.delete],
-        expiresAt,
+        expiresAt: at(expiresAt),
       },
       { settings },
     );
@@ -261,7 +262,7 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
         tenant: "o_1",
         roles: ["developer"],
         permissions: [repo.read],
-        expiresAt: expiresAt + 90 * DAY,
+        expiresAt: at(expiresAt + 90 * DAY),
       },
       { settings },
     );
@@ -277,7 +278,7 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
         tenant: "o_1",
         roles: ["developer"],
         permissions: [{ permission: repo.write, ids: ["r_1"] }],
-        expiresAt,
+        expiresAt: at(expiresAt),
       },
       { settings },
     );
@@ -308,8 +309,8 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
       roles: ["developer"],
       permissions: [{ permission: "repo.read" }],
       createdBy: "u_1",
-      createdAt: now,
-      expiresAt: now + 7 * DAY,
+      createdAt: at(now),
+      expiresAt: at(now + 7 * DAY),
     });
     expect((await permdockFor(key)).subject.principal?.id).toBe("nightly");
     await db.admin.query(

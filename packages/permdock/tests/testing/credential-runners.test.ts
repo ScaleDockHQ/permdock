@@ -9,6 +9,7 @@ import { testCredentialVerifier } from "../../src/testing/conformance/credential
 import { testSettingsSource } from "../../src/testing/conformance/identity.ts";
 
 const NOW = Math.floor(Date.now() / 1000);
+const iso = (seconds: number): string => new Date(seconds * 1000).toISOString();
 
 describe("testSettingsSource", () => {
   describe("a tenant with credential rules", () => {
@@ -56,8 +57,8 @@ describe("testCredentialVerifier without revoke", () => {
         principal: "u_1",
         permissions: [{ permission: "repo.read" }],
         createdBy: "u_1",
-        createdAt: NOW,
-        expiresAt: NOW + 3600,
+        createdAt: iso(NOW),
+        expiresAt: iso(NOW + 3600),
       }),
   });
 });
@@ -75,7 +76,7 @@ describe("testCredentialVerifier with a key given as a string", () => {
               principal: "u_1",
               permissions: [{ permission: "repo.read" }],
               createdBy: "u_1",
-              createdAt: NOW,
+              createdAt: iso(NOW),
             }
           : null,
     },
