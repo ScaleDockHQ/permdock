@@ -16,11 +16,12 @@ import {
   compileGrants,
 } from "../sql/compile.ts";
 import { scopeSources, scopeTable } from "../sql/names.ts";
-import { quoteLiteral } from "../sql/quote.ts";
+import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { subjectClaimJsonSql } from "../sql/subject.ts";
 import { policySql } from "./emit.ts";
 import { type FieldView, fieldViews, rowBranches } from "./fields.ts";
 import {
+  ACTOR_MAY_WRITE,
   assemblePolicies,
   readOnlyActorKinds,
   readOnlyActorPolicies,
@@ -158,7 +159,7 @@ export function generatePolicies(
   const actorKinds = readOnlyActorKinds(rls?.readOnlyActors);
   if (actorKinds !== undefined && helpersOnly) {
     warnings.push(
-      "rls.readOnlyActors adds policies, and --helpers-only writes none: add the restrictive read-only policies to the hand-written ones",
+      `rls.readOnlyActors with --helpers-only writes no policies: add \`and (select ${qualified(ctx, ACTOR_MAY_WRITE)}())\` to each hand-written insert, update and delete policy, or a restrictive policy that calls it`,
     );
   }
   const withActors = (

@@ -374,8 +374,22 @@ describe("introspectRls and introspectMixed through an injected client", () => {
       if (call.sql.includes("as expression")) {
         return {
           rows: [
-            { target: "public.post", policyname: "p", expression: "true" },
-            { target: "storage.objects", policyname: "s", expression: "true" },
+            {
+              target: "public.post",
+              policyname: "p",
+              expression: "true",
+              command: "update",
+              restrictive: false,
+              roles: "authenticated,anon",
+            },
+            {
+              target: "storage.objects",
+              policyname: "s",
+              expression: "true",
+              command: "all",
+              restrictive: true,
+              roles: null,
+            },
             { target: "auth.users", policyname: "u", expression: "true" },
             { target: "pg_temp_1.t", policyname: "t", expression: "true" },
           ],
@@ -412,8 +426,22 @@ describe("introspectRls and introspectMixed through an injected client", () => {
         },
       ],
       policies: [
-        { table: "public.post", name: "p", expression: "true" },
-        { table: "storage.objects", name: "s", expression: "true" },
+        {
+          table: "public.post",
+          name: "p",
+          expression: "true",
+          command: "update",
+          restrictive: false,
+          roles: ["authenticated", "anon"],
+        },
+        {
+          table: "storage.objects",
+          name: "s",
+          expression: "true",
+          command: "all",
+          restrictive: true,
+          roles: [],
+        },
       ],
       rlsTables: ["app.alpha", "public.zeta"],
     });
@@ -501,5 +529,42 @@ describe("diffMixed", () => {
       rlsTables: ["public.asset"],
     });
     expect(result).toEqual({ drift: [], info: [] });
+  });
+
+  it("with rls.readOnlyActors, names each write a client reaches without permdock_actor_may_write", () => {
+    const write = (
+      table: string,
+      name: string,
+      command: string,
+      expression: string,
+      restrictive = false,
+      roles: readonly string[] = ["authenticated"],
+    ) => ({ table, name, command, expression, restrictive, roles });
+    const helper =
+      "(organization_id IN ( SELECT public.permitted_organization_ids('asset.update'::text)))";
+    const guard =
+      "( SELECT public.permdock_actor_may_write() AS permdock_actor_may_write)";
+    const policies = [
+      write("public.asset", "assets_update", "update", helper),
+      write("public.asset", "assets_ro", "all", guard, true),
+      write(
+        "public.quote",
+        "quotes_insert",
+        "insert",
+        `${helper} AND ${guard}`,
+      ),
+      write("public.quote", "quotes_delete", "delete", helper),
+      write("public.quote", "quotes_select", "select", helper),
+      write("public.note", "notes_update", "update", helper, false, [
+        "service_role",
+      ]),
+    ];
+    const actual = { seeds: [seed], policies, rlsTables: [] };
+    expect(diffMixed(mixed, actual).drift).toEqual([]);
+    expect(diffMixed({ ...mixed, readOnlyActors: true }, actual).drift).toEqual(
+      [
+        "public.quote: delete policies for authenticated do not call permdock_actor_may_write(), so a read-only support or impersonation session can write (rls.readOnlyActors)",
+      ],
+    );
   });
 });

@@ -124,7 +124,22 @@ describe("rls.readOnlyActors", () => {
       cwd: helpers,
     });
     expect(quiet.stdout + quiet.stderr).toContain(
-      "rls.readOnlyActors adds policies, and --helpers-only writes none",
+      'rls.readOnlyActors with --helpers-only writes no policies: add `and (select "permdock".permdock_actor_may_write())` to each hand-written insert, update and delete policy',
     );
+    const helperSql = readFileSync(path.join(helpers, "rls.sql"), "utf8");
+    expect(helperSql).not.toContain("_read_only_actors");
+    expect(helperSql).toContain(
+      `create or replace function "permdock".permdock_actor_may_write()
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select not coalesce((${ACT} ->> 'kind') = any(array['support']::text[]) or ((${ACT} ->> 'kind') is null and ${ACT} ? 'session_id'), false) or coalesce((${ACT} ->> 'read_only') = 'false', false)
+$$;
+revoke execute on function "permdock".permdock_actor_may_write() from public, anon;
+grant execute on function "permdock".permdock_actor_may_write() to authenticated;`,
+    );
+    expect(sql).toContain('"permdock".permdock_actor_may_write()');
   });
 });

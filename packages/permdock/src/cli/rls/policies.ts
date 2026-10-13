@@ -1,3 +1,5 @@
+import type { RlsSqlContext } from "../sql/context.ts";
+
 import { sole } from "../../core/compact.ts";
 import {
   type CompiledBranch,
@@ -5,6 +7,8 @@ import {
   branchClauses,
   wrapSql,
 } from "../sql/compile.ts";
+import { qualified } from "../sql/quote.ts";
+import { subjectClaimJsonSql } from "../sql/subject.ts";
 
 export type PolicyShape = {
   /** One policy per role and permission (the pre-helper layout) instead of one per table and command. */
@@ -246,6 +250,47 @@ export function readOnlyActorKinds(
   return [...new Set(kinds)];
 }
 
+/** `permdock_actor_may_write()`, for hand-written write policies. Names are part of the SQL contract. */
+export const ACTOR_MAY_WRITE = "permdock_actor_may_write";
+
+/**
+ * True unless the token's `act` claim (`act`, as SQL `jsonb`) is a session
+ * of one of `kinds` that is not `read_only: false`.
+ */
+export function readOnlyActorPasses(
+  act: string,
+  kinds: readonly string[],
+): string {
+  const list = `array[${kinds.map((kind) => `'${kind}'`).join(", ")}]::text[]`;
+  const session = kinds.includes("support")
+    ? `(${act} ->> 'kind') = any(${list}) or ((${act} ->> 'kind') is null and ${act} ? 'session_id')`
+    : `(${act} ->> 'kind') = any(${list})`;
+  return `not coalesce(${session}, false) or coalesce((${act} ->> 'read_only') = 'false', false)`;
+}
+
+/**
+ * `permdock_actor_may_write()`: {@link readOnlyActorPasses} as a function, so
+ * hand-written write policies apply the same read-only default.
+ */
+export function actorMayWriteSql(
+  ctx: RlsSqlContext,
+  kinds: readonly string[],
+): string {
+  const fn = qualified(ctx, ACTOR_MAY_WRITE);
+  return `-- rls.readOnlyActors: false for a token whose act claim is a read-only ${kinds.join(" or ")} session; hand-written write policies call it
+create or replace function ${fn}()
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select ${readOnlyActorPasses(subjectClaimJsonSql(ctx, "act"), kinds)}
+$$;
+revoke execute on function ${fn}() from public, anon;
+grant execute on function ${fn}() to authenticated;
+`;
+}
+
 /**
  * One restrictive policy per table and write command the allow policies
  * grant to `authenticated`: the write passes unless the token's `act` claim
@@ -257,11 +302,7 @@ export function readOnlyActorPolicies(
   act: string,
   kinds: readonly string[],
 ): CompiledPolicy[] {
-  const list = `array[${kinds.map((kind) => `'${kind}'`).join(", ")}]::text[]`;
-  const session = kinds.includes("support")
-    ? `(${act} ->> 'kind') = any(${list}) or ((${act} ->> 'kind') is null and ${act} ? 'session_id')`
-    : `(${act} ->> 'kind') = any(${list})`;
-  const passes = `not coalesce(${session}, false) or coalesce((${act} ->> 'read_only') = 'false', false)`;
+  const passes = readOnlyActorPasses(act, kinds);
   const seen = new Set<string>();
   const out: CompiledPolicy[] = [];
   for (const policy of policies) {
