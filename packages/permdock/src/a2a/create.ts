@@ -20,7 +20,6 @@ import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
 import { delegationFrom } from "../core/delegation-input.ts";
 import {
-  type ProblemDetails,
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from "../core/errors.ts";
@@ -32,6 +31,7 @@ import {
   hasScope,
   scopesReaching,
 } from "../core/oauth-scopes.ts";
+import { statusProblem } from "../core/problem-types.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { bytesToBase64Url } from "../core/sha256.ts";
 import { bearerChallenge, wwwAuthenticate } from "../server/problem.ts";
@@ -233,14 +233,10 @@ async function signCard(
 }
 
 function missingScope(permission: Permission, scope: string): A2aTaskOutcome {
-  const problem: ProblemDetails = {
-    type: "https://permdock.com/problems/unauthenticated",
-    title: "Insufficient scope",
-    status: 401,
-    detail: `insufficient_scope: ${scope}`,
+  const problem = statusProblem(401, `insufficient_scope: ${scope}`, {
     permission: permission.key,
     scope,
-  };
+  });
   return {
     ok: false,
     status: 401,

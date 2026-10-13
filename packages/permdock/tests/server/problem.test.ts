@@ -192,7 +192,8 @@ describe("disclosure", () => {
     expect(bodies[2]).toEqual(bodies[1]);
     expect(bodies[1]?.status).toBe(404);
     expect(JSON.parse(bodies[1]?.body ?? "{}")).toMatchObject({
-      type: "https://permdock.com/problems/not-found",
+      type: "about:blank",
+      title: "Not Found",
     });
   });
 

@@ -41,7 +41,7 @@ import {
 } from "../server/bind.ts";
 import { hasCredentials } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
-import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
+import { POLICY_VIOLATION, closeReason, onRevoked } from "../server/stream.ts";
 import { InvalidSignatureError } from "../server/web-bot-auth.ts";
 import { decorateMethod } from "./decorate.ts";
 import { sendNestResponse, toRequest, type NestHttpRequest } from "./http.ts";
@@ -277,7 +277,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         if (typeof client.disconnect === "function") {
           client.disconnect(true);
         } else {
-          client.close?.(POLICY_VIOLATION, problem.type);
+          client.close?.(POLICY_VIOLATION, closeReason(problem));
         }
       });
       return conn;

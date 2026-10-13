@@ -7,13 +7,13 @@ import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { ownGet } from "../core/paths.ts";
 import { getResource, listPermissions } from "../core/permission-registry.ts";
+import { statusProblem } from "../core/problem-types.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { permissionLookup } from "../server/evaluation-items.ts";
 import { applyApprovalResume } from "../server/evaluations.ts";
 import { hasCredentials } from "../server/http.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
-  PROBLEM_BASE,
   batchTooLarge,
   methodNotAllowed,
   problemResponse,
@@ -40,12 +40,7 @@ import {
 } from "./map.ts";
 
 function notFound(detail: string): Response {
-  return problemResponse({
-    type: `${PROBLEM_BASE}/not-found`,
-    title: "Not found",
-    status: 404,
-    detail,
-  });
+  return problemResponse(statusProblem(404, detail));
 }
 
 async function readJson(request: Request): Promise<unknown> {

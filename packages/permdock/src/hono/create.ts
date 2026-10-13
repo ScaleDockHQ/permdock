@@ -17,6 +17,7 @@ import { type ServerAdapterOptions, bindKernel } from "../server/bind.ts";
 import { problemFromError } from "../server/map-error.ts";
 import {
   POLICY_VIOLATION,
+  closeReason,
   guardIterable,
   onRevoked,
 } from "../server/stream.ts";
@@ -78,7 +79,7 @@ function socket<T>(connection: Connection, events: WSEvents<T>): WSEvents<T> {
     ...events,
     onOpen: (evt, ws): void => {
       onRevoked(connection, (problem) => {
-        ws.close(POLICY_VIOLATION, problem.type);
+        ws.close(POLICY_VIOLATION, closeReason(problem));
       });
       if (!connection.signal.aborted) {
         events.onOpen?.(evt, ws);

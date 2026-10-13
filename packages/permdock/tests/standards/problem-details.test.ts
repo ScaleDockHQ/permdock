@@ -4,10 +4,16 @@ import type { Decision, Denial } from "../../src/core/decision.ts";
 
 import { PermDockValidationError } from "../../src/core/errors.ts";
 import {
+  PROBLEM_TYPES,
+  problemType,
+  statusProblem,
+} from "../../src/core/problem-types.ts";
+import {
   PROBLEM_BASE,
   createPermDock,
   problemFromDecision,
 } from "../../src/server/index.ts";
+import { methodNotAllowed } from "../../src/server/problem.ts";
 import { permissions, policy } from "../fixtures/quick-start.ts";
 
 const subject = { principal: null, context: {} };
@@ -37,7 +43,7 @@ describe("RFC 9457 Problem Details", () => {
       name: "a token that failed verification",
       decision: denied({ role: null, reason: "anonymous" }),
       status: 401,
-      type: "unauthenticated",
+      type: "about:blank",
       challenge:
         'Bearer error="invalid_token", error_description="The access token is invalid"',
     },
@@ -128,7 +134,7 @@ describe("RFC 9457 Problem Details", () => {
       name: "a hidden row",
       decision: denied({ role: "member", reason: "condition" }),
       status: 404,
-      type: "not-found",
+      type: "about:blank",
       challenge: null,
       disclosure: "hide",
     },
@@ -182,7 +188,9 @@ describe("RFC 9457 Problem Details", () => {
       );
       expect(response.headers.get("WWW-Authenticate")).toBe(row.challenge);
       const problem = await body(response);
-      expect(problem["type"]).toBe(`${PROBLEM_BASE}/${row.type}`);
+      expect(problem["type"]).toBe(
+        row.type === "about:blank" ? row.type : `${PROBLEM_BASE}/${row.type}`,
+      );
       expect(problem["status"]).toBe(row.status);
       expect(problem["title"]).toBeTypeOf("string");
     });
@@ -190,6 +198,39 @@ describe("RFC 9457 Problem Details", () => {
 
   it("uses the fixed base, never a configurable host", () => {
     expect(PROBLEM_BASE).toBe("https://permdock.com/problems");
+  });
+
+  it("defines PermDock types only where about:blank says too little", () => {
+    expect(PROBLEM_TYPES).toEqual([
+      "denied",
+      "approval-required",
+      "validation",
+      "step-up-required",
+      "not-entitled",
+      "rate-limited",
+      "limit-unavailable",
+      "invalid-signature",
+      "approver-not-eligible",
+    ]);
+    expect(problemType("denied")).toBe(`${PROBLEM_BASE}/denied`);
+    expect(statusProblem(409, "approval is not pending")).toEqual({
+      type: "about:blank",
+      title: "Conflict",
+      status: 409,
+      detail: "approval is not pending",
+    });
+    expect(statusProblem(599, "x").title).toBe("Error");
+  });
+
+  it("answers 405 with Allow and an about:blank body", async () => {
+    const response = methodNotAllowed("GET, POST");
+    expect(response.headers.get("allow")).toBe("GET, POST");
+    expect(await response.json()).toEqual({
+      type: "about:blank",
+      title: "Method Not Allowed",
+      status: 405,
+      detail: "use GET, POST",
+    });
   });
 
   it("carries permission, denials and alternatives as wire keys on a denial", async () => {

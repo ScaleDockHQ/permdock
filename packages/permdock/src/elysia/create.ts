@@ -16,7 +16,7 @@ import {
 } from "../server/bind.ts";
 import { hasCredentials, parsedBody } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
-import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
+import { POLICY_VIOLATION, closeReason, onRevoked } from "../server/stream.ts";
 
 export type ElysiaCtx = {
   readonly request: Request;
@@ -134,7 +134,7 @@ export function createPermDock<
         await scopeOf(ws.data),
       );
       onRevoked(conn, (problem) => {
-        ws.close(POLICY_VIOLATION, problem.type);
+        ws.close(POLICY_VIOLATION, closeReason(problem));
       });
       return conn;
     });

@@ -18,6 +18,7 @@ import {
   problemDetails,
   stepUpOf,
 } from "../core/problem-details.ts";
+import { problemType, statusProblem } from "../core/problem-types.ts";
 
 export { PROBLEM_BASE, stepUpOf };
 
@@ -158,18 +159,15 @@ export const DEFAULT_MAX_EVALUATIONS = 256;
 
 /** RFC 9457 413 for a batch over `max` evaluations. */
 export function batchTooLarge(max: number): Response {
-  return problemResponse({
-    type: `${PROBLEM_BASE}/payload-too-large`,
-    title: "Payload too large",
-    status: 413,
-    detail: `evaluations batch exceeds ${String(max)}`,
-  });
+  return problemResponse(
+    statusProblem(413, `evaluations batch exceeds ${String(max)}`),
+  );
 }
 
 export function validationProblem(detail: string): Response {
   return problemResponse(
     compact<ProblemDetails>({
-      type: `${PROBLEM_BASE}/validation`,
+      type: problemType("validation"),
       title: "Invalid request",
       status: 400,
       detail,
@@ -361,13 +359,14 @@ export function unauthenticatedProblem(credentials: boolean): Response {
   );
 }
 
+/** RFC 9110 section 15.5.6: a `405` lists the methods the resource supports in `Allow`. */
 export function methodNotAllowed(allow: string): Response {
-  const response = problemResponse({
-    type: `${PROBLEM_BASE}/method-not-allowed`,
-    title: "Method not allowed",
-    status: 405,
-    detail: `use ${allow}`,
-  });
-  response.headers.set("Allow", allow);
-  return response;
+  return problemResponse(
+    statusProblem(405, `use ${allow}`),
+    undefined,
+    undefined,
+    {
+      Allow: allow,
+    },
+  );
 }

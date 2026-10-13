@@ -465,16 +465,13 @@ describe("access reviews", () => {
     });
     expect(
       (await handler(new Request("https://api.example.com/"))).status,
-    ).toBe(405);
-    expect(
-      (
-        await handler(
-          new Request("https://api.example.com/access-reviews/http", {
-            method: "POST",
-          }),
-        )
-      ).status,
-    ).toBe(405);
+    ).toBe(404);
+    const post = await handler(
+      new Request("https://api.example.com/access-reviews/http", {
+        method: "POST",
+      }),
+    );
+    expect([post.status, post.headers.get("allow")]).toEqual([405, "GET"]);
     expect(
       (
         await handler(
