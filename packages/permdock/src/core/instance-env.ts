@@ -1,3 +1,4 @@
+import type { TargetFactory } from "./decide-for.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
   DecisionSink,
@@ -8,6 +9,7 @@ import type {
 } from "./interfaces.ts";
 import type { DeriveOptions } from "./permdock.ts";
 import type { Policy } from "./policy-types.ts";
+import type { PrincipalSource } from "./principal-source.ts";
 import type { RelationCache } from "./relations.ts";
 import type { CustomRole, Subject } from "./subject.ts";
 
@@ -45,6 +47,10 @@ export type InstanceEnv = {
   readonly memberships?: MembershipSource;
   /** `ApprovalPolicySource` entries, loaded once with the instance. */
   readonly approvalPolicies?: LoadedApprovalPolicies;
+  /** The source `decideFor` loads other principals from. */
+  readonly principals?: PrincipalSource;
+  /** Builds a `decideFor` target from the options the instance was created with. */
+  readonly targets: TargetFactory;
 };
 
 /** The environment `derive(options)` builds on: `base` with the sources `options` replaces loaded again. */
@@ -96,6 +102,7 @@ export function deriveEnv(
       assignable: loadedNames,
       approvalPolicies: loadedApprovals,
       relations: options.relations ?? base.relations,
+      principals: options.principals ?? base.principals,
       relationCache:
         options.relations === undefined ? relationCache : undefined,
       queuedAuth: auth,

@@ -203,7 +203,37 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 
 ### Derived instances
 
-`permdock.tenant(id)` and `permdock.team(id)` narrow the same subject to one tenant or team. `permdock.derive({ customRoles?, approvalPolicies?, relations? })` keeps the subject, its active tenant and team, the actor, the delegation, the sink and the limit store, and swaps the sources it names: a server action that edits roles derives an instance whose `customRoles` reads every role of the tenant, and one that runs a write derives an instance with the tenant's `approvalPolicies`. Only the sources it names are read again, for the subject's tenants; it returns a promise when one of them answers asynchronously. The original instance is unchanged. A [`fromSnapshot`](/docs/concepts/snapshots) instance returns itself, because a snapshot carries its grants already resolved.
+`permdock.tenant(id)` and `permdock.team(id)` narrow the same subject to one tenant or team. `permdock.derive({ customRoles?, approvalPolicies?, relations?, principals? })` keeps the subject, its active tenant and team, the actor, the delegation, the sink and the limit store, and swaps the sources it names: a server action that edits roles derives an instance whose `customRoles` reads every role of the tenant, and one that runs a write derives an instance with the tenant's `approvalPolicies`. Only the sources it names are read again, for the subject's tenants; it returns a promise when one of them answers asynchronously. The original instance is unchanged. A [`fromSnapshot`](/docs/concepts/snapshots) instance returns itself, because a snapshot carries its grants already resolved.
+
+### Several rows or another principal
+
+`permdock.decideEach(permission, rows, options?)` returns one decision per row, in row order, for a bulk action. Each row is its own `decide` call: a [limit](#limits) is consumed once per granted row, so the rows past the cap are denied with `limit`, and each `approval-required` row carries its own token to resolve. A row the resource schema rejects is denied with `validation`, as with `decide`. `filter` is the quiet form that keeps the granted rows and consumes nothing.
+
+`await permdock.decideFor(principalId, permission, row)` answers what another principal would get, for a recipient list, a notification audience or a share dialog. It loads the principal from the `principals` option (a [`PrincipalSource`](/docs/concepts/extension-interfaces#principalsource)) with the instance's active tenant, and decides on a separate instance built from the same `memberships`, `customRoles`, `entitlements`, `relations`, `policies`, `approvalPolicies` and `limits`. That instance has no actor, no delegation and no sink, and it never consumes a limit.
+
+```ts
+const recipients = await Promise.all(
+  watchers.map(async (id) => ({
+    id,
+    decision: await permdock.decideFor(id, permissions.invoice.read, invoice),
+  })),
+);
+```
+
+| Situation                                                        | Decision                                  |
+| ---------------------------------------------------------------- | ----------------------------------------- |
+| No `principals`, an anonymous caller, no such principal, a throw | `denied`, `anonymous`                     |
+| The principal holds no membership in the caller's active tenant  | `denied`, `tenant-mismatch`               |
+| A [`fromSnapshot`](/docs/concepts/snapshots) instance            | `denied`, `unsupported`                   |
+| Otherwise                                                        | What the principal's own `decide` returns |
+
+`decideFor` never widens the caller: the decision is about the other principal, this instance's caches are untouched, and nothing it returns is a grant this instance can use. A `contact` holds only resource memberships and no tenant, so it is evaluated on those memberships alone. On a `permdock/pdp` instance, `decideFor` evaluates the local policy only.
+
+#### Why
+
+- **A separate instance, not a subject swap.** Swapping the subject on the caller's instance would share its relation cache, limit cache and listeners, so another principal's facts could answer the caller's next check.
+- **The caller's tenant.** A recipient list is always built inside one tenant; evaluating the target in the caller's active tenant keeps an audience from spanning tenants because the target also belongs to another one.
+- **Existing reasons.** A missing principal is the same fact as an anonymous subject, and a principal outside the tenant is a `tenant-mismatch`; a new reason would add a value every caller and the wire format must handle.
 
 ### Listing hints
 
@@ -213,7 +243,7 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 
 ### Evaluation is synchronous
 
-`can`, `decide`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource` and `RoleSource` run once inside `createPermDock`, which may itself be async, and their output is frozen into the instance. Each check is then a pure function of frozen data.
+`can`, `decide`, `decideEach`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. `decideFor` returns a promise because it loads another principal; an unawaited one has no `outcome`, so a check against `'granted'` fails closed. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource` and `RoleSource` run once inside `createPermDock`, which may itself be async, and their output is frozen into the instance. Each check is then a pure function of frozen data.
 
 Closure grants are typed `(data, ctx) => boolean`. A closure that returns a thenable is a `closure-error` denial reported to `on('error')`; the value is never awaited. There are no `decideAsync` or `canAsync` twins, because two evaluation paths can disagree and the synchronous one is easy to call by mistake, and PermDock does not infer asynchrony from the policy, because one async closure would make every `can` in the UI async. `explain` is `decide` with a `trace` attached, computed in process; `describe(decision)` turns a decision into prose ([decisions](/docs/concepts/decisions#explain)).
 

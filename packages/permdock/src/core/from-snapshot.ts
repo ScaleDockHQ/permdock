@@ -11,6 +11,7 @@ import type { Membership } from "./subject.ts";
 
 import { isArazzoSimulateInput, simulateArazzo } from "./arazzo.ts";
 import { compact } from "./compact.ts";
+import { deniedFor } from "./decide-for.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -153,6 +154,14 @@ export function fromSnapshot(
   const instance: PermDock = {
     can,
     decide,
+    decideEach(permission, rows, decideOptions) {
+      return Object.freeze(
+        rows.map((row) => run(permission, row, decideOptions)),
+      );
+    },
+    decideFor(_principalId, permission) {
+      return Promise.resolve(deniedFor(permission, "unsupported"));
+    },
     assert,
     explain,
     permissions: {},

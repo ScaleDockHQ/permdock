@@ -332,6 +332,12 @@ function wrap<V extends PolicyVocabulary>(
   return {
     can,
     decide,
+    async decideEach(permission, rows, options) {
+      return Object.freeze(
+        await Promise.all(rows.map((row) => decide(permission, row, options))),
+      );
+    },
+    decideFor: permdock.decideFor.bind(permdock),
     assert,
     explain,
     async filter<T>(

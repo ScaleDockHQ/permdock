@@ -24,6 +24,7 @@ import { assertDecision } from "./assert-decision.ts";
 import { type Assignable, assignableIn } from "./assignable.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { customGrantsFor } from "./custom-roles.ts";
+import { decideForTarget } from "./decide-for.ts";
 import { type ActivateInput, activate } from "./elevated.ts";
 import { evaluate } from "./evaluate.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
@@ -189,6 +190,29 @@ export function buildInstance(
   const instance: PermDock = {
     can: canImpl as PermDock["can"],
     decide: decideImpl as PermDock["decide"],
+    decideEach(
+      permission: Permission,
+      rows: readonly unknown[],
+      options?: DecideOptions,
+    ): readonly Decision[] {
+      return Object.freeze(
+        rows.map((row) => decideImpl(permission, row, options)),
+      );
+    },
+    decideFor(
+      principalId: string,
+      permission: Permission,
+      row?: unknown,
+    ): Promise<Decision> {
+      return decideForTarget(
+        subject,
+        envBase.principals,
+        envBase.targets,
+        principalId,
+        permission,
+        row,
+      );
+    },
     assert: assertImpl as PermDock["assert"],
     explain: explainImpl as PermDock["explain"],
     permissions: policy.permissions,

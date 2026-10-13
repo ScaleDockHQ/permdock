@@ -21,6 +21,7 @@ import type {
 } from "./ownership.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
+import type { PrincipalSource } from "./principal-source.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type {
   Actor,
@@ -158,6 +159,29 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
      */
     (permission: Permission, data: unknown, options?: DecideOptions): Decision;
   };
+  /**
+   * `decide` for each row, in row order. Each row is its own call: a limit
+   * is consumed once per granted row, so rows past the cap are denied with
+   * `limit`, and each `approval-required` row carries its own token.
+   */
+  readonly decideEach: (
+    permission: Permission,
+    rows: readonly unknown[],
+    options?: DecideOptions,
+  ) => readonly Decision[];
+  /**
+   * What `permission` on `row` decides for the principal `principalId`,
+   * loaded from `principals` in this instance's active tenant with no actor
+   * and no delegation. It grants this instance nothing, shares none of its
+   * caches and never consumes a limit. Denied with `anonymous` when there is
+   * no `principals`, no such principal or the source throws, and with
+   * `tenant-mismatch` when the principal is outside the active tenant.
+   */
+  readonly decideFor: (
+    principalId: string,
+    permission: Permission,
+    row?: unknown,
+  ) => Promise<Decision>;
   readonly assert: {
     (
       permission: Permission<string, unknown, "instance">,
@@ -345,7 +369,7 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
 /** What `permdock.derive` may replace: the sources read after the subject is resolved. */
 export type DeriveOptions = Pick<
   PermDockOptions,
-  "customRoles" | "approvalPolicies" | "relations"
+  "customRoles" | "approvalPolicies" | "relations" | "principals"
 >;
 
 export type PermDockOptions = {
@@ -367,6 +391,8 @@ export type PermDockOptions = {
   readonly relations?: RelationSource;
   /** Approval requirements kept as data; they add to the code's and never remove one. A throw denies. */
   readonly approvalPolicies?: ApprovalPolicySource;
+  /** Other principals by id, for `decideFor`; asked with the active tenant. */
+  readonly principals?: PrincipalSource;
   /**
    * Request values an adapter's `context` hook derived on the server, merged
    * into `subject.context`; keys from `policy.context` win on a clash.
@@ -439,6 +465,22 @@ function instantiate(
           options.memberships === undefined
             ? undefined
             : asMembershipSource(options.memberships),
+        principals: options.principals,
+        targets: (principal: Principal, tenant: string | undefined) =>
+          createPermDock(
+            codePolicy,
+            { principal, context: {} },
+            compact<PermDockOptions>({
+              tenant,
+              memberships: options.memberships,
+              customRoles: options.customRoles,
+              entitlements: options.entitlements,
+              limits: options.limits,
+              policies: options.policies,
+              relations: options.relations,
+              approvalPolicies: options.approvalPolicies,
+            }),
+          ),
       }),
     );
   if (
