@@ -5,6 +5,18 @@ description: The PermDock naming convention, the use* and get* duality, reserved
 
 PermDock has one naming rule: the brand is the noun. The decision object is a `PermDock`, the variable is `permdock`, the factory is `createPermDock`, and the import path, not the identifier, says which framework you are in. Every package, docs page, skill, error message and example follows this page.
 
+The rest follows from that rule:
+
+- A factory result is `<Entry>PermDock` (`ServerPermDock`, `AgentPermDock`). It hands out the instance through `getPermDock(input)` or `middleware()`, and mounts its endpoint through `permdockHandler()`; never a `permdock()` member.
+- A decision request that takes the actor from the instance is a method on it (`permdock.decideCredential(request)`, `decideEach`, `decideFor`), never a free `decide*(permdock, …)` function.
+- A subject resolver is `subjectFrom<Source>(input, options)` and returns `Subject<<Source>Principal>`.
+- An option is named after its interface (`principals` for a `PrincipalSource`, `approvalPolicies` for an `ApprovalPolicySource`), and `store` means only `ApprovalStore`.
+- An in-process default is `memory<Interface>`, a runner is `test<Interface>`, an adapted source is `<origin><Interface>` and a verifier factory is `<thing>Verifier`.
+- A context or prop type puts the adapter first (`ExpressPermDockRequest`, `HonoPermDockEnv`) and spells out `Context`.
+- Signed outputs are `vnd.permdock.<format>+jwt` and CloudEvents types are `com.permdock.<family>`.
+
+[Renamed in 0.5.0](#renamed-in-050) lists every name these rules changed; `permdock codemod 0.5` applies them.
+
 ## The three core names
 
 | Name             | Kind     | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -16,11 +28,11 @@ PermDock has one naming rule: the brand is the noun. The decision object is a `P
 ```ts
 import { createPermDock } from "permdock"; // core: PermDock
 import { createPermDock } from "permdock/next"; // Next.js: { getPermDock, getPermission, getSnapshot, requireAccess, PermDockProvider, permdockHandler }
-import { createPermDock } from "permdock/hono"; // Hono: { permdock, protect }
+import { createPermDock } from "permdock/hono"; // Hono: { middleware, protect, permdockHandler }
 import { createPermDock } from "permdock/mcp"; // MCP: { protectServer }
 ```
 
-There is no `NextDock`, `HonoDock`, `createNextPermDock` or `createMcpPermDock`. When two adapters are used in one file, alias at the import: `import { createPermDock as createHonoPermDock } from 'permdock/hono'`.
+There is no `NextDock`, `HonoDock`, `createNextPermDock` or `createMcpPermDock`. When two adapters are used in one file, alias at the import: `import { createPermDock as createHonoPermDock } from 'permdock/hono'`. A factory that returns a handler or a store, not an instance, is named after what it returns, without `create`: `evaluationsHandler`, `nativeStore`.
 
 ## use* on the client, get* on the server
 
@@ -362,6 +374,8 @@ These never appear as public identifiers, for the reasons given:
 
 ## What each adapter's createPermDock returns
 
+A server adapter's result hands out the instance through `getPermDock(input)` (`permdock/server`, `permdock/node`, `permdock/next`) or `middleware()` (Hono, Express, Fastify, Elysia, tRPC, oRPC), and mounts PermDock's endpoint through `permdockHandler()`, which returns the framework's handler. `permdock/terminal`, `permdock/openai`, `permdock/claude-agent` and `permdock/eve` also return `getPermDock`. A result never has a `permdock()` member.
+
 | Import path                                                                | Returns                                                                                                                                                                                                                                                            | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `permdock`                                                                 | `PermDock`                                                                                                                                                                                                                                                         | `await createPermDock(policy, user, { tenant?, memberships?, customRoles?, actor?, delegation? })`; sync when the policy declares no `context` and no async source                                                                                                                                                                                                                                                                                                                                                         |
@@ -401,7 +415,7 @@ These entries deliberately do not export `createPermDock`:
 
 - `PermDock` methods and snapshot fields share a name when the field is the method's result serialized: `permdock.actions(resource)` and `snapshot.actions`, `permdock.audiences()` and `snapshot.audiences`, `permdock.snapshot()` and a `snapshot` option or prop, `permdock.tenant(id)` and `principal.tenant`. The method is on the instance; the field is the wire form a client hydrates from.
 - One name can be exported by several entries with that entry's meaning, like `createPermDock`. `PermDockPluginOptions` is the build plugin's options in `permdock/next/plugin` and `permdock/unplugin`, and the Vue app plugin's options in `permdock/vue`.
-- Every adapter returns `<Adapter>PermDock` from `createPermDock` and takes `<Adapter>PermDockOptions`, rather than `<Prefix><Thing>`, so the adapter is the first word wherever both appear (recorded in the repository's `docs/decisions/0019-adapter-suffix-and-no-dollar-members.md`).
+- Every entry returns `<Entry>PermDock` from `createPermDock` and takes `<Entry>PermDockOptions`, rather than `<Prefix><Thing>`, so the entry is the first word wherever both appear (recorded in the repository's `docs/decisions/0019-adapter-suffix-and-no-dollar-members.md`). Context and prop types follow the same order: `ExpressPermDockRequest`, `ConvexPermDockContext`, `NextPermDockProviderProps`.
 
 ## Spec names
 
@@ -444,7 +458,78 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 
 - The server factory lives in `src/permdock/server.ts` in every example. The definition is `src/permissions.ts`; the policy is `src/policy.ts`; generated definitions are `src/permissions.generated.ts`.
 - Example apps are `apps/examples/<adapter>`; the docs page is `/docs/adapters/<adapter>`; the source folder is `packages/permdock/src/<adapter>`. The same short name is used in all three.
-- Errors are `PermDockDeniedError`, `PermDockApprovalRequiredError` and `PermDockValidationError`. Problem Details `type` URIs end in `/denied`, `/approval-required` and `/validation`. The first two carry `digest` (React's name for the property that survives the Server Component boundary): `PERMDOCK_DENIED;<permission>` and `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`, read with `parsePermDockDigest`.
+- Errors are `PermDockDeniedError`, `PermDockApprovalRequiredError`, `PermDockValidationError` and `PermDockRevokedError`. Any other error class is a domain error with an `is<Name>` guard: `ApprovalError` and `isApprovalError`, `AccessReviewError` and `isAccessReviewError`, plus `DirectoryUniquenessError`, `DirectoryNotFoundError` and `InvalidSignatureError`. Problem Details `type` URIs end in `/denied`, `/approval-required` and `/validation`. The first two carry `digest` (React's name for the property that survives the Server Component boundary): `PERMDOCK_DENIED;<permission>` and `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`, read with `parsePermDockDigest`.
+
+## Renamed in 0.5.0
+
+`permdock codemod 0.5` applies these renames to every file that imports `permdock` ([codemod](/docs/cli/codemod)). Entries are the imports the old name came from. The codemod reports `method` rows, and `option` rows outside the calls it knows, for a manual edit. `pnpm docs:drift` keeps this section equal to `packages/permdock/src/cli/codemod/renames-0.5.ts`.
+
+| Old                           | New                                | Kind   | Entries                                                                                                                                                      |
+| ----------------------------- | ---------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `createServerKernel`          | `createPermDock`                   | export | `permdock/server`                                                                                                                                            |
+| `createEvaluationsHandler`    | `evaluationsHandler`               | export | `permdock/server`                                                                                                                                            |
+| `createNativeStore`           | `nativeStore`                      | export | `permdock/react-native`                                                                                                                                      |
+| `permdock`                    | `getPermDock`                      | method | `permdock/server`, `permdock/node`, `permdock/terminal`, `permdock/openai`, `permdock/claude-agent`, `permdock/eve`                                          |
+| `permdock`                    | `middleware`                       | method | `permdock/hono`, `permdock/express`, `permdock/elysia`, `permdock/trpc`, `permdock/orpc`                                                                     |
+| `loadData`                    | `data`                             | option | `permdock`, `permdock/server`, `permdock/hono`, `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node`, `permdock/next` |
+| `load`                        | `data`                             | option | `permdock`, `permdock/server`, `permdock/hono`, `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node`, `permdock/next` |
+| `PermDockRequest`             | `ExpressPermDockRequest`           | type   | `permdock/express`                                                                                                                                           |
+| `PermDockRequest`             | `FastifyPermDockRequest`           | type   | `permdock/fastify`                                                                                                                                           |
+| `PermDockEnv`                 | `HonoPermDockEnv`                  | type   | `permdock/hono`                                                                                                                                              |
+| `ElysiaCtx`                   | `ElysiaPermDockContext`            | type   | `permdock/elysia`                                                                                                                                            |
+| `ConvexPermDockCtx`           | `ConvexPermDockContext`            | type   | `permdock/convex`                                                                                                                                            |
+| `ServerPermDockProviderProps` | `NextPermDockProviderProps`        | type   | `permdock/next`                                                                                                                                              |
+| `NativePermDockProviderProps` | `ReactNativePermDockProviderProps` | type   | `permdock/react-native`                                                                                                                                      |
+| `PermDockSvelteOptions`       | `SveltePermDockOptions`            | type   | `permdock/svelte`                                                                                                                                            |
+| `subjectFromSession`          | `subjectFromEve`                   | export | `permdock/eve`                                                                                                                                               |
+| `actorFromSession`            | `actorFromEve`                     | export | `permdock/eve`                                                                                                                                               |
+| `CredentialPrincipal`         | `ApiKeyPrincipal`                  | type   | `permdock`                                                                                                                                                   |
+| `LinkPrincipal`               | `CapabilityPrincipal`              | type   | `permdock`                                                                                                                                                   |
+| `SsfSubjectMapper`            | `SsfSubjectResolver`               | type   | `permdock/ssf`                                                                                                                                               |
+| `memorySettings`              | `memorySettingsSource`             | export | `permdock`                                                                                                                                                   |
+| `memoryRelations`             | `memoryRelationSource`             | export | `permdock`                                                                                                                                                   |
+| `memorySink`                  | `memoryDecisionSink`               | export | `permdock`                                                                                                                                                   |
+| `memoryApprovalPolicies`      | `memoryApprovalPolicySource`       | export | `permdock`                                                                                                                                                   |
+| `memoryApprovalDelegations`   | `memoryApprovalDelegationSource`   | export | `permdock/approvals`                                                                                                                                         |
+| `memoryAccessReviews`         | `memoryAccessReviewStore`          | export | `permdock/approvals`                                                                                                                                         |
+| `MemoryAccessReviews`         | `MemoryAccessReviewStore`          | type   | `permdock/approvals`                                                                                                                                         |
+| `MemoryRelationsData`         | `MemoryRelationSourceData`         | type   | `permdock`                                                                                                                                                   |
+| `MemorySink`                  | `MemoryDecisionSink`               | type   | `permdock`                                                                                                                                                   |
+| `MemorySinkOptions`           | `MemoryDecisionSinkOptions`        | type   | `permdock`                                                                                                                                                   |
+| `memoryCredentials`           | `memoryCredentialStore`            | export | `permdock/server`                                                                                                                                            |
+| `MemoryCredentials`           | `MemoryCredentialStore`            | type   | `permdock/server`                                                                                                                                            |
+| `memoryStorage`               | `memorySnapshotStorage`            | export | `permdock/react-native`                                                                                                                                      |
+| `rlsParity`                   | `testRlsParity`                    | export | `permdock/testing`                                                                                                                                           |
+| `ormParity`                   | `testOrmParity`                    | export | `permdock/testing`                                                                                                                                           |
+| `fromStripeEntitlements`      | `stripeEntitlementSource`          | export | `permdock`                                                                                                                                                   |
+| `fromTable`                   | `tableMembershipSource`            | export | `permdock/supabase`                                                                                                                                          |
+| `fromJunction`                | `junctionMembershipSource`         | export | `permdock/supabase`                                                                                                                                          |
+| `fromSupabasePostgres`        | `supabasePostgresQuery`            | export | `permdock/supabase`                                                                                                                                          |
+| `verifyWebBotAuth`            | `webBotAuthVerifier`               | export | `permdock/server`, `permdock/hono`, `permdock/express`, `permdock/fastify`, `permdock/elysia`, `permdock/nest`, `permdock/node`                              |
+| `RoleSource`                  | `CustomRoleSource`                 | type   | `permdock`                                                                                                                                                   |
+| `PermDockStorage`             | `SnapshotStorage`                  | type   | `permdock/react-native`                                                                                                                                      |
+| `store`                       | `directory`                        | option | `permdock/scim`                                                                                                                                              |
+| `store`                       | `reviews`                          | option | `permdock/approvals`                                                                                                                                         |
+| `delegations`                 | `approvalDelegations`              | option | `permdock/approvals`                                                                                                                                         |
+| `source`                      | `call`                             | option | `permdock`                                                                                                                                                   |
+| `testAuthZen`                 | `testAuthzen`                      | export | `permdock/testing`                                                                                                                                           |
+| `AuthZenVectors`              | `AuthzenVectors`                   | type   | `permdock/testing`                                                                                                                                           |
+| `powersyncSource`             | `powerSyncSource`                  | export | `permdock/react-native`                                                                                                                                      |
+| `summariseSubject`            | `summarizeSubject`                 | export | `permdock/approvals`                                                                                                                                         |
+| `WebhookFailureReason`        | `WebhookFailureCause`              | type   | `permdock/cloud`                                                                                                                                             |
+
+These changed their call shape; the codemod lists each call site:
+
+| Before                                          | After                                                  |
+| ----------------------------------------------- | ------------------------------------------------------ |
+| `decideCredential(permdock, request)`           | `permdock.decideCredential(request)`                   |
+| `permittedIds(permdock, permission, scope)`      | `permdock.permittedIds(permission, scope)`              |
+| `mayUse(permdock, permission)`                         | `permdock.mayUse(permission)`                                 |
+| `subjectFromApiKey(options)(key)`               | `subjectFromApiKey(key, options)`                      |
+| `subjectFromBetterAuth(auth, session, options)` | `subjectFromBetterAuth(session, { auth, ...options })` |
+| `capabilitySubject(...)`                        | `subjectFromCapability(token, options)`                |
+| `credentialSubject(...)`                        | `subjectFromApiKey(key, options)`                      |
+| `MappedSubject`                                 | `Subject<JwtPrincipal>`                                |
 
 ## Renamed before 0.1.0
 
