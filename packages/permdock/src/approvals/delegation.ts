@@ -181,7 +181,7 @@ export type ApprovalDelegationMatch = {
 };
 
 export type MatchDelegationOptions = {
-  readonly delegations?: ApprovalDelegationSource;
+  readonly approvalDelegations?: ApprovalDelegationSource;
   readonly subjectFor?: (
     principalId: string,
     request: ApprovalRequest,
@@ -207,7 +207,7 @@ export async function matchDelegation(
   options: MatchDelegationOptions,
 ): Promise<ApprovalDelegationMatch | undefined> {
   const principal = delegate.principal;
-  const source = options.delegations;
+  const source = options.approvalDelegations;
   const subjectFor = options.subjectFor;
   if (
     principal === null ||

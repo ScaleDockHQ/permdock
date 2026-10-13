@@ -29,7 +29,7 @@ function setup(
   return {
     store,
     handle: scimHandler({
-      store,
+      directory: store,
       tenant: TENANT,
       ...(withToken
         ? { token: { hash: "sha256" as const, lookup: () => hash } }
@@ -90,7 +90,7 @@ const groupBody = (fields: Record<string, unknown> = {}) => ({
 describe("scimHandler configuration", () => {
   it("requires a token or a verifier", () => {
     expect(() =>
-      scimHandler({ store: memoryDirectoryStore(), tenant: TENANT }),
+      scimHandler({ directory: memoryDirectoryStore(), tenant: TENANT }),
     ).toThrow(/token or verifier/);
   });
 });

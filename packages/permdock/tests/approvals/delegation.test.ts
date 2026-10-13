@@ -167,7 +167,7 @@ describe("approver delegation", () => {
     const { store, request } = await pending();
     const handler = approvalsHandler(store, {
       subject: () => inTenant("dana"),
-      delegations,
+      approvalDelegations: delegations,
       subjectFor: () => inTenant("cfo"),
     });
     const response = await handler(
@@ -251,7 +251,7 @@ describe("approver delegation", () => {
     ]);
     const handler = approvalsHandler(store, {
       subject: () => inTenant("dana"),
-      delegations: chain,
+      approvalDelegations: chain,
       subjectFor: (id) => (id === "erin" ? inTenant("erin") : null),
     });
     const response = await handler(
@@ -289,7 +289,7 @@ describe("approver delegation", () => {
     ]);
     const handler = approvalsHandler(store, {
       subject: () => inTenant("erin"),
-      delegations: source,
+      approvalDelegations: source,
       subjectFor: () => inTenant("dana", ["controller"]),
       permdockFor: (approver) => createPermDock(policy, approver),
     });
@@ -387,7 +387,7 @@ describe("approver delegation", () => {
     ]);
     const handler = approvalsHandler(store, {
       subject: () => inTenant("dana"),
-      delegations: source,
+      approvalDelegations: source,
       subjectFor: () => inTenant("cfo"),
     });
     const response = await handler(
@@ -455,7 +455,7 @@ describe("approver delegation", () => {
         request,
         { principal: null, context: {} },
         {
-          delegations: memoryApprovalDelegationSource([]),
+          approvalDelegations: memoryApprovalDelegationSource([]),
           subjectFor: () => inTenant("cfo"),
           requireDistinct: true,
           factsFor,
@@ -469,7 +469,7 @@ describe("approver delegation", () => {
     };
     expect(
       await matchDelegation(request, inTenant("dana"), {
-        delegations: throwing,
+        approvalDelegations: throwing,
         subjectFor: () => inTenant("cfo"),
         requireDistinct: true,
         factsFor,
@@ -488,7 +488,7 @@ describe("approver delegation", () => {
     };
     expect(
       await matchDelegation(request, inTenant("dana"), {
-        delegations: listed,
+        approvalDelegations: listed,
         subjectFor: () => null,
         requireDistinct: true,
         factsFor,
@@ -496,7 +496,7 @@ describe("approver delegation", () => {
     ).toBeUndefined();
     expect(
       await matchDelegation(request, inTenant("dana"), {
-        delegations: listed,
+        approvalDelegations: listed,
         subjectFor: () => {
           throw new Error("down");
         },
@@ -563,7 +563,7 @@ describe("approver delegation", () => {
     };
     expect(
       await matchDelegation(unscoped, inTenant("dana"), {
-        delegations: source,
+        approvalDelegations: source,
         subjectFor: () => inTenant("erin"),
         requireDistinct: true,
         factsFor,
@@ -595,7 +595,7 @@ describe("approver delegation", () => {
     ) =>
       matchDelegation(request, delegate, {
         // SAFETY: a custom source may answer with anything; matchDelegation checks it.
-        delegations: { delegationsFor: () => entries as never },
+        approvalDelegations: { delegationsFor: () => entries as never },
         subjectFor,
         requireDistinct: true,
         factsFor,

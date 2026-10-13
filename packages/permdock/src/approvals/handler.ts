@@ -58,7 +58,7 @@ export type ApprovalsHandlerOptions = {
    * approver may approve as someone who delegated to them. Without either,
    * delegation matches nobody.
    */
-  readonly delegations?: ApprovalDelegationSource;
+  readonly approvalDelegations?: ApprovalDelegationSource;
   /**
    * Resolves a delegator's subject from their principal id. Server-side:
    * never from the request body. A throw matches nobody.
@@ -324,9 +324,9 @@ async function actingApprover(
     }
   }
   const match = await matchDelegation(request, subject, {
-    ...(options.delegations === undefined
+    ...(options.approvalDelegations === undefined
       ? {}
-      : { delegations: options.delegations }),
+      : { approvalDelegations: options.approvalDelegations }),
     ...(options.subjectFor === undefined
       ? {}
       : { subjectFor: options.subjectFor }),

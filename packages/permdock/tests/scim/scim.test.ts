@@ -49,7 +49,7 @@ function handler(
   return {
     store,
     handle: scimHandler({
-      store,
+      directory: store,
       tenant: (incoming) => tenantFromPath(incoming) || TENANT,
       token: tokenOptions(),
       ...extras,
@@ -364,7 +364,7 @@ describe("scimHandler", () => {
   it("forbids an unresolved tenant and never reads tenant from the body", async () => {
     const store = memoryDirectoryStore();
     const handle = scimHandler({
-      store,
+      directory: store,
       tenant: () => "",
       token: tokenOptions(),
     });
@@ -711,7 +711,7 @@ describe("scimHandler", () => {
       },
     };
     const handle = scimHandler({
-      store,
+      directory: store,
       tenant: TENANT,
       audience: "https://app.example.com/scim/v2",
       verifier,
@@ -739,7 +739,11 @@ describe("scimHandler", () => {
       }),
     };
     expect(() =>
-      scimHandler({ store: memoryDirectoryStore(), tenant: TENANT, verifier }),
+      scimHandler({
+        directory: memoryDirectoryStore(),
+        tenant: TENANT,
+        verifier,
+      }),
     ).toThrow(/audience/);
   });
 
@@ -756,7 +760,7 @@ describe("scimHandler", () => {
       },
     };
     const handle = scimHandler({
-      store: memoryDirectoryStore(),
+      directory: memoryDirectoryStore(),
       tenant: TENANT,
       audience: "https://app.example.com/scim/v2",
       verifier,

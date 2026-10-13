@@ -274,7 +274,7 @@ export function testDirectoryStore(
     const kinds: string[] = [];
     const token = "conformance-scim-token";
     const handle = scimHandler({
-      store,
+      directory: store,
       tenant: home,
       token: { hash: "sha256", lookup: () => sha256Hex(token) },
       revocations: feed,

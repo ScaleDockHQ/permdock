@@ -120,7 +120,7 @@ async function principalIds(
         return hit;
       }
       try {
-        return await options.store.getUser(tenant, id);
+        return await options.directory.getUser(tenant, id);
       } catch {
         return null;
       }

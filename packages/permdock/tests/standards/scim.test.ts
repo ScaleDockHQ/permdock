@@ -94,7 +94,7 @@ function violations(
 function handler() {
   const hash = sha256Hex(TOKEN);
   return scimHandler({
-    store: memoryDirectoryStore(),
+    directory: memoryDirectoryStore(),
     tenant: () => TENANT,
     token: {
       hash: "sha256",

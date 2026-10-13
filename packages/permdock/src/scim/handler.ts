@@ -140,7 +140,11 @@ export function scimHandler(
         }
         const page = pageFrom(url);
         if (route.kind === "Users") {
-          const result = await options.store.findUsers(tenant, filter, page);
+          const result = await options.directory.findUsers(
+            tenant,
+            filter,
+            page,
+          );
           return scimResponse(
             200,
             listBody(result, (user) =>
@@ -148,7 +152,7 @@ export function scimHandler(
             ),
           );
         }
-        const result = await options.store.findGroups(tenant, filter, page);
+        const result = await options.directory.findGroups(tenant, filter, page);
         return scimResponse(
           200,
           listBody(result, (group) =>
@@ -159,13 +163,13 @@ export function scimHandler(
 
       if (request.method === "GET" && route.id !== undefined) {
         if (route.kind === "Users") {
-          const user = await options.store.getUser(tenant, route.id);
+          const user = await options.directory.getUser(tenant, route.id);
           if (user === null) {
             return scimError(404, "invalidValue", "resource not found");
           }
           return readResponse(request, renderedOf(request, user));
         }
-        const group = await options.store.getGroup(tenant, route.id);
+        const group = await options.directory.getGroup(tenant, route.id);
         if (group === null) {
           return scimError(404, "invalidValue", "resource not found");
         }
@@ -174,11 +178,11 @@ export function scimHandler(
 
       if (request.method === "DELETE" && route.id !== undefined) {
         if (route.kind === "Users") {
-          const existing = await options.store.getUser(tenant, route.id);
+          const existing = await options.directory.getUser(tenant, route.id);
           if (!matches(request, existing)) {
             return preconditionFailed();
           }
-          await options.store.deleteUser(tenant, route.id);
+          await options.directory.deleteUser(tenant, route.id);
           await emitDirectory(
             options,
             directoryEvent({
@@ -195,11 +199,11 @@ export function scimHandler(
           );
           return new Response(null, { status: 204 });
         }
-        const existing = await options.store.getGroup(tenant, route.id);
+        const existing = await options.directory.getGroup(tenant, route.id);
         if (!matches(request, existing)) {
           return preconditionFailed();
         }
-        await options.store.deleteGroup(tenant, route.id);
+        await options.directory.deleteGroup(tenant, route.id);
         await emitDirectory(
           options,
           directoryEvent({
@@ -238,7 +242,7 @@ export function scimHandler(
           if (parsed === undefined) {
             return scimError(400, "invalidValue", "userName is required");
           }
-          const stored = await options.store.putUser(tenant, parsed);
+          const stored = await options.directory.putUser(tenant, parsed);
           const location = locationOf(request, "Users", stored.id);
           await emitDirectory(
             options,
@@ -266,7 +270,7 @@ export function scimHandler(
           return scimError(400, "invalidValue", "displayName is required");
         }
         reportUnknownRoles(parsed.roles, options);
-        const stored = await options.store.putGroup(tenant, parsed);
+        const stored = await options.directory.putGroup(tenant, parsed);
         const location = locationOf(request, "Groups", stored.id);
         await emitDirectory(
           options,
@@ -297,7 +301,7 @@ export function scimHandler(
           if (!schemasOk(body, USER_SCHEMA)) {
             return scimError(400, "invalidSyntax", "unsupported schema");
           }
-          const existing = await options.store.getUser(tenant, route.id);
+          const existing = await options.directory.getUser(tenant, route.id);
           if (existing === null) {
             return scimError(404, "invalidValue", "resource not found");
           }
@@ -308,7 +312,7 @@ export function scimHandler(
           if (parsed === undefined) {
             return scimError(400, "invalidValue", "userName is required");
           }
-          const stored = await options.store.putUser(tenant, parsed);
+          const stored = await options.directory.putUser(tenant, parsed);
           const location = locationOf(request, "Users", stored.id);
           await emitDirectory(
             options,
@@ -327,7 +331,7 @@ export function scimHandler(
         if (!schemasOk(body, GROUP_SCHEMA)) {
           return scimError(400, "invalidSyntax", "unsupported schema");
         }
-        const existing = await options.store.getGroup(tenant, route.id);
+        const existing = await options.directory.getGroup(tenant, route.id);
         if (existing === null) {
           return scimError(404, "invalidValue", "resource not found");
         }
@@ -343,7 +347,7 @@ export function scimHandler(
           return scimError(400, "invalidValue", "displayName is required");
         }
         reportUnknownRoles(parsed.roles, options);
-        const stored = await options.store.putGroup(tenant, parsed);
+        const stored = await options.directory.putGroup(tenant, parsed);
         const location = locationOf(request, "Groups", stored.id);
         await emitDirectory(
           options,
@@ -377,11 +381,11 @@ export function scimHandler(
         }
         if (route.kind === "Users") {
           if (
-            !matches(request, await options.store.getUser(tenant, route.id))
+            !matches(request, await options.directory.getUser(tenant, route.id))
           ) {
             return preconditionFailed();
           }
-          const stored = await options.store.patchUser(
+          const stored = await options.directory.patchUser(
             tenant,
             route.id,
             normalized,
@@ -401,11 +405,11 @@ export function scimHandler(
           );
           return resourceResponse(200, renderUser(stored, location), location);
         }
-        const existing = await options.store.getGroup(tenant, route.id);
+        const existing = await options.directory.getGroup(tenant, route.id);
         if (!matches(request, existing)) {
           return preconditionFailed();
         }
-        const stored = await options.store.patchGroup(
+        const stored = await options.directory.patchGroup(
           tenant,
           route.id,
           normalized,

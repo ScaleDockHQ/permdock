@@ -27,7 +27,7 @@ export type StartAccessReviewInput = {
 };
 
 export type StartAccessReviewOptions = {
-  readonly store: AccessReviewStore;
+  readonly reviews: AccessReviewStore;
   /**
    * Replaces the membership listing. The Supabase recipe passes the rows of
    * `permitted_<scope>_users`. `complete` defaults to `true` for this path.
@@ -215,6 +215,9 @@ export async function startAccessReview(
     status: "open",
     complete: listed.complete,
   };
-  await options.store.create(review, itemsFrom(input.id, listed.holders, keys));
+  await options.reviews.create(
+    review,
+    itemsFrom(input.id, listed.holders, keys),
+  );
   return review;
 }

@@ -24,7 +24,7 @@ const review = await startAccessReview(
     dueAt: "2026-12-01T00:00:00.000Z",
   },
   {
-    store: reviews,
+    reviews,
     permdockFor: (memberId) => createPermDock(policy, member(memberId)),
   },
 );

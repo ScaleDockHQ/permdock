@@ -122,7 +122,7 @@ export type DirectoryChange = {
 };
 
 export type ScimHandlerOptions = {
-  readonly store: DirectoryStore;
+  readonly directory: DirectoryStore;
   readonly tenant: string | ((request: Request) => string | Promise<string>);
   readonly token?: ScimTokenOptions;
   readonly verifier?: TokenVerifier;

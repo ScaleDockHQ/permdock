@@ -335,7 +335,7 @@ import {
 
 const directory = memoryDirectoryStore();
 export const scim = scimHandler({
-  store: directory,
+  directory,
   tenant: (request) => tenantFromPath(request),
   token: { hash: "sha256", lookup: (tenant) => hashFor(tenant) },
 });

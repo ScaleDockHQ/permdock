@@ -89,7 +89,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         memberships,
         policy,
         permdockFor: (id) =>
@@ -122,7 +122,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ann", permission: "billing.manage", via: ["owner"] },
           { principal: "ben", permission: "billing.manage", via: ["owner"] },
@@ -188,7 +188,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ben", permission: "billing.view", via: ["member"] },
         ],
@@ -221,7 +221,7 @@ describe("access reviews", () => {
           reviewers: user("ann"),
           dueAt: "2026-12-31T00:00:00.000Z",
         },
-        { store, holders: [] },
+        { reviews: store, holders: [] },
       ),
     ).rejects.toThrow(/tenant/u);
     await expect(
@@ -233,7 +233,7 @@ describe("access reviews", () => {
           reviewers: user("ann"),
           dueAt: "not-a-date",
         },
-        { store, holders: [] },
+        { reviews: store, holders: [] },
       ),
     ).rejects.toThrow(/permissions/u);
     const review = await startAccessReview(
@@ -245,7 +245,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ben", permission: "billing.view", via: ["member"] },
           { principal: "ben", permission: "billing.view", via: ["member"] },
@@ -334,7 +334,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ben", permission: "billing.view", via: ["member"] },
         ],
@@ -415,7 +415,7 @@ describe("access reviews", () => {
         reviewers: user("ann"),
         dueAt: "2026-12-31T00:00:00.000Z",
       },
-      { store: fresh, memberships: broken, policy },
+      { reviews: fresh, memberships: broken, policy },
     );
     expect(incomplete.complete).toBe(false);
     expect(await fresh.items({ review: "down" })).toEqual({ items: [] });
@@ -449,7 +449,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ben", permission: "billing.view", via: ["member"] },
         ],
