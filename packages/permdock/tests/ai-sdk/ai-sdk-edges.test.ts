@@ -12,7 +12,7 @@ import {
 function permdock() {
   return createPermDock(policy, {
     subject: () => memberUser,
-    tools: {
+    operations: {
       delete_post: { permission: permissions.post.delete, data: () => ownPost },
     },
   });

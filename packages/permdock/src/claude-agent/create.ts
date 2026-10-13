@@ -1,15 +1,12 @@
-import type { ToolMap, ToolVerdict } from "../agent/types.ts";
-import type { ApprovalStore } from "../approvals/types.ts";
+import type { AgentAdapterOptions, ToolVerdict } from "../agent/types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
-import type { Delegation, Principal } from "../core/subject.ts";
+import type { Principal } from "../core/subject.ts";
 
 import { createAgentKernel } from "../agent/kernel.ts";
 import { compact, isRecord } from "../core/compact.ts";
-import {
-  type InstanceOptions,
-  instanceOptions,
-} from "../core/instance-options.ts";
+import { instanceOptions } from "../core/instance-options.ts";
+import { composeWraps } from "../core/wrap.ts";
 
 /** Structural `McpServerProvenance` from `@anthropic-ai/claude-agent-sdk`. */
 export type ClaudeMcpServer = {
@@ -29,21 +26,12 @@ export type ClaudeAgentContext = {
   readonly agentId?: string;
 };
 
-export type ClaudeAgentPermDockOptions<TUser = unknown> = InstanceOptions & {
-  readonly subject: (context: ClaudeAgentContext) => TUser | Promise<TUser>;
-  readonly actor?: (context: ClaudeAgentContext) => unknown;
-  readonly delegation?: (
-    context: ClaudeAgentContext,
-  ) => Delegation | undefined | Promise<Delegation | undefined>;
-  readonly tenant?:
-    | string
-    | ((
-        context: ClaudeAgentContext,
-      ) => string | undefined | Promise<string | undefined>);
-  readonly tools: ToolMap;
+export type ClaudeAgentPermDockOptions<TUser = unknown> = AgentAdapterOptions<
+  ClaudeAgentContext,
+  TUser
+> & {
   /** MCP server sources whose `mcp__*` tools may be decided; default `['sdk']`. */
   readonly mcpSources?: readonly string[];
-  readonly store?: ApprovalStore;
 };
 
 export type PermissionResult =
@@ -151,38 +139,48 @@ export function createPermDock<
       delegation: options.delegation,
       tenant: options.tenant,
       store: options.store,
+      context: options.context,
+      wrap: composeWraps(options.otel, options.wrap),
+      deniedText: options.deniedText,
     }),
     ...instanceOptions(options),
     subject: options.subject,
-    tools: options.tools,
+    tools: options.operations,
     adapter: "claude-agent",
   });
 
+  /** `null`: an unmapped tool under `unmapped: 'allow'`, which PermDock does not decide. */
   const decide = async (
     context: ClaudeAgentContext,
     input: unknown,
-  ): Promise<PermissionResult> => {
+  ): Promise<PermissionResult | null> => {
     const untrusted = untrustedServer(context, sources);
     if (untrusted !== undefined) {
       return { behavior: "deny", message: untrusted };
+    }
+    if (
+      options.unmapped === "allow" &&
+      !Object.hasOwn(options.operations, context.toolName)
+    ) {
+      return null;
     }
     const verdict = await kernel.decideTool(context.toolName, input, context);
     return toResult(verdict, input);
   };
 
-  const canUseTool = (
+  const canUseTool = async (
     toolName: string,
     input: Record<string, unknown>,
     sdkOptions: CanUseToolOptions = {},
   ): Promise<PermissionResult> =>
-    decide(
+    (await decide(
       compact<ClaudeAgentContext>({
         toolName,
         mcpServer: sdkOptions.mcpServer,
         agentId: sdkOptions.agentID,
       }),
       input,
-    );
+    )) ?? { behavior: "allow", updatedInput: input };
 
   const permissionRequestHook = async (
     input: PermissionRequestHookInput,
@@ -202,6 +200,9 @@ export function createPermDock<
       }),
       input.tool_input,
     );
+    if (decision === null) {
+      return {};
+    }
     return {
       hookSpecificOutput: { hookEventName: "PermissionRequest", decision },
     };

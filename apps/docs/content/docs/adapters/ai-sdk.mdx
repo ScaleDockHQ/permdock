@@ -12,6 +12,7 @@ AI SDK 7 moved tool approval out of individual tools and into a single `toolAppr
 ## API
 
 ```ts
+import { defineOperations } from 'permdock'
 import { createPermDock } from 'permdock/ai-sdk'
 import { z } from 'zod'
 
@@ -21,10 +22,10 @@ const { toolApproval, capabilityMiddleware, needsApproval } = createPermDock(pol
   subject: ({ runtimeContext }) => runtimeContext.user,
   actor: ({ runtimeContext }) => ({ id: runtimeContext.agentId, kind: 'ai-sdk' }),
   delegation: ({ runtimeContext }) => ({ scopes: runtimeContext.scopes }), // what the user handed the agent
-  tools: {
+  operations: defineOperations(permissions, {
     delete_post: { permission: permissions.post.delete, data: (args) => loadPost(PostArgs.parse(args).id) },
     list_posts:  { permission: permissions.post.list },
-  },
+  }),
 })
 
 generateText({ model, tools, toolApproval })
@@ -37,16 +38,18 @@ tool({ ..., needsApproval: needsApproval(permissions.post.delete) })
 // WorkflowAgent: durable suspend until a human answers
 ```
 
-- `tools` maps AI SDK tool names to a permission reference and, for instance-level actions, a `data` resolver that loads the resource from the tool arguments.
+- `operations` maps AI SDK tool names to a permission reference and, for instance-level actions, a `data` resolver that loads the resource from the tool arguments. Build it with `defineOperations` ([operations](/docs/concepts/permissions#operations)); the same map serves the other agent adapters.
 - `subject` and `actor` read from `runtimeContext` (or any per-call context the caller provides), so one configuration serves many tenants when returned from `prepareCall`.
 - `delegation` is what the user handed the agent: `scopes`, `authorizationDetails` or `access`. It has no default. With an `actor` and no `delegation`, every tool is denied with reason `no-delegation`, and `capabilityMiddleware` offers the model no tools. A resolver that throws counts as no delegation.
 - `toolApproval` is a plain function compatible with the AI SDK signature; `capabilityMiddleware(context)` returns a `LanguageModelMiddleware` (specification `v4`) for that caller, because the middleware sees only the model parameters and no per-call context; `needsApproval(permission)` returns the predicate `WorkflowAgent` expects. A boolean cannot say "denied", so the predicate returns `false` only when granted, `true` for approval-required, and throws `PermDockDeniedError` for a denial or an unmapped call (the AI SDK rejects the run). On the re-check after an approval, it throws `PermDockApprovalRequiredError` unless the approval is recorded.
-- `unmapped` decides what happens to a tool the `tools` map does not bind to a permission: `'deny'` (the default) hides it in `capabilityMiddleware` and denies it in `toolApproval`; `'allow'` keeps it in both, for an app that registers tools of its own that need no permission. `composeToolApproval(app)` returns a tool approval function that runs PermDock's `toolApproval` first and asks `app`, the application's own approval function, only for a call PermDock grants (or an unmapped tool under `'allow'`), returning its answer as is. `undefined` stays `undefined`, which the AI SDK reads as not applicable, so the tool's own `needsApproval` (or the SDK default) decides; return `'approved'` to approve explicitly. An answer that is not a tool approval result denies, so a broken app function never approves. PermDock's `denied` and `user-approval` are never passed to `app`, so a registry confirmation composes with PermDock without a wrapper:
+- `unmapped` decides what happens to a tool `operations` does not bind to a permission: `'deny'` (the default) hides it in `capabilityMiddleware` and denies it in `toolApproval`; `'allow'` keeps it in both, for an app that registers tools of its own that need no permission. `composeToolApproval(app)` returns a tool approval function that runs PermDock's `toolApproval` first and asks `app`, the application's own approval function, only for a call PermDock grants (or an unmapped tool under `'allow'`), returning its answer as is. `undefined` stays `undefined`, which the AI SDK reads as not applicable, so the tool's own `needsApproval` (or the SDK default) decides; return `'approved'` to approve explicitly. An answer that is not a tool approval result denies, so a broken app function never approves. PermDock's `denied` and `user-approval` are never passed to `app`, so a registry confirmation composes with PermDock without a wrapper:
 
 ```ts
 const { composeToolApproval, capabilityMiddleware } = createPermDock(policy, {
   subject: (context) => context.user,
-  tools: { delete_post: { permission: permissions.post.delete } },
+  operations: defineOperations(permissions, {
+    delete_post: { permission: permissions.post.delete },
+  }),
   unmapped: "allow", // the app's own tools without a permission pass through
 });
 
@@ -59,10 +62,11 @@ generateText({
 });
 ```
 
-- Tool names not present in `tools` are treated as unmapped and denied unless `unmapped` is `'allow'` (see fail-closed rules below).
+- Tool names not present in `operations` are treated as unmapped and denied unless `unmapped` is `'allow'` (see fail-closed rules below).
 - `context(context)` returns plain JSON merged into `subject.context` under the policy's `context`, from the same per-call context `subject` reads. Only values the server derived belong there, never model output; a throw adds nothing and reports `on('error')` ([request data](/docs/guides/extending#request-data)).
 - `deniedText({ decision, permission, text })` may replace the denial reason or the approval summary the model reads, and nothing else; `undefined`, an empty string or a throw keeps PermDock's text.
-- `wrap` wraps each instance; build it with `wrapPermDock` ([wrapping an instance](/docs/guides/extending#wrapping-an-instance)).
+- `otel` takes `(permdock) => withOtel(permdock, options)` from `permdock/otel` and wraps each instance first ([OpenTelemetry](/docs/adapters/otel)).
+- `wrap` wraps each instance after `otel`; build it with `wrapPermDock` ([wrapping an instance](/docs/guides/extending#wrapping-an-instance)).
 
 ## Request lifecycle
 

@@ -120,6 +120,18 @@ const rows: readonly Rename[] = [
     kind: "type",
   },
   {
+    from: "tools",
+    to: "operations",
+    entries: [
+      "permdock/ai-sdk",
+      "permdock/openai",
+      "permdock/claude-agent",
+      "permdock/eve",
+    ],
+    kind: "option",
+    calls: ["createPermDock"],
+  },
+  {
     from: "OnDeniedText",
     to: "DeniedText",
     entries: ["permdock/ai-sdk", "permdock/mcp"],

@@ -97,7 +97,7 @@ const deleteOwn = { toolName: "delete_post", toolInput: { id: "p1" } };
 describe("permdock/eve", () => {
   it("maps granted to not-applicable and denied to a typed denial", async () => {
     const { approval, getPermDock } = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
     });
 
@@ -119,7 +119,7 @@ describe("permdock/eve", () => {
   it("parks a call, checks the responder, and runs the re-check once", async () => {
     const store = memoryApprovalStore();
     const { approval } = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
       store,
       approvers: { roles: ["admin"] },
@@ -158,7 +158,7 @@ describe("permdock/eve", () => {
   it("records a cancel as a rejection and denies the re-check", async () => {
     const store = memoryApprovalStore();
     const { approval } = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
       store,
       approvers: { roles: ["admin"] },
@@ -181,7 +181,7 @@ describe("permdock/eve", () => {
 
   it("denies the re-check of a call nobody approved", async () => {
     const { approval } = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
     });
     expect(await approval.request(call("delete_post", { id: "p1" }))).toBe(
@@ -194,7 +194,7 @@ describe("permdock/eve", () => {
   it("resolves a response in another process from the shared store", async () => {
     const store = memoryApprovalStore();
     const first = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
       store,
     });
@@ -203,7 +203,7 @@ describe("permdock/eve", () => {
     ).toBe("user-approval");
 
     const second = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
       store,
     });
@@ -214,7 +214,7 @@ describe("permdock/eve", () => {
     ).toEqual({ status: "allowed" });
 
     const third = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
       store,
     });
@@ -225,7 +225,7 @@ describe("permdock/eve", () => {
 
   it("rejects a response for a call that never asked", async () => {
     const { approval } = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
     });
     expect(
@@ -237,7 +237,7 @@ describe("permdock/eve", () => {
 
   it("builds a single-tool pair with approvalFor and ignores tool-input subjects", async () => {
     const { approvalFor } = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
     });
     const pair = approvalFor(permissions.post.publish, () => ownPost);
@@ -249,7 +249,7 @@ describe("permdock/eve", () => {
 
   it("treats missing session auth as anonymous", async () => {
     const { approval } = createPermDock(policy, {
-      tools: tools(),
+      operations: tools(),
       delegation: () => delegated,
     });
     const denied = await approval.request({

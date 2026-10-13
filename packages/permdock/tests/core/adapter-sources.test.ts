@@ -97,7 +97,7 @@ describe("adapters forward approvalPolicies", () => {
   it("AI SDK toolApproval returns user-approval for an entry", async () => {
     const { toolApproval } = createAiSdkPermDock(policy, {
       subject: () => memberUser,
-      tools: { list_posts: { permission: permissions.post.list } },
+      operations: { list_posts: { permission: permissions.post.list } },
       approvalPolicies: listsNeedApproval,
       store: memoryApprovalStore(),
     });

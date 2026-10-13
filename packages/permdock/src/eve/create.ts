@@ -1,9 +1,13 @@
-import type { ToolBinding, ToolMap, ToolVerdict } from "../agent/types.ts";
-import type { ApprovalRequest, ApprovalStore } from "../approvals/types.ts";
+import type {
+  AgentAdapterOptions,
+  ToolBinding,
+  ToolVerdict,
+} from "../agent/types.ts";
+import type { ApprovalRequest } from "../approvals/types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
-import type { Delegation, Principal } from "../core/subject.ts";
+import type { Principal } from "../core/subject.ts";
 
 import { createAgentKernel } from "../agent/kernel.ts";
 import { boundedMap } from "../agent/lru.ts";
@@ -11,10 +15,8 @@ import { isApprovalError } from "../approvals/errors.ts";
 import { resolveApproval } from "../approvals/helpers.ts";
 import { memoryApprovalStore } from "../approvals/store.ts";
 import { compact } from "../core/compact.ts";
-import {
-  type InstanceOptions,
-  instanceOptions,
-} from "../core/instance-options.ts";
+import { instanceOptions } from "../core/instance-options.ts";
+import { composeWraps } from "../core/wrap.ts";
 
 /** Structural `SessionAuthContext` from `eve`. */
 export type EvePrincipal = {
@@ -66,20 +68,13 @@ export type EveApprovers =
   | { readonly roles: readonly string[] }
   | ((responder: EvePrincipal, request: ApprovalRequest) => boolean);
 
-export type EvePermDockOptions<TUser = unknown> = InstanceOptions & {
+export type EvePermDockOptions<TUser = unknown> = Omit<
+  AgentAdapterOptions<EveContext, TUser>,
+  "subject"
+> & {
+  /** Defaults to `subjectFromEve`: the session initiator's id and `roles` attribute. */
   readonly subject?: (context: EveContext) => TUser | Promise<TUser>;
-  readonly actor?: (context: EveContext) => unknown;
-  readonly delegation?: (
-    context: EveContext,
-  ) => Delegation | undefined | Promise<Delegation | undefined>;
-  readonly tenant?:
-    | string
-    | ((
-        context: EveContext,
-      ) => string | undefined | Promise<string | undefined>);
-  readonly tools: ToolMap;
   readonly approvers?: EveApprovers;
-  readonly store?: ApprovalStore;
 };
 
 export type EveRequestResult =
@@ -187,13 +182,16 @@ export function createPermDock<
     ...compact({
       tenant: options.tenant,
       delegation: options.delegation,
+      context: options.context,
+      wrap: composeWraps(options.otel, options.wrap),
+      deniedText: options.deniedText,
     }),
     ...instanceOptions(options),
     subject:
       options.subject ??
       (subjectFromEve as (context: EveContext) => TUser | Promise<TUser>),
     actor: options.actor ?? actorFromEve,
-    tools: options.tools,
+    tools: options.operations,
     store,
     adapter: "eve",
   });
@@ -227,6 +225,9 @@ export function createPermDock<
       ctx: EveApprovalContext,
     ): Promise<EveRequestResult> => {
       const binding = bindingFor(ctx.toolName);
+      if (binding === undefined && options.unmapped === "allow") {
+        return "not-applicable";
+      }
       const verdict =
         binding === undefined
           ? await kernel.decideTool(ctx.toolName, ctx.toolInput, ctx)
@@ -308,8 +309,8 @@ export function createPermDock<
   };
 
   const approval = pairFor((toolName) =>
-    Object.hasOwn(options.tools, toolName)
-      ? options.tools[toolName]
+    Object.hasOwn(options.operations, toolName)
+      ? options.operations[toolName]
       : undefined,
   );
 

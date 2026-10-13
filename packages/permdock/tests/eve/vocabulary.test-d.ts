@@ -5,7 +5,7 @@ import type { PermDockOf, VocabularyPermDock } from "../fixtures/vocabulary.ts";
 import { createPermDock } from "../../src/eve/index.ts";
 import { policy } from "../fixtures/vocabulary.ts";
 
-const { getPermDock } = createPermDock(policy, { tools: {} });
+const { getPermDock } = createPermDock(policy, { operations: {} });
 
 describe("permdock/eve vocabulary", () => {
   it("resolves the instance typed by the policy vocabulary", () => {

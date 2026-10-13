@@ -1,10 +1,11 @@
 # Agent runtimes
 
-Every agent adapter exports `createPermDock` from `permdock/<runtime>` and takes `subject`, `actor`, `delegation`, `tools` and `store`. One permission per tool. Instance actions load the row through `data`; tool input arrives as `unknown`, so parse it before loading. The current adapter page is `https://permdock.com/docs/adapters/<name>`.
+Every agent adapter exports `createPermDock` from `permdock/<runtime>` and takes `subject`, `actor`, `delegation`, `tenant`, `operations`, `store`, `unmapped`, `context`, `otel`, `wrap` and `deniedText`. `operations` is the map `defineOperations(permissions, …)` returns, one permission per tool name. `unmapped: 'allow'` leaves a tool `operations` does not name to the runtime; the default denies it. Instance actions load the row through `data`; tool input arrives as `unknown`, so parse it before loading. The current adapter page is `https://permdock.com/docs/adapters/<name>`.
 
 ## AI SDK — `permdock/ai-sdk`
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/ai-sdk";
 import { z } from "zod";
 
@@ -18,12 +19,12 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
       kind: "ai-sdk",
     }),
     delegation: () => ({ scopes: [permissions.post.delete.scope] }),
-    tools: {
+    operations: defineOperations(permissions, {
       delete_post: {
         permission: permissions.post.delete,
         data: (args) => loadPost(PostArgs.parse(args).id),
       },
-    },
+    }),
   });
 ```
 
@@ -32,18 +33,19 @@ Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `
 ## Claude Agent SDK — `permdock/claude-agent`
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/claude-agent";
 
 export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => user,
   actor: () => ({ id: "claude", kind: "claude-agent" }),
   delegation: () => ({ scopes: [permissions.post.delete.scope] }),
-  tools: {
+  operations: defineOperations(permissions, {
     delete_post: {
       permission: permissions.post.delete,
       data: (args) => loadPost(args),
     },
-  },
+  }),
 });
 ```
 
@@ -52,16 +54,17 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
 ## Eve — `permdock/eve`
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/eve";
 
 export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
   delegation: () => ({ scopes: [permissions.post.delete.scope] }),
-  tools: {
+  operations: defineOperations(permissions, {
     delete_post: {
       permission: permissions.post.delete,
       data: (args) => loadPost(args),
     },
-  },
+  }),
 });
 ```
 
@@ -70,6 +73,7 @@ Pass `approval` as the tool's `approval`. Default subject and actor read `sessio
 ## OpenAI Agents SDK — `permdock/openai`
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/openai";
 
 export const { needsApproval, guardTools, resolveInterruptions, getPermDock } =
@@ -77,12 +81,12 @@ export const { needsApproval, guardTools, resolveInterruptions, getPermDock } =
     subject: (ctx) => ctx.user,
     actor: (ctx) => ({ id: ctx.agentId, kind: "openai" }),
     delegation: (ctx) => ({ scopes: ctx.scopes }),
-    tools: {
+    operations: defineOperations(permissions, {
       delete_post: {
         permission: permissions.post.delete,
         data: (args) => loadPost(args),
       },
-    },
+    }),
   });
 ```
 

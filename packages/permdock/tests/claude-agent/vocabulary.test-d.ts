@@ -7,7 +7,7 @@ import { policy } from "../fixtures/vocabulary.ts";
 
 const { getPermDock } = createPermDock(policy, {
   subject: () => null,
-  tools: {},
+  operations: {},
 });
 
 describe("permdock/claude-agent vocabulary", () => {

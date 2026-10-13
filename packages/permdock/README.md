@@ -204,6 +204,7 @@ protectServer(server).registerTool(
 The Claude Agent SDK, Eve, the OpenAI Agents SDK, WebMCP and A2A have their own entries with the same tool map.
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/ai-sdk";
 
 const { toolApproval } = createPermDock(policy, {
@@ -212,12 +213,12 @@ const { toolApproval } = createPermDock(policy, {
     id: runtimeContext.agentId,
     kind: "ai-sdk",
   }),
-  tools: {
+  operations: defineOperations(permissions, {
     delete_post: {
       permission: permissions.post.delete,
       data: (args) => loadPost(args.id),
     },
-  },
+  }),
 });
 generateText({ model, tools, toolApproval }); // granted → approved, denied → denied, approval-required → user-approval
 ```

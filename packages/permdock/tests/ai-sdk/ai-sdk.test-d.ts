@@ -16,7 +16,7 @@ const { toolApproval, needsApproval, capabilityMiddleware } = createPermDock(
   policy,
   {
     subject: () => memberUser,
-    tools: { delete_post: { permission: permissions.post.delete } },
+    operations: { delete_post: { permission: permissions.post.delete } },
   },
 );
 

@@ -124,7 +124,7 @@ async function agent() {
     actor: () => ({ id: "support-bot", kind: "ai-sdk" }),
     tenant: TENANT,
     delegation: agentDelegation,
-    tools: agentTools(rows.load),
+    operations: agentTools(rows.load),
     store: await db.openStore(),
   });
 }

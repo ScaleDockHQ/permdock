@@ -30,7 +30,7 @@ describe("an approval covers the arguments it was given", () => {
     const store = memoryApprovalStore();
     const { canUseTool } = createPermDock(policy, {
       subject: () => ({ id: "u1", roles: ["clerk"] }),
-      tools: {
+      operations: {
         Refund: {
           permission: permissions.refund.create,
           data: (args: unknown) => args,

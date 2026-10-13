@@ -33,6 +33,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     compact({
       subject: (call: McpCall) => options.subject(call.authInfo ?? {}),
       actor: (call: McpCall) => {
+        if (options.actor !== undefined) {
+          return options.actor(call.authInfo ?? {});
+        }
         const clientId = call.authInfo?.clientId;
         return typeof clientId === "string" && clientId !== ""
           ? compact({
@@ -42,10 +45,14 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
             })
           : undefined;
       },
-      delegation: (call: McpCall) =>
-        call.authInfo === undefined
+      delegation: (call: McpCall) => {
+        if (options.delegation !== undefined) {
+          return options.delegation(call.authInfo ?? {});
+        }
+        return call.authInfo === undefined
           ? undefined
-          : delegationFrom(call.authInfo.scopes, call.authInfo.extra),
+          : delegationFrom(call.authInfo.scopes, call.authInfo.extra);
+      },
       tenant: tenantOf(options.tenant),
       store: options.store,
       adapter: "mcp",

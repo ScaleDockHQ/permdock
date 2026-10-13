@@ -34,7 +34,7 @@ An agent call has a principal (the user whose grants are evaluated), an actor (t
 
 1. **Name the three parts per surface.** Write down the principal source, the actor source and the delegation source for each runtime from the Inputs. The adapter table on [delegation](https://permdock.com/docs/security/delegation#how-adapters-fill-actor-and-delegation) shows what each adapter fills itself (MCP and A2A read token scopes; in-process runtimes take a `delegation` option).
    ✓ Every surface has all three, and none reads from model-controlled input.
-2. **Map the tools.** Use the runtime's `createPermDock` with `subject`, `actor` and a `tools` map, and pass the returned hook to the runtime. -> [references/runtimes.md](references/runtimes.md)
+2. **Map the tools.** Use the runtime's `createPermDock` with `subject`, `actor` and an `operations` map from `defineOperations`, and pass the returned hook to the runtime. -> [references/runtimes.md](references/runtimes.md)
    ✓ Every tool the agent can call has a `permission`, and every instance permission has a `data` loader that parses its arguments.
 3. **Delegate.** Per call, return `{ scopes: [permissions.post.update.scope] }` (or `authorizationDetails`) from the `delegation` option. As standing policy, declare it once on the policy:
 

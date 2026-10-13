@@ -1,5 +1,6 @@
 import type { EveApprovalContext, EvePrincipal } from "permdock/eve";
 
+import { defineOperations } from "permdock";
 import { memoryApprovalStore } from "permdock/approvals";
 import { createPermDock } from "permdock/eve";
 
@@ -25,7 +26,7 @@ export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
   delegation: () => ({
     scopes: [permissions.post.list.scope, permissions.post.delete.scope],
   }),
-  tools: {
+  operations: defineOperations(permissions, {
     list_posts: {
       permission: permissions.post.list,
     },
@@ -33,7 +34,7 @@ export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
       permission: permissions.post.delete,
       data: () => ownPost,
     },
-  },
+  }),
 });
 
 export function callContext(

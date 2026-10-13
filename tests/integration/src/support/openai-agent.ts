@@ -83,7 +83,7 @@ export function buildAgent(
     actor: () => ({ id: "support-bot", kind: "openai-agent" }),
     tenant: TENANT,
     delegation: agentDelegation,
-    tools: agentTools(load),
+    operations: agentTools(load),
     store,
   });
   const byId = z.object({ id: z.string() });

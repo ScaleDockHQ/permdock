@@ -13,13 +13,14 @@ Eve's [human-in-the-loop](https://eve.dev/docs/human-in-the-loop) hook receives 
 
 ```ts
 import { defineTool } from "eve/tools";
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/eve";
 
 const DeleteInput = z.object({ id: z.string() });
 const RefundInput = z.object({ chargeId: z.string(), amount: z.number() });
 
 const { approval, approvalFor, getPermDock } = createPermDock(policy, {
-  tools: {
+  operations: defineOperations(permissions, {
     delete_post: {
       permission: permissions.post.delete,
       data: (input) => loadPost(DeleteInput.parse(input).id),
@@ -28,7 +29,7 @@ const { approval, approvalFor, getPermDock } = createPermDock(policy, {
       permission: permissions.charge.refund,
       data: (input) => loadCharge(RefundInput.parse(input).chargeId),
     },
-  },
+  }),
   store, // ApprovalStore; memoryApprovalStore() when omitted
   approvers: { roles: ["finance-admin"] }, // who may resolve; see below
   delegation: () => ({
@@ -39,7 +40,7 @@ const { approval, approvalFor, getPermDock } = createPermDock(policy, {
 export default defineTool({
   description: "Refund a charge.",
   inputSchema: RefundInput,
-  approval, // { request, response } built from the tools map
+  approval, // { request, response } built from `operations`
   async execute(input, ctx) {
     // getPermDock(ctx) is the request-scoped PermDock for checks inside the tool
     (await getPermDock(ctx)).assert(
@@ -56,11 +57,12 @@ approval: approvalFor(permissions.charge.refund, (input) =>
 );
 ```
 
-- `approval` is an Eve `{ request, response }` pair, each taking the one context object Eve passes (`EveApprovalContext` for `request`, `EveResponseContext` for `response`). `request` looks the tool name up in `tools` (own keys only), resolves the resource, calls `decide` and maps the outcome. `response` checks the responder against the approval record and the `approvers` rule.
+- `approval` is an Eve `{ request, response }` pair, each taking the one context object Eve passes (`EveApprovalContext` for `request`, `EveResponseContext` for `response`). `request` looks the tool name up in `operations` (own keys only), resolves the resource, calls `decide` and maps the outcome. `response` checks the responder against the approval record and the `approvers` rule.
 - `approvalFor(permission, data?)` builds the same pair for one tool inline.
+- `unmapped: 'allow'` answers `not-applicable` for a tool `operations` does not name, so Eve runs it without asking; the default `'deny'` denies it. `context`, `otel`, `wrap` and `deniedText` behave as on [`permdock/ai-sdk`](/docs/adapters/ai-sdk#api).
 - `data` receives the tool input as `unknown`; parse it with the tool's schema before loading the resource.
 - `getPermDock(ctx)` returns a request-scoped `PermDock` from `ctx.session` for checks inside `execute` or in other Eve code. It builds a fresh frozen instance on every call, so a replayed step never sees state from an earlier one.
-- `tenant` resolves the active tenant from the same context on every call; the `tools` map has no tenant dimension, because the tenant is part of the subject, not of the tool.
+- `tenant` resolves the active tenant from the same context on every call; `operations` has no tenant dimension, because the tenant is part of the subject, not of the tool.
 - `store` is the [ApprovalStore](/docs/adapters/approvals). `approvers` is either `{ roles }` (approver must hold one of these roles in the PermDock policy) or a function `(responder, request) => boolean`. It is an extra restriction on top of `grant.approval.by`; both must pass. The actor rule (an agent never approves its own call) is enforced regardless.
 
 ### Subject from the session

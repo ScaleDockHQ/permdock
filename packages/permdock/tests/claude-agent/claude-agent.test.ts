@@ -65,7 +65,7 @@ describe("permdock/claude-agent", () => {
       subject: () => memberUser,
       delegation: () => delegated,
       actor: () => ({ id: "claude-agent", kind: "claude-agent" }),
-      tools: tools(),
+      operations: tools(),
     });
 
     const allowed = await canUseTool(
@@ -101,7 +101,7 @@ describe("permdock/claude-agent", () => {
       subject: () => memberUser,
       delegation: () => delegated,
       actor: () => ({ id: "claude-agent", kind: "claude-agent" }),
-      tools: tools(),
+      operations: tools(),
       store,
     });
 
@@ -133,7 +133,7 @@ describe("permdock/claude-agent", () => {
   it("trusts mcp__ tools only from the configured server sources", async () => {
     const { canUseTool } = createPermDock(policy, {
       subject: () => adminUser,
-      tools: tools(),
+      operations: tools(),
     });
     expect(
       (await canUseTool("mcp__posts__delete_post", { id: "p2" }, sdkServer))
@@ -160,7 +160,7 @@ describe("permdock/claude-agent", () => {
 
     const plugins = createPermDock(policy, {
       subject: () => adminUser,
-      tools: tools(),
+      operations: tools(),
       mcpSources: ["plugin"],
     });
     expect(
@@ -177,7 +177,7 @@ describe("permdock/claude-agent", () => {
   it("answers the PermissionRequest hook and ignores other events", async () => {
     const { permissionRequestHook } = createPermDock(policy, {
       subject: () => memberUser,
-      tools: tools(),
+      operations: tools(),
     });
     expect(
       await permissionRequestHook(
@@ -235,7 +235,7 @@ describe("permdock/claude-agent", () => {
   it("ignores a subject smuggled in tool input", async () => {
     const { canUseTool } = createPermDock(policy, {
       subject: () => memberUser,
-      tools: tools(),
+      operations: tools(),
     });
     const denied = await canUseTool(
       "Publish",

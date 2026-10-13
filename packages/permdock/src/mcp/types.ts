@@ -25,7 +25,7 @@ import type { ApprovalHint } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { RequestContext } from "../core/request-context.ts";
-import type { Principal } from "../core/subject.ts";
+import type { Delegation, Principal } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
 
@@ -173,6 +173,18 @@ export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
    * client, so one policy delegation covers the token on every surface.
    */
   readonly actorKind?: string;
+  /**
+   * Replaces the actor built from `authInfo.clientId`, `actorKind` and
+   * `clients`. Read it from the verified `authInfo`, never from tool arguments.
+   */
+  readonly actor?: (authInfo: McpAuthInfo) => unknown;
+  /**
+   * Replaces the delegation read from `authInfo.scopes` and
+   * `authInfo.extra.authorization_details`.
+   */
+  readonly delegation?: (
+    authInfo: McpAuthInfo,
+  ) => Delegation | undefined | Promise<Delegation | undefined>;
   /** Names for OAuth client ids (`ClientNames`): the actor gets `client` set to the name of `authInfo.clientId`, which a policy delegation matches with `to: { kind, client }`. */
   readonly clients?: ClientNames;
   readonly tenant?:

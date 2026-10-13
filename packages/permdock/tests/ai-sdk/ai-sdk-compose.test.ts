@@ -21,7 +21,7 @@ const call = (toolName: string): ToolApprovalCall => ({
 function permdock(unmapped?: "deny" | "allow") {
   return createPermDock(policy, {
     subject: () => memberUser,
-    tools: {
+    operations: {
       read_post: { permission: permissions.post.read, data: () => ownPost },
       publish_post: {
         permission: permissions.post.publish,

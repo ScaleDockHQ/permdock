@@ -1,3 +1,4 @@
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/ai-sdk";
 
 import { ownPost, permissions } from "./permissions.ts";
@@ -10,7 +11,7 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
     delegation: () => ({
       scopes: [permissions.post.list.scope, permissions.post.delete.scope],
     }),
-    tools: {
+    operations: defineOperations(permissions, {
       list_posts: {
         permission: permissions.post.list,
       },
@@ -18,7 +19,7 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
         permission: permissions.post.delete,
         data: () => ownPost,
       },
-    },
+    }),
   });
 
 export async function approveDelete() {

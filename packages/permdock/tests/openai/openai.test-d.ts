@@ -16,7 +16,7 @@ const { needsApproval, guardTools, resolveInterruptions } = createPermDock(
   policy,
   {
     subject: (context) => context.user,
-    tools: { delete_post: { permission: permissions.post.delete } },
+    operations: { delete_post: { permission: permissions.post.delete } },
   },
 );
 

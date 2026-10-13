@@ -12,7 +12,7 @@ import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
 
 const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => memberUser,
-  tools: { Read: { permission: permissions.post.read } },
+  operations: { Read: { permission: permissions.post.read } },
 });
 
 describe("permdock/claude-agent against the Claude Agent SDK", () => {

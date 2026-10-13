@@ -47,7 +47,7 @@ testAgentAdapter({
     const permdock = createAiSdk(domain.policy, {
       subject: (context) => subjectOf(domain)(context.runtimeContext),
       tenant: (context) => tenantOf(context.runtimeContext),
-      tools: domain.tools,
+      operations: domain.tools,
       store: domain.store,
       customRoles: domain.customRoles,
     });
@@ -72,7 +72,7 @@ testAgentAdapter({
     const permdock = createOpenAi(domain.policy, {
       subject: subjectOf(domain),
       tenant: tenantOf,
-      tools: domain.tools,
+      operations: domain.tools,
       store: domain.store,
       customRoles: domain.customRoles,
     });
@@ -104,7 +104,7 @@ testAgentAdapter({
       const permdock = createClaudeAgent(domain.policy, {
         subject: () => domain.subject(user, org),
         tenant: org,
-        tools: domain.tools,
+        operations: domain.tools,
         store: domain.store,
         customRoles: domain.customRoles,
       });
@@ -140,7 +140,7 @@ testAgentAdapter({
           (binding) => binding.permission.scope,
         ),
       }),
-      tools: domain.tools,
+      operations: domain.tools,
       store: domain.store,
       customRoles: domain.customRoles,
     });
