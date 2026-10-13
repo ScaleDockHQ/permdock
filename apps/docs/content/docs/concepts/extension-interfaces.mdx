@@ -58,7 +58,7 @@ const resolve: SubjectResolver<unknown, SupabasePrincipal> = (claims) =>
 const resolveKey: SubjectResolver<string | null, ApiKeyPrincipal> = (
   key,
   scope,
-) => subjectFromApiKey(key, { ...keys, ...scope });
+) => subjectFromApiKey(key, { verifier, permissions, ...scope });
 ```
 
 The same holds for `subjectFromJwt`, `subjectFromClerk`, `subjectFromMcp` and `subjectFromBetterAuth(session, { auth, ...options })`. A bound mapper ignores the `tenant` argument; its provider option picks the active tenant instead. `createJwtSubjectResolver(options)` returns `(token, request?)`, where `request` feeds the DPoP and mTLS binding checks, so it satisfies `SubjectResolver` only as `(token) => resolve(token)`. `tests/core/subject-resolvers.test-d.ts` checks each of these shapes.

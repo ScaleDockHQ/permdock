@@ -513,6 +513,10 @@ function reportUse(
   ]);
 }
 
+function anonymous(): Subject<ApiKeyPrincipal> {
+  return anonymousSubject();
+}
+
 /**
  * Resolves an opaque API key (`pdk_<id>_<secret>`) into the subject its
  * credential acts as. Every failure (a malformed or unknown key, a record
@@ -524,7 +528,6 @@ export async function subjectFromApiKey(
   key: string | undefined | null,
   options: ApiKeySubjectOptions,
 ): Promise<Subject<ApiKeyPrincipal>> {
-  const anonymous = (): Subject<ApiKeyPrincipal> => anonymousSubject();
   const tenant = options.tenant;
   if (typeof key !== "string" || key.length === 0) {
     return anonymous();
