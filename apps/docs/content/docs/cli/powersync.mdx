@@ -67,7 +67,7 @@ streams:
 - `permdock_<roles table>`: the rows of each `through` roles table that one of the user's membership or global-role rows references.
 - With `rls.customRoles` in `database` mode, the custom role tables, limited to rows with no tenant and rows of the user's tenants.
 
-With `powersync.manifest` set, `generate` writes `localSnapshotManifest(policy)` as JSON to that path, so the app bundles the manifest without importing the policy. `powersyncSource` in `permdock/react-native` reads it ([PowerSync source](/docs/adapters/react-native#powersync-source)).
+With `powersync.manifest` set, `generate` writes `localSnapshotManifest(policy)` as JSON to that path, so the app bundles the manifest without importing the policy. `powerSyncSource` in `permdock/react-native` reads it ([PowerSync source](/docs/adapters/react-native#powersync-source)).
 
 ## What compiles
 

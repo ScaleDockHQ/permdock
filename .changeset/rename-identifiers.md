@@ -42,6 +42,14 @@ Breaking: `subjectFrom*` resolvers take the input first and options second and r
 | `startAccessReview` option `store`                            | `reviews`                           |
 | `approvalsHandler` and `matchDelegation` option `delegations` | `approvalDelegations`               |
 | `decide`, `can` and `explain` option `source`                 | `call`                              |
+| `testAuthZen`                                                 | `testAuthzen`                       |
+| `TestAuthZenOptions`                                          | `TestAuthzenOptions`                |
+| `AuthZenVectors`                                              | `AuthzenVectors`                    |
+| `AuthZenEvaluationVector`                                     | `AuthzenEvaluationVector`           |
+| `AuthZenEvaluationsVector`                                    | `AuthzenEvaluationsVector`          |
+| `AuthZenSearchVector`                                         | `AuthzenSearchVector`               |
+| `powersyncSource`                                             | `powerSyncSource`                   |
+| `summariseSubject`                                            | `summarizeSubject`                  |
 
 | Before                                                   | After                                                                                         |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |

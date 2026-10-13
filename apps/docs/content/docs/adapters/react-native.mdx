@@ -218,16 +218,16 @@ With `snapshotUrl` set as well, the latest answer wins: the server snapshot afte
 
 ### PowerSync source
 
-With PowerSync, `permdock powersync generate` writes the manifest to `powersync.manifest` and adds `permdock_*` streams for the rows `read` needs ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powersyncSource(db, { manifest, queries, read })` replaces the hand-written `read` and `subscribe`: `get` runs every query with `db.getAll`, and one `db.watch` per query reports changes. `permdock/react-native` never imports `@powersync/*`; the app passes its `PowerSyncDatabase`.
+With PowerSync, `permdock powersync generate` writes the manifest to `powersync.manifest` and adds `permdock_*` streams for the rows `read` needs ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powerSyncSource(db, { manifest, queries, read })` replaces the hand-written `read` and `subscribe`: `get` runs every query with `db.getAll`, and one `db.watch` per query reports changes. `permdock/react-native` never imports `@powersync/*`; the app passes its `PowerSyncDatabase`.
 
 ```tsx
 import {
-  powersyncSource,
+  powerSyncSource,
   type LocalSnapshotManifest,
 } from "permdock/react-native";
 import manifest from "./permdock-manifest.json";
 
-const source = powersyncSource(db, {
+const source = powerSyncSource(db, {
   manifest: manifest as LocalSnapshotManifest,
   queries: {
     memberships: {

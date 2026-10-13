@@ -20,7 +20,7 @@ This page is the single place for what exists, what is planned and what is still
 ## Planned
 
 - **Cloud integrations.** The connector catalog for trusted issuers, CAEP transmitters, OTLP, OCSF, CloudEvents webhooks and compliance platforms, each over a standard wire format or an existing PermDock interface ([Cloud integrations](/docs/adapters/cloud-integrations)).
-- **External AuthZEN certification.** `testAuthZen` runs PermDock's Todo vectors and the official interop vectors in the repository; deploying the interop PDP and filing the submission are the external steps on the [AuthZEN checklist](/docs/standards/authzen#certification-checklist).
+- **External AuthZEN certification.** `testAuthzen` runs PermDock's Todo vectors and the official interop vectors in the repository; deploying the interop PDP and filing the submission are the external steps on the [AuthZEN checklist](/docs/standards/authzen#certification-checklist).
 - **Supabase MCP recipe.** A recipe that filters `@supabase/server/mcp`'s generated tools through `permdock/mcp`, once [PR #146](https://github.com/supabase/server/pull/146) ships in a release; nothing is built against the alpha ([watch list](/docs/standards/watch-list)).
 - **Compiled pg_jsonschema checks.** `rls.jsonSchema` moves to `jsonb_matches_compiled_schema` once pg_jsonschema's compiled schema type ([PR #98](https://github.com/supabase/pg_jsonschema/pull/98), merged after v0.3.4) reaches a Supabase Postgres release.
 - **Claim-mapping ports.** `subjectFromSupabase` ports for the Swift, Python and Dart SDKs that read `supabaseClaimVectors`, once the capability matrix's conformance schema ([PR #30](https://github.com/supabase/sdk/pull/30)) lands.

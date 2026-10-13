@@ -66,14 +66,14 @@ export {
   authzenTodoPolicy,
   authzenTodoUsers,
   authzenTodoVectors,
-  testAuthZen,
+  testAuthzen,
 } from "./authzen.ts";
 export type {
-  AuthZenEvaluationVector,
-  AuthZenEvaluationsVector,
-  AuthZenSearchVector,
-  AuthZenVectors,
-  TestAuthZenOptions,
+  AuthzenEvaluationVector,
+  AuthzenEvaluationsVector,
+  AuthzenSearchVector,
+  AuthzenVectors,
+  TestAuthzenOptions,
 } from "./authzen.ts";
 export type { ApprovalStoreOptions } from "./conformance/approvals.ts";
 export {

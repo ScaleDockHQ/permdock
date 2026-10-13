@@ -17,7 +17,7 @@ import {
   resolveApproval,
   resumeDecision,
   storedApprovalToken,
-  summariseSubject,
+  summarizeSubject,
 } from "../../src/approvals/index.ts";
 
 const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
@@ -121,10 +121,10 @@ const detailOf = (decision: Decision): unknown =>
     ? decision.denials[0]?.detail
     : decision.outcome;
 
-describe("summariseSubject", () => {
+describe("summarizeSubject", () => {
   it("keeps an anonymous principal and defaults missing roles", () => {
-    expect(summariseSubject(anonymous)).toEqual({ principal: null });
-    expect(summariseSubject({ principal: { id: "u" }, context: {} })).toEqual({
+    expect(summarizeSubject(anonymous)).toEqual({ principal: null });
+    expect(summarizeSubject({ principal: { id: "u" }, context: {} })).toEqual({
       principal: { id: "u", roles: [] },
     });
   });

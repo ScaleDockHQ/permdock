@@ -390,6 +390,30 @@ const rows: readonly Rename[] = [
     kind: "type",
   },
   {
+    from: "AuthZenEvaluationVector",
+    to: "AuthzenEvaluationVector",
+    entries: ["permdock/testing"],
+    kind: "type",
+  },
+  {
+    from: "AuthZenEvaluationsVector",
+    to: "AuthzenEvaluationsVector",
+    entries: ["permdock/testing"],
+    kind: "type",
+  },
+  {
+    from: "AuthZenSearchVector",
+    to: "AuthzenSearchVector",
+    entries: ["permdock/testing"],
+    kind: "type",
+  },
+  {
+    from: "TestAuthZenOptions",
+    to: "TestAuthzenOptions",
+    entries: ["permdock/testing"],
+    kind: "type",
+  },
+  {
     from: "powersyncSource",
     to: "powerSyncSource",
     entries: ["permdock/react-native"],
