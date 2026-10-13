@@ -485,6 +485,30 @@ describe("decideCredential", () => {
     }
   });
 
+  it("reads the instance settings option unless the call passes its own", async () => {
+    const long = { ...readKey, expiresAt: at(90 * DAY) };
+    const capped = memorySettingsSource({
+      o_1: { credentials: { maxTtl: 30 * DAY } },
+    });
+    const open = memorySettingsSource({});
+    const instance = await createPermDock(
+      policy,
+      userSubject("u_1", ["developer"]),
+      { settings: capped },
+    );
+    expect(await instance.decideCredential(long, { now: NOW })).toMatchObject({
+      denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
+    });
+    expect(
+      (await instance.decideCredential(long, { now: NOW, settings: open }))
+        .outcome,
+    ).toBe("granted");
+    expect(
+      (await instance.tenant("o_1").decideCredential(long, { now: NOW }))
+        .outcome,
+    ).toBe("denied");
+  });
+
   it("applies the credentials settings of the key tenant", async () => {
     const long = { ...readKey, expiresAt: at(90 * DAY) };
     const capped = memorySettingsSource({

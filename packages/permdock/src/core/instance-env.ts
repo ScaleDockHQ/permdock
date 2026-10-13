@@ -6,6 +6,7 @@ import type {
   MembershipSource,
   RelationSource,
   CustomRoleSource,
+  SettingsSource,
 } from "./interfaces.ts";
 import type { DeriveOptions } from "./permdock.ts";
 import type { Policy } from "./policy-types.ts";
@@ -49,6 +50,8 @@ export type InstanceEnv = {
   readonly approvalPolicies?: LoadedApprovalPolicies;
   /** The source `decideFor` loads other principals from. */
   readonly principals?: PrincipalSource;
+  /** Tenant settings `decideCredential` reads when a call passes none. */
+  readonly settings?: SettingsSource;
   /** Builds a `decideFor` target from the options the instance was created with. */
   readonly targets: TargetFactory;
 };

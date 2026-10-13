@@ -17,6 +17,7 @@ import type {
   RelationSource,
   CustomRoleSource,
   CustomRoleSourceFactory,
+  SettingsSource,
   TokenSigner,
 } from "./interfaces.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
@@ -426,6 +427,8 @@ export type PermDockOptions = {
   readonly approvalPolicies?: ApprovalPolicySource;
   /** Other principals by id, for `decideFor`; asked with the active tenant. */
   readonly principals?: PrincipalSource;
+  /** Tenant settings, read by `decideCredential` for the key's tenant; a call's own `settings` wins. */
+  readonly settings?: SettingsSource;
   /**
    * Request values an adapter's `context` hook derived on the server, merged
    * into `subject.context`; keys from `policy.context` win on a clash.
@@ -499,6 +502,7 @@ function instantiate(
             ? undefined
             : asMembershipSource(options.memberships),
         principals: options.principals,
+        settings: options.settings,
         targets: (principal: Principal, tenant: string | undefined) =>
           createPermDock(
             codePolicy,

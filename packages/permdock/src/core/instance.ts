@@ -609,7 +609,13 @@ export function buildInstance(
       );
     },
     decideCredential(request, options) {
-      return decideCredential(instance, request, options);
+      return decideCredential(
+        instance,
+        request,
+        envBase.settings === undefined
+          ? options
+          : { settings: envBase.settings, ...options },
+      );
     },
     mayUse(permission) {
       return mayUse(instance, permission);
