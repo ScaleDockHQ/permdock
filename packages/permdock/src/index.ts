@@ -171,6 +171,7 @@ export type {
 export type {
   AccessEvent,
   AuthEvent,
+  AutomationEvent,
   CredentialEvent,
   DecisionEvent,
   DeliveryChannel,
@@ -389,11 +390,13 @@ export {
   CLOUD_EVENT_TYPES,
   RESERVED_CLOUD_EVENT_TYPES,
   accessEvent,
+  automationEvent,
   cloudEventType,
   credentialEvent,
   membershipEvent,
   memoryDecisionSink,
   signDecisionBatch,
+  supportSessionEvent,
   toCloudEvent,
 } from "./core/sink.ts";
 export type {
@@ -414,6 +417,7 @@ export {
 } from "./core/parse-sink-events.ts";
 export {
   ACCESS_EVENT_SCHEMA,
+  AUTOMATION_EVENT_SCHEMA,
   CATALOG_EVENT_SCHEMA,
   CREDENTIAL_EVENT_SCHEMA,
   DECISION_EVENT_SCHEMA,

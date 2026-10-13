@@ -1,6 +1,8 @@
+import type { Automation } from "./automation.ts";
 import type { Credential } from "./credential.ts";
 import type {
   AccessEvent,
+  AutomationEvent,
   CredentialEvent,
   DecisionEvent,
   DeliveryEvent,
@@ -9,6 +11,7 @@ import type {
   SinkEvent,
 } from "./event-types.ts";
 import type { DecisionSink, TokenSigner } from "./interfaces.ts";
+import type { SupportSession } from "./support-session.ts";
 
 import { compact } from "./compact.ts";
 import { EVENT_SCHEMA_IDS } from "./event-schemas.ts";
@@ -84,14 +87,9 @@ export const CLOUD_EVENT_TYPES: {
 export type CloudEventType =
   (typeof CLOUD_EVENT_TYPES)[keyof typeof CLOUD_EVENT_TYPES];
 
-/** Types named for the automation release; a receiver refuses them until then. */
+/** Types named for a later release; a receiver refuses them until then. None are reserved now. */
 export const RESERVED_CLOUD_EVENT_TYPES: readonly CloudEventType[] =
-  Object.freeze([
-    CLOUD_EVENT_TYPES.automationPublished,
-    CLOUD_EVENT_TYPES.automationChanged,
-    CLOUD_EVENT_TYPES.automationRevoked,
-    CLOUD_EVENT_TYPES.automationRun,
-  ]);
+  Object.freeze([]);
 
 /** The CloudEvents JSON format media type for one event (structured mode). */
 export const CLOUDEVENTS_CONTENT_TYPE = "application/cloudevents+json";
@@ -270,6 +268,25 @@ function credentialType(
   }
 }
 
+function automationType(
+  operation: AutomationEvent["operation"],
+): CloudEventType {
+  switch (operation) {
+    case "published":
+      return CLOUD_EVENT_TYPES.automationPublished;
+    case "changed":
+      return CLOUD_EVENT_TYPES.automationChanged;
+    case "revoked":
+      return CLOUD_EVENT_TYPES.automationRevoked;
+    case "run":
+      return CLOUD_EVENT_TYPES.automationRun;
+    default: {
+      const exhaustive: never = operation;
+      return exhaustive;
+    }
+  }
+}
+
 function deliveryType(operation: DeliveryEvent["operation"]): CloudEventType {
   switch (operation) {
     case "sent":
@@ -306,6 +323,8 @@ export function cloudEventType(event: SinkEvent): CloudEventType {
       return event.operation === "started"
         ? CLOUD_EVENT_TYPES.supportSessionStarted
         : CLOUD_EVENT_TYPES.supportSessionEnded;
+    case "automation":
+      return automationType(event.operation);
     case "delivery":
       return deliveryType(event.operation);
     case "decision":
@@ -332,7 +351,80 @@ function cloudEventSubject(event: SinkEvent): string {
   if (event.type === "delivery") {
     return event.delivery.id;
   }
+  if (event.type === "automation") {
+    return event.automation.id;
+  }
   return event.permission;
+}
+
+/**
+ * An `automation` sink event for `automation`. `run` carries the run id and
+ * belongs on `run` events only.
+ */
+export function automationEvent(input: {
+  readonly operation: AutomationEvent["operation"];
+  readonly automation: Automation;
+  readonly run?: string;
+  readonly source?: string;
+  readonly by?: AutomationEvent["by"];
+  /** An RFC 3339 instant; defaults to now. */
+  readonly at?: string;
+}): AutomationEvent {
+  if ((input.run === undefined) !== (input.operation !== "run")) {
+    throw new TypeError(
+      "PermDock: automationEvent needs run on run events only",
+    );
+  }
+  const { automation } = input;
+  return compact<AutomationEvent>({
+    type: "automation",
+    at: requireEventInstant(input.at, "at") ?? new Date().toISOString(),
+    source: input.source ?? "permdock",
+    operation: input.operation,
+    automation: compact<AutomationEvent["automation"]>({
+      id: automation.id,
+      version: automation.version,
+      mode: automation.mode,
+      name: automation.name,
+    }),
+    principal: { id: automation.principal },
+    publishedBy: automation.publishedBy,
+    tenant: automation.tenant,
+    roles: automation.roles,
+    permissions: automation.permissions,
+    run: input.run === undefined ? undefined : { id: input.run },
+    by: input.by,
+  });
+}
+
+/**
+ * The `access` event of a `SupportSession`: `started` when it begins,
+ * `ended` when it lapses, `revoked` when it is ended early. `principal` is
+ * the staff member, as for a support membership.
+ */
+export function supportSessionEvent(input: {
+  readonly operation: AccessEvent["operation"];
+  readonly session: SupportSession;
+  readonly source?: string;
+  /** An RFC 3339 instant; defaults to now. */
+  readonly at?: string;
+}): AccessEvent {
+  const { session } = input;
+  return compact<AccessEvent>({
+    type: "access",
+    at: requireEventInstant(input.at, "at") ?? new Date().toISOString(),
+    source: input.source ?? "permdock",
+    operation: input.operation,
+    tenant: session.tenant,
+    principal: { id: session.actor },
+    via: "support-session",
+    roles: [],
+    expiresAt: requireEventInstant(session.expiresAt, "expiresAt"),
+    grantedBy: session.approvedBy,
+    reason: session.reason,
+    session: { id: session.id, principal: session.principal },
+    permissions: session.permissions,
+  });
 }
 
 /**

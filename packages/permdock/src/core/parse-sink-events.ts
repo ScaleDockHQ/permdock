@@ -70,6 +70,9 @@ function rulesHold(event: Record<string, unknown>): boolean {
   if (event["type"] === "credential") {
     return event["sample"] === undefined || event["operation"] === "used";
   }
+  if (event["type"] === "automation") {
+    return (event["run"] === undefined) === (event["operation"] !== "run");
+  }
   if (event["type"] === "delivery") {
     return (
       event["operation"] === "failed" ||

@@ -162,7 +162,10 @@ export type DeliveryTransport<C extends DeliveryChannel = DeliveryChannel> = {
   readonly batchSize?: number;
 };
 
-export type EmailTransport = DeliveryTransport<"email">;
+export type EmailTransport = DeliveryTransport<"email"> & {
+  /** The `from` of an email whose message and router set none. */
+  readonly from?: string;
+};
 export type ChatTransport = DeliveryTransport<"chat">;
 export type WebhookTransport = DeliveryTransport<"webhook">;
 

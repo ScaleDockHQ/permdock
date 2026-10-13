@@ -12,6 +12,7 @@ export const EVENT_SCHEMA_IDS: {
   readonly membership: "https://permdock.com/schemas/membership-event-v1.json";
   readonly credential: "https://permdock.com/schemas/credential-event-v1.json";
   readonly access: "https://permdock.com/schemas/access-event-v1.json";
+  readonly automation: "https://permdock.com/schemas/automation-event-v1.json";
   readonly catalog: "https://permdock.com/schemas/catalog-event-v1.json";
   readonly delivery: "https://permdock.com/schemas/delivery-event-v1.json";
 } = Object.freeze({
@@ -20,6 +21,7 @@ export const EVENT_SCHEMA_IDS: {
   membership: "https://permdock.com/schemas/membership-event-v1.json",
   credential: "https://permdock.com/schemas/credential-event-v1.json",
   access: "https://permdock.com/schemas/access-event-v1.json",
+  automation: "https://permdock.com/schemas/automation-event-v1.json",
   catalog: "https://permdock.com/schemas/catalog-event-v1.json",
   delivery: "https://permdock.com/schemas/delivery-event-v1.json",
 });
@@ -351,6 +353,57 @@ export const ACCESS_EVENT_SCHEMA: JsonSchemaNode = family(
       grantedBy: text,
       reason: text,
       actor,
+      session: {
+        type: "object",
+        required: ["id", "principal"],
+        properties: { id, principal: id },
+        additionalProperties: false,
+      },
+      permissions: strings,
+    },
+    additionalProperties: false,
+  },
+);
+
+export const AUTOMATION_EVENT_SCHEMA: JsonSchemaNode = family(
+  "automation",
+  "PermDock automation event",
+  "An AutomationEvent, wire format v1: the data of com.permdock.automation.* CloudEvents.",
+  {
+    type: "object",
+    required: [
+      "type",
+      "at",
+      "source",
+      "operation",
+      "automation",
+      "principal",
+      "publishedBy",
+      "permissions",
+    ],
+    properties: {
+      type: { const: "automation" },
+      at: instant,
+      source: text,
+      operation: { enum: ["published", "changed", "revoked", "run"] },
+      automation: {
+        type: "object",
+        required: ["id", "version", "mode"],
+        properties: {
+          id,
+          version: { type: ["integer", "string"] },
+          mode: { enum: ["publisher", "service"] },
+          name: text,
+        },
+        additionalProperties: false,
+      },
+      principal: ref,
+      publishedBy: id,
+      tenant: text,
+      roles: strings,
+      permissions: strings,
+      run: ref,
+      by: actor,
     },
     additionalProperties: false,
   },
@@ -460,6 +513,7 @@ export const SINK_EVENT_SCHEMAS: {
   readonly membership: JsonSchemaNode;
   readonly credential: JsonSchemaNode;
   readonly access: JsonSchemaNode;
+  readonly automation: JsonSchemaNode;
   readonly delivery: JsonSchemaNode;
 } = Object.freeze({
   decision: DECISION_EVENT_SCHEMA,
@@ -467,5 +521,6 @@ export const SINK_EVENT_SCHEMAS: {
   membership: MEMBERSHIP_EVENT_SCHEMA,
   credential: CREDENTIAL_EVENT_SCHEMA,
   access: ACCESS_EVENT_SCHEMA,
+  automation: AUTOMATION_EVENT_SCHEMA,
   delivery: DELIVERY_EVENT_SCHEMA,
 });

@@ -63,12 +63,41 @@ export type CredentialEvent = {
   readonly sample?: number;
 };
 
+/**
+ * An automation's lifecycle: `published`, `changed` (a new version) and
+ * `revoked` from the application, `run` when a run starts. It records the
+ * delegation for access review; it never decides.
+ */
+export type AutomationEvent = {
+  readonly type: "automation";
+  readonly at: string;
+  readonly source: string;
+  readonly operation: "published" | "changed" | "revoked" | "run";
+  readonly automation: {
+    readonly id: string;
+    readonly version: number | string;
+    readonly mode: "publisher" | "service";
+    readonly name?: string;
+  };
+  /** The principal each run acts as. */
+  readonly principal: { readonly id: string };
+  readonly publishedBy: string;
+  readonly tenant?: string;
+  readonly roles?: readonly string[];
+  /** The delegated permission keys. */
+  readonly permissions: readonly string[];
+  /** Set on `run` events only. */
+  readonly run?: { readonly id: string };
+  readonly by?: { readonly id: string; readonly kind: string };
+};
+
 export type SinkEvent =
   | DecisionEvent
   | DirectoryEvent
   | MembershipEvent
   | CredentialEvent
   | AccessEvent
+  | AutomationEvent
   | DeliveryEvent;
 
 /** A delivery channel: an email, a chat message or an outbound webhook. */
@@ -161,6 +190,10 @@ export type AccessEvent = {
   readonly grantedBy?: string;
   readonly reason?: string;
   readonly actor?: { readonly id: string; readonly kind: string };
+  /** A `SupportSession`: its id and the principal the staff member views as. */
+  readonly session?: { readonly id: string; readonly principal: string };
+  /** A `SupportSession`'s permission keys. */
+  readonly permissions?: readonly string[];
 };
 
 export type DecisionEvent = {

@@ -87,6 +87,27 @@
         }
       },
       "additionalProperties": false
+    },
+    "session": {
+      "type": "object",
+      "required": ["id", "principal"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "principal": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "additionalProperties": false

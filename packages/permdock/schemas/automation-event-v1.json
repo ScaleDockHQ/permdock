@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/automation-event-v1.json",
+  "title": "PermDock automation event",
+  "description": "An AutomationEvent, wire format v1: the data of com.permdock.automation.* CloudEvents.",
+  "type": "object",
+  "required": [
+    "type",
+    "at",
+    "source",
+    "operation",
+    "automation",
+    "principal",
+    "publishedBy",
+    "permissions"
+  ],
+  "properties": {
+    "type": {
+      "const": "automation"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "source": {
+      "type": "string"
+    },
+    "operation": {
+      "enum": ["published", "changed", "revoked", "run"]
+    },
+    "automation": {
+      "type": "object",
+      "required": ["id", "version", "mode"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": ["integer", "string"]
+        },
+        "mode": {
+          "enum": ["publisher", "service"]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "principal": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "publishedBy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tenant": {
+      "type": "string"
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "run": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "by": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

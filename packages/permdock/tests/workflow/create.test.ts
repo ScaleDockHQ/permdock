@@ -7,6 +7,7 @@ import type { Principal } from "../../src/core/subject.ts";
 import { resolveApproval } from "../../src/approvals/helpers.ts";
 import { memoryApprovalStore } from "../../src/approvals/store.ts";
 import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import {
@@ -117,6 +118,29 @@ async function pendingToken(store: ApprovalStore): Promise<string> {
 }
 
 describe("permdock/workflow: runs of a publisher automation", () => {
+  it("writes an automation run event to the sink, and a failing sink never stops a run", async () => {
+    const sink = memoryDecisionSink();
+    const { ticketFor } = setup(undefined, { sink });
+    await ticketFor("auto_1", { id: "run_1" });
+    expect(sink.events()).toEqual([
+      expect.objectContaining({
+        type: "automation",
+        operation: "run",
+        automation: { id: "auto_1", version: 1, mode: "publisher" },
+        run: { id: "run_1" },
+        permissions: ["invoice.read", "invoice.send"],
+      }),
+    ]);
+    const broken = setup(undefined, {
+      sink: {
+        write: () => {
+          throw new Error("sink down");
+        },
+      },
+    });
+    await expect(broken.ticketFor()).resolves.toEqual(expect.any(String));
+  });
+
   it("acts as the publisher, capped at the automation's permissions", async () => {
     const { workflow, ticketFor } = setup();
     const run = await workflow.getPermDock(await ticketFor());

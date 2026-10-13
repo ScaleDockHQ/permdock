@@ -1,8 +1,12 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { Automation, AutomationSource } from "../core/automation.ts";
 import type { Decision, Denial } from "../core/decision.ts";
-import type { AuthEvent } from "../core/event-types.ts";
-import type { TokenSigner, TokenVerifier } from "../core/interfaces.ts";
+import type { AuthEvent, SinkEvent } from "../core/event-types.ts";
+import type {
+  DecisionSink,
+  TokenSigner,
+  TokenVerifier,
+} from "../core/interfaces.ts";
 import type {
   DecideOptions,
   PermDock,
@@ -26,7 +30,20 @@ import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
 import { findPermission } from "../core/permission-registry.ts";
+import { automationEvent } from "../core/sink.ts";
+import { isThenable } from "../core/thenable.ts";
 import { signRunTicket, subjectFromRunTicket } from "../server/run-ticket.ts";
+
+function writeQuietly(sink: DecisionSink, event: SinkEvent): void {
+  try {
+    const written = sink.write([event]);
+    if (isThenable(written)) {
+      void Promise.resolve(written).catch(() => undefined);
+    }
+  } catch {
+    // a sink never influences a run
+  }
+}
 
 export type WorkflowPermDockOptions = PermDockOptions & {
   /** Signs the run tickets `start` mints. */
@@ -317,6 +334,12 @@ export function createPermDock<
       signer,
       compact({ audience, now: startOptions.now }),
     );
+    if (permdockOptions.sink !== undefined) {
+      writeQuietly(
+        permdockOptions.sink,
+        automationEvent({ operation: "run", automation, run: runId }),
+      );
+    }
     return freezeDeep({
       outcome: "started" as const,
       ticket: signed,

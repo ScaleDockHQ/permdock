@@ -83,34 +83,34 @@ A receiver validates the batch with `parseCloudEventBatch` from `permdock`, or o
 | `com.permdock.credential.revoked`      | `credentialEvent` with `operation: 'revoked'`                                             |
 | `com.permdock.catalog.published`       | The Cloud, after `permdock cloud push`                                                    |
 | `com.permdock.catalog.drifted`         | The Cloud, when a publish breaks a live hosted grant                                      |
-| `com.permdock.support-session.started` | `accessEvent` with `operation: 'started'`                                                 |
+| `com.permdock.support-session.started` | `accessEvent` or `supportSessionEvent` with `operation: 'started'`                        |
 | `com.permdock.support-session.ended`   | `accessEvent` with `operation: 'ended'` or `'revoked'`; `data.operation` tells them apart |
-| `com.permdock.automation.published`    | Reserved                                                                                  |
-| `com.permdock.automation.changed`      | Reserved                                                                                  |
-| `com.permdock.automation.revoked`      | Reserved                                                                                  |
-| `com.permdock.automation.run`          | Reserved                                                                                  |
+| `com.permdock.automation.published`    | `automationEvent` with `operation: 'published'`                                           |
+| `com.permdock.automation.changed`      | `automationEvent` with `operation: 'changed'`: a new version                              |
+| `com.permdock.automation.revoked`      | `automationEvent` with `operation: 'revoked'`                                             |
+| `com.permdock.automation.run`          | `automationEvent` with `operation: 'run'`; `WorkflowPermDock.start` writes it to `sink`   |
 | `com.permdock.delivery.sent`           | `deliveryEvent` with `operation: 'sent'`: a transport accepted one recipient's delivery   |
 | `com.permdock.delivery.delivered`      | `deliveryEvent` with `operation: 'delivered'`, from a provider webhook                    |
 | `com.permdock.delivery.bounced`        | `deliveryEvent` with `operation: 'bounced'`, from a provider webhook                      |
 | `com.permdock.delivery.complained`     | `deliveryEvent` with `operation: 'complained'`, from a provider webhook                   |
 | `com.permdock.delivery.failed`         | `deliveryEvent` with `operation: 'failed'`: a refused recipient or a transport error      |
 
-Reserved types are in `RESERVED_CLOUD_EVENT_TYPES`: they are named for later releases, nothing emits them, and the parsers refuse them until then.
+`RESERVED_CLOUD_EVENT_TYPES` holds types named for a later release, which the parsers refuse until then. It is empty in this release.
 
 ## Mapping table
 
-| CloudEvents attribute       | PermDock value                                                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `specversion`               | `"1.0"`                                                                                                                         |
-| `id`                        | `options.id`, or a random UUID; a webhook retry keeps it                                                                        |
-| `source`                    | `options.source`, an absolute URI naming the emitting service                                                                   |
-| `type`                      | `cloudEventType(event)`                                                                                                         |
-| `subject`                   | The permission key (decision), the resource id (directory), the principal id (membership, support session) or the credential id |
-| `time`                      | The sink event's `at`, RFC 3339                                                                                                 |
-| `datacontenttype`           | `"application/json"`                                                                                                            |
-| `dataschema`                | `EVENT_SCHEMA_IDS[family]`, `https://permdock.com/schemas/<family>-event-v1.json`                                               |
-| `traceparent`, `tracestate` | `options.traceparent` and `options.tracestate`; `tracestate` is dropped without a `traceparent`                                 |
-| `data`                      | The sink event, or the catalog data for `com.permdock.catalog.*`                                                                |
+| CloudEvents attribute       | PermDock value                                                                                                                                     |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `specversion`               | `"1.0"`                                                                                                                                            |
+| `id`                        | `options.id`, or a random UUID; a webhook retry keeps it                                                                                           |
+| `source`                    | `options.source`, an absolute URI naming the emitting service                                                                                      |
+| `type`                      | `cloudEventType(event)`                                                                                                                            |
+| `subject`                   | The permission key (decision), the resource id (directory), the principal id (membership, support session), the credential id or the automation id |
+| `time`                      | The sink event's `at`, RFC 3339                                                                                                                    |
+| `datacontenttype`           | `"application/json"`                                                                                                                               |
+| `dataschema`                | `EVENT_SCHEMA_IDS[family]`, `https://permdock.com/schemas/<family>-event-v1.json`                                                                  |
+| `traceparent`, `tracestate` | `options.traceparent` and `options.tracestate`; `tracestate` is dropped without a `traceparent`                                                    |
+| `data`                      | The sink event, or the catalog data for `com.permdock.catalog.*`                                                                                   |
 
 Webhooks carry a batch signed with [Standard Webhooks](/docs/standards/standard-webhooks). The offline evidence export, `signDecisionBatch`, puts the same CloudEvents in the `events` claim of a `vnd.permdock.evidence+jwt` JWS ([wire formats](/docs/concepts/wire-formats)).
 
