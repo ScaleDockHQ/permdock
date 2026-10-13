@@ -203,10 +203,14 @@ function assertSeparateApprover(
       "approver must be authenticated",
     );
   }
-  if (principal.kind === "link" || principal.kind === "feed") {
+  if (
+    principal.kind === "link" ||
+    principal.kind === "feed" ||
+    principal.kind === "contact"
+  ) {
     throw new ApprovalError(
       "approver-not-eligible",
-      "a link or a feed cannot approve",
+      "a link, a feed or a contact cannot approve",
     );
   }
   if (

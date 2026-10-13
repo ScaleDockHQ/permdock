@@ -212,6 +212,7 @@ export async function matchDelegation(
     principal === null ||
     principal.kind === "link" ||
     principal.kind === "feed" ||
+    principal.kind === "contact" ||
     source === undefined ||
     subjectFor === undefined
   ) {
@@ -253,7 +254,8 @@ export async function matchDelegation(
           resolved.principal === null ||
           resolved.principal.id !== entry.delegator ||
           resolved.principal.kind === "link" ||
-          resolved.principal.kind === "feed"
+          resolved.principal.kind === "feed" ||
+          resolved.principal.kind === "contact"
         ) {
           return undefined;
         }

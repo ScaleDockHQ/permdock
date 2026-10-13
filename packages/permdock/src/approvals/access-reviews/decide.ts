@@ -19,7 +19,7 @@ export type AccessReviewVerdict = {
   readonly permissions?: readonly string[];
 };
 
-/** Whether `by` is named as a reviewer. A link or a feed is never a reviewer. */
+/** Whether `by` is named as a reviewer. A link, a feed or a contact is never a reviewer. */
 export function accessReviewerEligible(
   review: AccessReview,
   by: Subject,
@@ -30,7 +30,8 @@ export function accessReviewerEligible(
   if (
     principal === null ||
     principal.kind === "link" ||
-    principal.kind === "feed"
+    principal.kind === "feed" ||
+    principal.kind === "contact"
   ) {
     return false;
   }

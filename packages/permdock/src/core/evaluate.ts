@@ -18,6 +18,7 @@ import {
   tightenApproval,
 } from "./approval-policies.ts";
 import { compact } from "./compact.ts";
+import { contactAllows } from "./contact.ts";
 import {
   holdsCustomRole,
   holdsGlobalCustomRole,
@@ -952,9 +953,15 @@ export function evaluate(
     return deniedNow(state, { role: null, reason: "stale-credentials" });
   }
 
-  const usable = delegatedAllows(state);
-  if (!Array.isArray(usable)) {
-    return usable;
+  const delegated = delegatedAllows(state);
+  if (!Array.isArray(delegated)) {
+    return delegated;
+  }
+  const usable = contactAllows(policy, state.subject, permission, delegated);
+  if (usable.length === 0) {
+    return deniedWithAlternatives(state, [
+      { role: null, reason: "not-delegated" },
+    ]);
   }
   if (env.approvalPolicies === "failed" && usable.length > 0) {
     return deniedNow(state, {

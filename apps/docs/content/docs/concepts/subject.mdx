@@ -25,7 +25,7 @@ type Subject = {
 type Principal = {
   id: string; // `sub`, a user id, a client id or a SPIFFE ID
   issuer?: string; // `iss`; identity is issuer + id, always set by subjectFrom*
-  kind?: "user" | "service" | "workload" | "link"; // default 'user'
+  kind?: "user" | "service" | "workload" | "link" | "feed" | "contact"; // default 'user'
   roles?: string[]; // global roles
   memberships?: Membership[]; // roles held in a tenant, a team or on one resource
   tenant?: string; // the active tenant for this request; never defaulted
@@ -201,6 +201,27 @@ The WIMSE architecture treats workloads as principals in their own right: a work
 **SPIFFE SVIDs as actor material.** When a workload calls with a user's delegated token (a backend-for-frontend forwarding a user request, a job running under an OBO token) it is an actor, and its [SPIFFE](https://spiffe.io/docs/latest/spiffe-about/overview/) identity is the verified material for that half: the X.509-SVID presented over mTLS, or a JWT-SVID in a header, yields `actor: { id: '<spiffe id>', kind: 'workload' }` while the principal comes from the user token. Verification of the SVID is upstream (the mesh, the TLS terminator or the SPIRE Workload API), the same rule as every other token ([authentication](/docs/concepts/authentication)); PermDock reads the result. This is a recipe over `permdock/jwt` and the server kernel, not an adapter ([watch list](/docs/standards/watch-list)).
 
 **Why a workload is a principal and an agent is an actor.** The distinction is whose authority applies. A nightly report job runs under its own grants; nobody delegated anything to it, so it is a principal. An MCP client, an AI SDK agent or a Web Bot Auth signer exercises a _user's_ authority under a delegation, so it is an actor and the user is the principal. The same binary can be both on different requests: a workload is a principal when it runs its own schedule and an actor when it calls with a user's delegated token. What decides is the token, not the process.
+
+## Contact principals
+
+`kind: 'contact'` is someone outside the tenant who sees the rows they are a party to: a customer on an invoice, a guest on a project, a supplier on a purchase order. PermDock narrows a contact before any grant is evaluated:
+
+- Only `on` memberships count, each with `via: 'contact'`. Tenant and team memberships, global `roles`, `plans`, membership `entitlements` and `tenant` are dropped, so `tenants()` is empty.
+- An allow reaches a contact only when its permission is read-only (`meta.readOnly`, or the `read` and `list` actions) or it comes from a role whose `for` lists `'contact'`. Any other allow is denied with `not-delegated`. Top-level grants and relation grants never open a write to a contact.
+- A contact never approves, never reviews access and never accepts an approval delegation: `assertApprover` throws `approver-not-eligible`, like a link or a feed.
+- A contact never creates a key: `decideCredential` denies with `exceeds-creator` and `detail.creator: 'contact'`.
+- A contact never publishes: no PermDock surface takes a contact as the author of a policy, a catalog or a hosted document.
+
+```ts
+role("payer", [allow(permissions.invoice.pay)], {
+  on: permissions.invoice,
+  for: ["contact"], // the only way a contact gets a write
+});
+```
+
+The narrowing applies to `can()`, `where()`, `snapshot()` and `decideFor()`, so ORM filters built from `where()` inherit it. Compiled [row-level security](/docs/standards/postgres-rls) does not know the principal kind: when contacts query the database directly, keep their memberships out of the tables the RLS functions read, or gate writes in the application.
+
+**Why contacts are read-only by default.** A contact is a party to a row, not a member of the organisation that owns it. Role catalogues are written for members, so a `customer` role that grants `comment` today is likely to gain `update` tomorrow without anyone thinking of the customers who hold it. Making the write opt-in per role, through the existing `for` field, puts the decision on the one line that grants it and keeps every other grant fail-closed.
 
 ## Binding
 

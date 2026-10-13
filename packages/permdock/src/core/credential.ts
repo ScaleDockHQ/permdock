@@ -645,7 +645,11 @@ function checkRequest(
   if (creator === null) {
     return refuse("anonymous");
   }
-  if (creator.kind === "link" || creator.kind === "feed") {
+  if (
+    creator.kind === "link" ||
+    creator.kind === "feed" ||
+    creator.kind === "contact"
+  ) {
     return refuse("exceeds-creator", { creator: creator.kind });
   }
   if ("credential" in creator) {
