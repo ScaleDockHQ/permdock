@@ -192,7 +192,7 @@ describe("events and telemetry", () => {
     });
     expect(lines[0]).toMatchObject({
       "permdock.matched.name": "watermarked-export",
-      "permdock.obligations": "watermark,mfa-reprompt",
+      "permdock.obligations": ["watermark", "mfa-reprompt"],
     });
   });
 });

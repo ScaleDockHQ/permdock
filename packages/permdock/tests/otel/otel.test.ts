@@ -211,6 +211,54 @@ describe("permdock/otel", () => {
     expect(spans[0]?.attributes["gen_ai.tool.call.id"]).toBe("call-1");
   });
 
+  it("sets the user, agent and model semantic conventions with arrays as arrays", async () => {
+    const { api, spans } = fakeApi({ "gen_ai.request.model": "gpt-5" });
+    const permdock = await createPermDock(policy, memberUser, {
+      actor: { id: "assistant", kind: "agent" },
+      delegation: { scopes: ["post:read", "post:update"] },
+    });
+    instrument(permdock, { api });
+    permdock.decide(permissions.post.read, ownPost);
+    expect(spans[0]?.attributes).toMatchObject({
+      "user.id": memberUser.id,
+      "user.roles": ["member"],
+      "gen_ai.agent.id": "assistant",
+      "gen_ai.request.model": "gpt-5",
+      "permdock.delegation.scopes": ["post:read", "post:update"],
+    });
+    expect(spans[0]?.attributes).not.toHaveProperty("error.type");
+  });
+
+  it("leaves gen_ai.agent.id unset for a non-agent actor", async () => {
+    const { api, spans } = fakeApi();
+    const permdock = await createPermDock(policy, memberUser, {
+      actor: { id: "ops", kind: "service" },
+    });
+    instrument(permdock, { api });
+    permdock.decide(permissions.post.read, ownPost);
+    expect(spans[0]?.attributes).not.toHaveProperty("gen_ai.agent.id");
+    expect(spans[0]?.attributes).not.toHaveProperty("gen_ai.request.model");
+  });
+
+  it("sets error.type only on a denial that counts as an error", async () => {
+    const plain = fakeApi();
+    const quiet = await createPermDock(policy, memberUser);
+    instrument(quiet, { api: plain.api });
+    quiet.decide(permissions.post.publish, ownPost);
+    expect(plain.spans[0]?.attributes).not.toHaveProperty("error.type");
+    expect(plain.spans[0]?.events[0]?.attributes).toMatchObject({
+      reason: [expect.any(String)],
+    });
+
+    const strict = fakeApi();
+    const loud = await createPermDock(policy, memberUser);
+    instrument(loud, { api: strict.api, errorOnDeny: true });
+    const decision = loud.decide(permissions.post.publish, ownPost);
+    expect(strict.spans[0]?.attributes["error.type"]).toBe(
+      decision.outcome === "denied" ? decision.denials[0]?.reason : undefined,
+    );
+  });
+
   it("adds a denied event and leaves span status unset", async () => {
     const { api, spans } = fakeApi();
     const permdock = await createPermDock(policy, memberUser);
