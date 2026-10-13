@@ -1,3 +1,6 @@
+// Exclude this file from scripted identifier replacements: a `from` value must
+// keep the old name, and `scripts/check-docs-drift.ts` fails when `from` equals `to`.
+
 /**
  * One renamed identifier. `entries` are the import specifiers that export
  * `from` (`permdock`, `permdock/server`); the codemod renames only bindings
@@ -35,8 +38,6 @@ const SERVER_ADAPTERS = [
 
 const rows: readonly Rename[] = [
   // R1 renames
-  // R2 renames
-  // R3 renames
   {
     from: "createServerKernel",
     to: "createPermDock",
@@ -63,7 +64,6 @@ const rows: readonly Rename[] = [
       "permdock/claude-agent",
       "permdock/eve",
     ],
-    kind: "method",
   },
   {
     from: "permdock",
@@ -75,8 +75,68 @@ const rows: readonly Rename[] = [
       "permdock/trpc",
       "permdock/orpc",
     ],
-    kind: "method",
   },
+  {
+    from: "loadData",
+    to: "data",
+    entries: ["permdock", ...SERVER_ADAPTERS, "permdock/next"],
+    kind: "option",
+  },
+  {
+    from: "load",
+    to: "data",
+    entries: ["permdock", ...SERVER_ADAPTERS, "permdock/next"],
+    kind: "option",
+  },
+  {
+    from: "PermDockRequest",
+    to: "ExpressPermDockRequest",
+    entries: ["permdock/express"],
+    kind: "type",
+  },
+  {
+    from: "PermDockRequest",
+    to: "FastifyPermDockRequest",
+    entries: ["permdock/fastify"],
+    kind: "type",
+  },
+  {
+    from: "PermDockEnv",
+    to: "HonoPermDockEnv",
+    entries: ["permdock/hono"],
+    kind: "type",
+  },
+  {
+    from: "ElysiaCtx",
+    to: "ElysiaPermDockContext",
+    entries: ["permdock/elysia"],
+    kind: "type",
+  },
+  {
+    from: "ConvexPermDockCtx",
+    to: "ConvexPermDockContext",
+    entries: ["permdock/convex"],
+    kind: "type",
+  },
+  {
+    from: "ServerPermDockProviderProps",
+    to: "NextPermDockProviderProps",
+    entries: ["permdock/next"],
+    kind: "type",
+  },
+  {
+    from: "NativePermDockProviderProps",
+    to: "ReactNativePermDockProviderProps",
+    entries: ["permdock/react-native"],
+    kind: "type",
+  },
+  {
+    from: "PermDockSvelteOptions",
+    to: "SveltePermDockOptions",
+    entries: ["permdock/svelte"],
+    kind: "type",
+  },
+  // R2 renames
   {
     from: "subjectFromSession",
     to: "subjectFromEve",
@@ -113,27 +173,27 @@ const rows: readonly Rename[] = [
   },
   { from: "memorySink", to: "memoryDecisionSink", entries: ["permdock"] },
   {
-    from: "memoryApprovalPolicySource",
+    from: "memoryApprovalPolicies",
     to: "memoryApprovalPolicySource",
     entries: ["permdock"],
   },
   {
-    from: "memoryApprovalDelegationSource",
+    from: "memoryApprovalDelegations",
     to: "memoryApprovalDelegationSource",
     entries: ["permdock/approvals"],
   },
   {
-    from: "memoryAccessReviewStore",
+    from: "memoryAccessReviews",
     to: "memoryAccessReviewStore",
     entries: ["permdock/approvals"],
   },
   {
-    from: "memoryCredentialStore",
+    from: "memoryCredentials",
     to: "memoryCredentialStore",
     entries: ["permdock/server"],
   },
   {
-    from: "memorySnapshotStorage",
+    from: "memoryStorage",
     to: "memorySnapshotStorage",
     entries: ["permdock/react-native"],
   },
@@ -195,66 +255,6 @@ const rows: readonly Rename[] = [
     kind: "option",
   },
   { from: "source", to: "call", entries: ["permdock"], kind: "option" },
-  {
-    from: "loadData",
-    to: "data",
-    entries: ["permdock", ...SERVER_ADAPTERS, "permdock/next"],
-    kind: "option",
-  },
-  {
-    from: "load",
-    to: "data",
-    entries: ["permdock", ...SERVER_ADAPTERS, "permdock/next"],
-    kind: "option",
-  },
-  {
-    from: "PermDockRequest",
-    to: "ExpressPermDockRequest",
-    entries: ["permdock/express"],
-    kind: "type",
-  },
-  {
-    from: "PermDockRequest",
-    to: "FastifyPermDockRequest",
-    entries: ["permdock/fastify"],
-    kind: "type",
-  },
-  {
-    from: "PermDockEnv",
-    to: "HonoPermDockEnv",
-    entries: ["permdock/hono"],
-    kind: "type",
-  },
-  {
-    from: "ElysiaCtx",
-    to: "ElysiaPermDockContext",
-    entries: ["permdock/elysia"],
-    kind: "type",
-  },
-  {
-    from: "ConvexPermDockCtx",
-    to: "ConvexPermDockContext",
-    entries: ["permdock/convex"],
-    kind: "type",
-  },
-  {
-    from: "ServerPermDockProviderProps",
-    to: "NextPermDockProviderProps",
-    entries: ["permdock/next"],
-    kind: "type",
-  },
-  {
-    from: "NativePermDockProviderProps",
-    to: "ReactNativePermDockProviderProps",
-    entries: ["permdock/react-native"],
-    kind: "type",
-  },
-  {
-    from: "PermDockSvelteOptions",
-    to: "SveltePermDockOptions",
-    entries: ["permdock/svelte"],
-    kind: "type",
-  },
   { from: "testAuthZen", to: "testAuthzen", entries: ["permdock/testing"] },
   {
     from: "AuthZenVectors",
@@ -282,7 +282,9 @@ const rows: readonly Rename[] = [
 
 /** Every 0.5.0 rename, one row per `from` and target. */
 export const RENAMES_0_5: readonly Rename[] = Object.freeze(
-  rows.map((row) => Object.freeze({ ...row, entries: [...row.entries] })),
+  rows.map((row) =>
+    Object.freeze({ ...row, entries: Object.freeze([...row.entries]) }),
+  ),
 );
 
 /** 0.5.0 changes the codemod lists as manual follow-ups. */
