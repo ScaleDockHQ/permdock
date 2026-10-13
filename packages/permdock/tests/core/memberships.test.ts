@@ -19,7 +19,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
-import { fromStripeEntitlements } from "../../src/core/stripe-entitlements.ts";
+import { stripeEntitlementSource } from "../../src/core/stripe-entitlements.ts";
 import {
   testEntitlementSource,
   testMembershipSource,
@@ -417,7 +417,7 @@ describe("entitlements and seats", () => {
         },
       },
     };
-    const stripeSource = fromStripeEntitlements({
+    const stripeSource = stripeEntitlementSource({
       stripe,
       customer: (tenant) => (tenant === "T" ? "cus_1" : undefined),
     });

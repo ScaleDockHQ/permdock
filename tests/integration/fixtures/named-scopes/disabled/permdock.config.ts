@@ -1,6 +1,6 @@
 import type { SqlQuery, SupabaseSuspension } from "permdock/supabase";
 
-import { fromJunction } from "permdock/supabase";
+import { junctionMembershipSource } from "permdock/supabase";
 
 import { permissions } from "../policy.ts";
 
@@ -39,7 +39,7 @@ export function sources(
   } = {},
 ) {
   return [
-    fromJunction({
+    junctionMembershipSource({
       table: "organization_users",
       scope: "organization",
       id: "organization_id",
@@ -48,7 +48,7 @@ export function sources(
       disabledAt: "disabled_at",
       ...options,
     }),
-    fromJunction({
+    junctionMembershipSource({
       table: "customer_contacts",
       scope: "customer",
       id: "customer_id",

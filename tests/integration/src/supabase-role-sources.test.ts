@@ -39,7 +39,7 @@ insert into public.organization_users values
   ('T', '${NONE}', null, null);
 `;
 
-describe("fromJunction with several role sources", () => {
+describe("junctionMembershipSource with several role sources", () => {
   let db: Postgres | undefined;
 
   beforeAll(async () => {

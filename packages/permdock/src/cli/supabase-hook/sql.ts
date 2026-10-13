@@ -50,7 +50,7 @@ export function hookSql(parts: Parts): string {
     from ${rows.from}
     where ${rows.userSql} = v_roles_user;`;
   const plan = parts.attrs;
-  const fromTable =
+  const tableMembershipSource =
     plan === undefined || plan.columns.length === 0 || plan.table === undefined
       ? ""
       : `
@@ -75,7 +75,7 @@ export function hookSql(parts: Parts): string {
   const attrs =
     plan === undefined
       ? ""
-      : `${fromTable}${fromMeta}
+      : `${tableMembershipSource}${fromMeta}
   if attrs is not null and attrs <> '{}'::jsonb then
     used := octet_length(attrs::text);
     if used > budget then

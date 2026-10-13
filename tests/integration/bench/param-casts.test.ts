@@ -1,4 +1,4 @@
-import { fromTable } from "permdock/supabase";
+import { tableMembershipSource } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "../src/support/postgres.ts";
@@ -36,7 +36,7 @@ function nodes(plan: PlanNode): readonly PlanNode[] {
 
 describe("membership sources compare the user column uncast", () => {
   let db: Postgres | undefined;
-  const source = fromTable({ table: "memberships" });
+  const source = tableMembershipSource({ table: "memberships" });
 
   async function plan(select: string): Promise<readonly PlanNode[]> {
     const client = db!.admin;

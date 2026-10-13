@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createPermDock } from "permdock";
 import {
   type SqlQuery,
-  fromJunction,
+  junctionMembershipSource,
   subjectFromSupabase,
 } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -163,7 +163,7 @@ describe.each([
       {
         tenant: "B",
         memberships: [
-          fromJunction({
+          junctionMembershipSource({
             table: "organization_users",
             scope: "organization",
             id: "organization_id",
@@ -172,7 +172,7 @@ describe.each([
             suspension,
             query,
           }),
-          fromJunction({
+          junctionMembershipSource({
             table: "customer_contacts",
             scope: "customer",
             id: "customer_id",

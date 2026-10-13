@@ -1,4 +1,4 @@
-import { fromJunction } from "permdock/supabase";
+import { junctionMembershipSource } from "permdock/supabase";
 
 import assignments from "../assignments/permdock.config.ts";
 
@@ -9,7 +9,7 @@ export default {
   supabase: {
     hook: {
       memberships: [
-        fromJunction({
+        junctionMembershipSource({
           table: "organization_members",
           scope: "tenant",
           id: "organization_id",

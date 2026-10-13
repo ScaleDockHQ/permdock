@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
-import { fromTable } from "../../src/supabase/index.ts";
+import { tableMembershipSource } from "../../src/supabase/index.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
@@ -205,7 +205,7 @@ describe("rls generate context from the config", () => {
         supabase: {
           hook: {
             roles: false,
-            memberships: [fromTable({ table: "memberships" })],
+            memberships: [tableMembershipSource({ table: "memberships" })],
           },
         },
       },

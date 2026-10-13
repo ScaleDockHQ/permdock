@@ -24,7 +24,7 @@ export type RlsSqlContext = {
   readonly scopes: readonly Scope[];
   readonly memberships?: RlsMemberships;
   /**
-   * `database` mode: the `fromTable` / `fromJunction` sources the helpers read
+   * `database` mode: the `tableMembershipSource` / `junctionMembershipSource` sources the helpers read
    * for a scope `memberships` maps no table for (the same SQL the hook runs).
    */
   readonly sources?: readonly SqlMembershipSource[];

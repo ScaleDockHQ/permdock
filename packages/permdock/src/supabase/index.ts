@@ -24,9 +24,9 @@ export type {
 export {
   AUTHZ_VERSION_TABLE,
   authzVersion,
-  fromJunction,
-  fromSupabasePostgres,
-  fromTable,
+  junctionMembershipSource,
+  supabasePostgresQuery,
+  tableMembershipSource,
   supabaseMembershipsBudget,
   supabaseTenantClaim,
 } from "./sources.ts";

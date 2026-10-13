@@ -205,7 +205,7 @@ export function memberForSources(
 
 /**
  * The membership sources that can hold scope `name` when `memberships` maps
- * no table for it: every `fromTable` source and the `fromJunction` sources of
+ * no table for it: every `tableMembershipSource` source and the `junctionMembershipSource` sources of
  * that scope. Empty outside `database` mode.
  */
 export function scopeSources(

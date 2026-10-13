@@ -36,11 +36,11 @@ function project(rls = ""): string {
   temps.push(cwd);
   writeFileSync(
     join(cwd, "permdock.config.ts"),
-    `import { fromTable } from ${JSON.stringify(SUPABASE)};
+    `import { tableMembershipSource } from ${JSON.stringify(SUPABASE)};
 export default {
   policy: ${JSON.stringify(POLICY)},
   rls: { dialect: 'supabase', authorize: 'database', roles: ${JSON.stringify(THROUGH)}${rls} },
-  supabase: { hook: { memberships: [fromTable({ table: 'memberships' })] } },
+  supabase: { hook: { memberships: [tableMembershipSource({ table: 'memberships' })] } },
 };
 `,
   );

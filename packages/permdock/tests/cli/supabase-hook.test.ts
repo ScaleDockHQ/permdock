@@ -95,12 +95,12 @@ describe("permdock supabase hook generate", () => {
       "at least one",
     );
     const orphan = await generate(
-      `{ memberships: [fromJunction({ table: 'customer_contacts', scope: 'customer', roles: ['contact'] })] }`,
+      `{ memberships: [junctionMembershipSource({ table: 'customer_contacts', scope: 'customer', roles: ['contact'] })] }`,
     );
     expect(orphan.code).toBe(2);
     expect(orphan.output).toContain("within columns for organization");
     const undeclared = await generate(
-      `{ memberships: [fromJunction({ table: 't', scope: 'site', roles: ['x'] })] }`,
+      `{ memberships: [junctionMembershipSource({ table: 't', scope: 'site', roles: ['x'] })] }`,
     );
     expect(undeclared.output).toContain("scope 'site'");
     expect(
@@ -115,8 +115,11 @@ describe("permdock supabase hook generate", () => {
       ).code,
     ).toBe(2);
     expect(
-      (await generate(`{ memberships: [fromTable({ table: 'x; drop' })] }`))
-        .code,
+      (
+        await generate(
+          `{ memberships: [tableMembershipSource({ table: 'x; drop' })] }`,
+        )
+      ).code,
     ).toBe(2);
   });
 
@@ -193,8 +196,8 @@ describe("permdock supabase hook generate", () => {
     const keep = `{ scopes: { organization: { table: 'organizations', id: 'id', disabledAt: 'disabled_at', keep: ['invoice.read'] } } }`;
     const { code, sql, cwd } = await generate(
       `{ memberships: [
-        fromJunction({ table: 'organization_users', scope: 'organization', roles: 'role', suspension: ${keep} }),
-        fromJunction({ table: 'customer_contacts', scope: 'customer', within: { organization: 'organization_id' }, roles: ['contact'] }),
+        junctionMembershipSource({ table: 'organization_users', scope: 'organization', roles: 'role', suspension: ${keep} }),
+        junctionMembershipSource({ table: 'customer_contacts', scope: 'customer', within: { organization: 'organization_id' }, roles: ['contact'] }),
       ] }`,
       [],
       `{ suspension: ${keep} }`,
@@ -283,9 +286,9 @@ describe("permdock supabase hook generate", () => {
     );
   });
 
-  it("quotes a schema-qualified fromJunction table and grants usage on its schema", async () => {
+  it("quotes a schema-qualified junctionMembershipSource table and grants usage on its schema", async () => {
     const { code, sql } = await generate(
-      `{ memberships: [fromJunction({ table: 'billing.memberships', scope: 'organization', id: 'org_id', roles: 'role' })], roles: false }`,
+      `{ memberships: [junctionMembershipSource({ table: 'billing.memberships', scope: 'organization', id: 'org_id', roles: 'role' })], roles: false }`,
     );
     expect(code).toBe(0);
     expect(sql).toContain('from "billing"."memberships"');

@@ -116,13 +116,13 @@ PermDock owns the memberships. Keep them in the app's own tables and describe th
 The entitlements module's `features` claim goes through `supabase.hook.claims`:
 
 ```ts title="permdock.config.ts"
-import { fromJunction } from "permdock/supabase";
+import { junctionMembershipSource } from "permdock/supabase";
 
 export default {
   supabase: {
     hook: {
       memberships: [
-        fromJunction({
+        junctionMembershipSource({
           table: "app.memberships",
           scope: "organization",
           id: "organization_id",

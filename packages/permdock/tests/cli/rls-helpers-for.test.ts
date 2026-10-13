@@ -5,7 +5,7 @@ import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
-import { fromJunction } from "../../src/supabase/index.ts";
+import { junctionMembershipSource } from "../../src/supabase/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 
 const scopes = scopeList(policy.scopes);
@@ -73,7 +73,7 @@ describe("helpers for a named user", () => {
   });
 
   it("reads the membership sources for p_user", () => {
-    const source = fromJunction({
+    const source = junctionMembershipSource({
       table: "customer_contacts",
       scope: "customer",
       within: { organization: "organization_id" },

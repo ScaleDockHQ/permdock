@@ -14,8 +14,8 @@ import {
   snapshotFor,
 } from "../../src/index.ts";
 import {
-  fromJunction,
-  fromTable,
+  junctionMembershipSource,
+  tableMembershipSource,
   subjectFromSupabase,
   subjectFromSupabaseSession,
 } from "../../src/supabase/index.ts";
@@ -152,7 +152,7 @@ describe("supabaseHookManifestFixture", () => {
         permissions: "./policy.ts",
         supabase: {
           hook: {
-            memberships: [fromTable({ table: "memberships" })],
+            memberships: [tableMembershipSource({ table: "memberships" })],
             claims: { features: "public.feature_claims" },
           },
         },
@@ -214,18 +214,18 @@ describe("supabase-manifest-v1.json", () => {
         supabase: {
           hook: {
             memberships: [
-              fromTable({
+              tableMembershipSource({
                 table: "memberships",
                 columns: { via: "via", expiresAt: "expires_at" },
               }),
-              fromJunction({
+              junctionMembershipSource({
                 table: "billing.customer_contacts",
                 scope: "customer",
                 within: { organization: "organization_id" },
                 roles: "role",
                 via: "contact",
               }),
-              fromJunction({
+              junctionMembershipSource({
                 table: "customer_contacts",
                 scope: "customer",
                 within: { organization: "organization_id" },
@@ -277,7 +277,9 @@ describe("supabase-manifest-v1.json", () => {
 
 describe("manifest requires", () => {
   const scopes = defineScopes({ organization: { key: "organization_id" } });
-  const hook = { memberships: [fromTable({ table: "memberships" })] };
+  const hook = {
+    memberships: [tableMembershipSource({ table: "memberships" })],
+  };
   const read = { key: "asset.read" };
 
   it("adds the Realtime and Storage features the configured policies use", () => {

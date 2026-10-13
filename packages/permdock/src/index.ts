@@ -91,7 +91,7 @@ export {
   countHolders,
   isExternallyManaged,
 } from "./core/memberships.ts";
-export { fromStripeEntitlements } from "./core/stripe-entitlements.ts";
+export { stripeEntitlementSource } from "./core/stripe-entitlements.ts";
 export type { StripeEntitlementsClient } from "./core/stripe-entitlements.ts";
 export { memoryLimitStore } from "./core/limits.ts";
 export { memoryRelationSource } from "./core/memory-relations.ts";

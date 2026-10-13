@@ -7,13 +7,19 @@ import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
-import { fromJunction, fromTable } from "../../src/supabase/index.ts";
+import {
+  junctionMembershipSource,
+  tableMembershipSource,
+} from "../../src/supabase/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 
 const scopes = scopeList(policy.scopes);
 const sources = [
-  fromTable({ table: "memberships", columns: { expiresAt: "expires_at" } }),
-  fromJunction({
+  tableMembershipSource({
+    table: "memberships",
+    columns: { expiresAt: "expires_at" },
+  }),
+  junctionMembershipSource({
     table: "customer_contacts",
     scope: "customer",
     within: { organization: "organization_id" },

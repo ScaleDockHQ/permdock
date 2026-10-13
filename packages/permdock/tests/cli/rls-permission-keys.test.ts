@@ -16,7 +16,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
-import { fromTable } from "../../src/supabase/index.ts";
+import { tableMembershipSource } from "../../src/supabase/index.ts";
 
 const permissions = definePermissions(
   {
@@ -179,7 +179,7 @@ describe("permission-key helpers", () => {
       sql({
         ...base,
         authorize: "database",
-        sources: [fromTable({ table: "memberships" })],
+        sources: [tableMembershipSource({ table: "memberships" })],
         customRoles: custom,
       }),
       "(p_id text)",

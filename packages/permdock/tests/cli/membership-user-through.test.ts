@@ -13,7 +13,10 @@ import {
   supabaseHookSql,
 } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
-import { fromJunction, fromTable } from "../../src/supabase/index.ts";
+import {
+  junctionMembershipSource,
+  tableMembershipSource,
+} from "../../src/supabase/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 
 const scopes = scopeList(policy.scopes);
@@ -31,7 +34,7 @@ const suspension = {
   },
 };
 
-const organizationUsers = fromJunction({
+const organizationUsers = junctionMembershipSource({
   table: "organization_users",
   scope: "organization",
   roles: roleKey,
@@ -39,7 +42,7 @@ const organizationUsers = fromJunction({
   suspension,
 });
 
-const customerContacts = fromJunction({
+const customerContacts = junctionMembershipSource({
   table: "customer_contacts",
   scope: "customer",
   id: "customer_id",
@@ -140,7 +143,7 @@ describe("membership sources with a user through a profile table", () => {
           memberships: [
             customerContacts,
             customerContacts,
-            fromTable({ table: "memberships", columns: { user } }),
+            tableMembershipSource({ table: "memberships", columns: { user } }),
           ],
         },
       },
@@ -164,7 +167,7 @@ describe("membership sources with a user through a profile table", () => {
       supabase: {
         hook: {
           memberships: [
-            fromJunction({
+            junctionMembershipSource({
               table: "customer_contacts",
               scope: "customer",
               id: "customer_id",

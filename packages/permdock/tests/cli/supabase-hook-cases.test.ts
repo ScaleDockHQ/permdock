@@ -8,7 +8,10 @@ import {
   runSupabase,
   supabaseHookSql,
 } from "../../src/cli/supabase-hook/supabase-hook.ts";
-import { fromJunction, fromTable } from "../../src/supabase/index.ts";
+import {
+  junctionMembershipSource,
+  tableMembershipSource,
+} from "../../src/supabase/index.ts";
 
 const scopes = [
   { name: "organization", key: "organization_id" },
@@ -61,29 +64,31 @@ describe("activeFromSql", () => {
 describe("supabase.hook.memberships sources", () => {
   it("needs at least one source", () => {
     expect(hookWith([])).toThrow(
-      "supabase.hook.memberships needs at least one fromTable or fromJunction source",
+      "supabase.hook.memberships needs at least one tableMembershipSource or junctionMembershipSource source",
     );
   });
 
-  it("takes only fromTable and fromJunction sources", () => {
+  it("takes only tableMembershipSource and junctionMembershipSource sources", () => {
     // SAFETY: a config written without the permdock/supabase helpers, which the check refuses.
     const plain = { table: "memberships" } as unknown as SqlMembershipSource;
     expect(hookWith([plain])).toThrow(
-      "takes fromTable / fromJunction sources from permdock/supabase",
+      "takes tableMembershipSource / junctionMembershipSource sources from permdock/supabase",
     );
   });
 
   it("needs the declared scope name and every ancestor column", () => {
-    const aliased = fromJunction({
+    const aliased = junctionMembershipSource({
       table: "contacts",
       scope: "team",
       within: { organization: "organization_id" },
       roles: ["contact"],
     });
-    expect(hookWith([fromTable({ table: "memberships" }), aliased])).toThrow(
+    expect(
+      hookWith([tableMembershipSource({ table: "memberships" }), aliased]),
+    ).toThrow(
       "the contacts source names scope 'team', which the policy does not declare by that name",
     );
-    const orphan = fromJunction({
+    const orphan = junctionMembershipSource({
       table: "contacts",
       scope: "customer",
       roles: ["contact"],
@@ -116,7 +121,7 @@ describe("supabase.hook.api", () => {
       policy: "p.ts",
       supabase: {
         hook: {
-          memberships: [fromTable({ table: "memberships" })],
+          memberships: [tableMembershipSource({ table: "memberships" })],
           ...(api === undefined ? {} : { api }),
         },
       },

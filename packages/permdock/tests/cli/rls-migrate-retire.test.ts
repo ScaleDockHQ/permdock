@@ -209,13 +209,13 @@ function project(files: Readonly<Record<string, string>>): string {
   temps.push(cwd);
   writeFileSync(
     join(cwd, "permdock.config.ts"),
-    `import { fromTable } from ${JSON.stringify(SUPABASE)};
+    `import { tableMembershipSource } from ${JSON.stringify(SUPABASE)};
 export default {
   permissions: ${JSON.stringify(POLICY)},
   policy: ${JSON.stringify(POLICY)},
   rls: {
     dialect: 'supabase',
-    membershipSources: [fromTable({ table: 'memberships' })],
+    membershipSources: [tableMembershipSource({ table: 'memberships' })],
     migrate: ${JSON.stringify(MIGRATE)},
   },
 };

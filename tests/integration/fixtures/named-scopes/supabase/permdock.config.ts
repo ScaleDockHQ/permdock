@@ -1,6 +1,6 @@
 import type { SupabaseSuspension } from "permdock/supabase";
 
-import { fromJunction } from "permdock/supabase";
+import { junctionMembershipSource } from "permdock/supabase";
 
 const suspension: SupabaseSuspension = {
   users: { table: "profiles", id: "id", disabledAt: "disabled_at" },
@@ -53,7 +53,7 @@ export default {
   supabase: {
     hook: {
       memberships: [
-        fromJunction({
+        junctionMembershipSource({
           table: "organization_users",
           scope: "organization",
           id: "organization_id",
@@ -61,7 +61,7 @@ export default {
           via: "staff",
           suspension,
         }),
-        fromJunction({
+        junctionMembershipSource({
           table: "customer_contacts",
           scope: "customer",
           id: "customer_id",

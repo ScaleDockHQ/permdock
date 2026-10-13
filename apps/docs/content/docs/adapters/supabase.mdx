@@ -162,7 +162,7 @@ const evaluations = pipeline([withClaims()], permdockHandler());
 | `authMode: 'publishable'`, or `'secret'` with a key `secretKeys` does not name | `null`                        | An API key is not a user. The subject is anonymous                                                         |
 | `authMode: 'secret'` with a key named in `secretKeys`                          | `null` (not read)             | `withPermDock` builds the declared `service` principal; see "Secret keys as service principals" below      |
 
-`ctx.supabase` and `ctx.postgres` (from `withPostgresClient`) are already RLS-scoped, so a PermDock decision in the handler and a generated policy in Postgres are two evaluations of one catalog. `fromSupabasePostgres(ctx.postgres)` turns either Postgres client into the `SqlQuery` that `fromTable`, `fromJunction` and `supabaseApprovalStore` take, so a membership lookup runs on the request's own transaction without another pool. `ctx.supabaseAdmin` and `withPostgresAdminClient` bypass RLS: every use belongs behind an explicit `permdock.assert(...)` in the same handler, and the [`permdock-audit`](/docs/cli/skills) skill flags any that is not. `withPostgresClient` sets `request.jwt.claims` and `set local role` to `authenticated` or `anon` per transaction and refuses any other role in the token, including `service_role`; that is the same preamble `permdock rls verify` runs, so a policy that passes the harness behaves the same under the client ([RLS adapter](/docs/adapters/rls)). For MCP servers behind Supabase Auth as the OAuth 2.1 authorization server, see [`withOAuthProtectedResource` on the MCP page](/docs/adapters/mcp).
+`ctx.supabase` and `ctx.postgres` (from `withPostgresClient`) are already RLS-scoped, so a PermDock decision in the handler and a generated policy in Postgres are two evaluations of one catalog. `supabasePostgresQuery(ctx.postgres)` turns either Postgres client into the `SqlQuery` that `tableMembershipSource`, `junctionMembershipSource` and `supabaseApprovalStore` take, so a membership lookup runs on the request's own transaction without another pool. `ctx.supabaseAdmin` and `withPostgresAdminClient` bypass RLS: every use belongs behind an explicit `permdock.assert(...)` in the same handler, and the [`permdock-audit`](/docs/cli/skills) skill flags any that is not. `withPostgresClient` sets `request.jwt.claims` and `set local role` to `authenticated` or `anon` per transaction and refuses any other role in the token, including `service_role`; that is the same preamble `permdock rls verify` runs, so a policy that passes the harness behaves the same under the client ([RLS adapter](/docs/adapters/rls)). For MCP servers behind Supabase Auth as the OAuth 2.1 authorization server, see [`withOAuthProtectedResource` on the MCP page](/docs/adapters/mcp).
 
 ### Secret keys as service principals
 
@@ -460,7 +460,7 @@ Claims travel in the session cookie and on every request. Keep the hook's `membe
 
 ### The Custom Access Token Hook
 
-The hook runs before Supabase Auth issues a token and may add or remove claims ([Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)). It is how `user_role` and `memberships` get into the JWT so that both the RLS helpers in `jwt` mode and `subjectFromSupabase` in the app read the same claims from the same place. `permdock supabase hook generate` writes it from the app's `fromTable` / `fromJunction` sources, with the grants `supabase_auth_admin` needs; the [Supabase token hook](/docs/adapters/supabase-hook) page shows the SQL and the claims. The hook is enabled in the dashboard under Authentication, then Hooks, or in `config.toml` for local development.
+The hook runs before Supabase Auth issues a token and may add or remove claims ([Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook)). It is how `user_role` and `memberships` get into the JWT so that both the RLS helpers in `jwt` mode and `subjectFromSupabase` in the app read the same claims from the same place. `permdock supabase hook generate` writes it from the app's `tableMembershipSource` / `junctionMembershipSource` sources, with the grants `supabase_auth_admin` needs; the [Supabase token hook](/docs/adapters/supabase-hook) page shows the SQL and the claims. The hook is enabled in the dashboard under Authentication, then Hooks, or in `config.toml` for local development.
 
 HTTP form: an endpoint (typically an Edge Function) that receives a JSON body with `user_id`, `claims` and `authentication_method`, signed with a standard-webhooks secret (`v1,whsec_...`) that the function must verify before trusting the body, and returns a JSON object with the modified `claims`. Use it when roles live outside Postgres (an external HR system, a billing provider). The SQL hook is what `permdock supabase hook generate` emits; an HTTP hook is yours to host.
 
@@ -482,13 +482,13 @@ In `jwt` mode the policy and PermDock read one claim written by one function. Ke
 A membership source may name a schema-qualified table. The hook and the in-process source quote `"app"."memberships"`, and the hook grants `supabase_auth_admin` usage on the schema and `select` on the table:
 
 ```ts title="permdock.config.ts"
-import { fromJunction } from "permdock/supabase";
+import { junctionMembershipSource } from "permdock/supabase";
 
 export default {
   supabase: {
     hook: {
       memberships: [
-        fromJunction({
+        junctionMembershipSource({
           table: "app.memberships",
           scope: "organization",
           id: "organization_id",

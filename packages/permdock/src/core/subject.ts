@@ -51,7 +51,7 @@ export type Membership = {
   readonly grantedBy?: string;
   /** Free text recording why the membership was written: the activation or consent justification. */
   readonly reason?: string;
-  /** A subgroup the holder belongs to inside the instance (`vendor-support`); a `fromJunction` group column fills it. */
+  /** A subgroup the holder belongs to inside the instance (`vendor-support`); a `junctionMembershipSource` group column fills it. */
   readonly member?: { readonly group: string };
   /** `idp`: the identity provider (SCIM) owns this membership; the application must not edit it. */
   readonly managedBy?: "idp";

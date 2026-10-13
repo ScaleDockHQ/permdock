@@ -7,14 +7,17 @@ import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { compileConditionSql } from "../../src/cli/sql/conditions.ts";
 import { scopeList } from "../../src/core/scopes.ts";
-import { fromJunction, fromTable } from "../../src/supabase/index.ts";
+import {
+  junctionMembershipSource,
+  tableMembershipSource,
+} from "../../src/supabase/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 
 const apiKeys = apiKeysPlan(true, new Set(), {});
 const named = `nullif(((select auth.jwt()) -> 'api_key') ->> 'tenant', '')`;
 const sources = [
-  fromTable({ table: "memberships" }),
-  fromJunction({
+  tableMembershipSource({ table: "memberships" }),
+  junctionMembershipSource({
     table: "customer_contacts",
     scope: "customer",
     within: { organization: "organization_id" },

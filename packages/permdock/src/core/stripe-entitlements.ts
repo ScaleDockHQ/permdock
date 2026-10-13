@@ -28,7 +28,7 @@ const MAX_PAGES = 10;
  * tenant to its customer id; no tenant or no customer means no entitlements.
  * Pass it as `entitlements`, and grant with `plan('<lookup_key>')`.
  */
-export function fromStripeEntitlements(options: {
+export function stripeEntitlementSource(options: {
   readonly stripe: StripeEntitlementsClient;
   readonly customer: (
     tenant: string,

@@ -16,7 +16,10 @@ import {
   supabaseHookSql,
 } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
-import { fromJunction, fromTable } from "../../src/supabase/index.ts";
+import {
+  junctionMembershipSource,
+  tableMembershipSource,
+} from "../../src/supabase/index.ts";
 import { roleColumn } from "../../src/supabase/roles.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 
@@ -27,7 +30,7 @@ const sources = ["tier", through] as const;
 const lateral =
   'cross join lateral (select "mv".role from (values (m."tier"::text), ((select mk."key"::text from "public"."roles" mk where mk."id" = m."role_id"))) "mv"(role) where "mv".role is not null) "mr"(permdock_role)';
 
-const organizationUsers = fromJunction({
+const organizationUsers = junctionMembershipSource({
   table: "organization_users",
   scope: "organization",
   roles: { sources },
@@ -88,7 +91,7 @@ describe("role sources", () => {
         through: { table: "public.roles", id: "id", column: "key" },
       },
     ]);
-    const shared = fromTable({
+    const shared = tableMembershipSource({
       table: "memberships",
       columns: { role: sources },
     });

@@ -1,6 +1,6 @@
 import type { SupabaseSuspension } from "permdock/supabase";
 
-import { fromJunction } from "permdock/supabase";
+import { junctionMembershipSource } from "permdock/supabase";
 
 import { permissions } from "../policy.ts";
 
@@ -47,7 +47,7 @@ export const memberships = {
 };
 
 export const sources = [
-  fromJunction({
+  junctionMembershipSource({
     table: "organization_users",
     scope: "organization",
     id: "organization_id",
@@ -55,7 +55,7 @@ export const sources = [
     via: "staff",
     suspension,
   }),
-  fromJunction({
+  junctionMembershipSource({
     table: "customer_contacts",
     scope: "customer",
     id: "customer_id",

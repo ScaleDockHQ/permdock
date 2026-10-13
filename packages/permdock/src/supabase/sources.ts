@@ -617,11 +617,11 @@ export type SupabasePostgres = {
 
 /**
  * `ctx.postgres` (from `withPostgresClient`) or `ctx.postgresAdmin` as a
- * `SqlQuery` for `fromTable`, `fromJunction` and `supabaseApprovalStore`.
+ * `SqlQuery` for `tableMembershipSource`, `junctionMembershipSource` and `supabaseApprovalStore`.
  * `ctx.postgres` runs as the caller under RLS, so the membership tables must
  * be readable by `authenticated`; `ctx.postgresAdmin` bypasses RLS.
  */
-export function fromSupabasePostgres(postgres: SupabasePostgres): SqlQuery {
+export function supabasePostgresQuery(postgres: SupabasePostgres): SqlQuery {
   return (text, values) => postgres.queryRaw(text, [...values]);
 }
 
@@ -631,7 +631,7 @@ export function fromSupabasePostgres(postgres: SupabasePostgres): SqlQuery {
  * `within`, `via`, expiry, owner and seat columns. Rows of the same instance
  * merge into one membership.
  */
-export function fromTable(
+export function tableMembershipSource(
   options: MembershipTableOptions,
 ): SqlMembershipSource {
   const c = options.columns ?? {};
@@ -643,12 +643,12 @@ export function fromTable(
   const user = memberUser(
     c.user ?? "user_id",
     options.table,
-    "fromTable columns.user",
+    "tableMembershipSource columns.user",
   );
   const role = memberRole(
     c.role ?? "role",
     options.table,
-    "fromTable columns.role",
+    "tableMembershipSource columns.role",
   );
   const shape: Shape = {
     table: options.table,
@@ -727,7 +727,7 @@ export function fromTable(
  * membership of `scope`, with roles from a column or fixed (`['contact']`), a
  * fixed `via`, and ancestor ids from `within` columns.
  */
-export function fromJunction(
+export function junctionMembershipSource(
   options: MembershipJunctionOptions,
 ): SqlMembershipSource {
   if (!/^[a-z][a-z0-9_]*$/u.test(options.scope)) {
@@ -738,19 +738,21 @@ export function fromJunction(
   const roles = options.roles;
   const fixed = isFixed(roles) ? roles : undefined;
   if (fixed?.length === 0) {
-    throw new TypeError("PermDock: fromJunction needs at least one role");
+    throw new TypeError(
+      "PermDock: junctionMembershipSource needs at least one role",
+    );
   }
   const role = isFixed(roles)
     ? undefined
     : memberRole(
         typeof roles === "object" && "sources" in roles ? roles.sources : roles,
         options.table,
-        "fromJunction roles",
+        "junctionMembershipSource roles",
       );
   const user = memberUser(
     options.user ?? "user_id",
     options.table,
-    "fromJunction user",
+    "junctionMembershipSource user",
   );
   const managedColumn =
     options.managedBy === undefined

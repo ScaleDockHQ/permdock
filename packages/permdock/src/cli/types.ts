@@ -96,7 +96,7 @@ export type RlsConfig = {
   readonly dialect?: RlsDialect;
   readonly memberships?: RlsMemberships;
   /**
-   * `database` mode: the `fromTable` / `fromJunction` sources the helpers
+   * `database` mode: the `tableMembershipSource` / `junctionMembershipSource` sources the helpers
    * read for every scope `memberships` maps no table for. Default
    * `supabase.hook.memberships`, so the helpers and the token hook run the
    * same SQL. Setting it selects `database` mode.
@@ -528,7 +528,7 @@ export type RlsStorage = {
 
 /** `permdock supabase hook generate` input. */
 export type SupabaseHookConfig = {
-  /** The same `fromTable` / `fromJunction` sources the app passes as `memberships`. */
+  /** The same `tableMembershipSource` / `junctionMembershipSource` sources the app passes as `memberships`. */
   readonly memberships: readonly SqlMembershipSource[];
   /** Schema of the hook and the version table. Default `rls.schema`, else `permdock`. */
   readonly schema?: string;

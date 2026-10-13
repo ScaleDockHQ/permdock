@@ -33,6 +33,10 @@ Breaking: `subjectFrom*` resolvers take the input first and options second and r
 | `PermDockStorage`             | `SnapshotStorage`                   |
 | `rlsParity`                   | `testRlsParity`                     |
 | `ormParity`                   | `testOrmParity`                     |
+| `fromStripeEntitlements`      | `stripeEntitlementSource`           |
+| `fromTable`                   | `tableMembershipSource`             |
+| `fromJunction`                | `junctionMembershipSource`          |
+| `fromSupabasePostgres`        | `supabasePostgresQuery`             |
 
 | Before                                                   | After                                                                                         |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |

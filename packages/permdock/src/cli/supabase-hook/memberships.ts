@@ -49,7 +49,7 @@ export function memberForPlan(input: MemberForInput): {
   return { memberFor, holders, memberships: [...entries.values()] };
 }
 
-/** An `rls.memberships` table in the manifest's `fromTable` / `fromJunction` shape, for scope `name`. */
+/** An `rls.memberships` table in the manifest's `tableMembershipSource` / `junctionMembershipSource` shape, for scope `name`. */
 function mappedMembership(
   mapped: RlsMembershipTable,
   scopes: readonly Scope[],
@@ -179,13 +179,13 @@ export function checkSources(parts: {
 }): void {
   if (parts.sources.length === 0) {
     throw new Error(
-      "PermDock CLI: supabase.hook.memberships needs at least one fromTable or fromJunction source",
+      "PermDock CLI: supabase.hook.memberships needs at least one tableMembershipSource or junctionMembershipSource source",
     );
   }
   for (const source of parts.sources) {
     if (source.sql === undefined || typeof source.sql.select !== "function") {
       throw new Error(
-        "PermDock CLI: supabase.hook.memberships takes fromTable / fromJunction sources from permdock/supabase",
+        "PermDock CLI: supabase.hook.memberships takes tableMembershipSource / junctionMembershipSource sources from permdock/supabase",
       );
     }
     const scope = source.sql.scope;

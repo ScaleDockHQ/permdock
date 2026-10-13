@@ -1,4 +1,7 @@
-import { fromJunction, fromTable } from "permdock/supabase";
+import {
+  junctionMembershipSource,
+  tableMembershipSource,
+} from "permdock/supabase";
 
 /** The ownership fixture with its organization memberships in two sources: a table of every scope and a junction with a fixed role. */
 export default {
@@ -9,8 +12,11 @@ export default {
     tenantType: "text",
     authorize: "database",
     membershipSources: [
-      fromTable({ table: "memberships", columns: { expiresAt: "expires_at" } }),
-      fromJunction({
+      tableMembershipSource({
+        table: "memberships",
+        columns: { expiresAt: "expires_at" },
+      }),
+      junctionMembershipSource({
         table: "org_approvers",
         scope: "org",
         id: "org_id",
