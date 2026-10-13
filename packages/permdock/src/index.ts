@@ -174,7 +174,6 @@ export { wrapPermDock } from "./core/wrap.ts";
 export type { PermDockOverrides, PermDockWrap } from "./core/wrap.ts";
 export type { RequestContext } from "./core/request-context.ts";
 export { mayAccess } from "./core/may-access.ts";
-export { mayUse, permittedIds } from "./core/may-use.ts";
 export type { PermittedIdsOptions } from "./core/may-use.ts";
 export {
   customRoleClaim,
@@ -429,7 +428,6 @@ export type {
 export {
   credentialDelegation,
   credentialPolicyViolation,
-  decideCredential,
   isFeedId,
   parseCredential,
 } from "./core/credential.ts";

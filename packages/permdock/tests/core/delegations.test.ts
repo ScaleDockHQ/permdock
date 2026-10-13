@@ -15,7 +15,6 @@ import {
   delegatedPermissions,
   deny,
   fromSnapshot,
-  mayUse,
   relation,
   resource,
   role,
@@ -360,8 +359,8 @@ describe("read-only actors", () => {
     expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
       "not-delegated",
     );
-    expect(mayUse(permdock, permissions.post.read)).toBe(true);
-    expect(mayUse(permdock, permissions.post.update)).toBe(false);
+    expect(permdock.mayUse(permissions.post.read)).toBe(true);
+    expect(permdock.mayUse(permissions.post.update)).toBe(false);
   });
 
   it("follows meta.readOnly over the action name", async () => {
