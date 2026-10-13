@@ -461,7 +461,7 @@ describe("PROBLEM_EXAMPLES", () => {
         {
           outcome: "approval-required",
           grant: { role: "member", permission: remove.key, approval: "human" },
-          reason: "deletes are reviewed",
+          reason: "human",
           token: "pd1.eyJhbGciOiJFZERTQSJ9",
         },
         remove,
