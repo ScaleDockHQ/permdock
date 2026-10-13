@@ -351,6 +351,15 @@ export function fromSnapshot(
         }),
       );
     },
+    decideSupportSession() {
+      // Starting a support session is a server decision: a snapshot carries no tenant settings.
+      return Promise.resolve(
+        freezeDeep({
+          outcome: "denied" as const,
+          denials: [{ role: null, reason: "unsupported" as const }],
+        }),
+      );
+    },
     mayUse(permission) {
       return mayUse(instance, permission);
     },

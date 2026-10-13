@@ -84,6 +84,14 @@ export type {
   DecideAutomationOptions,
   MemoryAutomationSource,
 } from "./core/automation.ts";
+export { parseSupportSession } from "./core/support-session.ts";
+export type {
+  DecideSupportSessionOptions,
+  SupportSession,
+  SupportSessionDecision,
+  SupportSessionPolicy,
+  SupportSessionRequest,
+} from "./core/support-session.ts";
 export {
   APPROVAL_POLICY_UNAVAILABLE,
   memoryApprovalPolicySource,

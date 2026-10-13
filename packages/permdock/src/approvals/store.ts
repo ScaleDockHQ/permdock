@@ -214,6 +214,12 @@ function assertSeparateApprover(
       "a link, a feed or a contact cannot approve",
     );
   }
+  if (by.actor?.kind === "support") {
+    throw new ApprovalError(
+      "approver-not-eligible",
+      "a support session cannot approve",
+    );
+  }
   if (
     request.subject.actor !== undefined &&
     principal.id === request.subject.actor.id

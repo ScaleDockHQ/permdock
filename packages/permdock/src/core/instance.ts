@@ -58,6 +58,7 @@ import {
 import { collectSnapshotGrants, whereGrant } from "./snapshot-grants.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { snapshotGrant } from "./snapshot.ts";
+import { decideSupportSession } from "./support-session.ts";
 import {
   nowSeconds,
   relatesTo,
@@ -621,6 +622,15 @@ export function buildInstance(
     decideAutomation(request, options) {
       return Promise.resolve().then(() =>
         decideAutomation(instance, request, options),
+      );
+    },
+    decideSupportSession(request, options) {
+      return decideSupportSession(
+        instance,
+        request,
+        envBase.settings === undefined
+          ? options
+          : { settings: envBase.settings, ...options },
       );
     },
     mayUse(permission) {

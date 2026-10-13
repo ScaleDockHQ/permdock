@@ -44,6 +44,11 @@ import type {
   Principal,
   Subject,
 } from "./subject.ts";
+import type {
+  DecideSupportSessionOptions,
+  SupportSessionDecision,
+  SupportSessionRequest,
+} from "./support-session.ts";
 import type { Instant } from "./time.ts";
 import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
@@ -364,6 +369,17 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     request: AutomationRequest,
     options?: DecideAutomationOptions,
   ) => Promise<AutomationDecision>;
+  /**
+   * Decides whether the subject may start the support session in `request`
+   * and returns the record to sign: a stated reason, membership of the
+   * tenant, the actor's own reach, the tenant's `supportSessions` policy and
+   * approval by someone else. An instance built from a snapshot denies with
+   * `unsupported`.
+   */
+  readonly decideSupportSession: (
+    request: SupportSessionRequest,
+    options?: DecideSupportSessionOptions,
+  ) => Promise<SupportSessionDecision>;
   /**
    * Whether `permission` could be granted to the subject for some row, within
    * its delegation. A listing hint for tools and skills, never a decision.

@@ -54,6 +54,16 @@ export type {
   SignRunTicketOptions,
 } from "./run-ticket.ts";
 export {
+  signSupportSession,
+  subjectFromSupportSession,
+} from "./support-session.ts";
+export type {
+  SupportSessionContext,
+  SupportSessionFailureCause,
+  SupportSessionSource,
+  SupportSessionSubjectOptions,
+} from "./support-session.ts";
+export {
   cacheLifeFor,
   snapshotHeaders,
   snapshotTag,

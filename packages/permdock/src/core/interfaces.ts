@@ -11,6 +11,7 @@ import type {
   Principal,
   Subject,
 } from "./subject.ts";
+import type { SupportSessionPolicy } from "./support-session.ts";
 import type { Instant } from "./time.ts";
 
 export type DecisionProvider = {
@@ -328,6 +329,8 @@ export type CredentialVerifier = {
 export type TenantSettings = {
   /** Rules for API keys created in, or used against, this tenant. */
   readonly credentials?: CredentialPolicy;
+  /** Rules for support sessions started in this tenant. */
+  readonly supportSessions?: SupportSessionPolicy;
 };
 
 /**
