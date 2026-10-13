@@ -215,6 +215,10 @@
       "types": "./dist/resend/index.d.ts",
       "default": "./dist/resend/index.js"
     },
+    "./chat": {
+      "types": "./dist/chat/index.d.ts",
+      "default": "./dist/chat/index.js"
+    },
     "./prisma": {
       "types": "./dist/prisma/index.d.ts",
       "default": "./dist/prisma/index.js"

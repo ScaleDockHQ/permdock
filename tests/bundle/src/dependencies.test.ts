@@ -30,7 +30,7 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
   });
 
   it("keeps the delivery and chat feature entries free of every vendor package", () => {
-    for (const entry of ["./delivery"] as const) {
+    for (const entry of ["./delivery", "./chat"] as const) {
       expect(packageImports(walk(ENTRIES[entry]))).toEqual([]);
     }
   });

@@ -525,6 +525,7 @@
     "resendTransport",
     "resendWebhook"
   ],
+  "./chat": ["createPermDock", "isChatAuthor", "subjectFromChat"],
   "./drizzle": ["checkRow", "toWhere", "withSubject"],
   "./prisma": [
     "checkRow",
