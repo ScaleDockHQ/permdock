@@ -13,7 +13,7 @@ The RFCs leave authentication out of scope. Every IdP supports a static bearer p
 - **It is the write side of memberships.** [Tenancy](/docs/concepts/tenancy) reads memberships through a `MembershipSource`. [`permdock/scim`](/docs/adapters/scim) writes exactly what an authenticated IdP sent into a `DirectoryStore` the application owns, and `directoryMembershipSource` reads it back. Deprovisioning (`active: false` or `DELETE`) removes every membership on the next request without waiting for a token to expire.
 - **It fixes the identifier rule at the source.** Team ids are the SCIM group `id` / `value`, never the display name, so the token-side `groups` claim ([JWT authorization claims](/docs/standards/jwt-authorization-claims)) and a synced group refer to the same team.
 
-The implemented protocol subset, the `urn:permdock:scim:schemas:extension:roles:1.0` group extension, the credential kinds, IdP dialect normalisation and the wire checklist are on the [SCIM adapter](/docs/adapters/scim) page.
+The implemented protocol subset (with `ETag` versioning and `If-Match` preconditions), the `urn:ietf:params:scim:schemas:extension:permdock:2.0:Group` group extension, the credential kinds, IdP dialect normalisation and the wire checklist are on the [SCIM adapter](/docs/adapters/scim) page.
 
 ## Related
 
