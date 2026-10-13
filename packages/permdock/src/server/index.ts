@@ -37,6 +37,25 @@ export type {
   StoredCredential,
 } from "./credentials.ts";
 export {
+  parseRunTicket,
+  signRunTicket,
+  subjectFromRunTicket,
+} from "./run-ticket.ts";
+export type {
+  RunActClaim,
+  RunAutomation,
+  RunBinding,
+  RunContext,
+  RunKind,
+  RunPrincipal,
+  RunTicket,
+  RunTicketAutomations,
+  RunTicketFailureCause,
+  RunTicketInput,
+  RunTicketSubjectOptions,
+  SignRunTicketOptions,
+} from "./run-ticket.ts";
+export {
   cacheLifeFor,
   snapshotHeaders,
   snapshotTag,

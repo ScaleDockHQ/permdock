@@ -139,6 +139,8 @@ The result is `{ principal: { id, kind: 'link', issuer, memberships: [{ on, role
 
 `CapabilityFailureCause` is `TokenFailureCause` plus the four capability causes; a `TokenVerifier` never returns them.
 
+`RunTicketFailureCause` is `TokenFailureCause` plus `automation-unavailable`, `automation-changed` and `owner-unavailable`, emitted by `subjectFromRunTicket` in `permdock/server` with `source: 'run-ticket'` ([run tickets](/docs/adapters/server-kernel#run-tickets)).
+
 ## Behaviour on invalid tokens
 
 Every failure produces the same outcome: the anonymous subject (`principal: null`, no actor, no delegation) and one `on('auth')` audit event with `reason: 'invalid-token'` (the RFC 6750 error name, hyphenated) and a `cause` naming what failed. `can` on the resulting `PermDock` returns `false`; `decide` returns `denied` with reason `anonymous`. Nothing throws.

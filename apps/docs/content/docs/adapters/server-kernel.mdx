@@ -137,6 +137,63 @@ Three consequences:
 - API keys resolve through `subjectFromApiKey(options)`, exported here next to its helpers (`apiKeyVerifier`, `memoryCredentials`, `generateApiKey`, `hashApiKey`, `parseApiKey`). It is itself a `SubjectResolver`, so a resolver that reads a `pdk_` bearer calls it and returns the subject; a service key's membership comes from the credential, so skip the `memberships` source for it ([API keys](/docs/concepts/credentials)).
 - `binding` is pass-through. The kernel records the `cnf` object (`jkt` or `x5t#S256`) but does not check proof-of-possession; that is done by the resolver (`verifyDpopProof` in `permdock/jwt`) or by the TLS terminator for mTLS. An adapter that can forward the client certificate thumbprint passes it to the resolver as the second argument.
 
+### Run tickets
+
+A run ticket is a signed `vnd.permdock.run+jwt` that lets background work act for a principal inside a ceiling: a saved automation, a queued job, or a caller's request handed to a worker. `signRunTicket(input, signer, options?)` signs one; `subjectFromRunTicket(token, options)` turns it back into a `Subject`; `parseRunTicket(claims)` validates claims and returns a frozen `RunTicket` or `undefined`.
+
+```ts
+import { signRunTicket, subjectFromRunTicket } from "permdock/server";
+
+const token = await signRunTicket(
+  {
+    principal: user.id,
+    kind: "automation",
+    actor: { id: automation.id, kind: "automation" },
+    delegation: { scopes: [permissions.invoice.read.scope] },
+    automation: { id: automation.id, version: automation.version },
+    tenant: "org_1",
+    trigger: { type: "invoice.created", invoice: "inv_1" },
+    expiresIn: 300,
+  },
+  signer,
+);
+
+const subject = await subjectFromRunTicket(token, {
+  verifier,
+  principals,
+  automations: { automation: (id, { tenant }) => db.automation(id, tenant) },
+  issuer: "https://app.example.com",
+  audience: "https://app.example.com",
+});
+```
+
+| Claim                   | Meaning                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| `v`                     | `1`                                                                                                     |
+| `sub`                   | The principal the run acts for                                                                          |
+| `act`                   | RFC 8693 `{ sub, kind?, act? }`: the party running the work and the chain before it                     |
+| `scope`                 | OAuth scopes, space-separated                                                                           |
+| `authorization_details` | RFC 9396 entries; at least one of `scope` and `authorization_details` is present                        |
+| `kind`                  | `automation`, `job` or `caller`                                                                         |
+| `automation`            | `{ id, version }`, present exactly when `kind` is `automation`                                          |
+| `tenant`                | The tenant the principal is loaded in                                                                   |
+| `trigger`               | The event that started the run, as a JSON object; never a grant                                         |
+| `binding`               | `{ connector?, tools? }` the run may reach, for the adapter                                             |
+| `iss`, `aud`, `jti`     | Set by the `TokenSigner`; `jti` is `input.id` or a fresh UUID                                           |
+| `iat`, `exp`            | `exp` is `iat` plus `expiresIn` seconds, or the `expiresAt` instant; exactly one of the two is required |
+
+`subjectFromRunTicket` never throws. It verifies with `typ: vnd.permdock.run+jwt`, re-reads the automation from `automations` and the principal from `principals.principal(sub, { tenant })`, and returns `{ principal, actor, delegation, context: { trigger, run }, expiresAt }`. `principal.runTicket` is the verified ticket; `context.run` is `{ id: jti, kind, automation?, binding? }`. Without `act` there is no actor, and the actor kind defaults to the ticket `kind`. Every failure is the anonymous subject with one `on('auth')` event, `source: 'run-ticket'`:
+
+| Cause                    | When                                                                                          |
+| ------------------------ | --------------------------------------------------------------------------------------------- |
+| `automation-unavailable` | The automation is missing, revoked, another id, or `automations` threw or is not configured   |
+| `automation-changed`     | The automation's live `version` differs from the ticket's                                     |
+| `owner-unavailable`      | `principals.principal` returned nothing, another id, or threw                                 |
+| A `TokenFailureCause`    | Verification failed (`invalid-signature`, `expired`, `wrong-audience`, `wrong-token-type`, …) |
+| `invalid-claims`         | The claims are not a valid v1 ticket                                                          |
+
+**Why a run ticket carries a ceiling and re-reads the owner.** Work that runs later must not outlive the authority it started with or grow past it. The required delegation caps the run at what the ticket names, and the principal's live roles cap it at what the owner still holds, so a demoted or deleted owner stops the run. The automation version check stops a ticket signed for one revision of an automation from running a later, edited one.
+
 ### Snapshot loaders
 
 `getSnapshot(request)` returns the snapshot a client provider (`permdock/react`, `permdock/vue`, `permdock/svelte`, `permdock/solid`) takes. Send it with `snapshotHeaders(snapshot)` when the framework lets a loader set headers. The private `Cache-Control` keeps a shared cache from storing it, and its `max-age` never reaches past `expiresAt`. Call `invalidate()` or `refresh()` on the client after a role change.
