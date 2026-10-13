@@ -18,7 +18,11 @@ function schemaFile(name: string): Readonly<Record<string, unknown>> {
   );
 }
 
-const ajv = new Ajv2020({ strict: true, allErrors: true });
+const ajv = new Ajv2020({
+  strict: true,
+  allErrors: true,
+  formats: { "date-time": true },
+});
 const isRequest = ajv.compile(APPROVAL_REQUEST_SCHEMA);
 const seen: unknown[] = [];
 
@@ -50,6 +54,7 @@ const validated: ApprovalStore = {
 
 const REQUEST: ApprovalRequest = {
   v: 1,
+  id: "apr_1",
   token: "t1",
   permission: "invoice.void",
   scope: "invoice:void",

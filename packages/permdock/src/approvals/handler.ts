@@ -18,6 +18,7 @@ import { matchDelegation } from "./delegation.ts";
 import { ApprovalError, isApprovalError } from "./errors.ts";
 import { heldPermissions } from "./permissions.ts";
 import { approverRelations } from "./relations.ts";
+import { signApproval } from "./signature.ts";
 import { assertApprover } from "./store.ts";
 
 export type ApprovalsHandlerOptions = {
@@ -319,35 +320,6 @@ function inboxScope(
   return { ok: true, tenants: membershipTenants(subject), tenantless: true };
 }
 
-function signedApproval(
-  request: ApprovalRequest,
-  signer: TokenSigner | undefined,
-  audience: string | readonly string[] | undefined,
-): Promise<string | undefined> {
-  if (signer === undefined || request.status !== "approved") {
-    return Promise.resolve(undefined);
-  }
-  const payload: Record<string, unknown> = {
-    approval: {
-      token: request.token,
-      permission: request.permission,
-      resource: request.resource,
-      status: request.status,
-    },
-  };
-  if (request.subject.principal !== null) {
-    payload["sub"] = request.subject.principal.id;
-  }
-  return signer.sign(
-    payload,
-    compact<Parameters<TokenSigner["sign"]>[1]>({
-      typ: "permdock-approval+jwt",
-      audience,
-      expiresAt: Math.floor(Date.parse(request.expiresAt) / 1000),
-    }),
-  );
-}
-
 type NoteRead = { readonly note?: string; readonly refusal?: Response };
 
 const MAX_BODY_BYTES = 16 * 1024;
@@ -535,7 +507,7 @@ export function approvalsHandler(
               : undefined,
         }),
       );
-      const signed = await signedApproval(
+      const signed = await signApproval(
         resolved,
         options.signer,
         options.audience,

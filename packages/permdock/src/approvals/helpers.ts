@@ -1,13 +1,14 @@
 import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { ApprovalRequirement } from "../core/policy-types.ts";
-import type { Membership, Subject } from "../core/subject.ts";
+import type { Delegation, Membership, Subject } from "../core/subject.ts";
 import type { ApprovalsHandlerOptions } from "./handler.ts";
 
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { parseDuration } from "../core/duration.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { toWireDelegation } from "../core/wire-delegation.ts";
 import { ApprovalError } from "./errors.ts";
 import { listAllApprovals } from "./page.ts";
 import { heldPermissions } from "./permissions.ts";
@@ -64,13 +65,14 @@ export function summariseSubject(subject: Subject): ApprovalRequest["subject"] {
         ? undefined
         : { id: subject.actor.id, kind: subject.actor.kind },
     session: subject.session,
-    delegation:
+    delegation: toWireDelegation(
       subject.delegation === undefined
         ? undefined
-        : compact<NonNullable<ApprovalRequest["subject"]["delegation"]>>({
+        : compact<Delegation>({
             scopes: subject.delegation.scopes,
             authorizationDetails: subject.delegation.authorizationDetails,
           }),
+    ),
   });
 }
 
@@ -138,6 +140,7 @@ export async function requestApproval(
   const request = freezeDeep(
     compact<ApprovalRequest>({
       v: 1,
+      id: globalThis.crypto.randomUUID(),
       token: decision.token,
       permission: leaf.key,
       scope: leaf.scope,

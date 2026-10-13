@@ -219,6 +219,7 @@ export function accessReviewsHandler(
         held = approverPermissions(
           {
             v: 1,
+            id: review.id,
             token: review.id,
             permission: review.permissions[0] ?? "",
             scope: "",

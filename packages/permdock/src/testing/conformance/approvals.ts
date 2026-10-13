@@ -13,6 +13,7 @@ import { approvalPoliciesFor } from "../../core/approval-policies.ts";
 function sampleApproval(token: string): ApprovalRequest {
   return {
     v: 1,
+    id: `apr_${token}`,
     token,
     permission: "post.delete",
     scope: "post:delete",

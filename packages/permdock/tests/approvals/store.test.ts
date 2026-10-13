@@ -40,6 +40,7 @@ function subject(id: string, tenant?: string): Subject {
 function pending(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
   return {
     v: 1,
+    id: "apr_1",
     token: "pd1.token-1",
     permission: "post.delete",
     scope: "post:delete",
@@ -220,7 +221,7 @@ describe("request and resume helpers", () => {
         },
       },
     );
-    expect(recorded.subject.delegation?.scopes).toEqual(["post:delete"]);
+    expect(recorded.subject.delegation?.scope).toBe("post:delete");
     expect(recorded.detail).toBe("post.delete requires human approval.");
     expect(() =>
       store.resolve("pd1.del", {
@@ -461,9 +462,10 @@ describe("approvalsHandler", () => {
   it("approves, rejects, and signs the approved token", async () => {
     const signer: TokenSigner = {
       async sign(payload, options) {
-        expect(options.typ).toBe("permdock-approval+jwt");
-        expect(payload["approval"]).toEqual(
-          expect.objectContaining({ token: "pd1.token-1", status: "approved" }),
+        expect(options.typ).toBe("vnd.permdock.approval+jwt");
+        expect(options.jti).toBe("apr_1");
+        expect(payload).toEqual(
+          expect.objectContaining({ token: "pd1.token-1", resolved_by: "u_9" }),
         );
         return "a.b.c";
       },

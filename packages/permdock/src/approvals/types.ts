@@ -2,6 +2,7 @@ import type { RelationGrantee } from "../core/grantee.ts";
 import type { ApprovalMode, ApprovalStage } from "../core/policy-types.ts";
 import type { Approver } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
+import type { WireDelegation } from "../core/wire-delegation.ts";
 
 import { parseDuration } from "../core/duration.ts";
 
@@ -79,14 +80,14 @@ export type ApprovalSubjectSummary = {
   } | null;
   readonly actor?: { readonly id: string; readonly kind: string };
   readonly session?: string;
-  readonly delegation?: {
-    readonly scopes?: readonly string[];
-    readonly authorizationDetails?: readonly unknown[];
-  };
+  /** OAuth `scope` (space-separated) and RFC 9396 `authorization_details`. */
+  readonly delegation?: WireDelegation;
 };
 
 export type ApprovalRequest = {
   readonly v: 1;
+  /** The request id: the signature's `jti`. */
+  readonly id: string;
   readonly token: string;
   readonly permission: string;
   readonly scope: string;
