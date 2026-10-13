@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 
 import type { Snapshot } from "../core/snapshot-types.ts";
-import type { ServerPermDockProviderProps } from "./types.ts";
+import type { NextPermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 // Kept external by tsdown so it stays a "use client" module: a Server
@@ -13,8 +13,8 @@ export function renderClientProvider(options: {
   readonly endpoint: string | false;
   readonly tenant?: string;
   readonly suspend?: boolean;
-  readonly defaults?: ServerPermDockProviderProps["defaults"];
-  readonly messages?: ServerPermDockProviderProps["messages"];
+  readonly defaults?: NextPermDockProviderProps["defaults"];
+  readonly messages?: NextPermDockProviderProps["messages"];
   readonly children: ReactNode;
 }): ReactElement {
   return (

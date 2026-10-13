@@ -2,7 +2,7 @@ import type { ClientStore } from "../client/store.ts";
 import type { SnapshotSource } from "../core/interfaces.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
 import type {
-  NativePermDockProviderProps,
+  ReactNativePermDockProviderProps,
   SubscribeForeground,
 } from "./types.ts";
 
@@ -21,7 +21,7 @@ import {
 } from "./storage.ts";
 
 export type NativeStoreOptions = Omit<
-  NativePermDockProviderProps,
+  ReactNativePermDockProviderProps,
   "children" | "headers" | "defaults" | "messages"
 > & {
   readonly headers?:

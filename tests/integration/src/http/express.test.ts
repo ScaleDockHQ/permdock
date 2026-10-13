@@ -3,7 +3,7 @@ import type { Request } from "express";
 import express from "express";
 import multer from "multer";
 import { createServer } from "node:http";
-import { createPermDock, type PermDockRequest } from "permdock/express";
+import { createPermDock, type ExpressPermDockRequest } from "permdock/express";
 import { testHttpAdapter } from "permdock/testing";
 import { saasPermissions as p } from "permdock/testing/saas";
 
@@ -40,7 +40,7 @@ testHttpAdapter({
     app.use("/:org/admin", admin);
     app.get("/:org/projects/:id", protect(p.project.read, row), (req, res) => {
       // SAFETY: protect() above sets permdock and permdockData before this handler runs
-      res.json((req as PermDockRequest).permdockData);
+      res.json((req as ExpressPermDockRequest).permdockData);
     });
     app.patch(
       "/:org/projects/:id",
@@ -57,7 +57,7 @@ testHttpAdapter({
       }),
       (req, res) => {
         // SAFETY: protect() above sets permdock and permdockData before this handler runs
-        res.status(201).json((req as PermDockRequest).permdockData);
+        res.status(201).json((req as ExpressPermDockRequest).permdockData);
       },
     );
     app.delete(
@@ -65,7 +65,7 @@ testHttpAdapter({
       protect(p.project.read, row),
       (req, res) => {
         // SAFETY: protect() above sets permdock and permdockData before this handler runs
-        const scoped = req as PermDockRequest;
+        const scoped = req as ExpressPermDockRequest;
         scoped.permdock.assert(p.project.delete, scoped.permdockData);
         res.status(204).end();
       },

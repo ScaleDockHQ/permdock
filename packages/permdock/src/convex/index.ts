@@ -4,7 +4,7 @@ export type {
   ConvexErrorData,
   ConvexHandler,
   ConvexPermDock,
-  ConvexPermDockCtx,
+  ConvexPermDockContext,
   ConvexPermDockOptions,
   ConvexQueryBuilder,
   ConvexSubject,

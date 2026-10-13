@@ -4,7 +4,7 @@ import type { WSContext } from "hono/ws";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 
-import type { PermDockEnv } from "../../src/hono/index.ts";
+import type { HonoPermDockEnv } from "../../src/hono/index.ts";
 import type { Connection } from "../../src/server/connection.ts";
 
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
@@ -152,7 +152,7 @@ describe("permdock/hono middleware", () => {
     const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const app = new Hono<PermDockEnv>();
+    const app = new Hono<HonoPermDockEnv>();
     app.use(middleware());
     app.get("/denied", (c) => {
       c.var.permdock.assert(permissions.post.update, otherPost);

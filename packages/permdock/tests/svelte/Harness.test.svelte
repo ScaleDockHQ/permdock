@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ProtectedProps } from '../../src/svelte/runtime.ts';
-  import type { PermDockSvelteOptions } from '../../src/svelte/types.ts';
+  import type { SveltePermDockOptions } from '../../src/svelte/types.ts';
 
   import Protected from '../../src/svelte/Protected.svelte';
   import { setPermDock } from '../../src/svelte/stores.ts';
@@ -10,7 +10,7 @@
     permission,
     data,
   }: {
-    snapshot: PermDockSvelteOptions['snapshot'];
+    snapshot: SveltePermDockOptions['snapshot'];
     permission: ProtectedProps['permission'];
     data?: unknown;
   } = $props();

@@ -150,6 +150,12 @@ const rows: readonly Rename[] = [
     kind: "type",
   },
   {
+    from: "ElysiaCtx",
+    to: "ElysiaRequestContext",
+    entries: ["permdock/elysia"],
+    kind: "type",
+  },
+  {
     from: "ConvexPermDockCtx",
     to: "ConvexPermDockContext",
     entries: ["permdock/convex"],

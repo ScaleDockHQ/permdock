@@ -28,7 +28,7 @@ export type SubscribeOnline = (
   listener: (online: boolean) => void,
 ) => () => void;
 
-export type NativePermDockProviderProps = {
+export type ReactNativePermDockProviderProps = {
   readonly storage: SnapshotStorage;
   /**
    * The signed-in principal's id, or `null` when nobody is signed in. Only a

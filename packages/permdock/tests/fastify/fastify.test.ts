@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   createPermDock,
-  type PermDockRequest,
+  type FastifyPermDockRequest,
 } from "../../src/fastify/index.ts";
 import {
   memberUser,
@@ -37,8 +37,8 @@ describe("permdock/fastify", () => {
       },
       (request) => ({
         ok: true,
-        via: (request as PermDockRequest<{ Params: { id: string } }>).permdock
-          .subject.principal?.id,
+        via: (request as FastifyPermDockRequest<{ Params: { id: string } }>)
+          .permdock.subject.principal?.id,
       }),
     );
 

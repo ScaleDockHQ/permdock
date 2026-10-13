@@ -1,7 +1,10 @@
 import { Elysia } from "elysia";
 import { describe, expect, it } from "vitest";
 
-import { createPermDock, type ElysiaContext } from "../../src/elysia/index.ts";
+import {
+  createPermDock,
+  type ElysiaPermDockContext,
+} from "../../src/elysia/index.ts";
 import {
   memberUser,
   otherPost,
@@ -21,7 +24,7 @@ describe("permdock/elysia edge cases", () => {
       };
       const response = await protect(permissions.post.list)(ctx);
       // SAFETY: protect decorates ctx with permdock when it grants.
-      const decorated = ctx as unknown as ElysiaContext;
+      const decorated = ctx as unknown as ElysiaPermDockContext;
       results.push({
         response,
         principal: decorated.permdock.subject.principal?.id,
@@ -60,7 +63,7 @@ describe("permdock/elysia edge cases", () => {
     });
     const app = new Elysia().use(middleware()).get("/posts/p2", (ctx) => {
       // SAFETY: the middleware() plugin derives ctx.permdock for every route.
-      (ctx as unknown as ElysiaContext).permdock.assert(
+      (ctx as unknown as ElysiaPermDockContext).permdock.assert(
         permissions.post.update,
         otherPost,
       );

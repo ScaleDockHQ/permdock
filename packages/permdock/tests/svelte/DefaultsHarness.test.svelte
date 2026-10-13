@@ -1,12 +1,12 @@
 <script lang="ts">
   import type { ApprovalRequiredDecision } from '../../src/core/decision.ts';
-  import type { PermDockSvelteOptions } from '../../src/svelte/types.ts';
+  import type { SveltePermDockOptions } from '../../src/svelte/types.ts';
 
   import Protected from '../../src/svelte/Protected.svelte';
   import { getDescribe, permission, setPermDock } from '../../src/svelte/stores.ts';
   import { otherPost, ownPost, permissions } from '../fixtures/quick-start.ts';
 
-  let { snapshot }: { snapshot: PermDockSvelteOptions['snapshot'] } = $props();
+  let { snapshot }: { snapshot: SveltePermDockOptions['snapshot'] } = $props();
 
   // svelte-ignore state_referenced_locally
   setPermDock({

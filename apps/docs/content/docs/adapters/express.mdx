@@ -43,7 +43,7 @@ app.use(errorHandler()); // PermDockDeniedError → 403 application/problem+json
 
 ### Typing `req.permdock`
 
-The factory returns a `Request` type alias (`PermDockRequest`) with `permdock` and `permdockData` declared. Handlers that need the instance annotate their `req` parameter with it, or use the returned `withPermDock(fn)` wrapper that supplies the type. Global augmentation of `express-serve-static-core` is deliberately avoided: two factories (for example, one per tenant policy) would otherwise fight over the same declaration, and a test double would inherit production types.
+The factory returns a `Request` type alias (`ExpressPermDockRequest`) with `permdock` and `permdockData` declared. Handlers that need the instance annotate their `req` parameter with it, or use the returned `withPermDock(fn)` wrapper that supplies the type. Global augmentation of `express-serve-static-core` is deliberately avoided: two factories (for example, one per tenant policy) would otherwise fight over the same declaration, and a test double would inherit production types.
 
 ```ts
 app.get(

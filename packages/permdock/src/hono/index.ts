@@ -2,7 +2,7 @@ export { createPermDock } from "./create.ts";
 export type {
   HonoPermDock,
   HonoPermDockOptions,
-  PermDockEnv,
+  HonoPermDockEnv,
   SseOptions,
 } from "./create.ts";
 export {

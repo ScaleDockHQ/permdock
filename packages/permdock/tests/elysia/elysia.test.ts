@@ -2,7 +2,10 @@ import { Elysia } from "elysia";
 import { describe, expect, it } from "vitest";
 
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
-import { createPermDock, type ElysiaContext } from "../../src/elysia/index.ts";
+import {
+  createPermDock,
+  type ElysiaPermDockContext,
+} from "../../src/elysia/index.ts";
 import {
   memberUser,
   otherPost,
@@ -11,7 +14,7 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 
-function isElysiaContext(ctx: unknown): ctx is ElysiaContext {
+function isElysiaPermDockContext(ctx: unknown): ctx is ElysiaPermDockContext {
   return typeof ctx === "object" && ctx !== null && "permdock" in ctx;
 }
 
@@ -53,7 +56,7 @@ describe("permdock/elysia", () => {
       "/posts/:id",
       (ctx) => ({
         ok: true,
-        via: isElysiaContext(ctx)
+        via: isElysiaPermDockContext(ctx)
           ? ctx.permdock.subject.principal?.id
           : undefined,
       }),

@@ -3,7 +3,7 @@ import { createMiddleware } from "hono/factory";
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { PermDock } from "../../src/core/permdock.ts";
-import type { PermDockEnv } from "../../src/hono/index.ts";
+import type { HonoPermDockEnv } from "../../src/hono/index.ts";
 import type { PermDockOf } from "../fixtures/vocabulary.ts";
 
 import { createPermDock } from "../../src/hono/index.ts";
@@ -47,8 +47,8 @@ describe("permdock/hono Env typing", () => {
       });
   });
 
-  it("types c.get(permdock) inside createMiddleware with PermDockEnv", () => {
-    const audit = createMiddleware<PermDockEnv>(async (c, next) => {
+  it("types c.get(permdock) inside createMiddleware with HonoPermDockEnv", () => {
+    const audit = createMiddleware<HonoPermDockEnv>(async (c, next) => {
       expectTypeOf(c.get("permdock")).toEqualTypeOf<PermDock>();
       await next();
     });

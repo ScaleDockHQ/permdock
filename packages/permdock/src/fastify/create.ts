@@ -32,7 +32,7 @@ export type FastifyPermDockOptions<TUser = unknown> = ServerAdapterOptions<
   TUser
 >;
 
-export type PermDockRequest<
+export type FastifyPermDockRequest<
   Route extends RouteGenericInterface = RouteGenericInterface,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = FastifyRequest<Route> & {
@@ -78,7 +78,10 @@ export type FastifyPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly withPermDock: <
     Route extends RouteGenericInterface = RouteGenericInterface,
   >(
-    fn: (request: PermDockRequest<Route, V>, reply: FastifyReply) => unknown,
+    fn: (
+      request: FastifyPermDockRequest<Route, V>,
+      reply: FastifyReply,
+    ) => unknown,
   ) => (request: FastifyRequest<Route>, reply: FastifyReply) => unknown;
   readonly openapi: OpenApiHooks;
 };
@@ -178,11 +181,14 @@ export function createPermDock<
 
   const withPermDock =
     <Route extends RouteGenericInterface>(
-      fn: (request: PermDockRequest<Route, V>, reply: FastifyReply) => unknown,
+      fn: (
+        request: FastifyPermDockRequest<Route, V>,
+        reply: FastifyReply,
+      ) => unknown,
     ) =>
     (request: FastifyRequest<Route>, reply: FastifyReply): unknown =>
       // SAFETY: the route runs after middleware() or protect, which set request.permdock from this factory's policy.
-      fn(request as PermDockRequest<Route, V>, reply);
+      fn(request as FastifyPermDockRequest<Route, V>, reply);
 
   return {
     middleware: () => plugin,

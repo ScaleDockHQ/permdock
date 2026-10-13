@@ -5,7 +5,7 @@ import type {
   ConvexCtxLike,
   ConvexHandler,
   ConvexPermDock,
-  ConvexPermDockCtx,
+  ConvexPermDockContext,
   ConvexPermDockOptions,
 } from "./types.ts";
 
@@ -69,7 +69,7 @@ export function createPermDock<
         },
       });
       // SAFETY: the spread keeps every TCtx field and adds the permdock instance built above.
-      const next = { ...ctx, permdock } as ConvexPermDockCtx<TCtx, V>;
+      const next = { ...ctx, permdock } as ConvexPermDockContext<TCtx, V>;
       try {
         return await handler(next, args);
       } catch (error) {
@@ -82,7 +82,7 @@ export function createPermDock<
     readonly include?: readonly Permission[];
   }): unknown => {
     const handler = withPermDock(
-      (ctx: ConvexPermDockCtx<TCtx>, args: Record<string, never>) => {
+      (ctx: ConvexPermDockContext<TCtx>, args: Record<string, never>) => {
         void args;
         return Promise.resolve(
           ctx.permdock.snapshot(compact({ include: snapshotOptions?.include })),

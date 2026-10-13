@@ -31,7 +31,7 @@ export type HonoPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 };
 
 /** The `Variables` both middlewares set; Hono merges them into the route's Env. */
-export type PermDockEnv<
+export type HonoPermDockEnv<
   TData = unknown,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
@@ -42,12 +42,12 @@ export type PermDockEnv<
 };
 
 export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly middleware: () => MiddlewareHandler<PermDockEnv<unknown, V>>;
+  readonly middleware: () => MiddlewareHandler<HonoPermDockEnv<unknown, V>>;
   readonly protect: <TData = unknown>(
     permission: Permission | null,
     data?: (c: Context) => TData | Promise<TData>,
     protectOptions?: ProtectOptions,
-  ) => MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>>;
+  ) => MiddlewareHandler<HonoPermDockEnv<NonNullable<TData>, V>>;
   /** A long-lived connection for the request behind `c`. */
   readonly connection: (
     c: Context,
@@ -185,7 +185,8 @@ export function createPermDock<
   } = bindKernel(policy, options, "hono", (c: Context) => c.req.raw);
 
   const middleware =
-    (): MiddlewareHandler<PermDockEnv<unknown, V>> => async (c, next: Next) => {
+    (): MiddlewareHandler<HonoPermDockEnv<unknown, V>> =>
+    async (c, next: Next) => {
       const attached = await attach(c);
       if (!attached.ok) {
         return attached.response;
@@ -201,7 +202,7 @@ export function createPermDock<
       permission: Permission | null,
       data?: (c: Context) => TData | Promise<TData>,
       protectOptions?: ProtectOptions,
-    ): MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>> =>
+    ): MiddlewareHandler<HonoPermDockEnv<NonNullable<TData>, V>> =>
     async (c, next: Next): Promise<Response | undefined> => {
       const guard = await runGuard(permission, data, c, protectOptions);
       if (!guard.ok) {

@@ -18,7 +18,7 @@ import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
 
-export type PermDockSvelteOptions = ProviderOptionsBase & {
+export type SveltePermDockOptions = ProviderOptionsBase & {
   /**
    * A getter (`() => data.snapshot`) or a readable store re-hydrates the
    * store when it changes; a promise keeps the store `pending` until it

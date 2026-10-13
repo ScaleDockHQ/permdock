@@ -1,4 +1,4 @@
-import type { ElysiaContext } from "permdock/elysia";
+import type { ElysiaPermDockContext } from "permdock/elysia";
 
 import { Elysia } from "elysia";
 import { createPermDock } from "permdock/elysia";
@@ -6,7 +6,7 @@ import { testHttpAdapter } from "permdock/testing";
 import { saasPermissions as p } from "permdock/testing/saas";
 
 // SAFETY: only called on handler contexts of apps that register middleware(), which derives these fields
-const scoped = (ctx: unknown) => ctx as ElysiaContext;
+const scoped = (ctx: unknown) => ctx as ElysiaPermDockContext;
 
 testHttpAdapter({
   name: "permdock/elysia on app.handle",

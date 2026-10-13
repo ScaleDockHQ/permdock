@@ -11,7 +11,7 @@ export type ConvexCtxLike = {
   readonly db?: unknown;
 };
 
-export type ConvexPermDockCtx<
+export type ConvexPermDockContext<
   TCtx,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = TCtx & {
@@ -47,7 +47,7 @@ export type ConvexHandler<
   TResult,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = (
-  ctx: ConvexPermDockCtx<TCtx, V>,
+  ctx: ConvexPermDockContext<TCtx, V>,
   args: TArgs,
 ) => TResult | Promise<TResult>;
 

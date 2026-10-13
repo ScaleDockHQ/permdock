@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Decision } from '../../src/core/decision.ts';
-  import type { PermDockSvelteOptions } from '../../src/svelte/types.ts';
+  import type { SveltePermDockOptions } from '../../src/svelte/types.ts';
 
   import {
     approval,
@@ -27,7 +27,7 @@
     decision,
     onReady,
   }: {
-    options?: PermDockSvelteOptions;
+    options?: SveltePermDockOptions;
     decision: Decision;
     onReady: (value: unknown) => void;
   } = $props();

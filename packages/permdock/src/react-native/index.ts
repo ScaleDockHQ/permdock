@@ -49,7 +49,7 @@ export { connectSource, nativeStore } from "./store.ts";
 export type { SnapshotSource } from "../core/interfaces.ts";
 export type { LocalSnapshotManifest } from "../core/snapshot-types.ts";
 export type {
-  NativePermDockProviderProps,
+  ReactNativePermDockProviderProps,
   NativeRevalidate,
   SnapshotStorage,
   SubscribeForeground,

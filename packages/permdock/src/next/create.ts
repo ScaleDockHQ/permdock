@@ -17,7 +17,7 @@ import type {
   NextSubjectInput,
   RequireAccessInput,
   ServerPermissionState,
-  ServerPermDockProviderProps,
+  NextPermDockProviderProps,
 } from "./types.ts";
 
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
@@ -250,9 +250,7 @@ export function createPermDock<
     });
   };
 
-  const PermDockProvider = (
-    props: ServerPermDockProviderProps,
-  ): ReactElement => {
+  const PermDockProvider = (props: NextPermDockProviderProps): ReactElement => {
     // A rejection reaches the client store as `server-only`, or with
     // `suspend` the nearest error boundary; Next.js interrupts keep working.
     const snapshotPromise = getPermDock(

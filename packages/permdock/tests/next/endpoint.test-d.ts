@@ -3,7 +3,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type { DenialReason } from "../../src/index.ts";
 import type {
   NextPermDockOptions,
-  ServerPermDockProviderProps,
+  NextPermDockProviderProps,
 } from "../../src/next/index.ts";
 import type { PermDockProviderProps } from "../../src/react/index.ts";
 
@@ -12,7 +12,7 @@ describe("endpoint: false", () => {
     expectTypeOf<NextPermDockOptions["endpoint"]>().toEqualTypeOf<
       string | false | undefined
     >();
-    expectTypeOf<ServerPermDockProviderProps["endpoint"]>().toEqualTypeOf<
+    expectTypeOf<NextPermDockProviderProps["endpoint"]>().toEqualTypeOf<
       string | false | undefined
     >();
     expectTypeOf<PermDockProviderProps["endpoint"]>().toEqualTypeOf<

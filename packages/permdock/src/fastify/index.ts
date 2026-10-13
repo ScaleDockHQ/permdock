@@ -3,7 +3,7 @@ export type {
   FastifyPermDock,
   FastifyPermDockOptions,
   FastifyProtect,
-  PermDockRequest,
+  FastifyPermDockRequest,
 } from "./create.ts";
 export { sendReply, toRequest } from "./http.ts";
 export {

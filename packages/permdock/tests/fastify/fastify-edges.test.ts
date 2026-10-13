@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { toRequest } from "../../src/fastify/http.ts";
 import {
   createPermDock,
-  type PermDockRequest,
+  type FastifyPermDockRequest,
 } from "../../src/fastify/index.ts";
 import {
   memberUser,
@@ -100,7 +100,7 @@ describe("permdock/fastify edge cases", () => {
     await app.register(middleware());
     app.get("/denied", (request) => {
       // SAFETY: the permdock plugin registered above decorates every request with permdock.
-      (request as PermDockRequest).permdock.assert(
+      (request as FastifyPermDockRequest).permdock.assert(
         permissions.post.update,
         otherPost,
       );
@@ -136,7 +136,7 @@ describe("permdock/fastify edge cases", () => {
       "/posts",
       (request) =>
         // SAFETY: the permdock plugin decorates every request before the handler runs.
-        (request as PermDockRequest).permdock.subject.actor,
+        (request as FastifyPermDockRequest).permdock.subject.actor,
     );
     const posts = await app.inject({ method: "GET", url: "/posts" });
     expect(posts.json()).toEqual({ id: "/posts", kind: "agent" });
@@ -153,7 +153,7 @@ describe("permdock/fastify edge cases", () => {
       { preHandler: protect(permissions.post.list) },
       (request) => ({
         // SAFETY: protect decorates the request with permdock before the handler runs.
-        via: (request as PermDockRequest).permdock.subject.principal?.id,
+        via: (request as FastifyPermDockRequest).permdock.subject.principal?.id,
       }),
     );
     await app.register(permdockHandler(), { prefix: "/api/permdock" });

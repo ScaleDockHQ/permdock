@@ -1,7 +1,7 @@
 import { type ReactElement, useEffect, useMemo, useRef } from "react";
 
 import type { ClientStore } from "../client/store.ts";
-import type { NativePermDockProviderProps } from "./types.ts";
+import type { ReactNativePermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockStoreContext, PermDockUiContext } from "../react/context.ts";
@@ -10,7 +10,7 @@ import { useLiveOptions } from "../react/live-options.ts";
 import { connectSource, nativeStore } from "./store.ts";
 
 export function PermDockProvider(
-  props: NativePermDockProviderProps,
+  props: ReactNativePermDockProviderProps,
 ): ReactElement {
   const live = useLiveOptions(props, false);
   const shown = useRef<ClientStore | null>(null);

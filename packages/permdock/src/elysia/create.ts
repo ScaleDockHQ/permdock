@@ -18,14 +18,14 @@ import { hasCredentials, parsedBody } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
 import { POLICY_VIOLATION, closeReason, onRevoked } from "../server/stream.ts";
 
-export type ElysiaCtx = {
+export type ElysiaRequestContext = {
   readonly request: Request;
   readonly body?: unknown;
   readonly params?: Readonly<Record<string, string | undefined>>;
 };
 
 export type ElysiaPermDockOptions<TUser = unknown> = ServerAdapterOptions<
-  ElysiaCtx,
+  ElysiaRequestContext,
   TUser
 > & {
   /** Ends or revalidates open sockets. */
@@ -34,21 +34,22 @@ export type ElysiaPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 
 /** The `ws` Elysia passes to `.ws` handlers; `data` is the upgrade context. */
 export type ElysiaSocket = {
-  readonly data: ElysiaCtx;
+  readonly data: ElysiaRequestContext;
   close(code?: number, reason?: string): unknown;
 };
 
-export type ElysiaContext<V extends PolicyVocabulary = PolicyVocabulary> =
-  ElysiaCtx & {
-    permdock: PermDock<V>;
-    permdockData?: unknown;
-  };
+export type ElysiaPermDockContext<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = ElysiaRequestContext & {
+  permdock: PermDock<V>;
+  permdockData?: unknown;
+};
 
 export type ElysiaProtect = (
   permission: Permission | null,
-  data?: (ctx: ElysiaCtx) => unknown,
+  data?: (ctx: ElysiaRequestContext) => unknown,
   protectOptions?: ProtectOptions,
-) => (ctx: ElysiaCtx) => Promise<Response | undefined>;
+) => (ctx: ElysiaRequestContext) => Promise<Response | undefined>;
 
 /** The `middleware()` plugin: its global derive types `permdock` in every later handler. */
 export type ElysiaPermDockPlugin<
@@ -157,7 +158,7 @@ export function createPermDock<
   };
 }
 
-function toRequest(ctx: ElysiaCtx): Request {
+function toRequest(ctx: ElysiaRequestContext): Request {
   const method = ctx.request.method;
   if (method === "GET" || method === "HEAD" || ctx.body === undefined) {
     return ctx.request;

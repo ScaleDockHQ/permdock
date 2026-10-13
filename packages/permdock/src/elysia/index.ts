@@ -1,7 +1,7 @@
 export { createPermDock } from "./create.ts";
 export type {
-  ElysiaContext,
-  ElysiaCtx,
+  ElysiaPermDockContext,
+  ElysiaRequestContext,
   ElysiaPermDock,
   ElysiaPermDockOptions,
   ElysiaProtect,
