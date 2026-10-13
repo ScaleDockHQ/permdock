@@ -1,0 +1,75 @@
+---
+title: Access reviews
+description: List who holds a set of permissions, have a named reviewer keep or revoke each holding, and record the result. PermDock never applies the revoke.
+---
+
+An access review asks a named reviewer to keep or revoke each holding of a set of permissions in one tenant, and stores the answer. The application changes the role or the membership at its source, then marks the item applied. PermDock does not revoke anything itself.
+
+```ts
+import { createPermDock, holder } from "permdock";
+import {
+  memoryAccessReviews,
+  startAccessReview,
+  accessReviewsHandler,
+} from "permdock/approvals";
+
+const reviews = memoryAccessReviews();
+
+const review = await startAccessReview(
+  permdock,
+  {
+    id: "review_1",
+    permissions: [permissions.invoice.view, permissions.invoice.manage],
+    reviewers: holder(permissions.invoice.manage),
+    dueAt: "2026-12-01T00:00:00.000Z",
+  },
+  {
+    store: reviews,
+    permdockFor: (memberId) => createPermDock(policy, member(memberId)),
+  },
+);
+```
+
+`startAccessReview` takes the caller's principal as `createdBy` and the active tenant as `tenant`. A bad input throws `TypeError`.
+
+## Population
+
+By default the review lists every member `MembershipSource.list` returns for the tenant, and keeps a member when a rowless `decide` through `permdockFor` grants one of the permissions. The item's `via` is that decision's `matched`.
+
+`complete` is `false` when the policy is omitted, when listing throws, or when an allow grant is a plan, a relation, an inherited role or a global role. Those holders are not in the membership list, so the review says it did not see everyone. A custom role that is the only way someone holds the permission is the same gap: pass `holders` for that population.
+
+`holders` replaces the membership walk. Each entry is `{ principal, permission, via }`. `complete` defaults to `true`. A Supabase app fills it from `permitted_<scope>_users(p_permission, p_id)`, which lists the user ids that hold one permission on one row.
+
+## Decisions
+
+`decideAccessReviewItem` checks the reviewer against `reviewers` with the same forms an approval uses: `user()`, `holder()` and `anyOf()`. A link or a feed is never a reviewer. A reviewer cannot decide an item whose principal is themselves (`reviewer-is-holder`).
+
+`status` moves from `pending` to `kept` or `revoked`. `markApplied` records `appliedAt` on a revoked item, after the application has changed the source. Calling it on a kept or pending item is `not-revoked`. `close` sets the review to `closed`; a closed review refuses further decisions.
+
+## HTTP
+
+`accessReviewsHandler(store, options)` serves:
+
+| Route                       | Effect                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| `GET /:id`                  | The review, for its creator or an eligible reviewer. Anyone else gets `404`. |
+| `GET /:id/items`            | A keyset page of items. `?status=revoked` is the list still to apply.        |
+| `POST /:id/close`           | Closes the review.                                                           |
+| `POST /:id/:itemId/keep`    | Keeps the holding.                                                           |
+| `POST /:id/:itemId/revoke`  | Revokes it. An optional JSON `note` is at most 2,000 characters.             |
+| `POST /:id/:itemId/applied` | Marks a revoked item applied.                                                |
+
+Errors are RFC 9457 problems. `401` is `reviewer-unauthenticated`, `403` is `reviewer-not-eligible` or `reviewer-is-holder`, `404` is a missing review or item, `409` is a closed review, an item that is not pending, or an applied mark on an item that was not revoked.
+
+`permdockFor(reviewer, tenant)` supplies the reviewer's permission facts, the same way `approvalsHandler` does for `holder()`.
+
+## Why
+
+- **The review records a decision; the application applies it.** A permission is held through a membership, a role or a plan in a system PermDock does not own. Writing a revoke into that system from the review would need a second source of truth, and a failed write would disagree with the record. The application changes the source, then calls `markApplied`, so `appliedAt` means the change happened.
+- **An incomplete list says so.** A membership query cannot see a global role or a plan. Marking that review `complete: true` would let a reviewer sign off on a population that missed the people with the widest access. `complete: false` is that gap, and `holders` is how an app that can list them fills it.
+
+## Related
+
+- [Audit and observability](/docs/concepts/audit-and-observability): the review template this page implements.
+- [Approvals](/docs/adapters/approvals): the approver forms `reviewers` reuses.
+- [Wire formats](/docs/concepts/wire-formats): `AccessReview` v1 and `AccessReviewItem` v1.

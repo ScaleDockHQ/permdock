@@ -68,6 +68,14 @@ Over HTTP, the client retries the same request with the `PermDock-Approval: <tok
 
 A bad resume is denied with detail `approval-not-found`, `approval-pending`, `approval-rejected`, `approval-expired`, `approval-consumed` or `approval-mismatch`; a changed row is `stale-approval`. `approvalsHandler` answers `403` for an ineligible approver (`approver-not-eligible`, the actor, or the principal without `distinct: false`) and `409` for a repeated one (`approver-repeated`).
 
+## Delegation
+
+Pass `delegations` (`memoryApprovalDelegations` or your table) and `subjectFor` to `approvalsHandler`. A delegate may approve what the delegator could, inside `from` (inclusive) and `until` (exclusive). The signature records `by` as the delegate and `onBehalfOf` plus `delegation` for the person covered. The store checks the delegator again. A link or a feed cannot approve. See [delegation](https://permdock.com/docs/adapters/approvals#delegation).
+
+## Access reviews
+
+`startAccessReview` lists holders of a set of permissions. `decideAccessReviewItem` records keep or revoke. The application changes the role or membership, then marks the item applied. `accessReviewsHandler` serves the routes. See [access reviews](https://permdock.com/docs/concepts/access-reviews).
+
 ## Surfaces
 
 | Runtime                                 | Ask                                                                                             | Resume                                                                                  |

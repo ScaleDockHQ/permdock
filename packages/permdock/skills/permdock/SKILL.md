@@ -32,15 +32,15 @@ PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents
 
 1. **Pick the skill.** Install the one the task needs with `npx skills add ScaleDockHQ/PermDock --skill <name>` (or all of them with `npx skills add ScaleDockHQ/PermDock`, or `pnpm exec permdock skills install` to match the installed package version):
 
-   | Task                                                    | Skill                  |
-   | ------------------------------------------------------- | ---------------------- |
-   | Add PermDock, first guard, limits, plans, CLI checks    | `permdock-wire`        |
-   | Review an app or a pull request                         | `permdock-audit`       |
-   | Agent tool calls, actors, delegation, A2A, WebMCP       | `permdock-agents`      |
-   | Human approval, approvers, quorum, resume               | `permdock-approvals`   |
-   | Named scopes, memberships, ownership, custom roles      | `permdock-tenancy`     |
-   | ORM queries, generated RLS, relationship graphs, parity | `permdock-data`        |
-   | Access tokens, API keys, service accounts, share links  | `permdock-credentials` |
+   | Task                                                                  | Skill                  |
+   | --------------------------------------------------------------------- | ---------------------- |
+   | Add PermDock, first guard, limits, plans, CLI checks                  | `permdock-wire`        |
+   | Review an app or a pull request                                       | `permdock-audit`       |
+   | Agent tool calls, actors, delegation, A2A, WebMCP                     | `permdock-agents`      |
+   | Human approval, approvers, quorum, resume, delegation, access reviews | `permdock-approvals`   |
+   | Named scopes, memberships, ownership, custom roles                    | `permdock-tenancy`     |
+   | ORM queries, generated RLS, relationship graphs, parity               | `permdock-data`        |
+   | Access tokens, API keys, service accounts, feed keys, share links     | `permdock-credentials` |
 
    ✓ The skill for the task is loaded, and `permdock-wire` has run first if the app has no factory file.
 

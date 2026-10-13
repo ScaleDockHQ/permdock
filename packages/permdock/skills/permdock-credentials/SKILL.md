@@ -1,6 +1,6 @@
 ---
 name: permdock-credentials
-description: Resolves PermDock subjects from access tokens, API keys and share links. Use when verifying OAuth or OIDC access tokens with subjectFromJwt or an introspection response with subjectFromIntrospection, issuing personal access tokens, API keys or service accounts with decideCredential and resolving them with subjectFromApiKey, setting tenant key rules (maxTtl, kinds, allowNoExpiry) in a SettingsSource, minting guest or share links with signCapability and resolving them with subjectFromCapability, serving a link through RLS with exchangeCapability, or fixing doctor PD029 and on('auth') causes such as invalid-chain.
+description: Resolves PermDock subjects from access tokens, API keys and share links. Use when verifying OAuth or OIDC access tokens with subjectFromJwt or an introspection response with subjectFromIntrospection, issuing personal access tokens, API keys, service accounts or feed keys with decideCredential and resolving them with subjectFromApiKey, setting tenant key rules (maxTtl, kinds, allowNoExpiry) in a SettingsSource, minting guest or share links with signCapability and resolving them with subjectFromCapability, serving a link through RLS with exchangeCapability, or fixing doctor PD029 and on('auth') causes such as invalid-chain.
 license: MIT
 metadata:
   author: ScaleDockHQ
@@ -24,7 +24,7 @@ Authentication is upstream: core never verifies a token. A `subjectFrom*` resolv
 1. Core never verifies a token or a session. Only `permdock/jwt`, `permdock/server` key helpers and the provider `subjectFrom*` helpers do.
 2. A resolver never throws. An unverifiable token, key or link is the anonymous subject, and the cause goes to `on('auth')`.
 3. Never build grants from user-editable claims (`user_metadata`), and never take a subject from a request body, an unsigned header, a CLI flag or a model argument.
-4. Store only `hashApiKey(key)` and show the key once. Every key lists its permissions and expires unless the tenant opts in with `allowNoExpiry`.
+4. Store only `hashApiKey(key)` and show the key once. A user or service key lists its permissions and expires unless the tenant opts in with `allowNoExpiry`. A feed key (`pdfeed_`) does not expire; rotation replaces the secret, and the key is bound to one resource.
 5. A share link is a signed, expiring capability on one resource. It never holds a scope or global role, and RLS sees it only through `exchangeCapability`, never `service_role`.
 6. Token rules come from the spec skills (`npx skills add ScaleDockHQ/scaledock-skills --skill <name>`): `jwt` for JOSE, `oauth` for access tokens and introspection, `openid-connect` for ID tokens and Discovery.
 
