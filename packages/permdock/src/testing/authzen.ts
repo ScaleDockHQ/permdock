@@ -22,7 +22,7 @@ type Entity = {
   readonly properties?: Readonly<Record<string, unknown>>;
 };
 
-export type AuthzenEvaluationVector = {
+export type AuthZenEvaluationVector = {
   readonly request: {
     readonly subject: Entity;
     readonly action: { readonly name: string };
@@ -32,7 +32,7 @@ export type AuthzenEvaluationVector = {
   readonly expected: boolean;
 };
 
-export type AuthzenEvaluationsVector = {
+export type AuthZenEvaluationsVector = {
   readonly request: {
     readonly subject?: Entity;
     readonly action?: { readonly name: string };
@@ -46,7 +46,7 @@ export type AuthzenEvaluationsVector = {
   readonly expected: readonly { readonly decision: boolean }[];
 };
 
-export type AuthzenSearchVector = {
+export type AuthZenSearchVector = {
   readonly request: Readonly<Record<string, unknown>>;
   readonly expected: {
     readonly results: readonly Readonly<Record<string, unknown>>[];
@@ -58,18 +58,18 @@ export type AuthzenSearchVector = {
  * (`decisions-*.json` for Basic and Batch, `search/{subject,resource,action}`
  * `results.json` for Search), so the official files load unchanged.
  */
-export type AuthzenVectors = {
-  readonly evaluation?: readonly AuthzenEvaluationVector[];
-  readonly evaluations?: readonly AuthzenEvaluationsVector[];
+export type AuthZenVectors = {
+  readonly evaluation?: readonly AuthZenEvaluationVector[];
+  readonly evaluations?: readonly AuthZenEvaluationsVector[];
   readonly search?: {
-    readonly subject?: readonly AuthzenSearchVector[];
-    readonly resource?: readonly AuthzenSearchVector[];
-    readonly action?: readonly AuthzenSearchVector[];
+    readonly subject?: readonly AuthZenSearchVector[];
+    readonly resource?: readonly AuthZenSearchVector[];
+    readonly action?: readonly AuthZenSearchVector[];
   };
 };
 
-export type TestAuthzenOptions = {
-  readonly vectors: AuthzenVectors;
+export type TestAuthZenOptions = {
+  readonly vectors: AuthZenVectors;
   /** Origin the requests are addressed to; the discovery document must name it. */
   readonly origin?: string;
   readonly headers?: Readonly<Record<string, string>>;
@@ -86,9 +86,9 @@ function sortKey(value: Readonly<Record<string, unknown>>): string {
 }
 
 /** Runs AuthZEN 1.0 interop vectors against an Authorization API endpoint. */
-export function testAuthzen(
+export function testAuthZen(
   handle: (request: Request) => Promise<Response>,
-  options: TestAuthzenOptions,
+  options: TestAuthZenOptions,
 ): void {
   const origin = options.origin ?? "https://pdp.example.com";
   const post = async (path: string, body: unknown): Promise<unknown> => {
@@ -308,7 +308,7 @@ function expectedFor(user: TodoUser, action: string, ownerID: string): boolean {
  * every user against every action on their own and on Rick's todo, one batch
  * per user, and the three searches.
  */
-export function authzenTodoVectors(): AuthzenVectors {
+export function authzenTodoVectors(): AuthZenVectors {
   const rick = authzenTodoUsers[0];
   const actions = [
     "can_read_todos",
@@ -316,8 +316,8 @@ export function authzenTodoVectors(): AuthzenVectors {
     "can_update_todo",
     "can_delete_todo",
   ];
-  const evaluation: AuthzenEvaluationVector[] = [];
-  const evaluations: AuthzenEvaluationsVector[] = [];
+  const evaluation: AuthZenEvaluationVector[] = [];
+  const evaluations: AuthZenEvaluationsVector[] = [];
   for (const user of authzenTodoUsers) {
     const subject = { type: "user", id: user.identity };
     evaluation.push({

@@ -46,7 +46,7 @@ function permissionMeta(
   };
 }
 
-export function summarizeSubject(subject: Subject): ApprovalRequest["subject"] {
+export function summariseSubject(subject: Subject): ApprovalRequest["subject"] {
   const principal = subject.principal;
   return compact<ApprovalRequest["subject"]>({
     principal:
@@ -145,7 +145,7 @@ export async function requestApproval(
       resource: meta.resource ?? {
         type: leaf.resource,
       },
-      subject: summarizeSubject(meta.subject),
+      subject: summariseSubject(meta.subject),
       membership: meta.membership,
       approvers,
       detail: meta.detail ?? describe(decision).detail,

@@ -56,7 +56,7 @@ export {
   resumeDecision,
   resumeFromHeader,
   storedApprovalToken,
-  summarizeSubject,
+  summariseSubject,
   vouchApproval,
 } from "./helpers.ts";
 export {

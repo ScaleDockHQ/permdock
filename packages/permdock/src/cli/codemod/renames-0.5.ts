@@ -120,18 +120,6 @@ const rows: readonly Rename[] = [
     calls: ["createPermDock"],
   },
   {
-    from: "OnDenied",
-    to: "DeniedResponse",
-    entries: ["permdock/server"],
-    kind: "type",
-  },
-  {
-    from: "OnDeniedEvent",
-    to: "DeniedResponseEvent",
-    entries: ["permdock/server"],
-    kind: "type",
-  },
-  {
     from: "tools",
     to: "operations",
     entries: [
@@ -142,6 +130,18 @@ const rows: readonly Rename[] = [
     ],
     kind: "option",
     calls: ["createPermDock"],
+  },
+  {
+    from: "OnDenied",
+    to: "DeniedResponse",
+    entries: ["permdock/server"],
+    kind: "type",
+  },
+  {
+    from: "OnDeniedEvent",
+    to: "DeniedResponseEvent",
+    entries: ["permdock/server"],
+    kind: "type",
   },
   {
     from: "OnDeniedText",
@@ -168,7 +168,7 @@ const rows: readonly Rename[] = [
     kind: "type",
   },
   {
-    from: "ElysiaCtx",
+    from: "ElysiaContext",
     to: "ElysiaPermDockContext",
     entries: ["permdock/elysia"],
     kind: "type",

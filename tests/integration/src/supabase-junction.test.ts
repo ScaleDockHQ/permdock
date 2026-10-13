@@ -34,7 +34,7 @@ create table app.memberships (organization_id text not null, user_id uuid not nu
 insert into app.memberships values ('T', '${MEMBER}', 'admin'), ('B', '${MEMBER}', 'viewer');
 `;
 
-describe("junctionMembershipSource over a schema-qualified table", () => {
+describe("fromJunction over a schema-qualified table", () => {
   let db: Postgres | undefined;
   let generated = "";
 

@@ -1,9 +1,6 @@
 import type { SqlQuery, SupabaseSuspension } from "permdock/supabase";
 
-import {
-  junctionMembershipSource,
-  tableMembershipSource,
-} from "permdock/supabase";
+import { fromJunction, fromTable } from "permdock/supabase";
 
 export const suspension: SupabaseSuspension = {
   users: { table: "profiles", id: "id", disabledAt: "disabled_at" },
@@ -20,7 +17,7 @@ export const suspension: SupabaseSuspension = {
 export function sources(query?: SqlQuery) {
   const shared = query === undefined ? { suspension } : { query, suspension };
   return [
-    tableMembershipSource({
+    fromTable({
       table: "memberships",
       columns: {
         via: "via",
@@ -30,7 +27,7 @@ export function sources(query?: SqlQuery) {
       },
       ...shared,
     }),
-    junctionMembershipSource({
+    fromJunction({
       table: "customer_contacts",
       scope: "customer",
       within: { organization: "organization_id" },

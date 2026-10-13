@@ -640,7 +640,7 @@ export type PowerSyncConfig = {
   readonly resources?: readonly string[];
   /** The action whose grants decide which rows sync; default `read`. */
   readonly action?: string;
-  /** Where `generate` writes `localSnapshotManifest(policy)` as JSON for `localSnapshot` and `powerSyncSource`; none by default. */
+  /** Where `generate` writes `localSnapshotManifest(policy)` as JSON for `localSnapshot` and `powersyncSource`; none by default. */
   readonly manifest?: string;
 };
 

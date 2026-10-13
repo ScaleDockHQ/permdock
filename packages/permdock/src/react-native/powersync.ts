@@ -3,7 +3,7 @@ import type { LocalSnapshotManifest } from "../core/snapshot-types.ts";
 
 import { type LocalSnapshotData, localSnapshot } from "./local.ts";
 
-/** The `PowerSyncDatabase` methods `powerSyncSource` calls. */
+/** The `PowerSyncDatabase` methods `powersyncSource` calls. */
 export type PowerSyncWatchable = {
   getAll(sql: string, parameters?: unknown[]): Promise<unknown[]>;
   watch(
@@ -41,7 +41,7 @@ export type PowerSyncSourceOptions<Q extends string> = {
  * takes the database as an argument; `permdock/react-native` never imports
  * `@powersync/*`.
  */
-export function powerSyncSource<Q extends string>(
+export function powersyncSource<Q extends string>(
   db: PowerSyncWatchable,
   options: PowerSyncSourceOptions<Q>,
 ): SnapshotSource {

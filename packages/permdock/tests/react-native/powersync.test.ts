@@ -4,7 +4,7 @@ import type { PowerSyncWatchable } from "../../src/react-native/powersync.ts";
 
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { powerSyncSource } from "../../src/react-native/powersync.ts";
+import { powersyncSource } from "../../src/react-native/powersync.ts";
 import { memorySnapshotStorage } from "../../src/react-native/storage.ts";
 import { connectSource, nativeStore } from "../../src/react-native/store.ts";
 import { ownPost, permissions, policy } from "../fixtures/quick-start.ts";
@@ -53,13 +53,13 @@ async function settle(): Promise<void> {
   });
 }
 
-describe("powerSyncSource", () => {
+describe("powersyncSource", () => {
   it("builds the snapshot from the watched rows and follows their changes", async () => {
     const tables: Record<string, Row[]> = {
       user_roles: [{ user_id: "u1", role: "member" }],
     };
     const db = fakeDb(tables);
-    const source = powerSyncSource(db, {
+    const source = powersyncSource(db, {
       manifest: localSnapshotManifest(policy),
       queries: {
         roles: {
@@ -110,7 +110,7 @@ describe("powerSyncSource", () => {
       orgId: "o1",
       roles: ["member"],
     });
-    const source = powerSyncSource(fakeDb({ user_roles: [] }), {
+    const source = powersyncSource(fakeDb({ user_roles: [] }), {
       manifest: localSnapshotManifest(policy),
       queries: {},
       read: () => ({ principal: { id: "u1", roles: ["member"] } }),
