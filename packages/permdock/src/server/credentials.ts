@@ -307,7 +307,7 @@ export function memoryCredentialStore(
   options: { readonly sink?: DecisionSink; readonly source?: string } = {},
 ): MemoryCredentialStore {
   const records = new Map<string, StoredCredential>();
-  const used = new Map<string, number>();
+  const used = new Map<string, string>();
   const verifier = apiKeyVerifier({ find: (id) => records.get(id) });
   const emit = (
     operation: "created" | "rotated" | "revoked",
