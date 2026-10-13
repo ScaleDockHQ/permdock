@@ -74,7 +74,9 @@ const policy = definePolicy(demoPermissions, {
 });
 
 // The demo prerenders, so it cannot read the wall clock; no demo grant expires.
-const DEMO_OPTIONS: DecideOptions = { now: 1_767_225_600 };
+const DEMO_OPTIONS: DecideOptions = {
+  now: { epochMilliseconds: 1_767_225_600_000 },
+};
 
 function demoDock(roleName: DemoRole): PermDock {
   const created = createPermDock(policy, {
