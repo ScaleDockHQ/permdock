@@ -255,7 +255,7 @@ export function createPermDock<
     return built;
   };
 
-  const permdock = (
+  const getPermDock = (
     resolveOptions: PermDockResolveOptions = {},
   ): Promise<PermDock<V>> => {
     if (resolveOptions.refresh === true || cached === undefined) {
@@ -307,7 +307,7 @@ export function createPermDock<
       ) => Decision;
       let first: Decision;
       try {
-        instance = await permdock();
+        instance = await getPermDock();
         if (load !== undefined) {
           data = await load(...args);
           if (
@@ -492,7 +492,7 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    getPermDock,
     protect,
     filterCommands,
     format,

@@ -85,7 +85,7 @@ export type OpenAiPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     interruptions: readonly TItem[],
     options: { readonly context: OpenAiContext },
   ) => Promise<readonly ApprovalRequest[]>;
-  readonly permdock: (context: OpenAiContext) => Promise<PermDock<V>>;
+  readonly getPermDock: (context: OpenAiContext) => Promise<PermDock<V>>;
 };
 
 function appContext(runContext: OpenAiRunContext | undefined): OpenAiContext {
@@ -225,6 +225,6 @@ export function createPermDock<
     needsApproval,
     guardTools,
     resolveInterruptions,
-    permdock: (context) => kernel.instance(context),
+    getPermDock: (context) => kernel.instance(context),
   };
 }

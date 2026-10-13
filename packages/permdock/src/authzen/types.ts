@@ -35,7 +35,7 @@ export type AuthzenPermDockOptions<TUser = unknown> = InstanceOptions & {
 };
 
 export type AuthzenPermDock = {
-  readonly permdockHandler: (request: Request) => Promise<Response>;
+  readonly permdockHandler: () => (request: Request) => Promise<Response>;
 };
 
 export type AuthzenFactory = <TUser, TPrincipal extends Principal = Principal>(

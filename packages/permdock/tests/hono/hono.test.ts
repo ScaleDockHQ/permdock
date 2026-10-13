@@ -130,7 +130,7 @@ describe("permdock/hono streams and sockets", () => {
 
 describe("permdock/hono", () => {
   it("sets a request-scoped instance and protects routes", async () => {
-    const { permdock, protect } = createPermDock(policy, {
+    const { middleware, protect } = createPermDock(policy, {
       subject: (c) => c.get("user"),
     });
     const app = new Hono<{ Variables: { user: User } }>();
@@ -138,7 +138,7 @@ describe("permdock/hono", () => {
       c.set("user", memberUser);
       await next();
     });
-    app.use(permdock());
+    app.use(middleware());
     app.delete(
       "/posts/:id",
       protect(permissions.post.update, (c) =>
@@ -164,7 +164,7 @@ describe("permdock/hono", () => {
 
   it("passes context, wrap and onDenied through to the kernel", async () => {
     const wrapped: unknown[] = [];
-    const { permdock, protect } = createPermDock(policy, {
+    const { middleware, protect } = createPermDock(policy, {
       subject: () => memberUser,
       context: (c) => ({ path: c.req.path }),
       wrap: (instance) => {
@@ -174,7 +174,7 @@ describe("permdock/hono", () => {
       onDenied: ({ problem }) => ({ ...problem, code: "LOCKED" }),
     });
     const app = new Hono();
-    app.use(permdock());
+    app.use(middleware());
     app.delete(
       "/posts/:id",
       protect(permissions.post.update, (c) =>
@@ -216,7 +216,7 @@ describe("permdock/hono", () => {
   });
 
   it("rejects a claimed Web Bot Auth signature before the handler", async () => {
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       webBotAuth: (request) =>
         verifyWebBotAuth(request, {
@@ -225,7 +225,7 @@ describe("permdock/hono", () => {
         }),
     });
     const app = new Hono();
-    app.use(permdock());
+    app.use(middleware());
     app.get("/posts", (c) => c.json({ ok: true }));
     const response = await app.request("http://localhost/posts", {
       headers: {

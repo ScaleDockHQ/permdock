@@ -59,7 +59,7 @@ export type TrpcOpenApiHooks = {
 };
 
 export type TrpcPermDock<TCtx = object> = {
-  readonly permdock: () => TrpcMiddleware;
+  readonly middleware: () => TrpcMiddleware;
   readonly protect: (
     permission: Permission | null,
     loadData?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
@@ -70,7 +70,7 @@ export type TrpcPermDock<TCtx = object> = {
     opts: TrpcMiddlewareOpts<TCtx>,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
-  readonly permdockHandler: (request: Request) => Promise<Response>;
+  readonly permdockHandler: () => (request: Request) => Promise<Response>;
   readonly openapi: TrpcOpenApiHooks;
   readonly errorFormatter: <TShape extends { readonly data: object }>(opts: {
     readonly shape: TShape;
@@ -174,11 +174,11 @@ export function createPermDock<
   );
 
   // SAFETY: the function has tRPC's middleware call shape; its generics cannot be inferred from it.
-  const permdock = (): TrpcMiddleware =>
+  const middleware = (): TrpcMiddleware =>
     (async (opts: TrpcMiddlewareOpts<TCtx>): Promise<unknown> => {
       const request = bind(opts);
       const instance = await attached(async () =>
-        kernel.permdock(request, await scopeOf(opts)),
+        kernel.getPermDock(request, await scopeOf(opts)),
       );
       if (!instance.ok) {
         return throwTrpcError(instance.response);
@@ -256,7 +256,7 @@ export function createPermDock<
       return throwTrpcError(guard.response);
     }) as TrpcMiddleware;
 
-  const permdockHandler = (request: Request): Promise<Response> => {
+  const handler = (request: Request): Promise<Response> => {
     // SAFETY: the handler route runs outside tRPC, so its only context is the request as req.
     const opts = {
       ctx: { req: request } as TCtx,
@@ -280,10 +280,10 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    middleware,
     protect,
     connection,
-    permdockHandler,
+    permdockHandler: () => handler,
     openapi,
     errorFormatter,
   };

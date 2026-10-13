@@ -38,7 +38,7 @@ async function codeOf(run: () => Promise<unknown>): Promise<string> {
 describe("permdock/trpc request discovery and failures", () => {
   it("reads ctx.request and rejects a bad Web Bot Auth signature", async () => {
     const t = initTRPC.context<Ctx>().create();
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       webBotAuth: (request) =>
         verifyWebBotAuth(request, {
@@ -47,7 +47,7 @@ describe("permdock/trpc request discovery and failures", () => {
         }),
     });
     const router = t.router({
-      read: t.procedure.use(permdock()).query(() => "ok"),
+      read: t.procedure.use(middleware()).query(() => "ok"),
     });
     const request = new Request("http://localhost/trpc/read", {
       headers: signed,
@@ -63,7 +63,7 @@ describe("permdock/trpc request discovery and failures", () => {
   it("resolves the actor and wraps the instance with otel", async () => {
     const t = initTRPC.context<Ctx>().create();
     const wrapped: string[] = [];
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       actor: (opts) => ({ id: opts.type, kind: "agent" }),
       otel: (instance) => {
@@ -73,7 +73,7 @@ describe("permdock/trpc request discovery and failures", () => {
     });
     const router = t.router({
       read: t.procedure
-        .use(permdock())
+        .use(middleware())
         .query(({ ctx }) => ctx["permdock"].subject.actor),
     });
     const request = new Request("http://localhost/trpc/read");
@@ -93,14 +93,14 @@ describe("permdock/trpc request discovery and failures", () => {
         throw new Error("no request");
       },
     ]) {
-      const { permdock } = createPermDock(policy, {
+      const { middleware } = createPermDock(policy, {
         subject: () => memberUser,
         request,
       });
       const router = t.router({
-        read: t.procedure.use(permdock()).query(
+        read: t.procedure.use(middleware()).query(
           ({ ctx }) =>
-            // SAFETY: the permdock() middleware above adds ctx.permdock.
+            // SAFETY: the middleware() middleware above adds ctx.permdock.
             (
               ctx as unknown as {
                 readonly permdock: {
@@ -117,16 +117,16 @@ describe("permdock/trpc request discovery and failures", () => {
     expect(results).toEqual(["u1", "u1"]);
   });
 
-  it("rethrows a build failure from permdock()", async () => {
+  it("rethrows a build failure from middleware()", async () => {
     const t = initTRPC.context<Ctx>().create();
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       pdp: async () => {
         throw new Error("pdp factory failed");
       },
     });
     const router = t.router({
-      read: t.procedure.use(permdock()).query(() => "ok"),
+      read: t.procedure.use(middleware()).query(() => "ok"),
     });
     expect(await codeOf(() => router.createCaller({}).read())).toBe(
       "INTERNAL_SERVER_ERROR",
@@ -135,10 +135,12 @@ describe("permdock/trpc request discovery and failures", () => {
 
   it("maps invalid row data in a resolver to BAD_REQUEST", async () => {
     const t = initTRPC.context<Ctx>().create();
-    const { permdock } = createPermDock(policy, { subject: () => memberUser });
+    const { middleware } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
     const router = t.router({
-      update: t.procedure.use(permdock()).mutation(({ ctx }) => {
-        // SAFETY: the permdock() middleware above adds ctx.permdock.
+      update: t.procedure.use(middleware()).mutation(({ ctx }) => {
+        // SAFETY: the middleware() middleware above adds ctx.permdock.
         const scoped = ctx as unknown as {
           readonly permdock: {
             readonly assert: (permission: unknown, data: unknown) => void;
@@ -198,7 +200,7 @@ describe("permdock/trpc request discovery and failures", () => {
     const { permdockHandler } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const response = await permdockHandler(
+    const response = await permdockHandler()(
       new Request("http://localhost/permdock"),
     );
     expect(response.status).toBe(200);

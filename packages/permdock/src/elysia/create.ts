@@ -50,23 +50,21 @@ export type ElysiaProtect = (
   protectOptions?: ProtectOptions,
 ) => (ctx: ElysiaCtx) => Promise<Response | undefined>;
 
-/** The `permdock()` plugin: its global derive types `permdock` in every later handler. */
+/** The `middleware()` plugin: its global derive types `permdock` in every later handler. */
 export type ElysiaPermDockPlugin<
   V extends PolicyVocabulary = PolicyVocabulary,
 > = Elysia<
   "",
-  /* oxlint-disable typescript/no-generated-empty-object-type -- Elysia's own empty singleton slots */
   {
     decorator: Record<never, never>;
     store: Record<never, never>;
     derive: { readonly permdock: PermDock<V> };
     resolve: Record<never, never>;
   }
-  /* oxlint-enable typescript/no-generated-empty-object-type */
 >;
 
 export type ElysiaPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: () => ElysiaPermDockPlugin<V>;
+  readonly middleware: () => ElysiaPermDockPlugin<V>;
   readonly protect: ElysiaProtect;
   /**
    * One connection per socket: the same promise for every handler
@@ -98,10 +96,13 @@ export function createPermDock<
   } = bindKernel(policy, options, "elysia", toRequest);
 
   // SAFETY: the chain returns an Elysia instance; its generics are narrowed to the global permdock derive.
-  const permdock = (): ElysiaPermDockPlugin<V> =>
+  const middleware = (): ElysiaPermDockPlugin<V> =>
     new Elysia({ name: "permdock", seed })
       .derive({ as: "global" }, async (ctx) => {
-        const instance = await kernel.permdock(bind(ctx), await scopeOf(ctx));
+        const instance = await kernel.getPermDock(
+          bind(ctx),
+          await scopeOf(ctx),
+        );
         decorate(ctx, instance);
         return { permdock: instance };
       })
@@ -148,7 +149,7 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    middleware,
     protect,
     connection,
     permdockHandler,

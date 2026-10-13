@@ -276,12 +276,12 @@ const resolve = createJwtSubjectResolver({
   sender: "dpop",
 });
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw), // the request carries the DPoP proof
 });
 
 const app = new Hono();
-app.use(permdock());
+app.use(middleware());
 app.patch(
   "/posts/:id",
   protect(permissions.post.update, (c) => loadPost(c.req.param("id"))),

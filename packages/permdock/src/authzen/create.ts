@@ -470,9 +470,8 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     return notFound("unknown AuthZEN path");
   }
 
-  return {
-    async permdockHandler(request) {
-      return withRequestId(request, await route(request));
-    },
-  };
+  const handler = async (request: Request): Promise<Response> =>
+    withRequestId(request, await route(request));
+
+  return { permdockHandler: () => handler };
 };

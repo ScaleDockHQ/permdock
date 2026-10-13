@@ -16,13 +16,13 @@ import { createPermDock } from "permdock/trpc";
 import { policy } from "./policy";
 import { permissions } from "./permissions";
 
-export const { permdock, protect, openapi } = createPermDock(policy, {
+export const { middleware, protect, openapi } = createPermDock(policy, {
   subject: (opts) => opts.ctx.user ?? null,
 });
 
 const t = initTRPC.context<Context>().create();
 export const router = t.router;
-export const procedure = t.procedure.use(permdock()); // ctx.permdock is the request-scoped PermDock
+export const procedure = t.procedure.use(middleware()); // ctx.permdock is the request-scoped PermDock
 
 // server/routers/posts.ts
 export const postsRouter = router({
@@ -40,10 +40,10 @@ export const postsRouter = router({
 
 | Export                                 | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `permdock()`                           | Middleware. Calls `subject(opts)` once per request (memoised on `ctx` so nested routers share the instance) and extends `ctx` with `permdock`. Typed through tRPC's middleware context inference, no manual context augmentation.                                                                                                                                                                                                                                                                                                                                                     |
+| `middleware()`                         | Middleware. Calls `subject(opts)` once per request (memoised on `ctx` so nested routers share the instance) and extends `ctx` with `permdock`. Typed through tRPC's middleware context inference, no manual context augmentation.                                                                                                                                                                                                                                                                                                                                                     |
 | `protect(permission, load?, options?)` | Middleware placed after `.input(...)`. The `tenant` option reads each procedure's own opts (`(opts) => opts.input?.org`), so procedures in one `httpBatchLink` batch decide in their own tenant; the subject is resolved once per HTTP request. `load` receives `input`, `ctx`; the result is validated at the boundary when the loader is untrusted and passed on as `ctx.permdockData`. Denials throw `TRPCError` with code `FORBIDDEN` and the Problem Details body as `cause`. `protect(null, load?, { oauthScopes })` needs a principal and the OAuth scopes, but no permission. |
 | `openapi.security(permission)`         | Returns the `meta` fragment for `trpc-to-openapi`: `protect: true`, `securitySchemes` scope names, and `x-permdock-permissions`. `openapi.securitySchemes()` feeds `generateOpenApiDocument`.                                                                                                                                                                                                                                                                                                                                                                                         |
-| `permdockHandler`                      | Procedure (or standalone Fetch handler) implementing the AuthZEN-shaped decision endpoint for `permdock/react` clients that share the tRPC server.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `permdockHandler()`                    | Returns the Fetch handler `(request) => Promise<Response>` implementing the AuthZEN-shaped decision endpoint for `permdock/react` clients that share the tRPC server.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `request` option                       | `(ctx) => Request \| null \| undefined`. The Web `Request` behind a context, for adapters whose context holds it under another name; defaults to `ctx.request` or `ctx.req`. A throwing mapper is no request.                                                                                                                                                                                                                                                                                                                                                                         |
 
 ### Subscriptions
@@ -68,10 +68,10 @@ onProjectEvent: t.procedure
 
 `permdock/trpc` follows the [shared adapter contract](/docs/adapters) with tRPC-specific steps:
 
-- `protect` runs after tRPC's input parser, so boundary validation sees parsed input; it hands the row on as `ctx.permdockData`. Placing `protect` before `permdock()` is a type error because `ctx.permdock` is absent from the inferred context.
-- A PermDock error thrown in a resolver (from `ctx.permdock.assert(...)`) comes back to `permdock()` or `protect()` as a failed result and is rethrown as the same `TRPCError` a guard denial produces (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`, `NOT_FOUND` or `TOO_MANY_REQUESTS` from the Problem status). Pass `errorFormatter` to `initTRPC.create` so the client receives the Problem Details fields under `data`. Only Problem Details the adapter produced are merged; any other `cause` (a database error, a thrown object) never reaches the client.
+- `protect` runs after tRPC's input parser, so boundary validation sees parsed input; it hands the row on as `ctx.permdockData`. Placing `protect` before `middleware()` is a type error because `ctx.permdock` is absent from the inferred context.
+- A PermDock error thrown in a resolver (from `ctx.permdock.assert(...)`) comes back to `middleware()` or `protect()` as a failed result and is rethrown as the same `TRPCError` a guard denial produces (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`, `NOT_FOUND` or `TOO_MANY_REQUESTS` from the Problem status). Pass `errorFormatter` to `initTRPC.create` so the client receives the Problem Details fields under `data`. Only Problem Details the adapter produced are merged; any other `cause` (a database error, a thrown object) never reaches the client.
 - `on('decision')` events carry the procedure path and type.
-- The decision endpoint exists in both shapes: `permdockHandler` as a procedure for a typed, batched tRPC client, and as the plain AuthZEN Fetch handler for clients outside tRPC. The peer range is `@trpc/server >=11`.
+- The decision endpoint is the Fetch handler `permdockHandler()` returns; mount it next to the tRPC handler. The peer range is `@trpc/server >=11`.
 
 ## How denials surface
 
@@ -86,7 +86,7 @@ onProjectEvent: t.procedure
 
 ## Example app
 
-`apps/examples/trpc`: tRPC v11 with the Fetch adapter, a posts router using `permdock()` and `protect` on `posts.update` (granted) and `posts.publish` (denied for `member`). Unit tests call procedures through `createCaller` and assert `TRPCError` codes and Problem Details `cause` bodies.
+`apps/examples/trpc`: tRPC v11 with the Fetch adapter, a posts router using `middleware()` and `protect` on `posts.update` (granted) and `posts.publish` (denied for `member`). Unit tests call procedures through `createCaller` and assert `TRPCError` codes and Problem Details `cause` bodies.
 
 `tests/integration/src/http/trpc.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios over `fetchRequestHandler` on `@hono/node-server` with `@trpc/client` and `httpBatchLink`, one client per caller so same-caller calls share a batch. Uploads are skipped: the mount takes JSON input.
 

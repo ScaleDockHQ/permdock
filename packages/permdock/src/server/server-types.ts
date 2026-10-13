@@ -190,7 +190,7 @@ export type SnapshotQuery = {
  * framework context.
  */
 export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: (
+  readonly getPermDock: (
     request: Request,
     scope?: TenantScope,
   ) => Promise<PermDock<V>>;

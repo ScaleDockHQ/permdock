@@ -167,10 +167,10 @@ Express, Fastify, Elysia, Nest, Node, tRPC and oRPC have the same shape.
 ```ts
 import { createPermDock } from "permdock/hono";
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
 });
-app.use(permdock());
+app.use(middleware());
 app.delete(
   "/posts/:id",
   protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),

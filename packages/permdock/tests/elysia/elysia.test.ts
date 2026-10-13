@@ -46,10 +46,10 @@ describe("permdock/elysia sockets", () => {
 
 describe("permdock/elysia", () => {
   it("sets a request-scoped instance and protects routes", async () => {
-    const { permdock, protect } = createPermDock(policy, {
+    const { middleware, protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const app = new Elysia().use(permdock()).delete(
+    const app = new Elysia().use(middleware()).delete(
       "/posts/:id",
       (ctx) => ({
         ok: true,
@@ -121,9 +121,9 @@ describe("permdock/elysia", () => {
 });
 
 describe("permdock/elysia routes before the plugin", () => {
-  it("builds no instance for a route registered before use(permdock())", async () => {
+  it("builds no instance for a route registered before use(middleware())", async () => {
     let resolved = 0;
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => {
         resolved += 1;
         return memberUser;
@@ -131,7 +131,7 @@ describe("permdock/elysia routes before the plugin", () => {
     });
     const app = new Elysia()
       .get("/health", () => "ok")
-      .use(permdock())
+      .use(middleware())
       .get("/posts", () => "ok");
     await app.handle(new Request("http://localhost/health"));
     expect(resolved).toBe(0);

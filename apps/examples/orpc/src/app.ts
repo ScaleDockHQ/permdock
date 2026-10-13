@@ -7,12 +7,12 @@ import { policy, type User } from "./policy.ts";
 
 type Ctx = { readonly user: User };
 
-const { permdock, protect } = createPermDock<Ctx>(policy, {
+const { middleware, protect } = createPermDock<Ctx>(policy, {
   subject: (opts) => opts.context.user,
 });
 
 const os = implement(contract).$context<Ctx>();
-const base = os.use(permdock());
+const base = os.use(middleware());
 
 export const router = os.router({
   health: os.health.handler(() => ({ ok: true as const })),

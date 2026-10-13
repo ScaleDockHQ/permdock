@@ -162,7 +162,9 @@ export type TerminalActor = {
 };
 
 export type TerminalPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: (options?: PermDockResolveOptions) => Promise<PermDock<V>>;
+  readonly getPermDock: (
+    options?: PermDockResolveOptions,
+  ) => Promise<PermDock<V>>;
   readonly protect: <TArgs extends readonly unknown[], TData = unknown>(
     permission: Permission,
     load?: (...args: TArgs) => TData | Promise<TData>,

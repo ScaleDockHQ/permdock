@@ -37,7 +37,7 @@ function post(
   payload: unknown,
   headers: Record<string, string> = {},
 ): Promise<Response> {
-  return permdockHandler(
+  return permdockHandler()(
     new Request(`${ORIGIN}${path}`, {
       method: "POST",
       headers: {
@@ -96,7 +96,7 @@ describe("AuthZEN 1.0 section 6: Access Evaluation API", () => {
   });
 
   it("a malformed body is 400, an unauthenticated PEP is 401, a GET is 405", async () => {
-    const malformed = await permdockHandler(
+    const malformed = await permdockHandler()(
       new Request(`${ORIGIN}/access/v1/evaluation`, {
         method: "POST",
         headers: { authorization: "Bearer pep" },
@@ -104,14 +104,14 @@ describe("AuthZEN 1.0 section 6: Access Evaluation API", () => {
       }),
     );
     expect(malformed.status).toBe(400);
-    const anonymous = await permdockHandler(
+    const anonymous = await permdockHandler()(
       new Request(`${ORIGIN}/access/v1/evaluation`, {
         method: "POST",
         body: "{}",
       }),
     );
     expect(anonymous.status).toBe(401);
-    const get = await permdockHandler(
+    const get = await permdockHandler()(
       new Request(`${ORIGIN}/access/v1/evaluation`, {
         headers: { authorization: "Bearer pep" },
       }),
@@ -344,7 +344,7 @@ describe("AuthZEN 1.0 section 5: information model", () => {
 
 describe("AuthZEN 1.0 section 9: PDP metadata", () => {
   it("policy_decision_point is the PDP identifier and every endpoint is beneath it", async () => {
-    const response = await permdockHandler(
+    const response = await permdockHandler()(
       new Request(`${ORIGIN}/.well-known/authzen-configuration`),
     );
     const metadata = await json(response);
@@ -365,7 +365,7 @@ describe("AuthZEN 1.0 section 9: PDP metadata", () => {
 
   it("a path-qualified identifier is served at the well-known path with the path appended", async () => {
     const metadata = await json(
-      await permdockHandler(
+      await permdockHandler()(
         new Request(`${ORIGIN}/.well-known/authzen-configuration/tenant-1`),
       ),
     );
@@ -384,7 +384,7 @@ describe("AuthZEN 1.0 section 10: transport", () => {
       { "X-Request-ID": "req-1" },
     );
     expect(decided.headers.get("x-request-id")).toBe("req-1");
-    const refused = await permdockHandler(
+    const refused = await permdockHandler()(
       new Request(`${ORIGIN}/access/v1/evaluation`, {
         method: "POST",
         headers: { "X-Request-ID": "req-2" },
@@ -393,7 +393,7 @@ describe("AuthZEN 1.0 section 10: transport", () => {
     );
     expect(refused.status).toBe(401);
     expect(refused.headers.get("x-request-id")).toBe("req-2");
-    const metadata = await permdockHandler(
+    const metadata = await permdockHandler()(
       new Request(`${ORIGIN}/.well-known/authzen-configuration`, {
         headers: { "X-Request-ID": "req-3" },
       }),
@@ -405,7 +405,7 @@ describe("AuthZEN 1.0 section 10: transport", () => {
     const untrusted = createPermDock(policy, {
       subject: () => memberUser,
       resources: { post: { load: () => otherPost } },
-    }).permdockHandler;
+    }).permdockHandler();
     const response = await untrusted(
       new Request(`${ORIGIN}/access/v1/evaluation`, {
         method: "POST",

@@ -54,7 +54,7 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
 ```ts
 import { createPermDock } from "permdock/eve";
 
-export const { approval, approvalFor, permdock } = createPermDock(policy, {
+export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
   delegation: () => ({ scopes: [permissions.post.delete.scope] }),
   tools: {
     delete_post: {
@@ -72,7 +72,7 @@ Pass `approval` as the tool's `approval`. Default subject and actor read `sessio
 ```ts
 import { createPermDock } from "permdock/openai";
 
-export const { needsApproval, guardTools, resolveInterruptions, permdock } =
+export const { needsApproval, guardTools, resolveInterruptions, getPermDock } =
   createPermDock(policy, {
     subject: (ctx) => ctx.user,
     actor: (ctx) => ({ id: ctx.agentId, kind: "openai" }),
@@ -188,7 +188,7 @@ import {
 
 const keys = discoverViaSignatureAgent({ allow: ["agents.example.com"] });
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
   webBotAuth: (request) => verifyWebBotAuth(request, { verify: true, keys }),
 });
@@ -201,7 +201,7 @@ A verified RFC 9421 signer becomes the actor with `kind: 'web-bot-auth'`; `deleg
 ```ts
 import { createPermDock } from "permdock/terminal";
 
-export const { permdock, protect, filterCommands, format, exitCode } =
+export const { getPermDock, protect, filterCommands, format, exitCode } =
   createPermDock(policy, {
     subject: async ({ token }) => {
       const jwt = await token(["env", "keychain", "ci-oidc", "device"]);

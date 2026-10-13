@@ -21,7 +21,7 @@ describe("getSnapshot(request)", () => {
     const subject = vi.fn<() => typeof alice>(() => alice);
     const server = createPermDock(saasPolicy, { subject, tenant: "acme" });
     const req = request();
-    await server.permdock(req);
+    await server.getPermDock(req);
     const snapshot = await server.getSnapshot(req);
     expect(subject).toHaveBeenCalledTimes(1);
     expect(snapshot.subject.principal?.id).toBe(alice.id);

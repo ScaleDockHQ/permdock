@@ -10,7 +10,7 @@ import {
 
 describe("permdock/claude-agent instance", () => {
   it("exposes the per-context instance and treats non-object input as empty", async () => {
-    const { permdock: permdockFor, canUseTool } = createPermDock(policy, {
+    const { getPermDock: permdockFor, canUseTool } = createPermDock(policy, {
       subject: () => memberUser,
       tools: {
         Read: {

@@ -18,7 +18,7 @@ import { createPermDock } from "permdock/eve";
 const DeleteInput = z.object({ id: z.string() });
 const RefundInput = z.object({ chargeId: z.string(), amount: z.number() });
 
-const { approval, approvalFor, permdock } = createPermDock(policy, {
+const { approval, approvalFor, getPermDock } = createPermDock(policy, {
   tools: {
     delete_post: {
       permission: permissions.post.delete,
@@ -41,8 +41,8 @@ export default defineTool({
   inputSchema: RefundInput,
   approval, // { request, response } built from the tools map
   async execute(input, ctx) {
-    // permdock(ctx) is the request-scoped PermDock for checks inside the tool
-    (await permdock(ctx)).assert(
+    // getPermDock(ctx) is the request-scoped PermDock for checks inside the tool
+    (await getPermDock(ctx)).assert(
       permissions.charge.refund,
       await loadCharge(input.chargeId),
     );
@@ -59,7 +59,7 @@ approval: approvalFor(permissions.charge.refund, (input) =>
 - `approval` is an Eve `{ request, response }` pair, each taking the one context object Eve passes (`EveApprovalContext` for `request`, `EveResponseContext` for `response`). `request` looks the tool name up in `tools` (own keys only), resolves the resource, calls `decide` and maps the outcome. `response` checks the responder against the approval record and the `approvers` rule.
 - `approvalFor(permission, data?)` builds the same pair for one tool inline.
 - `data` receives the tool input as `unknown`; parse it with the tool's schema before loading the resource.
-- `permdock(ctx)` returns a request-scoped `PermDock` from `ctx.session` for checks inside `execute` or in other Eve code. It builds a fresh frozen instance on every call, so a replayed step never sees state from an earlier one.
+- `getPermDock(ctx)` returns a request-scoped `PermDock` from `ctx.session` for checks inside `execute` or in other Eve code. It builds a fresh frozen instance on every call, so a replayed step never sees state from an earlier one.
 - `tenant` resolves the active tenant from the same context on every call; the `tools` map has no tenant dimension, because the tenant is part of the subject, not of the tool.
 - `store` is the [ApprovalStore](/docs/adapters/approvals). `approvers` is either `{ roles }` (approver must hold one of these roles in the PermDock policy) or a function `(responder, request) => boolean`. It is an extra restriction on top of `grant.approval.by`; both must pass. The actor rule (an agent never approves its own call) is enforced regardless.
 

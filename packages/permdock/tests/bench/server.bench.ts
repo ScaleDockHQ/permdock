@@ -58,7 +58,7 @@ test("evaluations, 100 items over 600 permissions", async ({ bench }) => {
       await POST(post(byKey));
     }),
     bench("tRPC permdockHandler, by permission key", async () => {
-      await trpc.permdockHandler(post(byKey));
+      await trpc.permdockHandler()(post(byKey));
     }),
   );
 });

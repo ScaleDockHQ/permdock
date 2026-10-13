@@ -94,7 +94,7 @@ export type ClaudeAgentPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
       toolUseID?: string,
       options?: { readonly signal?: AbortSignal },
     ) => Promise<PermissionRequestHookOutput>;
-    readonly permdock: (context: ClaudeAgentContext) => Promise<PermDock<V>>;
+    readonly getPermDock: (context: ClaudeAgentContext) => Promise<PermDock<V>>;
   };
 
 const MCP_PREFIX = "mcp__";
@@ -210,6 +210,6 @@ export function createPermDock<
   return {
     canUseTool,
     permissionRequestHook,
-    permdock: (context) => kernel.instance(context),
+    getPermDock: (context) => kernel.instance(context),
   };
 }

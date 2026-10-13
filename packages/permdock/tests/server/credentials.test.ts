@@ -669,7 +669,7 @@ describe("a user key held to one tenant on a route of another", () => {
     const permdock = await createServerPermDock(policy, {
       subject: () => resolver(key, { tenant: "o_1" }),
       tenant: "o_1",
-    }).permdock(new Request("https://api.example/r"));
+    }).getPermDock(new Request("https://api.example/r"));
     expect({
       tenant: permdock.subject.principal?.tenant,
       memberships: permdock.memberships(),

@@ -10,7 +10,7 @@ import { db, requiredFields } from "./db.ts";
 import { permissions } from "./permissions.ts";
 import { memberUser, policy } from "./policy.ts";
 
-const { permdock, protect } = createPermDock(policy, {
+const { middleware, protect } = createPermDock(policy, {
   subject: () => memberUser,
 });
 
@@ -26,7 +26,7 @@ export const app = new Hono();
 
 app.get("/health", (c) => c.json({ ok: true }));
 
-app.get("/posts", permdock(), async (c) => {
+app.get("/posts", middleware(), async (c) => {
   const prisma = await db;
   const rows = await prisma.post.findMany({
     where: toWhere<Prisma.postWhereInput>(

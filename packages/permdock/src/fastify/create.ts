@@ -71,10 +71,10 @@ export type FastifyProtect = <
 ) => Promise<void>;
 
 export type FastifyPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: FastifyPluginAsync;
+  readonly middleware: () => FastifyPluginAsync;
   readonly protect: FastifyProtect;
-  readonly permdockHandler: FastifyPluginAsync;
-  /** Types `request.permdock` for a route registered after `permdock` or `protect`. */
+  readonly permdockHandler: () => FastifyPluginAsync;
+  /** Types `request.permdock` for a route registered after `middleware()` or `protect`. */
   readonly withPermDock: <
     Route extends RouteGenericInterface = RouteGenericInterface,
   >(
@@ -115,7 +115,7 @@ export function createPermDock<
     guard: runGuard,
   } = bindKernel(policy, options, "fastify", toRequest);
 
-  const permdock = breakEncapsulation((app) => {
+  const plugin = breakEncapsulation((app) => {
     app.decorateRequest("permdock", null);
     app.decorateRequest("permdockData", null);
     app.addHook("onRequest", async (request) => {
@@ -124,7 +124,7 @@ export function createPermDock<
       }
       decorate(
         request,
-        await kernel.permdock(bind(request), await scopeOf(request)),
+        await kernel.getPermDock(bind(request), await scopeOf(request)),
       );
     });
     // A user error handler may be async; Fastify types it as `void`.
@@ -165,7 +165,7 @@ export function createPermDock<
       decorate(plain, guard.permdock, guard.data);
     };
 
-  const permdockHandler: FastifyPluginAsync = (app) => {
+  const handler: FastifyPluginAsync = (app) => {
     const { POST, GET } = kernel.permdockHandler(handlerScope);
     app.post("/", async (request, reply) => {
       await sendReply(reply, await POST(rebind(request)));
@@ -181,13 +181,13 @@ export function createPermDock<
       fn: (request: PermDockRequest<Route, V>, reply: FastifyReply) => unknown,
     ) =>
     (request: FastifyRequest<Route>, reply: FastifyReply): unknown =>
-      // SAFETY: the route runs after permdock or protect, which set request.permdock from this factory's policy.
+      // SAFETY: the route runs after middleware() or protect, which set request.permdock from this factory's policy.
       fn(request as PermDockRequest<Route, V>, reply);
 
   return {
-    permdock,
+    middleware: () => plugin,
     protect,
-    permdockHandler,
+    permdockHandler: () => handler,
     withPermDock,
     openapi: kernel.openapi,
   };

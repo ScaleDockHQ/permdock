@@ -45,7 +45,7 @@ describe("actor resolution", () => {
       undefined,
     ],
   ])("keeps %s only when it is an Actor", async (_label, actor, expected) => {
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       actor,
     });
@@ -66,9 +66,9 @@ describe("createPermDock", () => {
       },
     });
     const shared = request();
-    const first = await kernel.permdock(shared);
-    expect(await kernel.permdock(shared)).toBe(first);
-    await kernel.permdock(shared, { tenant: "o1" });
+    const first = await kernel.getPermDock(shared);
+    expect(await kernel.getPermDock(shared)).toBe(first);
+    await kernel.getPermDock(shared, { tenant: "o1" });
     expect({
       calls: subject.mock.calls.length,
       wrapped: wrapped.length,

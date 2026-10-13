@@ -80,10 +80,10 @@ describe("customRoles as a factory of the subject", () => {
         headers: { "x-user": user },
       });
     expect(
-      (await server.permdock(as("u1"))).can(permissions.asset.read, asset),
+      (await server.getPermDock(as("u1"))).can(permissions.asset.read, asset),
     ).toBe(true);
     expect(
-      (await server.permdock(as("u2"))).can(permissions.asset.read, asset),
+      (await server.getPermDock(as("u2"))).can(permissions.asset.read, asset),
     ).toBe(false);
   });
 

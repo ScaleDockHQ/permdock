@@ -21,15 +21,15 @@ const { permdockHandler } = createPermDock(authzenTodoPolicy, {
 });
 
 describe("AuthZEN interop: PermDock vectors over the Todo domain", () => {
-  testAuthZen(permdockHandler, { vectors: authzenTodoVectors() });
+  testAuthZen(permdockHandler(), { vectors: authzenTodoVectors() });
 });
 
 describe("AuthZEN runner with partial vector sets", () => {
-  testAuthZen(permdockHandler, {
+  testAuthZen(permdockHandler(), {
     vectors: { search: authzenTodoVectors().search ?? {} },
     discovery: false,
   });
-  testAuthZen(permdockHandler, {
+  testAuthZen(permdockHandler(), {
     vectors: {
       evaluation: [
         {
@@ -95,6 +95,6 @@ describe.runIf(requireOfficial)(
     const vectors = requireOfficial
       ? (JSON.parse(readFileSync(OFFICIAL, "utf8")) as AuthZenVectors)
       : {};
-    testAuthZen(permdockHandler, { vectors, discovery: false });
+    testAuthZen(permdockHandler(), { vectors, discovery: false });
   },
 );

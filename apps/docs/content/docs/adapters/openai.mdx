@@ -18,7 +18,7 @@ import { z } from "zod";
 
 const PostArgs = z.object({ id: z.string() }); // tool input arrives as `unknown`
 
-const { needsApproval, guardTools, resolveInterruptions, permdock } =
+const { needsApproval, guardTools, resolveInterruptions, getPermDock } =
   createPermDock(policy, {
     subject: (context) => context.user, // RunContext -> principal
     actor: (context) => ({ id: context.agentId, kind: "openai-agent" }),
@@ -38,7 +38,10 @@ const deletePost = tool({
   parameters: z.object({ id: z.string() }),
   needsApproval: needsApproval(permissions.post.delete), // decide() per call; denied → approval never granted
   execute: async ({ id }, ctx) => {
-    (await permdock(ctx)).assert(permissions.post.delete, await loadPost(id));
+    (await getPermDock(ctx)).assert(
+      permissions.post.delete,
+      await loadPost(id),
+    );
     return remove(id);
   },
 });
@@ -78,7 +81,7 @@ if (pending.length === 0) result = await run(agent, state); // every interruptio
 - `needsApproval(permission)` returns the SDK predicate `(runContext, args) => Promise<boolean>`; it reads the application context from `runContext.context`. It returns `false` only when `can(permission, row)` holds for the resolved resource, and `true` (pause) for `approval-required`, `denied`, a thrown or empty `data` loader and anything else; the check does not touch the store. The tool never executes on a denial: `resolveInterruptions` rejects it.
 - `guardTools(tools, context)` filters the tool array to those whose permission has any grant for this subject, so the model cannot plan with tools it may not use (the `capabilityMiddleware` equivalent).
 - `resolveInterruptions(state, interruptions, { context })` decides each interruption in order. `granted` (including an approved record, which it consumes) calls `state.approve(i)`; `denied` (including a rejected, consumed or expired record) calls `state.reject(i, { message })` with the Decision's reason; `approval-required` writes or finds the pending `ApprovalRequest` and returns it. An interruption whose name or JSON arguments cannot be read is rejected. The token is recomputed from permission, resource, principal, actor and arguments, so any process with the same store finds the record.
-- `permdock(context)` returns a request-scoped `PermDock` for checks inside `execute`.
+- `getPermDock(context)` returns a request-scoped `PermDock` for checks inside `execute`.
 - `subject` and `actor` read from the `RunContext` the application passes to `run`; nothing is read from model output. `delegation` reads from the same context and has no default: an `actor` with no `delegation` is denied every tool with reason `no-delegation`.
 
 ## Request lifecycle

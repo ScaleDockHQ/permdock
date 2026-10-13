@@ -350,7 +350,7 @@ describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
   });
 
   it("the HTTP kernel fills actor from a verified signature", async () => {
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       webBotAuth: (request) =>
         verifyWebBotAuth(request, {

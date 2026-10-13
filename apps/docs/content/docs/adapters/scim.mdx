@@ -43,7 +43,7 @@ export const scim = scimHandler({
 
 app.all("/scim/v2/:tenant/*", (c) => scim(c.req.raw));
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
   memberships: directoryMembershipSource(directory), // groups become team memberships inside the active tenant
 });

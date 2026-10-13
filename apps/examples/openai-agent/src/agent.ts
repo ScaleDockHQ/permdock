@@ -3,7 +3,7 @@ import { createPermDock } from "permdock/openai";
 import { ownPost, permissions } from "./permissions.ts";
 import { memberUser, policy } from "./policy.ts";
 
-export const { needsApproval, guardTools, resolveInterruptions, permdock } =
+export const { needsApproval, guardTools, resolveInterruptions, getPermDock } =
   createPermDock(policy, {
     subject: (ctx) => ctx.user ?? memberUser,
     actor: (ctx) => ({ id: ctx.agentId ?? "openai-1", kind: "openai" }),

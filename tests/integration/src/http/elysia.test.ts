@@ -5,13 +5,13 @@ import { createPermDock } from "permdock/elysia";
 import { testHttpAdapter } from "permdock/testing";
 import { saasPermissions as p } from "permdock/testing/saas";
 
-// SAFETY: only called on handler contexts of apps that register permdock(), which derives these fields
+// SAFETY: only called on handler contexts of apps that register middleware(), which derives these fields
 const scoped = (ctx: unknown) => ctx as ElysiaContext;
 
 testHttpAdapter({
   name: "permdock/elysia on app.handle",
   mount(domain) {
-    const { permdock, protect, permdockHandler } = createPermDock(
+    const { middleware, protect, permdockHandler } = createPermDock(
       domain.policy,
       {
         subject: (ctx) =>
@@ -30,13 +30,13 @@ testHttpAdapter({
     }) => domain.project(ctx.params?.["id"]);
 
     const admin = new Elysia({ prefix: "/:org/admin" })
-      .use(permdock())
+      .use(middleware())
       .get("/members", () => ({ members: [] }), {
         beforeHandle: protect(p.member.list),
       });
 
     const app = new Elysia()
-      .use(permdock())
+      .use(middleware())
       .use(
         new Elysia({ prefix: "/:org/permdock/access/v1/evaluations" }).use(
           permdockHandler(),

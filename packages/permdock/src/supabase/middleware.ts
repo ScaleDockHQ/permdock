@@ -267,7 +267,7 @@ export function createPermDock<
           config?.protect === undefined &&
           config?.oauthScopes === undefined
         ) {
-          const instance = await attached(() => kernel.permdock(request));
+          const instance = await attached(() => kernel.getPermDock(request));
           return instance.ok
             ? { permdock: instance.permdock }
             : instance.response;

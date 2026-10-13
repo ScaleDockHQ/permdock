@@ -18,7 +18,7 @@ testHttpAdapter({
   name: "permdock/hono on @hono/node-server",
   streams: true,
   async mount(domain) {
-    const { permdock, protect, connection, sse, permdockHandler } =
+    const { middleware, protect, connection, sse, permdockHandler } =
       createPermDock(domain.policy, {
         revocations: domain.revocations,
         subject: (c) =>
@@ -36,7 +36,7 @@ testHttpAdapter({
     );
 
     const app = new Hono<Env>()
-      .use(permdock())
+      .use(middleware())
       .route("/:org/permdock/access/v1/evaluations", permdockHandler())
       .route("/:org/admin", admin)
       .get(

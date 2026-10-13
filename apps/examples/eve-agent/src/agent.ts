@@ -18,7 +18,7 @@ export const reviewer: EvePrincipal = {
   attributes: { roles: [...adminUser.roles] },
 };
 
-export const { approval, approvalFor, permdock } = createPermDock(policy, {
+export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
   subject: ({ session }) => userById(session?.auth?.initiator?.principalId),
   store: memoryApprovalStore(),
   approvers: { roles: ["admin"] },

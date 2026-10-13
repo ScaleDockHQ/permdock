@@ -27,7 +27,7 @@ Everything else PermDock uses already existed in 3.1: `components.securityScheme
 
 ```ts
 import { createPermDock } from "permdock/hono";
-export const { permdock, protect, openapi } = createPermDock(policy, {
+export const { middleware, protect, openapi } = createPermDock(policy, {
   subject: (c) => c.get("user"),
   openapi: {
     target: "3.2", // '3.1' switches to the registered x-oai-* and x-permdock-* fallbacks

@@ -43,11 +43,11 @@ function setup() {
       events.push(...batch);
     },
   };
-  const { permdock, protect } = createOrpcPermDock<Ctx>(policy, {
+  const { middleware, protect } = createOrpcPermDock<Ctx>(policy, {
     subject: (opts) => opts.context.user,
     sink,
   });
-  const base = os.$context<Ctx>().use(permdock());
+  const base = os.$context<Ctx>().use(middleware());
   const router = {
     update: base
       .input(byId)

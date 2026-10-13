@@ -37,7 +37,7 @@ export type PermDockRequest<
 };
 
 export type ExpressPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: () => RequestHandler;
+  readonly middleware: () => RequestHandler;
   readonly protect: (
     permission: Permission | null,
     loadData?: (req: Request) => unknown,
@@ -117,9 +117,9 @@ export function createPermDock<
     guard: runGuard,
   } = bindKernel(policy, options, "express", toRequest);
 
-  const permdock = (): RequestHandler => (req, res, next) => {
+  const middleware = (): RequestHandler => (req, res, next) => {
     respond(req, res, next, async () => {
-      decorate(req, await kernel.permdock(bind(req), await scopeOf(req)));
+      decorate(req, await kernel.getPermDock(bind(req), await scopeOf(req)));
       next();
     });
   };
@@ -159,7 +159,7 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    middleware,
     protect,
     errorHandler,
     permdockHandler,

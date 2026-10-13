@@ -32,7 +32,7 @@ function request(
 function pdp(
   options?: Partial<Parameters<typeof createPermDock>[1]>,
   { enumerate = true }: { readonly enumerate?: boolean } = {},
-): ReturnType<typeof createPermDock>["permdockHandler"] {
+): ReturnType<ReturnType<typeof createPermDock>["permdockHandler"]> {
   return createPermDock(policy, {
     subject: () => ({ id: "pep", orgId: "o1", roles: ["admin"] }),
     // SAFETY: pep is the object returned by subject() above, which has an id.
@@ -62,7 +62,7 @@ function pdp(
         }
       : {}),
     ...options,
-  }).permdockHandler;
+  }).permdockHandler();
 }
 
 function memberBody(overrides?: {
@@ -161,7 +161,7 @@ describe("permdock/authzen", () => {
       const handler = createPermDock(policy, {
         subject: () => ({ id: "pep", orgId: "o1", roles: ["admin"] }),
         ...(trustedPep === undefined ? {} : { trustedPep }),
-      }).permdockHandler;
+      }).permdockHandler();
       const response = await handler(
         request("/access/v1/evaluation", {
           json: memberBody({
@@ -180,7 +180,7 @@ describe("permdock/authzen", () => {
     const response = await createPermDock(policy, {
       subject: () => ({ id: "pep", orgId: "o1", roles: ["admin"] }),
       sink,
-    }).permdockHandler(
+    }).permdockHandler()(
       request("/access/v1/evaluation", {
         json: memberBody({
           context: {

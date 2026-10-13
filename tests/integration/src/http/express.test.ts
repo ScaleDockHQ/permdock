@@ -12,9 +12,8 @@ import { listen } from "../support/listen.ts";
 testHttpAdapter({
   name: "permdock/express on node:http",
   async mount(domain) {
-    const { permdock, protect, errorHandler, permdockHandler } = createPermDock(
-      domain.policy,
-      {
+    const { middleware, protect, errorHandler, permdockHandler } =
+      createPermDock(domain.policy, {
         subject: (req) =>
           domain.subject(req.headers.authorization, req.originalUrl),
         // SAFETY: Express types every param as present; `org` is absent on routes without it
@@ -22,8 +21,7 @@ testHttpAdapter({
         customRoles: domain.customRoles,
         store: domain.store,
         limits: domain.limits,
-      },
-    );
+      });
     // SAFETY: Express types every param as present; `id` is absent on routes without it
     const row = (req: Request) =>
       domain.project(req.params["id"] as string | undefined);
@@ -36,7 +34,7 @@ testHttpAdapter({
 
     const app = express();
     // Before the body parsers on purpose: the bridge must not drain the stream.
-    app.use(permdock());
+    app.use(middleware());
     app.use(express.json());
     app.use("/:org/permdock/access/v1/evaluations", permdockHandler());
     app.use("/:org/admin", admin);

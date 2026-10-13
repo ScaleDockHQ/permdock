@@ -13,7 +13,7 @@ type Params = { readonly org?: string; readonly id?: string };
 testHttpAdapter({
   name: "permdock/fastify",
   async mount(domain) {
-    const { permdock, protect, permdockHandler } = createPermDock(
+    const { middleware, protect, permdockHandler } = createPermDock(
       domain.policy,
       {
         subject: (request) =>
@@ -31,8 +31,8 @@ testHttpAdapter({
 
     const app = Fastify();
     await app.register(multipart);
-    await app.register(permdock);
-    await app.register(permdockHandler, {
+    await app.register(middleware());
+    await app.register(permdockHandler(), {
       prefix: "/:org/permdock/access/v1/evaluations",
     });
     await app.register(

@@ -205,7 +205,7 @@ export function bindKernel<
 
   const attach = (context: TContext): Promise<Attached<V>> =>
     attached(async () =>
-      kernel.permdock(bind(context), await scopeOf(context)),
+      kernel.getPermDock(bind(context), await scopeOf(context)),
     );
 
   const guard = async (

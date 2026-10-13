@@ -19,7 +19,7 @@ import {
 import { policy } from "./policy";
 import { permissions } from "./permissions";
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
   webBotAuth: (request) =>
     verifyWebBotAuth(request, {
@@ -28,7 +28,7 @@ export const { permdock, protect } = createPermDock(policy, {
 });
 
 const app = new Hono<Env>();
-app.use(permdock()); // c.get('permdock') is the request-scoped PermDock
+app.use(middleware()); // c.get('permdock') is the request-scoped PermDock
 app.delete(
   "/posts/:id",
   protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),
@@ -41,7 +41,7 @@ app.delete(
 
 | Export                                     | Role                                                                                                                                                                                                                                                                                                                                                                                        |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `permdock()`                               | Middleware. Resolves the subject with the `subject` option (receives the Hono context `c`), builds the instance through the kernel and sets it as `c.set('permdock', instance)`. It returns `MiddlewareHandler<PermDockEnv>`, and Hono merges that `Variables` type into the route's Env, so `c.get('permdock')` is typed without global module augmentation and without a factory generic. |
+| `middleware()`                             | Middleware. Resolves the subject with the `subject` option (receives the Hono context `c`), builds the instance through the kernel and sets it as `c.set('permdock', instance)`. It returns `MiddlewareHandler<PermDockEnv>`, and Hono merges that `Variables` type into the route's Env, so `c.get('permdock')` is typed without global module augmentation and without a factory generic. |
 | `protect(permission, loadData?, options?)` | Route middleware. The `tenant` option (`(c) => c.req.param('org')`) is resolved for each `protect`, where route params exist. For instance actions `loadData(c)` runs first; the result is available to the handler as `c.get('permdockData')` and validated at the boundary if the loader is marked untrusted. Denials short-circuit with a Problem Details response.                      |
 | `permdockHandler()`                        | Mounts the AuthZEN-shaped decision endpoint (`POST /`) for `permdock/react` clients on any sub-app: `app.route('/api/permdock', permdockHandler())`.                                                                                                                                                                                                                                        |
 | `openapi`                                  | Kernel hook contract, used by the two integrations below.                                                                                                                                                                                                                                                                                                                                   |
@@ -148,7 +148,7 @@ export const app = bs.app().get(
 );
 ```
 
-`protect` sets `c.get('permdock')` itself, so the route needs no `permdock()` middleware. A support session's token is the user's, with the admin as the actor; it reaches only what a policy delegation names ([Supabase](/docs/adapters/supabase#support-and-impersonation-actors)).
+`protect` sets `c.get('permdock')` itself, so the route needs no `middleware()`. A support session's token is the user's, with the admin as the actor; it reaches only what a policy delegation names ([Supabase](/docs/adapters/supabase#support-and-impersonation-actors)).
 
 ## Request lifecycle
 
@@ -156,8 +156,8 @@ export const app = bs.app().get(
 
 - `subject(c)` typically reads a user set by an auth middleware earlier in the chain.
 - `protect` exposes the loaded row as `c.get('permdockData')`, so the handler does not run the loader again. A loader that returns `null` or `undefined` answers `404`.
-- After `await next()`, `permdock()` and `protect()` read the error Hono recorded for the downstream handler (for example from `c.get('permdock').assert(...)`) and replace the response with the same Problem Details body. No `app.onError` is needed, and an app's own `onError` keeps handling every other error.
-- `protect` builds the instance itself, so it works with or without `permdock()` earlier in the chain; there is no ordering to get wrong.
+- After `await next()`, `middleware()` and `protect()` read the error Hono recorded for the downstream handler (for example from `c.get('permdock').assert(...)`) and replace the response with the same Problem Details body. No `app.onError` is needed, and an app's own `onError` keeps handling every other error.
+- `protect` builds the instance itself, so it works with or without `middleware()` earlier in the chain; there is no ordering to get wrong.
 - The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route.
 - `context(c)`, `onDenied` and `wrap` take the Hono context and behave as on the [server kernel](/docs/adapters/server-kernel#options): `context: (c) => ({ region: c.get('geo').region })` adds server-derived request values, and `onDenied` replaces the refusal body.
 
@@ -165,11 +165,11 @@ Denials are the kernel's Problem Details responses, or what `onDenied` returned.
 
 ## Why
 
-Hono types context variables through the `Env` generic of each middleware and merges them along the chain, so the adapter only has to say what it sets. `permdock()` returns `MiddlewareHandler<PermDockEnv>` and `protect(permission, loadData)` returns `MiddlewareHandler<PermDockEnv<Row>>`, where `Row` is the loader's non-null return type. That works with `new Hono()`, with an app `Env` that declares its own variables, and inside `createMiddleware<PermDockEnv>` for an app middleware that reads `c.get('permdock')`, with no `createFactory` generic and no `declare module 'hono'` augmentation (which would leak one policy's types into every app in a monorepo). All three cases are type-tested.
+Hono types context variables through the `Env` generic of each middleware and merges them along the chain, so the adapter only has to say what it sets. `middleware()` returns `MiddlewareHandler<PermDockEnv>` and `protect(permission, loadData)` returns `MiddlewareHandler<PermDockEnv<Row>>`, where `Row` is the loader's non-null return type. That works with `new Hono()`, with an app `Env` that declares its own variables, and inside `createMiddleware<PermDockEnv>` for an app middleware that reads `c.get('permdock')`, with no `createFactory` generic and no `declare module 'hono'` augmentation (which would leak one policy's types into every app in a monorepo). All three cases are type-tested.
 
 ## Example app
 
-`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts`, which serves `app.fetch` with `@hono/node-server`, for `pnpm start`. `tests/integration/src/http/hono.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on `@hono/node-server` with a global `permdock()`, a tenant from the `:org` param and a sub-app. The factory enables `otel` with a structural logger so decision lines are recorded locally.
+`apps/examples/hono`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/hono`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), plus `src/serve.ts`, which serves `app.fetch` with `@hono/node-server`, for `pnpm start`. `tests/integration/src/http/hono.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios on `@hono/node-server` with a global `middleware()`, a tenant from the `:org` param and a sub-app. The factory enables `otel` with a structural logger so decision lines are recorded locally.
 
 ## Related standards
 

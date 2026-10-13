@@ -48,11 +48,11 @@ After a role change: `updateTag(snapshotTag(user))` in the Server Action; `reval
 ```ts
 import { createPermDock } from "permdock/hono";
 
-export const { permdock, protect, permdockHandler } = createPermDock(policy, {
+export const { middleware, protect, permdockHandler } = createPermDock(policy, {
   subject: (c) => c.get("user"),
 });
 
-app.use("*", permdock());
+app.use("*", middleware());
 app.delete(
   "/posts/:id",
   protect(permissions.post.delete, (c) => loadPost(c)),
@@ -109,7 +109,7 @@ export const { permdockHandler } = createPermDock(policy, {
 });
 ```
 
-One Fetch handler serves `POST /access/v1/evaluation`, `/evaluations`, `/search/action`, `/search/resource`, `/search/subject` and `GET /.well-known/authzen-configuration`. PEP authentication is required (`401` unless `anonymous: true`). The body `subject` is the evaluation principal when the PEP is trusted (default). Unknown actions return `decision: false` with `context.reason: 'unknown-permission'`. Omit `subjects.list` to drop search/subject from discovery. A custom PDP that evaluates delegated callers outside `createPermDock` calls `coveredByDelegation(permission, delegation, resourceId, hasActor)` from `permdock` instead of re-implementing scope, `authorization_details` and GNAP `access` matching.
+`permdockHandler()` returns one Fetch handler that serves `POST /access/v1/evaluation`, `/evaluations`, `/search/action`, `/search/resource`, `/search/subject` and `GET /.well-known/authzen-configuration`. PEP authentication is required (`401` unless `anonymous: true`). The body `subject` is the evaluation principal when the PEP is trusted (default). Unknown actions return `decision: false` with `context.reason: 'unknown-permission'`. Omit `subjects.list` to drop search/subject from discovery. A custom PDP that evaluates delegated callers outside `createPermDock` calls `coveredByDelegation(permission, delegation, resourceId, hasActor)` from `permdock` instead of re-implementing scope, `authorization_details` and GNAP `access` matching.
 
 ## OpenAPI — `permdock/openapi`
 
@@ -145,11 +145,11 @@ For an offline app on PowerSync, set `powersync: { out: 'sync-config.yaml' }` in
 ```ts
 import { createPermDock } from "permdock/express";
 
-export const { permdock, protect, errorHandler } = createPermDock(policy, {
+export const { middleware, protect, errorHandler } = createPermDock(policy, {
   subject: (req) => req.user ?? null,
 });
 
-app.use(permdock());
+app.use(middleware());
 app.delete(
   "/posts/:id",
   protect(permissions.post.delete, (req) => loadPost(req.params.id)),
@@ -158,18 +158,18 @@ app.delete(
 app.use(errorHandler());
 ```
 
-Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. A PermDock error thrown by `permdock()`, `protect` or the decision routes becomes Problem Details; any other error goes to `next(err)`.
+Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. A PermDock error thrown by `middleware()`, `protect` or the decision routes becomes Problem Details; any other error goes to `next(err)`.
 
 ## Fastify — `permdock/fastify`
 
 ```ts
 import { createPermDock } from "permdock/fastify";
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (request) => request.user ?? null,
 });
 
-await app.register(permdock);
+await app.register(middleware());
 app.delete(
   "/posts/:id",
   {
@@ -188,11 +188,11 @@ Registers a `fastify-plugin`-style root plugin (`skip-override`) that decorates 
 ```ts
 import { createPermDock } from "permdock/elysia";
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: ({ store }) => store.user ?? null,
 });
 
-const app = new Elysia().use(permdock()).delete("/posts/:id", handler, {
+const app = new Elysia().use(middleware()).delete("/posts/:id", handler, {
   beforeHandle: protect(permissions.post.delete, ({ params }) =>
     loadPost(params.id),
   ),
@@ -222,7 +222,7 @@ export class AppModule {}
 ```ts
 import { createPermDock } from "permdock/node";
 
-export const { permdock, protect, send, permdockHandler } = createPermDock(
+export const { getPermDock, protect, send, permdockHandler } = createPermDock(
   policy,
   {
     subject: (req) => userFromCookie(req.headers.cookie),
@@ -230,36 +230,36 @@ export const { permdock, protect, send, permdockHandler } = createPermDock(
 );
 ```
 
-Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Express and Nest reuse `toRequest` / `fromResponse`. The body is read only when consumed, so a body parser after `permdock(req)` still works. There is no error hook: wrap handlers that call `assert` and `send(res, problemFromError(error))` (from `permdock/server`) when it returns a `Response`.
+Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Express and Nest reuse `toRequest` / `fromResponse`. The body is read only when consumed, so a body parser after `getPermDock(req)` still works. There is no error hook: wrap handlers that call `assert` and `send(res, problemFromError(error))` (from `permdock/server`) when it returns a `Response`.
 
 ## tRPC — `permdock/trpc`
 
 ```ts
 import { createPermDock } from "permdock/trpc";
 
-export const { permdock, protect, permdockHandler } = createPermDock(policy, {
+export const { middleware, protect, permdockHandler } = createPermDock(policy, {
   subject: (opts) => opts.ctx.user ?? null,
 });
 
-const procedure = t.procedure.use(permdock());
+const procedure = t.procedure.use(middleware());
 procedure
   .input(z.object({ id: z.string() }))
   .use(protect(permissions.post.delete, ({ input }) => loadPost(input.id)))
   .mutation(({ ctx }) => deletePost(ctx.permdockData));
 ```
 
-`protect` throws `TRPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `cause`; pass `errorFormatter` to `initTRPC.create` so clients see it under `data`. `ctx.permdock.assert` in a resolver maps to the same error. Read the tenant from each procedure's input (`tenant: (opts) => opts.input?.org`) so a batch never shares one; `request: (ctx) => ctx.req` names the Web `Request` when the context holds it elsewhere. `openapi.security(permission)` is the `trpc-to-openapi` meta fragment. On a subscription, `protect(permission, load, { items })` ends the iterator with `UNAUTHORIZED` or `FORBIDDEN` when the session is revoked or the permission re-denied, and drops items the subscriber cannot read; pass `revocations`.
+`protect` throws `TRPCError` (`FORBIDDEN`, `BAD_REQUEST`, `UNAUTHORIZED`) with Problem Details as `cause`; pass `errorFormatter` to `initTRPC.create` so clients see it under `data`. `ctx.permdock.assert` in a resolver maps to the same error. Read the tenant from each procedure's input (`tenant: (opts) => opts.input?.org`) so a batch never shares one; `request: (ctx) => ctx.req` names the Web `Request` when the context holds it elsewhere. `permdockHandler()` returns the decision endpoint as a Fetch handler. `openapi.security(permission)` is the `trpc-to-openapi` meta fragment. On a subscription, `protect(permission, load, { items })` ends the iterator with `UNAUTHORIZED` or `FORBIDDEN` when the session is revoked or the permission re-denied, and drops items the subscriber cannot read; pass `revocations`.
 
 ## oRPC — `permdock/orpc`
 
 ```ts
 import { createPermDock } from "permdock/orpc";
 
-export const { permdock, protect, permdockHandler } = createPermDock(policy, {
+export const { middleware, protect, permdockHandler } = createPermDock(policy, {
   subject: ({ context }) => context.user ?? null,
 });
 
-const base = os.$context<Context>().use(permdock());
+const base = os.$context<Context>().use(middleware());
 base
   .input(z.object({ id: z.string() }))
   .use(protect(permissions.post.delete, ({ input }) => loadPost(input.id)))

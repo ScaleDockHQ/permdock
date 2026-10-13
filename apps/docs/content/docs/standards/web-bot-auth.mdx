@@ -30,7 +30,7 @@ import {
 
 const keys = discoverViaSignatureAgent({ allow: ["agents.example.com"] }); // key discovery policy
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
   webBotAuth: (request) =>
     verifyWebBotAuth(request, {
@@ -38,7 +38,7 @@ export const { permdock, protect } = createPermDock(policy, {
       required: false, // unsigned requests are still allowed, with no actor
     }),
 });
-app.use(permdock());
+app.use(middleware());
 app.delete(
   "/posts/:id",
   protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),
@@ -60,7 +60,7 @@ Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
 ### Request lifecycle
 
 1. An agent sends `DELETE /posts/p_42` with a bearer token for user u_123 and RFC 9421 `Signature` and `Signature-Input` headers, plus `Signature-Agent` pointing at its key directory.
-2. The adapter's `permdock()` middleware sees the signature, checks the `Signature-Agent` host against the allow-list, fetches (or reads from cache) the public key, and verifies the signed components. A key directory fetch is aborted after 5 seconds, and the signature then counts as unverifiable.
+2. The adapter's `middleware()` sees the signature, checks the `Signature-Agent` host against the allow-list, fetches (or reads from cache) the public key, and verifies the signed components. A key directory fetch is aborted after 5 seconds, and the signature then counts as unverifiable.
 3. On success, the request-scoped `PermDock` is built with `principal` from the token, `actor` from the signer, and `delegation` from the token scopes.
 4. `protect(permissions.post.delete, ...)` loads the post and calls `decide`. A policy that denies `post.delete` for any `actor` (a "humans only" rule) yields `denied`; otherwise the normal grant and delegation intersection applies.
 5. The 403 body, if any, is a Problem Details document; the `on('decision')` event names the signer as `actor`.

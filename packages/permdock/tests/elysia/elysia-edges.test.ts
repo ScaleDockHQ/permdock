@@ -43,21 +43,23 @@ describe("permdock/elysia edge cases", () => {
   });
 
   it("resolves the actor from the Elysia context", async () => {
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       actor: (ctx) => ({ id: new URL(ctx.request.url).host, kind: "agent" }),
     });
     const app = new Elysia()
-      .use(permdock())
+      .use(middleware())
       .get("/posts", (ctx) => ctx.permdock.subject.actor);
     const response = await app.handle(new Request("http://bots.test/posts"));
     expect(await response.json()).toEqual({ id: "bots.test", kind: "agent" });
   });
 
   it("turns a thrown assert in a route into a problem response", async () => {
-    const { permdock } = createPermDock(policy, { subject: () => memberUser });
-    const app = new Elysia().use(permdock()).get("/posts/p2", (ctx) => {
-      // SAFETY: the permdock() plugin derives ctx.permdock for every route.
+    const { middleware } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = new Elysia().use(middleware()).get("/posts/p2", (ctx) => {
+      // SAFETY: the middleware() plugin derives ctx.permdock for every route.
       (ctx as unknown as ElysiaContext).permdock.assert(
         permissions.post.update,
         otherPost,

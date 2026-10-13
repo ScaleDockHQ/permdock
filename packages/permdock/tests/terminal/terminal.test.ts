@@ -63,7 +63,7 @@ describe("permdock/terminal", () => {
   });
 
   it("formats denials as Problem Details when json is set", async () => {
-    const { permdock: permdockFor, format } = createPermDock(policy, {
+    const { getPermDock: permdockFor, format } = createPermDock(policy, {
       subject: () => memberUser,
       output: { json: true },
       runtime: { exit: throwExit, write: (): void => undefined },
@@ -83,7 +83,7 @@ describe("permdock/terminal", () => {
   });
 
   it("resolves an env token through the subject helper", async () => {
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: async ({ token }) => {
         const raw = await token(["env"]);
         return raw === "member-token" ? memberUser : null;
@@ -100,10 +100,13 @@ describe("permdock/terminal", () => {
   });
 
   it("hides or annotates commands the subject cannot run", async () => {
-    const { permdock: permdockFor, filterCommands } = createPermDock(policy, {
-      subject: () => memberUser,
-      runtime: { exit: throwExit, write: (): void => undefined },
-    });
+    const { getPermDock: permdockFor, filterCommands } = createPermDock(
+      policy,
+      {
+        subject: () => memberUser,
+        runtime: { exit: throwExit, write: (): void => undefined },
+      },
+    );
     await permdockFor();
     const entries = [
       {
@@ -323,7 +326,7 @@ describe("permdock/terminal", () => {
   });
 
   it("does not promote an actor token to a principal", async () => {
-    const { permdock: permdockFor, protect } = createPermDock(policy, {
+    const { getPermDock: permdockFor, protect } = createPermDock(policy, {
       subject: async ({ token }) => {
         const raw = await token(["env"]);
         return raw === "member-token" ? memberUser : null;
@@ -353,31 +356,34 @@ describe("permdock/terminal", () => {
   });
 
   it("records a verified actor beside a human principal", async () => {
-    const { permdock: permdockFor, filterCommands } = createPermDock(policy, {
-      subject: async ({ token }) => {
-        const raw = await token(["env"]);
-        return raw === "member-token" ? memberUser : null;
-      },
-      actor: async ({ token }) => {
-        const raw = await token([{ env: "PERMDOCK_ACTOR_TOKEN" }]);
-        return raw === "agent-token"
-          ? {
-              principal: { id: "agent-1", kind: "service" as const },
-              context: {},
-              actor: { id: "agent-1", kind: "oauth-client" },
-              delegation: { scopes: ["post:list"] },
-            }
-          : undefined;
-      },
-      runtime: {
-        env: {
-          PERMDOCK_TOKEN: "member-token",
-          PERMDOCK_ACTOR_TOKEN: "agent-token",
+    const { getPermDock: permdockFor, filterCommands } = createPermDock(
+      policy,
+      {
+        subject: async ({ token }) => {
+          const raw = await token(["env"]);
+          return raw === "member-token" ? memberUser : null;
         },
-        exit: throwExit,
-        write: (): void => undefined,
+        actor: async ({ token }) => {
+          const raw = await token([{ env: "PERMDOCK_ACTOR_TOKEN" }]);
+          return raw === "agent-token"
+            ? {
+                principal: { id: "agent-1", kind: "service" as const },
+                context: {},
+                actor: { id: "agent-1", kind: "oauth-client" },
+                delegation: { scopes: ["post:list"] },
+              }
+            : undefined;
+        },
+        runtime: {
+          env: {
+            PERMDOCK_TOKEN: "member-token",
+            PERMDOCK_ACTOR_TOKEN: "agent-token",
+          },
+          exit: throwExit,
+          write: (): void => undefined,
+        },
       },
-    });
+    );
     const permdock = await permdockFor();
     expect(permdock.subject.principal?.id).toBe("u1");
     expect(permdock.subject.actor?.id).toBe("agent-1");
@@ -408,7 +414,7 @@ describe("permdock/terminal", () => {
     );
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     const calls: string[] = [];
-    const { permdock: permdockFor, logout } = createPermDock(policy, {
+    const { getPermDock: permdockFor, logout } = createPermDock(policy, {
       subject: async ({ token }) => {
         const raw = await token(["keychain", "device"]);
         return raw === "device-access" ? memberUser : null;
@@ -469,7 +475,7 @@ describe("permdock/terminal", () => {
         write: (): void => undefined,
       },
     });
-    const anonymous = await again.permdock();
+    const anonymous = await again.getPermDock();
     expect(anonymous.subject.principal).toBeNull();
   });
 
@@ -488,7 +494,7 @@ describe("permdock/terminal", () => {
       { mode: 0o644 },
     );
     chmodSync(file, 0o644);
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: async ({ token }) => {
         const raw = await token(["keychain"]);
         return raw === "leaked" ? memberUser : null;
@@ -521,7 +527,7 @@ describe("permdock/terminal", () => {
   });
 
   it("reads a GitHub Actions OIDC token from ci-oidc", async () => {
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: async ({ token }) => {
         const raw = await token(["ci-oidc"]);
         return raw === "gha-oidc" ? memberUser : null;
@@ -545,7 +551,7 @@ describe("permdock/terminal", () => {
   it("requests a ci-oidc audience and reads a named id_tokens variable", async () => {
     const requested: string[] = [];
     const seen: (string | null)[] = [];
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: async ({ token }) => {
         seen.push(
           await token([

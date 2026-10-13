@@ -37,7 +37,7 @@ async function codeOf(run: () => Promise<unknown>): Promise<string> {
 
 describe("permdock/orpc request discovery and failures", () => {
   it("reads ctx.request and rejects a bad Web Bot Auth signature", async () => {
-    const { permdock } = createPermDock<Ctx>(policy, {
+    const { middleware } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,
       webBotAuth: (request) =>
         verifyWebBotAuth(request, {
@@ -47,7 +47,7 @@ describe("permdock/orpc request discovery and failures", () => {
     });
     const read = os
       .$context<Ctx>()
-      .use(permdock())
+      .use(middleware())
       .handler(() => "ok");
     const request = new Request("http://localhost/orpc/read", {
       headers: signed,
@@ -62,7 +62,7 @@ describe("permdock/orpc request discovery and failures", () => {
 
   it("resolves the actor and wraps the instance with otel", async () => {
     const wrapped: string[] = [];
-    const { permdock } = createPermDock<Ctx>(policy, {
+    const { middleware } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,
       actor: (opts) => ({ id: (opts.path ?? []).join("."), kind: "agent" }),
       otel: (instance) => {
@@ -72,7 +72,7 @@ describe("permdock/orpc request discovery and failures", () => {
     });
     const read = os
       .$context<Ctx>()
-      .use(permdock())
+      .use(middleware())
       .handler(({ context }) => context.permdock.subject.actor);
     const request = new Request("http://localhost/orpc/read");
     expect(
@@ -89,21 +89,21 @@ describe("permdock/orpc request discovery and failures", () => {
         throw new Error("no request");
       },
     ]) {
-      const { permdock } = createPermDock<Ctx>(policy, {
+      const { middleware } = createPermDock<Ctx>(policy, {
         subject: () => memberUser,
         request,
       });
       const read = os
         .$context<Ctx>()
-        .use(permdock())
+        .use(middleware())
         .handler(({ context }) => context.permdock.subject.principal?.id);
       results.push(await call(read, undefined, { context: {} }));
     }
     expect(results).toEqual(["u1", "u1"]);
   });
 
-  it("rethrows a build failure from permdock()", async () => {
-    const { permdock } = createPermDock<Ctx>(policy, {
+  it("rethrows a build failure from middleware()", async () => {
+    const { middleware } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,
       pdp: async () => {
         throw new Error("pdp factory failed");
@@ -111,7 +111,7 @@ describe("permdock/orpc request discovery and failures", () => {
     });
     const read = os
       .$context<Ctx>()
-      .use(permdock())
+      .use(middleware())
       .handler(() => "ok");
     const error: unknown = await call(read, undefined, { context: {} }).catch(
       (caught: unknown) => caught,
@@ -120,12 +120,12 @@ describe("permdock/orpc request discovery and failures", () => {
   });
 
   it("maps invalid data to BAD_REQUEST and a missing row to NOT_FOUND", async () => {
-    const { permdock, protect } = createPermDock<Ctx>(policy, {
+    const { middleware, protect } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,
     });
     const invalid = os
       .$context<Ctx>()
-      .use(permdock())
+      .use(middleware())
       .handler(({ context }) => {
         context.permdock.assert(permissions.post.update, { id: 5 });
         return "ok";
@@ -174,7 +174,7 @@ describe("permdock/orpc request discovery and failures", () => {
     const { permdockHandler } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,
     });
-    const response = await permdockHandler(
+    const response = await permdockHandler()(
       new Request("http://localhost/permdock"),
     );
     expect(response.status).toBe(200);

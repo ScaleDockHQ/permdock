@@ -53,10 +53,10 @@ describe("permdock/orpc event iterators", () => {
 
 describe("permdock/orpc", () => {
   it("grants and denies through call()", async () => {
-    const { permdock, protect } = createPermDock<Ctx>(policy, {
+    const { middleware, protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
     });
-    const base = os.$context<Ctx>().use(permdock());
+    const base = os.$context<Ctx>().use(middleware());
     const update = base
       .input(z.object({ id: z.string() }))
       .use(
@@ -96,12 +96,12 @@ describe("permdock/orpc", () => {
   });
 
   it("maps assert inside a handler to FORBIDDEN with the Problem", async () => {
-    const { permdock } = createPermDock<Ctx>(policy, {
+    const { middleware } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
     });
     const update = os
       .$context<Ctx>()
-      .use(permdock())
+      .use(middleware())
       .handler(({ context }) => {
         context.permdock.assert(permissions.post.update, otherPost);
         return { ok: true as const };
@@ -122,12 +122,12 @@ describe("permdock/orpc", () => {
   });
 
   it("throws UNAUTHORIZED for an anonymous caller", async () => {
-    const { permdock, protect } = createPermDock<Ctx>(policy, {
+    const { middleware, protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
     });
     const read = os
       .$context<Ctx>()
-      .use(permdock())
+      .use(middleware())
       .use(protect(permissions.post.read, () => ownPost))
       .handler(() => ({ ok: true as const }));
 
@@ -141,9 +141,9 @@ describe("permdock/orpc", () => {
     }
   });
 
-  it("runs the subject resolver once when permdock() is applied twice", async () => {
+  it("runs the subject resolver once when middleware() is applied twice", async () => {
     let resolved = 0;
-    const { permdock } = createPermDock<Ctx>(policy, {
+    const { middleware } = createPermDock<Ctx>(policy, {
       subject: (opts) => {
         resolved += 1;
         return opts.context.user;
@@ -151,8 +151,8 @@ describe("permdock/orpc", () => {
     });
     const ping = os
       .$context<Ctx>()
-      .use(permdock())
-      .use(permdock())
+      .use(middleware())
+      .use(middleware())
       .handler(({ context }) => ({
         ok: true as const,
         via: context.permdock.subject.principal?.id,
@@ -166,16 +166,15 @@ describe("permdock/orpc", () => {
 
   it("rebuilds an instance it did not issue or issued for another tenant", async () => {
     let tenant = "t1";
-    const { permdock } = createPermDock<Ctx & { readonly permdock?: unknown }>(
-      policy,
-      {
-        subject: (opts) => opts.context.user,
-        tenant: () => tenant,
-      },
-    );
+    const { middleware } = createPermDock<
+      Ctx & { readonly permdock?: unknown }
+    >(policy, {
+      subject: (opts) => opts.context.user,
+      tenant: () => tenant,
+    });
     const first = os
       .$context<Ctx & { readonly permdock?: unknown }>()
-      .use(permdock())
+      .use(middleware())
       .handler(({ context }) => context.permdock);
     const issued = await call(first, undefined, {
       context: { user: memberUser },
@@ -216,7 +215,7 @@ describe("permdock/orpc", () => {
     const { permdockHandler, openapi } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const response = await permdockHandler(
+    const response = await permdockHandler()(
       new Request("http://localhost/permdock", {
         method: "POST",
         headers: { "content-type": "application/json" },

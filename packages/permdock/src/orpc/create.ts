@@ -50,7 +50,6 @@ export type OrpcMiddleware<
   TInput,
   // oxlint-disable-next-line typescript/no-explicit-any -- oRPC's middleware default; `unknown` rejects procedures with a declared output
   any,
-  // oxlint-disable-next-line typescript/no-generated-empty-object-type -- oRPC's own "no meta" type
   Record<never, never>
 >;
 
@@ -84,7 +83,7 @@ export type OrpcPermDock<
   TCtx extends object = object,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
-  readonly permdock: () => OrpcMiddleware<TCtx, unknown, V>;
+  readonly middleware: () => OrpcMiddleware<TCtx, unknown, V>;
   readonly protect: (
     permission: Permission | null,
     loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
@@ -95,7 +94,7 @@ export type OrpcPermDock<
     opts: OrpcMiddlewareOpts<TCtx>,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
-  readonly permdockHandler: (request: Request) => Promise<Response>;
+  readonly permdockHandler: () => (request: Request) => Promise<Response>;
   readonly openapi: OrpcOpenApiHooks<TCtx, V>;
 };
 
@@ -262,7 +261,7 @@ export function createPermDock<
   };
 
   // SAFETY: the function has oRPC's middleware call shape; its generics cannot be inferred from it.
-  const permdock = (): OrpcMiddleware<TCtx, unknown, V> =>
+  const middleware = (): OrpcMiddleware<TCtx, unknown, V> =>
     ((mwOptions, input) => {
       // SAFETY: oRPC passes this middleware's context as TCtx and next takes the extended context.
       const opts = toOpts(
@@ -281,7 +280,7 @@ export function createPermDock<
           attached(
             async () =>
               boundFor(opts.context, scope) ??
-              issue(await kernel.permdock(request, scope), scope),
+              issue(await kernel.getPermDock(request, scope), scope),
           ),
         )
         .then((instance) => {
@@ -381,7 +380,7 @@ export function createPermDock<
       }) as OrpcMiddleware<TCtx, unknown, V>,
     );
 
-  const permdockHandler = (request: Request): Promise<Response> => {
+  const handler = (request: Request): Promise<Response> => {
     // SAFETY: the handler route runs outside oRPC, so its only context is the request as req.
     const opts = {
       context: { req: request } as TCtx,
@@ -399,5 +398,11 @@ export function createPermDock<
     securitySchemes: kernelOpenApi.securitySchemes,
   };
 
-  return { permdock, protect, connection, permdockHandler, openapi };
+  return {
+    middleware,
+    protect,
+    connection,
+    permdockHandler: () => handler,
+    openapi,
+  };
 }

@@ -149,9 +149,11 @@ describe("permdock/hono sockets", () => {
 
 describe("permdock/hono middleware", () => {
   it("maps a downstream denial and leaves other errors to Hono", async () => {
-    const { permdock } = createPermDock(policy, { subject: () => memberUser });
+    const { middleware } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
     const app = new Hono<PermDockEnv>();
-    app.use(permdock());
+    app.use(middleware());
     app.get("/denied", (c) => {
       c.var.permdock.assert(permissions.post.update, otherPost);
       return c.text("ok");
@@ -167,14 +169,14 @@ describe("permdock/hono middleware", () => {
   });
 
   it("rethrows a build failure that is not a signature error", async () => {
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       pdp: async () => {
         throw new Error("pdp factory failed");
       },
     });
     const app = new Hono();
-    app.use(permdock());
+    app.use(middleware());
     app.get("/", (c) => c.text("reached"));
     const response = await app.request("/");
     expect(response.status).toBe(500);

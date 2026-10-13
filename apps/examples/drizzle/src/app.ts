@@ -10,7 +10,7 @@ import { permissions } from "./permissions.ts";
 import { memberUser, policy } from "./policy.ts";
 import { posts } from "./schema.ts";
 
-const { permdock, protect } = createPermDock(policy, {
+const { middleware, protect } = createPermDock(policy, {
   subject: () => memberUser,
 });
 
@@ -32,7 +32,7 @@ export const app = new Hono();
 
 app.get("/health", (c) => c.json({ ok: true }));
 
-app.get("/posts", permdock(), async (c) => {
+app.get("/posts", middleware(), async (c) => {
   await ready;
   const rows = await db
     .select({ id: posts.id })

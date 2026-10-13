@@ -160,7 +160,7 @@ export function createPermDock<
     });
   };
 
-  const permdock = async (
+  const getPermDock = async (
     request: Request,
     scope?: TenantScope,
   ): Promise<PermDock<V>> => (await build(request, scope)).permdock;
@@ -169,7 +169,7 @@ export function createPermDock<
     request: Request,
     query: SnapshotQuery = {},
   ): Promise<Snapshot> => {
-    const instance = await permdock(
+    const instance = await getPermDock(
       request,
       query.tenant === undefined ? undefined : { tenant: query.tenant },
     );
@@ -260,16 +260,16 @@ export function createPermDock<
         policy,
         resolve:
           scope === undefined
-            ? permdock
+            ? getPermDock
             : async (request: Request): Promise<PermDock<V>> =>
-                permdock(request, await scope(request)),
+                getPermDock(request, await scope(request)),
         store: options.store,
         adapter,
       }),
     );
 
   return {
-    permdock,
+    getPermDock,
     getSnapshot,
     protect,
     protectOn: (instance, permission, load, protectOptions = {}, request) =>

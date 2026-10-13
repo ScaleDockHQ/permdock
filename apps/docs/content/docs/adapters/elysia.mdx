@@ -15,12 +15,12 @@ import { createPermDock } from "permdock/elysia";
 import { policy } from "./policy";
 import { permissions } from "./permissions";
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: ({ store }) => store.user ?? null,
 });
 
 const app = new Elysia()
-  .use(permdock()) // ctx.permdock is the request-scoped PermDock
+  .use(middleware()) // ctx.permdock is the request-scoped PermDock
   .delete(
     "/posts/:id",
     async ({ permdockData: post, set }) => {
@@ -36,12 +36,12 @@ const app = new Elysia()
   );
 ```
 
-| Export                                     | Role                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `permdock()`                               | Plugin. `derive` calls `subject(ctx)` once per request and adds `permdock` to the context, typed with the policy's roles, plans and permissions in every later handler. Uses `as: 'global'` scoping so routes registered after `.use` see it. Each `createPermDock` result gets its own plugin `seed`, so two factories in one app are not deduplicated into one, while `.use(permdock())` in a child app and its parent is. |
-| `protect(permission, loadData?, options?)` | `beforeHandle` hook. The `tenant` option (`(ctx) => ctx.params?.org`) is resolved for each `protect`. Loads data (`ctx.permdockData`), validates untrusted input, decides. On denial it returns a `Response` with Problem Details, which Elysia sends without running the handler.                                                                                                                                           |
-| `permdockHandler()`                        | Plugin mounting the AuthZEN-shaped decision endpoint under a prefix.                                                                                                                                                                                                                                                                                                                                                         |
-| `openapi`                                  | Kernel hook contract; `openapi.security(permission)` returns the `detail` fragment for `@elysiajs/openapi` and `openapi.securitySchemes()` the document-level components.                                                                                                                                                                                                                                                    |
+| Export                                     | Role                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `middleware()`                             | Plugin. `derive` calls `subject(ctx)` once per request and adds `permdock` to the context, typed with the policy's roles, plans and permissions in every later handler. Uses `as: 'global'` scoping so routes registered after `.use` see it. Each `createPermDock` result gets its own plugin `seed`, so two factories in one app are not deduplicated into one, while `.use(middleware())` in a child app and its parent is. |
+| `protect(permission, loadData?, options?)` | `beforeHandle` hook. The `tenant` option (`(ctx) => ctx.params?.org`) is resolved for each `protect`. Loads data (`ctx.permdockData`), validates untrusted input, decides. On denial it returns a `Response` with Problem Details, which Elysia sends without running the handler.                                                                                                                                             |
+| `permdockHandler()`                        | Plugin mounting the AuthZEN-shaped decision endpoint under a prefix.                                                                                                                                                                                                                                                                                                                                                           |
+| `openapi`                                  | Kernel hook contract; `openapi.security(permission)` returns the `detail` fragment for `@elysiajs/openapi` and `openapi.securitySchemes()` the document-level components.                                                                                                                                                                                                                                                      |
 
 ### Guarding a group
 
@@ -89,7 +89,7 @@ app.ws("/ws", {
 - The plugin uses `derive`, not `resolve`, so the subject is resolved once per request before route validation; a subject that depends on a header reads it in the `subject` resolver.
 - `protect` runs in `beforeHandle` after Elysia's own schema validation and puts the loaded, validated row on `permdockData`, so the handler does not run the loader again.
 - The plugin's global `onError` maps PermDock errors thrown by `permdock.assert(...)` to Problem Details.
-- `protect` without `permdock()` fails at startup with a message naming both.
+- `protect` without `middleware()` fails at startup with a message naming both.
 - The [decision event](/docs/concepts/wire-formats) carries the permission, resource, subject, tenant and outcome, not the HTTP method or route; a sink that needs them reads its own request context.
 
 The peer range is `elysia >=1`. Denials are the kernel's Problem Details responses.
@@ -98,7 +98,7 @@ The peer range is `elysia >=1`. Denials are the kernel's Problem Details respons
 
 `apps/examples/elysia`: Bun runtime, posts API with the plugin and `protect`, `@elysiajs/openapi` emitting `securitySchemes`, the decision endpoint, and `bun test` cases using `app.handle(new Request(...))` asserting exact denial bodies.
 
-The example serves `app.fetch` with `@hono/node-server` under Node. `tests/integration/src/http/elysia.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios through `app.handle`, including a prefixed sub-app with its own `.use(permdock())`. Return `new Response(null, { status: 204 })` for an empty response: `set.status = 204` with an `undefined` return makes Elysia build an invalid 204 with a body.
+The example serves `app.fetch` with `@hono/node-server` under Node. `tests/integration/src/http/elysia.test.ts` runs the [`testHttpAdapter`](/docs/adapters/testing) scenarios through `app.handle`, including a prefixed sub-app with its own `.use(middleware())`. Return `new Response(null, { status: 204 })` for an empty response: `set.status = 204` with an `undefined` return makes Elysia build an invalid 204 with a body.
 
 ## Related standards
 

@@ -176,7 +176,7 @@ describe("terminal output", () => {
   });
 
   it("formats a granted decision as JSON only when asked", async () => {
-    const { permdock: permdockFor, format } = createPermDock(policy, {
+    const { getPermDock: permdockFor, format } = createPermDock(policy, {
       subject: () => memberUser,
       runtime: quiet().runtime,
     });
@@ -211,7 +211,7 @@ describe("terminal output", () => {
 
 describe("terminal subject and actor resolution", () => {
   it("falls back to the anonymous subject when subject throws", async () => {
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: () => {
         throw new Error("no session");
       },
@@ -222,7 +222,7 @@ describe("terminal subject and actor resolution", () => {
 
   it("caches the instance until refresh and reads --as from argv", async () => {
     const profiles: string[] = [];
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: ({ profile }) => {
         profiles.push(profile);
         return memberUser;
@@ -241,7 +241,7 @@ describe("terminal subject and actor resolution", () => {
       ["node", "ops", "--as"],
       ["node", "ops", "--as", "--json"],
     ]) {
-      const { permdock: permdockFor } = createPermDock(policy, {
+      const { getPermDock: permdockFor } = createPermDock(policy, {
         subject: ({ profile }) => {
           profiles.push(profile);
           return null;
@@ -292,7 +292,7 @@ describe("terminal subject and actor resolution", () => {
       },
     ];
     for (const item of cases) {
-      const { permdock: permdockFor } = createPermDock(policy, {
+      const { getPermDock: permdockFor } = createPermDock(policy, {
         subject: () => memberUser,
         actor: () => item.value,
         runtime: quiet().runtime,
@@ -306,7 +306,7 @@ describe("terminal subject and actor resolution", () => {
   });
 
   it("drops the actor when the actor callback throws", async () => {
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       actor: () => {
         throw new Error("bad token");
@@ -358,10 +358,13 @@ describe("terminal filterCommands and logout", () => {
   });
 
   it("defaults to hide and reads instance permissions from the snapshot", async () => {
-    const { permdock: permdockFor, filterCommands } = createPermDock(policy, {
-      subject: () => memberUser,
-      runtime: quiet().runtime,
-    });
+    const { getPermDock: permdockFor, filterCommands } = createPermDock(
+      policy,
+      {
+        subject: () => memberUser,
+        runtime: quiet().runtime,
+      },
+    );
     await permdockFor();
     expect(filterCommands(entries).map((entry) => entry.name)).toEqual([
       "list",
@@ -370,7 +373,7 @@ describe("terminal filterCommands and logout", () => {
   });
 
   it("logs out without storage as a no-op", async () => {
-    const { permdock: permdockFor, logout } = createPermDock(policy, {
+    const { getPermDock: permdockFor, logout } = createPermDock(policy, {
       subject: () => memberUser,
       runtime: quiet().runtime,
     });

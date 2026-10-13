@@ -89,13 +89,15 @@ describe("fastify toRequest", () => {
 
 describe("permdock/fastify edge cases", () => {
   it("maps a thrown denial to a problem and hands other errors to the previous handler", async () => {
-    const { permdock } = createPermDock(policy, { subject: () => memberUser });
+    const { middleware } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
     const app = Fastify();
     apps.push(app);
     app.setErrorHandler(async (_error, _request, reply) => {
       await reply.code(599).send({ previous: true });
     });
-    await app.register(permdock);
+    await app.register(middleware());
     app.get("/denied", (request) => {
       // SAFETY: the permdock plugin registered above decorates every request with permdock.
       (request as PermDockRequest).permdock.assert(
@@ -123,13 +125,13 @@ describe("permdock/fastify edge cases", () => {
   });
 
   it("resolves the actor from the Fastify request", async () => {
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       actor: (request) => ({ id: request.url, kind: "agent" }),
     });
     const app = Fastify();
     apps.push(app);
-    await app.register(permdock);
+    await app.register(middleware());
     app.get(
       "/posts",
       (request) =>
@@ -154,7 +156,7 @@ describe("permdock/fastify edge cases", () => {
         via: (request as PermDockRequest).permdock.subject.principal?.id,
       }),
     );
-    await app.register(permdockHandler, { prefix: "/api/permdock" });
+    await app.register(permdockHandler(), { prefix: "/api/permdock" });
     const posts = await app.inject({ method: "GET", url: "/posts" });
     const snapshot = await app.inject({ method: "GET", url: "/api/permdock" });
     expect({
@@ -164,12 +166,12 @@ describe("permdock/fastify edge cases", () => {
   });
 
   it("withPermDock passes the decorated request to the route", async () => {
-    const { permdock, withPermDock } = createPermDock(policy, {
+    const { middleware, withPermDock } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = Fastify();
     apps.push(app);
-    await app.register(permdock);
+    await app.register(middleware());
     app.get(
       "/can",
       withPermDock((request) => ({
@@ -184,7 +186,7 @@ describe("permdock/fastify edge cases", () => {
 describe("permdock/fastify subject reuse", () => {
   it("resolves the subject once when permdock runs before the decision endpoint", async () => {
     let resolved = 0;
-    const { permdock, permdockHandler } = createPermDock(policy, {
+    const { middleware, permdockHandler } = createPermDock(policy, {
       subject: () => {
         resolved += 1;
         return memberUser;
@@ -192,8 +194,8 @@ describe("permdock/fastify subject reuse", () => {
     });
     const app = Fastify();
     apps.push(app);
-    await app.register(permdock);
-    await app.register(permdockHandler, { prefix: "/api/permdock" });
+    await app.register(middleware());
+    await app.register(permdockHandler(), { prefix: "/api/permdock" });
     const response = await app.inject({
       method: "POST",
       url: "/api/permdock",

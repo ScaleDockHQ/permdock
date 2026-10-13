@@ -17,11 +17,11 @@ import {
 
 describe("permdock/express", () => {
   it("sets a request-scoped instance and protects routes", async () => {
-    const { permdock, protect, withPermDock } = createPermDock(policy, {
+    const { middleware, protect, withPermDock } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = express();
-    app.use(permdock());
+    app.use(middleware());
     app.delete(
       "/posts/:id",
       protect(permissions.post.update, (req) =>
@@ -45,12 +45,12 @@ describe("permdock/express", () => {
   });
 
   it("resolves the actor from the Express request", async () => {
-    const { permdock, withPermDock } = createPermDock(policy, {
+    const { middleware, withPermDock } = createPermDock(policy, {
       subject: () => memberUser,
       actor: (req) => ({ id: req.path, kind: "agent" }),
     });
     const app = express();
-    app.use(permdock());
+    app.use(middleware());
     app.get(
       "/posts",
       withPermDock((req, res) => {
@@ -83,11 +83,11 @@ describe("permdock/express", () => {
   });
 
   it("turns a thrown assert into a problem and passes other errors on", async () => {
-    const { permdock, errorHandler, withPermDock } = createPermDock(policy, {
+    const { middleware, errorHandler, withPermDock } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = express();
-    app.use(permdock());
+    app.use(middleware());
     app.get(
       "/posts/:id",
       withPermDock((req) => {
@@ -114,7 +114,7 @@ describe("permdock/express", () => {
   });
 
   it("answers its own errors with Problem Details without errorHandler", async () => {
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       webBotAuth: async () => {
         throw new InvalidSignatureError(
@@ -123,7 +123,7 @@ describe("permdock/express", () => {
       },
     });
     const app = express();
-    app.use(permdock());
+    app.use(middleware());
     app.get("/posts", (_req, res) => {
       res.json({ ok: true });
     });

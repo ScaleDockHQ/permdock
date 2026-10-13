@@ -133,10 +133,10 @@ describe("permdock/trpc subscription data", () => {
 describe("permdock/trpc", () => {
   it("grants and denies through createCaller", async () => {
     const t = initTRPC.context<Ctx>().create();
-    const { permdock, protect } = createPermDock<Ctx>(policy, {
+    const { middleware, protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.ctx.user,
     });
-    const procedure = t.procedure.use(permdock());
+    const procedure = t.procedure.use(middleware());
     const appRouter = t.router({
       update: procedure
         .input(z.object({ id: z.string() }))
@@ -180,11 +180,11 @@ describe("permdock/trpc", () => {
 
   it("maps assert inside a resolver to FORBIDDEN with the Problem", async () => {
     const t = initTRPC.context<Ctx>().create();
-    const { permdock } = createPermDock<Ctx>(policy, {
+    const { middleware } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.ctx.user,
     });
     const appRouter = t.router({
-      update: t.procedure.use(permdock()).mutation(({ ctx }) => {
+      update: t.procedure.use(middleware()).mutation(({ ctx }) => {
         ctx["permdock"].assert(permissions.post.update, otherPost);
         return { ok: true as const };
       }),
@@ -202,10 +202,10 @@ describe("permdock/trpc", () => {
 
   it("throws UNAUTHORIZED for an anonymous caller", async () => {
     const t = initTRPC.context<Ctx>().create();
-    const { permdock, protect } = createPermDock<Ctx>(policy, {
+    const { middleware, protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.ctx.user,
     });
-    const procedure = t.procedure.use(permdock());
+    const procedure = t.procedure.use(middleware());
     const appRouter = t.router({
       read: procedure
         .use(protect(permissions.post.read, () => ownPost))
@@ -245,7 +245,7 @@ describe("permdock/trpc", () => {
     const { permdockHandler, openapi } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,
     });
-    const response = await permdockHandler(
+    const response = await permdockHandler()(
       new Request("http://localhost/permdock", {
         method: "POST",
         headers: { "content-type": "application/json" },

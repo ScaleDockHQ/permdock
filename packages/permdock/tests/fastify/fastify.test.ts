@@ -21,12 +21,12 @@ afterEach(async () => {
 
 describe("permdock/fastify", () => {
   it("sets a request-scoped instance and protects routes", async () => {
-    const { permdock, protect } = createPermDock(policy, {
+    const { middleware, protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const app = Fastify();
     apps.push(app);
-    await app.register(permdock);
+    await app.register(middleware());
     // SAFETY: the permdock plugin registered above decorates every request with permdock.
     app.delete<{ Params: { id: string } }>(
       "/posts/:id",
@@ -73,14 +73,14 @@ describe("permdock/fastify", () => {
 
   it("builds no instance for a route with config permdock false", async () => {
     let resolved = 0;
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => {
         resolved += 1;
         return memberUser;
       },
     });
     const app = Fastify();
-    await app.register(permdock);
+    await app.register(middleware());
     app.get("/health", { config: { permdock: false } }, () => ({ ok: true }));
     app.get("/posts", () => ({ ok: true }));
     await app.inject("/health");
@@ -96,7 +96,7 @@ describe("permdock/fastify", () => {
     });
     const app = Fastify();
     apps.push(app);
-    await app.register(permdockHandler, { prefix: "/api/permdock" });
+    await app.register(permdockHandler(), { prefix: "/api/permdock" });
     const response = await app.inject({
       method: "POST",
       url: "/api/permdock",

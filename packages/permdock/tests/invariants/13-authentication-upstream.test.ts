@@ -148,7 +148,7 @@ describe("invariant 13: authentication is upstream", () => {
   });
 
   it("ignores identity in unsigned headers and request bodies", async () => {
-    const { permdock: permdockFor } = createServerPermDock(policy, {
+    const { getPermDock: permdockFor } = createServerPermDock(policy, {
       subject: () => null,
     });
     const permdock = await permdockFor(
@@ -182,7 +182,7 @@ describe("invariant 13: authentication is upstream", () => {
       subject: (user: User | null) =>
         user === null ? null : { id: user.id, memberships: user.memberships },
     });
-    const { permdock: permdockFor } = createServerPermDock(delegating, {
+    const { getPermDock: permdockFor } = createServerPermDock(delegating, {
       subject: () => viewer,
       tenant: "o1",
     });

@@ -338,7 +338,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }
       const request = bind(req);
       const scope = await scopeOf(req);
-      req.permdock = await kernel.permdock(request, scope);
+      req.permdock = await kernel.getPermDock(request, scope);
       await applyProtect(rules, req, request, scope, loadsFor(req));
       return true;
     }

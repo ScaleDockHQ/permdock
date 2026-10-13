@@ -16,14 +16,14 @@ const contract = {
     .output(z.object({ ok: z.boolean() })),
 };
 
-const { permdock, protect } = createPermDock<Ctx>(jobPolicy, {
+const { middleware, protect } = createPermDock<Ctx>(jobPolicy, {
   subject: (opts) => ({ id: opts.context.userId }),
 });
 
 const os = implement(contract).$context<Ctx>();
 
 const read = os
-  .use(permdock())
+  .use(middleware())
   .read.use(protect(jobs.job.read))
   .handler(() => ({ ok: true }));
 

@@ -100,11 +100,11 @@ export const app = new Hono()
   .on(["GET", "PATCH"], "/kernel/:org/projects/:id", (c) =>
     kernelRoute(c.req.raw),
   )
-  .use("/hono/:org/*", hono.permdock())
+  .use("/hono/:org/*", hono.middleware())
   .get("/hono/:org/projects/:id", hono.protect(p.project.read, row), (c) =>
     c.json(projectOf(c.req.param("id"))),
   )
   .patch("/hono/:org/projects/:id", hono.protect(p.project.update, row), (c) =>
     c.json({ id: c.req.param("id") }),
   )
-  .all("/access/v1/*", (c) => authzen.permdockHandler(c.req.raw));
+  .all("/access/v1/*", (c) => authzen.permdockHandler()(c.req.raw));

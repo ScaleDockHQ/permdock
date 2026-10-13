@@ -9,13 +9,17 @@
  * - `export` (default): an exported value, renamed at the import and at every reference bound to it.
  * - `type`: an exported type, renamed the same way.
  * - `option`: a key of an options object passed straight to a function imported from `entries`.
- * - `method`: a member called on the value a function imported from `entries` returns.
+ *   With `calls`, the codemod renames the key in an object literal passed straight to one of
+ *   those functions; otherwise it reports every such key as a manual follow-up.
+ * - `method`: a member called on the value a function imported from `entries` returns; always
+ *   reported, never rewritten.
  */
 export type Rename = {
   readonly from: string;
   readonly to: string;
   readonly entries: readonly string[];
   readonly kind?: "export" | "option" | "method" | "type";
+  readonly calls?: readonly string[];
 };
 
 /** A change the codemod reports and never rewrites: the call shape moved, not only the name. */
@@ -64,6 +68,7 @@ const rows: readonly Rename[] = [
       "permdock/claude-agent",
       "permdock/eve",
     ],
+    kind: "method",
   },
   {
     from: "permdock",
@@ -75,6 +80,7 @@ const rows: readonly Rename[] = [
       "permdock/trpc",
       "permdock/orpc",
     ],
+    kind: "method",
   },
   {
     from: "loadData",
@@ -271,18 +277,21 @@ const rows: readonly Rename[] = [
     to: "directory",
     entries: ["permdock/scim"],
     kind: "option",
+    calls: ["scimHandler"],
   },
   {
     from: "store",
     to: "reviews",
     entries: ["permdock/approvals"],
     kind: "option",
+    calls: ["startAccessReview"],
   },
   {
     from: "delegations",
     to: "approvalDelegations",
     entries: ["permdock/approvals"],
     kind: "option",
+    calls: ["approvalsHandler", "matchDelegation"],
   },
   { from: "source", to: "call", entries: ["permdock"], kind: "option" },
   { from: "testAuthZen", to: "testAuthzen", entries: ["permdock/testing"] },
@@ -313,7 +322,13 @@ const rows: readonly Rename[] = [
 /** Every 0.5.0 rename, one row per `from` and target. */
 export const RENAMES_0_5: readonly Rename[] = Object.freeze(
   rows.map((row) =>
-    Object.freeze({ ...row, entries: Object.freeze([...row.entries]) }),
+    Object.freeze({
+      ...row,
+      entries: Object.freeze([...row.entries]),
+      ...(row.calls === undefined
+        ? {}
+        : { calls: Object.freeze([...row.calls]) }),
+    }),
   ),
 );
 
@@ -360,5 +375,11 @@ export const SIGNATURE_CHANGES_0_5: readonly SignatureChange[] = Object.freeze([
     entries: ["permdock"],
     before: "credentialSubject(...)",
     after: "subjectFromApiKey(key, options)",
+  },
+  {
+    name: "MappedSubject",
+    entries: ["permdock/jwt"],
+    before: "MappedSubject",
+    after: "Subject<JwtPrincipal>",
   },
 ]);

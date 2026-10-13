@@ -103,7 +103,7 @@ export type EvePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     permission: Permission,
     data?: (input: unknown) => unknown,
   ) => EveApprovalPair;
-  readonly permdock: (ctx: EveContext) => Promise<PermDock<V>>;
+  readonly getPermDock: (ctx: EveContext) => Promise<PermDock<V>>;
 };
 
 const TOKENS_PER_PROCESS = 1000;
@@ -324,6 +324,6 @@ export function createPermDock<
   return {
     approval,
     approvalFor,
-    permdock: (ctx) => kernel.instance(ctx),
+    getPermDock: (ctx) => kernel.instance(ctx),
   };
 }

@@ -33,7 +33,7 @@ Server adapters take an `otel` function that wraps every request-scoped instance
 import { createPermDock } from "permdock/hono";
 import { withOtel } from "permdock/otel";
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
   otel: (permdock) => withOtel(permdock, { logger }),
 });

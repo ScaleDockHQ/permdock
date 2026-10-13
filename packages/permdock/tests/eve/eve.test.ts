@@ -96,7 +96,7 @@ const deleteOwn = { toolName: "delete_post", toolInput: { id: "p1" } };
 
 describe("permdock/eve", () => {
   it("maps granted to not-applicable and denied to a typed denial", async () => {
-    const { approval, permdock } = createPermDock(policy, {
+    const { approval, getPermDock } = createPermDock(policy, {
       tools: tools(),
       delegation: () => delegated,
     });
@@ -104,9 +104,9 @@ describe("permdock/eve", () => {
     expect(await approval.request(call("list_posts", {}))).toBe(
       "not-applicable",
     );
-    expect((await permdock(call("list_posts", {}))).subject.principal?.id).toBe(
-      "u1",
-    );
+    expect(
+      (await getPermDock(call("list_posts", {}))).subject.principal?.id,
+    ).toBe("u1");
     expect(
       await approval.request(call("publish_post", { id: "p1" })),
     ).toMatchObject({ type: "denied" });

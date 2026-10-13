@@ -75,7 +75,7 @@ function runContext<T>(context: T): { readonly context: T } {
 
 describe("permdock/openai", () => {
   it("pauses unless granted and auto-rejects denials", async () => {
-    const { needsApproval, resolveInterruptions, permdock } = createPermDock(
+    const { needsApproval, resolveInterruptions, getPermDock } = createPermDock(
       policy,
       {
         subject: (context) => context.user,
@@ -101,7 +101,9 @@ describe("permdock/openai", () => {
         id: "p1",
       }),
     ).toBe(true);
-    expect((await permdock(context)).subject.actor?.kind).toBe("openai-agent");
+    expect((await getPermDock(context)).subject.actor?.kind).toBe(
+      "openai-agent",
+    );
 
     const run = state();
     const pending = await resolveInterruptions(

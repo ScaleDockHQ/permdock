@@ -42,7 +42,7 @@ export type PermDockEnv<
 };
 
 export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: () => MiddlewareHandler<PermDockEnv<unknown, V>>;
+  readonly middleware: () => MiddlewareHandler<PermDockEnv<unknown, V>>;
   readonly protect: <TData = unknown>(
     permission: Permission | null,
     loadData?: (c: Context) => TData | Promise<TData>,
@@ -184,7 +184,7 @@ export function createPermDock<
     guard: runGuard,
   } = bindKernel(policy, options, "hono", (c: Context) => c.req.raw);
 
-  const permdock =
+  const middleware =
     (): MiddlewareHandler<PermDockEnv<unknown, V>> => async (c, next: Next) => {
       const attached = await attach(c);
       if (!attached.ok) {
@@ -230,7 +230,7 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    middleware,
     protect,
     connection,
     socket,

@@ -53,7 +53,7 @@ describe("adapters forward InstanceOptions to core", () => {
       subject: () => alice,
       approvalPolicies,
     });
-    const permdock = await server.permdock(new Request("https://app.test/"));
+    const permdock = await server.getPermDock(new Request("https://app.test/"));
     expect(permdock.decide(permissions.expense.read, large).outcome).toBe(
       "approval-required",
     );
@@ -94,7 +94,7 @@ describe("adapters forward InstanceOptions to core", () => {
           : { id: c.req.header("x-agent"), kind: "agent" },
     });
     const app = new Hono()
-      .use(hono.permdock())
+      .use(hono.middleware())
       .get("/", (c) => c.json(c.get("permdock").subject.actor ?? null));
     const acting = await app.request("/", { headers: { "x-agent": "bot" } });
     expect(await acting.json()).toEqual({ id: "bot", kind: "agent" });
