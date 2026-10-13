@@ -139,7 +139,7 @@ export async function openConnection<T>(
   const controller = new AbortController();
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const decideOptions = compact<DecideOptions>({
-    source: "adapter",
+    call: "adapter",
     adapter: input.adapter,
   });
   let unsubscribe: (() => void) | undefined;

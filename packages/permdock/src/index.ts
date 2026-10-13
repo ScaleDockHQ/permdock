@@ -361,6 +361,8 @@ export type {
 } from "./core/ownership.ts";
 export {
   CLOUD_EVENT_TYPES,
+  CLOUDEVENTS_BATCH_CONTENT_TYPE,
+  CLOUDEVENTS_CONTENT_TYPE,
   accessEvent,
   credentialEvent,
   membershipEvent,
@@ -376,11 +378,28 @@ export type {
   CloudEventType,
   MemorySink,
   MemorySinkOptions,
+  CloudEventOptions,
   SignDecisionBatchOptions,
 } from "./core/sink.ts";
 export { OCSF_VERSION, accessToOcsf, toOcsf } from "./core/ocsf.ts";
 export { CSV_COLUMNS, toCsvRow } from "./core/csv.ts";
 export { catalogFingerprint } from "./core/catalog-fingerprint.ts";
+export {
+  parseCloudEventBatch,
+  parseSinkEvent,
+  parseSinkEvents,
+} from "./core/parse-sink-events.ts";
+export {
+  ACCESS_EVENT_SCHEMA,
+  CATALOG_EVENT_SCHEMA,
+  CREDENTIAL_EVENT_SCHEMA,
+  DECISION_EVENT_SCHEMA,
+  DIRECTORY_EVENT_SCHEMA,
+  EVENT_SCHEMA_IDS,
+  MEMBERSHIP_EVENT_SCHEMA,
+  SINK_EVENT_SCHEMAS,
+} from "./core/event-schemas.ts";
+export type { JsonSchemaNode } from "./core/json-schema.ts";
 export {
   coveredByDelegation,
   delegatedPermissions,

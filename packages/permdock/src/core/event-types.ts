@@ -3,6 +3,7 @@ import type { Obligation } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
 import type { GrantMeta, HostedGrantRef } from "./policy-types.ts";
 import type { Membership } from "./subject.ts";
+import type { WireDelegation } from "./wire-delegation.ts";
 import type { WireDenial } from "./wire-denial.ts";
 
 export type DirectoryEvent = {
@@ -34,8 +35,8 @@ export type MembershipEvent = {
   /** The id of every ancestor scope, keyed by scope name. */
   readonly within?: Readonly<Record<string, string>>;
   readonly via?: string;
-  /** When the membership lapses, in seconds since the epoch. */
-  readonly expiresAt?: number;
+  /** When the membership lapses, an RFC 3339 instant. */
+  readonly expiresAt?: string;
   readonly roles: {
     readonly added: readonly string[];
     readonly removed: readonly string[];
@@ -56,7 +57,8 @@ export type CredentialEvent = {
   readonly credential: { readonly id: string; readonly kind: CredentialKind };
   readonly principal: { readonly id: string };
   readonly tenant?: string;
-  readonly expiresAt?: number;
+  /** When the key expires, an RFC 3339 instant. */
+  readonly expiresAt?: string;
   readonly by?: { readonly id: string; readonly kind: string };
   readonly sample?: number;
 };
@@ -85,7 +87,8 @@ export type AccessEvent = {
   readonly via: string;
   readonly roles: readonly string[];
   readonly member?: { readonly group: string };
-  readonly expiresAt?: number;
+  /** When the session lapses, an RFC 3339 instant. */
+  readonly expiresAt?: string;
   /** The tenant principal that consented. */
   readonly grantedBy?: string;
   readonly reason?: string;
@@ -94,6 +97,7 @@ export type AccessEvent = {
 
 export type DecisionEvent = {
   readonly type: "decision";
+  /** An RFC 3339 instant. */
   readonly at: string;
   readonly outcome: "granted" | "denied" | "approval-required";
   readonly permission: string;
@@ -106,10 +110,8 @@ export type DecisionEvent = {
       readonly tenant?: string;
     } | null;
     readonly actor?: { readonly id: string; readonly kind: string };
-    readonly delegation?: {
-      readonly scopes?: readonly string[];
-      readonly authorizationDetails?: readonly unknown[];
-    };
+    /** OAuth `scope` and RFC 9396 `authorization_details`, as every wire form carries a delegation. */
+    readonly delegation?: WireDelegation;
     /** The API key the subject came from. */
     readonly credential?: {
       readonly id: string;
@@ -117,7 +119,10 @@ export type DecisionEvent = {
     };
   };
   readonly tenant?: string;
-  readonly membership?: Membership;
+  /** The membership that answered, with `expiresAt` as an RFC 3339 instant. */
+  readonly membership?: Omit<Membership, "expiresAt"> & {
+    readonly expiresAt?: string;
+  };
   readonly via?: string | null;
   readonly matched?: {
     readonly role: string | null;
@@ -140,7 +145,8 @@ export type DecisionEvent = {
   readonly alternatives?: readonly string[];
   readonly token?: string;
   readonly trusted: boolean;
-  readonly source:
+  /** The call that produced the decision. */
+  readonly call:
     | "can"
     | "decide"
     | "assert"
@@ -151,7 +157,8 @@ export type DecisionEvent = {
     | "simulate"
     | "explain";
   readonly adapter?: string;
-  readonly phase?: "requested" | "resolved";
+  /** Set on an approval lifecycle event (`com.permdock.approval.<phase>`). */
+  readonly phase?: "requested" | "resolved" | "expired" | "cancelled";
   readonly counts?: {
     readonly granted: number;
     readonly denied: number;

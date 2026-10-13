@@ -568,7 +568,7 @@ export async function whoCan(input: {
         subject,
         permission,
         row,
-        { source: "simulate", trusted: true, now },
+        { call: "simulate", trusted: true, now },
         env,
       );
     });

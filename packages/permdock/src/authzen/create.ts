@@ -183,9 +183,9 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       permission,
       data,
       trusted
-        ? { source: "endpoint", adapter: "authzen", trusted: true }
+        ? { call: "endpoint", adapter: "authzen", trusted: true }
         : {
-            source: "endpoint",
+            call: "endpoint",
             adapter: "authzen",
             trusted: false,
             boundary: "decision-endpoint",

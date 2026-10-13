@@ -24,7 +24,7 @@ const base: DecisionEvent = {
   ],
   token: "tok_1",
   trusted: true,
-  source: "adapter",
+  call: "adapter",
 };
 
 describe("toCsvRow", () => {

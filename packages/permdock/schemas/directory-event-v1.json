@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/directory-event-v1.json",
+  "title": "PermDock directory event",
+  "description": "A DirectoryEvent, wire format v1: the data of com.permdock.directory.* CloudEvents.",
+  "type": "object",
+  "required": [
+    "type",
+    "at",
+    "source",
+    "operation",
+    "tenant",
+    "resource",
+    "credential"
+  ],
+  "properties": {
+    "type": {
+      "const": "directory"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "source": {
+      "const": "scim"
+    },
+    "operation": {
+      "enum": ["create", "replace", "patch", "delete"]
+    },
+    "tenant": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resource": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "enum": ["User", "Group"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "credential": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "const": "token"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "const": "jwt"
+            },
+            "iss": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "active": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

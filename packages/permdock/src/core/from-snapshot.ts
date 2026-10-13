@@ -146,7 +146,7 @@ export function fromSnapshot(
   ): ExplainedDecision =>
     run(permission, data, {
       ...decideOptions,
-      source: decideOptions?.source ?? "explain",
+      call: decideOptions?.call ?? "explain",
       explain: true,
     }) as ExplainedDecision) as PermDock["explain"];
 

@@ -24,6 +24,11 @@ import {
   type PolicySource,
   parsePolicyDocument,
 } from "../core/hosted.ts";
+import {
+  CLOUDEVENTS_BATCH_CONTENT_TYPE,
+  isAbsoluteUri,
+  toCloudEvent,
+} from "../core/sink.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 
 /** Milliseconds a PermDock Cloud request may take; a slower one fails like an unreachable Cloud. */
@@ -143,10 +148,14 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     path: string,
     init: RequestInit = {},
     accept?: string,
+    contentType?: string,
   ): Promise<Response> => {
     const next = headers();
     if (accept !== undefined) {
       next.set("accept", accept);
+    }
+    if (contentType !== undefined) {
+      next.set("content-type", contentType);
     }
     return fetchFn(`${root}${path}`, {
       ...init,
@@ -297,6 +306,10 @@ export function cloud(options: CloudOptions = {}): CloudClient {
   };
 
   const capacity = options.capacity ?? 10_000;
+  const source = options.source ?? root;
+  if (!isAbsoluteUri(source)) {
+    throw new TypeError("PermDock: cloud() source is an absolute URI");
+  }
   const pending: SinkEvent[] = [];
   const bound = (): void => {
     if (pending.length > capacity) {
@@ -310,10 +323,17 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     }
     const events = pending.splice(0);
     try {
-      const response = await request("/decisions", {
-        method: "POST",
-        body: JSON.stringify({ events }),
-      });
+      const response = await request(
+        "/decisions",
+        {
+          method: "POST",
+          body: JSON.stringify(
+            events.map((event) => toCloudEvent(event, { source })),
+          ),
+        },
+        undefined,
+        CLOUDEVENTS_BATCH_CONTENT_TYPE,
+      );
       if (!response.ok) {
         pending.unshift(...events);
       }

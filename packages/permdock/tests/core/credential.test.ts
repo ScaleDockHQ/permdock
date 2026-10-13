@@ -13,6 +13,7 @@ import {
   decideCredential,
   parseCredential,
 } from "../../src/core/credential.ts";
+import { eventInstant } from "../../src/core/event-time.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memorySettings } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
@@ -611,7 +612,7 @@ describe("decideCredential", () => {
 });
 
 describe("credential events", () => {
-  it("builds a credential event and a dev.permdock.credential CloudEvent", () => {
+  it("builds a credential event and a com.permdock.credential CloudEvent", () => {
     const event = credentialEvent({
       operation: "used",
       credential: serviceKey,
@@ -626,14 +627,14 @@ describe("credential events", () => {
       credential: { id: "svc_1", kind: "service" },
       principal: { id: "ci" },
       tenant: "o_1",
-      expiresAt: serviceKey.expiresAt,
+      expiresAt: eventInstant(serviceKey.expiresAt),
       sample: 0.25,
     });
-    const cloud = toCloudEvent(event);
-    expect(cloud.type).toBe("dev.permdock.credential");
+    const cloud = toCloudEvent(event, { source: "https://app.example.com" });
+    expect(cloud.type).toBe("com.permdock.credential.used");
     expect(cloud.subject).toBe("svc_1");
     expect(parseCloudEvent(JSON.parse(JSON.stringify(cloud)))?.type).toBe(
-      "dev.permdock.credential",
+      "com.permdock.credential.used",
     );
     expect(
       parseCloudEvent({ ...cloud, data: { ...event, operation: "minted" } }),

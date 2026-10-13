@@ -21,7 +21,7 @@ const base: DecisionEvent = {
     { role: null, reason: "condition" },
   ],
   trusted: true,
-  source: "adapter",
+  call: "adapter",
   adapter: "mcp",
 };
 
@@ -54,7 +54,7 @@ describe("toOcsf", () => {
         outcome: "denied",
         scope: "post:delete",
         resource: { type: "post", id: "p_1" },
-        source: "adapter",
+        call: "adapter",
       },
     });
   });

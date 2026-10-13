@@ -45,7 +45,7 @@ function runDecide(
   how: {
     readonly adapter: string;
     readonly boundary: Boundary;
-    readonly source: "adapter" | "simulate";
+    readonly call: "adapter" | "simulate";
   },
 ): Decision {
   // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
@@ -54,7 +54,7 @@ function runDecide(
       next: Permission,
       row?: unknown,
       decideOptions?: {
-        readonly source: "adapter" | "simulate";
+        readonly call: "adapter" | "simulate";
         readonly adapter: string;
         readonly boundary: Boundary;
       },
@@ -175,7 +175,7 @@ export function createAgentKernel<
     context: TContext,
     how: {
       readonly resume: boolean;
-      readonly source: "adapter" | "simulate";
+      readonly call: "adapter" | "simulate";
       readonly decideOptions: DecideToolOptions;
     },
   ): Promise<CheckResult<V>> => {
@@ -199,7 +199,7 @@ export function createAgentKernel<
       const raw = runDecide(permdock, binding.permission, data, {
         adapter: options.adapter,
         boundary,
-        source: how.source,
+        call: how.call,
       });
       const decision = how.resume
         ? await resumeDecision({
@@ -234,7 +234,7 @@ export function createAgentKernel<
   ): Promise<CheckResult<V>> =>
     run(binding, args, context, {
       resume: checkOptions.simulate !== true,
-      source: checkOptions.simulate === true ? "simulate" : "adapter",
+      call: checkOptions.simulate === true ? "simulate" : "adapter",
       decideOptions: checkOptions,
     });
 
@@ -360,7 +360,7 @@ export function createAgentKernel<
   ): Promise<string | undefined> => {
     const checked = await run(binding, args, context, {
       resume: false,
-      source: "adapter",
+      call: "adapter",
       decideOptions: {},
     });
     return checked.ok && checked.raw.outcome === "approval-required"

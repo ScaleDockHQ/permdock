@@ -191,7 +191,7 @@ function wrap<V extends PolicyVocabulary>(
   ): Promise<ExplainedDecision> => {
     const decision = await decide(permission, data, {
       ...options,
-      source: options?.source ?? "explain",
+      call: options?.call ?? "explain",
       explain: true,
     });
     if (decision.trace !== undefined) {
@@ -237,7 +237,7 @@ function wrap<V extends PolicyVocabulary>(
   ): Promise<Extract<Decision, { readonly outcome: "granted" }>> => {
     const decision = await decide(permission, data, {
       ...options,
-      source: options?.source ?? "assert",
+      call: options?.call ?? "assert",
     });
     if (decision.outcome === "granted") {
       return decision;
@@ -306,7 +306,7 @@ function wrap<V extends PolicyVocabulary>(
           decide(
             permission,
             data,
-            compact<DecideOptions>({ source: "simulate", now: options?.now }),
+            compact<DecideOptions>({ call: "simulate", now: options?.now }),
           ),
         ),
       );
@@ -339,7 +339,7 @@ function wrap<V extends PolicyVocabulary>(
       rows: readonly T[],
       options?: DecideOptions,
     ): Promise<T[]> {
-      const next = { ...options, source: "filter" as const };
+      const next = { ...options, call: "filter" as const };
       const provider = providerFor(providers, permission);
       const ids = await permittedIds(provider, permission);
       if (ids === undefined) {

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/catalog-event-v1.json",
+  "title": "PermDock catalog event",
+  "description": "The data of com.permdock.catalog.* CloudEvents, wire format v1: a catalog publish or a drift against live hosted grants.",
+  "type": "object",
+  "required": ["kind", "fingerprint"],
+  "properties": {
+    "kind": {
+      "enum": ["publish", "drift"]
+    },
+    "fingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "previous": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "permission"],
+        "properties": {
+          "code": {
+            "enum": [
+              "permission-removed",
+              "not-hostable",
+              "grantee-removed",
+              "approval-tightened"
+            ]
+          },
+          "permission": {
+            "type": "string"
+          },
+          "grant": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -292,7 +292,7 @@ describe("E2 break-glass", () => {
       purpose: ["BTG"],
       reason: "cardiac arrest",
       trusted: true,
-      source: "decide",
+      call: "decide",
     };
     const ocsf = toOcsf(event);
     expect(ocsf.severity_id).toBe(4);

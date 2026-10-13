@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/membership-event-v1.json",
+  "title": "PermDock membership event",
+  "description": "A MembershipEvent, wire format v1: the data of com.permdock.membership.* CloudEvents.",
+  "type": "object",
+  "required": ["type", "at", "source", "operation", "principal", "roles"],
+  "properties": {
+    "type": {
+      "const": "membership"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "source": {
+      "type": "string"
+    },
+    "operation": {
+      "enum": ["added", "removed", "changed"]
+    },
+    "principal": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "within": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "via": {
+      "type": "string"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "roles": {
+      "type": "object",
+      "required": ["added", "removed"],
+      "properties": {
+        "added": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "removed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "by": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

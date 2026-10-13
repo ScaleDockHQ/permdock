@@ -62,7 +62,7 @@ export type CheckResult<V extends PolicyVocabulary = PolicyVocabulary> =
     };
 
 export type CheckOptions = DecideToolOptions & {
-  /** Decide with `source: 'simulate'` and skip the approval resume. */
+  /** Decide with `call: 'simulate'` and skip the approval resume. */
   readonly simulate?: boolean;
 };
 

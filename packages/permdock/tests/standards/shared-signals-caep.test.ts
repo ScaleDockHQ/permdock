@@ -360,7 +360,9 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.3.0", () => {
     const events = await decisionEvents();
     expect(events).toHaveLength(2);
     for (const event of events) {
-      const cloudEvent = toCloudEvent(event, "https://app.example.com");
+      const cloudEvent = toCloudEvent(event, {
+        source: "https://app.example.com",
+      });
       const valid = validate(cloudEvent);
       expect({ valid, errors: validate.errors ?? null }).toEqual({
         valid: true,

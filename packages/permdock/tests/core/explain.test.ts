@@ -138,7 +138,7 @@ describe("explain", () => {
     for (const event of events) {
       expect(event).not.toHaveProperty("trace");
     }
-    expect(events[1]).toMatchObject({ source: "explain" });
+    expect(events[1]).toMatchObject({ call: "explain" });
   });
 
   it("shows the deny a break-glass grant lifted", async () => {

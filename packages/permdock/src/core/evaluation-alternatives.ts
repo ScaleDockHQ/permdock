@@ -36,7 +36,7 @@ export function alternativesFor(
       subject,
       leaf,
       undefined,
-      { trusted: true, source: "simulate", now },
+      { trusted: true, call: "simulate", now },
       { ...env, emit: false, skipAlternatives: true, outcomeOnly: true },
     );
     return decision.outcome === "granted";
@@ -69,7 +69,7 @@ export function inheritedVerdict(
     subject,
     leaf,
     loaded.row,
-    { trusted: true, source: "simulate", now },
+    { trusted: true, call: "simulate", now },
     { ...env, emit: false, skipAlternatives: true, outcomeOnly: true },
   );
   if (decision.outcome === "granted") {

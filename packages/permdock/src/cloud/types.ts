@@ -25,6 +25,8 @@ export type CloudOptions = CloudEndpointOptions & {
   /** Most events the sink holds while the Cloud is unreachable (default 10 000); the oldest are dropped first. */
   readonly capacity?: number;
   readonly waitUntil?: (task: Promise<void>) => void;
+  /** The CloudEvents `source` of every event the sink sends, an absolute URI; defaults to the environment URL. */
+  readonly source?: string;
   /**
    * Verifies the environment's signed policy document, typically
    * `joseTokenVerifier({ jwks: cloudEndpoints().jwks })`. Without one,

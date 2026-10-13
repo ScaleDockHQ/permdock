@@ -132,7 +132,7 @@ export function buildInstance(
       permission,
       data,
       options ?? {},
-      envFor(options?.source !== "simulate", options?.source === "can"),
+      envFor(options?.call !== "simulate", options?.call === "can"),
     );
 
   const explainImpl = (
@@ -142,7 +142,7 @@ export function buildInstance(
   ): ExplainedDecision => {
     const decision = decideImpl(permission, data, {
       ...options,
-      source: options?.source ?? "explain",
+      call: options?.call ?? "explain",
       explain: true,
     });
     // SAFETY: evaluate attaches a trace to every decision made with explain: true.
@@ -158,7 +158,7 @@ export function buildInstance(
       return (
         decideImpl(permission, data, {
           ...options,
-          source: options?.source ?? "can",
+          call: options?.call ?? "can",
         }).outcome === "granted"
       );
     } catch {
@@ -173,7 +173,7 @@ export function buildInstance(
   ): Extract<Decision, { readonly outcome: "granted" }> => {
     const decision = decideImpl(permission, data, {
       ...options,
-      source: options?.source ?? "assert",
+      call: options?.call ?? "assert",
     });
     return assertDecision(
       policy,
@@ -207,7 +207,7 @@ export function buildInstance(
       const trusted = options?.trusted ?? true;
       const decideOptions: DecideOptions = {
         ...options,
-        source: "filter",
+        call: "filter",
         trusted,
       };
       for (const row of rows) {
@@ -348,7 +348,7 @@ export function buildInstance(
             subject,
             permission,
             row,
-            { source: "simulate", trusted: true },
+            { call: "simulate", trusted: true },
             quiet,
           );
         }
@@ -392,7 +392,7 @@ export function buildInstance(
           permission,
           data,
           compact<DecideOptions>({
-            source: "simulate",
+            call: "simulate",
             trusted: true,
             now: options?.now,
           }),

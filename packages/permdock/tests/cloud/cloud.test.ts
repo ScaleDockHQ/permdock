@@ -13,6 +13,7 @@ import type { Subject } from "../../src/core/subject.ts";
 import { isApprovalError } from "../../src/approvals/errors.ts";
 import { memoryApprovalStore } from "../../src/approvals/store.ts";
 import { cloud, cloudEndpoints } from "../../src/cloud/create.ts";
+import { parseCloudEventBatch } from "../../src/core/parse-sink-events.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import { testApprovalStore } from "../../src/testing/conformance/approvals.ts";
@@ -23,6 +24,7 @@ import {
 } from "../../src/testing/conformance/runtime-stores.ts";
 
 const CLOUD_URL = "https://cloud.permdock.test";
+const CLOUD_ENV = `${CLOUD_URL}/v1/environments/production`;
 const KEY = "env-key";
 const SNAPSHOT: Snapshot = {
   v: 1,
@@ -154,9 +156,13 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       return json({ expired });
     }
     if (method === "POST" && path === "/decisions") {
-      // SAFETY: the cloud sink under test posts its batch as { events }.
-      const body = (await request.json()) as { readonly events: SinkEvent[] };
-      decisions.push(body.events);
+      expect(request.headers.get("content-type")).toBe(
+        "application/cloudevents-batch+json",
+      );
+      const batch = parseCloudEventBatch(await request.json());
+      expect(batch?.every((event) => event.source === CLOUD_ENV)).toBe(true);
+      // SAFETY: the sink sends only sink events, never catalog data.
+      decisions.push((batch ?? []).map((event) => event.data as SinkEvent));
       return new Response(null, { status: 204 });
     }
     if (method === "GET" && path === "/snapshot") {
@@ -260,7 +266,7 @@ describe("cloud", () => {
             resource: { type: "post" },
             subject: { principal: { id: "u_1", roles: [] } },
             trusted: true,
-            source: "decide",
+            call: "decide",
           },
         ]),
       ),
@@ -282,11 +288,11 @@ describe("cloud", () => {
         if (!online) {
           throw new Error("offline");
         }
-        // SAFETY: the cloud sink under test posts its batch as { events }.
-        const body = (await new Request(input, init).json()) as {
-          readonly events: SinkEvent[];
-        };
-        delivered.push(body.events);
+        const batch = parseCloudEventBatch(
+          await new Request(input, init).json(),
+        );
+        // SAFETY: the sink sends only sink events, never catalog data.
+        delivered.push((batch ?? []).map((event) => event.data as SinkEvent));
         return new Response(null, { status: 204 });
       },
     });

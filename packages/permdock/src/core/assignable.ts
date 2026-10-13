@@ -162,7 +162,7 @@ export function assignableIn(
           scoped,
           leaf,
           undefined,
-          { source: "simulate", trusted: true, now },
+          { call: "simulate", trusted: true, now },
           quiet,
         ).outcome === "granted",
     );

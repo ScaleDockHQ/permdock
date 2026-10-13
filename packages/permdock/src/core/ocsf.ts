@@ -38,7 +38,7 @@ export type OcsfAuthorizeSession = {
     readonly outcome: DecisionEvent["outcome"];
     readonly scope: string;
     readonly resource: DecisionEvent["resource"];
-    readonly source: DecisionEvent["source"];
+    readonly call: DecisionEvent["call"];
     readonly phase?: DecisionEvent["phase"];
     readonly role?: string | null;
     /** The matched grant's declared `name`. */
@@ -134,7 +134,7 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
       outcome: event.outcome,
       scope: event.scope,
       resource: event.resource,
-      source: event.source,
+      call: event.call,
       phase: event.phase,
       role: event.matched?.role,
       grant: event.matched?.name,

@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/decision-event-v1.json",
+  "title": "PermDock decision event",
+  "description": "A DecisionEvent, wire format v1: the data of com.permdock.decision and com.permdock.approval.* CloudEvents.",
+  "type": "object",
+  "required": [
+    "type",
+    "at",
+    "outcome",
+    "permission",
+    "scope",
+    "resource",
+    "subject",
+    "trusted",
+    "call"
+  ],
+  "properties": {
+    "type": {
+      "const": "decision"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "outcome": {
+      "enum": ["granted", "denied", "approval-required"]
+    },
+    "permission": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "string"
+    },
+    "resource": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "subject": {
+      "type": "object",
+      "required": ["principal"],
+      "properties": {
+        "principal": {
+          "type": ["object", "null"],
+          "required": ["id", "roles"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "roles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tenant": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "actor": {
+          "type": "object",
+          "required": ["id", "kind"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "delegation": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string"
+            },
+            "authorization_details": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "access": {
+              "type": "array"
+            }
+          },
+          "additionalProperties": false
+        },
+        "credential": {
+          "type": "object",
+          "required": ["id", "kind"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "enum": ["user", "service", "feed"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "tenant": {
+      "type": "string"
+    },
+    "membership": {
+      "type": "object",
+      "required": ["roles"],
+      "properties": {
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+        }
+      }
+    },
+    "via": {
+      "type": ["string", "null"]
+    },
+    "matched": {
+      "type": "object",
+      "required": ["role", "permission"],
+      "properties": {
+        "role": {
+          "type": ["string", "null"]
+        },
+        "permission": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "meta": {
+          "type": "object"
+        },
+        "to": {},
+        "hosted": {
+          "type": "object"
+        },
+        "breakGlass": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "purpose": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reason": {
+      "type": "string"
+    },
+    "denials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "reason"],
+        "properties": {
+          "role": {
+            "type": ["string", "null"]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "to": {},
+          "detail": {}
+        },
+        "additionalProperties": false
+      }
+    },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "token": {
+      "type": "string"
+    },
+    "trusted": {
+      "type": "boolean"
+    },
+    "call": {
+      "enum": [
+        "can",
+        "decide",
+        "assert",
+        "filter",
+        "endpoint",
+        "adapter",
+        "approval",
+        "simulate",
+        "explain"
+      ]
+    },
+    "adapter": {
+      "type": "string"
+    },
+    "phase": {
+      "enum": ["requested", "resolved", "expired", "cancelled"]
+    },
+    "counts": {
+      "type": "object",
+      "required": ["granted", "denied", "approvalRequired"],
+      "properties": {
+        "granted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "denied": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "approvalRequired": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

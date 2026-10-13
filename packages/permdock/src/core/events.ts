@@ -10,9 +10,11 @@ import type { RelationReader } from "./relations.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
+import { eventInstant } from "./event-time.ts";
 import { freezeDeep } from "./freeze.ts";
 import { getResource } from "./permission-registry.ts";
 import { isThenable } from "./thenable.ts";
+import { toWireDelegation } from "./wire-delegation.ts";
 import { wireDenials } from "./wire-denial.ts";
 
 export type ListenerMap = {
@@ -148,17 +150,17 @@ export function finish(
           subject.actor === undefined
             ? undefined
             : { id: subject.actor.id, kind: subject.actor.kind },
-        delegation:
-          subject.delegation === undefined
-            ? undefined
-            : compact<NonNullable<DecisionEvent["subject"]["delegation"]>>({
-                scopes: subject.delegation.scopes,
-                authorizationDetails: subject.delegation.authorizationDetails,
-              }),
+        delegation: toWireDelegation(subject.delegation),
         credential: credentialRef(subject),
       }),
       tenant: subject.principal?.tenant,
-      membership,
+      membership:
+        membership === undefined
+          ? undefined
+          : compact<NonNullable<DecisionEvent["membership"]>>({
+              ...membership,
+              expiresAt: eventInstant(membership.expiresAt),
+            }),
       via: membership?.via ?? null,
       matched:
         decision.outcome === "granted"
@@ -210,7 +212,7 @@ export function finish(
           ? decision.token
           : undefined,
       trusted,
-      source: options.source ?? "decide",
+      call: options.call ?? "decide",
       adapter: options.adapter,
       counts,
     }),

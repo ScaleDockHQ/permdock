@@ -184,7 +184,7 @@ export async function guardOn<T, V extends PolicyVocabulary>(
     return { ok: true, permdock: instance, data: data as T };
   }
   const decideOptions = compact<DecideOptions>({
-    source: "adapter",
+    call: "adapter",
     adapter: deps.adapter,
     field: protectOptions.field,
     explain: protectOptions.explain,

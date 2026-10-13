@@ -785,7 +785,7 @@ function quotaAllow(
       now: state.now,
       consume:
         !requiresApproval(approval) &&
-        shouldConsumeQuota(state.options.source, env.simulated),
+        shouldConsumeQuota(state.options.call, env.simulated),
     });
     if (quota.ok) {
       return {

@@ -6,42 +6,67 @@ import type {
   MembershipEvent,
 } from "../core/event-types.ts";
 import type { TokenFailureCause, TokenVerifier } from "../core/interfaces.ts";
+import type {
+  CLOUD_EVENT_TYPES,
+  CatalogEventData,
+  CloudEvent,
+  CloudEventType,
+} from "../core/sink.ts";
 import type { JsonWebKeySet } from "../jwt/types.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 
-import { isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { isForbiddenKey } from "../core/paths.ts";
-import {
-  CLOUD_EVENT_TYPES,
-  type CatalogEventData,
-  type CatalogFindingCode,
-  type CloudEventType,
-} from "../core/sink.ts";
+import { parseCloudEvent as parseCoreCloudEvent } from "../core/parse-sink-events.ts";
 import { joseTokenVerifier } from "../jwt/verifier.ts";
 
-type Envelope<TType extends CloudEventType, TData> = {
-  readonly specversion: "1.0";
+type Envelope<TType extends CloudEventType, TData> = Omit<
+  CloudEvent,
+  "type" | "data"
+> & {
   readonly type: TType;
-  readonly source: string;
-  readonly subject?: string;
-  readonly id: string;
-  readonly time: string;
-  readonly datacontenttype: "application/json";
   readonly data: TData;
 };
 
+type Types = typeof CLOUD_EVENT_TYPES;
+
 /** A CloudEvent PermDock Cloud delivers, discriminated by `type`. */
 export type PermDockCloudEvent =
-  | Envelope<"dev.permdock.decision", DecisionEvent>
-  | Envelope<"dev.permdock.approval", DecisionEvent>
-  | Envelope<"dev.permdock.directory", DirectoryEvent>
-  | Envelope<"dev.permdock.membership", MembershipEvent>
-  | Envelope<"dev.permdock.credential", CredentialEvent>
-  | Envelope<"dev.permdock.catalog", CatalogEventData>
-  | Envelope<"dev.permdock.access.started", AccessEvent>
-  | Envelope<"dev.permdock.access.ended", AccessEvent>
-  | Envelope<"dev.permdock.access.revoked", AccessEvent>;
+  | Envelope<Types["decision"], DecisionEvent>
+  | Envelope<
+      | Types["approvalRequested"]
+      | Types["approvalResolved"]
+      | Types["approvalExpired"]
+      | Types["approvalCancelled"],
+      DecisionEvent
+    >
+  | Envelope<
+      | Types["directoryCreated"]
+      | Types["directoryReplaced"]
+      | Types["directoryPatched"]
+      | Types["directoryDeleted"],
+      DirectoryEvent
+    >
+  | Envelope<
+      | Types["membershipAdded"]
+      | Types["membershipRemoved"]
+      | Types["membershipChanged"],
+      MembershipEvent
+    >
+  | Envelope<
+      | Types["credentialCreated"]
+      | Types["credentialUsed"]
+      | Types["credentialRotated"]
+      | Types["credentialRevoked"],
+      CredentialEvent
+    >
+  | Envelope<
+      Types["catalogPublished"] | Types["catalogDrifted"],
+      CatalogEventData
+    >
+  | Envelope<
+      Types["supportSessionStarted"] | Types["supportSessionEnded"],
+      AccessEvent
+    >;
 
 export type VerifyWebhookOptions = {
   /** Your receiver's URL; the batch `aud` must name it. */
@@ -72,118 +97,13 @@ export type VerifiedWebhook =
       readonly cause?: TokenFailureCause;
     };
 
-const TYPES: ReadonlySet<string> = new Set(Object.values(CLOUD_EVENT_TYPES));
-
-function hasUnsafeKey(value: unknown): boolean {
-  if (Array.isArray(value)) {
-    return value.some(hasUnsafeKey);
-  }
-  if (!isRecord(value)) {
-    return false;
-  }
-  return Object.keys(value).some(
-    (key) => isForbiddenKey(key) || hasUnsafeKey(value[key]),
-  );
-}
-
-const FINDING_CODES: ReadonlySet<unknown> = new Set<CatalogFindingCode>([
-  "permission-removed",
-  "not-hostable",
-  "grantee-removed",
-  "approval-tightened",
-]);
-
-function isFinding(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    FINDING_CODES.has(value["code"]) &&
-    typeof value["permission"] === "string" &&
-    (value["grant"] === undefined || typeof value["grant"] === "string")
-  );
-}
-
-function validData(
-  type: CloudEventType,
-  data: Record<string, unknown>,
-): boolean {
-  switch (type) {
-    case "dev.permdock.decision":
-      return (
-        data["type"] === "decision" && typeof data["permission"] === "string"
-      );
-    case "dev.permdock.approval":
-      return (
-        data["type"] === "decision" &&
-        (data["phase"] === "requested" || data["phase"] === "resolved")
-      );
-    case "dev.permdock.directory":
-      return data["type"] === "directory" && typeof data["tenant"] === "string";
-    case "dev.permdock.membership":
-      return data["type"] === "membership" && isRecord(data["principal"]);
-    case "dev.permdock.credential":
-      return (
-        data["type"] === "credential" &&
-        isRecord(data["credential"]) &&
-        typeof data["credential"]["id"] === "string" &&
-        (data["credential"]["kind"] === "user" ||
-          data["credential"]["kind"] === "service" ||
-          data["credential"]["kind"] === "feed") &&
-        isRecord(data["principal"]) &&
-        (data["operation"] === "created" ||
-          data["operation"] === "used" ||
-          data["operation"] === "rotated" ||
-          data["operation"] === "revoked")
-      );
-    case "dev.permdock.catalog":
-      return (
-        (data["kind"] === "publish" || data["kind"] === "drift") &&
-        typeof data["fingerprint"] === "string" &&
-        (data["previous"] === undefined ||
-          typeof data["previous"] === "string") &&
-        (data["findings"] === undefined ||
-          (Array.isArray(data["findings"]) &&
-            data["findings"].every(isFinding)))
-      );
-    case "dev.permdock.access.started":
-    case "dev.permdock.access.ended":
-    case "dev.permdock.access.revoked":
-      return (
-        data["type"] === "access" &&
-        typeof data["tenant"] === "string" &&
-        isRecord(data["principal"]) &&
-        // SAFETY: isRecord checked data['principal'] on the line above.
-        typeof (data["principal"] as Record<string, unknown>)["id"] === "string"
-      );
-    default: {
-      const exhaustive: never = type;
-      return exhaustive;
-    }
-  }
-}
-
 /**
- * Validates one CloudEvent against the closed type list and its data shape;
- * returns `null` for anything else, never throws.
+ * Validates one CloudEvent against the closed type list, its `dataschema` and
+ * its data shape; returns `null` for anything else, never throws.
  */
 export function parseCloudEvent(value: unknown): PermDockCloudEvent | null {
-  if (
-    !isRecord(value) ||
-    hasUnsafeKey(value) ||
-    value["specversion"] !== "1.0" ||
-    typeof value["type"] !== "string" ||
-    !TYPES.has(value["type"]) ||
-    typeof value["source"] !== "string" ||
-    typeof value["id"] !== "string" ||
-    typeof value["time"] !== "string" ||
-    (value["subject"] !== undefined && typeof value["subject"] !== "string") ||
-    !isRecord(value["data"]) ||
-    // SAFETY: TYPES.has checked value['type'] against the CloudEventType list above.
-    !validData(value["type"] as CloudEventType, value["data"])
-  ) {
-    return null;
-  }
-  // SAFETY: a JSON copy of value, whose envelope and data were validated above.
-  return freezeDeep(JSON.parse(JSON.stringify(value)) as PermDockCloudEvent);
+  // SAFETY: parseCoreCloudEvent checked that data matches the family its type names.
+  return parseCoreCloudEvent(value) as PermDockCloudEvent | null;
 }
 
 function verifierFor(options: VerifyWebhookOptions): TokenVerifier | undefined {
@@ -210,7 +130,7 @@ function isCompactJws(value: string): boolean {
 
 /**
  * Verifies a PermDock Cloud webhook delivery: a compact JWS with
- * `typ: permdock-decisions+jwt` whose `events` claim holds CloudEvents.
+ * `typ: vnd.permdock.evidence+jwt` whose `events` claim holds CloudEvents.
  * There is no unsigned mode, and it never throws.
  */
 export async function verifyWebhook(
@@ -233,7 +153,7 @@ export async function verifyWebhook(
   let verified: Awaited<ReturnType<TokenVerifier["verify"]>>;
   try {
     verified = await verifier.verify(body, {
-      typ: "permdock-decisions+jwt",
+      typ: "vnd.permdock.evidence+jwt",
       audience: options.audience,
     });
   } catch {

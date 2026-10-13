@@ -7,6 +7,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { isApprovalError } from "../../src/approvals/errors.ts";
 import { cloud } from "../../src/cloud/create.ts";
+import { parseCloudEventBatch } from "../../src/core/parse-sink-events.ts";
 import { fakeFetch, json } from "../fakes/fetch.ts";
 
 const CLOUD_URL = "https://cloud.permdock.test";
@@ -127,10 +128,11 @@ describe("cloud sink and snapshots over a failing API", () => {
     await c.sink.flush?.();
     status = 204;
     await c.sink.flush?.();
-    expect(calls.map((call) => JSON.parse(call.body))).toEqual([
-      { events: [event] },
-      { events: [event] },
-    ]);
+    expect(
+      calls.map((call) =>
+        parseCloudEventBatch(JSON.parse(call.body))?.map((item) => item.data),
+      ),
+    ).toEqual([[event], [event]]);
   });
 
   it("does not schedule a flush through waitUntil when the batch flushed inline", async () => {

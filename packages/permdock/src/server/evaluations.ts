@@ -116,7 +116,7 @@ function evaluateOne(
     permission,
     data,
     compact<DecideOptions>({
-      source: "endpoint",
+      call: "endpoint",
       adapter,
       trusted: false,
       boundary: "decision-endpoint",

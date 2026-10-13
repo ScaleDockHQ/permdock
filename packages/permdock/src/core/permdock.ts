@@ -66,7 +66,7 @@ export type DecideOptions = {
   /** Decision clock in Unix seconds, for expiries and limits. Defaults to the current time. */
   readonly now?: number;
   /** The call that produced the decision, reported on the decision event. Defaults to `'decide'`. */
-  readonly source?: DecisionEvent["source"];
+  readonly call?: DecisionEvent["call"];
   /** The adapter that made the call, reported on the decision event. */
   readonly adapter?: string;
   /** Per-call unauthorized handler for `assert`; runs before instance and policy handlers. */

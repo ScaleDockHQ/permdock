@@ -301,7 +301,7 @@ export function createPermDock<
         next: Permission,
         row?: unknown,
         decideOptions?: {
-          readonly source: "adapter" | "simulate";
+          readonly call: "adapter" | "simulate";
           readonly adapter: string;
         },
       ) => Decision;
@@ -326,8 +326,8 @@ export function createPermDock<
           permission,
           data,
           dryRun
-            ? { source: "simulate", adapter: "terminal" }
-            : { source: "adapter", adapter: "terminal" },
+            ? { call: "simulate", adapter: "terminal" }
+            : { call: "adapter", adapter: "terminal" },
         );
       } catch {
         write(format(FAILED_CLOSED, { permission }));
@@ -390,7 +390,7 @@ export function createPermDock<
         const again = decide(
           permission,
           data,
-          compact({ source: "adapter" as const, adapter: "terminal" }),
+          compact({ call: "adapter" as const, adapter: "terminal" }),
         );
         if (again.outcome === "denied") {
           write(format(again, { permission, subject: instance.subject }));
