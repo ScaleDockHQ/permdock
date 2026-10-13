@@ -1,7 +1,15 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import type { Decision, Denial } from "../../src/core/decision.ts";
+import type { ProblemType } from "../../src/core/problem-types.ts";
 
+import {
+  approvalsHandler,
+  memoryApprovalStore,
+} from "../../src/approvals/index.ts";
 import { PermDockValidationError } from "../../src/core/errors.ts";
 import {
   PROBLEM_TYPES,
@@ -14,6 +22,8 @@ import {
   problemFromDecision,
 } from "../../src/server/index.ts";
 import { methodNotAllowed } from "../../src/server/problem.ts";
+import { invalidSignatureProblem } from "../../src/server/web-bot-auth.ts";
+import { PROBLEM_EXAMPLES } from "../../src/testing/problem-examples.ts";
 import { permissions, policy } from "../fixtures/quick-start.ts";
 
 const subject = { principal: null, context: {} };
@@ -397,5 +407,157 @@ describe("RFC 9457 Problem Details", () => {
         'Bearer error="invalid_token", error_description="The access token is invalid"',
       );
     });
+  });
+});
+
+describe("PROBLEM_EXAMPLES", () => {
+  const author = {
+    principal: { id: "u_123", roles: ["member"] },
+    context: {},
+  };
+  const remove = permissions.post.delete;
+  const refused = (...denials: readonly Denial[]): Decision => ({
+    outcome: "denied",
+    denials,
+    alternatives: [permissions.post.read, permissions.post.update],
+  });
+
+  async function approverRefusal(): Promise<Response> {
+    const store = memoryApprovalStore();
+    const now = Temporal.Now.instant();
+    store.create({
+      v: 1,
+      id: "apr_1",
+      token: "pd1.request",
+      permission: remove.key,
+      scope: remove.scope,
+      resource: { type: "post", id: "p_42" },
+      subject: { principal: author.principal },
+      detail: "post.delete requires human approval.",
+      createdAt: now.toString(),
+      expiresAt: now.add({ minutes: 1 }).toString(),
+      status: "pending",
+    });
+    const handler = approvalsHandler(store, { subject: () => author });
+    return handler(
+      new Request("https://api.example/permdock/approvals/apr_1/approve", {
+        method: "POST",
+      }),
+    );
+  }
+
+  const emitters: Readonly<
+    Record<ProblemType, () => Response | Promise<Response>>
+  > = {
+    denied: () =>
+      problemFromDecision(
+        refused({ role: "member", reason: "condition" }),
+        remove,
+        author,
+        { instance: "/posts/p_42" },
+      ),
+    "approval-required": () =>
+      problemFromDecision(
+        {
+          outcome: "approval-required",
+          grant: { role: "member", permission: remove.key, approval: "human" },
+          reason: "deletes are reviewed",
+          token: "pd1.eyJhbGciOiJFZERTQSJ9",
+        },
+        remove,
+        author,
+        {
+          instance: "/posts/p_42",
+          approval: { at: "https://app.example/approvals" },
+        },
+      ),
+    validation: () =>
+      problemFromDecision(
+        refused({
+          role: null,
+          reason: "validation",
+          detail: new PermDockValidationError({
+            code: "invalid-data",
+            permission: remove.key,
+            resource: remove.resource,
+            issues: [{ message: "title is required", path: ["title"] }],
+            boundary: "http-body",
+            message: "invalid post",
+          }),
+        }),
+        remove,
+        author,
+      ),
+    "step-up-required": () =>
+      problemFromDecision(
+        refused({
+          role: "member",
+          reason: "insufficient-user-authentication",
+          to: { kind: "assurance", acr: ["urn:mfa"], maxAge: 600 },
+        }),
+        remove,
+        author,
+      ),
+    "not-entitled": () =>
+      problemFromDecision(
+        refused({
+          role: "admin",
+          reason: "not-entitled",
+          to: { kind: "plan", plan: "pro" },
+        }),
+        remove,
+        author,
+      ),
+    "rate-limited": () =>
+      problemFromDecision(
+        refused({
+          role: "member",
+          reason: "limit",
+          detail: { count: 10, window: 60, resetsAt: 1_900_000_000 },
+        }),
+        remove,
+        author,
+      ),
+    "limit-unavailable": () =>
+      problemFromDecision(
+        refused({ role: "member", reason: "limit-unavailable" }),
+        remove,
+        author,
+      ),
+    "invalid-signature": () =>
+      invalidSignatureProblem("HTTP Message Signature did not verify"),
+    "approver-not-eligible": approverRefusal,
+  };
+
+  it.each(PROBLEM_TYPES)(
+    "%s is the body the emitting code writes",
+    async (type) => {
+      const response = await emitters[type]();
+      expect(response.headers.get("content-type")).toBe(
+        "application/problem+json",
+      );
+      expect(response.status).toBe(PROBLEM_EXAMPLES[type].status);
+      expect(await response.json()).toEqual(PROBLEM_EXAMPLES[type]);
+    },
+  );
+
+  it("the docs show each example under its problem type heading", () => {
+    const page = readFileSync(
+      path.join(
+        import.meta.dirname,
+        "../../../../apps/docs/content/docs/standards/problem-details.mdx",
+      ),
+      "utf8",
+    );
+    const section = page.slice(page.indexOf("\n## Problem types\n"));
+    for (const type of PROBLEM_TYPES) {
+      const start = section.indexOf(`\n### ${type}\n`);
+      expect({ type, start: start >= 0 }).toEqual({ type, start: true });
+      const fence = /```json\n([\s\S]*?)\n```/u.exec(
+        section.slice(start).split(/\n### /u)[1] ?? "",
+      );
+      const shown: unknown = JSON.parse(fence?.[1] ?? "null");
+      expect({ type, shown }).toEqual({ type, shown: PROBLEM_EXAMPLES[type] });
+    }
   });
 });

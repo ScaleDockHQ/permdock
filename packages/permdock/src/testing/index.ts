@@ -123,3 +123,4 @@ export type {
   SupabaseClaimFixtureName,
   SupabaseClaimVectors,
 } from "./supabase-fixtures.ts";
+export { PROBLEM_EXAMPLES } from "./problem-examples.ts";

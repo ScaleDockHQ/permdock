@@ -153,6 +153,7 @@ export function problemDetails(input: DecisionProblem): ProblemDetails {
       ...denied,
       status: 401,
       type: problemType("step-up-required"),
+      title: "Step-up required",
       ...stepUpOf(decision),
     };
   }
