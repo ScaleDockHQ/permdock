@@ -37,7 +37,7 @@ export const policy = definePolicy(permissions, {
         action: (permission) => ({ name: permission.action }),
       },
       timeout: 300,
-      cache: { ttl: "5s" },
+      cache: { ttl: 5 },
     }),
   ],
 });
@@ -102,7 +102,7 @@ Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `p
 
 1. `decide(permission, data)` runs local evaluation first. A local `denied` (explicit deny or no local grant for a non-delegated permission) short-circuits without a network call.
 2. For delegated permissions, the provider builds the AuthZEN evaluation request from `mapping` and adds `subject.properties.actor` and `subject.properties.delegation` when the PermDock subject has an actor.
-3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache. The TTL is capped at 30 seconds; a larger value is clamped, and zero, a negative or an unparseable value disables the cache. The key is the mapped request plus the permission key, the principal's issuer, the tenant and the actor id and kind, so a changed row, another tenant or another agent is a new request. The cache holds at most 1000 entries, drops the oldest first and deletes an expired entry when it is read. A `mapping` function that throws is `pdp-invalid-response` and nothing is sent. Only answers are cached; unavailability never is.
+3. The request is sent with the configured auth and timeout; identical requests within `cache.ttl` are served from cache. `ttl` is whole seconds, capped at 30; a larger value is clamped, and any other value disables the cache. The key is the mapped request plus the permission key, the principal's issuer, the tenant and the actor id and kind, so a changed row, another tenant or another agent is a new request. The cache holds at most 1000 entries, drops the oldest first and deletes an expired entry when it is read. A `mapping` function that throws is `pdp-invalid-response` and nothing is sent. Only answers are cached; unavailability never is.
 4. The response is mapped:
 
 | Remote response                                                        | PermDock Decision                                                                          |

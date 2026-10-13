@@ -15,7 +15,7 @@ The AI SDK, Eve, the OpenAI Agents SDK, MCP elicitation and the Claude Agent SDK
 import { memoryApprovalStore, approvalsHandler } from "permdock/approvals";
 import type { ApprovalStore, ApprovalRequest } from "permdock/approvals";
 
-const store = memoryApprovalStore({ ttl: 60 * 60 * 1000 }); // default: one hour
+const store = memoryApprovalStore({ ttl: 60 * 60 }); // seconds; default one hour
 
 // Every agent and HTTP adapter takes the same option
 const { toolApproval } = createPermDock(policy, {
@@ -37,7 +37,7 @@ app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 
 ```ts
 interface ApprovalStore {
-  readonly ttl?: number; // ms a new request stays open; default one hour
+  readonly ttl?: number; // seconds a new request stays open; default one hour
   create(request: ApprovalRequest): Promise<void> | void;
   get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   resolve(
@@ -54,10 +54,10 @@ interface ApprovalStore {
     cursor?: string;
   }): Promise<ApprovalPage> | ApprovalPage;
   // ApprovalPage = { items: ApprovalRequest[]; next?: string }
-  expire(now?: Date): Promise<number> | number;
+  expire(now?: Instant): Promise<number> | number;
   consume(
     token: string,
-    now?: Date,
+    now?: Instant,
   ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   cancel?(
     filter,
@@ -79,7 +79,7 @@ interface ApprovalStore {
 - `requestApproval(store, decision, meta)` and `resolveApproval(store, token, verdict)` are the two internal helpers agent adapters share; applications rarely call them directly.
 - `signer` (optional, a `TokenSigner` such as `joseTokenSigner` from `permdock/jwt`) makes `approvalsHandler` serve `GET /:id/signature` once the request is approved: a compact JWS with `typ: vnd.permdock.approval+jwt` as `application/jwt`, to the requester and the approvers only. The approve response links it with `Link: <…/:id/signature>; rel="alternate"; type="application/jwt"`. The JWS carries the registered claims `iss`, `aud`, `sub` (the principal), `act` (the actor that asked), `iat` (= `resolvedAt`), `exp` (= the request's `expiresAt`) and `jti` (= the request `id`), plus `token`, `resolved_by`, `approvals` and one RFC 9396 `authorization_details` entry for the approved action ([wire formats](/docs/concepts/wire-formats)). It exists for a resume that crosses services or trust domains, where the resuming side wants proof of who resolved the request before it spends a `decide`. The bound hash `token` stays the thing that is compared: the adapter verifies the JWS with its `verifier`, extracts `approval.token`, and then runs the unchanged step 5 below. `PermDock-Approval` carries either form as an RFC 9651 sf-token; the kernel tells them apart by the `pd1.` prefix versus the three-segment JWS shape.
 
-An application that decides approvals in its own gate, outside an adapter, resumes a call the way the adapters do: `resumeDecision({ decision, permission, subject, store, resource, adapter, token })` with `token: await storedApprovalToken(store, decision)`. `storedApprovalToken` returns the decision's own token when the store holds an approved or rejected request for it, so a retried call resumes (or is denied) without the caller carrying the token; it returns `undefined` for no record, an expired one, a store that throws, or a decision that needs no approval. A pending request counts only with `{ denyPending: true }`, which denies the call with `approval-pending` instead of asking again; `now` sets the clock for the expiry check.
+An application that decides approvals in its own gate, outside an adapter, resumes a call the way the adapters do: `resumeDecision({ decision, permission, subject, store, resource, adapter, token })` with `token: await storedApprovalToken(store, decision)`. `storedApprovalToken` returns the decision's own token when the store holds an approved or rejected request for it, so a retried call resumes (or is denied) without the caller carrying the token; it returns `undefined` for no record, an expired one, a store that throws, or a decision that needs no approval. A pending request counts only with `{ denyPending: true }`, which denies the call with `approval-pending` instead of asking again; `now`, an `Instant`, sets the clock for the expiry check.
 
 ```ts
 import {
@@ -192,7 +192,7 @@ Over plain HTTP, step 5 is the retried request with a `PermDock-Approval: <token
 - The approver comes from `subject` in `approvalsHandler` options or from the adapter's verified session, never from the approve request body.
 - The approver is not the request's actor, and optionally not its principal.
 - Status transitions: only `pending` can become `approved` or `rejected`; `expired` is terminal; a second resolve of a resolved request, or a second approval from the same principal, is a `409`.
-- `expiresAt` is the window from `createdAt`, shortened to the grant's `approval.ttl` when that is shorter; a grant never keeps a request open longer than the window. The window is the `ttl` the call passes (`resumeDecision({ ..., ttl })`, `requestApproval(store, decision, { ..., ttl })`, in milliseconds), else the store's own `ttl` (`memoryApprovalStore({ ttl })`, or a custom store's optional `ttl` field), else `DEFAULT_APPROVAL_TTL_MS` (one hour). A `ttl` that is not a positive whole number of milliseconds throws a `RangeError`, which an adapter turns into a denial.
+- `expiresAt` is the window from `createdAt`, shortened to the grant's `approval.ttl` when that is shorter; a grant never keeps a request open longer than the window. The window is the `ttl` the call passes (`resumeDecision({ ..., ttl })`, `requestApproval(store, decision, { ..., ttl })`, in seconds), else the store's own `ttl` (`memoryApprovalStore({ ttl })`, or a custom store's optional `ttl` field), else `DEFAULT_APPROVAL_TTL` (3600 seconds). A `ttl` that is not a positive whole number of seconds throws a `RangeError`, which an adapter turns into a denial.
 - Tokens on resume: a token only applies to the call it was issued for. On that call, unknown, pending, rejected, expired, consumed or mismatched tokens are `denied` with reason kind `approval`; on any other call, or when the decision needs no approval, the token is ignored. Under `approval: { staleOn: 'resource-change' }`, a token issued for an earlier `version` of the same row (same permission, resource and principal, still pending or approved) is `denied` with reason `stale-approval` and is not consumed; the call without it asks again ([approval security](/docs/security/approvals#approvals-that-go-stale)). No token is ever accepted without a fresh `decide`. Agent adapters read it from the `permdockApproval` context key. Approvals are per call; a session-scoped approval such as Eve's `once()` helper is not expressible in the store.
 - `memoryApprovalStore` is per process. The adapter logs a development warning when it is used in a serverless runtime, because a request that resumes on another instance will not find its record.
 
@@ -300,7 +300,8 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
       }
       return row.body;
     },
-    async consume(token, now = new Date()) {
+    async consume(token, at) {
+      const now = new Date(at?.epochMilliseconds ?? Date.now());
       const [row] = await db
         .update(approvals)
         .set({
@@ -370,7 +371,8 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         ? { items, next: JSON.stringify([last.createdAt, last.token]) }
         : { items };
     },
-    async expire(now = new Date()) {
+    async expire(at) {
+      const now = new Date(at?.epochMilliseconds ?? Date.now());
       const rows = await db
         .update(approvals)
         .set({

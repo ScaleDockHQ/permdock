@@ -48,7 +48,7 @@ const member = role("member", [
     where: { authorId: principal.id },
     approval: "human",
   }),
-  allow(permissions.billing.invoice.pay, { limit: { count: 10, per: "1h" } }),
+  allow(permissions.billing.invoice.pay, { limit: { count: 10, per: 3600 } }),
 ]);
 ```
 

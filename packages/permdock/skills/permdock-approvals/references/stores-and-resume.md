@@ -7,7 +7,7 @@ The API and the store contract are on the [approvals adapter](https://permdock.c
 ```ts
 import { approvalsHandler, memoryApprovalStore } from "permdock/approvals";
 
-export const store = memoryApprovalStore({ ttl: 60 * 60 * 1000 }); // default: one hour
+export const store = memoryApprovalStore({ ttl: 60 * 60 }); // seconds; default one hour
 
 // Every agent and HTTP adapter takes the same option
 export const { protect } = createPermDock(policy, { subject, store });

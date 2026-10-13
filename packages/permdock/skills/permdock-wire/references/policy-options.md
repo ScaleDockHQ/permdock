@@ -22,7 +22,7 @@ Localise `describe` with `messages`. `messages.reasons` is a record per denial r
 
 ## Validity windows
 
-Access that ends on a date (a contractor's engagement, a change freeze until launch) is `validFrom` / `validUntil` on the grant, RFC 3339 or Unix seconds. Outside the window an allow denies with `inactive-grant` and a deny does not apply; `where()` and generated RLS drop it, and `simulate(checks, { now })` previews a date. A person's access ending is the membership's `expiresAt` (see the `permdock-tenancy` skill).
+Access that ends on a date (a contractor's engagement, a change freeze until launch) is `validFrom` / `validUntil` on the grant, an RFC 3339 string or an `Instant` such as a `Temporal.Instant`. Outside the window an allow denies with `inactive-grant` and a deny does not apply; `where()` and generated RLS drop it, and `simulate(checks, { now })` previews an instant (`now` is an `Instant`). A person's access ending is the membership's `expiresAt` (see the `permdock-tenancy` skill).
 
 ## Step-up
 
