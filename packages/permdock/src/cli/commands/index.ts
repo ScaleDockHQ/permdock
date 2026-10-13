@@ -15,8 +15,7 @@ export type CommandName =
   | "arazzo"
   | "cloud"
   | "supabase"
-  | "powersync"
-  | "codemod";
+  | "powersync";
 
 /** What `permdock --help` lists, without loading any command module. */
 export const COMMAND_DESCRIPTIONS: Readonly<Record<CommandName, string>> = {
@@ -40,8 +39,6 @@ export const COMMAND_DESCRIPTIONS: Readonly<Record<CommandName, string>> = {
     "Generate the Supabase Custom Access Token Hook, or inspect its manifest",
   powersync:
     "Generate PowerSync Sync Streams from the policy, or verify them against the fixtures",
-  codemod:
-    "Apply a release's renames to files that import permdock; list call sites to edit by hand",
 };
 
 /** Every top-level command, loaded only when it runs or its own `--help` is asked for. */
@@ -61,7 +58,6 @@ export const commands: Readonly<
   cloud: async () => (await import("./cloud.ts")).cloud,
   supabase: async () => (await import("./supabase.ts")).supabase,
   powersync: async () => (await import("./powersync.ts")).powersync,
-  codemod: async () => (await import("./codemod.ts")).codemod,
 };
 
 export function isCommand(name: string): name is CommandName {
