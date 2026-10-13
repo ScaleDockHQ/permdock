@@ -1,0 +1,26 @@
+{
+  "name": "@permdock/example-h3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --experimental-strip-types src/serve.ts",
+    "doctor": "permdock doctor",
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "start": "node --experimental-strip-types src/serve.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "h3": "catalog:",
+    "permdock": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

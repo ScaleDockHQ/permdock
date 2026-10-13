@@ -23,6 +23,8 @@ The repo standard pins every dependency to its newest release that passes `minim
 | `multer`                                                              | 2.4.0                  | 3.0.0-alpha.2 (`next`)                     | Alpha                                                                                                                                                                                                | 3.0.0 on `latest`                                                              |
 | `miniflare`                                                           | 4.20260730.0           | 5.20261001.0-alpha                         | Alpha                                                                                                                                                                                                | A non-alpha 5.x release                                                        |
 
+`permdock/sveltekit` builds against Kit 3.0.1, which reads only its public types from the library. `svelte-kit sync` still calls `ts.sys`, so `apps/examples/sveltekit` takes `typescript` from `catalog:ts6`; it moves back to `catalog:` when the Kit row clears.
+
 `drizzle-orm` 1.0.0-rc.4, `motion` 14 and `@streamdown/code` 2 were adopted in the same change: the first is the `rc` the standard asks for, and the other two built and passed their tests unchanged.
 
 ## Consequences

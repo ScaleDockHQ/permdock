@@ -1,0 +1,27 @@
+{
+  "name": "@permdock/example-solid-start",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --host 127.0.0.1 --port 3487",
+    "doctor": "permdock doctor",
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@solidjs/router": "catalog:",
+    "@solidjs/start": "catalog:",
+    "permdock": "workspace:*",
+    "solid-js": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

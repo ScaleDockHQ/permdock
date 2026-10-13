@@ -1,0 +1,11 @@
+{
+  "extends": "@permdock/typescript-config/base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "lib": ["ES2025", "DOM"],
+    "types": ["@solidjs/start/env"]
+  },
+  "include": ["src", "vite.config.ts"]
+}
