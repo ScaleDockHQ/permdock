@@ -19,6 +19,7 @@ import {
   memoryRevocationFeed,
   mergeHostedGrants,
   parsePolicyDocument,
+  policyDocumentFromClaims,
   principal,
   relation,
   resource,
@@ -129,7 +130,7 @@ const hostedDocument = parsePolicyDocument({
   id: "doc_1",
   fingerprint: "fp_doc_1",
   catalog: "cat_1",
-  issuedAt: 1,
+  issuedAt: "1970-01-01T00:00:01Z",
   grants: [
     {
       id: "g_member_publish",
@@ -587,7 +588,7 @@ describe("conformance runners", () => {
   testSnapshotSource({
     get: () => ({
       v: 1,
-      issuedAt: 1,
+      issuedAt: "1970-01-01T00:00:01Z",
       subject: { principal: null, context: {} },
       roles: [],
       grants: [],
@@ -598,7 +599,7 @@ describe("conformance runners", () => {
   testSnapshotSource({
     get: () => ({
       v: 1,
-      issuedAt: 1,
+      issuedAt: "1970-01-01T00:00:01Z",
       subject: { principal: null, context: {} },
       roles: [],
       grants: [],
@@ -642,11 +643,11 @@ describe("conformance runners", () => {
       ),
     ) as Record<string, string>;
     expect(Object.keys(fixtures).toSorted()).toEqual([
-      "permdock-approval+jwt",
-      "permdock-capability+jwt",
-      "permdock-decisions+jwt",
-      "permdock-policy+jwt",
-      "permdock-snapshot+jwt",
+      "vnd.permdock.approval+jwt",
+      "vnd.permdock.capability+jwt",
+      "vnd.permdock.evidence+jwt",
+      "vnd.permdock.policy+jwt",
+      "vnd.permdock.snapshot+jwt",
     ]);
   });
 
@@ -659,7 +660,7 @@ describe("conformance runners", () => {
       ),
     ) as Record<string, string>;
     const subject = await subjectFromCapability(
-      fixtures["permdock-capability+jwt"],
+      fixtures["vnd.permdock.capability+jwt"],
       {
         jwks: jwtFixtureJwks,
         algorithms: ["Ed25519"],
@@ -686,8 +687,8 @@ describe("conformance runners", () => {
     const verified = await joseTokenVerifier({
       jwks: jwtFixtureJwks,
       algorithms: ["Ed25519"],
-    }).verify(fixtures["permdock-policy+jwt"] ?? "", {
-      typ: "permdock-policy+jwt",
+    }).verify(fixtures["vnd.permdock.policy+jwt"] ?? "", {
+      typ: "vnd.permdock.policy+jwt",
       issuer: "https://api.permdock.test/v1/environments/production",
       audience: "https://api.permdock.test/v1/environments/production",
     });
@@ -697,9 +698,11 @@ describe("conformance runners", () => {
         : 0,
     ).toBe(86_400);
     expect(verified.ok).toBe(true);
-    const document = parsePolicyDocument(
-      verified.ok ? verified.claims["policy"] : null,
+    const document = policyDocumentFromClaims(
+      verified.ok ? verified.claims : {},
     );
+    expect(document.id).toBe("pol_fixture");
+    expect(document.issuedAt).toBe("2033-05-17T03:33:20.000Z");
     expect(document.grants).toHaveLength(1);
   });
 
@@ -720,7 +723,7 @@ describe("conformance runners", () => {
     {
       verifier: joseTokenVerifier({
         jwks: jwtFixtureJwks,
-        typ: "permdock-snapshot+jwt",
+        typ: "vnd.permdock.snapshot+jwt",
       }),
     },
   );
