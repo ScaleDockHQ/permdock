@@ -1,0 +1,85 @@
+---
+title: Automations
+description: An automation is a published, versioned run of operations. Each run acts as the publisher with live rights, narrowed to the automation's operations and to any policy delegation to actor('automation'). The trigger never grants. permdock/workflow starts runs, rebuilds them from run tickets and waits on approvals.
+---
+
+A person publishes an automation: "every Monday, send the overdue invoices". Every run then acts for that person, with what that person may do at the time of the run, narrowed to the operations the automation names. A run never gains a permission from the event that started it, and a run never outlives the publisher's rights.
+
+## The rule
+
+A step of a run is granted when all of these hold:
+
+1. The run's principal is granted the permission with its live roles, memberships and tenant settings.
+2. The permission belongs to one of the automation's operations (the delegation).
+3. Any policy delegation to `actor('automation')` covers it.
+
+The trigger only needs the automation's `run` permission to start a run. It is recorded in `subject.context.trigger` and lends the run nothing.
+
+## Publishing
+
+`permdock.decideAutomation(request)` checks that the publisher may hand out what the automation asks for and returns an `Automation` record to store. Each operation's permission must be one the publisher may use, the tenant must be one of the publisher's tenants, and a link, feed, contact, API key or run-ticket subject cannot publish.
+
+```ts
+const decision = await permdock.decideAutomation({
+  id: "weekly-overdue",
+  version: 1,
+  operations: [operations.read_invoice, operations.send_invoice],
+  run: permissions.report.run,
+  name: "Overdue invoices",
+});
+if (decision.outcome === "granted") await automations.save(decision.automation);
+```
+
+`mode: 'service'` runs as a `kind: 'service'` principal holding `roles` in `tenant` instead of as the publisher. The roles and permissions must be ones the publisher could assign, and each run checks again that the publisher is still present and still able to assign them.
+
+<auto-type-table
+  cwd
+  path="../../packages/permdock/src/core/automation.ts"
+  name="Automation"
+/>
+
+`AutomationSource` is the live record store, read on every run; `memoryAutomationSource` is the in-process default.
+
+## Runs
+
+`createPermDock` from `permdock/workflow` returns a `WorkflowPermDock`:
+
+```ts
+import { createPermDock, pollingApprovalWaiter } from "permdock/workflow";
+
+const workflow = createPermDock(policy, {
+  signer,
+  verifier,
+  principals,
+  automations,
+  approvals: store,
+  waiter: pollingApprovalWaiter({ store }),
+  sink,
+});
+
+const started = await workflow.start("weekly-overdue", {
+  caller: permdock,
+  trigger: event,
+});
+// in the worker, for every step:
+const run = await workflow.getPermDock(started.ticket);
+run.can(permissions.invoice.send, invoice);
+```
+
+- `start(id, options)` reads the live automation, checks the caller's `run` permission and signs a run ticket (`vnd.permdock.run+jwt`, 24 hours by default). With a `sink`, it writes an `automation` event with `operation: 'run'`.
+- `getPermDock(ticket)` rebuilds the run from its ticket on every step: it loads the automation and the principal live. A new version, a revoked automation, or a publisher who is gone gives an instance that denies everything.
+- `awaitApproval(ticket, permission, row)` decides, and on `approval-required` opens a request, parks on the `ApprovalWaiter`, then rebuilds the run and decides again with the token. The second decision reads the publisher's rights as of then, so a demotion while waiting denies.
+
+`ApprovalWaiter` has `wait(token, { expiresAt, signal })` and `wake(token)`. `pollingApprovalWaiter({ store, interval })` polls the store every `interval` milliseconds (5,000 by default) and resolves when the request leaves `pending`, is woken or expires.
+
+## Events
+
+`automationEvent({ operation, automation })` builds the sink event for `published`, `changed`, `revoked` and `run`, sent as `com.permdock.automation.<operation>` ([CloudEvents](/docs/standards/cloudevents)). It records the principal, the publisher and the delegated permissions, so an access review can flag a publisher who was demoted or removed.
+
+## Runners
+
+`permdock/workflow` needs only a place to keep the run ticket between steps. Trigger.dev, Inngest, Temporal, Vercel Queues and pgmq all work the same way: call `start` where the trigger arrives, pass the ticket as the job payload, and call `getPermDock(ticket)` at the top of each step. A Workflow SDK entry with a hook-based waiter is planned.
+
+## Why
+
+An automation that ran with a snapshot of its publisher's rights would keep acting after the publisher was demoted or left, which is the gap that turns automations into an access-review finding. Reading the principal live on every step closes it, and the version check stops an edited automation from reusing a ticket minted for the old one. The delegation is the operations' permissions because that is what the publisher reviewed when they published it. The trigger never grants because a webhook or a schedule carries no identity PermDock can verify; treating it as one would let anyone who can post an event run the automation's operations. Service mode exists for automations that must outlive one employee, and it is capped at what the publisher could assign so that publishing never becomes a way to escalate.
