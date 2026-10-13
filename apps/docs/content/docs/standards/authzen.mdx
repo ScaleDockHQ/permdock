@@ -79,7 +79,7 @@ An evaluation request for `permdock.decide(permissions.post.update, post)`:
     "id": "p_42",
     "properties": { "authorId": "u_123", "orgId": "org_9", "published": false }
   },
-  "context": { "tenant": "org_9", "delegation": { "scopes": ["post:update"] } }
+  "context": { "tenant": "org_9", "delegation": { "scope": "post:update" } }
 }
 ```
 
@@ -94,14 +94,16 @@ The response carries the boolean AuthZEN decision plus a `context.permdock` memb
     "permdock": {
       "outcome": "denied",
       "denials": [{ "role": "member", "reason": "condition" }]
-    }
+    },
+    "reason_admin": { "en": "post.update denied: member (condition)." },
+    "reason_user": { "en": "post.update is not permitted." }
   }
 }
 ```
 
-A grant is `"decision": true` with `context.permdock.outcome` equal to `granted`; an `approval-required` outcome is `"decision": false` so AuthZEN-only PEPs fail closed, with `context.permdock.outcome` equal to `approval-required` and `context.permdock.token` for the approval flow. The application's own decision endpoint (`permdockHandler`) returns the full `Decision` under the same member, because its caller is the application's UI. PermDock does not propose a separate AuthZEN-level signal for it: a `false` that a PermDock-aware PEP can refine is the fail-closed reading every other PEP already gets.
+A grant is `"decision": true` with `context.permdock.outcome` equal to `granted`; an `approval-required` outcome is `"decision": false` so AuthZEN-only PEPs fail closed, with `context.permdock.outcome` equal to `approval-required` and `context.permdock.token` for the approval flow. A denied or `approval-required` result also carries the AuthZEN 1.0 section 7.2.1 reasons: `reason_admin` names the denying roles and reasons, and `reason_user` names only the permission. The application's own decision endpoint (`permdockHandler`) returns the full `Decision` under the same member, because its caller is the application's UI. PermDock does not propose a separate AuthZEN-level signal for it: a `false` that a PermDock-aware PEP can refine is the fail-closed reading every other PEP already gets.
 
-The `context` keys for `tenant`, `actor` and `delegation` are PermDock's names, listed in the mapping table below. If AuthZEN defines names for them, PermDock adopts the specification's names.
+The `context` keys for `tenant`, `actor` and `delegation` are PermDock's names, listed in the mapping table below. `delegation` uses the OAuth wire names, a space-separated `scope` string and RFC 9396 `authorization_details`. If AuthZEN defines names for them, PermDock adopts the specification's names.
 
 The boxcar form wraps many `{ action, resource }` pairs under one `subject`; a top-level `subject`, `action`, `resource` or `context` is the default for every item that omits it, and is what `simulate()` sends; resource search maps to `filter` / `where`; action search maps to iterating `listPermissions(permissions)` for one resource and returning the granted keys.
 
@@ -116,13 +118,16 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject`; a t
 | `.well-known/authzen-configuration/<tenant>`                | Per-tenant PDP metadata served by `permdockHandler` and the hosted ADS when the deployment is multi-tenant                                                                     |
 | `action.name`                                               | `permission.key` (`post.update`) resolved with `findPermission`, or the bare action (`update`) of the resource named by `resource.type`                                        |
 | `resource.type`                                             | Resource node name (`post`)                                                                                                                                                    |
-| `resource.id`                                               | Value of the resource's `id` field                                                                                                                                             |
+| `resource.id`                                               | Value of the resource's `id` field; `"*"` names the collection, a check with no row                                                                                            |
 | `resource.properties`                                       | The instance passed to `decide`; validated at the boundary                                                                                                                     |
-| `context`                                                   | `delegation` (scopes, `authorization_details`) and request context                                                                                                             |
+| `context`                                                   | `delegation` (`scope`, `authorization_details`) and request context                                                                                                            |
 | `decision: true`                                            | `outcome: 'granted'`                                                                                                                                                           |
 | `decision: false`                                           | `outcome: 'denied'` or `'approval-required'` (distinguished in `context.permdock.outcome`)                                                                                     |
 | Response `context.permdock`                                 | `outcome`, `denials` as `{ role, reason }`, `token`; the full `Decision` only from the application's own `permdockHandler`                                                     |
+| Response `context.reason_admin`, `context.reason_user`      | Section 7.2.1 reasons in `en` on a denied or `approval-required` result; `reason_user` names no role, grant or subject                                                         |
 | `/access/v1/evaluations` (boxcar)                           | `permdock.simulate([...])` and the batched React client                                                                                                                        |
+| `options.evaluations_semantic`                              | `execute_all` (default), `deny_on_first_deny` or `permit_on_first_permit`; an unknown value is a `400`                                                                         |
+| `X-Request-ID`                                              | Echoed on every response when the request sends one                                                                                                                            |
 | `/search/action`                                            | Granted keys from `listPermissions` for one resource (the catalog question)                                                                                                    |
 | `/search/resource`                                          | `filter` for arrays, `where` for query compilers; each permitted row is returned as `{ type, id }`, with `id` read from the resource's `id` field and rows without one dropped |
 | `/search/subject`                                           | Iterating the subjects returned by the `subjects.list` option; without it the route answers 404 and the metadata document omits `search_subject_endpoint`                      |
