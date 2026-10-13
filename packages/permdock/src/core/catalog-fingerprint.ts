@@ -1,6 +1,6 @@
 import { canonicalJson } from "./canonical-json.ts";
 import { isRecord } from "./compact.ts";
-import { bytesToBase64Url, sha256 } from "./sha256.ts";
+import { sha256Digest } from "./sha256.ts";
 
 const OMITTED_TOP_LEVEL = new Set(["generatedAt", "generator", "fingerprint"]);
 
@@ -25,8 +25,7 @@ function fingerprintInput(catalog: Record<string, unknown>): unknown {
 }
 
 /**
- * The catalog v1 fingerprint: base64url SHA-256 of canonical JSON (keys
- * sorted, no whitespace) without `generatedAt`, `generator`, `fingerprint`
+ * The catalog v1 fingerprint: the `sha-256:` digest of its RFC 8785 JSON without `generatedAt`, `generator`, `fingerprint`
  * and every `permissions[].usages`, so neither the CLI version, the clock nor
  * call sites change it.
  */
@@ -34,5 +33,5 @@ export function catalogFingerprint(catalog: unknown): string {
   if (!isRecord(catalog)) {
     throw new TypeError("PermDock: a catalog must be an object");
   }
-  return bytesToBase64Url(sha256(canonicalJson(fingerprintInput(catalog))));
+  return sha256Digest(canonicalJson(fingerprintInput(catalog)));
 }

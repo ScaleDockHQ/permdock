@@ -12,7 +12,7 @@ import { findPermission, getResource } from "./permission-registry.ts";
 import { declaredRoleNames, indexPolicy } from "./policy.ts";
 import { isSelfParented } from "./resource-relations.ts";
 import { role } from "./role-builder.ts";
-import { bytesToBase64Url, sha256 } from "./sha256.ts";
+import { sha256Digest } from "./sha256.ts";
 import { isRfc3339, rfc3339 } from "./time.ts";
 import { findRole, listPlans } from "./vocabulary.ts";
 
@@ -579,8 +579,8 @@ export function mergeHostedGrants(
       ...policy,
       grants,
       index: indexPolicy(policy.roles, grants, policy.vocabulary),
-      fingerprint: bytesToBase64Url(
-        sha256(`${policy.fingerprint}:${document.fingerprint}`),
+      fingerprint: sha256Digest(
+        `${policy.fingerprint}:${document.fingerprint}`,
       ),
     }),
     dropped,

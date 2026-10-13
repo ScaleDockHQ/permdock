@@ -3,6 +3,7 @@ import type { SettingsSource } from "./interfaces.ts";
 import type { PermDock } from "./permdock.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
 
+import { canonicalJson } from "./canonical-json.ts";
 import { idList, isId, ownRecord } from "./capability.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { coveredByDelegation } from "./delegation.ts";
@@ -10,7 +11,7 @@ import { freezeDeep } from "./freeze.ts";
 import { type Grantee, flattenGrantee } from "./grantee.ts";
 import { formerKeys } from "./permission-leaf.ts";
 import { listPermissions } from "./permission-registry.ts";
-import { bytesToBase64Url, sha256 } from "./sha256.ts";
+import { sha256Digest } from "./sha256.ts";
 import {
   type AuthorizationDetail,
   type Delegation,
@@ -426,7 +427,7 @@ export function credentialSubject(
 }
 
 function credentialToken(credential: Credential): string {
-  const payload = JSON.stringify({
+  const payload = canonicalJson({
     t: "credential",
     id: credential.id,
     kind: credential.kind,
@@ -439,7 +440,7 @@ function credentialToken(credential: Credential): string {
     expiresAt: credential.expiresAt ?? null,
     name: credential.name ?? null,
   });
-  return `pd1.${bytesToBase64Url(sha256(payload))}`;
+  return sha256Digest(payload);
 }
 
 function denied(

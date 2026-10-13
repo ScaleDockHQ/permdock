@@ -589,7 +589,7 @@ describe("decideCredential", () => {
     if (pending.outcome !== "approval-required") {
       return;
     }
-    expect(pending.token).toMatch(/^pd1\./u);
+    expect(pending.token).toMatch(/^sha-256:[\w-]{43}$/u);
     const later = await decideCredential(developer, readKey, {
       now: NOW + 60,
       settings,

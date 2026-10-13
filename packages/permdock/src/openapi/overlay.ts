@@ -7,7 +7,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { listPermissions } from "../core/permission-registry.ts";
-import { sha256 } from "../core/sha256.ts";
+import { sha256Digest } from "../core/sha256.ts";
 import {
   catalogOf,
   describeOf,
@@ -33,18 +33,12 @@ function operationTarget(operationId: string): string {
   return `$.paths.*[?@.operationId == ${jsonPathString(operationId)}]`;
 }
 
-function hex(bytes: Uint8Array): string {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
-    "",
-  );
-}
-
-/** `sha256:` over the sorted permission keys and scopes, so the same catalog gives the same Overlay. */
+/** The `sha-256:` digest of the sorted permission keys and scopes, so the same catalog gives the same Overlay. */
 function fingerprint(policy: Policy): string {
   const lines = listPermissions(policy.permissions)
     .map((leaf) => `${leaf.key} ${leaf.scope}`)
     .toSorted();
-  return `sha256:${hex(sha256(lines.join("\n")))}`;
+  return sha256Digest(lines.join("\n"));
 }
 
 export function overlayOf(

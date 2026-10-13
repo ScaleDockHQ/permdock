@@ -1,7 +1,7 @@
 import type { Actor, Principal } from "./subject.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
-import { bytesToBase64Url, sha256 } from "./sha256.ts";
+import { sha256Digest } from "./sha256.ts";
 
 /**
  * Only stable identity goes into the token, so refreshing a session (new
@@ -38,7 +38,7 @@ export function versionOf(row: unknown, field: string): string | null {
 
 /** The digest that binds a token to the call's data when no row id does. */
 export function payloadDigest(data: unknown): string {
-  return bytesToBase64Url(sha256(canonicalJson(data)));
+  return sha256Digest(canonicalJson(data));
 }
 
 /**
@@ -57,7 +57,7 @@ export function decisionToken(input: {
   readonly version?: string | null | undefined;
   readonly payload?: string | undefined;
 }): string {
-  const payload = JSON.stringify({
+  const payload = canonicalJson({
     key: input.key,
     resourceId: input.resourceId,
     principal: principalIdentity(input.principal),
@@ -69,5 +69,5 @@ export function decisionToken(input: {
     ...(input.version === undefined ? {} : { version: input.version }),
     ...(input.payload === undefined ? {} : { payload: input.payload }),
   });
-  return `pd1.${bytesToBase64Url(sha256(payload))}`;
+  return sha256Digest(payload);
 }

@@ -1,9 +1,11 @@
 import { isRecord } from "./compact.ts";
 
 /**
- * JSON with sorted keys and `undefined` members dropped, so equal values hash
- * equally. Dates become ISO strings, bigints `"<n>n"`, and a repeated object
- * on the current path `"[Circular]"`, so any validated row serialises.
+ * RFC 8785 (JCS) output for I-JSON input: keys sorted by UTF-16 code units,
+ * ECMAScript number and string serialisation, no whitespace. `undefined`
+ * members are dropped. Outside I-JSON, Dates become ISO strings, bigints
+ * `"<n>n"`, and a repeated object on the current path `"[Circular]"`, so any
+ * validated row serialises.
  */
 export function canonicalJson(
   value: unknown,

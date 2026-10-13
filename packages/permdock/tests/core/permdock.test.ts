@@ -73,7 +73,7 @@ describe("createPermDock", () => {
     const decision = permdock.decide(permissions.post.delete, ownPost);
     expect(decision.outcome).toBe("approval-required");
     if (decision.outcome === "approval-required") {
-      expect(decision.token.startsWith("pd1.")).toBe(true);
+      expect(decision.token).toMatch(/^sha-256:[\w-]{43}$/u);
     }
     expect(() => permdock.assert(permissions.post.delete, ownPost)).toThrow(
       PermDockApprovalRequiredError,

@@ -273,7 +273,7 @@ describe("OpenAPI Overlay", () => {
     );
     const info = isJson(v11["info"]) ? v11["info"] : {};
     expect(info["title"]).toBe("PermDock authorization metadata");
-    expect(info["version"]).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    expect(info["version"]).toMatch(/^sha-256:[\w-]{43}$/u);
     const grown = definePolicy(
       definePermissions({
         post: resource({ actions: ["read", "update", "delete", "archive"] }),

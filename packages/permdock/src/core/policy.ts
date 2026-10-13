@@ -45,7 +45,7 @@ import {
 } from "./policy-delegation.ts";
 import { POLICY_X, canonicalPolicy } from "./policy-fingerprint.ts";
 import { type PolicyScopesInput, defineScopes } from "./scopes.ts";
-import { sha256, bytesToBase64Url } from "./sha256.ts";
+import { sha256Digest } from "./sha256.ts";
 import { listRoles } from "./vocabulary.ts";
 
 export type {
@@ -253,12 +253,10 @@ export function definePolicy<
   );
   const levels = normalizeLevels(resources);
   const oauthScopes = normalizeOAuthScopes(options.oauthScopes, tree);
-  const fingerprint = bytesToBase64Url(
-    sha256(
-      oauthScopes.length === 0
-        ? canonicalPolicy(grants, delegations, levels)
-        : `${canonicalPolicy(grants, delegations, levels)}\noauthScopes:${canonicalJson(oauthScopes)}`,
-    ),
+  const fingerprint = sha256Digest(
+    oauthScopes.length === 0
+      ? canonicalPolicy(grants, delegations, levels)
+      : `${canonicalPolicy(grants, delegations, levels)}\noauthScopes:${canonicalJson(oauthScopes)}`,
   );
   const hostable = [
     ...new Set(

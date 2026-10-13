@@ -60,7 +60,7 @@ describe("snapshotHeaders", () => {
       Vary: "Authorization, Cookie",
       "Cache-Tag": `${snapshotTag(alice.id)},org:acme`,
     });
-    expect(first.ETag).toMatch(/^"[\w-]+"$/);
+    expect(first.ETag).toMatch(/^"sha-256:[\w-]{43}"$/);
     expect(second.ETag).toBe(first.ETag);
   });
 
