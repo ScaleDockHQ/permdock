@@ -42,6 +42,7 @@ Breaking: `subjectFrom*` resolvers take the input first and return `Subject<<Sou
 | `startAccessReview` option `store`                            | `reviews`                           |
 | `approvalsHandler` and `matchDelegation` option `delegations` | `approvalDelegations`               |
 | `decide`, `can` and `explain` option `source`                 | `call`                              |
+| `LimitDetail` field `window`                                  | `per`                               |
 | `testAuthZen`                                                 | `testAuthzen`                       |
 | `TestAuthZenOptions`                                          | `TestAuthzenOptions`                |
 | `AuthZenVectors`                                              | `AuthzenVectors`                    |

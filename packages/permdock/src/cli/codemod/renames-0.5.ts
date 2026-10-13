@@ -435,6 +435,13 @@ const rows: readonly Rename[] = [
     entries: ["permdock/approvals"],
     kind: "type",
   },
+  // T renames
+  {
+    from: "window",
+    to: "per",
+    entries: ["permdock", ...SERVER_ADAPTERS],
+    kind: "method",
+  },
 ];
 
 /** Every 0.5.0 rename, one row per `from` and target. */
