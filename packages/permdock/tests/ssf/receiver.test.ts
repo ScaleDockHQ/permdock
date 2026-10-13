@@ -29,7 +29,11 @@ import {
   setSubjectFromClaims,
   subjectSession,
 } from "../../src/ssf/claims.ts";
-import { BACKCHANNEL_LOGOUT_EVENT, caepName } from "../../src/ssf/events.ts";
+import {
+  BACKCHANNEL_LOGOUT_EVENT,
+  eventName,
+  revokesAccount,
+} from "../../src/ssf/events.ts";
 import { createPermDock, memoryReplayStore } from "../../src/ssf/index.ts";
 import { contentType, errForCause, parseEvery } from "../../src/ssf/wire.ts";
 
@@ -624,10 +628,22 @@ describe("SSF wire helpers", () => {
     expect(events).toHaveLength(1);
   });
 
-  it("names only CAEP event types", () => {
-    expect(caepName(`${CAEP}session-revoked`)).toBe("session-revoked");
-    expect(caepName(`${CAEP}made-up`)).toBeUndefined();
-    expect(caepName("https://other.example/session-revoked")).toBeUndefined();
+  it("names only CAEP 1.0 and the revoking RISC event types", () => {
+    const risc = "https://schemas.openid.net/secevent/risc/event-type/";
+    expect(eventName(`${CAEP}session-revoked`)).toBe("session-revoked");
+    expect(eventName(`${CAEP}session-established`)).toBe("session-established");
+    expect(eventName(`${CAEP}session-presented`)).toBe("session-presented");
+    expect(eventName(`${CAEP}risk-level-change`)).toBe("risk-level-change");
+    expect(eventName(`${risc}account-disabled`)).toBe("account-disabled");
+    expect(eventName(`${risc}account-purged`)).toBe("account-purged");
+    expect(eventName(`${risc}credential-compromise`)).toBe(
+      "credential-compromise",
+    );
+    expect(eventName(`${risc}account-enabled`)).toBeUndefined();
+    expect(eventName(`${CAEP}made-up`)).toBeUndefined();
+    expect(eventName("https://other.example/session-revoked")).toBeUndefined();
+    expect(revokesAccount("account-purged")).toBe(true);
+    expect(revokesAccount("session-revoked")).toBe(false);
   });
 });
 

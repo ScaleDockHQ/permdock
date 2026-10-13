@@ -11,6 +11,15 @@ export type IngestFail = {
   readonly err: string;
   readonly description: string;
   readonly cause?: TokenFailureCause;
+  /** A handler failed: the receiver answers `500` so the transmitter retries the SET. */
+  readonly retry?: true;
+};
+
+export const HANDLER_FAILED: IngestFail = {
+  ok: false,
+  err: "invalid_request",
+  description: "handler failed",
+  retry: true,
 };
 export type IngestResult = IngestOk | IngestFail;
 

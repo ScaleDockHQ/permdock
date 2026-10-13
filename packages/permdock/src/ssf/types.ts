@@ -3,12 +3,31 @@ import type { TokenFailureCause, TokenVerifier } from "../core/interfaces.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { DiscoveryInput, JwtJwks } from "../jwt/types.ts";
 
+/** Every CAEP 1.0 event type, by the last segment of its URI. */
 export type CaepEventName =
   | "session-revoked"
   | "credential-change"
   | "assurance-level-change"
   | "token-claims-change"
-  | "device-compliance-change";
+  | "device-compliance-change"
+  | "session-established"
+  | "session-presented"
+  | "risk-level-change";
+
+/** The RISC 1.0 event types PermDock treats as a revocation of every session. */
+export type RiscEventName =
+  | "account-disabled"
+  | "account-purged"
+  | "credential-compromise";
+
+export type SsfEventName = CaepEventName | RiscEventName;
+
+/** An SSF 1.0 stream `verification` event: the `state` the receiver asked the transmitter to echo. */
+export type SsfVerification = {
+  readonly state?: string;
+  readonly jti: string;
+  readonly issuer?: string;
+};
 
 export type SetSubject = {
   readonly format: string;
@@ -42,9 +61,11 @@ export type SsfEventInput = {
 export type SsfEventHandler = (input: SsfEventInput) => void | Promise<void>;
 
 export type SsfOnEvent = {
-  readonly [K in CaepEventName]?: SsfEventHandler;
+  readonly [K in SsfEventName]?: SsfEventHandler;
 } & {
   readonly "*"?: SsfEventHandler;
+  /** SSF 1.0 section 8.1.4.1 stream verification; it names a stream, never a subject. */
+  readonly verification?: (input: SsfVerification) => void | Promise<void>;
 };
 
 /**
@@ -69,6 +90,8 @@ export type SsfAuditEvent = {
   readonly replayed?: true;
   readonly cancelled?: number;
   readonly unknown?: "event" | "subject";
+  /** The `state` of a stream `verification` event. */
+  readonly state?: string;
   readonly err?: string;
   readonly cause?: TokenFailureCause;
 };

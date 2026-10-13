@@ -11,6 +11,7 @@ import type {
   SsfEventHandler,
   SsfEventInput,
   SsfEventListener,
+  SsfEventName,
   SsfOnEvent,
   SsfReceiver,
   SsfSubject,
@@ -27,13 +28,19 @@ import {
   setSubjectFromClaims,
   subjectSession,
 } from "./claims.ts";
-import { BACKCHANNEL_LOGOUT_EVENT, caepName } from "./events.ts";
+import {
+  BACKCHANNEL_LOGOUT_EVENT,
+  VERIFICATION_EVENT,
+  eventName,
+  revokesAccount,
+} from "./events.ts";
 import { pollOnce } from "./poll.ts";
 import {
   LOGOUT_CONTENT,
   LOGOUT_TYP,
   SET_CONTENT,
   SET_TYP,
+  HANDLER_FAILED,
   contentType,
   errForCause,
   jsonResponse,
@@ -204,8 +211,9 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     if (feed === undefined) {
       return;
     }
+    const account = revokesAccount(input.type);
     const kind =
-      input.type === "session-revoked"
+      input.type === "session-revoked" || account
         ? "session-revoked"
         : CHANGED_EVENTS.has(input.type)
           ? "changed"
@@ -218,7 +226,9 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         compact({
           principal: input.subject.id,
           session:
-            kind === "session-revoked" ? input.subject.session : undefined,
+            kind === "session-revoked" && !account
+              ? input.subject.session
+              : undefined,
           kind,
         }),
       );
@@ -228,14 +238,18 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
   }
 
   async function cancelSessionApprovals(input: SsfEventInput): Promise<void> {
-    if (config.approvals === undefined || input.type !== "session-revoked") {
+    const account = revokesAccount(input.type);
+    if (
+      config.approvals === undefined ||
+      (input.type !== "session-revoked" && !account)
+    ) {
       return;
     }
     const count = await cancelApprovals(
       config.approvals,
       compact({
         principalId: input.subject.id,
-        session: input.subject.session,
+        session: account ? undefined : input.subject.session,
       }),
       { by: "ssf", note: input.jti },
     );
@@ -251,10 +265,11 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     type: string,
     input: SsfEventInput,
   ): Promise<IngestResult> {
-    // SAFETY: read only when type is an own key of onEvent, so the value is a declared handler.
-    const named = Object.hasOwn(config.onEvent, type)
-      ? config.onEvent[type as keyof SsfOnEvent]
-      : undefined;
+    // SAFETY: read only when type is an own key of onEvent other than verification, so the value is an event handler.
+    const named =
+      Object.hasOwn(config.onEvent, type) && type !== "verification"
+        ? config.onEvent[type as SsfEventName]
+        : undefined;
     const wildcard = config.onEvent["*"];
     const handler: SsfEventHandler | undefined = named ?? wildcard;
     if (handler === undefined) {
@@ -272,11 +287,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     try {
       await handler(input);
     } catch {
-      return {
-        ok: false,
-        err: "invalid_request",
-        description: "handler failed",
-      };
+      return HANDLER_FAILED;
     }
     emit({
       type,
@@ -286,6 +297,22 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     });
     await publishRevocation(input);
     await cancelSessionApprovals(input);
+    return { ok: true };
+  }
+
+  async function verification(
+    payload: Readonly<Record<string, unknown>>,
+    issuer: string | undefined,
+    jti: string,
+  ): Promise<IngestResult> {
+    const state =
+      typeof payload["state"] === "string" ? payload["state"] : undefined;
+    try {
+      await config.onEvent.verification?.(compact({ state, jti, issuer }));
+    } catch {
+      return HANDLER_FAILED;
+    }
+    emit({ type: "verification", transmitter: issuer, jti, state });
     return { ok: true };
   }
 
@@ -304,8 +331,16 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       return dispatchEvents(tail, run);
     }
     const payload = isRecord(raw) ? raw : {};
-    const type = caepName(uri) ?? uri;
-    if (caepName(uri) === undefined && config.onEvent["*"] === undefined) {
+    if (uri === VERIFICATION_EVENT) {
+      const result = await verification(payload, issuer, jti);
+      if (!result.ok) {
+        return result;
+      }
+      return dispatchEvents(tail, run);
+    }
+    const named = eventName(uri);
+    const type = named ?? uri;
+    if (named === undefined && config.onEvent["*"] === undefined) {
       emit({
         type,
         transmitter: issuer,
@@ -379,11 +414,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       return { ok: true };
     }
     const entries = Object.entries(events);
-    let dispatched: IngestResult = {
-      ok: false,
-      err: "invalid_request",
-      description: "handler failed",
-    };
+    let dispatched: IngestResult = HANDLER_FAILED;
     try {
       dispatched = await dispatchEvents(entries, {
         issuer,
@@ -456,11 +487,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       emit({ type: "replay", transmitter: issuer, jti, replayed: true });
       return { ok: true };
     }
-    let dispatched: IngestResult = {
-      ok: false,
-      err: "invalid_request",
-      description: "handler failed",
-    };
+    let dispatched: IngestResult = HANDLER_FAILED;
     try {
       dispatched = await dispatchLogout(verified.claims, {
         issuer,
@@ -533,7 +560,9 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       }
       const result = await ingestSet(token);
       if (!result.ok) {
-        return rfc8935(400, result.err, result.description);
+        return result.retry === true
+          ? new Response(null, { status: 500 })
+          : rfc8935(400, result.err, result.description);
       }
       return new Response(null, { status: 202 });
     },
@@ -552,7 +581,9 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       }
       const result = await ingestLogout(token);
       if (!result.ok) {
-        return jsonResponse(400, { error: "invalid_request" });
+        return result.retry === true
+          ? new Response(null, { status: 500 })
+          : jsonResponse(400, { error: "invalid_request" });
       }
       return new Response(null, { status: 200 });
     },
