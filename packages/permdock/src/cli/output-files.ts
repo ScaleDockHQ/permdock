@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 
 import { writeFileEnsuringDir } from "./files.ts";
 import { shortDiff } from "./text-diff.ts";
@@ -135,7 +135,8 @@ export function isSeedsDirectory(cwd: string, out: string): boolean {
  * A generated data migration at `out`: a file, `-` for stdout, or a
  * migrations directory that gets a new versioned file only when the newest
  * one starting with `marker` differs. With `check`, the planned file is
- * always returned, so drift names it.
+ * always returned, so drift names it. `reserved` lists the files this run
+ * already plans, so two data migrations never share a version.
  */
 export function dataMigrationFile(input: {
   readonly cwd: string;
@@ -145,6 +146,7 @@ export function dataMigrationFile(input: {
   readonly text: string;
   readonly now: Date;
   readonly check: boolean;
+  readonly reserved?: readonly string[];
 }): OutputFile | undefined {
   if (!isSeedsDirectory(input.cwd, input.out)) {
     return { part: input.part, rel: input.out, text: input.text };
@@ -156,6 +158,7 @@ export function dataMigrationFile(input: {
     input.text,
     input.now,
     input.part,
+    input.reserved,
   );
   return !planned.current || input.check
     ? { part: input.part, rel: planned.rel, text: input.text }
@@ -208,6 +211,8 @@ export function nextMigrationVersion(
  * (\`nextMigrationVersion\`), so a regeneration of the same directory names it
  * the same. \`current\` is false when a new one is due. \`label\` replaces
  * \`seeds\` in the file name for the other generated data migrations.
+ * \`reserved\` holds paths, relative to \`cwd\`, that this run writes; the ones
+ * in \`dir\` count as migrations already there.
  */
 export function seedsMigration(
   cwd: string,
@@ -216,6 +221,7 @@ export function seedsMigration(
   text: string,
   now: Date,
   label = "seeds",
+  reserved: readonly string[] = [],
 ): { readonly rel: string; readonly current: boolean } {
   const base = dir.endsWith("/") ? dir.slice(0, -1) : dir;
   const path = resolve(cwd, base);
@@ -234,7 +240,12 @@ export function seedsMigration(
   ) {
     return { rel: `${base}/${latest}`, current: true };
   }
-  const names = existsSync(path) ? readdirSync(path) : [];
+  const names = [
+    ...(existsSync(path) ? readdirSync(path) : []),
+    ...reserved
+      .filter((rel) => resolve(cwd, dirname(rel)) === path)
+      .map((rel) => basename(rel)),
+  ];
   return {
     rel: `${base}/${nextMigrationVersion(names, now)}_permdock_${label}.sql`,
     current: false,

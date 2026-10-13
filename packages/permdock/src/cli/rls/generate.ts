@@ -159,6 +159,7 @@ export async function runRlsGenerate(
       text: generated.backfill,
       now: input.io.now?.() ?? new Date(),
       check: input.check,
+      reserved: files.map((other) => other.rel),
     });
     if (file !== undefined) {
       files.push(file);
