@@ -8,6 +8,7 @@ import { supabaseApprovalStore } from "../../src/supabase/index.ts";
 
 const request: ApprovalRequest = {
   v: 1,
+  id: "r1",
   token: "t1",
   permission: "invoice.void",
   scope: "tenant",

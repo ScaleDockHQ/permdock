@@ -32,7 +32,7 @@ function permdock(
 ): PermDock {
   return fromSnapshot({
     v: 1,
-    issuedAt: 1,
+    issuedAt: "1970-01-01T00:00:01Z",
     subject: {
       principal: { id: "u1", roles: ["member"], tenant: "t1" },
       context: {},
@@ -92,7 +92,7 @@ describe("mayUse", () => {
       permdock([read], {
         delegation: {
           access: [{ type, actions: ["read"], identifier: "d1" }],
-          authorizationDetails: [{ type, actions: ["read"] }],
+          authorization_details: [{ type, actions: ["read"] }],
         },
       });
     expect(mayUse(scoped("doc"), permissions.doc.read)).toBe(true);

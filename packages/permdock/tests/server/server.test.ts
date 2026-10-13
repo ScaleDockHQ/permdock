@@ -245,6 +245,7 @@ describe("permdock/server", () => {
     }
     store.create({
       v: 1,
+      id: "r1",
       token: required.token,
       permission: "post.delete",
       scope: permissions.post.delete.scope,

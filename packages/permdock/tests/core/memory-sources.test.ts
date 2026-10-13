@@ -16,7 +16,7 @@ import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores
 
 const snapshot: Snapshot = {
   v: 1,
-  issuedAt: 1,
+  issuedAt: "1970-01-01T00:00:01Z",
   subject: { principal: null, context: {} },
   roles: [],
   grants: [],
@@ -77,7 +77,7 @@ describe("memoryMembershipSource", () => {
 describe("memorySnapshotSource", () => {
   it("replaces the snapshot and notifies each subscriber until it leaves", async () => {
     const source = memorySnapshotSource(snapshot);
-    const next: Snapshot = { ...snapshot, issuedAt: 2 };
+    const next: Snapshot = { ...snapshot, issuedAt: "1970-01-01T00:00:02Z" };
     let calls = 0;
     const unsubscribe = source.subscribe?.(() => {
       calls += 1;

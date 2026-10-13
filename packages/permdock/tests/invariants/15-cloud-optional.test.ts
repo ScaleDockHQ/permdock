@@ -97,6 +97,7 @@ describe("invariant 15: the Cloud is optional and never on the decision path", (
     const decision = pending(permdock.decide(permissions.post.delete, ownPost));
     const approved = (token: string): ApprovalRequest => ({
       v: 1,
+      id: "r1",
       token,
       permission: "post.delete",
       scope: "post:delete",

@@ -72,12 +72,17 @@ describe("approvalSignatureClaims", () => {
 
   it("omits sub and act for an anonymous request and reads the action from a foreign key", () => {
     const claims = approvalSignatureClaims({
-      ...APPROVED,
+      v: 1,
+      id: "apr_2",
+      token: "sha-256:abc",
       permission: "billing.refund",
+      scope: "billing:refund",
       resource: { type: "invoice" },
       subject: { principal: null },
-      approvals: undefined,
-      resolvedBy: undefined,
+      detail: "billing.refund requires human approval.",
+      createdAt: "2026-10-13T09:00:00.000Z",
+      expiresAt: "2026-10-13T10:00:00.000Z",
+      status: "approved",
     });
     expect(claims).toEqual({
       token: "sha-256:abc",

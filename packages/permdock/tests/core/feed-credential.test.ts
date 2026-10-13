@@ -149,6 +149,7 @@ describe("feed credentials", () => {
       applyApprovalVerdict(
         {
           v: 1,
+          id: "r1",
           token: "t",
           permission: "calendar.share",
           scope: "calendar:share",

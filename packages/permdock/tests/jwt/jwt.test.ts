@@ -580,13 +580,19 @@ describe("configuration and remaining causes", () => {
       }),
     ).toThrow(/issuer is required/);
     expect(() =>
-      joseTokenSigner({ key: { ...PRIVATE_JWK }, alg: "HS256", kid: "k" }),
+      joseTokenSigner({
+        key: { ...PRIVATE_JWK },
+        alg: "HS256",
+        kid: "k",
+        issuer: ISSUER,
+      }),
     ).toThrow(/refuses/);
     expect(() =>
       joseTokenSigner({
         key: { ...PRIVATE_JWK },
         alg: "Ed25519",
         kid: "",
+        issuer: ISSUER,
       }),
     ).toThrow(/requires kid/);
     expect(() =>

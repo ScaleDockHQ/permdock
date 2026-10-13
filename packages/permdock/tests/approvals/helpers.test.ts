@@ -28,6 +28,7 @@ function pending(
 ): ApprovalRequest {
   return {
     v: 1,
+    id: token,
     token,
     permission: "post.delete",
     scope: "post:delete",

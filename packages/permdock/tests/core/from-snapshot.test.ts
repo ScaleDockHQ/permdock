@@ -183,7 +183,7 @@ function snapshotGrant(
 function docSnapshot(extra: Partial<Snapshot> = {}): Snapshot {
   return {
     v: 1,
-    issuedAt: 1,
+    issuedAt: "1970-01-01T00:00:01Z",
     subject: {
       principal: {
         id: "u1",

@@ -256,6 +256,7 @@ group("approval modes and approver kinds", () => {
     const store = memoryApprovalStore();
     const base: ApprovalRequest = {
       v: 1,
+      id: "all",
       token: "all",
       permission: "expense.pay",
       scope: "expense:pay",

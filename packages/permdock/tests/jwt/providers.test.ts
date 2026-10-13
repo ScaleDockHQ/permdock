@@ -480,6 +480,7 @@ describe("joseTokenSigner", () => {
         // SAFETY: a JavaScript caller can pass an algorithm outside the union.
         alg: "ES512" as "ES256",
         kid: "k",
+        issuer: "https://app.example.com",
       }),
     ).toThrow(/unsupported signing alg/u);
   });

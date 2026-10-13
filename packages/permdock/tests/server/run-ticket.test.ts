@@ -80,6 +80,9 @@ const automations = (
   automation: (id) => (id === "auto_1" ? { id, version, revoked } : null),
 });
 
+/** What a JavaScript caller can pass: any field, including an explicit `undefined`. */
+type Loose<T> = { readonly [K in keyof T]?: T[K] | undefined };
+
 const base: RunTicketInput = {
   principal: "u_ann",
   kind: "automation",
@@ -94,7 +97,7 @@ const base: RunTicketInput = {
 
 async function resolve(
   token: string | null | undefined,
-  extra: Partial<RunTicketSubjectOptions> = {},
+  extra: Loose<RunTicketSubjectOptions> = {},
 ): Promise<{
   readonly subject: Awaited<ReturnType<typeof subjectFromRunTicket>>;
   readonly causes: readonly (string | undefined)[];
@@ -109,7 +112,8 @@ async function resolve(
     onAuth: (event) => {
       events.push(event);
     },
-    ...extra,
+    // SAFETY: an explicit `undefined` stands for a field a JavaScript caller left out.
+    ...(extra as Partial<RunTicketSubjectOptions>),
   });
   return { subject, causes: events.map((event) => event.cause) };
 }
@@ -232,7 +236,7 @@ describe("RunTicket", () => {
 
   it("refuses an automation that is missing, revoked or changed", async () => {
     const token = await signRunTicket(base, signer);
-    const cases: readonly [Partial<RunTicketSubjectOptions>, string][] = [
+    const cases: readonly [Loose<RunTicketSubjectOptions>, string][] = [
       [{ automations: undefined }, "automation-unavailable"],
       [{ automations: automations(3, true) }, "automation-unavailable"],
       [{ automations: automations("3") }, "automation-changed"],
@@ -284,7 +288,7 @@ describe("RunTicket", () => {
 
   it("reuses the token causes for verification failures", async () => {
     const token = await signRunTicket(base, signer);
-    const [header, payload, signature] = token.split(".");
+    const [header, , signature] = token.split(".");
     const tampered = Buffer.from(
       JSON.stringify({ ...claimsOf(token), scope: "doc:read doc:update" }),
     ).toString("base64url");
@@ -417,7 +421,7 @@ describe("RunTicket", () => {
   });
 
   it("throws on input a verifier would refuse", () => {
-    const bad: readonly Partial<RunTicketInput>[] = [
+    const bad: readonly Loose<RunTicketInput>[] = [
       { expiresIn: undefined },
       { expiresAt: Temporal.Now.instant().add({ minutes: 5 }) },
       { expiresIn: 0 },
@@ -435,9 +439,9 @@ describe("RunTicket", () => {
       { id: "" },
     ];
     for (const extra of bad) {
-      expect(() => signRunTicket({ ...base, ...extra }, signer)).toThrow(
-        /run ticket/u,
-      );
+      // SAFETY: an explicit `undefined` stands for a field a JavaScript caller left out.
+      const input = { ...base, ...extra } as RunTicketInput;
+      expect(() => signRunTicket(input, signer)).toThrow(/run ticket/u);
     }
   });
 });

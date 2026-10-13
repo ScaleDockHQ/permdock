@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import type { ApprovalRequest } from "../../src/approvals/types.ts";
-import type { SinkEvent } from "../../src/core/sink.ts";
+import type { SinkEvent } from "../../src/core/event-types.ts";
 
 import { signApproval } from "../../src/approvals/signature.ts";
 import { signDecisionBatch } from "../../src/core/sink.ts";
@@ -147,11 +147,13 @@ describe("approval-signature-v1.json", () => {
     id: "apr_1",
     token: "sha-256:47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU",
     permission: "invoice.void",
+    scope: "invoice:void",
     resource: { type: "invoice", id: "inv_1" },
     subject: {
       principal: { id: "u1", roles: ["member"] },
       actor: { id: "agent_1", kind: "agent" },
     },
+    detail: "invoice.void requires human approval.",
     createdAt: "2026-10-06T09:00:00Z",
     expiresAt: "2026-10-06T10:00:00Z",
     status: "approved",

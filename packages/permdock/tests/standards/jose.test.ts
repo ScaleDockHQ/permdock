@@ -350,13 +350,28 @@ describe("PermDock outputs: compact JWS with registered headers", () => {
 
   it("a signer refuses HS256, polymorphic EdDSA and an empty kid", () => {
     expect(() =>
-      joseTokenSigner({ key: new Uint8Array(32), alg: "HS256", kid: "k" }),
+      joseTokenSigner({
+        key: new Uint8Array(32),
+        alg: "HS256",
+        kid: "k",
+        issuer: ISSUER,
+      }),
     ).toThrow(/refuses HS\* and polymorphic EdDSA/u);
     expect(() =>
-      joseTokenSigner({ key: rfc8037.privateKey, alg: "EdDSA", kid: "k" }),
+      joseTokenSigner({
+        key: rfc8037.privateKey,
+        alg: "EdDSA",
+        kid: "k",
+        issuer: ISSUER,
+      }),
     ).toThrow(/refuses HS\* and polymorphic EdDSA/u);
     expect(() =>
-      joseTokenSigner({ key: rfc8037.privateKey, alg: "Ed25519", kid: "" }),
+      joseTokenSigner({
+        key: rfc8037.privateKey,
+        alg: "Ed25519",
+        kid: "",
+        issuer: ISSUER,
+      }),
     ).toThrow(/requires kid/u);
   });
 });
