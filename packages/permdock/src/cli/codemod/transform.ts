@@ -159,7 +159,11 @@ export function transformSource(
       lang: segment.lang,
       sourceType: "module",
     });
-    const error = result.errors.find((item) => item.severity === "Error");
+    // `Severity` is an ambient const enum, which isolated modules cannot reference.
+    const error = result.errors.find((item) => {
+      const severity: string = item.severity;
+      return severity === "Error";
+    });
     if (error !== undefined) {
       return { source, changes: [], followUps: [], error: error.message };
     }
@@ -467,7 +471,14 @@ function renameOptions(
     }
     ctx.handledKeys.add(key);
     if (property.shorthand === true) {
-      edit(ctx, property, `${row.to}: ${row.from}`, row.from, row.to);
+      // An insertion before the value, so a renamed import in the value is rewritten on its own.
+      edit(
+        ctx,
+        { ...property, end: property.start },
+        `${row.to}: `,
+        row.from,
+        row.to,
+      );
     } else {
       replace(
         ctx,
@@ -560,7 +571,13 @@ function rewriteReferences(ctx: Context): void {
     if (rename === undefined || ctx.kept.has(name)) {
       continue;
     }
-    if (place === "shorthand") {
+    if (
+      place === "shorthand" &&
+      parent.key !== undefined &&
+      ctx.handledKeys.has(parent.key)
+    ) {
+      replace(ctx, node, rename.to, name);
+    } else if (place === "shorthand") {
       edit(ctx, parent, `${name}: ${rename.to}`, name, rename.to);
     } else if (place === "export" && parent.exported?.start === node.start) {
       replace(ctx, node, `${rename.to} as ${name}`, name);
@@ -623,7 +640,9 @@ function edit(
   from: string,
   to: string,
 ): void {
-  if (ctx.edits.some((item) => item.start === node.start)) {
+  if (
+    ctx.edits.some((item) => item.start === node.start && item.end === node.end)
+  ) {
     return;
   }
   ctx.edits.push({ start: node.start, end: node.end, text });
@@ -867,7 +886,10 @@ function bindingsCached(
 
 function applyEdits(source: string, edits: readonly Edit[]): string {
   let out = source;
-  for (const item of edits.toSorted((a, b) => b.start - a.start)) {
+  // At one start, the replacement goes in before the insertion that precedes it.
+  for (const item of edits.toSorted(
+    (a, b) => b.start - a.start || b.end - a.end,
+  )) {
     out = out.slice(0, item.start) + item.text + out.slice(item.end);
   }
   return out;

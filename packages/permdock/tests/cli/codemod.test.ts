@@ -234,6 +234,43 @@ describe("transformSource", () => {
     expect(result.followUps).toEqual([]);
   });
 
+  it("renames a shorthand option key and the renamed import it holds", () => {
+    const set: RenameSet = {
+      renames: [
+        { from: "store", to: "memoryStore", entries: ["permdock/scim"] },
+        ...SET.renames,
+      ],
+      signatures: [],
+    };
+    const result = transformSource(
+      "file.ts",
+      [
+        'import { scimHandler, store } from "permdock/scim";',
+        "scimHandler({ store });",
+      ].join("\n"),
+      set,
+    );
+    expect(result.source).toBe(
+      [
+        'import { scimHandler, memoryStore } from "permdock/scim";',
+        "scimHandler({ directory: memoryStore });",
+      ].join("\n"),
+    );
+  });
+
+  it("leaves an inner destructuring target that shadows an import alone", () => {
+    const source = [
+      'import { memorySink } from "permdock";',
+      "function pick(value: { sink: () => void }) {",
+      "  const { sink: memorySink } = value;",
+      "  return memorySink;",
+      "}",
+    ].join("\n");
+    expect(apply(source).source).toBe(
+      source.replace("{ memorySink }", "{ memoryDecisionSink }"),
+    );
+  });
+
   it("leaves a listed-call option key elsewhere alone", () => {
     const source = [
       'import { memoryApprovalStore } from "permdock/approvals";',
@@ -455,6 +492,7 @@ describe("permdock codemod", () => {
     "src/sinks.ts":
       'import { memorySink } from "permdock";\nexport const sink = memorySink();\n',
     "src/plain.ts": "export const memorySink = 1;\n",
+    "src/notes.md": "memorySink\n",
     "node_modules/dep/index.js":
       'import { memorySink } from "permdock";\nmemorySink();\n',
     "dist/out.js": 'import { memorySink } from "permdock";\nmemorySink();\n',
