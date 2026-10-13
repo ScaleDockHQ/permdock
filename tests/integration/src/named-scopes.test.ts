@@ -3,7 +3,7 @@ import type { RlsParityFixture, RlsQueryFn } from "permdock/testing";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { rlsParity } from "permdock/testing";
+import { testRlsParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -172,7 +172,7 @@ describe.each([
   });
 
   it("agrees with decide and the snapshot for every persona, permission and row", async () => {
-    const report = await rlsParity(policy, {
+    const report = await testRlsParity(policy, {
       dialect: "guc",
       fixtures,
       query,

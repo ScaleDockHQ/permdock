@@ -24,7 +24,7 @@ import { resolveRelated } from "permdock/prisma";
 import {
   type OrmParityCase,
   type OrmParityScenario,
-  ormParity,
+  testOrmParity,
 } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -128,7 +128,7 @@ describe("ORM parity for restricted stops: links closed below a restricted row",
   for (const [label, mapping] of Object.entries(mappings)) {
     it(`drizzle, ${label}`, async () => {
       const db = drizzle({ client: database() });
-      const report = await ormParity(policy, scenarios(), {
+      const report = await testOrmParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
           const table = tableOf(scenario);
           // SAFETY: drizzleWhere compiles against a Drizzle table, so it returns a Drizzle SQL
@@ -156,7 +156,7 @@ describe("ORM parity for restricted stops: links closed below a restricted row",
           createQueryCompiler: () => new PostgresQueryCompiler(),
         },
       });
-      const report = await ormParity(policy, scenarios(), {
+      const report = await testOrmParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
           // SAFETY: every scenario's resource is one of the seeded tree tables
           const resource = scenario.permission.resource as TreeName;
@@ -185,7 +185,7 @@ describe("ORM parity for restricted stops: links closed below a restricted row",
 
     it(`resolveRelated (the Prisma path), ${label}`, async () => {
       const db = drizzle({ client: database() });
-      const report = await ormParity(policy, scenarios(), {
+      const report = await testOrmParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
           const resolved: WhereResult = await resolveRelated(where, {
             relations: mapping,

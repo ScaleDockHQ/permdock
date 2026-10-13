@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type RlsParityFixture, rlsParity } from "permdock/testing";
+import { type RlsParityFixture, testRlsParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -15,7 +15,7 @@ const FIXTURE = join(HERE, "../fixtures/abac");
 
 type Dialect = "supabase" | "neon" | "guc";
 
-// The token functions each platform provides, over the claims rlsParity sets.
+// The token functions each platform provides, over the claims testRlsParity sets.
 const STUBS: Record<Dialect, string> = {
   supabase: `
 create schema auth;
@@ -342,7 +342,7 @@ describe.each(["supabase", "neon", "guc"] as const)(
         throw new Error("PermDock: Postgres was not started");
       }
       const client = db.tester;
-      const report = await rlsParity(policy, {
+      const report = await testRlsParity(policy, {
         dialect,
         snapshot: true,
         fixtures,

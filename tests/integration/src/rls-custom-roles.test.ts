@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { customRoleClaim } from "permdock";
 import { run } from "permdock/cli";
 import { authorizeSql } from "permdock/supabase";
-import { rlsParity } from "permdock/testing";
+import { testRlsParity } from "permdock/testing";
 import { Client, DatabaseError } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -443,7 +443,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
     }
   });
 
-  it("rlsParity carries the grants claim in jwt mode", async () => {
+  it("testRlsParity carries the grants claim in jwt mode", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
@@ -452,7 +452,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
     });
     await client.connect();
     try {
-      const report = await rlsParity(policy, {
+      const report = await testRlsParity(policy, {
         dialect: "supabase",
         customRoles: CUSTOM_ROLES,
         fixtures: [

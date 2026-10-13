@@ -247,7 +247,7 @@ function dbOutcome(result: RlsQueryResult): RlsDbOutcome {
   return count > 0 ? "allowed" : "filtered";
 }
 
-export async function rlsParity<TUser>(
+export async function testRlsParity<TUser>(
   policy: Policy<TUser>,
   options: RlsParityOptions,
 ): Promise<RlsParityReport> {
@@ -281,7 +281,9 @@ export async function rlsParity<TUser>(
     if (options.snapshot === true) {
       const snapshot = permdock.snapshot();
       if (typeof snapshot !== "object" || snapshot instanceof Promise) {
-        throw new TypeError("PermDock: rlsParity needs an unsigned snapshot");
+        throw new TypeError(
+          "PermDock: testRlsParity needs an unsigned snapshot",
+        );
       }
       // SAFETY: the snapshot client's can() treats both kinds alike at runtime; the row is optional.
       fromClient = fromSnapshot(parseSnapshot(JSON.stringify(snapshot))).can(

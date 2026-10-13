@@ -424,7 +424,7 @@ const tree: CompiledWhere = compileWhere(permdock.where(permissions.post.read));
 
 ### Why RLS and PowerSync do not render `CompiledWhere`
 
-`CompiledWhere` is bound to one subject at request time. Generated RLS and PowerSync sync rules are compiled once per policy and read the subject in SQL at query time (`auth.uid()`, JWT claims, a GUC), call membership helper functions, and pass `opaque` SQL through. Rendering them from `CompiledWhere` would need a second, subject-free tree, so they keep their own compilers over the condition AST. `rlsParity` holds the RLS compiler to the evaluator's answers instead, including a `not` or a deny over a NULL column, which RLS renders as `(…) is not true`.
+`CompiledWhere` is bound to one subject at request time. Generated RLS and PowerSync sync rules are compiled once per policy and read the subject in SQL at query time (`auth.uid()`, JWT claims, a GUC), call membership helper functions, and pass `opaque` SQL through. Rendering them from `CompiledWhere` would need a second, subject-free tree, so they keep their own compilers over the condition AST. `testRlsParity` holds the RLS compiler to the evaluator's answers instead, including a `not` or a deny over a NULL column, which RLS renders as `(…) is not true`.
 
 ## Events
 
@@ -467,6 +467,8 @@ import {
   testRevocationFeed,
   testCredentialVerifier,
   testSettingsSource,
+  testDecisionProvider,
+  testSnapshotStorage,
   testWhereCompiler,
 } from "permdock/testing";
 
@@ -511,6 +513,12 @@ testCredentialVerifier(apiKeyVerifier({ find }), {
   revoke: () => revokeTestKey(),
 });
 testSettingsSource(tenantSettings, { tenant: "o_acme" });
+testDecisionProvider(remotePdp({ url }), {
+  permission: permissions.document.read,
+  subject,
+  unavailable: remotePdp({ url, fetch: offline }),
+});
+testSnapshotStorage(secureStoreStorage);
 testWhereCompiler(toMongo, { fixtures: conditionFixtures });
 ```
 
@@ -538,6 +546,8 @@ testWhereCompiler(toMongo, { fixtures: conditionFixtures });
 | `testReplayStore`              | A remembered key is seen; an expired key is not; with `claim` and `release`, two concurrent claims succeed once and a released key can be claimed again                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `testRevocationFeed`           | Every subscriber receives each event until it unsubscribes; a throwing listener does not stop the others; an event without a principal or with an unknown `kind` is rejected with a `TypeError` and delivered to no one. Delivery may be asynchronous                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `testLimitStore`               | `consume` counts down; remaining after the cap is less than zero; `remaining` when present is not a thenable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `testDecisionProvider`         | `name` is a non-empty string and `handles(permission)` answers `true` synchronously; `decide` resolves to `granted`, `denied` with at least one denial, or `approval-required`; `permitted`, when present, resolves to non-empty string ids, `null` or `undefined`; with `{ unavailable }`, the provider wired to a failing transport denies without throwing                                                                                                                                                                                                                                                                                                                                               |
+| `testSnapshotStorage`          | A stored value reads back verbatim, sync or async; a later `setItem` replaces it; an unknown or removed key reads `null`; keys never share a value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `testWhereCompiler`            | The empty allow set compiles to a fail-closed value (`false` / `null` / `undefined`, or `options.isFailClosed`); adapters pass constant-false SQL, `{ OR: [] }` or `eb.lit(false)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 The runners are what the provider adapters run in this repository's CI and what a community implementation runs in its own. An HTTP or agent adapter has its own runners, `testHttpAdapter` and `testAgentAdapter`: [build an adapter](/docs/adapters/server-kernel#build-an-adapter).

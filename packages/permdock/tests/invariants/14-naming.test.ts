@@ -106,9 +106,8 @@ const WITH_EXPORTS: Readonly<Record<string, readonly string[]>> = {
 
 /** Interfaces named like a store, sink or source that are not extension points. */
 const NOT_EXTENSION_POINTS = new Set([
-  "MemoryDecisionSink",
-  "MemoryApprovalStore",
   "SqlMembershipSource",
+  "SupabaseStorage",
   "TokenSource",
 ]);
 
@@ -171,7 +170,8 @@ describe("invariant 14: the naming convention", () => {
         entries.flatMap((item) =>
           item.types.filter(
             (name) =>
-              /(?:Store|Sink|Source|Feed)$/u.test(name) &&
+              /(?:Store|Storage|Sink|Source|Feed)$/u.test(name) &&
+              !name.startsWith("Memory") &&
               !NOT_EXTENSION_POINTS.has(name),
           ),
         ),
@@ -182,6 +182,24 @@ describe("invariant 14: the naming convention", () => {
       (name) => testing?.values.includes(`test${name}`) !== true,
     );
     expect(missing).toEqual([]);
+  });
+
+  it("ships a test<Interface> runner for every interface the extension interfaces page lists", () => {
+    const testing = entries.find((item) => item.entry === "./testing");
+    const page = readFileSync(
+      path.join(
+        root,
+        "../../apps/docs/content/docs/concepts/extension-interfaces.mdx",
+      ),
+      "utf8",
+    );
+    const listed = [...page.matchAll(/^\| `([A-Z]\w+)(?:<[^`]*>)?` /gmu)].map(
+      (match) => match[1] ?? "",
+    );
+    expect(listed).toContain("DecisionProvider");
+    expect(
+      listed.filter((name) => testing?.values.includes(`test${name}`) !== true),
+    ).toEqual([]);
   });
 
   it("never ships a versioned type name, allowSelf or invalid-resource", () => {

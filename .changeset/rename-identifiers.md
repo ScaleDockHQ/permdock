@@ -31,6 +31,8 @@ Breaking: `subjectFrom*` resolvers take the input first and options second and r
 | `betterAuthRoleSource`        | `betterAuthCustomRoleSource`        |
 | `BetterAuthRoleSourceOptions` | `BetterAuthCustomRoleSourceOptions` |
 | `PermDockStorage`             | `SnapshotStorage`                   |
+| `rlsParity`                   | `testRlsParity`                     |
+| `ormParity`                   | `testOrmParity`                     |
 
 | Before                                                   | After                                                                                         |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |

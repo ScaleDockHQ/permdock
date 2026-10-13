@@ -1,7 +1,7 @@
 export { expectTypeOf } from "vitest";
 export { describePolicy } from "./describe-policy.ts";
-export { rlsParity } from "./rls-parity.ts";
-export { ormParity } from "./orm-parity.ts";
+export { testRlsParity } from "./rls-parity.ts";
+export { testOrmParity } from "./orm-parity.ts";
 export type {
   OrmParityCase,
   OrmParityOptions,
@@ -97,6 +97,11 @@ export {
   testPolicySource,
   testSnapshotSource,
 } from "./conformance/runtime-stores.ts";
+export {
+  testDecisionProvider,
+  testSnapshotStorage,
+} from "./conformance/providers.ts";
+export type { DecisionProviderRunnerOptions } from "./conformance/providers.ts";
 export { testRelationSource } from "./conformance/relations.ts";
 export { testPrincipalSource } from "./conformance/principals.ts";
 export {

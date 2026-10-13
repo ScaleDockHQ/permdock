@@ -27,7 +27,7 @@ import {
 import {
   type OrmParityCase,
   type OrmParityScenario,
-  ormParity,
+  testOrmParity,
 } from "permdock/testing";
 import {
   saasCustomRoles,
@@ -377,7 +377,7 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
 
     it(`${name}: every operator, NULL, negation, ref, memberOf and parent hop`, async () => {
       const engine = engineNamed();
-      const report = await ormParity(itemPolicy, itemScenarios(), {
+      const report = await testOrmParity(itemPolicy, itemScenarios(), {
         run: ({ where }) =>
           engine.run(
             "item",
@@ -391,7 +391,7 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
 
     it(`${name}: the saas domain across users and tenants`, async () => {
       const engine = engineNamed();
-      const report = await ormParity(saasPolicy, saasScenarios(), {
+      const report = await testOrmParity(saasPolicy, saasScenarios(), {
         run: ({ scenario, where }) =>
           engine.run(
             // SAFETY: every scenario's resource is one of the seeded Resource tables

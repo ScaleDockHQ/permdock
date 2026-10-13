@@ -11,7 +11,7 @@ import {
   relation,
   role,
 } from "../../src/index.ts";
-import { rlsParity } from "../../src/testing/rls-parity.ts";
+import { testRlsParity } from "../../src/testing/rls-parity.ts";
 
 const Post = z.object({
   id: z.string(),
@@ -44,9 +44,9 @@ const policy = definePolicy(permissions, {
 const own = { id: "p1", authorId: "u1" };
 const other = { id: "p2", authorId: "u9" };
 
-describe("rlsParity", () => {
+describe("testRlsParity", () => {
   it("agrees when the database filters a denied update", async () => {
-    const report = await rlsParity(policy, {
+    const report = await testRlsParity(policy, {
       dialect: "guc",
       fixtures: [
         {
@@ -83,7 +83,7 @@ describe("rlsParity", () => {
   });
 
   it("treats 42501 as rejected and never uses service_role", async () => {
-    const report = await rlsParity(policy, {
+    const report = await testRlsParity(policy, {
       fixtures: [
         {
           name: "update other rejected",
@@ -107,7 +107,7 @@ describe("rlsParity", () => {
 
   it("sets supabase jwt claims and guc tenant settings", async () => {
     const seen: string[] = [];
-    await rlsParity(policy, {
+    await testRlsParity(policy, {
       dialect: "supabase",
       fixtures: [
         {
@@ -137,7 +137,7 @@ describe("rlsParity", () => {
     expect(seen.some((sql) => sql.includes("request.jwt.claims"))).toBe(true);
 
     const guc: string[] = [];
-    await rlsParity(policy, {
+    await testRlsParity(policy, {
       dialect: "guc",
       fixtures: [
         {
@@ -162,7 +162,7 @@ describe("rlsParity", () => {
 
   it("compiles create, delete and unknown actions and rejects unsafe tables", async () => {
     const sqls: string[] = [];
-    await rlsParity(policy, {
+    await testRlsParity(policy, {
       fixtures: [
         {
           name: "create",
@@ -196,7 +196,7 @@ describe("rlsParity", () => {
     expect(sqls.some((sql) => sql.startsWith("select *"))).toBe(true);
 
     await expect(
-      rlsParity(policy, {
+      testRlsParity(policy, {
         fixtures: [
           {
             name: "unsafe",
@@ -212,7 +212,7 @@ describe("rlsParity", () => {
   });
 
   it("reports mismatch when the database filters a granted read", async () => {
-    const report = await rlsParity(policy, {
+    const report = await testRlsParity(policy, {
       fixtures: [
         {
           name: "read own missing",
@@ -255,9 +255,9 @@ const relationPolicy = definePolicy(relationPermissions, {
   ],
 });
 
-describe("rlsParity relation grantee", () => {
+describe("testRlsParity relation grantee", () => {
   it("agrees when a relation where filters another author", async () => {
-    const report = await rlsParity(relationPolicy, {
+    const report = await testRlsParity(relationPolicy, {
       dialect: "guc",
       fixtures: [
         {
@@ -294,7 +294,7 @@ describe("rlsParity relation grantee", () => {
   });
 
   it("also decides from the serialized snapshot and flags a disagreement", async () => {
-    const report = await rlsParity(policy, {
+    const report = await testRlsParity(policy, {
       dialect: "supabase",
       snapshot: true,
       fixtures: [
@@ -394,13 +394,13 @@ function fieldDb(view: (sql: string) => Answer): {
   };
 }
 
-describe("rlsParity fieldViews", () => {
+describe("testRlsParity fieldViews", () => {
   it("compares the view row with the columns pick keeps", async () => {
     const db = fieldDb(() => ({
       rows: [{ id: "i1", title: "Rent", amount: null }],
       rowCount: 1,
     }));
-    const report = await rlsParity(fieldPolicy, {
+    const report = await testRlsParity(fieldPolicy, {
       dialect: "neon",
       fieldViews: true,
       fixtures: [
@@ -456,7 +456,7 @@ describe("rlsParity fieldViews", () => {
       row: invoice,
       table: "invoice",
     };
-    const fallback = await rlsParity(fieldPolicy, {
+    const fallback = await testRlsParity(fieldPolicy, {
       fieldViews: true,
       fixtures: [admin],
       query: missing.query,
@@ -467,7 +467,7 @@ describe("rlsParity fieldViews", () => {
     });
     expect(fallback.ok).toBe(true);
     expect(missing.sqls).toContain("rollback to savepoint permdock_fields");
-    const refused = await rlsParity(fieldPolicy, {
+    const refused = await testRlsParity(fieldPolicy, {
       fieldViews: true,
       fixtures: [admin],
       query: fieldDb(() => ({ rows: [], code: "42501" })).query,
@@ -478,7 +478,7 @@ describe("rlsParity fieldViews", () => {
 
   it("expects no columns for a denied row and skips writes", async () => {
     const db = fieldDb(() => ({ rows: [], rowCount: 0 }));
-    const report = await rlsParity(fieldPolicy, {
+    const report = await testRlsParity(fieldPolicy, {
       fieldViews: true,
       fixtures: [
         {
@@ -514,7 +514,7 @@ describe("rlsParity fieldViews", () => {
       readonly sql: string;
       readonly values?: readonly unknown[];
     }[] = [];
-    const report = await rlsParity(policy, {
+    const report = await testRlsParity(policy, {
       dialect: "neon",
       role: "anon",
       fixtures: [
@@ -565,7 +565,7 @@ describe("rlsParity fieldViews", () => {
       row: own,
       table: "post",
     };
-    await rlsParity(policy, {
+    await testRlsParity(policy, {
       fixtures: [fixture],
       query: async (_sql, args) => {
         values.push(args);
@@ -575,7 +575,7 @@ describe("rlsParity fieldViews", () => {
     expect(values).toContainEqual(["app.plan", "pro"]);
     expect(values).toContainEqual(["app.seats", "3"]);
     await expect(
-      rlsParity(policy, {
+      testRlsParity(policy, {
         fixtures: [{ ...fixture, subject: { id: "u1", claims: { "a-b": 1 } } }],
         query: async () => ({ rows: [], rowCount: 0 }),
       }),

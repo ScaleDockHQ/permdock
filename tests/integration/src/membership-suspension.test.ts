@@ -12,7 +12,7 @@ import {
   type SupabaseSuspension,
   subjectFromSupabase,
 } from "permdock/supabase";
-import { type OrmParityScenario, ormParity } from "permdock/testing";
+import { type OrmParityScenario, testOrmParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -349,7 +349,7 @@ describe.each([
       }
     }
     expect(rlsFailures).toEqual([]);
-    const report = await ormParity(policy, scenarios, {
+    const report = await testOrmParity(policy, scenarios, {
       run: async ({ scenario, where }) =>
         select(tableOf(scenario.permission), where),
     });

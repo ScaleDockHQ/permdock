@@ -50,7 +50,7 @@ Read the app's `permissions.ts`, `policy.ts`, factory file and every adapter gua
    - Run `permdock collect --check` and `permdock usage --json` on both sides and compare. New leaves with no grant, grants for leaves nobody checks, and new `undeclared` or `outsideInclude` findings are comments.
    - A new or widened `allow` (a role gains a leaf, a `where` is dropped or loosened, a `to` becomes `anyone()` or `authenticated()`), a new policy `delegations` entry, or a removed `deny` needs a matching `describePolicy` row in the same PR.
    - A new model-reachable tool, or a new destructive action on an existing one, goes through the `permdock-agents` and `permdock-approvals` Verify lists.
-   - A change to the `rls` config or generated RLS comes with `permdock rls generate --check` passing and an `rlsParity` or `rls verify` run.
+   - A change to the `rls` config or generated RLS comes with `permdock rls generate --check` passing and an `testRlsParity` or `rls verify` run.
    - `permdock doctor --json` on the head branch reports no new error.
      ✓ Every changed grant, leaf and tool has a comment on the changed line or an explicit pass.
 
