@@ -2,6 +2,7 @@ import type { AuthEvent } from "./event-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
+import type { Instant } from "./time.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -26,7 +27,7 @@ export type SnapshotForOptions = {
   readonly include?: SnapshotInclude;
   readonly tenants?: "all";
   /** The instant for `issuedAt` and membership expiry. Defaults to the clock. */
-  readonly now?: Temporal.Instant;
+  readonly now?: Instant;
 };
 
 function withPlans(

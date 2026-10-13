@@ -1,4 +1,5 @@
 import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 import { parseCapability } from "../core/capability.ts";
 import { nowSeconds } from "../core/time.ts";
@@ -17,7 +18,7 @@ export type ExchangeCapabilityOptions = {
   readonly issuer?: string;
   /** Lifetime in seconds, capped by the capability's own expiry. Default 300. */
   readonly ttl?: number;
-  readonly now?: Temporal.Instant;
+  readonly now?: Instant;
 };
 
 const DEFAULT_TTL = 300;

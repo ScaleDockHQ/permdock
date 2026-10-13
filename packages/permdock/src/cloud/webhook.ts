@@ -11,6 +11,7 @@ import type {
   CloudEvent,
   CloudEventType,
 } from "../core/sink.ts";
+import type { Instant } from "../core/time.ts";
 import type {
   WebhookFailureCause,
   WebhookJwks,
@@ -90,7 +91,7 @@ export type VerifyWebhookOptions = {
   readonly replay?: ReplayStore;
   /** Seconds a timestamp may differ from the clock. Defaults to 300. */
   readonly tolerance?: number;
-  readonly now?: () => Temporal.Instant;
+  readonly now?: () => Instant;
   readonly fetch?: typeof fetch;
 };
 

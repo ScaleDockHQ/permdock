@@ -1,4 +1,5 @@
 import type { Snapshot } from "./snapshot-types.ts";
+import type { Instant } from "./time.ts";
 
 import { nowSeconds, secondsOf } from "./time.ts";
 import { payloadDigest } from "./token.ts";
@@ -9,7 +10,7 @@ export type CacheLifeForOptions = {
   /** Upper bound in seconds. Next.js keeps a per-session App Shell entry from 300. */
   readonly max?: number;
   /** Defaults to the snapshot's `issuedAt`, then the clock. */
-  readonly now?: Temporal.Instant;
+  readonly now?: Instant;
 };
 
 /** Seconds since the epoch of a NumericDate or an RFC 3339 instant. */

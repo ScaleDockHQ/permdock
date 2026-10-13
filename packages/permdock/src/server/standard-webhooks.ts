@@ -1,4 +1,5 @@
 import type { JsonWebKeyLike } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 
 import { nowSeconds, rfc3339 } from "../core/time.ts";
@@ -36,7 +37,7 @@ export type WebhookMessage = {
   /** A unique message id, kept across retries of the same message. */
   readonly id: string;
   readonly body: string;
-  readonly now?: Temporal.Instant;
+  readonly now?: Instant;
 };
 
 export type WebhookSigner = {
@@ -58,7 +59,7 @@ export type WebhookVerifierOptions = {
   readonly replay: ReplayStore;
   /** Seconds a timestamp may differ from the clock. Defaults to 300. */
   readonly tolerance?: number;
-  readonly now?: () => Temporal.Instant;
+  readonly now?: () => Instant;
   /** Fetches a `jwks` URL. Defaults to the global `fetch`. */
   readonly fetch?: typeof fetch;
 };

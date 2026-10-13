@@ -1,5 +1,6 @@
 import type { TokenSigner } from "./interfaces.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
+import type { Instant } from "./time.ts";
 
 import { compact } from "./compact.ts";
 import { expiredAt } from "./expiry.ts";
@@ -97,7 +98,7 @@ export type LinkPolicyViolation = "lifetime" | "redeemer" | "once";
 export type SignCapabilityOptions = {
   readonly audience?: string | readonly string[];
   /** `iat`; the clock when absent. */
-  readonly issuedAt?: Temporal.Instant;
+  readonly issuedAt?: Instant;
   /** Refuse to sign a link these policies would refuse at resolution. */
   readonly linkPolicy?: LinkPolicy | readonly LinkPolicy[];
 };

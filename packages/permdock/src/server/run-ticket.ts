@@ -12,6 +12,7 @@ import type {
   Principal,
   Subject,
 } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 import { ownRecord } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
@@ -84,12 +85,12 @@ export type RunTicketInput = {
   readonly id?: string;
   /** Lifetime in whole seconds. Exactly one of `expiresIn` and `expiresAt`. */
   readonly expiresIn?: number;
-  readonly expiresAt?: Temporal.Instant;
+  readonly expiresAt?: Instant;
 };
 
 export type SignRunTicketOptions = {
   readonly audience?: string | readonly string[];
-  readonly now?: Temporal.Instant;
+  readonly now?: Instant;
 };
 
 /** The live record of an automation, read on every use of its ticket. */
