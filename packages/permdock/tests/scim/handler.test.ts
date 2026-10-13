@@ -9,6 +9,7 @@ import { sha256Hex } from "../../src/scim/auth.ts";
 import { scimHandler } from "../../src/scim/handler.ts";
 import { memoryDirectoryStore } from "../../src/scim/store.ts";
 import {
+  ERROR_SCHEMA,
   GROUP_SCHEMA,
   PATCH_SCHEMA,
   ROLES_EXTENSION,
@@ -59,16 +60,19 @@ async function json(response: Response): Promise<Record<string, unknown>> {
   return (await response.json()) as Record<string, unknown>;
 }
 
+/** RFC 7644 section 3.12: `scimType` only on `400` and `409`. */
 async function expectError(
   response: Response,
   status: number,
-  scimType: string,
+  scimType?: string,
 ): Promise<void> {
-  expect({ status: response.status, body: await json(response) }).toMatchObject(
-    {
-      status,
-      body: { status: String(status), scimType },
-    },
+  const body = await json(response);
+  expect({ status: response.status, body }).toMatchObject({
+    status,
+    body: { schemas: [ERROR_SCHEMA], status: String(status) },
+  });
+  expect(body["scimType"]).toBe(
+    status === 400 || status === 409 ? scimType : undefined,
   );
 }
 
@@ -94,7 +98,7 @@ describe("scimHandler configuration", () => {
 describe("scimHandler routing and tenancy", () => {
   it("answers 404 for an unknown route", async () => {
     const { handle } = setup();
-    await expectError(await handle(call("/Nope")), 404, "invalidValue");
+    await expectError(await handle(call("/Nope")), 404);
   });
 
   it("refuses when the tenant resolver throws or returns empty", async () => {
@@ -109,7 +113,7 @@ describe("scimHandler routing and tenancy", () => {
     expect({
       status: response.status,
       challenge: response.headers.get("www-authenticate"),
-    }).toEqual({ status: 403, challenge: "Bearer" });
+    }).toEqual({ status: 403, challenge: 'Bearer error="insufficient_scope"' });
   });
 
   it("refuses a missing or wrong bearer token", async () => {
@@ -233,20 +237,12 @@ describe("scimHandler with a verifier", () => {
 describe("scimHandler discovery", () => {
   it("refuses a filter on discovery endpoints", async () => {
     const { handle } = setup();
-    await expectError(
-      await handle(call("/Schemas?filter=id%20pr")),
-      403,
-      "invalidFilter",
-    );
+    await expectError(await handle(call("/Schemas?filter=id%20pr")), 403);
   });
 
   it("answers 404 for an unknown schema or resource type id", async () => {
     const { handle } = setup();
-    await expectError(
-      await handle(call("/Schemas/urn:nope")),
-      404,
-      "invalidValue",
-    );
+    await expectError(await handle(call("/Schemas/urn:nope")), 404);
     const types = await handle(call("/ResourceTypes/Nope"));
     expect(await json(types)).toMatchObject({
       detail: "ResourceType not found",
@@ -314,11 +310,7 @@ describe("scimHandler list and get", () => {
       await handle(call(`/Groups/${String(created["id"])}`)),
     );
     expect(one).toMatchObject({ displayName: "Eng", schemas: [GROUP_SCHEMA] });
-    await expectError(
-      await handle(call("/Groups/g_missing")),
-      404,
-      "invalidValue",
-    );
+    await expectError(await handle(call("/Groups/g_missing")), 404);
   });
 });
 
@@ -674,7 +666,7 @@ describe("scimHandler writes", () => {
       findUsers: () => Promise.reject(new Error("db down")),
     };
     const { handle } = setup({}, failing);
-    await expectError(await handle(call("/Users")), 500, "invalidValue");
+    await expectError(await handle(call("/Users")), 500);
     await handle(
       call("/Groups", { method: "POST", body: groupBody({ externalId: "x" }) }),
     );

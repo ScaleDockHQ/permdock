@@ -215,6 +215,9 @@ describe("RFC 7643 SCIM Core Schema (September 2015)", () => {
   });
 
   it("section 10: the roles extension URN is advertised as optional on Group", () => {
+    expect(ROLES_EXTENSION).toBe(
+      "urn:ietf:params:scim:schemas:extension:permdock:2.0:Group",
+    );
     expect(schemas().map((schema) => schema["id"])).toContain(ROLES_EXTENSION);
     const group = resourceTypes().find((type) => type["id"] === "Group");
     expect(group?.["schemaExtensions"]).toEqual([
@@ -338,6 +341,82 @@ describe("RFC 7644 SCIM Protocol (September 2015)", () => {
       schemas: [ERROR_SCHEMA],
       status: "404",
     });
+  });
+
+  it("section 3.12: scimType only on 400 and 409, a SCIM Error on 401 and 403", async () => {
+    const missing = await handler()(request("/Users/nope"));
+    expect(await body(missing)).not.toHaveProperty("scimType");
+    const anonymous = await handler()(
+      new Request(`${BASE}/Users`, { headers: { authorization: "Bearer no" } }),
+    );
+    expect([anonymous.status, await body(anonymous)]).toEqual([
+      401,
+      {
+        schemas: [ERROR_SCHEMA],
+        status: "401",
+        detail: "authentication required",
+      },
+    ]);
+  });
+
+  it("section 3.14: meta.version is the ETag and gates PUT, PATCH and DELETE", async () => {
+    const handle = handler();
+    const created = await handle(
+      request("/Users", {
+        method: "POST",
+        body: JSON.stringify({ schemas: [USER_SCHEMA], userName: "ada" }),
+      }),
+    );
+    const user = await body(created);
+    // SAFETY: renderUser always writes meta as an object of strings.
+    const version = (user["meta"] as Record<string, string>)["version"] ?? "";
+    expect(version).toMatch(/^W\/"sha-256:[\w-]+"$/u);
+    expect(created.headers.get("etag")).toBe(version);
+    const path = `/Users/${String(user["id"])}`;
+    const read = await handle(request(path));
+    expect(read.headers.get("etag")).toBe(version);
+    const cached = await handle(
+      request(path, { headers: { "if-none-match": version } }),
+    );
+    expect(cached.status).toBe(304);
+    const stale = await handle(
+      request(path, {
+        method: "PATCH",
+        headers: { "if-match": 'W/"sha-256:old"' },
+        body: JSON.stringify({
+          schemas: ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+          Operations: [{ op: "replace", path: "active", value: false }],
+        }),
+      }),
+    );
+    expect(stale.status).toBe(412);
+    expect(await body(stale)).not.toHaveProperty("scimType");
+    const patched = await handle(
+      request(path, {
+        method: "PATCH",
+        headers: { "if-match": version },
+        body: JSON.stringify({
+          schemas: ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+          Operations: [{ op: "replace", path: "active", value: false }],
+        }),
+      }),
+    );
+    expect(patched.status).toBe(200);
+    expect(patched.headers.get("etag")).not.toBe(version);
+    expect(
+      (
+        await handle(
+          request(path, { method: "DELETE", headers: { "if-match": version } }),
+        )
+      ).status,
+    ).toBe(412);
+    expect(
+      (
+        await handle(
+          request(path, { method: "DELETE", headers: { "if-match": "*" } }),
+        )
+      ).status,
+    ).toBe(204);
   });
 
   it("section 3.1: a created resource has id, meta.location and RFC 3339 times", async () => {

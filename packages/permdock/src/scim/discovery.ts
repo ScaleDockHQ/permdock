@@ -10,7 +10,7 @@ export function serviceProviderConfig(): Record<string, unknown> {
     filter: { supported: true, maxResults: 200 },
     changePassword: { supported: false },
     sort: { supported: false },
-    etag: { supported: false },
+    etag: { supported: true },
     pagination: { cursor: true, index: true },
     authenticationSchemes: [
       {

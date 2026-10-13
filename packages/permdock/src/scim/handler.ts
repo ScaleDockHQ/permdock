@@ -13,16 +13,59 @@ import { groupRolesFor } from "./group-roles.ts";
 import { normalizePatchOps, readPatchOperations } from "./patch.ts";
 import {
   forbidden,
+  ifMatchHolds,
+  ifNoneMatchHolds,
   listBody,
   mapStoreError,
+  preconditionFailed,
   renderGroup,
   renderUser,
   scimError,
   scimResponse,
   unauthorized,
+  versionOf,
 } from "./render.ts";
 import { locationOf, pageFrom, parseRoute, type ScimRoute } from "./route.ts";
-import { GROUP_SCHEMA, USER_SCHEMA, type ScimHandlerOptions } from "./types.ts";
+import {
+  GROUP_SCHEMA,
+  USER_SCHEMA,
+  type DirectoryGroup,
+  type DirectoryUser,
+  type ScimHandlerOptions,
+} from "./types.ts";
+
+/** One resource with its `meta.version` as the `ETag`. */
+function resourceResponse(
+  status: number,
+  rendered: Record<string, unknown>,
+  location?: string,
+): Response {
+  return scimResponse(
+    status,
+    rendered,
+    compact({ ETag: versionOf(rendered), location }),
+  );
+}
+
+function renderedOf(
+  request: Request,
+  resource: DirectoryUser | DirectoryGroup,
+): Record<string, unknown> {
+  return "userName" in resource
+    ? renderUser(resource, locationOf(request, "Users", resource.id))
+    : renderGroup(resource, locationOf(request, "Groups", resource.id));
+}
+
+/** `false` when `If-Match` names a version other than `current`'s; a missing resource passes to the store. */
+function matches(
+  request: Request,
+  current: DirectoryUser | DirectoryGroup | null,
+): boolean {
+  return (
+    current === null ||
+    ifMatchHolds(request, versionOf(renderedOf(request, current)))
+  );
+}
 
 export function scimHandler(
   options: ScimHandlerOptions,
@@ -120,24 +163,21 @@ export function scimHandler(
           if (user === null) {
             return scimError(404, "invalidValue", "resource not found");
           }
-          return scimResponse(
-            200,
-            renderUser(user, locationOf(request, "Users", user.id)),
-          );
+          return readResponse(request, renderedOf(request, user));
         }
         const group = await options.store.getGroup(tenant, route.id);
         if (group === null) {
           return scimError(404, "invalidValue", "resource not found");
         }
-        return scimResponse(
-          200,
-          renderGroup(group, locationOf(request, "Groups", group.id)),
-        );
+        return readResponse(request, renderedOf(request, group));
       }
 
       if (request.method === "DELETE" && route.id !== undefined) {
         if (route.kind === "Users") {
           const existing = await options.store.getUser(tenant, route.id);
+          if (!matches(request, existing)) {
+            return preconditionFailed();
+          }
           await options.store.deleteUser(tenant, route.id);
           await emitDirectory(
             options,
@@ -156,6 +196,9 @@ export function scimHandler(
           return new Response(null, { status: 204 });
         }
         const existing = await options.store.getGroup(tenant, route.id);
+        if (!matches(request, existing)) {
+          return preconditionFailed();
+        }
         await options.store.deleteGroup(tenant, route.id);
         await emitDirectory(
           options,
@@ -209,9 +252,7 @@ export function scimHandler(
             }),
             [stored.id],
           );
-          return scimResponse(201, renderUser(stored, location), {
-            location,
-          });
+          return resourceResponse(201, renderUser(stored, location), location);
         }
         if (!schemasOk(body, GROUP_SCHEMA)) {
           return scimError(400, "invalidSyntax", "unsupported schema");
@@ -248,7 +289,7 @@ export function scimHandler(
             next: stored,
           }),
         );
-        return scimResponse(201, renderGroup(stored, location), { location });
+        return resourceResponse(201, renderGroup(stored, location), location);
       }
 
       if (request.method === "PUT" && route.id !== undefined) {
@@ -259,6 +300,9 @@ export function scimHandler(
           const existing = await options.store.getUser(tenant, route.id);
           if (existing === null) {
             return scimError(404, "invalidValue", "resource not found");
+          }
+          if (!matches(request, existing)) {
+            return preconditionFailed();
           }
           const parsed = userFromBody(body, route.id);
           if (parsed === undefined) {
@@ -278,7 +322,7 @@ export function scimHandler(
             }),
             [stored.id],
           );
-          return scimResponse(200, renderUser(stored, location), { location });
+          return resourceResponse(200, renderUser(stored, location), location);
         }
         if (!schemasOk(body, GROUP_SCHEMA)) {
           return scimError(400, "invalidSyntax", "unsupported schema");
@@ -286,6 +330,9 @@ export function scimHandler(
         const existing = await options.store.getGroup(tenant, route.id);
         if (existing === null) {
           return scimError(404, "invalidValue", "resource not found");
+        }
+        if (!matches(request, existing)) {
+          return preconditionFailed();
         }
         const parsed = groupFromBody(
           body,
@@ -316,7 +363,7 @@ export function scimHandler(
             next: stored,
           }),
         );
-        return scimResponse(200, renderGroup(stored, location), { location });
+        return resourceResponse(200, renderGroup(stored, location), location);
       }
 
       if (request.method === "PATCH" && route.id !== undefined) {
@@ -329,6 +376,11 @@ export function scimHandler(
           return scimError(400, "invalidSyntax", "invalid patch");
         }
         if (route.kind === "Users") {
+          if (
+            !matches(request, await options.store.getUser(tenant, route.id))
+          ) {
+            return preconditionFailed();
+          }
           const stored = await options.store.patchUser(
             tenant,
             route.id,
@@ -347,9 +399,12 @@ export function scimHandler(
             }),
             [stored.id],
           );
-          return scimResponse(200, renderUser(stored, location), { location });
+          return resourceResponse(200, renderUser(stored, location), location);
         }
         const existing = await options.store.getGroup(tenant, route.id);
+        if (!matches(request, existing)) {
+          return preconditionFailed();
+        }
         const stored = await options.store.patchGroup(
           tenant,
           route.id,
@@ -375,7 +430,7 @@ export function scimHandler(
             next: stored,
           }),
         );
-        return scimResponse(200, renderGroup(stored, location), { location });
+        return resourceResponse(200, renderGroup(stored, location), location);
       }
 
       return scimError(405, "invalidValue", "method not allowed");
@@ -386,6 +441,17 @@ export function scimHandler(
       return mapStoreError(error);
     }
   };
+}
+
+function readResponse(
+  request: Request,
+  rendered: Record<string, unknown>,
+): Response {
+  const version = versionOf(rendered);
+  if (ifNoneMatchHolds(request, version)) {
+    return new Response(null, { status: 304, headers: { ETag: version } });
+  }
+  return resourceResponse(200, rendered);
 }
 
 type DiscoveryRoute = Extract<

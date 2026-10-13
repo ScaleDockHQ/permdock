@@ -7,7 +7,9 @@ export const GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group";
 export const LIST_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse";
 export const ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error";
 export const PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
-export const ROLES_EXTENSION = "urn:permdock:scim:schemas:extension:roles:1.0";
+/** The RFC 7643 section 3.3 Group extension that carries PermDock roles. */
+export const ROLES_EXTENSION =
+  "urn:ietf:params:scim:schemas:extension:permdock:2.0:Group";
 
 export type DirectoryMeta = {
   readonly created: string;

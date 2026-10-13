@@ -347,12 +347,16 @@ describe("identity-provider memberships hold only assignable roles", () => {
 });
 
 describe("scimHandler", () => {
-  it("rejects missing or wrong bearer without a body", async () => {
+  it("rejects a missing or wrong bearer with a SCIM Error", async () => {
     const { handle } = handler();
     const missing = await handle(request("/Users", {}, ""));
     expect(missing.status).toBe(401);
     expect(missing.headers.get("www-authenticate")).toBe("Bearer");
-    expect(await missing.text()).toBe("");
+    expect(await missing.json()).toEqual({
+      schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
+      status: "401",
+      detail: "authentication required",
+    });
     const wrong = await handle(request("/Users", {}, "nope"));
     expect(wrong.status).toBe(401);
   });
