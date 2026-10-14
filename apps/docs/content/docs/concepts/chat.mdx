@@ -1,0 +1,55 @@
+---
+title: Chat
+description: permdock/chat decides chat commands as the principal a verified chat author links to through principalByIdentity. An unlinked author is anonymous. ChatPermDock protects operations and applies approve and reject actions from chat as the clicking user.
+---
+
+`permdock/chat` lets a chat bot run the same operations (`defineOperations`) as the app's [agents](/docs/concepts/agents), as the person who typed the command. The chat platform verifies who sent a message or clicked a button. PermDock maps that platform user to a principal through an identity link the app owns, then decides as that principal with live roles and memberships.
+
+## Chat authors
+
+A `ChatAuthor` is `{ provider, userId, workspace? }`: the platform (`slack`, `teams`, …), the platform's user id and the workspace or team id. Build it only from an event whose platform signature the transport verified. `chatSdkAuthor` from [`permdock/chat-sdk`](/docs/adapters/chat-sdk) builds it from a Chat SDK event.
+
+`subjectFromChat(author, { principals })` resolves the author through `principals.principalByIdentity({ kind: 'chat', provider, value: userId, workspace })`. A missing, malformed or unlinked author, or a source that throws, gives an anonymous subject, so every check denies with `anonymous`. It never throws.
+
+The identity link is app data: one row per `kind`, `provider`, `value` and `workspace`, written when a signed-in user connects their chat account. `memoryPrincipalSource({ principals, identities })` holds the links in process.
+
+## Protect a command
+
+`createPermDock(policy, { principals, memberships, approvals })` returns a `ChatPermDock`:
+
+```ts
+import { createPermDock } from "permdock/chat";
+
+const chat = createPermDock(policy, {
+  principals,
+  memberships,
+  approvals: store,
+});
+
+const pay = chat.protect(operations["invoice.pay"], async ({ input, row }) => {
+  await invoices.pay(input.id);
+  return `Paid ${input.id}.`;
+});
+
+const result = await pay(author, { id: "inv_42" });
+```
+
+`protect(operation, handler)` returns a command that resolves `ChatCommandResult`:
+
+- **`granted`.** The operation's `data` loaded the row and the author's principal is granted. `value` is the handler's return value.
+- **`denied`.** The author is unlinked, the row is in another tenant, `data` returned nothing (`validation`) or threw (`closure-error`), or the policy denies. The handler does not run.
+- **`approval-required`.** The grant needs an approval. With an `approvals` store, the first call opens one request for the author, permission and row, and returns its `ApprovalPrompt`. A later call while the request is pending returns the same prompt. After an approver approves, the next call runs the handler once; after a rejection or that one run, the command denies until the request expires. Without a store, `prompt` is `null`.
+
+Every decision is written to the sink with `adapter: 'chat'` and the operation's name and meta. `getPermDock(author)` returns the author's instance for checks outside a command.
+
+## Approve from chat
+
+`resolveAction(author, { approval, status, note? })` applies `approved` or `rejected` to the request with id `approval`, as the principal the author links to. The button carries the request id, never its token. The verdict goes through `resolveApproval`, so the approver must be eligible under the grant's `approval.by` and distinct from the requester. It resolves `{ ok: true, id, status }` or `{ ok: false, cause }`. `cause` is `invalid-action`, `approver-unauthenticated` for an unlinked author, or an approval error such as `approver-is-principal`, `approver-not-eligible` or `approval-not-pending`.
+
+`approvalCard` and `approvalActions` from [`permdock/chat-sdk`](/docs/adapters/chat-sdk) render the buttons and route their clicks to `resolveAction`. Send a prompt to approvers with [delivery](/docs/concepts/delivery).
+
+## Why
+
+A chat message names a platform user, not an account in the app. Display names and emails in a chat profile can be edited by the user or shared across workspaces, so the only trustworthy key is the platform user id in a signed event. The app links that id to a principal once, while the user is signed in to the app. PermDock reads the link on every command instead of caching a role, so a removed member loses access in chat at the same moment as in the app.
+
+Unlinked means anonymous, not a guest account. A bot that ran commands for unknown users would let anyone in a shared channel act. Approvals from chat follow the same rule: the clicking user is resolved like any author, and `resolveApproval` refuses the requester, so a user cannot approve their own request by clicking their own card.

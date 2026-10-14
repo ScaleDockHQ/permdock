@@ -293,6 +293,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import 
 | Terminal           | `permdock/terminal` for your own CLI (not the `permdock` binary)                                                                                                   |
 | RPC                | `permdock/trpc` · `permdock/orpc`                                                                                                                                  |
 | Agents             | `permdock/mcp` · `permdock/ai-sdk` · `permdock/claude-agent` · `permdock/eve` · `permdock/openai` · `permdock/webmcp` · `permdock/a2a`                             |
+| Messaging          | `permdock/delivery` · `permdock/resend` · `permdock/chat` · `permdock/chat-sdk`                                                                                    |
 | Decision plane     | `permdock/authzen` · `permdock/approvals` · `permdock/cloud` · `permdock/scim` · `permdock/ssf` · `permdock/openapi` · `permdock/otel` · `permdock/pdp`            |
 | Data               | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls` · `permdock powersync`                                                                 |
 | Auth and providers | `permdock/jwt` · `permdock/supabase` · `permdock/supabase/middleware` · `permdock/better-supabase` · `permdock/better-auth` · `permdock/clerk` · `permdock/convex` |

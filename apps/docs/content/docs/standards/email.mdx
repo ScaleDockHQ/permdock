@@ -1,0 +1,82 @@
+---
+title: Email
+description: The email standards permdock/delivery applies to every outgoing email. RFC 3834 Auto-Submitted on every message, the RFC 2369 and RFC 8058 one-click unsubscribe pair on notifications, and RFC 5322 checks on addresses and header fields.
+---
+
+## What it is
+
+Four RFCs shape how an application sends automated email:
+
+- [RFC 5322](https://www.rfc-editor.org/rfc/rfc5322.html) defines the message format: the `addr-spec` and `name-addr` address forms, and header fields as `field-name: field-body` on one line unless folded.
+- [RFC 3834](https://www.rfc-editor.org/rfc/rfc3834.html) defines `Auto-Submitted`. `auto-generated` marks a message a program sent on its own, so auto-responders and vacation replies do not answer it.
+- [RFC 2369](https://www.rfc-editor.org/rfc/rfc2369.html) defines `List-Unsubscribe`: one or more angle-bracketed URIs that unsubscribe the recipient.
+- [RFC 8058](https://www.rfc-editor.org/rfc/rfc8058.html) defines one-click unsubscribe. `List-Unsubscribe-Post: List-Unsubscribe=One-Click` with an https URI in `List-Unsubscribe` lets the mail client unsubscribe with one POST and no page.
+
+Gmail and Yahoo require the one-click pair on bulk mail since February 2024 ([Gmail sender guidelines](https://support.google.com/a/answer/81126), [Yahoo sender requirements](https://senders.yahooinc.com/best-practices/)).
+
+## Why it matters for PermDock
+
+- **Recipients are checked once.** A header that adds a recipient (`Bcc`, `Cc`) or a line break that injects one would send past the recipient check. The router refuses both.
+- **Notifications stay deliverable.** Mailbox providers rate unsubscribable mail higher than mail users mark as spam.
+- **Approvals do not trigger auto-replies.** An approval prompt that bounces back as an out-of-office reply would reach the requester or a shared inbox.
+
+## How PermDock uses it
+
+`createPermDock` from `permdock/delivery` builds every email through one function before any transport sees it:
+
+| Rule                                                                                                     | Source                | Result when broken                                   |
+| -------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------- |
+| `Auto-Submitted: auto-generated` on every message                                                        | RFC 3834 §5           | Always set; a caller's value is dropped              |
+| `List-Unsubscribe` and `List-Unsubscribe-Post` on `category: 'notification'`                             | RFC 2369, RFC 8058    | `invalid-message` without an https `unsubscribe.url` |
+| No unsubscribe pair on `transactional`, `security` or `approval`                                         | RFC 8058 §3.1         | A caller's pair is dropped                           |
+| `from` is an `addr-spec` or `name-addr`; `replyTo` is an `addr-spec`                                     | RFC 5322 §3.4         | `invalid-message`                                    |
+| Subject and header values hold no CR, LF or other control character                                      | RFC 5322 §2.2         | `invalid-message`                                    |
+| Header names are printable US-ASCII without a colon, at most 76 characters                               | RFC 5322 §2.2, §2.1.1 | `invalid-message`                                    |
+| `To`, `Cc`, `Bcc`, `From`, `Sender`, `Reply-To`, `Subject`, `Return-Path` and `Resent-*` are not headers | PermDock              | `invalid-message`                                    |
+
+`isAddrSpec` accepts a dot-atom local part and a DNS domain with at least one dot, up to 254 characters. Quoted local parts, IP literals and internationalised addresses are not supported. An email recipient address is compared lower-cased.
+
+```ts
+await delivery.deliver(
+  permdock,
+  permissions.invoice.read,
+  invoice,
+  recipients,
+  {
+    email: {
+      subject: `Invoice ${invoice.id} is ready`,
+      text: "…",
+      category: "notification",
+      unsubscribe: (target) => ({
+        url: `https://app.acme.test/unsubscribe?u=${target.principal}`,
+        mailto: "unsubscribe@acme.test",
+      }),
+    },
+  },
+);
+```
+
+The app serves the unsubscribe URL. RFC 8058 requires it to accept a POST with the body `List-Unsubscribe=One-Click` and no cookie or login, so the URL must identify the recipient and list on its own; sign it.
+
+## Mapping table
+
+| Standard                | PermDock                                                                   |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `addr-spec`             | `isAddrSpec`; `Recipient.address` on the email channel                     |
+| `name-addr`             | `EmailMessage.from`, `DeliveryPermDockOptions.from`, `EmailTransport.from` |
+| `Auto-Submitted`        | Set by the router on every `OutgoingEmail`                                 |
+| `List-Unsubscribe`      | `EmailMessage.unsubscribe.url` and `mailto`                                |
+| `List-Unsubscribe-Post` | Set with `List-Unsubscribe` on `category: 'notification'`                  |
+| Message categories      | `EmailCategory`: `transactional`, `notification`, `security`, `approval`   |
+
+## Why
+
+The router, not each transport, applies these rules, so a Postmark, SES or SMTP transport written in ten lines gets the same headers as `resendTransport`. Only notifications get the unsubscribe pair: a password reset or an approval prompt is mail the recipient cannot opt out of, and RFC 8058 says the header belongs on mail a recipient subscribed to. The `addr-spec` check is narrower than RFC 5322 on purpose: a quoted local part or an IP literal is valid syntax that providers handle differently, and a delivery check that two providers disagree about is not a check.
+
+## Sources
+
+- [RFC 5322](https://www.rfc-editor.org/rfc/rfc5322.html), Internet Message Format
+- [RFC 3834](https://www.rfc-editor.org/rfc/rfc3834.html), Recommendations for Automatic Responses to Electronic Mail
+- [RFC 2369](https://www.rfc-editor.org/rfc/rfc2369.html), The Use of URLs as Meta-Syntax for Core Mail List Commands
+- [RFC 8058](https://www.rfc-editor.org/rfc/rfc8058.html), Signaling One-Click Functionality for List Email Headers
+- [Gmail email sender guidelines](https://support.google.com/a/answer/81126)

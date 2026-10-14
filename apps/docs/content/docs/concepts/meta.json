@@ -17,6 +17,8 @@
     "credentials",
     "agents",
     "automations",
+    "delivery",
+    "chat",
     "authentication",
     "decisions",
     "snapshots",

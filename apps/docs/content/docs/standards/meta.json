@@ -10,6 +10,7 @@
     "problem-details",
     "cloudevents",
     "standard-webhooks",
+    "email",
     "ratelimit-headers",
     "postgres-rls",
     "---Authentication---",

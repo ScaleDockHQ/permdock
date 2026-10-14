@@ -1,0 +1,192 @@
+---
+title: Delivery
+description: permdock/delivery sends a notification only to recipients the sender's policy grants. Each recipient is checked with decideFor, routed to the email, chat or webhook transport of its channel, and recorded as one delivery event. An approval prompt links to the approval page and never approves.
+---
+
+`permdock/delivery` decides who may receive a message about a row, then hands each granted recipient to the transport of its channel. The question is the same for an invoice email, a Slack DM and an outbound webhook: may this principal read this row? Delivery answers it with the policy, so a notification cannot reach someone the app would refuse to show the row.
+
+## Deliver a message
+
+`createPermDock(policy, options)` returns a `DeliveryPermDock`. `deliver(permdock, permission, row, recipients, messages)` checks every recipient against `permission` on `row` and sends to the granted ones. The first argument is the sender's PermDock: the check runs in the sender's tenant, through the membership and principal sources the sender was built with.
+
+```ts
+import { createPermDock } from "permdock/delivery";
+import { resendTransport } from "permdock/resend";
+
+const delivery = createPermDock(policy, {
+  transports: {
+    email: resendTransport(resend, { from: "Acme <billing@acme.test>" }),
+  },
+  principals,
+  sink,
+});
+
+const report = await delivery.deliver(
+  permdock,
+  permissions.invoice.read,
+  invoice,
+  [
+    { principal: "u_member", channel: "email", address: "mo@acme.test" },
+    { channel: "email", address: "cleo@client.test" },
+  ],
+  {
+    email: {
+      subject: `Invoice ${invoice.id} is ready`,
+      text: `View it at https://app.acme.test/invoices/${invoice.id}`,
+      category: "notification",
+      unsubscribe: { url: "https://app.acme.test/unsubscribe?list=invoices" },
+    },
+  },
+);
+```
+
+`deliver` never rejects. Each recipient ends as `sent` or `failed`, with one `delivery` event per recipient in the sink and a frozen `DeliveryReport` (`id`, `events`, `sent`, `failed`).
+
+- **Principal recipients.** `{ principal, channel, address }` is decided with `decideFor(principal, permission, row)`. The address is one the server loaded for that principal.
+- **Address recipients.** `{ channel, address }` resolves through `principals.principalByIdentity`. An address with no link fails with `unlinked`. `trusted: true` on an address recipient skips the link and decides as the sender, for an address the app itself configured, such as a finance inbox.
+- **Refusals.** A denied or approval-required recipient fails with `denied` and the denial reason. A malformed address fails with `invalid-recipient`, a channel without a transport with `no-transport`, and a channel without a message with `no-message`.
+- **Retries.** Every recipient gets an idempotency key derived from the delivery `id`, the channel and the recipient. Pass the same `id` on a retry and each transport receives the same key.
+
+`audience(permdock, permission, row)` lists the principals `whoCan` finds and keeps those `decideFor` grants. `complete: false` means `whoCan` could not list every holder. `subscribersFor(permdock, target, subscribers)` keeps the subscribers of an event whose principal is granted the target permission.
+
+## Channels and transports
+
+A `DeliveryTransport<C>` has a `channel` (`email`, `chat` or `webhook`), a `name` and `deliver(target, message, options)`. A transport receives only targets the router checked, each with its granted decision. It resolves `{ status: 'sent', providerId? }` or `{ status: 'failed', cause, retryable }`. A transport with `deliverBatch` gets up to `batchSize` items per call.
+
+| Channel   | Message          | Transports                                                                         |
+| --------- | ---------------- | ---------------------------------------------------------------------------------- |
+| `email`   | `EmailMessage`   | [`resendTransport`](/docs/adapters/resend), your own for Postmark, SES, Nodemailer |
+| `chat`    | `ChatMessage`    | [`chatSdkTransport`](/docs/adapters/chat-sdk)                                      |
+| `webhook` | `WebhookMessage` | `webhookTransport(signer)`, a CloudEvent signed with Standard Webhooks             |
+
+The router adds the email headers of the [email standards](/docs/standards/email) to every email: `Auto-Submitted: auto-generated`, and the one-click `List-Unsubscribe` pair on a `notification`. A caller cannot set or remove them. `testDeliveryTransport` from `permdock/testing` is the conformance suite for a transport.
+
+## Email recipes
+
+A transport for another provider maps `OutgoingEmail` (`from`, `replyTo`, `subject`, `text`, `html`, `headers`, `category`) to the provider's call and its errors to `DeliveryResult`. Pass `options.idempotencyKey` where the provider takes one.
+
+Postmark:
+
+```ts
+import type { EmailTransport } from "permdock/delivery";
+import { ServerClient } from "postmark";
+
+const postmark = new ServerClient(process.env.POSTMARK_TOKEN!);
+
+export const postmarkTransport: EmailTransport = {
+  channel: "email",
+  name: "postmark",
+  async deliver(target, email) {
+    try {
+      const sent = await postmark.sendEmail({
+        From: email.from,
+        To: target.address,
+        Subject: email.subject,
+        TextBody: email.text,
+        HtmlBody: email.html,
+        Headers: Object.entries(email.headers).map(([Name, Value]) => ({
+          Name,
+          Value,
+        })),
+        MessageStream:
+          email.category === "notification" ? "broadcast" : "outbound",
+      });
+      return { status: "sent", providerId: sent.MessageID };
+    } catch (error) {
+      const code = (error as { statusCode?: number }).statusCode ?? 500;
+      return code === 429 || code >= 500
+        ? { status: "failed", cause: "unavailable", retryable: true }
+        : { status: "failed", cause: "rejected", retryable: false };
+    }
+  },
+};
+```
+
+Amazon SES v2:
+
+```ts
+import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+import type { EmailTransport } from "permdock/delivery";
+
+const ses = new SESv2Client({});
+
+export const sesTransport: EmailTransport = {
+  channel: "email",
+  name: "ses",
+  async deliver(target, email) {
+    try {
+      const sent = await ses.send(
+        new SendEmailCommand({
+          FromEmailAddress: email.from,
+          Destination: { ToAddresses: [target.address] },
+          Content: {
+            Simple: {
+              Subject: { Data: email.subject },
+              Body: {
+                Text: { Data: email.text },
+                Html: email.html ? { Data: email.html } : undefined,
+              },
+              Headers: Object.entries(email.headers).map(([Name, Value]) => ({
+                Name,
+                Value,
+              })),
+            },
+          },
+        }),
+      );
+      return { status: "sent", providerId: sent.MessageId };
+    } catch (error) {
+      const name = (error as { name?: string }).name;
+      return name === "TooManyRequestsException"
+        ? { status: "failed", cause: "rate-limited", retryable: true }
+        : { status: "failed", cause: "rejected", retryable: false };
+    }
+  },
+};
+```
+
+Nodemailer over SMTP:
+
+```ts
+import type { EmailTransport } from "permdock/delivery";
+import nodemailer from "nodemailer";
+
+const smtp = nodemailer.createTransport(process.env.SMTP_URL);
+
+export const smtpTransport: EmailTransport = {
+  channel: "email",
+  name: "smtp",
+  async deliver(target, email) {
+    try {
+      const sent = await smtp.sendMail({
+        from: email.from,
+        to: target.address,
+        replyTo: email.replyTo,
+        subject: email.subject,
+        text: email.text,
+        html: email.html,
+        headers: email.headers,
+      });
+      return { status: "sent", providerId: sent.messageId };
+    } catch {
+      return { status: "failed", cause: "unavailable", retryable: true };
+    }
+  },
+};
+```
+
+## Approval prompts
+
+`approvalPrompt(request, { operation })` turns a pending approval request into `ApprovalPrompt` v1: the request `id`, permission, scope, resource, requester, tenant, detail, `createdAt`, `expiresAt` and the operation's name, title, risk and effects. It never carries the approval token, the requester's roles or the membership. `approvalUrlFor(prompt, url)` appends the encoded id to the app's https approval page.
+
+`approvalEmail` from `permdock/resend` and `approvalCard` from `permdock/chat-sdk` render a prompt. Send it to the approvers with `deliver`, gated on a permission every approver holds, and pass `{ approval: prompt.id }` so each event names the request.
+
+## Delivery events
+
+Each recipient writes one `delivery` [event](/docs/concepts/audit-and-observability): `operation` (`sent`, `failed`, and from provider webhooks `delivered`, `bounced`, `complained`), `channel`, `delivery { id, key }`, the recipient's `principal` id, `permission`, `tenant`, `category`, `provider` and, for a failure, `cause`, `retryable` and `reason`. Events never carry an address. As a [CloudEvent](/docs/standards/cloudevents) the type is `com.permdock.delivery.<operation>`.
+
+## Why
+
+Email is a channel of delivery, not an entry of its own. The question a notification raises is who may learn about this row. That question is the same for email, chat and webhooks, and only the policy answers it. One router owns the check, the idempotency keys and the event, so each transport stays a thin mapping to a provider and a new provider is a short function.
+
+A link never approves. A link in an email or a chat message reaches whoever holds the message: forwarded mail, a shared channel, a mail scanner that follows links, a preview bot. The prompt links to the app's approval page, where the approver signs in and decides as themselves, distinct from the requester ([approvals](/docs/security/approvals)). Chat buttons are the one exception to "decide on the page": the chat platform signs the click and names the clicking user, and `resolveAction` resolves that user through their identity link before it applies a verdict.
