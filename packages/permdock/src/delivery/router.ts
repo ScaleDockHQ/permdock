@@ -336,7 +336,6 @@ export function createPermDock<
     }
     return {
       decision: permdock.decide(permission, row, {
-        trusted: true,
         call: "can",
         adapter: "delivery",
       }),

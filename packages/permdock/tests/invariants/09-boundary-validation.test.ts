@@ -25,6 +25,8 @@ const src = path.join(import.meta.dirname, "../../src");
 
 /** Every `trusted: true` an adapter passes, and why the row is not request-derived. */
 const TRUSTED_SITES: Readonly<Record<string, string>> = {
+  "agent/create.ts":
+    "the model row is { id } built from a key of the application's models map",
   "authzen/create.ts:loaded": "a row the application `load` read by id",
   "authzen/create.ts:decide": "forwards the loaded flag above",
   "server/route-guard.ts": "the application opted in through protect options",
