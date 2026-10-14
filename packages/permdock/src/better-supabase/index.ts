@@ -1,3 +1,10 @@
+export { accessReviewApplier } from "./access-reviews.ts";
+export type {
+  AccessReviewApplierOptions,
+  AccessReviewApplyFailure,
+  AccessReviewApplyResult,
+} from "./access-reviews.ts";
+export type { ProviderApprovers } from "./approvers.ts";
 export { authorizationProvider } from "./provider.ts";
 export type { AuthorizationProviderOptions } from "./provider.ts";
 export { authorizer } from "./authorizer.ts";

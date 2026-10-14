@@ -1,8 +1,9 @@
 import type { AuthorizationRequirement } from "better-supabase/config";
 
 import type { CatalogDocument } from "../catalog/types.ts";
-import type { Approver } from "../core/approvers.ts";
+import type { ApproverInput } from "../core/approvers.ts";
 
+import { asApprover } from "../core/approval-normalize.ts";
 import { approverLeaves } from "../core/approvers.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 
@@ -11,9 +12,7 @@ import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
  * call), `'support-session'`, or `'<subject type>.<action>'` from the
  * approvals block.
  */
-export type ProviderApprovers = Readonly<
-  Record<string, Approver | readonly Approver[]>
->;
+export type ProviderApprovers = Readonly<Record<string, ApproverInput>>;
 
 /** `rls.approvals`' approver check, executable by `authenticated`. */
 export const IS_APPROVER = "permdock_is_approver";
@@ -56,11 +55,12 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
       ? undefined
       : new Set(input.catalog.permissions.map((permission) => permission.key));
   const branches: string[] = [];
-  for (const [kind, approvers] of Object.entries(input.approvers)) {
+  for (const [kind, given] of Object.entries(input.approvers)) {
     if (kind === "") {
       problems.push("approvers has an empty kind, which no request has.");
       continue;
     }
+    const approvers = asApprover(given);
     for (const leaf of approverLeaves(approvers)) {
       if (leaf.kind === "user") continue;
       if (leaf.kind !== "permission") {
