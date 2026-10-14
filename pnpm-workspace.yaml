@@ -163,6 +163,8 @@ catalog:
   "@supabase/postgrest-typegen": 0.4.0
   supabase: 2.119.0
   server-only: 0.0.1
+  # The root pins debug's optional supports-color peer so every importer shares one @nestjs/common and @nestjs/core variant.
+  supports-color: 7.2.0
   "@clack/prompts": 1.8.1
   citty: 0.2.2
   jiti: 2.7.0

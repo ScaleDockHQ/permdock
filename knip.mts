@@ -13,6 +13,8 @@ const config: KnipConfig = {
     ".": {
       entry: ["scripts/*.{ts,mjs}"],
       project: ["*.{ts,mts}", "scripts/**/*.{ts,mjs}"],
+      // Resolves debug's optional supports-color peer for every importer; nothing imports it.
+      ignoreDependencies: ["supports-color"],
     },
     "apps/docs": {
       // `@fumadocs/local-md` loads shiki at runtime; it must be a direct dependency to be externalised.
