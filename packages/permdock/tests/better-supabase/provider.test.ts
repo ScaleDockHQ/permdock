@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { authorizationProvider } from "../../src/better-supabase/index.ts";
+import { anyOf, holder, user } from "../../src/core/approvers.ts";
 import { PermDockValidationError } from "../../src/core/validation-error.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 
@@ -569,6 +570,153 @@ describe("authorizationProvider", () => {
     expect(
       authorizationProvider({ manifest: supabaseHookManifestFixture }),
     ).not.toHaveProperty("approvals");
+  });
+
+  describe("approvers", () => {
+    const approve = {
+      key: "invoice.approve",
+      scope: "invoice:approve",
+      resource: "invoice",
+      action: "approve",
+      meta: {},
+      kind: "collection",
+    } as const;
+    const tools = { ...approve, key: "tools.approve" } as const;
+    const catalog = {
+      ...emptyCatalog,
+      permissions: [
+        {
+          key: "invoice.approve",
+          scope: "tenant",
+          resource: "invoice",
+          action: "approve",
+          arity: "collection",
+          meta: {},
+          usages: [],
+          rowConditions: false,
+        },
+      ],
+    };
+    const manifest = withRls({
+      helpers: [
+        ...supabaseHookManifestFixture.rls.helpers,
+        {
+          name: "permdock_is_approver",
+          args: "p_approvers jsonb, p_tenant text",
+          returns: "boolean",
+          execute: ["authenticated"],
+        },
+      ],
+    });
+
+    it("fills isApprover with one branch per kind and drops canApprove", () => {
+      const provider = authorizationProvider({
+        manifest,
+        catalog,
+        approver: tools,
+        approvers: {
+          "invoice.send": [user("u1"), holder(approve)],
+          "support-session": anyOf(user("u1"), holder(approve)),
+        },
+      });
+      expect(provider.functions.isApprover).toBe(
+        "case {kind} " +
+          `when 'ai-tool' then permdock.permdock_is_approver('{"kind":"permission","permission":"tools.approve"}'::jsonb, ({tenant})::text) ` +
+          `when 'invoice.send' then permdock.permdock_is_approver('[{"kind":"user","id":"u1"},{"kind":"permission","permission":"invoice.approve"}]'::jsonb, ({tenant})::text) ` +
+          `when 'support-session' then permdock.permdock_is_approver('{"kind":"any-of","of":[{"kind":"user","id":"u1"},{"kind":"permission","permission":"invoice.approve"}]}'::jsonb, ({tenant})::text) ` +
+          "else false end",
+      );
+      expect(provider.functions).not.toHaveProperty("canApprove");
+      expect(provider).not.toHaveProperty("approvals");
+      expect(provider.requires).toContainEqual({
+        function: "permdock.permdock_is_approver",
+        args: "jsonb, text",
+        role: "postgres",
+      });
+      expect(provider.problems).toEqual([
+        expect.stringContaining("tools.approve is not in the catalog"),
+      ]);
+    });
+
+    it("keeps an ai-tool entry of its own over approver", () => {
+      const provider = authorizationProvider({
+        manifest,
+        catalog,
+        approver: tools,
+        approvers: { "ai-tool": user("u1") },
+      });
+      expect(provider.functions.isApprover).toBe(
+        `case {kind} when 'ai-tool' then permdock.permdock_is_approver('{"kind":"user","id":"u1"}'::jsonb, ({tenant})::text) else false end`,
+      );
+      expect(provider.problems).toBeUndefined();
+    });
+
+    it("quotes a kind and approver ids that hold quotes", () => {
+      const provider = authorizationProvider({
+        manifest,
+        catalog,
+        approvers: { "o'k": user("it's") },
+      });
+      expect(provider.functions.isApprover).toContain(
+        `when 'o''k' then permdock.permdock_is_approver('{"kind":"user","id":"it''s"}'::jsonb`,
+      );
+    });
+
+    it("reports approvers SQL cannot check, empty kinds and no kinds", () => {
+      const provider = authorizationProvider({
+        manifest,
+        catalog,
+        approvers: {
+          "": user("u1"),
+          "invoice.send": { kind: "role", role: "admin", scope: "tenant" },
+        },
+      });
+      expect(provider.problems).toEqual([
+        expect.stringContaining("empty kind"),
+        expect.stringContaining("a role approver"),
+      ]);
+      expect(provider.functions.isApprover).toContain("'invoice.send'");
+      const none = authorizationProvider({
+        manifest,
+        catalog,
+        approvers: {},
+      });
+      expect(none.functions).not.toHaveProperty("isApprover");
+      expect(none.problems).toEqual([expect.stringContaining("no kind")]);
+    });
+
+    it("falls back to canApprove without permdock_is_approver", () => {
+      const provider = authorizationProvider({
+        manifest: supabaseHookManifestFixture,
+        catalog: { ...catalog, permissions: [] },
+        approver: tools,
+        approvers: { "invoice.send": user("u1") },
+      });
+      expect(provider.functions).not.toHaveProperty("isApprover");
+      expect(provider.functions.canApprove).toBeDefined();
+      expect(provider.problems).toContainEqual(
+        expect.stringContaining("permdock.permdock_is_approver"),
+      );
+    });
+
+    it("says holder() approvers match nobody below the root scope", () => {
+      const nested = withRls({
+        scopes: [
+          { name: "tenant", type: "uuid" },
+          { name: "team", type: "uuid", within: "tenant" },
+        ],
+        helpers: manifest.rls.helpers,
+      });
+      const provider = authorizationProvider({
+        manifest: nested,
+        catalog,
+        scope: "team",
+        approvers: { "invoice.send": holder(approve) },
+      });
+      expect(provider.problems).toContainEqual(
+        expect.stringContaining('"team" is not a root scope'),
+      );
+    });
   });
 
   it("names Postgres id type aliases as better-supabase does and reports others", () => {

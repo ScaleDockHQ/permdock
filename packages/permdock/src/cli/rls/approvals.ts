@@ -15,6 +15,9 @@ import {
   permittedByPermissionHelper,
 } from "./permission-keys.ts";
 
+/** `rls.approvals`' approver check; better-supabase's `isApprover` template calls it. */
+export const IS_APPROVER = "permdock_is_approver";
+
 /** The objects `rls.approvals` adds. Names are part of the SQL contract `supabaseApprovalStore` calls. */
 const APPROVAL_STORE = {
   table: "approval_requests",
@@ -25,7 +28,7 @@ const APPROVAL_STORE = {
   list: "permdock_approval_list",
   expire: "permdock_approval_expire",
   cancel: "permdock_approval_cancel",
-  isApprover: "permdock_is_approver",
+  isApprover: IS_APPROVER,
 } as const;
 
 /** `body` as the row's filter columns hold it. */
