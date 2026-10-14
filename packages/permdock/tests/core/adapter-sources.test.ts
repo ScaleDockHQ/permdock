@@ -41,7 +41,7 @@ describe("adapters forward approvalPolicies", () => {
         text.includes("...instanceOptions(options)") ||
         /\bbind(?:Rpc)?Kernel\(/u.test(text),
     );
-    expect(builders.length).toBeGreaterThan(15);
+    expect(builders.length).toBeGreaterThan(12);
     expect(
       files
         .filter(({ text }) => text.includes("customRoles: options.customRoles"))

@@ -13,7 +13,7 @@ import { role } from "../../src/core/role-builder.ts";
 
 const Invoice = z.object({ id: z.string(), orgId: z.string() });
 
-export const chatPermissions = definePermissions({
+const chatPermissions = definePermissions({
   invoice: resource(Invoice, {
     id: "id",
     actions: ["read", "pay"],
@@ -36,7 +36,7 @@ export const chatPolicy = definePolicy(p, {
   subject: (user: Principal | null) => user,
 });
 
-export const invoices: Readonly<
+const invoices: Readonly<
   Record<string, { readonly id: string; readonly orgId: string }>
 > = {
   i1: { id: "i1", orgId: "o1" },

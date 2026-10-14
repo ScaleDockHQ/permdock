@@ -64,7 +64,7 @@ const principals: readonly Principal[] = [
   },
 ];
 
-export const deliveryMemberships = memoryMembershipSource({
+const deliveryMemberships = memoryMembershipSource({
   u_1: [{ scope: "tenant", id: "o1", roles: ["billing"] }],
   u_2: [{ scope: "tenant", id: "o1", roles: ["member"] }],
   u_3: [{ scope: "tenant", id: "o2", roles: ["member"] }],
