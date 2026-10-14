@@ -217,6 +217,52 @@ describe("grant change descriptions", () => {
   });
 });
 
+describe("operation findings", () => {
+  const refund = {
+    key: "post.read",
+    scope: "post:read",
+    resource: "post",
+    action: "read",
+    arity: "instance" as const,
+    meta: {},
+    usages: [],
+    rowConditions: false,
+  };
+
+  it("lists a raised risk and a removed approval without marking them breaking", () => {
+    const diff = compare([], [], {
+      a: {
+        permissions: [{ ...refund, approvals: ["human"] }],
+        operations: [
+          { name: "readPost", permission: "post.read", meta: { risk: "low" } },
+        ],
+      },
+      b: {
+        permissions: [refund],
+        operations: [
+          { name: "readPost", permission: "post.read", meta: { risk: "high" } },
+        ],
+      },
+    });
+    expect(diff.operations).toEqual([
+      {
+        code: "operation-risk-raised",
+        operation: "readPost",
+        permission: "post.read",
+        previous: "low",
+        risk: "high",
+      },
+      {
+        code: "operation-approval-removed",
+        operation: "readPost",
+        permission: "post.read",
+      },
+    ]);
+    expect(diff.breaking).toEqual([]);
+    expect(compare([], []).operations).toEqual([]);
+  });
+});
+
 describe("delegation change descriptions", () => {
   const toKind: CatalogDelegation = {
     from: { role: "member" },

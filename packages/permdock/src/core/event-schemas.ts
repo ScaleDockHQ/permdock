@@ -47,6 +47,7 @@ const actor: JsonSchemaNode = {
   properties: { id, kind: text },
   additionalProperties: false,
 };
+const risk: JsonSchemaNode = { enum: ["low", "medium", "high", "critical"] };
 const credentialKind: JsonSchemaNode = { enum: ["user", "service", "feed"] };
 const within: JsonSchemaNode = {
   type: "object",
@@ -430,21 +431,47 @@ export const CATALOG_EVENT_SCHEMA: JsonSchemaNode = family(
       findings: {
         type: "array",
         items: {
-          type: "object",
-          required: ["code", "permission"],
-          properties: {
-            code: {
-              enum: [
-                "permission-removed",
-                "not-hostable",
-                "grantee-removed",
-                "approval-tightened",
-              ],
+          oneOf: [
+            {
+              type: "object",
+              required: ["code", "permission"],
+              properties: {
+                code: {
+                  enum: [
+                    "permission-removed",
+                    "not-hostable",
+                    "grantee-removed",
+                    "approval-tightened",
+                  ],
+                },
+                permission: text,
+                grant: text,
+              },
+              additionalProperties: false,
             },
-            permission: text,
-            grant: text,
-          },
-          additionalProperties: false,
+            {
+              type: "object",
+              required: ["code", "permission", "operation", "previous", "risk"],
+              properties: {
+                code: { const: "operation-risk-raised" },
+                permission: text,
+                operation: text,
+                previous: risk,
+                risk,
+              },
+              additionalProperties: false,
+            },
+            {
+              type: "object",
+              required: ["code", "permission", "operation"],
+              properties: {
+                code: { const: "operation-approval-removed" },
+                permission: text,
+                operation: text,
+              },
+              additionalProperties: false,
+            },
+          ],
         },
       },
     },

@@ -1,3 +1,4 @@
+export { operationFindings } from "./operation-findings.ts";
 export { parseCatalog, rowConditionKeys } from "./parse.ts";
 export type {
   CatalogActivation,

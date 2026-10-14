@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { CatalogFinding } from "../../core/sink.ts";
 import type { CommandResult } from "../shared/result.ts";
 import type {
   CatalogDelegation,
@@ -11,6 +12,7 @@ import type {
   ScanResult,
 } from "../types.ts";
 
+import { operationFindings } from "../../catalog/operation-findings.ts";
 import { parseCatalog } from "../../catalog/parse.ts";
 import { canonicalJson } from "../../core/canonical-json.ts";
 import { secondsOf } from "../../core/time.ts";
@@ -114,6 +116,8 @@ export type CatalogDiff = {
     readonly removed: readonly CatalogDelegation[];
     readonly changed: readonly DelegationChange[];
   };
+  /** `operation-*` findings (`operationFindings`): a raised `meta.risk` or a removed approval; not breaking. */
+  readonly operations: readonly CatalogFinding[];
   readonly impact?: readonly ImpactRow[];
   readonly breaking: readonly BreakingChange[];
 };
@@ -633,6 +637,7 @@ export function diffCatalogs(original: Side, b: Side): CatalogDiff {
     roles: { ...roleNames, changed: changedRoles },
     ...(grants === undefined ? {} : { grants }),
     ...(delegations === undefined ? {} : { delegations }),
+    operations: operationFindings(original.catalog, b.catalog),
     breaking,
   };
 }
@@ -773,6 +778,16 @@ function formatText(diff: CatalogDiff): string {
       ),
     );
   }
+  section(
+    "operations",
+    [],
+    [],
+    diff.operations.map((finding) =>
+      finding.code === "operation-risk-raised"
+        ? `${finding.operation ?? ""} (${finding.permission}): risk ${finding.previous ?? ""} → ${finding.risk ?? ""}`
+        : `${finding.operation ?? ""} (${finding.permission}): approval no longer required`,
+    ),
+  );
   if (diff.impact !== undefined) {
     lines.push(
       diff.impact.length === 0

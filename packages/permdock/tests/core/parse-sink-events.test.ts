@@ -262,6 +262,45 @@ describe("parseCloudEvent", () => {
     expect(parseCatalogEventData(data)).toEqual(data);
     expect(parseCatalogEventData({ ...data, kind: "sync" })).toBeNull();
     expect(parseCatalogEventData("catalog")).toBeNull();
+    const operations = {
+      ...data,
+      findings: [
+        {
+          code: "operation-risk-raised",
+          permission: "invoice.refund",
+          operation: "refundInvoice",
+          previous: "medium",
+          risk: "critical",
+        },
+        {
+          code: "operation-approval-removed",
+          permission: "invoice.refund",
+          operation: "refundInvoice",
+        },
+      ],
+    };
+    expect(parseCatalogEventData(operations)).toEqual(operations);
+    for (const finding of [
+      { code: "operation-approval-removed", permission: "invoice.refund" },
+      {
+        code: "operation-risk-raised",
+        permission: "invoice.refund",
+        operation: "refundInvoice",
+        risk: "critical",
+      },
+      {
+        code: "operation-risk-raised",
+        permission: "invoice.refund",
+        operation: "refundInvoice",
+        previous: "medium",
+        risk: "extreme",
+      },
+      { code: "permission-removed", permission: "a.b", operation: "x" },
+    ]) {
+      expect(
+        parseCatalogEventData({ ...data, findings: [finding] }),
+      ).toBeNull();
+    }
     const envelope = {
       specversion: "1.0",
       type: CLOUD_EVENT_TYPES.catalogDrifted,

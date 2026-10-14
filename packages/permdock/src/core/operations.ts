@@ -13,7 +13,8 @@ export type OperationEffect =
   | "spend"
   | "external";
 
-const OPERATION_RISKS: readonly OperationRisk[] = Object.freeze([
+/** Every `meta.risk` level, lowest first. */
+export const OPERATION_RISKS: readonly OperationRisk[] = Object.freeze([
   "low",
   "medium",
   "high",

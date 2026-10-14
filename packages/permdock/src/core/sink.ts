@@ -11,6 +11,7 @@ import type {
   SinkEvent,
 } from "./event-types.ts";
 import type { DecisionSink, TokenSigner } from "./interfaces.ts";
+import type { OperationRisk } from "./operations.ts";
 import type { SupportSession } from "./support-session.ts";
 
 import { compact } from "./compact.ts";
@@ -98,18 +99,29 @@ export const CLOUDEVENTS_CONTENT_TYPE = "application/cloudevents+json";
 export const CLOUDEVENTS_BATCH_CONTENT_TYPE =
   "application/cloudevents-batch+json";
 
-/** Why a published catalog broke a live hosted grant, which the Cloud then suspends. */
+/**
+ * Why a published catalog drifted. The first four broke a live hosted grant,
+ * which the Cloud then suspends; the `operation-*` codes only report.
+ */
 export type CatalogFindingCode =
   | "permission-removed"
   | "not-hostable"
   | "grantee-removed"
-  | "approval-tightened";
+  | "approval-tightened"
+  | "operation-risk-raised"
+  | "operation-approval-removed";
 
 /** One drift finding: the permission key and, when one broke, the hosted grant id. */
 export type CatalogFinding = {
   readonly code: CatalogFindingCode;
   readonly permission: string;
   readonly grant?: string;
+  /** The operation name, on the `operation-*` codes. */
+  readonly operation?: string;
+  /** `meta.risk` before the publish, on `operation-risk-raised`; an unset risk is `low`. */
+  readonly previous?: OperationRisk;
+  /** `meta.risk` after the publish, on `operation-risk-raised`. */
+  readonly risk?: OperationRisk;
 };
 
 /** `data` of a `com.permdock.catalog.*` event: a `permdock cloud push` or a drift against live hosted grants. */

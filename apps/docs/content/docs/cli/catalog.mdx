@@ -95,6 +95,7 @@ const sqlEnforceable = catalog.permissions.filter(
 
 - `parseCatalog(json)` takes the JSON text or the parsed value. It checks it against `schemas/catalog-v1.json` and returns a deep-frozen copy built from own keys. A `__proto__` key stays an ordinary key, and an object with any other prototype, a cycle or a value JSON cannot carry is rejected. On failure it throws `PermDockValidationError` with `code: 'invalid-data'`, `boundary: 'catalog'` and every issue with its `path`.
 - `rowConditionKeys(catalog)` is the set of keys marked `rowConditions: true`: permissions whose code grants depend on more than role and scope, so a policy that calls only the SQL helpers would widen access ([RLS](/docs/adapters/rls#sql-helper-contract)).
+- `operationFindings(previous, next)` compares the `operations` of two catalogs by name and returns the `operation-risk-raised` and `operation-approval-removed` [findings](/docs/concepts/wire-formats#decision-event): a `meta.risk` that rose, or a permission that no longer lists `approvals`. A new or removed operation is not a finding.
 - `catalogPath(config, cwd, out?)` resolves the file the same way `collect` writes it: `out`, then `collect.out`, then `catalog.out`, then `permissions.catalog.json`.
 - The types (`CatalogDocument`, `CatalogPermission`, `CatalogResource`, `CatalogRole`, `CatalogScope`, `CatalogGrant`, `CatalogValidity`, `CatalogApproval`, `CatalogBreakGlass`, `CatalogActivation`, `CatalogSupportAccess`, `CatalogUsage`) are exported from both `permdock/catalog` and `permdock/cli`.
 
