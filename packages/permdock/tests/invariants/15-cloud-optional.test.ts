@@ -6,6 +6,9 @@ import {
   memoryApprovalStore,
   resumeDecision,
 } from "../../src/approvals/index.ts";
+import * as cloudEntry from "../../src/cloud/index.ts";
+import { cloudApprovalWaiter } from "../../src/cloud/index.ts";
+import { toCloudEvent } from "../../src/core/sink.ts";
 import {
   type Decision,
   type DecisionSink,
@@ -143,5 +146,65 @@ describe("invariant 15: the Cloud is optional and never on the decision path", (
       token: first.token,
     });
     expect(resumed.outcome).toBe("approval-required");
+  });
+
+  it("a Cloud wake ends the wait but never grants", async () => {
+    const store = memoryApprovalStore();
+    const permdock = await createPermDock(policy, memberUser);
+    const decision = pending(permdock.decide(permissions.post.delete, ownPost));
+    const resolved = toCloudEvent(
+      {
+        type: "decision",
+        at: new Date().toISOString(),
+        outcome: "granted",
+        permission: "post.delete",
+        scope: "post:delete",
+        resource: { type: "post", id: ownPost.id },
+        subject: { principal: { id: "u_cloud", roles: ["admin"] } },
+        trusted: true,
+        call: "approval",
+        phase: "resolved",
+        token: decision.token,
+      },
+      { source: "https://api.permdock.test/v1/environments/production" },
+    );
+    const waiter = cloudApprovalWaiter({
+      store,
+      verifier: {
+        verify: async () => ({
+          ok: true,
+          id: "msg_1",
+          timestamp: new Date().toISOString(),
+          body: JSON.stringify([resolved]),
+        }),
+      },
+    });
+    const response = await waiter.webhook(
+      new Request("https://app.example.com/permdock", {
+        method: "POST",
+        body: "[]",
+      }),
+    );
+    expect(response.status).toBe(204);
+    await waiter.wait(decision.token);
+    const resumed = await resumeDecision({
+      decision,
+      permission: permissions.post.delete,
+      subject: permdock.subject,
+      store,
+      resource: { type: "post", id: ownPost.id },
+      adapter: "test",
+      token: decision.token,
+    });
+    expect(resumed.outcome).toBe("denied");
+  });
+
+  it("permdock/cloud supplies no subject, membership or decision", () => {
+    const names = Object.keys(cloudEntry);
+    expect(
+      names.filter((name) =>
+        /^(subjectFrom|membership|decide|can$|createPermDock)/iu.test(name),
+      ),
+    ).toEqual([]);
   });
 });

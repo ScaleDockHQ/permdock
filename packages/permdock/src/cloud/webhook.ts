@@ -1,7 +1,9 @@
 import type {
   AccessEvent,
+  AutomationEvent,
   CredentialEvent,
   DecisionEvent,
+  DeliveryEvent,
   DirectoryEvent,
   MembershipEvent,
 } from "../core/event-types.ts";
@@ -75,6 +77,21 @@ export type PermDockCloudEvent =
   | Envelope<
       Types["supportSessionStarted"] | Types["supportSessionEnded"],
       AccessEvent
+    >
+  | Envelope<
+      | Types["automationPublished"]
+      | Types["automationChanged"]
+      | Types["automationRevoked"]
+      | Types["automationRun"],
+      AutomationEvent
+    >
+  | Envelope<
+      | Types["deliverySent"]
+      | Types["deliveryDelivered"]
+      | Types["deliveryBounced"]
+      | Types["deliveryComplained"]
+      | Types["deliveryFailed"],
+      DeliveryEvent
     >;
 
 export type VerifyWebhookOptions = {

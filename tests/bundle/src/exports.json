@@ -104,6 +104,8 @@
     "parseAutomation",
     "parseCapability",
     "parseCapabilityClaim",
+    "parseCatalogEventData",
+    "parseCloudEvent",
     "parseCloudEventBatch",
     "parseCredential",
     "parseLocalSnapshotManifest",
@@ -513,7 +515,16 @@
     "sha256Hex",
     "tenantFromPath"
   ],
-  "./cloud": ["cloud", "cloudEndpoints", "parseCloudEvent", "verifyWebhook"],
+  "./cloud": [
+    "approvalTokensOf",
+    "cloud",
+    "cloudApprovalWaiter",
+    "cloudDeliveryTransport",
+    "cloudEndpoints",
+    "cloudSigner",
+    "parseCloudEvent",
+    "verifyWebhook"
+  ],
   "./delivery": [
     "approvalPrompt",
     "approvalUrlFor",

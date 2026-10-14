@@ -7,17 +7,14 @@ import type {
   ApprovalStore,
   ApprovalVerdict,
 } from "../approvals/types.ts";
+import type { CatalogDocument } from "../catalog/types.ts";
 import type { SinkEvent } from "../core/event-types.ts";
 import type { DecisionSink, SnapshotSource } from "../core/interfaces.ts";
-import type {
-  CloudClient,
-  CloudEndpointOptions,
-  CloudEndpoints,
-  CloudOptions,
-} from "./types.ts";
+import type { CloudCatalog, CloudClient, CloudOptions } from "./types.ts";
 
 import { ApprovalError, isApprovalErrorCode } from "../approvals/errors.ts";
 import { APPROVAL_HEADER } from "../approvals/types.ts";
+import { catalogFingerprint } from "../core/catalog-fingerprint.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import {
@@ -31,32 +28,9 @@ import {
   toCloudEvent,
 } from "../core/sink.ts";
 import { dateAt, type Instant } from "../core/time.ts";
-import { timeoutSignal } from "../core/timeout.ts";
+import { cloudConnection, isCompactJws } from "./request.ts";
 
-/** Milliseconds a PermDock Cloud request may take; a slower one fails like an unreachable Cloud. */
-const CLOUD_TIMEOUT_MS = 10_000;
-
-function readEnv(name: string): string {
-  // SAFETY: process is optional here and the env value is typeof-checked before use.
-  const runtime = globalThis as {
-    readonly process?: { readonly env?: Record<string, string | undefined> };
-  };
-  const value = runtime.process?.env?.[name];
-  return typeof value === "string" ? value : "";
-}
-
-function firstNonEmpty(...values: readonly (string | undefined)[]): string {
-  for (const value of values) {
-    if (value !== undefined && value !== "") {
-      return value;
-    }
-  }
-  return "";
-}
-
-function trimSlash(value: string): string {
-  return value.endsWith("/") ? value.slice(0, -1) : value;
-}
+export { cloudEndpoints } from "./request.ts";
 
 function asApproval(value: unknown): ApprovalRequest | null {
   if (
@@ -68,10 +42,6 @@ function asApproval(value: unknown): ApprovalRequest | null {
   }
   // SAFETY: a v1 approval request from the Cloud with a string token; resume re-runs decide.
   return value as ApprovalRequest;
-}
-
-function isCompactJws(value: string): boolean {
-  return !value.startsWith("{") && value.split(".").length === 3;
 }
 
 /** The refusal PermDock Cloud names in its body, else the one its status implies. */
@@ -106,68 +76,10 @@ function approvalErrorFromStatus(status: number): ApprovalError {
   return new ApprovalError("approval-not-found", "approval was not found");
 }
 
-/**
- * The environment URL and JWK Set URL `cloud()` uses, resolved with the same
- * fallbacks (`PERMDOCK_CLOUD_URL`; `PERMDOCK_CLOUD_ENV`, `VERCEL_ENV`, `production`).
- */
-export function cloudEndpoints(
-  options: CloudEndpointOptions = {},
-): CloudEndpoints {
-  const url = trimSlash(
-    firstNonEmpty(options.url, readEnv("PERMDOCK_CLOUD_URL")),
-  );
-  if (url === "") {
-    throw new Error("PermDock: cloud() requires url and key.");
-  }
-  const environment = firstNonEmpty(
-    options.environment,
-    readEnv("PERMDOCK_CLOUD_ENV"),
-    readEnv("VERCEL_ENV"),
-    "production",
-  );
-  const issuer = `${url}/v1/environments/${encodeURIComponent(environment)}`;
-  return Object.freeze({ issuer, jwks: `${issuer}/.well-known/jwks.json` });
-}
-
 export function cloud(options: CloudOptions = {}): CloudClient {
-  const key = firstNonEmpty(options.key, readEnv("PERMDOCK_CLOUD_KEY"));
-  if (key === "") {
-    throw new Error("PermDock: cloud() requires url and key.");
-  }
-  const { issuer: root, jwks } = cloudEndpoints(options);
-  const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const { issuer: root, jwks, request } = cloudConnection(options);
   const flushAt = options.flushAt ?? 32;
   const waitUntil = options.waitUntil;
-
-  const headers = (): Headers => {
-    const next = new Headers();
-    next.set("authorization", `Bearer ${key}`);
-    next.set("content-type", "application/json");
-    return next;
-  };
-
-  const request = (
-    path: string,
-    init: RequestInit = {},
-    accept?: string,
-    contentType?: string,
-  ): Promise<Response> => {
-    const next = headers();
-    for (const [name, value] of new Headers(init.headers)) {
-      next.set(name, value);
-    }
-    if (accept !== undefined) {
-      next.set("accept", accept);
-    }
-    if (contentType !== undefined) {
-      next.set("content-type", contentType);
-    }
-    return fetchFn(`${root}${path}`, {
-      ...init,
-      headers: next,
-      signal: timeoutSignal(CLOUD_TIMEOUT_MS, init.signal),
-    });
-  };
 
   const approvals: ApprovalStore = {
     async create(record: ApprovalRequest): Promise<void> {
@@ -432,11 +344,30 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     },
   };
 
+  const catalog: CloudCatalog = {
+    async push(
+      value: CatalogDocument,
+    ): Promise<{ readonly fingerprint: string }> {
+      const fingerprint = catalogFingerprint(value);
+      const response = await request("/catalog", {
+        method: "POST",
+        body: JSON.stringify({ fingerprint, catalog: value }),
+      });
+      if (!response.ok) {
+        throw new Error(
+          `PermDock Cloud rejected the catalog: HTTP ${String(response.status)}`,
+        );
+      }
+      return { fingerprint };
+    },
+  };
+
   return freezeDeep({
     approvals,
     sink,
     snapshots,
     policies,
+    catalog,
     issuer: root,
     jwks,
   });
