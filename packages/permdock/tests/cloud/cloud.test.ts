@@ -26,6 +26,19 @@ import {
 const CLOUD_URL = "https://cloud.permdock.test";
 const CLOUD_ENV = `${CLOUD_URL}/v1/environments/production`;
 const KEY = "env-key";
+const approver = {
+  signer: joseTokenSigner({
+    key: {
+      crv: "Ed25519",
+      d: "qco_Uh5slpzay2a-eC3woOxpC4DlS6aEzLtBRjrdtd4",
+      x: "79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ",
+      kty: "OKP",
+    },
+    alg: "Ed25519",
+    kid: "app-2026",
+    issuer: "https://app.example.com",
+  }),
+};
 const SNAPSHOT: Snapshot = {
   v: 1,
   issuedAt: "1970-01-01T00:00:01Z",
@@ -91,12 +104,15 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
     }
     const token = request.headers.get("PermDock-Approval") ?? "";
     if (method === "POST" && path === "/approvals/by-token/resolve") {
+      // SAFETY: the cloud client under test posts the resolution it was given.
+      const verdict = (await request.json()) as Parameters<
+        typeof store.resolve
+      >[1];
+      const system =
+        verdict.status === "rejected" && verdict.by.actor?.kind === "system";
+      expect(request.headers.has("PermDock-Approver")).toBe(!system);
       try {
-        // SAFETY: the cloud client under test posts the resolution it was given.
-        const next = store.resolve(
-          token,
-          (await request.json()) as Parameters<typeof store.resolve>[1],
-        );
+        const next = store.resolve(token, verdict);
         return json(next);
       } catch (error) {
         if (isApprovalError(error)) {
@@ -389,6 +405,7 @@ describe("cloud", () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
+      approver,
       fetch: fakeCloud().fetch,
     });
     const request: ApprovalRequest = {
@@ -431,19 +448,19 @@ describe("cloud", () => {
     expect(second.items).toHaveLength(1);
     expect(second.items[0]?.token).not.toBe(first.items[0]?.token);
     expect(second.next).toBeUndefined();
-    const approver: Subject = {
+    const person: Subject = {
       principal: { id: "u_9", roles: ["admin"] },
       context: {},
     };
     const resolved = await client.approvals.resolve("opaque-token", {
       status: "approved",
-      by: approver,
+      by: person,
     });
     expect(resolved.status).toBe("approved");
     await expect(
       client.approvals.resolve("opaque-token", {
         status: "rejected",
-        by: approver,
+        by: person,
       }),
     ).rejects.toThrow(/not pending/);
     await client.approvals.create({
@@ -506,6 +523,7 @@ describe("cloud", () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
+      approver,
       fetch: fakeCloud().fetch,
     });
     const request: ApprovalRequest = {
@@ -650,6 +668,7 @@ describe("cloud conformance", () => {
   const client = cloud({
     url: CLOUD_URL,
     key: KEY,
+    approver,
     flushAt: 1,
     fetch: fakeCloud({ snapshot: "aaa.bbb.ccc" }).fetch,
   });
@@ -703,12 +722,13 @@ describe("cloud approval refusals", () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
+      approver,
       fetch: () => Promise.resolve(response),
     });
     const refused = await Promise.resolve(
       client.approvals.resolve("t", {
         status: "approved",
-        by: { principal: null, context: {} },
+        by: { principal: { id: "u_9", roles: [] }, context: {} },
       }),
     ).then(
       () => undefined,

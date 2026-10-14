@@ -4,6 +4,7 @@ import type { PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   SnapshotSource,
+  TokenSigner,
   TokenVerifier,
 } from "../core/interfaces.ts";
 
@@ -26,7 +27,24 @@ export type CloudConnectionOptions = CloudEndpointOptions & {
   readonly fetch?: typeof fetch;
 };
 
+/** Who signs the `PermDock-Approver` token `approvals.resolve` sends. */
+export type CloudApproverOptions = {
+  /**
+   * Signs the token with a key the environment trusts as an issuer, such as
+   * `joseTokenSigner` over your own key. Never `cloudSigner`: a client key
+   * that could mint approver tokens could forge any approver.
+   */
+  readonly signer: TokenSigner;
+  /** `aud` of the token; defaults to `<issuer>/approvals`, the environment URL plus `/approvals`. */
+  readonly audience?: string | readonly string[];
+};
+
 export type CloudOptions = CloudConnectionOptions & {
+  /**
+   * Proves the approver on `approvals.resolve`. Without it, every resolve but
+   * a `system` rejection throws `approver-unauthenticated` and sends nothing.
+   */
+  readonly approver?: CloudApproverOptions;
   readonly flushAt?: number;
   /** Most events the sink holds while the Cloud is unreachable (default 10 000); the oldest are dropped first. */
   readonly capacity?: number;

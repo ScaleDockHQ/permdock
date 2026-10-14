@@ -28,6 +28,7 @@ import {
   toCloudEvent,
 } from "../core/sink.ts";
 import { dateAt, type Instant } from "../core/time.ts";
+import { approverHeaders } from "./approver.ts";
 import { cloudConnection, isCompactJws } from "./request.ts";
 
 export { cloudEndpoints } from "./request.ts";
@@ -119,9 +120,10 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       token: string,
       verdict: ApprovalVerdict,
     ): Promise<ApprovalRequest> {
+      const approver = await approverHeaders(verdict, options.approver, root);
       const response = await request("/approvals/by-token/resolve", {
         method: "POST",
-        headers: { [APPROVAL_HEADER]: token },
+        headers: { [APPROVAL_HEADER]: token, ...approver },
         body: JSON.stringify(verdict),
       });
       if (!response.ok) {

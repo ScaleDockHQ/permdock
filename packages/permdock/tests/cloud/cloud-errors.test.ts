@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ApprovalRequest } from "../../src/approvals/types.ts";
 import type { SinkEvent } from "../../src/core/event-types.ts";
-import type { TokenVerifier } from "../../src/core/interfaces.ts";
+import type { TokenSigner, TokenVerifier } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { isApprovalError } from "../../src/approvals/errors.ts";
@@ -12,6 +12,10 @@ import { fakeFetch, json } from "../fakes/fetch.ts";
 
 const CLOUD_URL = "https://cloud.permdock.test";
 
+const approverSigner: TokenSigner = {
+  sign: () => Promise.resolve("approver.token.sig"),
+};
+
 function client(
   reply: Parameters<typeof fakeFetch>[0],
   extra: Parameters<typeof cloud>[0] = {},
@@ -19,7 +23,13 @@ function client(
   const fake = fakeFetch(reply);
   return {
     ...fake,
-    client: cloud({ url: CLOUD_URL, key: "k", fetch: fake.fetch, ...extra }),
+    client: cloud({
+      url: CLOUD_URL,
+      key: "k",
+      fetch: fake.fetch,
+      approver: { signer: approverSigner },
+      ...extra,
+    }),
   };
 }
 

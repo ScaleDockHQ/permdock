@@ -9,11 +9,15 @@ type SignOptions = Parameters<TokenSigner["sign"]>[1];
 
 const REGISTERED = new Set(["iss", "aud", "exp", "iat", "nbf", "jti"]);
 
-/** The Cloud's own outputs; a client key that could mint them could forge them. */
+/**
+ * The Cloud's own outputs and access tokens; a client key that could mint
+ * them could forge them, or forge the approver behind `PermDock-Approver`.
+ */
 const CLOUD_ISSUED: ReadonlySet<string> = new Set([
   "vnd.permdock.policy+jwt",
   "vnd.permdock.snapshot+jwt",
   "vnd.permdock.evidence+jwt",
+  "at+jwt",
 ]);
 
 function headerTyp(token: string): unknown {
@@ -32,8 +36,8 @@ function headerTyp(token: string): unknown {
  * KMS-held, for run tickets (`vnd.permdock.run+jwt`) and every other signed
  * output an app issues. The Cloud signs only what the app sends: it sets
  * `iss` to the environment URL and adds no claim. Policy documents,
- * snapshots and evidence exports are the Cloud's own outputs, so their
- * `typ` values are refused here. Verify what it signs with
+ * snapshots, evidence exports and `at+jwt` access tokens are the Cloud's own
+ * outputs, so their `typ` values are refused here. Verify what it signs with
  * `joseTokenVerifier({ jwks: cloudEndpoints().jwks })`.
  */
 export function cloudSigner(options: CloudSignerOptions = {}): TokenSigner {
