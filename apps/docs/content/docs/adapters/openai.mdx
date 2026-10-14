@@ -84,7 +84,7 @@ if (pending.length === 0) result = await run(agent, state); // every interruptio
 - `resolveInterruptions(state, interruptions, { context })` decides each interruption in order. `granted` (including an approved record, which it consumes) calls `state.approve(i)`; `denied` (including a rejected, consumed or expired record) calls `state.reject(i, { message })` with the Decision's reason; `approval-required` writes or finds the pending `ApprovalRequest` and returns it. An interruption whose name or JSON arguments cannot be read is rejected. The token is recomputed from permission, resource, principal, actor and arguments, so any process with the same store finds the record.
 - `getPermDock(context)` returns a request-scoped `PermDock` for checks inside `execute`.
 - `subject` and `actor` read from the `RunContext` the application passes to `run`; nothing is read from model output. `delegation` reads from the same context and has no default: an `actor` with no `delegation` is denied every tool with reason `no-delegation`.
-- `operations` maps SDK tool names to permissions; build it with `defineOperations` ([operations](/docs/concepts/permissions#operations)).
+- `operations` maps SDK tool names to permissions; build it with `defineOperations` ([operations](/docs/concepts/operations)).
 - `context`, `otel`, `wrap` and `deniedText` behave as on [`permdock/ai-sdk`](/docs/adapters/ai-sdk#api). `unmapped: 'allow'` keeps a tool `operations` does not name in `guardTools`, and `resolveInterruptions` leaves its interruption for the application to answer; the default `'deny'` drops and rejects it.
 
 ## Request lifecycle

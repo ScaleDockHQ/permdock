@@ -15,6 +15,7 @@
     "support-sessions",
     "capabilities",
     "credentials",
+    "operations",
     "agents",
     "automations",
     "delivery",
