@@ -15,7 +15,8 @@ const clock = new Intl.DateTimeFormat("en-GB", {
 export function SnapshotStamp() {
   const permdock = usePermDock();
   const { issuedAt } = permdock.snapshot();
-  if (permdock.status() === "pending" || issuedAt === 0) {
+  const issued = Date.parse(issuedAt);
+  if (permdock.status() === "pending" || !(issued > 0)) {
     return <Skeleton className="hidden h-4 w-32 md:block" />;
   }
   return (
@@ -24,7 +25,7 @@ export function SnapshotStamp() {
       data-issued-at={issuedAt}
       className="text-muted-foreground hidden text-xs tabular-nums md:inline"
     >
-      Access issued {clock.format(issuedAt * 1000)} UTC
+      Access issued {clock.format(issued)} UTC
     </span>
   );
 }

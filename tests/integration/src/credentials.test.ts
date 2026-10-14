@@ -10,7 +10,6 @@ import type { StoredCredential } from "permdock/server";
 import {
   allow,
   createPermDock,
-  decideCredential,
   definePermissions,
   definePolicy,
   resource,
@@ -100,18 +99,20 @@ const verifier = apiKeyVerifier({
   },
 });
 
-const resolveKey = subjectFromApiKey({
-  verifier,
-  permissions,
-  settings,
-  revoked: async (id) =>
-    (
-      await db.admin.query(
-        "select 1 from api_keys where id = $1 and revoked_at is not null",
-        [id],
-      )
-    ).rowCount !== 0,
-});
+const resolveKey = (key: string, scope: { readonly tenant?: string } = {}) =>
+  subjectFromApiKey(key, {
+    verifier,
+    permissions,
+    settings,
+    revoked: async (id) =>
+      (
+        await db.admin.query(
+          "select 1 from api_keys where id = $1 and revoked_at is not null",
+          [id],
+        )
+      ).rowCount !== 0,
+    ...scope,
+  });
 
 async function store(
   credential: Credential,
@@ -150,6 +151,7 @@ async function creator(id: string) {
 }
 
 const DAY = 86_400;
+const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
 const conformanceKey = generateApiKey("conformance");
 
 beforeAll(async () => {
@@ -163,8 +165,8 @@ beforeAll(async () => {
       principal: "u_1",
       permissions: [{ permission: "repo.read" }],
       createdBy: "u_1",
-      createdAt: now,
-      expiresAt: now + DAY,
+      createdAt: at(now),
+      expiresAt: at(now + DAY),
     },
     conformanceKey,
   );
@@ -186,13 +188,12 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
 
   it("stores only the hash and finds the key by its id", async () => {
     const creating = await creator("u_1");
-    const decision = await decideCredential(
-      creating,
+    const decision = await creating.decideCredential(
       {
         kind: "user",
         id: "key_user",
         permissions: [repo.read],
-        expiresAt: Math.floor(Date.now() / 1000) + DAY,
+        expiresAt: at(Math.floor(Date.now() / 1000) + DAY),
       },
       { settings },
     );
@@ -223,8 +224,8 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
       principal: "u_2",
       permissions: [{ permission: "repo.delete" }],
       createdBy: "u_2",
-      createdAt: now,
-      expiresAt: now + DAY,
+      createdAt: at(now),
+      expiresAt: at(now + DAY),
     });
     const [r1] = await repos();
     expect((await permdockFor(key)).can(repo.delete, r1)).toBe(true);
@@ -237,15 +238,14 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
   it("creates a service key inside the creator ceiling and the tenant policy", async () => {
     const developer = await creator("u_1");
     const expiresAt = Math.floor(Date.now() / 1000) + DAY;
-    const tooWide = await decideCredential(
-      developer,
+    const tooWide = await developer.decideCredential(
       {
         kind: "service",
         id: "svc_wide",
         tenant: "o_1",
         roles: ["admin"],
         permissions: [repo.delete],
-        expiresAt,
+        expiresAt: at(expiresAt),
       },
       { settings },
     );
@@ -253,23 +253,21 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
       outcome: "denied",
       denials: [{ reason: "exceeds-creator" }],
     });
-    const tooLong = await decideCredential(
-      developer,
+    const tooLong = await developer.decideCredential(
       {
         kind: "service",
         id: "svc_long",
         tenant: "o_1",
         roles: ["developer"],
         permissions: [repo.read],
-        expiresAt: expiresAt + 90 * DAY,
+        expiresAt: at(expiresAt + 90 * DAY),
       },
       { settings },
     );
     expect(tooLong).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
     });
-    const decision = await decideCredential(
-      developer,
+    const decision = await developer.decideCredential(
       {
         kind: "service",
         id: "svc_ci",
@@ -277,7 +275,7 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
         tenant: "o_1",
         roles: ["developer"],
         permissions: [{ permission: repo.write, ids: ["r_1"] }],
-        expiresAt,
+        expiresAt: at(expiresAt),
       },
       { settings },
     );
@@ -308,8 +306,8 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
       roles: ["developer"],
       permissions: [{ permission: "repo.read" }],
       createdBy: "u_1",
-      createdAt: now,
-      expiresAt: now + 7 * DAY,
+      createdAt: at(now),
+      expiresAt: at(now + 7 * DAY),
     });
     expect((await permdockFor(key)).subject.principal?.id).toBe("nightly");
     await db.admin.query(

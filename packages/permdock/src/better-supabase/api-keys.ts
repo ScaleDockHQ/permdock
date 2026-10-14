@@ -42,14 +42,16 @@ export type KeyRecord = {
   readonly userId?: string;
   readonly scopes: readonly string[];
   readonly createdBy?: string;
-  /** Seconds since epoch. */
-  readonly createdAt?: number;
-  /** Seconds since epoch. */
-  readonly expiresAt?: number;
+  /** RFC 3339. */
+  readonly createdAt?: string;
+  /** RFC 3339. */
+  readonly expiresAt?: string;
 };
 
-const seconds = (instant: Temporal.Instant): number =>
-  Math.floor(instant.epochMilliseconds / 1000);
+const EPOCH = "1970-01-01T00:00:00.000Z";
+
+const rfc3339Of = (instant: Temporal.Instant): string =>
+  new Date(instant.epochMilliseconds).toISOString();
 
 /** When a key stops verifying: its expiry, or the end of a rotated key's grace period. */
 function endOf(key: ApiKey): Temporal.Instant | undefined {
@@ -90,7 +92,7 @@ export function keyCredential(
     id: key.id,
     permissions: scopes.map((permission) => ({ permission })),
     createdBy: key.createdBy ?? owner ?? key.id,
-    createdAt: key.createdAt ?? 0,
+    createdAt: key.createdAt ?? EPOCH,
     ...(key.expiresAt === undefined ? {} : { expiresAt: key.expiresAt }),
     name: key.name,
   };
@@ -153,7 +155,7 @@ export function apiKeyVerifier(
             id: key.publicId,
             name: key.name,
             scopes: key.scopes,
-            createdAt: seconds(key.createdAt),
+            createdAt: rfc3339Of(key.createdAt),
             ...(key.organizationId === undefined
               ? {}
               : { organizationId: key.organizationId }),
@@ -161,7 +163,7 @@ export function apiKeyVerifier(
             ...(key.createdBy === undefined
               ? {}
               : { createdBy: key.createdBy }),
-            ...(end === undefined ? {} : { expiresAt: seconds(end) }),
+            ...(end === undefined ? {} : { expiresAt: rfc3339Of(end) }),
           },
           roles,
           options.allPermissions,

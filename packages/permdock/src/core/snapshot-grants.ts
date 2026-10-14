@@ -4,6 +4,7 @@ import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { type Condition, hasConditionOp } from "../conditions/ast.ts";
 import { compact } from "./compact.ts";
+import { contactMayUse } from "./contact.ts";
 import {
   type CustomGrant,
   customGrantsFor,
@@ -153,6 +154,9 @@ export function collectSnapshotGrants(
         );
   const out: { readonly grant: Grant; readonly membership?: Membership }[] = [];
   for (const grant of grantList(policy)) {
+    if (!contactMayUse(policy, subject, grant)) {
+      continue;
+    }
     if (
       mode === "held" &&
       !coversRequirements(
@@ -206,6 +210,9 @@ export function collectSnapshotGrants(
     }
   }
   for (const { grant, role } of customGrants) {
+    if (!contactMayUse(policy, subject, grant)) {
+      continue;
+    }
     const globalHeld = holdsGlobalCustomRole(subject.principal?.roles, role);
     const holders = held.filter(
       (entry) =>

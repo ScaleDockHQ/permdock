@@ -8,12 +8,12 @@ import {
   type LimitStore,
   type Principal,
   type RevocationFeed,
-  type RoleSource,
+  type CustomRoleSource,
   type Subject,
   createPermDock,
   memoryLimitStore,
   memoryRevocationFeed,
-  memoryRoleSource,
+  memoryCustomRoleSource,
 } from "../../index.ts";
 import { saasPolicy } from "../saas/policy.ts";
 import {
@@ -57,7 +57,7 @@ export type HttpScenarioDomain = {
   ) => AsyncIterable<SaasProject>;
   /** The `:org` segment of a path; mounts may read their route param instead. */
   readonly org: (path: string) => string | undefined;
-  readonly customRoles: RoleSource;
+  readonly customRoles: CustomRoleSource;
   readonly store: ApprovalStore;
   readonly limits: LimitStore;
   /** A project row by id, whatever its org: tenant checks belong to the policy. */
@@ -263,7 +263,7 @@ export function createDomain(): HttpScenarioDomain & Demotions {
       };
     },
     org: orgOf,
-    customRoles: memoryRoleSource(saasCustomRoles),
+    customRoles: memoryCustomRoleSource(saasCustomRoles),
     store: memoryApprovalStore(),
     limits: memoryLimitStore(),
     project: (id) =>

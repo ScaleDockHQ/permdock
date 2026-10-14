@@ -42,29 +42,39 @@ function quota(
 }
 
 describe("assertLimit windows", () => {
-  it.each([
-    { per: "hour", valid: true },
-    { per: " 15 MIN ", valid: true },
-    { per: "2 days", valid: true },
-    { per: "0 min", valid: false },
-    { per: "3 fortnights", valid: false },
-    { per: "sometimes", valid: false },
+  it.each<{ per: unknown; valid: boolean }>([
+    { per: 3600, valid: true },
+    { per: 1, valid: true },
+    { per: 0, valid: false },
+    { per: -60, valid: false },
+    { per: 1.5, valid: false },
+    { per: Number.POSITIVE_INFINITY, valid: false },
+    { per: "hour", valid: false },
+    { per: "1h", valid: false },
   ])("accepts $per: $valid", ({ per, valid }) => {
     let message = "";
     try {
-      assertLimit({ count: 1, per }, "report.export");
+      // SAFETY: the invalid rows test what a caller without types can pass.
+      assertLimit({ count: 1, per: per as number }, "report.export");
     } catch (error) {
       message = String(error);
     }
-    expect(message.includes("is not a duration")).toBe(!valid);
+    expect(message.includes("must be a whole number of seconds")).toBe(!valid);
   });
 });
 
 describe("memoryLimitStore", () => {
-  const input = { key: "k", subjectId: "u1", count: 2, per: "hour", now: NOW };
+  const input = {
+    key: "k",
+    subjectId: "u1",
+    count: 2,
+    per: 3600,
+    now: { epochMilliseconds: NOW * 1000 },
+  };
 
   it.each([
-    { name: "an unknown window", change: { per: "sometimes" } },
+    { name: "a fractional window", change: { per: 1.5 } },
+    { name: "a negative window", change: { per: -3600 } },
     { name: "a zero count", change: { count: 0 } },
     { name: "an infinite count", change: { count: Number.POSITIVE_INFINITY } },
   ])("fails closed on $name", ({ change }) => {
@@ -82,9 +92,14 @@ describe("memoryLimitStore", () => {
 
   it("sweeps only the counters whose window has passed", () => {
     const store = memoryLimitStore();
-    store.consume({ ...input, key: "minute", per: "minute" });
-    store.consume({ ...input, key: "day", per: "day" });
-    store.consume({ ...input, key: "later", per: "hour", now: NOW + 120 });
+    store.consume({ ...input, key: "minute", per: 60 });
+    store.consume({ ...input, key: "day", per: 86_400 });
+    store.consume({
+      ...input,
+      key: "later",
+      per: 3600,
+      now: { epochMilliseconds: (NOW + 120) * 1000 },
+    });
     expect(store.size()).toBe(2);
   });
 
@@ -99,10 +114,10 @@ describe("memoryLimitStore", () => {
 });
 
 describe("applyQuota peeking", () => {
-  const limit = { count: 3, per: "hour" };
+  const limit = { count: 3, per: 3600 };
 
   it("refuses a window no store can count", () => {
-    expect(quota({ count: 3, per: "sometimes" })).toEqual({
+    expect(quota({ count: 3, per: 0.5 })).toEqual({
       ok: false,
       reason: "limit-unavailable",
     });
@@ -120,7 +135,7 @@ describe("applyQuota peeking", () => {
         null,
         "u1",
         "report.export",
-        "hour",
+        3600,
         String(Math.floor(NOW / 3600)),
       ]),
       2,
@@ -130,7 +145,12 @@ describe("applyQuota peeking", () => {
       missing: { ok: false, reason: "limit-unavailable" },
       cached: {
         ok: true,
-        quota: { remaining: 1, resetsAt: (Math.floor(NOW / 3600) + 1) * 3600 },
+        quota: {
+          remaining: 1,
+          resetsAt: new Date(
+            (Math.floor(NOW / 3600) + 1) * 3_600_000,
+          ).toISOString(),
+        },
       },
     });
   });

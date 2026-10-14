@@ -19,7 +19,7 @@ import { resolveRelated } from "permdock/prisma";
 import {
   type OrmParityCase,
   type OrmParityScenario,
-  ormParity,
+  testOrmParity,
 } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -114,7 +114,7 @@ describe("ORM parity over the relation graph: match, includes, groups, links, re
   for (const [label, mapping] of Object.entries(mappings)) {
     it(`drizzle, ${label}`, async () => {
       const db = drizzle({ client: database() });
-      const report = await ormParity(policy, scenarios(), {
+      const report = await testOrmParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
           // SAFETY: every scenario's resource is one of the seeded Resource tables
           const table = tables[scenario.permission.resource as Resource];
@@ -141,7 +141,7 @@ describe("ORM parity over the relation graph: match, includes, groups, links, re
           createQueryCompiler: () => new PostgresQueryCompiler(),
         },
       });
-      const report = await ormParity(policy, scenarios(), {
+      const report = await testOrmParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
           // SAFETY: every scenario's resource is one of the seeded Resource tables
           const resource = scenario.permission.resource as Resource;
@@ -164,7 +164,7 @@ describe("ORM parity over the relation graph: match, includes, groups, links, re
 
     it(`resolveRelated (the Prisma path), ${label}`, async () => {
       const db = drizzle({ client: database() });
-      const report = await ormParity(policy, scenarios(), {
+      const report = await testOrmParity(policy, scenarios(), {
         run: async ({ scenario, where }) => {
           const resolved: WhereResult = await resolveRelated(where, {
             relations: mapping,
@@ -193,7 +193,7 @@ describe("ORM parity over the relation graph: match, includes, groups, links, re
   }
 
   it("refuses a graph grant without a relations mapping", async () => {
-    const report = await ormParity(policy, scenarios().slice(0, 1), {
+    const report = await testOrmParity(policy, scenarios().slice(0, 1), {
       run: ({ where }) => {
         drizzleWhere(where, tables.doc);
         return Promise.resolve([]);

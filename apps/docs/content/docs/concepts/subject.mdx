@@ -25,7 +25,7 @@ type Subject = {
 type Principal = {
   id: string; // `sub`, a user id, a client id or a SPIFFE ID
   issuer?: string; // `iss`; identity is issuer + id, always set by subjectFrom*
-  kind?: "user" | "service" | "workload" | "link"; // default 'user'
+  kind?: "user" | "service" | "workload" | "link" | "feed" | "contact"; // default 'user'
   roles?: string[]; // global roles
   memberships?: Membership[]; // roles held in a tenant, a team or on one resource
   tenant?: string; // the active tenant for this request; never defaulted
@@ -87,7 +87,7 @@ definePolicy(permissions, {
 ```
 
 - Its fields are the values that `subject.<field>` references read in [conditions](/docs/concepts/conditions). Nothing else about the user is visible to the policy.
-- `roles` selects which global `role()` grants apply. `memberships` selects scoped roles: each entry names a tenant, a team inside a tenant, or one resource, and the roles held there; `tenant` is the active tenant this request is about. A membership with a role name the policy never declared is resolved as a tenant-defined custom role through the `RoleSource`, or dropped. Full rules on [tenants, teams and scoped roles](/docs/concepts/tenancy).
+- `roles` selects which global `role()` grants apply. `memberships` selects scoped roles: each entry names a tenant, a team inside a tenant, or one resource, and the roles held there; `tenant` is the active tenant this request is about. A membership with a role name the policy never declared is resolved as a tenant-defined custom role through the `CustomRoleSource`, or dropped. Full rules on [tenants, teams and scoped roles](/docs/concepts/tenancy).
 - It is computed once per `createPermDock`, frozen, and included in the snapshot so the client evaluates the same conditions against the same values.
 - It is never taken from a model, a tool argument or a request body. Adapters derive it from verified auth material (session cookie, bearer token `authInfo`, provider session) through a `subjectFrom<Source>` function; what counts as verified is defined in [Authentication and PermDock](/docs/concepts/authentication). See also the [threat model](/docs/security/threat-model).
 
@@ -123,17 +123,18 @@ When the relation is a role held somewhere (a team the user leads, a document sh
 
 The actor identifies the agent. It has an `id` and a `kind` plus whatever the adapter knows:
 
-| Adapter                                          | `actor.kind`                   | `actor.id`                                             | Source                                                                                   |
-| ------------------------------------------------ | ------------------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `permdock/mcp`                                   | `'mcp-client'`, or `actorKind` | OAuth `client_id`                                      | `authInfo` from the MCP TypeScript SDK (OAuth 2.1 resource server)                       |
-| `permdock/jwt` with an `act` claim               | `'oauth-client'`               | outermost `act.sub`, the current actor (RFC 8693)      | the verified token; the nesting is `delegation.chain`                                    |
-| `permdock/supabase`, `act.kind: 'support'`       | `'support'`                    | the admin's `act.sub`; also `sessionId` and `readOnly` | a better-supabase support session; no delegation, so only a policy delegation reaches it |
-| `permdock/supabase`, `act.kind: 'impersonation'` | `'impersonation'`              | the admin's `act.sub`                                  | better-supabase `actingAs`; no delegation, so only a policy delegation reaches it        |
-| `permdock/ai-sdk`                                | `'ai-sdk'`                     | your `runtimeContext.agentId`                          | the `actor` option of `createPermDock`                                                   |
-| `permdock/claude-agent`                          | `'claude-agent'`               | session or agent name                                  | the `actor` option                                                                       |
-| HTTP adapters with Web Bot Auth                  | `'web-bot-auth'`               | the verified signer `keyid`                            | RFC 9421 HTTP Message Signatures via `webBotAuth`                                        |
-| `permdock/a2a`                                   | `'a2a-agent'`                  | the calling Agent Card identity                        | A2A `securitySchemes` on the authenticated extended card                                 |
-| none                                             | absent                         | absent                                                 | a plain human or service request                                                         |
+| Adapter                                          | `actor.kind`                                           | `actor.id`                                             | Source                                                                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `permdock/mcp`                                   | `'mcp-client'`, or `actorKind`                         | OAuth `client_id`                                      | `authInfo` from the MCP TypeScript SDK (OAuth 2.1 resource server)                                                             |
+| `permdock/jwt` with an `act` claim               | `'oauth-client'`                                       | outermost `act.sub`, the current actor (RFC 8693)      | the verified token; the nesting is `delegation.chain`                                                                          |
+| `permdock/supabase`, `act.kind: 'support'`       | `'support'`                                            | the admin's `act.sub`; also `sessionId` and `readOnly` | a better-supabase support session; no delegation, so only a policy delegation reaches it                                       |
+| `permdock/supabase`, `act.kind: 'impersonation'` | `'impersonation'`                                      | the admin's `act.sub`                                  | better-supabase `actingAs`; no delegation, so only a policy delegation reaches it                                              |
+| `permdock/ai-sdk`                                | `'ai-sdk'`                                             | your `runtimeContext.agentId`                          | the `actor` option of `createPermDock`                                                                                         |
+| `permdock/claude-agent`                          | `'claude-agent'`                                       | session or agent name                                  | the `actor` option                                                                                                             |
+| HTTP adapters with Web Bot Auth                  | `'web-bot-auth'`                                       | the verified signer `keyid`                            | RFC 9421 HTTP Message Signatures via `webBotAuth`                                                                              |
+| `permdock/a2a`                                   | `'a2a-agent'`                                          | the calling Agent Card identity                        | A2A `securitySchemes` on the authenticated extended card                                                                       |
+| `subjectFromRunTicket` in `permdock/server`      | `act.kind`, else `'automation'`, `'job'` or `'caller'` | `act.sub`                                              | a verified `vnd.permdock.run+jwt`; the nesting is `delegation.chain` ([run tickets](/docs/adapters/server-kernel#run-tickets)) |
+| none                                             | absent                                                 | absent                                                 | a plain human or service request                                                                                               |
 
 This table is the closed list of `actor.kind` values; the transaction-token and SPIFFE recipes below add `'workload'`, and the agent-runtime adapters add their own name (`'eve'`, `'openai-agent'`, `'claude-agent'`, `'terminal'`) on their pages. An adapter adds its row here before using a new value.
 
@@ -192,7 +193,7 @@ A backend job or a partner service is a principal with roles of its own, created
 | `'user'` (default) | A human                                     | The identity provider's `sub`                                                             | Session, ID token, access token                                                                                                                                                          |
 | `'service'`        | An application-level service account        | Your service account id                                                                   | A service key verified by `subjectFromApiKey` (one tenant membership, `via: 'credential'`, [API keys](/docs/concepts/credentials)), a client-credentials token with a `sub` you assigned |
 | `'workload'`       | A running workload with a platform identity | A SPIFFE ID (`spiffe://trust-domain/ns/prod/sa/reports`) or the WIMSE workload identifier | Client-credentials token, SPIFFE SVID over mTLS, transaction token                                                                                                                       |
-| `'link'`           | Whoever holds a share link                  | The link id (`capability.id`)                                                             | A `permdock-capability+jwt` verified by `subjectFromCapability`; the principal holds one resource membership and no roles ([link capabilities](/docs/concepts/capabilities))             |
+| `'link'`           | Whoever holds a share link                  | The link id (`capability.id`)                                                             | A `vnd.permdock.capability+jwt` verified by `subjectFromCapability`; the principal holds one resource membership and no roles ([link capabilities](/docs/concepts/capabilities))         |
 
 The WIMSE architecture treats workloads as principals in their own right: a workload has an identity, obtains credentials, and is the subject that security context is propagated for ([WIMSE architecture](https://datatracker.ietf.org/doc/html/draft-ietf-wimse-arch)). PermDock follows that: a workload calling on its own behalf is a principal with roles, exactly like a service account, and `kind: 'workload'` exists so policies can say `where: { subject: { kind: 'workload' } }` or audit can separate human from machine traffic.
 
@@ -201,6 +202,27 @@ The WIMSE architecture treats workloads as principals in their own right: a work
 **SPIFFE SVIDs as actor material.** When a workload calls with a user's delegated token (a backend-for-frontend forwarding a user request, a job running under an OBO token) it is an actor, and its [SPIFFE](https://spiffe.io/docs/latest/spiffe-about/overview/) identity is the verified material for that half: the X.509-SVID presented over mTLS, or a JWT-SVID in a header, yields `actor: { id: '<spiffe id>', kind: 'workload' }` while the principal comes from the user token. Verification of the SVID is upstream (the mesh, the TLS terminator or the SPIRE Workload API), the same rule as every other token ([authentication](/docs/concepts/authentication)); PermDock reads the result. This is a recipe over `permdock/jwt` and the server kernel, not an adapter ([watch list](/docs/standards/watch-list)).
 
 **Why a workload is a principal and an agent is an actor.** The distinction is whose authority applies. A nightly report job runs under its own grants; nobody delegated anything to it, so it is a principal. An MCP client, an AI SDK agent or a Web Bot Auth signer exercises a _user's_ authority under a delegation, so it is an actor and the user is the principal. The same binary can be both on different requests: a workload is a principal when it runs its own schedule and an actor when it calls with a user's delegated token. What decides is the token, not the process.
+
+## Contact principals
+
+`kind: 'contact'` is someone outside the tenant who sees the rows they are a party to: a customer on an invoice, a guest on a project, a supplier on a purchase order. PermDock narrows a contact before any grant is evaluated:
+
+- Only `on` memberships count, each with `via: 'contact'`. Tenant and team memberships, global `roles`, `plans`, membership `entitlements` and `tenant` are dropped, so `tenants()` is empty.
+- An allow reaches a contact only when its permission is read-only (`meta.readOnly`, or the `read` and `list` actions) or it comes from a role whose `for` lists `'contact'`. Any other allow is denied with `not-delegated`. Top-level grants and relation grants never open a write to a contact.
+- A contact never approves, never reviews access and never accepts an approval delegation: `assertApprover` throws `approver-not-eligible`, like a link or a feed.
+- A contact never creates a key: `decideCredential` denies with `exceeds-creator` and `detail.creator: 'contact'`.
+- A contact never publishes: no PermDock surface takes a contact as the author of a policy, a catalog or a hosted document.
+
+```ts
+role("payer", [allow(permissions.invoice.pay)], {
+  on: permissions.invoice,
+  for: ["contact"], // the only way a contact gets a write
+});
+```
+
+The narrowing applies to `can()`, `where()`, `snapshot()` and `decideFor()`, so ORM filters built from `where()` inherit it. Compiled [row-level security](/docs/standards/postgres-rls) does not know the principal kind: when contacts query the database directly, keep their memberships out of the tables the RLS functions read, or gate writes in the application.
+
+**Why contacts are read-only by default.** A contact is a party to a row, not a member of the organisation that owns it. Role catalogues are written for members, so a `customer` role that grants `comment` today is likely to gain `update` tomorrow without anyone thinking of the customers who hold it. Making the write opt-in per role, through the existing `for` field, puts the decision on the one line that grants it and keeps every other grant fail-closed.
 
 ## Binding
 

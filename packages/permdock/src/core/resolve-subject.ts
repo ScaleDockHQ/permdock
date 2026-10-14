@@ -5,6 +5,7 @@ import type { Policy } from "./policy-types.ts";
 
 import { type AppDataSchema, readAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
+import { contactMemberships, isContact } from "./contact.ts";
 import { sanitizeContext } from "./fields.ts";
 import { freezeCopy } from "./freeze.ts";
 import { asMembershipSource } from "./memberships.ts";
@@ -255,14 +256,16 @@ function finishSubject(
   }
   const scopes = scopeList(policy.scopes);
   const held = heldTenantOf(assembled.principal);
+  const contact = isContact(assembled.principal);
+  const normalized = checkMembershipX(
+    normalizeMemberships(input, scopes),
+    policyX(policy)?.membership,
+    extra.auth,
+  );
   const kinds = applyRoleKinds(
     policy,
-    assembled.principal.roles,
-    checkMembershipX(
-      normalizeMemberships(input, scopes),
-      policyX(policy)?.membership,
-      extra.auth,
-    ),
+    contact ? [] : assembled.principal.roles,
+    contact ? contactMemberships(normalized) : normalized,
   );
   const roles = held === undefined ? kinds.roles : [];
   const memberships =
@@ -273,16 +276,23 @@ function finishSubject(
         : kinds.memberships.filter(
             (membership) => tenantOf(membership, scopes) === held,
           );
-  const plans = [
-    ...new Set([...(assembled.principal.plans ?? []), ...extra.plans]),
-  ];
+  const plans = contact
+    ? []
+    : [...new Set([...(assembled.principal.plans ?? []), ...extra.plans])];
   const withMemberships: Principal = freezeCopy(
     compact<Principal>({
       ...assembled.principal,
       roles,
       memberships,
-      plans: plans.length === 0 ? assembled.principal.plans : plans,
-      tenant: activeTenantOf(policy, assembled, memberships, options),
+      plans:
+        plans.length > 0
+          ? plans
+          : contact
+            ? undefined
+            : assembled.principal.plans,
+      tenant: contact
+        ? undefined
+        : activeTenantOf(policy, assembled, memberships, options),
     }),
   );
   return freezeCopy(

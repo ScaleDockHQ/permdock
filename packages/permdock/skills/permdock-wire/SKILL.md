@@ -14,7 +14,7 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
 
 ## Inputs (find out, or ask before starting)
 
-- The framework: Next.js, Hono, Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, an AuthZEN PDP, Vite with React, Vue, Svelte or Solid, React Native, or a collect-only framework (Nuxt, Astro, React Router, TanStack Start, Effect).
+- The framework: Next.js, Hono, Express, Fastify, Elysia, Nest, Node, tRPC, oRPC, SvelteKit, Astro, SolidStart, TanStack Start, h3 (also Nitro and Nuxt server routes), an AuthZEN PDP, Vite with React, Vue, Svelte or Solid, React Native, or a collect-only framework (React Router, Effect).
 - The Standard Schema validator already in the repo: Zod, Valibot, ArkType, Effect Schema.
 - Where the signed-in user comes from (the session or a verified token) and which roles and plans exist.
 - The first path to guard.
@@ -29,7 +29,7 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
 
 ## Workflow
 
-1. **Detect.** Find the framework and the validator. Collect-only frameworks use `permdock/unplugin` for collect and `permdock/server` (or the matching HTTP adapter) at runtime; never add a per-vendor package.
+1. **Detect.** Find the framework and the validator. Collect-only frameworks use `permdock/unplugin` for collect and `permdock/server` (or the matching HTTP adapter) at runtime; Nuxt collects the same way and runs on `permdock/h3`. Never add a per-vendor package.
    ✓ The adapter import path (`permdock/<framework>`) and the validator import are named.
 2. **Define.** Create `src/permissions.ts`. Importable everywhere; no rules, no secrets.
 
@@ -94,8 +94,8 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
 
 Install each with `npx skills add ScaleDockHQ/PermDock --skill <name>` when the app needs it:
 
-- `permdock-agents`: AI SDK, Claude Agent SDK, Eve, OpenAI Agents SDK, MCP, A2A and WebMCP tool maps, actors and `delegation`.
-- `permdock-approvals`: `approval: { by }`, quorum, escalation, `staleOn`, approval stores and the resume flow.
+- `permdock-agents`: AI SDK, Claude Agent SDK, Eve, OpenAI Agents SDK, MCP, A2A and WebMCP tool maps, actors and `delegation`, automations (`permdock/workflow`, `permdock/workflow-sdk`) and chat bots (`permdock/chat`, `permdock/chat-sdk`).
+- `permdock-approvals`: `approval: { by }`, quorum, escalation, `staleOn`, approval stores, the resume flow, and approval prompts by email or chat (`permdock/delivery`, `permdock/resend`, `permdock/chat-sdk`).
 - `permdock-tenancy`: named scopes, memberships, ownership rules (`min`, `assigns`, `for`) and custom roles.
 - `permdock-data`: `where()` and `filter()` in ORM queries, generated RLS, relationship graphs, parity tests.
 - `permdock-credentials`: `subjectFromJwt`, API keys and service accounts, share links.
@@ -110,7 +110,7 @@ Install each with `npx skills add ScaleDockHQ/PermDock --skill <name>` when the 
 
 ## Reference index
 
-- [references/adapters.md](references/adapters.md): factory shapes for Next.js, HTTP frameworks, RPC frameworks, UI frameworks, AuthZEN, OpenAPI, OpenTelemetry, SCIM, Cloud, Better Auth, Clerk, Supabase, the remote PDP, collect-only frameworks, and the `onDenied`, `context` and `wrap` adapter hooks.
+- [references/adapters.md](references/adapters.md): factory shapes for Next.js, HTTP frameworks, meta-framework servers (SvelteKit, Astro, SolidStart, TanStack Start, h3 for Nitro and Nuxt), RPC frameworks, UI frameworks, AuthZEN, OpenAPI, OpenTelemetry, SCIM, Cloud, the Resend, Chat SDK and Workflow SDK implementation entries, Better Auth, Clerk, Supabase and better-supabase, the remote PDP, collect-only frameworks, and the `deniedResponse`, `context` and `wrap` adapter hooks.
 - [references/policy-options.md](references/policy-options.md): limits, disclosure, plans, validity windows, step-up, app data and app obligations, and CLI starting points (OpenAPI import, Arazzo, Cloud push).
 - The `permdock` skill: the mental model, `explain` for an unexpected denial, and the docs MCP.
 - Docs: [policies](https://permdock.com/docs/concepts/policies), [conditions](https://permdock.com/docs/concepts/conditions), [decisions](https://permdock.com/docs/concepts/decisions), [adapters](https://permdock.com/docs/adapters).

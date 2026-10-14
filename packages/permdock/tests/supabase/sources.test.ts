@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   type SqlQuery,
   authzVersion,
-  fromJunction,
-  fromSupabasePostgres,
-  fromTable,
+  junctionMembershipSource,
+  supabasePostgresQuery,
+  tableMembershipSource,
 } from "../../src/supabase/sources.ts";
 import { testMembershipSource } from "../../src/testing/conformance/identity.ts";
 
@@ -40,20 +40,23 @@ const tableQuery: SqlQuery = async (text, values) => ({
       ),
 });
 
-describe("fromTable conformance", () => {
-  testMembershipSource(fromTable({ table: "memberships", query: tableQuery }), {
-    principals: [{ id: "u1" }, { id: "u2" }, { id: "u3" }],
-    expect: {
-      u1: [{ scope: "tenant", id: "o1", roles: ["admin"] }],
-      u2: [{ scope: "tenant", id: "o1", roles: ["member"] }],
-      u3: [],
+describe("tableMembershipSource conformance", () => {
+  testMembershipSource(
+    tableMembershipSource({ table: "memberships", query: tableQuery }),
+    {
+      principals: [{ id: "u1" }, { id: "u2" }, { id: "u3" }],
+      expect: {
+        u1: [{ scope: "tenant", id: "o1", roles: ["admin"] }],
+        u2: [{ scope: "tenant", id: "o1", roles: ["member"] }],
+        u3: [],
+      },
     },
-  });
+  );
 });
 
-describe("fromTable", () => {
+describe("tableMembershipSource", () => {
   it("selects one row per instance with the default columns", () => {
-    const { sql } = fromTable({ table: "memberships" });
+    const { sql } = tableMembershipSource({ table: "memberships" });
     expect(sql.table).toBe("memberships");
     expect(sql.user).toBe("user_id");
     expect(sql.columns).toEqual(["user_id", "scope", "scope_id", "role"]);
@@ -78,7 +81,7 @@ group by m."scope"::text, m."scope_id"::text`);
   });
 
   it("maps every optional column and applies expiry and suspension filters", () => {
-    const { sql } = fromTable({
+    const { sql } = tableMembershipSource({
       table: "auth_ext.members",
       columns: {
         user: "uid",
@@ -142,11 +145,11 @@ group by m."scope"::text, m."scope_id"::text`);
   });
 
   it("selects an x column only when configured and keeps plain JSON x", async () => {
-    expect(fromTable({ table: "memberships" }).sql.select("$1")).not.toContain(
-      " as x",
-    );
     expect(
-      fromJunction({
+      tableMembershipSource({ table: "memberships" }).sql.select("$1"),
+    ).not.toContain(" as x");
+    expect(
+      junctionMembershipSource({
         table: "org_members",
         scope: "tenant",
         roles: "role",
@@ -158,7 +161,7 @@ group by m."scope"::text, m."scope_id"::text`);
       { scope: "tenant", id: "o2", roles: ["admin"], x: [1] },
       { scope: "tenant", id: "o3", roles: ["admin"], x: null },
     ]);
-    const source = fromTable({
+    const source = tableMembershipSource({
       table: "memberships",
       columns: { x: "data" },
       query,
@@ -191,7 +194,7 @@ group by m."scope"::text, m."scope_id"::text`);
       { scope: "team", id: 3, roles: ["lead"] },
       { scope: "team", id: "t3", roles: "lead", expires_at: "" },
     ]);
-    const source = fromTable({ table: "memberships", query });
+    const source = tableMembershipSource({ table: "memberships", query });
     expect(await source.membershipsFor(principal, {})).toEqual([
       {
         scope: "tenant",
@@ -219,7 +222,7 @@ group by m."scope"::text, m."scope_id"::text`);
       ],
       "array",
     );
-    const source = fromTable({ table: "memberships", query });
+    const source = tableMembershipSource({ table: "memberships", query });
     expect(await source.list?.({ scope: "tenant", id: "o1" })).toEqual([
       {
         principal: { id: "u1" },
@@ -230,7 +233,7 @@ group by m."scope"::text, m."scope_id"::text`);
   });
 
   it("describes SQL without a query and refuses to resolve", async () => {
-    const source = fromTable({ table: "memberships" });
+    const source = tableMembershipSource({ table: "memberships" });
     await expect(source.membershipsFor(principal, {})).rejects.toThrow(
       "the memberships membership source needs query to resolve memberships",
     );
@@ -257,11 +260,13 @@ group by m."scope"::text, m."scope_id"::text`);
       "a suspension status column needs its active values",
     ],
   ])("rejects %j", (options, message) => {
-    expect(() => fromTable(options).sql.select("$1")).toThrow(message);
+    expect(() => tableMembershipSource(options).sql.select("$1")).toThrow(
+      message,
+    );
   });
 });
 
-describe("fromJunction", () => {
+describe("junctionMembershipSource", () => {
   it("reads a one-scope table with a role column and ancestor columns", async () => {
     const { query, calls } = recording([
       {
@@ -271,7 +276,7 @@ describe("fromJunction", () => {
         within: { tenant: "o1" },
       },
     ]);
-    const source = fromJunction({
+    const source = junctionMembershipSource({
       table: "project_members",
       scope: "project",
       roles: "role",
@@ -331,7 +336,7 @@ describe("fromJunction", () => {
   });
 
   it("gives every row fixed roles, a fixed via, group and identity-provider ownership", () => {
-    const { sql } = fromJunction({
+    const { sql } = junctionMembershipSource({
       table: "customer_contacts",
       scope: "customer",
       roles: ["contact"],
@@ -353,16 +358,19 @@ describe("fromJunction", () => {
 
   it.each([
     [{ scope: "Bad Scope", roles: "role" }, "unsafe scope name 'Bad Scope'"],
-    [{ scope: "customer", roles: [] }, "fromJunction needs at least one role"],
+    [
+      { scope: "customer", roles: [] },
+      "junctionMembershipSource needs at least one role",
+    ],
   ])("rejects %j", (options, message) => {
-    expect(() => fromJunction({ table: "contacts", ...options })).toThrow(
-      message,
-    );
+    expect(() =>
+      junctionMembershipSource({ table: "contacts", ...options }),
+    ).toThrow(message);
   });
 });
 
-describe("fromSupabasePostgres", () => {
-  it("runs fromTable lookups through ctx.postgres.queryRaw", async () => {
+describe("supabasePostgresQuery", () => {
+  it("runs tableMembershipSource lookups through ctx.postgres.queryRaw", async () => {
     const calls: { text: string; params: unknown[] | undefined }[] = [];
     const postgres = {
       queryRaw: async <T = Record<string, unknown>>(
@@ -370,13 +378,13 @@ describe("fromSupabasePostgres", () => {
         params?: unknown[],
       ): Promise<T[]> => {
         calls.push({ text, params });
-        // SAFETY: the fixture rows are the shape fromTable selects.
+        // SAFETY: the fixture rows are the shape tableMembershipSource selects.
         return tableRows as unknown as T[];
       },
     };
-    const source = fromTable({
+    const source = tableMembershipSource({
       table: "public.memberships",
-      query: fromSupabasePostgres(postgres),
+      query: supabasePostgresQuery(postgres),
     });
     const memberships = await source.membershipsFor(principal, {});
     expect(memberships.length).toBeGreaterThan(0);
@@ -405,11 +413,11 @@ describe("authzVersion", () => {
 describe("a role column through a roles table", () => {
   const through = { through: "roles", on: { role_id: "id" }, column: "key" };
 
-  it("reads fromTable role keys from the roles table", async () => {
+  it("reads tableMembershipSource role keys from the roles table", async () => {
     const { query, calls } = recording([
       { scope: "organization", id: "o1", roles: ["admin", "auditor"] },
     ]);
-    const source = fromTable({
+    const source = tableMembershipSource({
       table: "identity.memberships",
       columns: { role: through },
       query,
@@ -446,8 +454,8 @@ where m."user_id" = $1`);
     expect(calls[0]?.text).toContain('join "identity"."roles" mk');
   });
 
-  it("reads fromJunction role keys from a qualified roles table", () => {
-    const source = fromJunction({
+  it("reads junctionMembershipSource role keys from a qualified roles table", () => {
+    const source = junctionMembershipSource({
       table: "organization_users",
       scope: "organization",
       roles: { ...through, through: "identity.roles" },
@@ -475,20 +483,22 @@ join "identity"."roles" mk on mk."id" = m."role_id"`);
 
   it("needs exactly one join column", () => {
     expect(() =>
-      fromJunction({
+      junctionMembershipSource({
         table: "organization_users",
         scope: "organization",
         roles: { ...through, on: {} },
       }),
     ).toThrow(
-      "PermDock: fromJunction roles.on must map exactly one column of public.organization_users to roles",
+      "PermDock: junctionMembershipSource roles.on must map exactly one column of public.organization_users to roles",
     );
     expect(() =>
-      fromTable({
+      tableMembershipSource({
         table: "memberships",
         columns: { role: { ...through, on: { a: "id", b: "id" } } },
       }),
-    ).toThrow("fromTable columns.role.on must map exactly one column");
+    ).toThrow(
+      "tableMembershipSource columns.role.on must map exactly one column",
+    );
   });
 });
 
@@ -509,7 +519,7 @@ describe("a user column through a profile table", () => {
     },
   };
 
-  it("reads fromJunction users from the profile table", async () => {
+  it("reads junctionMembershipSource users from the profile table", async () => {
     const { query, calls } = recording([
       {
         scope: "customer",
@@ -519,7 +529,7 @@ describe("a user column through a profile table", () => {
         via: "contact",
       },
     ]);
-    const source = fromJunction({
+    const source = junctionMembershipSource({
       table: "customer_contacts",
       scope: "customer",
       id: "customer_id",
@@ -585,7 +595,7 @@ where mu."user_id" = $1`);
       { user_id: "u1", scope: "customer", id: "c1", roles: ["customer"] },
       { user_id: null, scope: "customer", id: "c1", roles: ["customer"] },
     ]);
-    const source = fromJunction({
+    const source = junctionMembershipSource({
       table: "customer_contacts",
       scope: "customer",
       id: "customer_id",
@@ -601,8 +611,8 @@ where mu."user_id" = $1`);
     ]);
   });
 
-  it("combines a user and a role through on fromTable", () => {
-    const source = fromTable({
+  it("combines a user and a role through on tableMembershipSource", () => {
+    const source = tableMembershipSource({
       table: "crm.memberships",
       columns: {
         user: { ...user, through: "identity.contact_profiles" },
@@ -625,7 +635,7 @@ where mu."user_id" = $1`);
   });
 
   it("reads the user through a profile table beside several role sources", () => {
-    const source = fromJunction({
+    const source = junctionMembershipSource({
       table: "customer_contacts",
       scope: "customer",
       id: "customer_id",
@@ -667,21 +677,23 @@ where mu."user_id" = $1`);
 
   it("needs exactly one join column", () => {
     expect(() =>
-      fromJunction({
+      junctionMembershipSource({
         table: "customer_contacts",
         scope: "customer",
         user: { ...user, on: {} },
         roles: ["customer"],
       }),
     ).toThrow(
-      "PermDock: fromJunction user.on must map exactly one column of public.customer_contacts to contact_profiles, for example { contact_profile_id: 'id' }",
+      "PermDock: junctionMembershipSource user.on must map exactly one column of public.customer_contacts to contact_profiles, for example { contact_profile_id: 'id' }",
     );
     expect(() =>
-      fromTable({
+      tableMembershipSource({
         table: "memberships",
         columns: { user: { ...user, on: { a: "id", b: "id" } } },
       }),
-    ).toThrow("fromTable columns.user.on must map exactly one column");
+    ).toThrow(
+      "tableMembershipSource columns.user.on must map exactly one column",
+    );
   });
 });
 
@@ -699,7 +711,7 @@ describe("suspension keep", () => {
   };
 
   it("keeps rows of a suspended instance with the keys they still grant", () => {
-    const source = fromJunction({
+    const source = junctionMembershipSource({
       table: "project_members",
       scope: "project",
       roles: "role",
@@ -719,7 +731,7 @@ describe("suspension keep", () => {
   });
 
   it("adds the keep column only where a source keeps or a union needs it", () => {
-    const plain = fromTable({ table: "memberships" });
+    const plain = tableMembershipSource({ table: "memberships" });
     expect(plain.sql.keeps).toBe(false);
     expect(plain.sql.select("$1")).not.toContain("keep");
     expect(plain.sql.select("$1", true)).toContain("null::jsonb as keep");
@@ -732,7 +744,11 @@ describe("suspension keep", () => {
       { scope: "tenant", id: "o2", roles: ["owner"], keep: null },
       { scope: "tenant", id: "o3", roles: ["owner"], keep: "tenant.restore" },
     ]);
-    const source = fromTable({ table: "memberships", suspension, query });
+    const source = tableMembershipSource({
+      table: "memberships",
+      suspension,
+      query,
+    });
     expect(await source.membershipsFor(principal, {})).toEqual([
       { scope: "tenant", id: "o1", roles: ["owner"], keep: ["tenant.restore"] },
       { scope: "tenant", id: "o2", roles: ["owner"] },
@@ -741,7 +757,7 @@ describe("suspension keep", () => {
 
   it("refuses a keep that is not a list of keys", () => {
     expect(() =>
-      fromTable({
+      tableMembershipSource({
         table: "memberships",
         suspension: {
           scopes: {
@@ -761,7 +777,7 @@ describe("suspension keep", () => {
 
 describe("membership suspension", () => {
   it("leaves out a disabled row without keep", () => {
-    const source = fromJunction({
+    const source = junctionMembershipSource({
       table: "organization_users",
       scope: "organization",
       roles: "role",
@@ -775,7 +791,7 @@ describe("membership suspension", () => {
   });
 
   it("keeps a disabled row with the keys it still grants", () => {
-    const source = fromTable({
+    const source = tableMembershipSource({
       table: "memberships",
       columns: { disabledAt: "disabled_at" },
       suspension: { memberships: { keep: ["tenant.export"] } },
@@ -792,7 +808,7 @@ describe("membership suspension", () => {
   });
 
   it("counts no disabled holder", () => {
-    const source = fromJunction({
+    const source = junctionMembershipSource({
       table: "organization_users",
       scope: "organization",
       roles: "role",

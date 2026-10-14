@@ -73,6 +73,7 @@ function rpcClient(): SupabaseRpcClient {
 function request(token: string): ApprovalRequest {
   return {
     v: 1,
+    id: token,
     token,
     permission: "job.update",
     scope: "job:update",

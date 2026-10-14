@@ -4,7 +4,7 @@ import { saasPermissions as p, saasPolicy } from "permdock/testing/saas";
 
 import { customRoles, projectOf, subjectOf } from "./app.ts";
 
-const { permdock, protect } = createPermDock(saasPolicy, {
+const { middleware, protect } = createPermDock(saasPolicy, {
   subject: (ctx) =>
     subjectOf(ctx.request.headers.get("authorization"), ctx.params?.["org"]),
   tenant: (ctx) => ctx.params?.["org"],
@@ -16,7 +16,7 @@ const row = (ctx: {
 }) => projectOf(ctx.params?.["id"]);
 
 export const elysia = new Elysia({ prefix: "/elysia" })
-  .use(permdock())
+  .use(middleware())
   .get("/:org/projects/:id", ({ params }) => projectOf(params.id), {
     beforeHandle: protect(p.project.read, row),
   })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createPermDock } from "../../src/authzen/index.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import {
   adminUser,
   memberUser,
@@ -32,14 +32,14 @@ function request(
 function pdp(
   options?: Partial<Parameters<typeof createPermDock>[1]>,
   { enumerate = true }: { readonly enumerate?: boolean } = {},
-): ReturnType<typeof createPermDock>["permdockHandler"] {
+): ReturnType<ReturnType<typeof createPermDock>["permdockHandler"]> {
   return createPermDock(policy, {
     subject: () => ({ id: "pep", orgId: "o1", roles: ["admin"] }),
     // SAFETY: pep is the object returned by subject() above, which has an id.
     trustedPep: (pep) => (pep as { readonly id?: unknown }).id === "pep",
     resources: {
       post: {
-        load: (id) => (id === "p1" ? ownPost : id === "p2" ? otherPost : null),
+        data: (id) => (id === "p1" ? ownPost : id === "p2" ? otherPost : null),
         list: () => [ownPost, otherPost],
       },
     },
@@ -62,7 +62,7 @@ function pdp(
         }
       : {}),
     ...options,
-  }).permdockHandler;
+  }).permdockHandler();
 }
 
 function memberBody(overrides?: {
@@ -130,7 +130,11 @@ describe("permdock/authzen", () => {
     const deniedBody = (await denied.json()) as {
       readonly context: { readonly permdock: Record<string, unknown> };
     };
-    expect(Object.keys(deniedBody.context)).toEqual(["permdock"]);
+    expect(Object.keys(deniedBody.context).toSorted()).toEqual([
+      "permdock",
+      "reason_admin",
+      "reason_user",
+    ]);
     expect(Object.keys(deniedBody.context.permdock).toSorted()).toEqual([
       "denials",
       "outcome",
@@ -157,7 +161,7 @@ describe("permdock/authzen", () => {
       const handler = createPermDock(policy, {
         subject: () => ({ id: "pep", orgId: "o1", roles: ["admin"] }),
         ...(trustedPep === undefined ? {} : { trustedPep }),
-      }).permdockHandler;
+      }).permdockHandler();
       const response = await handler(
         request("/access/v1/evaluation", {
           json: memberBody({
@@ -172,11 +176,11 @@ describe("permdock/authzen", () => {
   });
 
   it("ignores a body actor and delegation from an untrusted PEP", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const response = await createPermDock(policy, {
       subject: () => ({ id: "pep", orgId: "o1", roles: ["admin"] }),
       sink,
-    }).permdockHandler(
+    }).permdockHandler()(
       request("/access/v1/evaluation", {
         json: memberBody({
           context: {
@@ -285,7 +289,7 @@ describe("permdock/authzen", () => {
     const response = await pdp({
       resources: {
         post: {
-          load: () => {
+          data: () => {
             throw new Error("db down");
           },
           list: () => [],

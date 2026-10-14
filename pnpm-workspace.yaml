@@ -163,6 +163,8 @@ catalog:
   "@supabase/postgrest-typegen": 0.4.0
   supabase: 2.119.0
   server-only: 0.0.1
+  # The root pins debug's optional supports-color peer so every importer shares one @nestjs/common and @nestjs/core variant.
+  supports-color: 7.2.0
   "@clack/prompts": 1.8.1
   citty: 0.2.2
   jiti: 2.7.0
@@ -179,6 +181,18 @@ catalog:
   "@playwright/test": 1.63.0
   babel-plugin-react-compiler: 1.0.0
   "@babel/core": 8.0.6
+  chat: 4.41.1
+  resend: 6.32.1
+  workflow: 5.2.1
+  "@solidjs/start": 2.0.6
+  "@sveltejs/kit": 3.0.1
+  "@tanstack/react-start": 1.168.61
+  astro: 7.3.8
+  h3: 2.0.2
+  "@solidjs/router": 1.0.0
+  "@tanstack/react-router": 1.170.42
+  "@chat-adapter/slack": 4.41.1
+  "@chat-adapter/state-memory": 4.41.1
 
 catalogs:
   ts59:
@@ -188,6 +202,7 @@ catalogs:
   peers:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
     better-supabase: ">=0.6.0 <0.9.0"
+    chat: ">=4"
     "@modelcontextprotocol/server": ">=2"
     "@nestjs/common": ">=11"
     "@nestjs/core": ">=11"
@@ -197,12 +212,17 @@ catalogs:
     "@orpc/server": ">=2.0.0-0"
     "@supabase/middleware": ">=1"
     "@trpc/server": ">=11"
+    "@solidjs/start": ">=2"
+    "@sveltejs/kit": ">=2"
+    "@tanstack/react-start": ">=1.168"
     ai: ">=5"
+    astro: ">=5"
     drizzle-orm: ">=0.40 || >=1.0.0-rc.0"
     elysia: ">=1"
     eve: ">=0.40"
     express: ">=4"
     fastify: ">=5"
+    h3: ">=2"
     hono: ">=4"
     jose: "^6"
     kysely: ">=0.27"
@@ -211,12 +231,14 @@ catalogs:
     pgsql-parser: ">=18"
     react: "^19"
     reflect-metadata: ">=0.1"
+    resend: ">=6"
     rxjs: ">=7"
     "solid-js": ">=1.9"
     svelte: ">=5.3"
     unplugin: ">=2"
     vitest: ">=3"
     vue: ">=3"
+    workflow: ">=5"
 
 auditConfig:
   # No patched release yet; drop each entry once one ships.
@@ -251,8 +273,12 @@ peerDependencyRules:
   allowedVersions:
     # Only its optional Nest integration needs the peer; tests/integration runs Nest 12.
     "@supabase/server>@nestjs/common": "12"
+    # Reached only through `workflow`'s Nest integration, which no workspace loads; @supabase/server picks Nest 11 beside it.
+    "@nestjs/core>@nestjs/common": "11"
     # typegen 0.4.0 pins oxfmt 0.66.0 exactly; the example's `better-supabase gen` formats with the repo's oxfmt.
     "@supabase/postgrest-typegen>oxfmt": "0.71"
+    # The optional typescript peer of SvelteKit 3 reads only its public types; the repository builds with TypeScript 7.
+    "@sveltejs/kit>typescript": "7"
 
 # The VS Code TypeScript native preview looks for `@typescript/typescript-<platform>`
 # next to `node_modules/typescript` without following pnpm's symlinks.
@@ -271,6 +297,17 @@ packageExtensions:
       eslint:
         optional: true
       "@typescript-eslint/parser":
+        optional: true
+  # `workflow` always installs its Nest integration; only `workflow/nest` loads these peers.
+  "@workflow/nest":
+    peerDependenciesMeta:
+      "@nestjs/common":
+        optional: true
+      "@nestjs/core":
+        optional: true
+      "@swc/cli":
+        optional: true
+      "@swc/core":
         optional: true
 
 # No `typescript: 'catalog:'` override: tests/types pins TypeScript 5.9 and 6
@@ -294,10 +331,12 @@ overrides:
   "openai>undici": 8.11.2
   mysql2: 3.24.5
   "@prisma/config>deepmerge-ts": 8.0.2
+  "@workflow/core>nanoid": 5.1.16
+  "@workflow/core>devalue": 5.9.4
   # Patched releases for advisories in transitive dependencies of Nuxt, Solid, Vue, Expo, React Native, Express, shadcn and the Claude Agent SDK; drop each once its parent resolves a fixed version.
   simple-git: 4.0.1
   "@simple-git/argv-parser": 2.0.1
-  seroval: 1.6.3
+  seroval: 1.6.9
   proxy-addr: 2.0.8
   source-map-js: 1.2.2
   compression: 1.8.2
@@ -322,3 +361,6 @@ allowBuilds:
   lefthook: true
   # The Supabase CLI binary for the next-better-supabase stack, pgTAP and declarative sync.
   supabase: true
+  # Reached through `workflow`'s Nest integration and Vercel world, which no workspace runs.
+  "@swc/core": false
+  cbor-extract: false

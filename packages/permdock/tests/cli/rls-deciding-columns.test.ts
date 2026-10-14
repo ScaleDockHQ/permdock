@@ -5,7 +5,7 @@ import {
   membershipColumns,
   tableKey,
 } from "../../src/cli/sql/deciding-columns.ts";
-import { fromTable } from "../../src/supabase/index.ts";
+import { tableMembershipSource } from "../../src/supabase/index.ts";
 
 describe("tableKey", () => {
   it("qualifies, unquotes and lower-cases a table name", () => {
@@ -16,8 +16,8 @@ describe("tableKey", () => {
 
 describe("membershipColumns", () => {
   it("prefers the hook sources over rls.membershipSources", () => {
-    const hook = fromTable({ table: "memberships" });
-    const rls = fromTable({ table: "other_members" });
+    const hook = tableMembershipSource({ table: "memberships" });
+    const rls = tableMembershipSource({ table: "other_members" });
     const config = {
       policy: "p.ts",
       supabase: { hook: { memberships: [hook] } },
@@ -29,7 +29,7 @@ describe("membershipColumns", () => {
   });
 
   it("falls back to rls.membershipSources, then to nothing", () => {
-    const rls = fromTable({ table: "app.members" });
+    const rls = tableMembershipSource({ table: "app.members" });
     expect([
       ...membershipColumns({
         policy: "p.ts",
@@ -40,8 +40,8 @@ describe("membershipColumns", () => {
   });
 
   it("merges the columns of two sources on one table", () => {
-    const a = fromTable({ table: "memberships" });
-    const b = fromTable({ table: "public.memberships" });
+    const a = tableMembershipSource({ table: "memberships" });
+    const b = tableMembershipSource({ table: "public.memberships" });
     const columns = membershipColumns({
       policy: "p.ts",
       rls: { membershipSources: [a, b] },
@@ -55,7 +55,7 @@ describe("membershipColumns", () => {
 
 describe("decidingColumns", () => {
   it("lists membership and attrs columns, sorted", () => {
-    const source = fromTable({ table: "memberships" });
+    const source = tableMembershipSource({ table: "memberships" });
     const columns = decidingColumns(
       { policy: "p.ts", rls: { membershipSources: [source] } },
       { table: "profiles", columns: ["plan", "banned"] },

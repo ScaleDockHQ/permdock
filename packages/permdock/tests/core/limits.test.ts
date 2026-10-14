@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { LimitStore } from "../../src/core/interfaces.ts";
 import type { RoleBinding } from "../../src/core/policy-types.ts";
+import type { Instant } from "../../src/core/time.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryLimitStore } from "../../src/core/limits.ts";
@@ -11,6 +12,10 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 const Report = z.object({
   id: z.string(),
@@ -28,19 +33,19 @@ const permissions = definePermissions({
 const report = { id: "r1", ownerId: "u1" };
 
 const limited = role("member", [
-  allow(permissions.report.export, { limit: { count: 2, per: "hour" } }),
+  allow(permissions.report.export, { limit: { count: 2, per: 3600 } }),
   allow(permissions.report.read),
 ]);
 
 const approved = role("reviewer", [
   allow(permissions.report.export, {
-    limit: { count: 1, per: "hour" },
+    limit: { count: 1, per: 3600 },
     approval: "human",
   }),
 ]);
 
 const fallback = role("staff", [
-  allow(permissions.report.export, { limit: { count: 1, per: "hour" } }),
+  allow(permissions.report.export, { limit: { count: 1, per: 3600 } }),
   allow(permissions.report.export),
 ]);
 
@@ -157,7 +162,7 @@ describe("quota grants", () => {
   it("does not consume on filter or simulate", async () => {
     const limits = memoryLimitStore();
     const once = role("member", [
-      allow(permissions.report.export, { limit: { count: 1, per: "hour" } }),
+      allow(permissions.report.export, { limit: { count: 1, per: 3600 } }),
     ]);
     const permdock = await permdockFor([once], "member", { limits });
     expect(permdock.filter(permissions.report.export, [report])).toEqual([
@@ -201,19 +206,21 @@ describe("quota grants", () => {
   it("resets the memory window when per elapses", async () => {
     const limits = memoryLimitStore();
     const once = role("member", [
-      allow(permissions.report.export, { limit: { count: 1, per: "hour" } }),
+      allow(permissions.report.export, { limit: { count: 1, per: 3600 } }),
     ]);
     const permdock = await permdockFor([once], "member", { limits });
     const now = 1_700_000_000;
     expect(
-      permdock.decide(permissions.report.export, report, { now }).outcome,
+      permdock.decide(permissions.report.export, report, { now: at(now) })
+        .outcome,
     ).toBe("granted");
     expect(
-      permdock.decide(permissions.report.export, report, { now }).outcome,
+      permdock.decide(permissions.report.export, report, { now: at(now) })
+        .outcome,
     ).toBe("denied");
     expect(
       permdock.decide(permissions.report.export, report, {
-        now: now + 3600,
+        now: at(now + 3600),
       }).outcome,
     ).toBe("granted");
   });
@@ -236,24 +243,32 @@ describe("quota grants", () => {
 
 describe("soft and hard quotas", () => {
   const now = 1_700_000_000;
-  const resetsAt = (Math.floor(now / 3600) + 1) * 3600;
+  const resetsAt = new Date(
+    (Math.floor(now / 3600) + 1) * 3_600_000,
+  ).toISOString();
 
   it("carries the remaining quota and the window end on a granted decision", async () => {
     const permdock = await permdockFor([limited], "member", {
       limits: memoryLimitStore(),
     });
-    const first = permdock.decide(permissions.report.export, report, { now });
+    const first = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(first.outcome).toBe("granted");
     if (first.outcome === "granted") {
       expect(first.quota).toEqual({ remaining: 1, resetsAt });
       expect(first).not.toHaveProperty("obligations");
     }
-    const second = permdock.decide(permissions.report.export, report, { now });
+    const second = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(second.outcome === "granted" && second.quota).toEqual({
       remaining: 0,
       resetsAt,
     });
-    const read = permdock.decide(permissions.report.read, report, { now });
+    const read = permdock.decide(permissions.report.read, report, {
+      now: at(now),
+    });
     expect(read).not.toHaveProperty("quota");
   });
 
@@ -265,50 +280,59 @@ describe("soft and hard quotas", () => {
     const [peeked] = Array.isArray(batch) ? batch : [];
     expect(peeked?.outcome === "granted" && peeked.quota).toEqual({
       remaining: 1,
-      resetsAt: expect.any(Number),
+      resetsAt: expect.stringMatching(/Z$/u),
     });
   });
 
   it("denies past the count in hard mode, the default", async () => {
     const hard = role("member", [
       allow(permissions.report.export, {
-        limit: { count: 1, per: "hour", mode: "hard" },
+        limit: { count: 1, per: 3600, mode: "hard" },
       }),
     ]);
     const permdock = await permdockFor([hard], "member", {
       limits: memoryLimitStore(),
     });
     expect(
-      permdock.decide(permissions.report.export, report, { now }).outcome,
+      permdock.decide(permissions.report.export, report, { now: at(now) })
+        .outcome,
     ).toBe("granted");
-    const over = permdock.decide(permissions.report.export, report, { now });
+    const over = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(over.outcome === "denied" && over.denials[0]?.reason).toBe("limit");
   });
 
   it("grants past the count in soft mode with an over-limit obligation", async () => {
     const soft = role("member", [
       allow(permissions.report.export, {
-        limit: { count: 1, per: "hour", mode: "soft" },
+        limit: { count: 1, per: 3600, mode: "soft" },
       }),
     ]);
     const permdock = await permdockFor([soft], "member", {
       limits: memoryLimitStore(),
     });
-    const within = permdock.decide(permissions.report.export, report, { now });
+    const within = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(within.outcome === "granted" && within.obligations).toBeUndefined();
-    const over = permdock.decide(permissions.report.export, report, { now });
+    const over = permdock.decide(permissions.report.export, report, {
+      now: at(now),
+    });
     expect(over.outcome).toBe("granted");
     if (over.outcome === "granted") {
       expect(over.obligations).toEqual([{ kind: "over-limit" }]);
       expect(over.quota).toEqual({ remaining: 0, resetsAt });
     }
-    expect(permdock.can(permissions.report.export, report, { now })).toBe(true);
+    expect(
+      permdock.can(permissions.report.export, report, { now: at(now) }),
+    ).toBe(true);
   });
 
   it("adds a near-limit obligation once usage reaches alertAt", async () => {
     const alerting = role("member", [
       allow(permissions.report.export, {
-        limit: { count: 10, per: "hour", alertAt: 0.7 },
+        limit: { count: 10, per: 3600, alertAt: 0.7 },
       }),
     ]);
     const permdock = await permdockFor([alerting], "member", {
@@ -317,7 +341,7 @@ describe("soft and hard quotas", () => {
     const kinds: (string | undefined)[] = [];
     for (let call = 0; call < 10; call += 1) {
       const decision = permdock.decide(permissions.report.export, report, {
-        now,
+        now: at(now),
       });
       kinds.push(
         decision.outcome === "granted"
@@ -342,7 +366,7 @@ describe("soft and hard quotas", () => {
   it("still denies with limit-unavailable in soft mode when the store is down", async () => {
     const soft = role("member", [
       allow(permissions.report.export, {
-        limit: { count: 1, per: "hour", mode: "soft" },
+        limit: { count: 1, per: 3600, mode: "soft" },
       }),
     ]);
     const down: LimitStore = {
@@ -370,7 +394,7 @@ describe("soft and hard quotas", () => {
         // SAFETY: a deliberately unknown extra key, which allow() must drop.
         limit: {
           count: 5,
-          per: "day",
+          per: 86_400,
           mode: "soft",
           alertAt: 0.8,
           extra: true,
@@ -379,7 +403,7 @@ describe("soft and hard quotas", () => {
     ].flat();
     expect(grant?.limit).toEqual({
       count: 5,
-      per: "day",
+      per: 86_400,
       mode: "soft",
       alertAt: 0.8,
     });
@@ -389,33 +413,38 @@ describe("soft and hard quotas", () => {
     // SAFETY: a deliberately unknown mode, to exercise allow()'s validation.
     expect(() =>
       allow(permissions.report.export, {
-        limit: { count: 1, per: "hour", mode: "lenient" as never },
+        limit: { count: 1, per: 3600, mode: "lenient" as never },
       }),
     ).toThrow(/mode/u);
     for (const alertAt of [0, 1.5, -0.2, Number.NaN]) {
       expect(() =>
         allow(permissions.report.export, {
-          limit: { count: 1, per: "hour", alertAt },
+          limit: { count: 1, per: 3600, alertAt },
         }),
       ).toThrow(/alertAt/u);
     }
     expect(() =>
       allow(permissions.report.export, {
-        limit: { count: 1, per: "hour", alertAt: 1 },
+        limit: { count: 1, per: 3600, alertAt: 1 },
       }),
     ).not.toThrow();
   });
 });
 
 describe("quota windows and keys", () => {
-  it("rejects an unknown per at definition time", () => {
+  it("rejects a per that is not whole seconds at definition time", () => {
+    for (const per of ["hour", 0, -60, 1.5]) {
+      expect(() =>
+        allow(permissions.report.export, {
+          // SAFETY: the strings test what a caller without types can pass.
+          limit: { count: 1, per: per as number },
+        }),
+      ).toThrow(
+        /limit per on 'report.export' must be a whole number of seconds/u,
+      );
+    }
     expect(() =>
-      allow(permissions.report.export, {
-        limit: { count: 1, per: "fortnight" },
-      }),
-    ).toThrow(/per/u);
-    expect(() =>
-      allow(permissions.report.export, { limit: { count: 0, per: "hour" } }),
+      allow(permissions.report.export, { limit: { count: 0, per: 3600 } }),
     ).toThrow(/count/u);
   });
 
@@ -425,8 +454,8 @@ describe("quota windows and keys", () => {
       key: "report.export",
       subjectId: "u1",
       count: 1,
-      per: "hour",
-      now: 0,
+      per: 3600,
+      now: { epochMilliseconds: 0 },
     };
     expect(limits.consume({ ...base, tenant: "acme" })).toEqual({
       remaining: 0,
@@ -445,10 +474,14 @@ describe("quota windows and keys", () => {
       key: "report.export",
       subjectId: "u1",
       count: 1,
-      per: "1 s",
+      per: 1,
     };
-    expect(limits.consume({ ...base, now: 0 })).toEqual({ remaining: 0 });
-    expect(limits.consume({ ...base, now: 5 })).toEqual({ remaining: 0 });
+    expect(limits.consume({ ...base, now: { epochMilliseconds: 0 } })).toEqual({
+      remaining: 0,
+    });
+    expect(
+      limits.consume({ ...base, now: { epochMilliseconds: 5000 } }),
+    ).toEqual({ remaining: 0 });
     expect(limits.size()).toBe(1);
   });
 });

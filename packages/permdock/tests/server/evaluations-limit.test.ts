@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
-import { createEvaluationsHandler } from "../../src/server/index.ts";
+import { evaluationsHandler } from "../../src/server/index.ts";
 import { memberUser, policy } from "../fixtures/quick-start.ts";
 
 function batch(size: number): Request {
@@ -17,10 +17,10 @@ function batch(size: number): Request {
   });
 }
 
-describe("createEvaluationsHandler batch limit", () => {
+describe("evaluationsHandler batch limit", () => {
   it("answers an oversized batch with 413 before resolving an instance", async () => {
     let resolved = 0;
-    const handler = createEvaluationsHandler({
+    const handler = evaluationsHandler({
       policy,
       maxEvaluations: 2,
       resolve: async () => {
@@ -39,7 +39,7 @@ describe("createEvaluationsHandler batch limit", () => {
   });
 
   it("defaults to the AuthZEN limit of 256", async () => {
-    const handler = createEvaluationsHandler({
+    const handler = evaluationsHandler({
       policy,
       resolve: async () => createCorePermDock(policy, memberUser),
     });

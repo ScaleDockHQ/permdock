@@ -11,6 +11,8 @@ import type {
   Principal,
   Subject,
 } from "./subject.ts";
+import type { SupportSessionPolicy } from "./support-session.ts";
+import type { Instant } from "./time.ts";
 
 export type DecisionProvider = {
   readonly name: string;
@@ -32,7 +34,7 @@ export type DecisionProvider = {
   }): Promise<readonly string[] | null | undefined>;
 };
 
-export type RoleSource = {
+export type CustomRoleSource = {
   /**
    * The custom roles of one tenant. `createPermDock` passes `held`, the role
    * names the subject's live memberships hold there, declared or not, so a
@@ -54,12 +56,14 @@ export type RoleSource = {
 };
 
 /**
- * A `RoleSource` built for the subject the instance serves, for an adapter
+ * A `CustomRoleSource` built for the subject the instance serves, for an adapter
  * option shared by every request: it gets the resolved subject (principal,
  * actor and delegation) and returns that subject's source, or `undefined`
  * for none. A throw reads no custom roles and reports `source-threw`.
  */
-export type RoleSourceFactory = (subject: Subject) => RoleSource | undefined;
+export type CustomRoleSourceFactory = (
+  subject: Subject,
+) => CustomRoleSource | undefined;
 
 /** One member of a scope instance, as `MembershipSource.list` returns it. */
 export type MemberEntry = {
@@ -239,13 +243,23 @@ export type TokenSigner = {
     payload: Readonly<Record<string, unknown>>,
     options: {
       readonly typ:
-        | "permdock-snapshot+jwt"
-        | "permdock-approval+jwt"
-        | "permdock-decisions+jwt"
-        | "permdock-policy+jwt"
-        | "permdock-capability+jwt";
+        | "vnd.permdock.snapshot+jwt"
+        | "vnd.permdock.approval+jwt"
+        | "vnd.permdock.policy+jwt"
+        | "vnd.permdock.capability+jwt"
+        | "vnd.permdock.run+jwt"
+        | "vnd.permdock.support-session+jwt"
+        | "vnd.permdock.evidence+jwt"
+        /** RFC 9068: the `PermDock-Approver` token `cloud().approvals.resolve` sends. */
+        | "at+jwt";
+      /** `aud`; a signer with no default audience refuses to sign without one. */
       readonly audience?: string | readonly string[];
+      /** `exp`, a NumericDate; one hour after `iat` when absent. */
       readonly expiresAt?: number;
+      /** `iat`, a NumericDate: the artefact's issue time. The signer's clock when absent. */
+      readonly issuedAt?: number;
+      /** `jti`: the artefact's id. A fresh UUID when absent. */
+      readonly jti?: string;
     },
   ): Promise<string>;
   readonly kid?: string;
@@ -275,8 +289,10 @@ export type LimitConsumeInput = {
   readonly key: string;
   readonly subjectId: string;
   readonly count: number;
-  readonly per: string;
-  readonly now?: number;
+  /** The window in seconds; windows are aligned to the epoch. */
+  readonly per: number;
+  /** The decision clock; the store reads the clock when absent. */
+  readonly now?: Instant;
   /** The active tenant; a quota counts per subject and tenant. */
   readonly tenant?: string;
 };
@@ -304,21 +320,23 @@ export type DecisionSink = {
 export type CredentialVerifier = {
   verify(secret: string): Credential | null | Promise<Credential | null>;
   /**
-   * Records a successful use at `at` (Unix seconds), for a `lastUsedAt`
-   * column. Called after a key resolved and not awaited; a throw or a
-   * rejection is ignored, so it never changes the subject.
+   * Records a successful use at `at`, for a `lastUsedAt` column. Called
+   * after a key resolved and not awaited; a throw or a rejection is
+   * ignored, so it never changes the subject.
    */
-  touch?(id: string, at: number): void | Promise<void>;
+  touch?(id: string, at: Instant): void | Promise<void>;
 };
 
 /** What one tenant configures for itself. Every field only tightens. */
 export type TenantSettings = {
   /** Rules for API keys created in, or used against, this tenant. */
   readonly credentials?: CredentialPolicy;
+  /** Rules for support sessions started in this tenant. */
+  readonly supportSessions?: SupportSessionPolicy;
 };
 
 /**
- * Per-tenant settings, a subject input like `RoleSource`: they tighten what
+ * Per-tenant settings, a subject input like `CustomRoleSource`: they tighten what
  * a key may be and never grant. A throw denies.
  */
 export type SettingsSource = {

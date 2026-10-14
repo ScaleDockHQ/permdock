@@ -191,7 +191,7 @@ function wrap<V extends PolicyVocabulary>(
   ): Promise<ExplainedDecision> => {
     const decision = await decide(permission, data, {
       ...options,
-      source: options?.source ?? "explain",
+      call: options?.call ?? "explain",
       explain: true,
     });
     if (decision.trace !== undefined) {
@@ -237,7 +237,7 @@ function wrap<V extends PolicyVocabulary>(
   ): Promise<Extract<Decision, { readonly outcome: "granted" }>> => {
     const decision = await decide(permission, data, {
       ...options,
-      source: options?.source ?? "assert",
+      call: options?.call ?? "assert",
     });
     if (decision.outcome === "granted") {
       return decision;
@@ -306,7 +306,7 @@ function wrap<V extends PolicyVocabulary>(
           decide(
             permission,
             data,
-            compact<DecideOptions>({ source: "simulate", now: options?.now }),
+            compact<DecideOptions>({ call: "simulate", now: options?.now }),
           ),
         ),
       );
@@ -332,6 +332,12 @@ function wrap<V extends PolicyVocabulary>(
   return {
     can,
     decide,
+    async decideEach(permission, rows, options) {
+      return Object.freeze(
+        await Promise.all(rows.map((row) => decide(permission, row, options))),
+      );
+    },
+    decideFor: permdock.decideFor.bind(permdock),
     assert,
     explain,
     async filter<T>(
@@ -339,7 +345,7 @@ function wrap<V extends PolicyVocabulary>(
       rows: readonly T[],
       options?: DecideOptions,
     ): Promise<T[]> {
-      const next = { ...options, source: "filter" as const };
+      const next = { ...options, call: "filter" as const };
       const provider = providerFor(providers, permission);
       const ids = await permittedIds(provider, permission);
       if (ids === undefined) {
@@ -416,6 +422,11 @@ function wrap<V extends PolicyVocabulary>(
     assignablePermissions: permdock.assignablePermissions.bind(permdock),
     assignableLevels: permdock.assignableLevels.bind(permdock),
     decideRoleChange: permdock.decideRoleChange.bind(permdock),
+    decideCredential: permdock.decideCredential.bind(permdock),
+    decideAutomation: permdock.decideAutomation.bind(permdock),
+    decideSupportSession: permdock.decideSupportSession.bind(permdock),
+    mayUse: permdock.mayUse.bind(permdock),
+    permittedIds: permdock.permittedIds.bind(permdock),
     loadRelations: permdock.loadRelations.bind(permdock),
     whoCan: permdock.whoCan.bind(permdock),
     activate: permdock.activate.bind(permdock),

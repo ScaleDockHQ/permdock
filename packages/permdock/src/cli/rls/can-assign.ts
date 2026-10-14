@@ -130,8 +130,8 @@ ${sourceRowsSql(sources, userOf)}
       where m ->> 'scope' = ${quoteLiteral(name)}
         and m ->> 'id' = p_scope_id
         and (r.role, p_role) in (${pairsSql(pairs)})
-        and case jsonb_typeof(m -> 'expiresAt')
-          when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+        and case jsonb_typeof(m -> 'expires_at')
+          when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
           else true
         end${kind === undefined ? "" : `\n        and ${kind}`}${claimKeptLines(
           ctx,

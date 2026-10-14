@@ -20,18 +20,17 @@ import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
 import { delegationFrom } from "../core/delegation-input.ts";
 import {
-  type ProblemDetails,
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from "../core/errors.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { instanceOptions } from "../core/instance-options.ts";
-import { mayUse } from "../core/may-use.ts";
 import {
   challengeScope,
   hasScope,
   scopesReaching,
 } from "../core/oauth-scopes.ts";
+import { statusProblem } from "../core/problem-types.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { bytesToBase64Url } from "../core/sha256.ts";
 import { bearerChallenge, wwwAuthenticate } from "../server/problem.ts";
@@ -233,14 +232,10 @@ async function signCard(
 }
 
 function missingScope(permission: Permission, scope: string): A2aTaskOutcome {
-  const problem: ProblemDetails = {
-    type: "https://permdock.com/problems/unauthenticated",
-    title: "Insufficient scope",
-    status: 401,
-    detail: `insufficient_scope: ${scope}`,
+  const problem = statusProblem(401, `insufficient_scope: ${scope}`, {
     permission: permission.key,
     scope,
-  };
+  });
   return {
     ok: false,
     status: 401,
@@ -290,7 +285,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     const scheme = firstScheme(options);
     const skills: A2aSkill[] = [];
     for (const [id, config] of Object.entries(options.skills)) {
-      if (mayUse(permdock, config.permission)) {
+      if (permdock.mayUse(config.permission)) {
         skills.push(skillOf(id, config, scheme));
       }
     }

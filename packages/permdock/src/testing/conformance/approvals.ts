@@ -5,6 +5,8 @@ import type {
   ApprovalDelegationSource,
   ApprovalRequest,
   ApprovalStore,
+  IdempotencyStore,
+  IdempotentResponse,
 } from "../../approvals/index.ts";
 import type { ApprovalPolicySource, Policy, Subject } from "../../index.ts";
 
@@ -13,6 +15,7 @@ import { approvalPoliciesFor } from "../../core/approval-policies.ts";
 function sampleApproval(token: string): ApprovalRequest {
   return {
     v: 1,
+    id: `apr_${token}`,
     token,
     permission: "post.delete",
     scope: "post:delete",
@@ -151,9 +154,9 @@ export function testApprovalStore(
       ),
     ).rejects.toThrow(/not pending/);
     await store.create(sampleApproval("stale-token"));
-    const expired = await store.expire(
-      new Date(Date.now() + 2 * 60 * 60 * 1000),
-    );
+    const expired = await store.expire({
+      epochMilliseconds: Date.now() + 2 * 60 * 60 * 1000,
+    });
     expect(expired).toBeGreaterThanOrEqual(1);
   });
 
@@ -310,7 +313,7 @@ export function testApprovalStore(
       context: {},
     };
     const escalation = {
-      after: "1h",
+      after: 3600,
       to: { kind: "role" as const, role: "auditor", scope: "global" as const },
     };
     await store.create({
@@ -542,5 +545,31 @@ export function testApprovalDelegationSource(
         at,
       }),
     ).toEqual([]);
+  });
+}
+
+/**
+ * Checks an `IdempotencyStore`: a stored response comes back as written
+ * until it expires, keys never share an entry, and a later `set` replaces an
+ * earlier one.
+ */
+export function testIdempotencyStore(store: IdempotencyStore): void {
+  it("replays a stored response per key and keeps keys apart", async () => {
+    const key = `u_1\n${crypto.randomUUID()}`;
+    const other = `u_2\n${crypto.randomUUID()}`;
+    const response: IdempotentResponse = {
+      fingerprint: "approve apr_1 sha-256:abc",
+      status: 200,
+      headers: [["content-type", "application/json"]],
+      body: '{"status":"approved"}',
+    };
+    const later = Date.now() + 60 * 60 * 1000;
+    expect(await store.get(key)).toBeUndefined();
+    await store.set(key, response, later);
+    expect(await store.get(key)).toEqual(response);
+    expect(await store.get(other)).toBeUndefined();
+    const replaced = { ...response, status: 201 };
+    await store.set(key, replaced, later);
+    expect(await store.get(key)).toEqual(replaced);
   });
 }

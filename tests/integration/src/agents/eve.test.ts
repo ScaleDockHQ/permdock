@@ -158,7 +158,7 @@ async function permdock(): Promise<EvePermDock> {
       agentSubject({ user: current?.auth?.initiator?.principalId }),
     tenant: TENANT,
     delegation: agentDelegation,
-    tools: agentTools(rows.load),
+    operations: agentTools(rows.load),
     store: await db.openStore(),
   });
 }

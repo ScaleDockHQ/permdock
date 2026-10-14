@@ -227,7 +227,7 @@ describe("OpenAPI registries", () => {
   });
 
   it("keeps the JWS typ values the source emits equal to the documented closed list", () => {
-    const documented = tableColumn("| `typ` | Private claim | Emitted by |");
+    const documented = tableColumn("| `typ` | Private claims | Emitted by |");
     const literals = new Set<string>();
     const walk = (dir: string): void => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -236,7 +236,7 @@ describe("OpenAPI registries", () => {
           walk(full);
         } else if (entry.name.endsWith(".ts")) {
           for (const match of readFileSync(full, "utf8").matchAll(
-            /["'](permdock-[a-z]+\+jwt)["']/gu,
+            /["'](vnd\.permdock\.[a-z-]+\+jwt|at\+jwt)["']/gu,
           )) {
             literals.add(match[1] ?? "");
           }

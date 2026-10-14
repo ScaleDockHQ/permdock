@@ -1,8 +1,8 @@
 export {
-  actorFromSession,
+  actorFromEve,
   createPermDock,
   rolesOf,
-  subjectFromSession,
+  subjectFromEve,
 } from "./create.ts";
 export type {
   EveApprovalContext,

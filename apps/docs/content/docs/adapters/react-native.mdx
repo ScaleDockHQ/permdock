@@ -33,12 +33,15 @@ These steps build a native Expo Router app with tabs that a role hides, a snapsh
 
 ```ts title="src/storage.ts"
 import * as SecureStore from "expo-secure-store";
-import { memoryStorage, type PermDockStorage } from "permdock/react-native";
+import {
+  memorySnapshotStorage,
+  type SnapshotStorage,
+} from "permdock/react-native";
 import { Platform } from "react-native";
 
-export const storage: PermDockStorage =
+export const storage: SnapshotStorage =
   Platform.OS === "web"
-    ? memoryStorage()
+    ? memorySnapshotStorage()
     : {
         getItem: (key) => SecureStore.getItem(key),
         setItem: (key, value) => {
@@ -203,7 +206,7 @@ const source = localSnapshot({
 </PermDockProvider>;
 ```
 
-`read()` returns what a [`MembershipSource`](/docs/concepts/tenancy) and a [`RoleSource`](/docs/concepts/custom-roles) would on the server: the memberships, global roles, plans and custom roles of the signed-in user. `attributes` carries the principal values conditions read, such as `principal.claims.team_ids`. On every `subscribe` call the provider rebuilds the snapshot and persists it to `storage`. A failed `read()` keeps the current snapshot.
+`read()` returns what a [`MembershipSource`](/docs/concepts/tenancy) and a [`CustomRoleSource`](/docs/concepts/custom-roles) would on the server: the memberships, global roles, plans and custom roles of the signed-in user. `attributes` carries the principal values conditions read, such as `principal.claims.team_ids`. On every `subscribe` call the provider rebuilds the snapshot and persists it to `storage`. A failed `read()` keeps the current snapshot.
 
 The local snapshot decides like the server snapshot for the same rows, with these limits:
 
@@ -215,16 +218,16 @@ With `snapshotUrl` set as well, the latest answer wins: the server snapshot afte
 
 ### PowerSync source
 
-With PowerSync, `permdock powersync generate` writes the manifest to `powersync.manifest` and adds `permdock_*` streams for the rows `read` needs ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powersyncSource(db, { manifest, queries, read })` replaces the hand-written `read` and `subscribe`: `get` runs every query with `db.getAll`, and one `db.watch` per query reports changes. `permdock/react-native` never imports `@powersync/*`; the app passes its `PowerSyncDatabase`.
+With PowerSync, `permdock powersync generate` writes the manifest to `powersync.manifest` and adds `permdock_*` streams for the rows `read` needs ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powerSyncSource(db, { manifest, queries, read })` replaces the hand-written `read` and `subscribe`: `get` runs every query with `db.getAll`, and one `db.watch` per query reports changes. `permdock/react-native` never imports `@powersync/*`; the app passes its `PowerSyncDatabase`.
 
 ```tsx
 import {
-  powersyncSource,
+  powerSyncSource,
   type LocalSnapshotManifest,
 } from "permdock/react-native";
 import manifest from "./permdock-manifest.json";
 
-const source = powersyncSource(db, {
+const source = powerSyncSource(db, {
   manifest: manifest as LocalSnapshotManifest,
   queries: {
     memberships: {
@@ -251,7 +254,7 @@ const source = powersyncSource(db, {
 - The snapshot's principal id against `subjectId`, which the provider requires (`null` when signed out). A mismatch clears the stored snapshot and tenant, and is treated as empty storage.
 - Nothing else client-side. As on the web, on-device answers are UI hints; every mutation is re-checked by the API.
 
-The snapshot is stored as the `storage` implementation stores it. The entry ships only `memoryStorage` and the three-method interface; an app that wants the snapshot encrypted at rest (it reveals role names, condition shapes and, with `tenants: 'all'`, every organisation the user belongs to, but no rows) passes `expo-secure-store` or an encrypted MMKV instance. Memberships whose `expiresAt` has passed are ignored by the evaluator at read time. A persisted snapshot keeps serving grants that the server has since removed until the next revalidation; the [threat model](/docs/security/threat-model) accepts this for UI hints because every mutation is re-checked server-side.
+The snapshot is stored as the `storage` implementation stores it. The entry ships only `memorySnapshotStorage` and the three-method interface; an app that wants the snapshot encrypted at rest (it reveals role names, condition shapes and, with `tenants: 'all'`, every organisation the user belongs to, but no rows) passes `expo-secure-store` or an encrypted MMKV instance. `testSnapshotStorage(storage)` from `permdock/testing` checks a custom storage. Memberships whose `expiresAt` has passed are ignored by the evaluator at read time. A persisted snapshot keeps serving grants that the server has since removed until the next revalidation; the [threat model](/docs/security/threat-model) accepts this for UI hints because every mutation is re-checked server-side.
 
 ## How denials surface
 
@@ -261,7 +264,7 @@ The snapshot is stored as the `storage` implementation stores it. The entry ship
 
 ## Example app
 
-`apps/examples/expo`: an Expo Router app with `expo-secure-store` storage (`memoryStorage` on web), a `localSnapshot` over in-memory rows that stand in for a sync engine, an `AppState` foreground listener, `Tabs.Protected` and `Protected`. `pnpm gen` writes `src/permdock-manifest.json` from the policy; the app bundle never imports the policy. `http://127.0.0.1:3486/` shows `edit`, `locked` for publish and one tab; "Sync admin role" changes the row, and `publish` and the Publish tab appear with no request.
+`apps/examples/expo`: an Expo Router app with `expo-secure-store` storage (`memorySnapshotStorage` on web), a `localSnapshot` over in-memory rows that stand in for a sync engine, an `AppState` foreground listener, `Tabs.Protected` and `Protected`. `pnpm gen` writes `src/permdock-manifest.json` from the policy; the app bundle never imports the policy. `http://127.0.0.1:3486/` shows `edit`, `locked` for publish and one tab; "Sync admin role" changes the row, and `publish` and the Publish tab appear with no request.
 
 ## Related standards
 

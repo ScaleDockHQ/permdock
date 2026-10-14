@@ -10,6 +10,7 @@ import {
   formatCatalogJson,
   formatCatalogMarkdown,
 } from "./catalog-doc.ts";
+import { loadConfiguredOperations } from "./catalog-operations.ts";
 import { runCollect } from "./collect.ts";
 import { defaultSrcPath, listSourceFiles } from "./files.ts";
 import {
@@ -58,6 +59,7 @@ export async function runCatalog(input: {
       scan,
       input.now.toISOString(),
       await loadConfiguredPolicy(input.cwd, input.config.policy),
+      await loadConfiguredOperations(input.cwd, input.config.operations),
     );
   } else {
     const collected = await runCollect({

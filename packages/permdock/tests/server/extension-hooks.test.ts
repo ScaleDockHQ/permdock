@@ -22,11 +22,11 @@ function errorsOf(permdock: PermDock): unknown[] {
   return seen;
 }
 
-describe("server onDenied", () => {
+describe("server deniedResponse", () => {
   it("replaces the refusal with the Problem Details it returns", async () => {
     const server = createPermDock(policy, {
       subject: () => memberUser,
-      onDenied: ({ problem, decision }) => ({
+      deniedResponse: ({ problem, decision }) => ({
         ...problem,
         detail: `custom: ${decision.outcome}`,
         code: "POST_LOCKED",
@@ -55,7 +55,8 @@ describe("server onDenied", () => {
   it("returns a Response it builds as the refusal", async () => {
     const server = createPermDock(policy, {
       subject: () => memberUser,
-      onDenied: () => Response.redirect("https://app.example/upgrade", 303),
+      deniedResponse: () =>
+        Response.redirect("https://app.example/upgrade", 303),
     });
     const guard = await server.protect(
       permissions.post.update,
@@ -82,8 +83,8 @@ describe("server onDenied", () => {
       const shared = request();
       const server = createPermDock(policy, {
         subject: () => memberUser,
-        // SAFETY: the cases return values outside OnDenied's type on purpose.
-        onDenied: hook as never,
+        // SAFETY: the cases return values outside DeniedResponse's type on purpose.
+        deniedResponse: hook as never,
       });
       const guard = await server.protect(
         permissions.post.update,
@@ -91,7 +92,7 @@ describe("server onDenied", () => {
       )(shared);
       expect(guard.ok).toBe(false);
       expect(guard.ok ? 0 : guard.response.status).toBe(403);
-      const errors = errorsOf(await server.permdock(shared));
+      const errors = errorsOf(await server.getPermDock(shared));
       expect(errors).toHaveLength(1);
     },
   );
@@ -100,7 +101,7 @@ describe("server onDenied", () => {
     const seen: unknown[] = [];
     const server = createPermDock(policy, {
       subject: () => memberUser,
-      onDenied: ({ decision }) => {
+      deniedResponse: ({ decision }) => {
         seen.push(decision);
         expect(decision.outcome).toBe("denied");
         if (decision.outcome !== "denied") {
@@ -135,7 +136,7 @@ describe("server onDenied", () => {
     let calls = 0;
     const server = createPermDock(policy, {
       subject: () => memberUser,
-      onDenied: () => {
+      deniedResponse: () => {
         calls += 1;
         return undefined;
       },
@@ -165,7 +166,7 @@ describe("server protect", () => {
       detail: "post.update failed closed: the row could not be loaded",
     });
     expect(guard.decision?.outcome).toBe("denied");
-    const errors = errorsOf(await server.permdock(shared));
+    const errors = errorsOf(await server.getPermDock(shared));
     expect(errors).toEqual([new Error("database down")]);
   });
 
@@ -194,7 +195,7 @@ describe("server context", () => {
         ip: incoming.headers.get("x-forwarded-for") ?? "unknown",
       }),
     });
-    const permdock = await server.permdock(
+    const permdock = await server.getPermDock(
       new Request("https://api.example/", {
         headers: { "x-forwarded-for": "203.0.113.7" },
       }),
@@ -220,7 +221,7 @@ describe("server context", () => {
       // SAFETY: the cases return values outside the hook's type on purpose.
       context: hook as never,
     });
-    const permdock = await server.permdock(request());
+    const permdock = await server.getPermDock(request());
     expect(permdock.subject.context).toEqual({ region: "eu" });
     expect(errorsOf(permdock)).toHaveLength(1);
   });
@@ -236,7 +237,7 @@ describe("server context", () => {
       subject: () => ({ id: "u1" }),
       context: () => ({ region: "us", tier: "gold" }),
     });
-    const permdock = await server.permdock(request());
+    const permdock = await server.getPermDock(request());
     expect(permdock.subject.context).toEqual({ region: "eu", tier: "gold" });
   });
 
@@ -247,7 +248,7 @@ describe("server context", () => {
         throw new Error("no geo");
       },
     });
-    const permdock = await server.permdock(request());
+    const permdock = await server.getPermDock(request());
     const seen: unknown[] = [];
     const off = permdock.on("error", (error) => {
       seen.push(error);
@@ -269,7 +270,7 @@ describe("server wrap", () => {
         return permdock;
       },
     });
-    const permdock = await server.permdock(request());
+    const permdock = await server.getPermDock(request());
     expect(wrapped).toEqual(["wrap"]);
     expect(typeof permdock.on).toBe("function");
   });

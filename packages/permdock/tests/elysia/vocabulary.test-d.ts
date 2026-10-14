@@ -10,11 +10,11 @@ import type {
 import { createPermDock } from "../../src/elysia/index.ts";
 import { policy } from "../fixtures/vocabulary.ts";
 
-const { permdock } = createPermDock(policy, { subject: () => null });
+const { middleware } = createPermDock(policy, { subject: () => null });
 
 describe("permdock/elysia vocabulary", () => {
   it("derives permdock typed by the policy vocabulary", () => {
-    new Elysia().use(permdock()).get("/", (ctx) => {
+    new Elysia().use(middleware()).get("/", (ctx) => {
       expectTypeOf(ctx.permdock).toEqualTypeOf<VocabularyPermDock>();
       expectTypeOf(ctx.permdock.roles).toEqualTypeOf<typeof roles>();
       expectTypeOf(ctx.permdock).toEqualTypeOf<PermDockOf<typeof policy>>();

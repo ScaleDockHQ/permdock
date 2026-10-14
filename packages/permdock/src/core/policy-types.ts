@@ -13,6 +13,7 @@ import type {
 import type { POLICY_X } from "./policy-fingerprint.ts";
 import type { Scope, PolicyScopesInput, ScopeNames } from "./scopes.ts";
 import type { Principal, Actor, Delegation } from "./subject.ts";
+import type { Instant } from "./time.ts";
 import type { RoleMeta, RoleTree, PlanTree } from "./vocabulary.ts";
 
 export type ClosureContext = {
@@ -34,8 +35,8 @@ export type ClosureGrantFn<T = unknown> = (
 
 /** Who else may approve once a request has waited `after`. */
 export type ApprovalEscalation = {
-  /** A duration (`'4h'`) from the request's creation. */
-  readonly after: string;
+  /** Seconds from the request's creation. */
+  readonly after: number;
   readonly to: Approver | readonly Approver[];
 };
 
@@ -68,8 +69,8 @@ export type ApprovalRequirement = {
   readonly staleOn?: "resource-change";
   /** Distinct approvers a request needs before it is approved under `by`; absent means 1. */
   readonly quorum?: number;
-  /** How long a request stays open (`'30m'`); the store's default when absent, and never longer than it. */
-  readonly ttl?: string;
+  /** Seconds a request stays open; the store's default when absent, and never longer than it. */
+  readonly ttl?: number;
   readonly escalation?: ApprovalEscalation;
 };
 
@@ -82,9 +83,9 @@ export type ApprovalOption =
       readonly stages?: readonly {
         readonly by: ApproverInput;
         readonly quorum?: number;
-        /** After `after`, `to` may approve this stage as well as `by`. */
+        /** After `after` seconds, `to` may approve this stage as well as `by`. */
         readonly escalation?: {
-          readonly after: string;
+          readonly after: number;
           readonly to: ApproverInput;
         };
       }[];
@@ -98,11 +99,11 @@ export type ApprovalOption =
       readonly staleOn?: "resource-change";
       /** Distinct approvers needed (an integer of at least 1); the same approver counts once. Absent means 1. */
       readonly quorum?: number;
-      /** How long the request stays open (`'30m'`, `'2d'`); caps the approval store's default. */
-      readonly ttl?: string;
-      /** After `after` (`'4h'`), `to` may approve as well as `by`, at any open stage; same kinds as `by`. */
+      /** Seconds the request stays open (`1800`); caps the approval store's default. */
+      readonly ttl?: number;
+      /** After `after` seconds (`14_400`), `to` may approve as well as `by`, at any open stage; same kinds as `by`. */
       readonly escalation?: {
-        readonly after: string;
+        readonly after: number;
         readonly to: ApproverInput;
       };
     };
@@ -114,7 +115,8 @@ export type ApprovalOption =
  */
 export type GrantLimit = {
   readonly count: number;
-  readonly per: string;
+  /** The window in seconds (`3600` for an hour), aligned to the epoch. */
+  readonly per: number;
   readonly mode?: "hard" | "soft";
   readonly alertAt?: number;
 };
@@ -135,8 +137,8 @@ export type AssuranceRequirement = {
  * mints the elevated membership to write.
  */
 export type ActivationOption = {
-  /** The longest an activation may last, as a duration (`'4h'`, `'30m'`). */
-  readonly maxDuration?: string;
+  /** The longest an activation may last, in seconds (`14_400`). */
+  readonly maxDuration?: number;
   /** `'required'` denies an activation without a reason. */
   readonly justification?: "required" | "optional";
   /** When set, `activate` returns `approval-required` before the membership can be written. */
@@ -146,7 +148,7 @@ export type ActivationOption = {
 };
 
 export type ActivationSpec = {
-  readonly maxDuration?: string;
+  readonly maxDuration?: number;
   readonly justification: "required" | "optional";
   readonly approval?: "human" | ApprovalRequirement;
   readonly assurance?: AssuranceRequirement;
@@ -165,8 +167,8 @@ export type BreakGlassOptions = {
   /** Names of the deny grants this override lifts; every other deny still wins. */
   readonly overrides?: readonly string[];
   readonly requires?: BreakGlassRequirements;
-  /** The longest a break-glass session may last, as a duration. */
-  readonly maxDuration?: string;
+  /** The longest a break-glass session may last, in seconds. */
+  readonly maxDuration?: number;
   /** Follow-ups the grant owes: each becomes an obligation on the decision. */
   readonly obligations?: readonly ("notify" | "review")[];
 };
@@ -177,15 +179,15 @@ export type BreakGlassSpec = {
   readonly purpose?: readonly string[];
   readonly reason: boolean;
   readonly assurance?: AssuranceRequirement;
-  readonly maxDuration?: string;
+  readonly maxDuration?: number;
   readonly obligations: readonly ("notify" | "review")[];
 };
 
 /** How a tenant consents to support access, and for how long. */
 export type SupportConsent = {
   readonly by: GranteeInput;
-  /** The durations a tenant owner may pick, as duration strings. */
-  readonly durations: readonly string[];
+  /** The durations a tenant owner may pick, in seconds. */
+  readonly durations: readonly number[];
 };
 
 export type SupportAccessOptions<S extends string = string> = {
@@ -207,7 +209,7 @@ export type SupportSpec = {
   readonly actorRequired: boolean;
   readonly consent: {
     readonly by: Grantee | readonly Grantee[];
-    readonly durations: readonly string[];
+    readonly durations: readonly number[];
   };
   readonly group: string;
 };
@@ -236,10 +238,10 @@ export type GrantOptions<T = Record<string, unknown>> = {
   readonly obligations?: readonly ObligationInput[];
   /** Purposes of use (`context.purpose`) that make the grant apply; non-portable. */
   readonly purpose?: readonly string[];
-  /** The grant applies from this instant on (RFC 3339 string or Unix seconds); before it an allow denies with `inactive-grant` and a deny does not apply. */
-  readonly validFrom?: string | number;
-  /** The grant stops applying at this instant (exclusive; RFC 3339 string or Unix seconds). */
-  readonly validUntil?: string | number;
+  /** The grant applies from this instant on (RFC 3339 or an `Instant`); before it an allow denies with `inactive-grant` and a deny does not apply. */
+  readonly validFrom?: string | Instant;
+  /** The grant stops applying at this instant (exclusive; RFC 3339 or an `Instant`). */
+  readonly validUntil?: string | Instant;
   /**
    * An allow on an instance action counts only on rows whose scope instance
    * (or the whole app, globally) is one where the subject also holds this
@@ -268,6 +270,12 @@ export type ObligationInput =
 export type GrantValidity = {
   readonly from?: number;
   readonly until?: number;
+};
+
+/** A grant's validity in JSON (snapshots, catalogs, `inactive-grant` details): RFC 3339 bounds. */
+export type WireValidity = {
+  readonly from?: string;
+  readonly until?: string;
 };
 
 /**
@@ -302,8 +310,8 @@ export type DelegationInput = {
   readonly to: ActorGrantee | string | DelegationTarget;
   /** The leaves or subtrees the actor may use; a deny grant still applies. */
   readonly permissions: readonly (Permission | PermissionTree)[];
-  readonly validFrom?: string | number;
-  readonly validUntil?: string | number;
+  readonly validFrom?: string | Instant;
+  readonly validUntil?: string | Instant;
 };
 
 /** A declared scope name (or the `tenant` / `team` alias), or the resource a role is held on. */

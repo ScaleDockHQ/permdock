@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import type { Subject } from "../../src/core/subject.ts";
+import type { Instant } from "../../src/core/time.ts";
 import type {
   KyselyExpressionBuilder,
   KyselySelectQuery,
 } from "../../src/kysely/types.ts";
 
 import { toWhere, withSubject } from "../../src/kysely/to-where.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 function selectQuery(table: string): KyselySelectQuery {
   const parts: unknown[] = [];
@@ -152,7 +157,7 @@ describe("permdock/kysely toWhere", () => {
       "posts",
       {
         subject,
-        now: 100.2,
+        now: at(100.2),
         memberships: {
           tenant: {
             table: "members",

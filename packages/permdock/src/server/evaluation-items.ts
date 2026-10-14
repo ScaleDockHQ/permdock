@@ -62,7 +62,19 @@ export function permissionLookup(tree: PermissionTree): PermissionLookup {
   };
 }
 
-/** The row an item's resource describes: its `properties`, else `{ id }`. */
+/** AuthZEN's sentinel resource id for a collection: the type as a whole, no row. */
+const COLLECTION_ID = "*";
+
+/** A resource id as a row id: `undefined` for none, a non-scalar or the collection sentinel `*`. */
+export function wireResourceId(id: unknown): string | undefined {
+  if (typeof id !== "string" && typeof id !== "number") {
+    return undefined;
+  }
+  const text = String(id);
+  return text === COLLECTION_ID ? undefined : text;
+}
+
+/** The row an item's resource describes: its `properties`, else `{ id }`, else none for `id: "*"`. */
 export function itemResourceData(
   resource: EvaluationResource | undefined,
 ): unknown {
@@ -70,9 +82,6 @@ export function itemResourceData(
   if (properties !== null && typeof properties === "object") {
     return properties;
   }
-  const id = resource?.id;
-  if (typeof id === "string" || typeof id === "number") {
-    return { id: String(id) };
-  }
-  return undefined;
+  const id = wireResourceId(resource?.id);
+  return id === undefined ? undefined : { id };
 }

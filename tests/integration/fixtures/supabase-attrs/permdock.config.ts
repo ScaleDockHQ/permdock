@@ -1,4 +1,4 @@
-import { fromTable } from "permdock/supabase";
+import { tableMembershipSource } from "permdock/supabase";
 
 export default {
   permissions: "../abac/permissions.ts",
@@ -6,7 +6,7 @@ export default {
   rls: { dialect: "supabase", authorize: "jwt", tenantType: "text" },
   supabase: {
     hook: {
-      memberships: [fromTable({ table: "memberships" })],
+      memberships: [tableMembershipSource({ table: "memberships" })],
       roles: false,
       version: false,
       attrs: {

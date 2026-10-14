@@ -31,7 +31,7 @@ export function snapshotOf(
   options: {
     readonly customRoles: readonly CustomRole[];
     readonly customGrants?: readonly CustomGrant[];
-    /** Role names `RoleSource.assignable` returned, per tenant. */
+    /** Role names `CustomRoleSource.assignable` returned, per tenant. */
     readonly assignable?: ReadonlyMap<string, readonly string[]>;
     readonly include?: SnapshotInclude;
     readonly tenants?: "all";

@@ -220,7 +220,7 @@ export async function pd033(
         code: "PD033",
         severity: "warning",
         message: `role '${binding.name}' has activation without maxDuration: an elevation never expires on its own`,
-        fix: `set activation: { maxDuration: '4h', ... } on role '${binding.name}'`,
+        fix: `set activation: { maxDuration: 14_400, ... } on role '${binding.name}'`,
       });
     }
   }

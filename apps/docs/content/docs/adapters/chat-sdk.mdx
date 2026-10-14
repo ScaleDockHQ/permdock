@@ -1,0 +1,63 @@
+---
+title: Chat SDK
+description: permdock/chat-sdk implements permdock/chat and the chat channel of permdock/delivery on the Chat SDK 4. chatSdkAuthor maps a verified Chat SDK author, chatSdkTransport posts direct messages and approval cards, and approvalActions applies approve and reject clicks as the clicking user.
+---
+
+`permdock/chat-sdk` connects [chat](/docs/concepts/chat) and [delivery](/docs/concepts/delivery) to the [Chat SDK](https://chat-sdk.dev) (`chat` 4, an optional peer). One bot then serves Slack, Teams, Google Chat, Discord and the other Chat SDK adapters. The entry imports the card builders from `chat`.
+
+## Authors
+
+`chatSdkAuthor(user, adapter, { workspace? })` turns the `Author` of a Chat SDK message or action into a `ChatAuthor`. The provider is `adapter.name`. It reads only `userId`, never the email or display name. It returns `null` for a bot (`isBot: true`), for this bot (`isMe`) and for the platform itself (`isSystem`).
+
+```ts
+import { Chat } from "chat";
+import { createPermDock } from "permdock/chat";
+import { chatSdkAuthor } from "permdock/chat-sdk";
+
+const permdock = createPermDock(policy, { principals, memberships, approvals });
+const pay = permdock.protect(
+  operations["invoice.pay"],
+  ({ input }) => `Paid ${input.id}.`,
+);
+
+chat.onNewMention(async (thread, message) => {
+  const author = chatSdkAuthor(message.author, thread.adapter, {
+    workspace: "T0ACME",
+  });
+  const result = await pay(author, { id: "inv_42" });
+  await thread.post(
+    result.outcome === "granted" ? result.value : "Not allowed.",
+  );
+});
+```
+
+## Direct messages
+
+`chatSdkTransport(chat, { provider, workspace?, remember? })` is the `chat` transport of delivery. It opens a DM with the target's platform user id through `chat.openDM` and posts the text. A message with `approval` posts `approvalCard` instead.
+
+- **Targets.** A target for another `provider` or `workspace` fails with `rejected`.
+- **Errors.** A Chat SDK `RATE_LIMITED` error is retryable `rate-limited`, `NOT_IMPLEMENTED` is final `rejected`, and any other throw is retryable `unavailable`.
+- **Repeats.** The Chat SDK takes no idempotency key. The transport remembers the last `remember` keys it sent (default 1,000) and returns the first result for a repeat. The memory is per instance, so a retry on another replica posts again.
+
+## Approval cards
+
+`approvalCard(prompt, { approvalUrl, buttons? })` returns a Chat SDK `CardElement`: the prompt's detail, who asked, the permission, resource, risk and expiry, a Review link to the approval page, and Approve and Reject buttons. The buttons carry the request id as `value`, never the token. `buttons: false` leaves only the link.
+
+`approvalActions(permdock, { workspace?, onResult? })` applies the buttons:
+
+```ts
+import { approvalActions } from "permdock/chat-sdk";
+
+const actions = approvalActions(permdock, { workspace: "T0ACME" });
+chat.onAction([...actions.actionIds], actions.onAction);
+```
+
+A click resolves the clicking user with `chatSdkAuthor` and calls `ChatPermDock.resolveAction`. A recorded verdict is posted to the thread. A refusal (an unlinked user, the requester, a bot, a decided request) is shown only to the clicking user. `onResult` replaces both replies.
+
+## Example app
+
+`apps/examples/chat-sdk` is a Slack bot: `@acme-billing show inv_42` and `@acme-billing pay inv_42`. A pay request sends approval cards to the other billing users through `chatSdkTransport`, and their clicks go through `approvalActions`.
+
+## Why
+
+The Chat SDK verifies each platform's request signature before it calls a handler, so `event.user` and `message.author` are the platform's answer to who acted. PermDock uses only the platform user id from them and resolves it through the app's identity links. The SDK's `Author` has no workspace, so the bot passes the workspace it is installed in, and a link from another workspace never matches. Approve and Reject buttons are allowed in chat, unlike in email, because a click is a signed event naming the clicking user, while a link in an email is a bearer secret.

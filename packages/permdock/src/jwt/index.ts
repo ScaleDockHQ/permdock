@@ -19,6 +19,7 @@ export { createJwtSubjectResolver, subjectFromJwt } from "./subject.ts";
 export type {
   DiscoveryInput,
   DpopProofResult,
+  IntrospectionPrincipal,
   JoseTokenSignerOptions,
   JoseTokenVerifierOptions,
   JsonWebKeySet,
@@ -27,6 +28,5 @@ export type {
   JwtJwks,
   JwtPrincipal,
   JwtSubjectOptions,
-  MappedSubject,
 } from "./types.ts";
 export { joseTokenVerifier } from "./verifier.ts";

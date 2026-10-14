@@ -14,6 +14,8 @@ import {
 import { createPermDock, problemFromDecision } from "../../src/server/index.ts";
 import { rateLimitHeaders } from "../../src/server/problem.ts";
 
+const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
+
 type Item = {
   readonly name: string;
   readonly params: Readonly<Record<string, number>>;
@@ -66,13 +68,16 @@ function limited(denials: readonly Denial[]): Decision {
 }
 
 const NOW = 1_000_000;
+const CLOCK = { epochMilliseconds: NOW * 1000 };
 
 describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () => {
   it("answers an exhausted grant with 429, Retry-After and both fields", async () => {
     const policy = definePolicy(permissions, {
       roles: [
         role("member", [
-          allow(permissions.report.export, { limit: { count: 2, per: "day" } }),
+          allow(permissions.report.export, {
+            limit: { count: 2, per: 86_400 },
+          }),
         ]),
       ],
       subject: (user: User) => user,
@@ -109,20 +114,20 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
         {
           role: "member",
           reason: "limit",
-          detail: { count: 100, window: 86_400, resetsAt: NOW + 3600 },
+          detail: { count: 100, per: 86_400, resetsAt: at(NOW + 3600) },
         },
         {
           role: null,
           reason: "limit",
-          detail: { count: 10, window: 60, resetsAt: NOW + 20 },
+          detail: { count: 10, per: 60, resetsAt: at(NOW + 20) },
         },
         {
           role: "member",
           reason: "limit",
-          detail: { count: 5, window: 60, resetsAt: NOW + 5 },
+          detail: { count: 5, per: 60, resetsAt: at(NOW + 5) },
         },
       ]),
-      NOW,
+      CLOCK,
     );
     expect(parseList(headers["RateLimit-Policy"] ?? "")).toEqual([
       { name: "member", params: { q: 100, w: 86_400 } },
@@ -141,10 +146,10 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
         {
           role: "member",
           reason: "limit",
-          detail: { count: 1, window: 60, resetsAt: NOW - 10 },
+          detail: { count: 1, per: 60, resetsAt: at(NOW - 10) },
         },
       ]),
-      NOW,
+      CLOCK,
     );
     expect(headers["Retry-After"]).toBe("1");
     expect(parseList(headers["RateLimit"] ?? "")[0]?.params["t"]).toBe(1);
@@ -164,10 +169,10 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
           {
             role: name,
             reason: "limit",
-            detail: { count: 1, window: 60, resetsAt: NOW + 1 },
+            detail: { count: 1, per: 60, resetsAt: at(NOW + 1) },
           },
         ]),
-        NOW,
+        CLOCK,
       );
       const [item] = parseList(headers["RateLimit-Policy"] ?? "");
       expect(item?.params).toEqual({ q: 1, w: 60 });
@@ -179,10 +184,10 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
           {
             role: 'say "hi"',
             reason: "limit",
-            detail: { count: 1, window: 60, resetsAt: NOW + 1 },
+            detail: { count: 1, per: 60, resetsAt: at(NOW + 1) },
           },
         ]),
-        NOW,
+        CLOCK,
       )["RateLimit-Policy"] ?? "",
     );
     expect(quotes?.name).toBe('say "hi"');
@@ -190,18 +195,21 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
 
   it("sends no fields for a granted decision, a limit-free denial or a malformed detail", () => {
     expect(
-      rateLimitHeaders(limited([{ role: "member", reason: "condition" }]), NOW),
+      rateLimitHeaders(
+        limited([{ role: "member", reason: "condition" }]),
+        CLOCK,
+      ),
     ).toEqual({});
     expect(
       rateLimitHeaders(
         limited([{ role: "member", reason: "limit", detail: { count: "x" } }]),
-        NOW,
+        CLOCK,
       ),
     ).toEqual({});
     expect(
       rateLimitHeaders(
         limited([{ role: "member", reason: "limit", detail: null }]),
-        NOW,
+        CLOCK,
       ),
     ).toEqual({});
   });
@@ -211,7 +219,7 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
       roles: [
         role("member", [
           allow(permissions.report.export, {
-            limit: { count: 1, per: "hour" },
+            limit: { count: 1, per: 3600 },
           }),
         ]),
         role("viewer", [allow(permissions.report.read)]),
@@ -237,7 +245,7 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
         {
           role: "member",
           reason: "limit",
-          detail: { count: 1, window: 60, resetsAt: NOW + 1 },
+          detail: { count: 1, per: 60, resetsAt: at(NOW + 1) },
         },
         { role: "viewer", reason: "condition" },
       ]),

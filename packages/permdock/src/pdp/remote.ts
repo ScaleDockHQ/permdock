@@ -6,6 +6,7 @@ import type { RemotePdpOptions } from "./types.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
 import { listPermissions } from "../core/permission-registry.ts";
+import { toWireDelegation } from "../core/wire-delegation.ts";
 import {
   DEFAULT_TIMEOUT_MS,
   cacheKey,
@@ -85,8 +86,15 @@ function mapEvaluationBody(
       properties: compact({
         orgId: subject.principal?.tenant,
         roles: subject.principal?.roles,
+        memberships: subject.principal?.memberships?.map((membership) =>
+          compact({
+            scope: membership.scope,
+            id: membership.id,
+            within: membership.within,
+            roles: membership.roles,
+          }),
+        ),
         actor: subject.actor,
-        delegation: subject.delegation,
       }),
     });
   const mappedResource =
@@ -109,7 +117,7 @@ function mapEvaluationBody(
     context: compact({
       tenant: subject.principal?.tenant,
       actor: subject.actor,
-      delegation: subject.delegation,
+      delegation: toWireDelegation(subject.delegation),
     }),
   };
 }

@@ -9,7 +9,7 @@ import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { Kysely, PostgresDialect } from "kysely";
 import { readFileSync } from "node:fs";
-import { createPermDock, memoryRoleSource } from "permdock";
+import { createPermDock, memoryCustomRoleSource } from "permdock";
 import {
   checkRow as drizzleCheckRow,
   toWhere as drizzleWhere,
@@ -27,7 +27,7 @@ import {
 import {
   type OrmParityCase,
   type OrmParityScenario,
-  ormParity,
+  testOrmParity,
 } from "permdock/testing";
 import {
   saasCustomRoles,
@@ -124,7 +124,7 @@ function principalFor(
   return saasPrincipal(user, tenant);
 }
 
-const saasRoleSource = memoryRoleSource(saasCustomRoles);
+const saasRoleSource = memoryCustomRoleSource(saasCustomRoles);
 
 const saasChecks = [
   p.project.read,
@@ -377,7 +377,7 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
 
     it(`${name}: every operator, NULL, negation, ref, memberOf and parent hop`, async () => {
       const engine = engineNamed();
-      const report = await ormParity(itemPolicy, itemScenarios(), {
+      const report = await testOrmParity(itemPolicy, itemScenarios(), {
         run: ({ where }) =>
           engine.run(
             "item",
@@ -391,7 +391,7 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
 
     it(`${name}: the saas domain across users and tenants`, async () => {
       const engine = engineNamed();
-      const report = await ormParity(saasPolicy, saasScenarios(), {
+      const report = await testOrmParity(saasPolicy, saasScenarios(), {
         run: ({ scenario, where }) =>
           engine.run(
             // SAFETY: every scenario's resource is one of the seeded Resource tables

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { allow, deny } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import {
   findPermission,
@@ -66,7 +66,7 @@ describe("permission tree and builder edges", () => {
   it("role and policy builders check scopes, resources, limits and validate", () => {
     expect(
       role("limited", [
-        allow(tree.post.read, { limit: { count: 1, per: "hour" } }),
+        allow(tree.post.read, { limit: { count: 1, per: 3600 } }),
       ]).grants[0]?.portable,
     ).toBe(false);
     expect(deny([tree.post.read, tree.post.create])).toHaveLength(2);
@@ -87,7 +87,7 @@ describe("permission tree and builder edges", () => {
       validate: "never",
     });
     expect(neverPolicy.validate).toBe("never");
-    const source = memoryRoleSource([]);
+    const source = memoryCustomRoleSource([]);
     expect(source.rolesFor("missing")).toEqual([]);
     expect(
       role("nested", [deny([tree.post.read, tree.post.create])]).grants,

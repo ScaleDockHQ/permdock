@@ -1,5 +1,8 @@
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+
+import type { Instant } from "../../src/core/time.ts";
 
 import { branchClauses, compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
@@ -14,6 +17,10 @@ import {
   role,
 } from "../../src/index.ts";
 
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
+
 const Doc = z.object({ id: z.string(), locked: z.boolean() });
 const permissions = definePermissions({
   doc: resource(Doc, { id: "id", actions: ["read", "update", "delete"] }),
@@ -23,6 +30,12 @@ const subject = (user: { id: string; roles: string[] }) => user;
 
 const FROM = Date.parse("2026-03-01T00:00:00Z") / 1000;
 const UNTIL = Date.parse("2026-04-01T00:00:00Z") / 1000;
+const UNTIL_AT = "2026-04-01T00:00:00Z";
+const UNTIL_INSTANT = { epochMilliseconds: UNTIL * 1000 };
+const WINDOW = {
+  from: "2026-03-01T00:00:00.000Z",
+  until: "2026-04-01T00:00:00.000Z",
+};
 const before = FROM - 60;
 const during = FROM + 60;
 const after = UNTIL + 60;
@@ -34,9 +47,9 @@ const policy = definePolicy(permissions, {
         validFrom: "2026-03-01T00:00:00Z",
         validUntil: "2026-04-01T00:00:00Z",
       }),
-      allow(permissions.doc.update, { validUntil: UNTIL }),
+      allow(permissions.doc.update, { validUntil: UNTIL_INSTANT }),
       allow(permissions.doc.delete),
-      deny(permissions.doc.delete, { validUntil: UNTIL, name: "freeze" }),
+      deny(permissions.doc.delete, { validUntil: UNTIL_AT, name: "freeze" }),
     ]),
   ],
   subject,
@@ -47,7 +60,7 @@ async function contractor() {
 }
 
 describe("grant validity", () => {
-  it("normalises RFC 3339 and Unix-second bounds to seconds", () => {
+  it("normalises RFC 3339 and Instant bounds to seconds", () => {
     const [read, update] = policy.grants.filter(
       (grant) => grant.effect === "allow" && grant.role === "contractor",
     );
@@ -65,12 +78,27 @@ describe("grant validity", () => {
         subject,
       }),
     ).toThrow(
-      "validFrom on 'doc.read' must be an RFC 3339 string or Unix seconds",
+      "validFrom on 'doc.read' must be an RFC 3339 string or an Instant",
     );
     expect(() =>
       definePolicy(permissions, {
         roles: [
-          role("r", [allow(permissions.doc.read, { validUntil: Number.NaN })]),
+          role("r", [
+            // SAFETY: Unix seconds are what a caller without types might still pass.
+            allow(permissions.doc.read, { validUntil: UNTIL as never }),
+          ]),
+        ],
+        subject,
+      }),
+    ).toThrow("validUntil on 'doc.read'");
+    expect(() =>
+      definePolicy(permissions, {
+        roles: [
+          role("r", [
+            allow(permissions.doc.read, {
+              validUntil: { epochMilliseconds: Number.NaN },
+            }),
+          ]),
         ],
         subject,
       }),
@@ -82,7 +110,10 @@ describe("grant validity", () => {
       definePolicy(permissions, {
         roles: [
           role("r", [
-            allow(permissions.doc.read, { validFrom: UNTIL, validUntil: FROM }),
+            allow(permissions.doc.read, {
+              validFrom: UNTIL_AT,
+              validUntil: "2026-03-01T00:00:00Z",
+            }),
           ]),
         ],
         subject,
@@ -92,22 +123,30 @@ describe("grant validity", () => {
 
   it("grants inside the window, from inclusive and until exclusive", async () => {
     const permdock = await contractor();
-    expect(permdock.can(permissions.doc.read, doc, { now: FROM })).toBe(true);
-    expect(permdock.can(permissions.doc.read, doc, { now: during })).toBe(true);
-    expect(permdock.can(permissions.doc.read, doc, { now: UNTIL })).toBe(false);
+    expect(permdock.can(permissions.doc.read, doc, { now: at(FROM) })).toBe(
+      true,
+    );
+    expect(permdock.can(permissions.doc.read, doc, { now: at(during) })).toBe(
+      true,
+    );
+    expect(permdock.can(permissions.doc.read, doc, { now: at(UNTIL) })).toBe(
+      false,
+    );
   });
 
   it("denies an inactive allow with inactive-grant and the window", async () => {
     const permdock = await contractor();
     for (const now of [before, after]) {
-      const decision = permdock.decide(permissions.doc.read, doc, { now });
+      const decision = permdock.decide(permissions.doc.read, doc, {
+        now: at(now),
+      });
       expect(decision.outcome).toBe("denied");
       if (decision.outcome === "denied") {
         expect(decision.denials).toEqual([
           {
             role: "contractor",
             reason: "inactive-grant",
-            detail: { from: FROM, until: UNTIL },
+            detail: WINDOW,
           },
         ]);
       }
@@ -116,11 +155,11 @@ describe("grant validity", () => {
 
   it("does not apply an expired deny and records it as skipped", async () => {
     const permdock = await contractor();
-    expect(permdock.can(permissions.doc.delete, doc, { now: during })).toBe(
+    expect(permdock.can(permissions.doc.delete, doc, { now: at(during) })).toBe(
       false,
     );
     const explained = permdock.explain(permissions.doc.delete, doc, {
-      now: after,
+      now: at(after),
     });
     expect(explained.outcome).toBe("granted");
     expect(explained.trace.skipped).toEqual([
@@ -133,6 +172,37 @@ describe("grant validity", () => {
     ]);
   });
 
+  it("takes a Temporal.Instant as now", async () => {
+    const permdock = await contractor();
+    const inside = Temporal.Instant.fromEpochMilliseconds(during * 1000);
+    expect(permdock.can(permissions.doc.read, doc, { now: inside })).toBe(true);
+  });
+
+  it.each<[string, unknown]>([
+    ["Unix seconds", during],
+    ["a Date", new Date(during * 1000)],
+    ["a NaN instant", { epochMilliseconds: Number.NaN }],
+  ])("denies with validation when now is %s", async (_, now) => {
+    const permdock = await contractor();
+    // SAFETY: the values test what a caller without types can pass.
+    const options = { now: now as Instant };
+    const decision = permdock.decide(permissions.doc.read, doc, options);
+    expect(decision.outcome).toBe("denied");
+    if (decision.outcome === "denied") {
+      expect(decision.denials[0]?.reason).toBe("validation");
+    }
+    expect(permdock.can(permissions.doc.update, doc, options)).toBe(false);
+    const snapshot = permdock.snapshot();
+    if (snapshot instanceof Promise) {
+      throw new Error("unsigned snapshot expected");
+    }
+    const client = fromSnapshot(snapshot);
+    expect(client.decide(permissions.doc.read, doc, options).outcome).toBe(
+      "denied",
+    );
+    expect(client.can(permissions.doc.update, doc, options)).toBe(false);
+  });
+
   it("reads the whole simulate batch as of now", async () => {
     const permdock = await contractor();
     const checks = [
@@ -140,10 +210,10 @@ describe("grant validity", () => {
       [permissions.doc.update, doc],
     ] as const;
     expect(
-      permdock.simulate(checks, { now: during }).map((d) => d.outcome),
+      permdock.simulate(checks, { now: at(during) }).map((d) => d.outcome),
     ).toEqual(["granted", "granted"]);
     expect(
-      permdock.simulate(checks, { now: after }).map((d) => d.outcome),
+      permdock.simulate(checks, { now: at(after) }).map((d) => d.outcome),
     ).toEqual(["denied", "denied"]);
   });
 
@@ -156,19 +226,25 @@ describe("grant validity", () => {
     const read = snapshot.grants.find(
       (grant) => grant.permission === "doc.read",
     );
-    expect(read?.validity).toEqual({ from: FROM, until: UNTIL });
+    expect(read?.validity).toEqual(WINDOW);
     const client = fromSnapshot(snapshot);
-    expect(client.can(permissions.doc.read, doc, { now: during })).toBe(true);
-    const decision = client.decide(permissions.doc.read, doc, { now: after });
+    expect(client.can(permissions.doc.read, doc, { now: at(during) })).toBe(
+      true,
+    );
+    const decision = client.decide(permissions.doc.read, doc, {
+      now: at(after),
+    });
     expect(decision.outcome).toBe("denied");
     if (decision.outcome === "denied") {
       expect(decision.denials[0]?.reason).toBe("inactive-grant");
     }
     expect(
-      client.simulate([[permissions.doc.read, doc]], { now: before })[0]
+      client.simulate([[permissions.doc.read, doc]], { now: at(before) })[0]
         ?.outcome,
     ).toBe("denied");
-    expect(client.can(permissions.doc.delete, doc, { now: after })).toBe(true);
+    expect(client.can(permissions.doc.delete, doc, { now: at(after) })).toBe(
+      true,
+    );
   });
 
   it("drops inactive grants from where()", async () => {
@@ -206,9 +282,12 @@ describe("grant validity", () => {
             validFrom: "2026-03-01T00:00:00Z",
             validUntil: "2026-05-01T00:00:00Z",
           }),
-          allow(permissions.doc.update, { validUntil: UNTIL }),
+          allow(permissions.doc.update, { validUntil: UNTIL_INSTANT }),
           allow(permissions.doc.delete),
-          deny(permissions.doc.delete, { validUntil: UNTIL, name: "freeze" }),
+          deny(permissions.doc.delete, {
+            validUntil: UNTIL_AT,
+            name: "freeze",
+          }),
         ]),
       ],
       subject,

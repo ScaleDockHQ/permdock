@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { sha256Digest } from "../../src/core/sha256.ts";
 import {
   decisionToken,
   payloadDigest,
@@ -7,7 +8,7 @@ import {
 } from "../../src/core/token.ts";
 
 describe("decisionToken", () => {
-  it("prefixes pd1 and is stable for the same inputs", () => {
+  it("is a sha-256: digest and stable for the same inputs", () => {
     const input = {
       key: "post.update",
       resourceId: "p1",
@@ -16,7 +17,12 @@ describe("decisionToken", () => {
       fingerprint: "fp",
     };
     const token = decisionToken(input);
-    expect(token.startsWith("pd1.")).toBe(true);
+    expect(token).toMatch(/^sha-256:[\w-]{43}$/u);
+    expect(token).toBe(
+      sha256Digest(
+        '{"actor":null,"fingerprint":"fp","key":"post.update","principal":{"id":"u1","issuer":null,"tenant":null},"resourceId":"p1"}',
+      ),
+    );
     expect(decisionToken(input)).toBe(token);
     expect(
       decisionToken({
@@ -46,6 +52,12 @@ describe("versionOf", () => {
 });
 
 describe("payloadDigest", () => {
+  it("is the sha-256: digest of the RFC 8785 JSON", () => {
+    expect(payloadDigest({ b: [1.5, "x"], a: null })).toBe(
+      sha256Digest('{"a":null,"b":[1.5,"x"]}'),
+    );
+  });
+
   it("is stable across key order and differs across values", () => {
     expect(payloadDigest({ a: 1, b: 2 })).toBe(payloadDigest({ b: 2, a: 1 }));
     expect(payloadDigest({ a: 1 })).not.toBe(payloadDigest({ a: 2 }));

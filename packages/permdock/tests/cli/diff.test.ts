@@ -214,6 +214,58 @@ describe("permdock diff", () => {
     ]);
   });
 
+  it("prints operation findings in the text report and exits 0", async () => {
+    const catalog = await run([
+      "catalog",
+      "--from",
+      "src/permissions.ts",
+      "--cwd",
+      FIXTURE,
+    ]);
+    const base = parsedCatalog(catalog.stdout);
+    const key = base.permissions[0]?.key ?? "";
+    const dir = tempDir();
+    const write = (name: string, risk: "low" | "critical"): string => {
+      const file = join(dir, name);
+      writeFileSync(
+        file,
+        JSON.stringify({
+          ...base,
+          operations: [{ name: "readPost", permission: key, meta: { risk } }],
+        }),
+      );
+      return file;
+    };
+    const result = await diff(
+      write("before.json", "low"),
+      write("after.json", "critical"),
+    );
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe(
+      `operations\n  ~ readPost (${key}): risk low → critical\n`,
+    );
+    const [first, ...rest] = base.permissions;
+    const approved = (name: string, approvals: readonly string[]): string => {
+      const file = join(dir, name);
+      writeFileSync(
+        file,
+        JSON.stringify({
+          ...base,
+          permissions: [{ ...first, approvals }, ...rest],
+          operations: [{ name: "readPost", permission: key, meta: {} }],
+        }),
+      );
+      return file;
+    };
+    const unapproved = await diff(
+      approved("gated.json", ["human"]),
+      approved("open.json", []),
+    );
+    expect(unapproved.stdout).toBe(
+      `operations\n  ~ readPost (${key}): approval no longer required\n`,
+    );
+  });
+
   it("reads a committed catalog on one side", async () => {
     const catalog = await run([
       "catalog",

@@ -129,6 +129,7 @@ describe("supabaseApprovalStore over an adopted approvals table", () => {
     }
     await current.create({
       v: 1,
+      id: "adopt",
       token: "adopt-token",
       permission: "job.update",
       scope: "job:update",
@@ -174,7 +175,7 @@ describe("supabaseApprovalStore over an adopted approvals table", () => {
     );
     expect(legacy.rows).toEqual([{ state: "pending" }]);
     expect(
-      await current.expire(new Date(Date.now() + 3_600_000)),
+      await current.expire({ epochMilliseconds: Date.now() + 3_600_000 }),
     ).toBeGreaterThanOrEqual(0);
     const after = await db.admin.query<{ state: string }>(
       "select state from public.approvals where requested_by = 'legacy-user'",

@@ -17,8 +17,8 @@ export function testLimitStore(store: LimitStore): void {
       key: "report.export",
       subjectId: "u_1",
       count: 2,
-      per: "hour",
-      now: 1_700_000_000,
+      per: 3600,
+      now: { epochMilliseconds: 1_700_000_000_000 },
     };
     const first = await store.consume(input);
     expect(first.remaining).toBeGreaterThanOrEqual(0);

@@ -2,6 +2,9 @@ import { globSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { writeRenamedSection } from "./docs-drift-renamed-section.ts";
+import { renameDrift } from "./docs-drift-renames.ts";
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DOCS = join(ROOT, "apps", "docs", "content", "docs");
 const CLI_SRC = join(ROOT, "packages", "permdock", "src", "cli");
@@ -18,6 +21,8 @@ const UNTESTED_STANDARDS = new Set(["index", "watch-list"]);
 const EXPORTS = join(ROOT, "tests", "bundle", "src", "exports.json");
 /** The page that lists the old names on purpose. */
 const NAMING_PAGE = join(DOCS, "getting-started", "naming.mdx");
+/** The codemod page imports the names before 0.5.0 on purpose. */
+const CODEMOD_PAGE = join(DOCS, "cli", "codemod.mdx");
 
 function walk(dir: string, keep: (file: string) => boolean): string[] {
   return globSync("**/*", { cwd: dir })
@@ -161,7 +166,7 @@ function unknownImports(): readonly string[] {
   const found = new Set<string>();
   const importPattern =
     /import\s+\{([^}]*)\}\s+from\s+["'](permdock(?:\/[\w/-]+)?)["']/gu;
-  for (const page of docPages) {
+  for (const page of docPages.filter((path) => path !== CODEMOD_PAGE)) {
     for (const [, names = "", specifier = ""] of read(page).matchAll(
       importPattern,
     )) {
@@ -207,6 +212,10 @@ function unnamedExports(): readonly string[] {
   );
 }
 
+if (process.argv.includes("--write-renamed")) {
+  writeRenamedSection(NAMING_PAGE);
+}
+
 const problems = [
   ...doctorCodes()
     .filter((code) => !cliDocs.includes(`| \`${code}\``))
@@ -219,6 +228,13 @@ const problems = [
   ...bannedNames(),
   ...unknownImports(),
   ...unnamedExports(),
+  ...renameDrift({
+    root: ROOT,
+    docPages,
+    namingPage: NAMING_PAGE,
+    codemodPage: CODEMOD_PAGE,
+    exportsFile: EXPORTS,
+  }),
 ];
 
 if (problems.length > 0) {
@@ -226,6 +242,6 @@ if (problems.length > 0) {
   process.exitCode = 1;
 } else {
   process.stdout.write(
-    "docs match the doctor checks, package entries, standards tests, names and exports\n",
+    "docs match the doctor checks, package entries, standards tests, names, exports and the 0.5 renames\n",
   );
 }

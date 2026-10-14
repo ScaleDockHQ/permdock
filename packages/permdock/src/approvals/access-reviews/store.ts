@@ -60,12 +60,12 @@ function requireOpen(review: AccessReview): void {
   }
 }
 
-export type MemoryAccessReviews = AccessReviewStore & {
+export type MemoryAccessReviewStore = AccessReviewStore & {
   readonly reviews: () => readonly AccessReview[];
 };
 
 /** In-process access reviews for tests and single-replica apps. */
-export function memoryAccessReviews(): MemoryAccessReviews {
+export function memoryAccessReviewStore(): MemoryAccessReviewStore {
   const records = new Map<string, Recorded>();
   const load = (id: string): Recorded => {
     const recorded = records.get(id);

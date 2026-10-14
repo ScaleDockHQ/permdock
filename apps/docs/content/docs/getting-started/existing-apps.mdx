@@ -106,7 +106,7 @@ The backfill migration saves each role through `permdock_trusted_replace_custom_
 
 In `jwt` mode there are no tables to fill: build the `grants` claim with `customRoleClaim(roles, policy)` ([custom roles](/docs/concepts/custom-roles#row-level-security)), after running `validateCustomRole` over every role to see what it drops.
 
-The app's `RoleSource` reads the same rows. Roles stored under old keys keep resolving through `renamed`, so the copy does not have to rewrite keys.
+The app's `CustomRoleSource` reads the same rows. Roles stored under old keys keep resolving through `renamed`, so the copy does not have to rewrite keys.
 
 ## Rename keys
 

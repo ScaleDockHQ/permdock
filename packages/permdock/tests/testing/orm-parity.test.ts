@@ -8,7 +8,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
-import { ormParity } from "../../src/testing/orm-parity.ts";
+import { testOrmParity } from "../../src/testing/orm-parity.ts";
 
 const permissions = definePermissions({
   post: resource({ actions: ["read", "review"] }),
@@ -44,9 +44,9 @@ const review = {
   rows,
 };
 
-describe("ormParity", () => {
+describe("testOrmParity", () => {
   it("passes when the database returns exactly the in-memory rows", async () => {
-    const report = await ormParity(policy, [read], {
+    const report = await testOrmParity(policy, [read], {
       run: async () => ["p1"],
     });
     expect(report.ok).toBe(true);
@@ -58,18 +58,18 @@ describe("ormParity", () => {
   });
 
   it("fails on extra or missing rows and on a thrown full where", async () => {
-    const extra = await ormParity(policy, [read], {
+    const extra = await testOrmParity(policy, [read], {
       run: async () => ["p1", "p2"],
     });
     expect(extra.ok).toBe(false);
-    const thrown = await ormParity(policy, [read], {
+    const thrown = await testOrmParity(policy, [read], {
       run: async () => {
         throw new Error("boom");
       },
     });
     expect(thrown.ok).toBe(false);
     expect(thrown.results[0]?.error).toBe("boom");
-    const rejected = await ormParity(policy, [read], {
+    const rejected = await testOrmParity(policy, [read], {
       // oxlint-disable-next-line prefer-promise-reject-errors, typescript/prefer-promise-reject-errors -- the runner must report a non-Error rejection
       run: () => Promise.reject("plain"),
     });
@@ -77,18 +77,18 @@ describe("ormParity", () => {
   });
 
   it("lets a partial where refuse or return a subset, never more", async () => {
-    const refused = await ormParity(policy, [review], {
+    const refused = await testOrmParity(policy, [review], {
       run: async () => {
         throw new Error("non-portable");
       },
     });
     expect(refused.ok).toBe(true);
     expect(refused.results[0]?.partial).toBe(true);
-    const subset = await ormParity(policy, [review], {
+    const subset = await testOrmParity(policy, [review], {
       run: async () => ["p2"],
     });
     expect(subset.ok).toBe(true);
-    const superset = await ormParity(policy, [review], {
+    const superset = await testOrmParity(policy, [review], {
       run: async () => ["p1", "p3"],
       id: "id",
     });
@@ -96,7 +96,7 @@ describe("ormParity", () => {
   });
 
   it("loads relations for the rows before filtering", async () => {
-    const report = await ormParity(
+    const report = await testOrmParity(
       policy,
       [
         {

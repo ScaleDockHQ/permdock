@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tags": ["example"],
+  "tasks": {
+    "dev": {
+      "passThroughEnv": [
+        "HOST",
+        "PORT",
+        "SLACK_BOT_TOKEN",
+        "SLACK_SIGNING_SECRET"
+      ]
+    }
+  }
+}

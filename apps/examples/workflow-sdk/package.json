@@ -1,0 +1,33 @@
+{
+  "name": "@permdock/example-workflow-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev -p 3490 -H 127.0.0.1",
+    "doctor": "permdock doctor",
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "start": "next start -p 3490 -H 127.0.0.1",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jose": "catalog:",
+    "next": "catalog:",
+    "permdock": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "workflow": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

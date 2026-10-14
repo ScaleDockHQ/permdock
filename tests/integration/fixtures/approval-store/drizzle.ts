@@ -89,7 +89,8 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
       }
       return row.body;
     },
-    async consume(token, now = new Date()) {
+    async consume(token, at) {
+      const now = new Date(at?.epochMilliseconds ?? Date.now());
       const [row] = await db
         .update(approvals)
         .set({
@@ -159,7 +160,8 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
         ? { items, next: JSON.stringify([last.createdAt, last.token]) }
         : { items };
     },
-    async expire(now = new Date()) {
+    async expire(at) {
+      const now = new Date(at?.epochMilliseconds ?? Date.now());
       const rows = await db
         .update(approvals)
         .set({

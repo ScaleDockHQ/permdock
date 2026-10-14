@@ -255,7 +255,7 @@ export function createPermDock<
     return built;
   };
 
-  const permdock = (
+  const getPermDock = (
     resolveOptions: PermDockResolveOptions = {},
   ): Promise<PermDock<V>> => {
     if (resolveOptions.refresh === true || cached === undefined) {
@@ -301,13 +301,13 @@ export function createPermDock<
         next: Permission,
         row?: unknown,
         decideOptions?: {
-          readonly source: "adapter" | "simulate";
+          readonly call: "adapter" | "simulate";
           readonly adapter: string;
         },
       ) => Decision;
       let first: Decision;
       try {
-        instance = await permdock();
+        instance = await getPermDock();
         if (load !== undefined) {
           data = await load(...args);
           if (
@@ -326,8 +326,8 @@ export function createPermDock<
           permission,
           data,
           dryRun
-            ? { source: "simulate", adapter: "terminal" }
-            : { source: "adapter", adapter: "terminal" },
+            ? { call: "simulate", adapter: "terminal" }
+            : { call: "adapter", adapter: "terminal" },
         );
       } catch {
         write(format(FAILED_CLOSED, { permission }));
@@ -390,7 +390,7 @@ export function createPermDock<
         const again = decide(
           permission,
           data,
-          compact({ source: "adapter" as const, adapter: "terminal" }),
+          compact({ call: "adapter" as const, adapter: "terminal" }),
         );
         if (again.outcome === "denied") {
           write(format(again, { permission, subject: instance.subject }));
@@ -492,7 +492,7 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    getPermDock,
     protect,
     filterCommands,
     format,

@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url";
 import {
   createPermDock,
   findPermission,
-  memoryRelations,
-  memoryRoleSource,
+  memoryRelationSource,
+  memoryCustomRoleSource,
   validateCustomRole,
 } from "permdock";
 import {
@@ -304,7 +304,7 @@ describe("CentraKit adoption shapes", () => {
     const permdock = await createPermDock(
       policy,
       { id: TIER2, roles: ["tier2"] },
-      { customRoles: memoryRoleSource([tier2]) },
+      { customRoles: memoryCustomRoleSource([tier2]) },
     );
     expect(
       permdock.can(permissions.platform.billing.view, { id: PLATFORM_BILL }),
@@ -435,7 +435,7 @@ describe("CentraKit adoption shapes", () => {
       report_id: REPORT,
       amount: 5000,
     };
-    const relations = memoryRelations(permissions, {
+    const relations = memoryRelationSource(permissions, {
       rows: {
         expenses: [expense],
         reports: [
@@ -467,7 +467,7 @@ describe("CentraKit adoption shapes", () => {
       });
       return handler(
         new Request(
-          `https://centrakit.test/permdock/approvals/${encodeURIComponent(request.token)}/approve`,
+          `https://centrakit.test/permdock/approvals/${encodeURIComponent(request.id)}/approve`,
           { method: "POST" },
         ),
       );

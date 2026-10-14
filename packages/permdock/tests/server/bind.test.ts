@@ -24,7 +24,7 @@ describe("bindKernel", () => {
     const context: Context = { url: "http://localhost/" };
     const request = bind(context);
     expect(bind(context)).toBe(request);
-    const instance = await kernel.permdock(request);
+    const instance = await kernel.getPermDock(request);
     expect(instance.can(permissions.post.list)).toBe(true);
     expect(calls).toBe(1);
   });
@@ -41,7 +41,7 @@ describe("bindKernel", () => {
     );
     const stray = new Request("http://localhost/");
     expect(await handlerScope(stray)).toEqual({ tenant: undefined });
-    expect((await kernel.permdock(stray)).can(permissions.post.list)).toBe(
+    expect((await kernel.getPermDock(stray)).can(permissions.post.list)).toBe(
       false,
     );
   });
@@ -60,10 +60,10 @@ describe("bindKernel", () => {
       toRequest,
     );
     const context: Context = { url: "http://localhost/" };
-    await kernel.permdock(bind(context));
+    await kernel.getPermDock(bind(context));
     const again = rebind(context);
     expect(again).not.toBe(bind(context));
-    await kernel.permdock(again);
+    await kernel.getPermDock(again);
     expect(calls).toBe(1);
   });
 });

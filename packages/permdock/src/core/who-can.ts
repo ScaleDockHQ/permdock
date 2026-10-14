@@ -47,6 +47,7 @@ import {
   scopeList,
 } from "./scopes.ts";
 import { nowSeconds, scopeField } from "./tenancy.ts";
+import { instantAt } from "./time.ts";
 
 /** One way a principal holds a permission on an object. */
 export type HoldingVia =
@@ -568,7 +569,7 @@ export async function whoCan(input: {
         subject,
         permission,
         row,
-        { source: "simulate", trusted: true, now },
+        { call: "simulate", trusted: true, now: instantAt(now) },
         env,
       );
     });

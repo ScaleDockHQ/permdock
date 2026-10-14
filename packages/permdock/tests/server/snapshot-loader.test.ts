@@ -21,7 +21,7 @@ describe("getSnapshot(request)", () => {
     const subject = vi.fn<() => typeof alice>(() => alice);
     const server = createPermDock(saasPolicy, { subject, tenant: "acme" });
     const req = request();
-    await server.permdock(req);
+    await server.getPermDock(req);
     const snapshot = await server.getSnapshot(req);
     expect(subject).toHaveBeenCalledTimes(1);
     expect(snapshot.subject.principal?.id).toBe(alice.id);
@@ -42,7 +42,7 @@ describe("getSnapshot(request)", () => {
 });
 
 describe("snapshotHeaders", () => {
-  const snapshotAt = async (issuedAt: number): Promise<Snapshot> => {
+  const snapshotAt = async (issuedAt: string): Promise<Snapshot> => {
     const server = createPermDock(saasPolicy, {
       subject: () => alice,
       tenant: "acme",
@@ -51,21 +51,24 @@ describe("snapshotHeaders", () => {
   };
 
   it("sends a private max-age, Vary, a stable ETag and the subject tag", async () => {
-    const first = snapshotHeaders(await snapshotAt(1000), {
+    const first = snapshotHeaders(await snapshotAt("1970-01-01T00:16:40Z"), {
       tags: ["org:acme"],
     });
-    const second = snapshotHeaders(await snapshotAt(2000));
+    const second = snapshotHeaders(await snapshotAt("1970-01-01T00:33:20Z"));
     expect(first).toMatchObject({
       "Cache-Control": "private, max-age=300",
       Vary: "Authorization, Cookie",
       "Cache-Tag": `${snapshotTag(alice.id)},org:acme`,
     });
-    expect(first.ETag).toMatch(/^"[\w-]+"$/);
+    expect(first.ETag).toMatch(/^"sha-256:[\w-]{43}"$/);
     expect(second.ETag).toBe(first.ETag);
   });
 
   it("caps max-age at the seconds left before expiresAt", async () => {
-    const snapshot = { ...(await snapshotAt(1000)), expiresAt: 1060 };
+    const snapshot = {
+      ...(await snapshotAt("1970-01-01T00:16:40Z")),
+      expiresAt: "1970-01-01T00:17:40Z",
+    };
     expect(snapshotHeaders(snapshot)["Cache-Control"]).toBe(
       "private, max-age=60",
     );

@@ -174,7 +174,7 @@ function isAssignableRole(policy: Policy, name: string): boolean {
  * Every scope's ceiling, keyed by scope name (`global` for platform custom
  * roles): the code allows of declared `assignable` roles in that scope,
  * everything a custom role of the scope may ever reach. Hosted grants never
- * widen it. `assignable` narrows it to those role names (`RoleSource.assignable`).
+ * widen it. `assignable` narrows it to those role names (`CustomRoleSource.assignable`).
  */
 function ceilings(
   policy: Policy,

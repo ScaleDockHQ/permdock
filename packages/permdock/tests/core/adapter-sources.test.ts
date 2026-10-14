@@ -7,14 +7,14 @@ import { describe, expect, it } from "vitest";
 import { createPermDock as createAiSdkPermDock } from "../../src/ai-sdk/index.ts";
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
 import { instanceOptions } from "../../src/core/instance-options.ts";
-import { memoryApprovalPolicies } from "../../src/index.ts";
+import { memoryApprovalPolicySource } from "../../src/index.ts";
 import { createPermDock as createMcpPermDock } from "../../src/mcp/index.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
 import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
 
 const src = path.join(import.meta.dirname, "../../src");
 
-const listsNeedApproval = memoryApprovalPolicies([
+const listsNeedApproval = memoryApprovalPolicySource([
   { permission: "post.list", approval: "human" },
 ]);
 
@@ -41,7 +41,7 @@ describe("adapters forward approvalPolicies", () => {
         text.includes("...instanceOptions(options)") ||
         /\bbind(?:Rpc)?Kernel\(/u.test(text),
     );
-    expect(builders.length).toBeGreaterThan(15);
+    expect(builders.length).toBeGreaterThan(12);
     expect(
       files
         .filter(({ text }) => text.includes("customRoles: options.customRoles"))
@@ -97,7 +97,7 @@ describe("adapters forward approvalPolicies", () => {
   it("AI SDK toolApproval returns user-approval for an entry", async () => {
     const { toolApproval } = createAiSdkPermDock(policy, {
       subject: () => memberUser,
-      tools: { list_posts: { permission: permissions.post.list } },
+      operations: { list_posts: { permission: permissions.post.list } },
       approvalPolicies: listsNeedApproval,
       store: memoryApprovalStore(),
     });

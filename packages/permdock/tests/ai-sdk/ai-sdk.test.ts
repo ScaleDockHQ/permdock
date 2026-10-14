@@ -28,7 +28,7 @@ describe("permdock/ai-sdk", () => {
         (runtimeContext as { readonly user: unknown }).user,
       delegation: () => delegated,
       actor: () => ({ id: "agent-1", kind: "ai-sdk" }),
-      tools: postTools(),
+      operations: postTools(),
     });
 
     const granted = await toolApproval({
@@ -64,7 +64,7 @@ describe("permdock/ai-sdk", () => {
       subject: () => memberUser,
       delegation: () => delegated,
       actor: () => ({ id: "agent-1", kind: "ai-sdk" }),
-      tools: postTools(),
+      operations: postTools(),
       store,
     });
 
@@ -100,7 +100,7 @@ describe("permdock/ai-sdk", () => {
       subject: () => memberUser,
       delegation: () => delegated,
       actor: () => ({ id: "agent-1", kind: "ai-sdk" }),
-      tools: postTools(),
+      operations: postTools(),
     });
     const denied = await toolApproval({
       toolCall: {
@@ -114,7 +114,7 @@ describe("permdock/ai-sdk", () => {
   it("denies when the data resolver throws or returns nothing", async () => {
     const { toolApproval } = createPermDock(policy, {
       subject: () => memberUser,
-      tools: {
+      operations: {
         delete_post: {
           permission: permissions.post.delete,
           data: () => {
@@ -145,7 +145,7 @@ describe("permdock/ai-sdk", () => {
   it("narrows tools per subject before the model sees them", async () => {
     const { capabilityMiddleware } = createPermDock(policy, {
       subject: (context) => context["user"],
-      tools: postTools(),
+      operations: postTools(),
     });
     const params = {
       prompt: [],
@@ -186,7 +186,7 @@ describe("permdock/ai-sdk", () => {
   it("reads the subject for needsApproval from the tool context", async () => {
     const { needsApproval } = createPermDock(policy, {
       subject: (context) => context["user"],
-      tools: postTools(),
+      operations: postTools(),
     });
     expect(
       await needsApproval(permissions.post.list)(
@@ -204,7 +204,7 @@ describe("permdock/ai-sdk", () => {
       subject: () => memberUser,
       delegation: () => delegated,
       actor: () => ({ id: "agent-1", kind: "ai-sdk" }),
-      tools: postTools(),
+      operations: postTools(),
     });
     expect(await needsApproval(permissions.post.list)({})).toBe(false);
     expect(await needsApproval(permissions.post.delete)({ id: "p1" })).toBe(
@@ -223,7 +223,7 @@ describe("permdock/ai-sdk", () => {
       subject: () => {
         throw new Error("no session");
       },
-      tools: postTools(),
+      operations: postTools(),
     });
     const denied = await toolApproval({
       toolCall: { toolName: "list_posts", input: {} },
@@ -231,18 +231,18 @@ describe("permdock/ai-sdk", () => {
     expect(denied).toMatchObject({ type: "denied" });
   });
 
-  it("lets onDenied replace the reason and the approval summary", async () => {
+  it("lets deniedText replace the reason and the approval summary", async () => {
     const { toolApproval } = createPermDock(policy, {
       subject: () => memberUser,
       delegation: () => delegated,
-      tools: postTools(),
+      operations: postTools(),
       store: memoryApprovalStore(),
       context: () => ({ channel: "chat" }),
       wrap: (permdock) => {
         expect(permdock.subject.context).toEqual({ channel: "chat" });
         return permdock;
       },
-      onDenied: ({ decision }) =>
+      deniedText: ({ decision }) =>
         `${decision?.outcome ?? "unmapped"}: ask an admin`,
     });
     const denied = await toolApproval({

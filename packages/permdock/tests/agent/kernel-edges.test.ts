@@ -244,7 +244,7 @@ describe("createAgentKernel check", () => {
         write: (events) => {
           for (const event of events) {
             if (event.type === "decision") {
-              sources.push(event.source);
+              sources.push(event.call);
             }
           }
         },

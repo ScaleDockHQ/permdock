@@ -68,6 +68,7 @@
     "oxlint-tsgolint": "catalog:",
     "permdock": "workspace:*",
     "portless": "catalog:",
+    "supports-color": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

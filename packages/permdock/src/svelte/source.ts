@@ -31,7 +31,7 @@ export type {
   ClientStatus,
   FilterResult,
   PermDockDefaults,
-  PermDockSvelteOptions,
+  SveltePermDockOptions,
   PermissionSet,
   PermissionState,
   SubjectView,

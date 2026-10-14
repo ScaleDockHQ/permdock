@@ -7,13 +7,20 @@ import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { ownGet } from "../core/paths.ts";
 import { getResource, listPermissions } from "../core/permission-registry.ts";
+import { statusProblem } from "../core/problem-types.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { permissionLookup } from "../server/evaluation-items.ts";
-import { applyApprovalResume } from "../server/evaluations.ts";
+import {
+  applyApprovalResume,
+  authzenMetadata,
+  evaluateBatch,
+  evaluationsSemantic,
+  unknownSemanticProblem,
+  withRequestId,
+} from "../server/evaluations.ts";
 import { hasCredentials } from "../server/http.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
-  PROBLEM_BASE,
   batchTooLarge,
   methodNotAllowed,
   problemResponse,
@@ -28,7 +35,7 @@ import {
   delegationOf,
   endsWithPath,
   evaluationRow,
-  mergeItem,
+  mergeEvaluationItem,
   pageOf,
   paged,
   pathnameOf,
@@ -40,12 +47,7 @@ import {
 } from "./map.ts";
 
 function notFound(detail: string): Response {
-  return problemResponse({
-    type: `${PROBLEM_BASE}/not-found`,
-    title: "Not found",
-    status: 404,
-    detail,
-  });
+  return problemResponse(statusProblem(404, detail));
 }
 
 async function readJson(request: Request): Promise<unknown> {
@@ -56,31 +58,11 @@ async function readJson(request: Request): Promise<unknown> {
   }
 }
 
-const SEMANTICS = [
-  "execute_all",
-  "deny_on_first_deny",
-  "permit_on_first_permit",
-] as const;
-
-type Semantic = (typeof SEMANTICS)[number];
-
-function semanticOf(body: Record<string, unknown>): Semantic | undefined {
-  const options = body["options"];
-  const value = isRecord(options) ? options["evaluations_semantic"] : undefined;
-  if (value === undefined) {
-    return "execute_all";
-  }
-  return SEMANTICS.find((semantic) => semantic === value);
-}
-
 const WELL_KNOWN = "/.well-known/authzen-configuration";
 
-function withRequestId(request: Request, response: Response): Response {
-  const id = request.headers.get("x-request-id");
-  if (id !== null && id !== "") {
-    response.headers.set("X-Request-ID", id);
-  }
-  return response;
+/** The name an item's action gives, for the reasons of an unknown permission. */
+function actionName(item: AuthzenItem): string {
+  return typeof item.action?.name === "string" ? item.action.name : "unknown";
 }
 
 export const createPermDock: AuthzenFactory = (policy, options) => {
@@ -145,7 +127,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     const id = resourceIdOf(item);
     const load =
       type !== undefined && options.resources !== undefined
-        ? options.resources[type]?.load
+        ? options.resources[type]?.data
         : undefined;
     if (id !== undefined && load !== undefined) {
       try {
@@ -183,9 +165,9 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       permission,
       data,
       trusted
-        ? { source: "endpoint", adapter: "authzen", trusted: true }
+        ? { call: "endpoint", adapter: "authzen", trusted: true }
         : {
-            source: "endpoint",
+            call: "endpoint",
             adapter: "authzen",
             trusted: false,
             boundary: "decision-endpoint",
@@ -197,8 +179,20 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       permdock,
       options.store,
       request,
-      resourceRef(permission, data, item.resource?.id),
+      resourceRef(permission, data, resourceIdOf(item)),
       "authzen",
+    );
+  }
+
+  async function rowOf(
+    request: Request,
+    pep: unknown,
+    item: AuthzenItem,
+  ): Promise<ReturnType<typeof evaluationRow>> {
+    const decision = await decideItem(request, pep, item);
+    return evaluationRow(
+      decision,
+      permissionOf(lookup, item)?.key ?? actionName(item),
     );
   }
 
@@ -210,7 +204,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     if (!isRecord(body)) {
       return validationProblem("evaluation body must be an object");
     }
-    return Response.json(evaluationRow(await decideItem(request, pep, body)));
+    return Response.json(await rowOf(request, pep, body));
   }
 
   async function evaluations(
@@ -229,16 +223,14 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return validationProblem("evaluations must be an array");
     }
     if (items.length === 0) {
-      return Response.json(evaluationRow(await decideItem(request, pep, body)));
+      return Response.json(await rowOf(request, pep, body));
     }
     if (items.length > maxEvaluations) {
       return batchTooLarge(maxEvaluations);
     }
-    const semantic = semanticOf(body);
+    const semantic = evaluationsSemantic(body);
     if (semantic === undefined) {
-      return validationProblem(
-        `options.evaluations_semantic must be one of ${SEMANTICS.join(", ")}`,
-      );
+      return unknownSemanticProblem();
     }
     const shared = compact<AuthzenItem>({
       subject: isRecord(body["subject"]) ? body["subject"] : undefined,
@@ -246,24 +238,11 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       resource: isRecord(body["resource"]) ? body["resource"] : undefined,
       context: body["context"],
     });
-    const rowOf = (item: unknown): Promise<ReturnType<typeof evaluationRow>> =>
-      decideItem(request, pep, mergeItem(shared, item)).then(evaluationRow);
-    if (semantic === "execute_all") {
-      return Response.json({
-        evaluations: await Promise.all(items.map(rowOf)),
-      });
-    }
-    const stopOn = semantic === "permit_on_first_permit";
-    const rows: ReturnType<typeof evaluationRow>[] = [];
-    for (const item of items) {
-      // oxlint-disable-next-line no-await-in-loop -- short-circuit semantics evaluate in order and stop early
-      const row = await rowOf(item);
-      rows.push(row);
-      if (row.decision === stopOn) {
-        break;
-      }
-    }
-    return Response.json({ evaluations: rows });
+    return Response.json({
+      evaluations: await evaluateBatch(items, semantic, (item) =>
+        rowOf(request, pep, mergeEvaluationItem(shared, item)),
+      ),
+    });
   }
 
   async function searchAction(
@@ -443,17 +422,13 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       .slice(pathname.indexOf(WELL_KNOWN) + WELL_KNOWN.length)
       .replace(/\/+$/u, "");
     const pdp = `${origin}${suffix}`;
-    const document: Record<string, string> = {
-      policy_decision_point: pdp,
-      access_evaluation_endpoint: `${pdp}/access/v1/evaluation`,
-      access_evaluations_endpoint: `${pdp}/access/v1/evaluations`,
-      search_action_endpoint: `${pdp}/access/v1/search/action`,
-      search_resource_endpoint: `${pdp}/access/v1/search/resource`,
-    };
-    if (options.subjects?.list !== undefined) {
-      document["search_subject_endpoint"] = `${pdp}/access/v1/search/subject`;
-    }
-    return Response.json(document);
+    return Response.json(
+      authzenMetadata(pdp, {
+        action: true,
+        resource: true,
+        subject: options.subjects?.list !== undefined,
+      }),
+    );
   }
 
   async function route(request: Request): Promise<Response> {
@@ -495,9 +470,8 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     return notFound("unknown AuthZEN path");
   }
 
-  return {
-    async permdockHandler(request) {
-      return withRequestId(request, await route(request));
-    },
-  };
+  const handler = async (request: Request): Promise<Response> =>
+    withRequestId(request, await route(request));
+
+  return { permdockHandler: () => handler };
 };

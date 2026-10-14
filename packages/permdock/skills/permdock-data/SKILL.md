@@ -1,6 +1,6 @@
 ---
 name: permdock-data
-description: Enforces PermDock permissions in database queries and Postgres row-level security. Use when listing rows with permdock.where() and filter(), compiling conditions with toWhere from permdock/drizzle, permdock/prisma or permdock/kysely, guarding Convex functions with permdock/convex, generating or verifying RLS with permdock rls generate, verify or migrate, modelling folders, sub-teams or reporting lines with parent and relation() through a RelationSource, loadRelations or whoCan, or proving query and database parity with ormParity and rlsParity. Also for doctor PD027, PD028, PD031 and PD032.
+description: Enforces PermDock permissions in database queries and Postgres row-level security. Use when listing rows with permdock.where() and filter(), compiling conditions with toWhere from permdock/drizzle, permdock/prisma or permdock/kysely, guarding Convex functions with permdock/convex, generating or verifying RLS with permdock rls generate, verify or migrate, modelling folders, sub-teams or reporting lines with parent and relation() through a RelationSource, loadRelations or whoCan, or proving query and database parity with testOrmParity and testRlsParity. Also for doctor PD027, PD028, PD031 and PD032.
 license: MIT
 metadata:
   author: ScaleDockHQ
@@ -38,7 +38,7 @@ The same portable conditions decide `can()` in memory, narrow list queries throu
    ✓ `permdock rls generate --check` passes in CI.
 4. **Verify against a real database.** Run `permdock rls verify --db $DATABASE_URL` with fixtures, `--tree` for graph grants, and `--introspect` against a deployed database.
    ✓ Every verify run exits `0`.
-5. **Prove parity in tests.** Add `ormParity(policy, scenarios, { run, id })` for each list endpoint and `rlsParity(policy, options)` for RLS tables, from `permdock/testing` ([testing adapter](https://permdock.com/docs/adapters/testing)). Run `testRelationSource` on a custom `RelationSource`.
+5. **Prove parity in tests.** Add `testOrmParity(policy, scenarios, { run, id })` for each list endpoint and `testRlsParity(policy, options)` for RLS tables, from `permdock/testing` ([testing adapter](https://permdock.com/docs/adapters/testing)). Run `testRelationSource` on a custom `RelationSource`.
    ✓ The query and the database return exactly the rows `filter()` keeps.
 
 ## Verify before done
@@ -48,7 +48,7 @@ The same portable conditions decide `can()` in memory, narrow list queries throu
 - [ ] No `opaque` RLS grant wraps a named helper; use `sqlFunction` with a twin and map it in `rls.functions`.
 - [ ] No condition the database must enforce reads `context.*` (PD027); on Supabase, `supabase.hook.attrs` lists only server-owned values (PD028).
 - [ ] Graph declarations are walked by a grant (PD031) and nameable in SQL (PD032).
-- [ ] Every list endpoint has an `ormParity` run, every RLS table an `rlsParity` or `rls verify --db` run, and a custom `RelationSource` passes `testRelationSource`.
+- [ ] Every list endpoint has an `testOrmParity` run, every RLS table an `testRlsParity` or `rls verify --db` run, and a custom `RelationSource` passes `testRelationSource`.
 
 ## Reference index
 

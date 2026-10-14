@@ -17,6 +17,7 @@ export const APPROVAL_REQUEST_SCHEMA: Readonly<Record<string, unknown>> = {
   type: "object",
   required: [
     "v",
+    "id",
     "token",
     "permission",
     "scope",
@@ -29,6 +30,7 @@ export const APPROVAL_REQUEST_SCHEMA: Readonly<Record<string, unknown>> = {
   ],
   properties: {
     v: { const: 1 },
+    id: { type: "string", minLength: 1 },
     token: { type: "string", minLength: 1 },
     permission: { type: "string", minLength: 1 },
     scope: { type: "string" },
@@ -57,7 +59,7 @@ export const APPROVAL_REQUEST_SCHEMA: Readonly<Record<string, unknown>> = {
     consumedAt: { $ref: "#/$defs/instant" },
   },
   $defs: {
-    instant: { type: "string", pattern: INSTANT },
+    instant: { type: "string", format: "date-time", pattern: INSTANT },
     subject: {
       type: "object",
       required: ["principal"],
@@ -82,7 +84,20 @@ export const APPROVAL_REQUEST_SCHEMA: Readonly<Record<string, unknown>> = {
           properties: { id: { type: "string" }, kind: { type: "string" } },
         },
         session: { type: "string" },
-        delegation: { type: "object" },
+        delegation: {
+          type: "object",
+          properties: {
+            scope: { type: "string" },
+            authorization_details: {
+              type: "array",
+              items: {
+                type: "object",
+                required: ["type"],
+                properties: { type: { type: "string" } },
+              },
+            },
+          },
+        },
       },
     },
     signature: {

@@ -158,6 +158,50 @@ describe("authorizationProvider", () => {
     });
   });
 
+  it("fills holdersOf and actorMayWrite from the example's helpers on request", () => {
+    expect(
+      authorizationProvider({ manifest: exampleManifest }).functions,
+    ).not.toHaveProperty("holdersOf");
+    const provider = authorizationProvider({
+      manifest: exampleManifest,
+      catalog: exampleCatalog,
+      functions: { holdersOf: true, actorMayWrite: true },
+    });
+    expect(provider.functions).toMatchObject({
+      holdersOf:
+        "permdock.permitted_organization_users({permission}, {tenant})",
+      actorMayWrite: "permdock.permdock_actor_may_write()",
+    });
+    expect(provider.requires).toContainEqual({
+      function: "permdock.permitted_organization_users",
+      args: "text, uuid",
+      role: "postgres",
+    });
+    expect(provider.requires).toContainEqual({
+      function: "permdock.permdock_actor_may_write",
+      role: "authenticated",
+    });
+    expect(provider.requires).not.toContainEqual(
+      expect.objectContaining({
+        function: "permdock.permitted_customer_users",
+      }),
+    );
+  });
+
+  it("leaves holdersOf and actorMayWrite unset without their helpers", () => {
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog: emptyCatalog,
+      functions: { holdersOf: true, actorMayWrite: true },
+    });
+    expect(provider.functions).not.toHaveProperty("holdersOf");
+    expect(provider.functions).not.toHaveProperty("actorMayWrite");
+    expect(provider.problems).toEqual([
+      expect.stringContaining("permitted_tenant_users"),
+      expect.stringContaining("permdock_actor_may_write"),
+    ]);
+  });
+
   it("marks a key with row conditions as not complete in SQL", () => {
     // SAFETY: the example catalog is a valid catalog document.
     const catalog = structuredClone(exampleCatalog) as {

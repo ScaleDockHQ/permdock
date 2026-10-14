@@ -114,6 +114,14 @@ export function reloadAfter(
 /** WebSocket close code for a policy violation (RFC 6455 section 7.4.1). */
 export const POLICY_VIOLATION = 1008;
 
+/**
+ * The close reason for a problem: its PermDock type URI, or its `detail`
+ * code for an `about:blank` one. RFC 6455 caps a reason at 123 bytes.
+ */
+export function closeReason(problem: ProblemDetails): string {
+  return problem.type === "about:blank" ? problem.detail : problem.type;
+}
+
 /** The Problem Details for an aborted connection signal. */
 function revokedProblem(signal: AbortSignal): ProblemDetails {
   const reason: unknown = signal.reason;

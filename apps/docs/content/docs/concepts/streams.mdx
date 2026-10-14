@@ -13,7 +13,7 @@ The server kernel and every streaming adapter expose `connection(...)` next to `
 const conn = await connection(c, {
   permission: permissions.project.read, // checked at open and after every revalidation
   data: () => loadProject(c.req.param("id")), // a row, or a loader re-run on every revalidation
-  revalidate: 5 * 60_000, // optional periodic revalidation, off by default
+  revalidate: 5 * 60, // seconds; optional periodic revalidation, off by default
 });
 ```
 

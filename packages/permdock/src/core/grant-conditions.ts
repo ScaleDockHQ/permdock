@@ -141,13 +141,13 @@ export function isUnevaluable(reason: DenialReason | undefined): boolean {
 }
 
 export function shouldConsumeQuota(
-  source: DecisionEvent["source"] | undefined,
+  call: DecisionEvent["call"] | undefined,
   simulated: boolean,
 ): boolean {
   if (simulated) {
     return false;
   }
-  switch (source) {
+  switch (call) {
     case "can":
     case "filter":
     case "simulate":
@@ -161,7 +161,7 @@ export function shouldConsumeQuota(
     case undefined:
       return true;
     default: {
-      const exhaustive: never = source;
+      const exhaustive: never = call;
       return exhaustive;
     }
   }

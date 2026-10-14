@@ -64,13 +64,37 @@ export type {
 export {
   memoryEntitlementSource,
   memoryMembershipSource,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   memorySnapshotSource,
-  memorySettings,
+  memorySettingsSource,
 } from "./core/memory-sources.ts";
+export { memoryPrincipalSource } from "./core/principal-source.ts";
+export type {
+  PrincipalIdentity,
+  PrincipalIdentityLink,
+  PrincipalSource,
+} from "./core/principal-source.ts";
+export { memoryAutomationSource, parseAutomation } from "./core/automation.ts";
+export type {
+  Automation,
+  AutomationDecision,
+  AutomationMode,
+  AutomationRequest,
+  AutomationSource,
+  DecideAutomationOptions,
+  MemoryAutomationSource,
+} from "./core/automation.ts";
+export { parseSupportSession } from "./core/support-session.ts";
+export type {
+  DecideSupportSessionOptions,
+  SupportSession,
+  SupportSessionDecision,
+  SupportSessionPolicy,
+  SupportSessionRequest,
+} from "./core/support-session.ts";
 export {
   APPROVAL_POLICY_UNAVAILABLE,
-  memoryApprovalPolicies,
+  memoryApprovalPolicySource,
   validateApprovalPolicy,
 } from "./core/approval-policies.ts";
 export type {
@@ -85,13 +109,13 @@ export {
   countHolders,
   isExternallyManaged,
 } from "./core/memberships.ts";
-export { fromStripeEntitlements } from "./core/stripe-entitlements.ts";
+export { stripeEntitlementSource } from "./core/stripe-entitlements.ts";
 export type { StripeEntitlementsClient } from "./core/stripe-entitlements.ts";
 export { memoryLimitStore } from "./core/limits.ts";
-export { memoryRelations } from "./core/memory-relations.ts";
+export { memoryRelationSource } from "./core/memory-relations.ts";
 export type {
   MemoryEdge,
-  MemoryRelationsData,
+  MemoryRelationSourceData,
 } from "./core/memory-relations.ts";
 export type { Holder, HoldingVia, WhoCan } from "./core/who-can.ts";
 export {
@@ -99,6 +123,7 @@ export {
   memoryPolicySource,
   mergeHostedGrants,
   parsePolicyDocument,
+  policyDocumentFromClaims,
 } from "./core/hosted.ts";
 export type {
   HostedGrant,
@@ -121,8 +146,8 @@ export type {
   RelationGroup,
   RelationHolder,
   RelationSource,
-  RoleSource,
-  RoleSourceFactory,
+  CustomRoleSource,
+  CustomRoleSourceFactory,
   SettingsSource,
   SnapshotSource,
   SubjectResolver,
@@ -146,12 +171,18 @@ export type {
 export type {
   AccessEvent,
   AuthEvent,
+  AutomationEvent,
   CredentialEvent,
   DecisionEvent,
+  DeliveryChannel,
+  DeliveryEvent,
+  DeliveryFailureCause,
   DirectoryEvent,
+  EmailCategory,
   MembershipEvent,
   SinkEvent,
 } from "./core/event-types.ts";
+export { deliveryEvent } from "./core/delivery-event.ts";
 export { arazzoFindings, simulateArazzo } from "./core/arazzo.ts";
 export type {
   ArazzoFinding,
@@ -167,7 +198,6 @@ export { wrapPermDock } from "./core/wrap.ts";
 export type { PermDockOverrides, PermDockWrap } from "./core/wrap.ts";
 export type { RequestContext } from "./core/request-context.ts";
 export { mayAccess } from "./core/may-access.ts";
-export { mayUse, permittedIds } from "./core/may-use.ts";
 export type { PermittedIdsOptions } from "./core/may-use.ts";
 export {
   customRoleClaim,
@@ -200,6 +230,18 @@ export type {
   WhereResult,
 } from "./core/permdock.ts";
 export { definePermissions } from "./core/permissions.ts";
+export { OPERATION_RISKS, isOperationRisk } from "./core/operation-risks.ts";
+export type { OperationRisk } from "./core/operation-risks.ts";
+export { defineOperations } from "./core/operations.ts";
+export type {
+  Operation,
+  OperationData,
+  OperationDefinition,
+  OperationEffect,
+  OperationInput,
+  OperationMap,
+  OperationMeta,
+} from "./core/operations.ts";
 export {
   findPermission,
   getResource,
@@ -280,6 +322,7 @@ export type {
   GrantValidity,
   HostedGrantRef,
   MembershipFixture,
+  WireValidity,
   ObligationInput,
   Policy,
   PolicyAppDataSchemas,
@@ -297,7 +340,6 @@ export type {
 } from "./core/policy-types.ts";
 export { breakGlass, supportAccess } from "./core/elevated.ts";
 export type { ActivateInput } from "./core/elevated.ts";
-export { parseDuration } from "./core/duration.ts";
 export {
   actor,
   anyone,
@@ -344,12 +386,18 @@ export type {
   RoleChangeTarget,
 } from "./core/ownership.ts";
 export {
+  CLOUDEVENTS_BATCH_CONTENT_TYPE,
+  CLOUDEVENTS_CONTENT_TYPE,
   CLOUD_EVENT_TYPES,
+  RESERVED_CLOUD_EVENT_TYPES,
   accessEvent,
+  automationEvent,
+  cloudEventType,
   credentialEvent,
   membershipEvent,
-  memorySink,
+  memoryDecisionSink,
   signDecisionBatch,
+  supportSessionEvent,
   toCloudEvent,
 } from "./core/sink.ts";
 export type {
@@ -357,11 +405,32 @@ export type {
   CatalogFinding,
   CatalogFindingCode,
   CloudEvent,
+  CloudEventOptions,
   CloudEventType,
-  MemorySink,
-  MemorySinkOptions,
+  MemoryDecisionSink,
+  MemoryDecisionSinkOptions,
   SignDecisionBatchOptions,
 } from "./core/sink.ts";
+export {
+  parseCatalogEventData,
+  parseCloudEvent,
+  parseCloudEventBatch,
+  parseSinkEvent,
+  parseSinkEvents,
+} from "./core/parse-sink-events.ts";
+export {
+  ACCESS_EVENT_SCHEMA,
+  AUTOMATION_EVENT_SCHEMA,
+  CATALOG_EVENT_SCHEMA,
+  CREDENTIAL_EVENT_SCHEMA,
+  DECISION_EVENT_SCHEMA,
+  DELIVERY_EVENT_SCHEMA,
+  DIRECTORY_EVENT_SCHEMA,
+  EVENT_SCHEMA_IDS,
+  MEMBERSHIP_EVENT_SCHEMA,
+  SINK_EVENT_SCHEMAS,
+} from "./core/event-schemas.ts";
+export type { JsonSchemaNode } from "./core/json-schema.ts";
 export { OCSF_VERSION, accessToOcsf, toOcsf } from "./core/ocsf.ts";
 export { CSV_COLUMNS, toCsvRow } from "./core/csv.ts";
 export { catalogFingerprint } from "./core/catalog-fingerprint.ts";
@@ -370,29 +439,31 @@ export {
   delegatedPermissions,
 } from "./core/delegation.ts";
 export {
-  capabilitySubject,
+  capabilityFromClaims,
   linkPolicyViolation,
   parseCapability,
+  parseCapabilityClaim,
   signCapability,
 } from "./core/capability.ts";
 export type {
   Capability,
+  CapabilityClaim,
+  CapabilityConfirmation,
   CapabilityInput,
+  CapabilityPrincipal,
   CapabilityRedeemer,
   LinkPolicy,
   LinkPolicyViolation,
-  LinkPrincipal,
   SignCapabilityOptions,
 } from "./core/capability.ts";
 export {
   credentialDelegation,
   credentialPolicyViolation,
-  credentialSubject,
-  decideCredential,
   isFeedId,
   parseCredential,
 } from "./core/credential.ts";
 export type {
+  ApiKeyPrincipal,
   Credential,
   CredentialDecision,
   CredentialKind,
@@ -400,11 +471,10 @@ export type {
   CredentialPermissionInput,
   CredentialPolicy,
   CredentialPolicyViolation,
-  CredentialPrincipal,
   CredentialRequest,
   DecideCredentialOptions,
 } from "./core/credential.ts";
-export type { OcsfAccountChange, OcsfAuthorizeSession } from "./core/ocsf.ts";
+export type { OcsfAuthorizeSession, OcsfUserManagement } from "./core/ocsf.ts";
 export type {
   Actor,
   Assurance,

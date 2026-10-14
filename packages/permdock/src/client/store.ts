@@ -12,8 +12,10 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { emptySnapshot, fromSnapshot } from "../core/from-snapshot.ts";
+import { snapshotFromClaims } from "../core/snapshot-sign.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
 import { nowSeconds } from "../core/tenancy.ts";
+import { secondsOf } from "../core/time.ts";
 import { createApprovals } from "./approvals.ts";
 import {
   type CacheEntry,
@@ -291,15 +293,17 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   // Reads the clock only when there is something to compare: Cache Components
   // rejects `Date.now()` in a prerendered Client Component outside Suspense.
   const isStale = (): boolean => {
-    const maxAge = snapshot.issuedAt > 0 ? options.maxAge : undefined;
-    if (snapshot.expiresAt === undefined && maxAge === undefined) {
+    const issuedAt = secondsOf(snapshot.issuedAt) ?? 0;
+    const expiresAt = secondsOf(snapshot.expiresAt);
+    const maxAge = issuedAt > 0 ? options.maxAge : undefined;
+    if (expiresAt === undefined && maxAge === undefined) {
       return false;
     }
     const now = nowSeconds();
-    if (snapshot.expiresAt !== undefined && snapshot.expiresAt <= now) {
+    if (expiresAt !== undefined && expiresAt <= now) {
       return true;
     }
-    return maxAge !== undefined && now - snapshot.issuedAt > maxAge;
+    return maxAge !== undefined && now - issuedAt > maxAge;
   };
 
   const serverOnly = (): void => {
@@ -323,9 +327,9 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     }
     try {
       const verified = await options.verifier.verify(raw, {
-        typ: "permdock-snapshot+jwt",
+        typ: "vnd.permdock.snapshot+jwt",
       });
-      return verified.ok ? verified.claims["snapshot"] : undefined;
+      return verified.ok ? snapshotFromClaims(verified.claims) : undefined;
     } catch {
       return undefined;
     }

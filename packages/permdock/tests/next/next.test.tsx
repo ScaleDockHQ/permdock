@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { renderToString } from "react-dom/server";
 import { prerender } from "react-dom/static";
+import { Temporal } from "temporal-polyfill";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { Decision } from "../../src/core/decision.ts";
@@ -689,7 +690,12 @@ describe("cacheLifeFor", () => {
     expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 900 })).toEqual({
       stale: 0,
     });
-    expect(cacheLifeFor({ expiresAt: 1100 }, { now: 1000, min: 60 })).toEqual({
+    expect(
+      cacheLifeFor(
+        { expiresAt: 1100 },
+        { now: Temporal.Instant.fromEpochMilliseconds(1_000_000), min: 60 },
+      ),
+    ).toEqual({
       stale: 100,
     });
   });

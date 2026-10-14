@@ -1,6 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-import type { RoleSource } from "../core/interfaces.ts";
+import type { CustomRoleSource } from "../core/interfaces.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { RemotePdpCache } from "../pdp/types.ts";
@@ -41,7 +41,7 @@ export type ClerkGlobalRoles =
 export type ClerkSubjectOptions = {
   readonly memberships?: "active" | "all";
   readonly backend?: ClerkBackend;
-  readonly customRoles?: RoleSource;
+  readonly customRoles?: CustomRoleSource;
   readonly permissions?: Readonly<Record<string, Permission>>;
   readonly schema?: StandardSchemaV1;
   readonly globalRoles?: ClerkGlobalRoles;

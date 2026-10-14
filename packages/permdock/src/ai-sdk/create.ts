@@ -1,23 +1,18 @@
-import type { OnDeniedText } from "../agent/denied-text.ts";
-import type { ToolMap, ToolVerdict } from "../agent/types.ts";
-import type { ApprovalStore } from "../approvals/types.ts";
+import type { AgentPermDock } from "../agent/create.ts";
+import type { AgentAdapterOptions, ToolVerdict } from "../agent/types.ts";
+import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Policy } from "../core/policy-types.ts";
-import type { RequestContext } from "../core/request-context.ts";
-import type { Delegation, Principal } from "../core/subject.ts";
-import type { PermDockWrap } from "../core/wrap.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Principal } from "../core/subject.ts";
 
-import { approvalTokenOf, createAgentKernel } from "../agent/kernel.ts";
+import { agentRuntime } from "../agent/create.ts";
+import { approvalTokenOf } from "../agent/kernel.ts";
 import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from "../core/errors.ts";
-import {
-  type InstanceOptions,
-  instanceOptions,
-} from "../core/instance-options.ts";
 
 export type AiSdkContext = {
   readonly runtimeContext?: unknown;
@@ -25,37 +20,10 @@ export type AiSdkContext = {
   readonly [key: string]: unknown;
 };
 
-export type AiSdkPermDockOptions<TUser = unknown> = InstanceOptions & {
-  readonly subject: (context: AiSdkContext) => TUser | Promise<TUser>;
-  readonly actor?: (context: AiSdkContext) => unknown;
-  readonly delegation?: (
-    context: AiSdkContext,
-  ) => Delegation | undefined | Promise<Delegation | undefined>;
-  readonly tenant?:
-    | string
-    | ((
-        context: AiSdkContext,
-      ) => string | undefined | Promise<string | undefined>);
-  readonly tools: ToolMap;
-  readonly store?: ApprovalStore;
-  /**
-   * Tools the `tools` map does not bind to a permission. `'deny'` (default):
-   * the middleware hides them and `toolApproval` denies them. `'allow'`: they
-   * pass through both, to the application's own `toolApproval`.
-   */
-  readonly unmapped?: "deny" | "allow";
-  /**
-   * Request values merged into `subject.context`, under `policy.context`.
-   * Only values the server derived belong here, never model output.
-   */
-  readonly context?: (
-    context: AiSdkContext,
-  ) => RequestContext | undefined | Promise<RequestContext | undefined>;
-  /** Wraps each instance; build it with `wrapPermDock` to cover derived instances. */
-  readonly wrap?: PermDockWrap;
-  /** Replaces the denial reason or approval summary text; nothing else. */
-  readonly onDenied?: OnDeniedText;
-};
+export type AiSdkPermDockOptions<TUser = unknown> = AgentAdapterOptions<
+  AiSdkContext,
+  TUser
+>;
 
 /** What an AI SDK tool approval function may return; `undefined` is `not-applicable`. */
 export type ToolApprovalResult =
@@ -106,37 +74,48 @@ type CallParams = {
   readonly toolChoice?: unknown;
 };
 
+/** The part of `LanguageModelV4` the model gate reads. */
+type CallModel = {
+  readonly modelId?: unknown;
+};
+
 /** Structural `LanguageModelMiddleware` (specification `v4`) from `ai`. */
 export type LanguageModelMiddleware = {
   readonly specificationVersion: "v4";
   readonly transformParams: <TParams extends CallParams>(options: {
     readonly params: TParams;
+    readonly model?: CallModel;
   }) => Promise<TParams>;
 };
 
-export type AiSdkPermDock = {
-  readonly toolApproval: (
-    call: ToolApprovalCall,
-  ) => Promise<ToolApprovalStatus>;
-  /**
-   * PermDock's `toolApproval` followed by the application's own: `app` is
-   * asked only for a call PermDock grants (or an unmapped tool under
-   * `unmapped: 'allow'`), and its answer is returned as is, `undefined`
-   * included (not applicable, as the AI SDK reads it). An answer that is not
-   * a tool approval result denies. PermDock's denials and approval requests
-   * come first.
-   */
-  readonly composeToolApproval: (
-    app: AppToolApproval,
-  ) => (call: ToolApprovalCall) => Promise<ToolApprovalResult>;
-  /** Hides tools the subject in `context` can never use, before the model sees them. */
-  readonly capabilityMiddleware: (
-    context: AiSdkContext,
-  ) => LanguageModelMiddleware;
-  readonly needsApproval: (
-    permission: Permission,
-  ) => (input: unknown, options?: NeedsApprovalOptions) => Promise<boolean>;
-};
+export type AiSdkPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
+  AgentPermDock<AiSdkContext, V> & {
+    readonly toolApproval: (
+      call: ToolApprovalCall,
+    ) => Promise<ToolApprovalStatus>;
+    /**
+     * PermDock's `toolApproval` followed by the application's own: `app` is
+     * asked only for a call PermDock grants (or an unmapped tool under
+     * `unmapped: 'allow'`), and its answer is returned as is, `undefined`
+     * included (not applicable, as the AI SDK reads it). An answer that is not
+     * a tool approval result denies. PermDock's denials and approval requests
+     * come first.
+     */
+    readonly composeToolApproval: (
+      app: AppToolApproval,
+    ) => (call: ToolApprovalCall) => Promise<ToolApprovalResult>;
+    /**
+     * Hides tools the subject in `context` can never use, before the model
+     * sees them. With `models`, a call to a model the subject is not granted
+     * throws `PermDockDeniedError` before the provider is called.
+     */
+    readonly capabilityMiddleware: (
+      context: AiSdkContext,
+    ) => LanguageModelMiddleware;
+    readonly needsApproval: (
+      permission: Permission,
+    ) => (input: unknown, options?: NeedsApprovalOptions) => Promise<boolean>;
+  };
 
 const APPROVAL_STATUSES: ReadonlySet<unknown> = new Set([
   "approved",
@@ -248,32 +227,39 @@ function deniedError(
   });
 }
 
-export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
-  policy: Policy<TUser, TPrincipal>,
-  options: AiSdkPermDockOptions<TUser>,
-): AiSdkPermDock {
-  const kernel = createAgentKernel<AiSdkContext, TUser>(policy, {
-    ...compact({
-      actor: options.actor,
-      delegation: options.delegation,
-      tenant: options.tenant,
-      store: options.store,
-      context: options.context,
-      wrap: options.wrap,
-      onDenied: options.onDenied,
-    }),
-    ...instanceOptions(options),
-    subject: options.subject,
-    tools: options.tools,
-    adapter: "ai-sdk",
+function modelDenied(
+  decision: Extract<Decision, { readonly outcome: "denied" }>,
+  modelId: string,
+  permission: Permission | undefined,
+  permdock: PermDock,
+): PermDockDeniedError {
+  return new PermDockDeniedError({
+    decision,
+    permission: permission?.key ?? "model",
+    scope: permission?.scope ?? "model",
+    resource: { type: permission?.resource ?? "model", id: modelId },
+    subject: permdock.subject,
+    message: `Denied: model ${modelId} is not granted.`,
   });
+}
+
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  options: AiSdkPermDockOptions<TUser>,
+): AiSdkPermDock<V> {
+  const { agent, kernel } = agentRuntime(policy, options, "ai-sdk");
 
   const byPermission = new Map<string, string>();
-  for (const [name, binding] of Object.entries(options.tools)) {
+  for (const [name, binding] of Object.entries(options.operations)) {
     byPermission.set(binding.permission.key, name);
   }
   const passes = (toolName: string): boolean =>
-    options.unmapped === "allow" && !Object.hasOwn(options.tools, toolName);
+    options.unmapped === "allow" &&
+    !Object.hasOwn(options.operations, toolName);
 
   const decide = (
     toolName: string,
@@ -324,9 +310,32 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     specificationVersion: "v4",
     transformParams: async <TParams extends CallParams>({
       params,
+      model,
     }: {
       readonly params: TParams;
+      readonly model?: CallModel;
     }): Promise<TParams> => {
+      if (options.models !== undefined) {
+        const modelId =
+          typeof model?.modelId === "string" ? model.modelId : "unknown";
+        const decision = await agent.decideModel(modelId, context);
+        if (decision.outcome !== "granted") {
+          throw modelDenied(
+            decision.outcome === "denied"
+              ? decision
+              : {
+                  outcome: "denied",
+                  denials: [{ role: null, reason: "approval" }],
+                  alternatives: [],
+                },
+            modelId,
+            Object.hasOwn(options.models, modelId)
+              ? options.models[modelId]
+              : undefined,
+            await kernel.instance(context),
+          );
+        }
+      }
       if (params.tools === undefined) {
         return params;
       }
@@ -399,10 +408,11 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         : { type: "denied", reason: "The tool approval answer was not valid." };
     };
 
-  return {
+  return Object.freeze({
+    ...agent,
     toolApproval,
     composeToolApproval,
     capabilityMiddleware,
     needsApproval,
-  };
+  });
 }

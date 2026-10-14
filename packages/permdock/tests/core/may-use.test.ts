@@ -32,7 +32,7 @@ function permdock(
 ): PermDock {
   return fromSnapshot({
     v: 1,
-    issuedAt: 1,
+    issuedAt: "1970-01-01T00:00:01Z",
     subject: {
       principal: { id: "u1", roles: ["member"], tenant: "t1" },
       context: {},
@@ -46,16 +46,15 @@ function permdock(
 
 describe("mayUse", () => {
   it("is true for an allow and false without one", () => {
-    expect(mayUse(permdock([read]), permissions.doc.read)).toBe(true);
-    expect(mayUse(permdock([read]), permissions.doc.update)).toBe(false);
+    expect(permdock([read]).mayUse(permissions.doc.read)).toBe(true);
+    expect(permdock([read]).mayUse(permissions.doc.update)).toBe(false);
   });
 
   it("is false under an unconditional deny, and true when the deny has a condition", () => {
     const blanket: SnapshotGrant = { ...read, effect: "deny" };
-    expect(mayUse(permdock([read, blanket]), permissions.doc.read)).toBe(false);
+    expect(permdock([read, blanket]).mayUse(permissions.doc.read)).toBe(false);
     expect(
-      mayUse(
-        permdock([read, { ...blanket, scope: "tenant" }]),
+      permdock([read, { ...blanket, scope: "tenant" }]).mayUse(
         permissions.doc.read,
       ),
     ).toBe(false);
@@ -68,7 +67,7 @@ describe("mayUse", () => {
     ] as const) {
       expect({
         conditional,
-        may: mayUse(permdock([read, conditional]), permissions.doc.read),
+        may: permdock([read, conditional]).mayUse(permissions.doc.read),
       }).toEqual({ conditional, may: true });
     }
   });
@@ -83,8 +82,8 @@ describe("mayUse", () => {
       ...elsewhere,
       membership: { scope: "tenant", id: "t1", roles: ["member"] },
     };
-    expect(mayUse(permdock([elsewhere]), permissions.doc.read)).toBe(false);
-    expect(mayUse(permdock([here]), permissions.doc.read)).toBe(true);
+    expect(permdock([elsewhere]).mayUse(permissions.doc.read)).toBe(false);
+    expect(permdock([here]).mayUse(permissions.doc.read)).toBe(true);
   });
 
   it("is false when the delegation covers no row of the permission", () => {
@@ -92,11 +91,11 @@ describe("mayUse", () => {
       permdock([read], {
         delegation: {
           access: [{ type, actions: ["read"], identifier: "d1" }],
-          authorizationDetails: [{ type, actions: ["read"] }],
+          authorization_details: [{ type, actions: ["read"] }],
         },
       });
-    expect(mayUse(scoped("doc"), permissions.doc.read)).toBe(true);
-    expect(mayUse(scoped("invoice"), permissions.doc.read)).toBe(false);
+    expect(scoped("doc").mayUse(permissions.doc.read)).toBe(true);
+    expect(scoped("invoice").mayUse(permissions.doc.read)).toBe(false);
   });
 
   it("is false when the snapshot is not at hand or reading it throws", () => {
@@ -117,6 +116,35 @@ describe("mayUse", () => {
       },
     };
     expect(mayUse(broken, permissions.doc.read)).toBe(false);
+  });
+});
+
+describe("an instance built from a snapshot", () => {
+  it("lists permitted ids and leaves credential decisions to the server", async () => {
+    const team: SnapshotGrant = {
+      ...read,
+      scope: "team",
+      membership: { scope: "team", id: "a", roles: ["member"] },
+    };
+    const instance = permdock([team], {
+      principal: {
+        id: "u1",
+        roles: ["member"],
+        tenant: "t1",
+        memberships: [{ scope: "team", id: "a", roles: ["member"] }],
+      },
+    });
+    expect(instance.permittedIds(permissions.doc.read, "team")).toEqual(["a"]);
+    expect(
+      await instance.decideCredential({
+        kind: "user",
+        id: "k1",
+        permissions: [permissions.doc.read],
+      }),
+    ).toEqual({
+      outcome: "denied",
+      denials: [{ role: null, reason: "unsupported" }],
+    });
   });
 });
 

@@ -2,7 +2,7 @@ import type { Membership, ResourceRestricted } from "../../src/index.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { inherit, relation } from "../../src/core/grantee.ts";
-import { memoryRelations } from "../../src/core/memory-relations.ts";
+import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -199,7 +199,7 @@ const shares = {
   ],
 };
 
-export const relations = memoryRelations(permissions, {
+export const relations = memoryRelationSource(permissions, {
   rows: { drive: drives, node: rows, item: rows, entry: rows },
   tables: {
     drive_shares: shares.drive.map((row) => ({

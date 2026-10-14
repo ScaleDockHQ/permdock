@@ -11,7 +11,7 @@ import {
   plan,
   relation,
 } from "../../src/core/grantee.ts";
-import { memoryRelations } from "../../src/core/memory-relations.ts";
+import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -110,7 +110,7 @@ describe("whoCan over the relationship graph", () => {
       kind: "team",
       subject_id: `t${index + 1}`,
     }));
-    const source = memoryRelations(graph, {
+    const source = memoryRelationSource(graph, {
       rows,
       tables: {
         team_members: [

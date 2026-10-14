@@ -17,7 +17,7 @@ import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
 import { ownershipRules } from "../../src/cli/rls/ownership.ts";
 import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { scopeList } from "../../src/core/scopes.ts";
-import { fromJunction } from "../../src/supabase/index.ts";
+import { junctionMembershipSource } from "../../src/supabase/index.ts";
 import { policy as namedScopes } from "../fixtures/named-scopes.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
@@ -193,7 +193,7 @@ describe("rls generate options", () => {
       supabase: {
         hook: {
           memberships: [
-            fromJunction({
+            junctionMembershipSource({
               table: "organization_users",
               scope: "organization",
               roles: "role",
@@ -208,7 +208,7 @@ describe("rls generate options", () => {
       supabase: {
         hook: {
           memberships: [
-            fromJunction({
+            junctionMembershipSource({
               table: "organization_users",
               scope: "organization",
               roles: "role",

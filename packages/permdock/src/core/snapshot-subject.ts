@@ -6,6 +6,8 @@ import { freezeDeep } from "./freeze.ts";
 import { sameId } from "./ids.ts";
 import { type Scope, resolveScope, scopeList, tenantOf } from "./scopes.ts";
 import { isMembershipExpired, resolveActiveTenant } from "./tenancy.ts";
+import { secondsOf } from "./time.ts";
+import { fromWireDelegation } from "./wire-delegation.ts";
 
 export function subjectFromSnapshot(
   snapshot: Snapshot,
@@ -34,9 +36,9 @@ export function subjectFromSnapshot(
               ...principal,
               tenant: nextTenant,
             }),
-      delegation: snapshot.subject.delegation,
+      delegation: fromWireDelegation(snapshot.subject.delegation),
       context: snapshot.subject.context,
-      expiresAt: snapshot.expiresAt,
+      expiresAt: secondsOf(snapshot.expiresAt),
     }),
   );
 }

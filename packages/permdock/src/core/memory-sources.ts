@@ -2,7 +2,7 @@ import type {
   EntitlementSource,
   MemberEntry,
   MembershipSource,
-  RoleSource,
+  CustomRoleSource,
   SettingsSource,
   SnapshotSource,
   TenantSettings,
@@ -22,7 +22,7 @@ export function memoryEntitlementSource(
   };
 }
 
-export function memorySettings(
+export function memorySettingsSource(
   settings: Readonly<Record<string, TenantSettings>>,
 ): SettingsSource {
   const byTenant = new Map(Object.entries(settings));
@@ -84,9 +84,9 @@ export function memorySnapshotSource(
   });
 }
 
-export function memoryRoleSource(
+export function memoryCustomRoleSource(
   customRoles: readonly CustomRole[],
-): RoleSource {
+): CustomRoleSource {
   const byTenant = new Map<string, CustomRole[]>();
   const global: CustomRole[] = [];
   for (const role of customRoles) {

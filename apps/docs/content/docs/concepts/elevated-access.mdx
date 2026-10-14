@@ -23,7 +23,7 @@ A role with `activation` is never held directly. A membership lists it under `el
 role("admin", ADMIN, {
   on: "organization",
   activation: {
-    maxDuration: "4h",
+    maxDuration: 14_400, // four hours, in seconds
     justification: "required",
     approval: { by: roles.owner },
     assurance: { maxAge: 300 },
@@ -38,7 +38,7 @@ const decision = permdock.activate({
   role: "admin",
   scope: "organization",
   id: orgId,
-  duration: "2h",
+  duration: 7200,
   reason: "covering the on-call shift",
 });
 if (decision.outcome === "granted") {
@@ -47,7 +47,7 @@ if (decision.outcome === "granted") {
 }
 ```
 
-Fail-closed: an unknown role, an ineligible subject, a missing justification when `justification: 'required'`, or stale authentication all deny (`unknown-role`, `no-membership`, `reason-required`, `insufficient-user-authentication`). `duration` is capped at `maxDuration`. The elevation's `within` is copied from the eligible membership, never from the input: a `within` that disagrees with it is denied with `no-membership`, and the approval token covers it, so an approval for a team in one organization cannot activate the same team id in another. Expiry is the existing `expiresAt` check plus the revocation counter; the Supabase hook already includes the elevated row. `permdock doctor` PD033 warns on an `activation` without `maxDuration`, and on an activation role a fixture membership also holds standing.
+Fail-closed: an unknown role, an ineligible subject, a missing justification when `justification: 'required'`, or stale authentication all deny (`unknown-role`, `no-membership`, `reason-required`, `insufficient-user-authentication`). `duration` and `maxDuration` are whole seconds, and `duration` is capped at `maxDuration`. The elevation's `within` is copied from the eligible membership, never from the input: a `within` that disagrees with it is denied with `no-membership`, and the approval token covers it, so an approval for a team in one organization cannot activate the same team id in another. Expiry is the existing `expiresAt` check plus the revocation counter; the Supabase hook already includes the elevated row. `permdock doctor` PD033 warns on an `activation` without `maxDuration`, and on an activation role a fixture membership also holds standing.
 
 ## Break-glass
 
@@ -61,7 +61,7 @@ breakGlass(permissions.patient.read, {
     reason: true,
     assurance: { maxAge: 60 },
   },
-  maxDuration: "1h",
+  maxDuration: 3600,
   obligations: ["notify", "review"],
 });
 
@@ -83,7 +83,7 @@ RLS never compiles break-glass: the grant stays non-portable. The server reads r
 supportAccess({
   role: "support",
   actorRequired: true,
-  consent: { by: roles.owner, durations: ["1d", "7d", "30d"] },
+  consent: { by: roles.owner, durations: [86_400, 604_800, 2_592_000] },
   forbid: [permissions.billing, permissions.security],
 });
 ```
@@ -95,7 +95,7 @@ A tenant owner grants access through an `ApprovalRequest` the tenant resolves. O
   member: { group: 'vendor-support' }, expiresAt, grantedBy }
 ```
 
-Group members ride C3's `fromJunction` `group` option (`member: { group }`). With `actorRequired: true`, every decision under a support membership denies with `actor-required` unless the subject carries an `act`; impersonation is never modelled as the user's own session. `forbid` compiles to deny grants scoped to `via: 'support'`, so it holds in RLS too. The lifecycle emits `access.started`, `access.ended` and `access.revoked` events (`accessEvent`), each a CloudEvents type with an OCSF Account Change mapping (`accessToOcsf`); revoking consent bumps the revocation counter. `permdock doctor` PD035 warns on a support role without `actorRequired`.
+Group members ride C3's `junctionMembershipSource` `group` option (`member: { group }`). With `actorRequired: true`, every decision under a support membership denies with `actor-required` unless the subject carries an `act`; impersonation is never modelled as the user's own session. `forbid` compiles to deny grants scoped to `via: 'support'`, so it holds in RLS too. The lifecycle emits `access.started`, `access.ended` and `access.revoked` events (`accessEvent`), sent as the CloudEvents types `com.permdock.support-session.started` and `com.permdock.support-session.ended` and mapped onto OCSF User Management by `accessToOcsf`; revoking consent bumps the revocation counter. `permdock doctor` PD035 warns on a support role without `actorRequired`.
 
 A better-supabase support session is the other way round: the token is the user's, `subject.principal` is the user and the admin is `subject.actor` with kind `support` ([Supabase](/docs/adapters/supabase#support-and-impersonation-actors)). It satisfies `actorRequired`, which accepts any actor, and reaches only what a policy delegation to `actor('support')` names; `read_only: true` narrows that to read-only permissions.
 

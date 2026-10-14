@@ -13,7 +13,7 @@ export const policy = definePolicy(permissions, {
     breakGlass(permissions.patient.read, {
       overrides: ["restricted-record"],
       requires: { purpose: ["BTG", "ETREAT"], reason: true },
-      maxDuration: "1h",
+      maxDuration: 3600,
       obligations: ["notify", "review"],
     }),
   ],

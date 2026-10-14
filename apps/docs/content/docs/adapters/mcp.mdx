@@ -44,9 +44,9 @@ guarded.registerTool(
 - `clients` (a `ClientNames`, on `createPermDock` and `subjectFromMcp`) names client ids: the actor gets `client` set to the name of `authInfo.clientId`, which a policy delegation matches with `to: { kind, client }` ([policy delegations](/docs/security/delegation#policy-delegations)). A CIMD URL or a dynamically registered id maps through the function form.
 - `requireAuthInfo: true` refuses every call that arrives without `authInfo` (an HTTP server behind bearer middleware). Without it a call with no `authInfo`, such as a stdio server run by the local user, skips the scope check and is decided on `subject` alone.
 - `resource` is this server's RFC 8707 resource identifier (the URL clients call). A token whose `authInfo.resource` is absent or names another server is refused with `invalid_token` and sees an empty tool list. The comparison is on the parsed URL, so `https://MCP.example.com/mcp` matches `https://mcp.example.com/mcp`.
-- `store` (an `ApprovalStore`) holds `approval-required` calls; `sink`, `limits`, `memberships`, `customRoles`, `tenant` and `otel` behave as on every adapter; `customRoles` may be a `RoleSourceFactory` that builds the source for each call's subject.
+- `store` (an `ApprovalStore`) holds `approval-required` calls; `sink`, `limits`, `memberships`, `customRoles`, `tenant` and `otel` behave as on every adapter; `customRoles` may be a `CustomRoleSourceFactory` that builds the source for each call's subject.
 - `context(authInfo)` returns plain JSON merged into `subject.context` under the policy's `context`. Read it from the verified `authInfo`, never from tool arguments; a throw adds nothing and reports `on('error')` ([request data](/docs/guides/extending#request-data)).
-- `onDenied({ decision, permission, text })` may return replacement refusal text, for a localised or product-specific message. `isError`, `structuredContent` and the approval shape stay as PermDock built them; `undefined`, an empty string or a throw keeps PermDock's text.
+- `deniedText({ decision, permission, text })` may return replacement refusal text, for a localised or product-specific message. `isError`, `structuredContent` and the approval shape stay as PermDock built them; `undefined`, an empty string or a throw keeps PermDock's text.
 - `wrap` wraps each call's instance after `otel`; build it with `wrapPermDock` ([wrapping an instance](/docs/guides/extending#wrapping-an-instance)).
 - `approval: { at, hint }` is where a human approves (the same hint HTTP adapters put on the problem body). With `at` set, a client that declares URL elicitation gets an `input_required` result instead of the refusal (below). `requestState` takes the codec from the SDK's `createRequestStateCodec` when the server verifies request state; without it the request state is the approval token itself.
 - `stepUp: { at }` is where the user signs in again. With it, an `insufficient-user-authentication` denial answers a client that declares URL elicitation with an `input_required` URL request to `at`, with `acr_values` and `max_age` appended from the failing [`assurance`](/docs/concepts/policies) grants.
@@ -159,7 +159,7 @@ export { authed as GET, authed as POST };
 
   ```ts
   import { createMcp, defineTool } from "better-supabase/mcp";
-  import { createPermDock, isPermission, mayUse } from "permdock";
+  import { createPermDock, isPermission } from "permdock";
   import { subjectFromBetterSupabase } from "permdock/better-supabase";
   import { betterSupabase } from "@/lib/supabase";
   import { policy, permissions } from "@/permissions";
@@ -199,7 +199,7 @@ export { authed as GET, authed as POST };
       }),
     ],
     visible: async (ctx, tool) =>
-      isPermission(tool.meta) && mayUse(await permdockFor(ctx), tool.meta),
+      isPermission(tool.meta) && (await permdockFor(ctx)).mayUse(tool.meta),
     authorize: async (ctx, tool, args) => {
       if (!isPermission(tool.meta))
         return { allowed: false, reason: "no-grant" };

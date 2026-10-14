@@ -28,7 +28,7 @@ testHttpAdapter({
     upload: "the mount takes JSON input; uploads go through a REST route",
   },
   async mount(domain) {
-    const { permdock, protect, permdockHandler } = createPermDock<Context>(
+    const { middleware, protect, permdockHandler } = createPermDock<Context>(
       domain.policy,
       {
         subject: (opts) =>
@@ -46,7 +46,7 @@ testHttpAdapter({
       },
     );
     const t = initTRPC.context<Context>().create({ errorFormatter });
-    const base = t.procedure.use(permdock());
+    const base = t.procedure.use(middleware());
     // SAFETY: every procedure's input is an object or undefined; `id` is a string when present
     const row = (opts: { readonly input?: unknown }) =>
       domain.project((opts.input as { readonly id?: string } | undefined)?.id);
@@ -111,7 +111,7 @@ testHttpAdapter({
           .split("/")
           .slice(1);
         if (segment === "permdock") {
-          return permdockHandler(request);
+          return permdockHandler()(request);
         }
         return fetchRequestHandler({
           endpoint: `/${org ?? ""}/trpc`,

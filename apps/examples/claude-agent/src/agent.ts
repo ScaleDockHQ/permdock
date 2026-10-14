@@ -1,3 +1,4 @@
+import { defineOperations } from "permdock";
 import { memoryApprovalStore } from "permdock/approvals";
 import { createPermDock } from "permdock/claude-agent";
 
@@ -13,7 +14,7 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   delegation: () => ({
     scopes: [permissions.post.list.scope, permissions.post.delete.scope],
   }),
-  tools: {
+  operations: defineOperations(permissions, {
     list_posts: {
       permission: permissions.post.list,
     },
@@ -21,7 +22,7 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
       permission: permissions.post.delete,
       data: () => ownPost,
     },
-  },
+  }),
 });
 
 export async function askDelete() {

@@ -16,12 +16,12 @@ export type SupabaseMembershipClaim = {
   readonly roles: readonly string[];
   readonly via?: string;
   /** Seconds since the epoch. */
-  readonly expiresAt?: number;
-  readonly grantedBy?: string;
+  readonly expires_at?: number;
+  readonly granted_by?: string;
   readonly reason?: string;
   /** The subgroup a membership source's `group` fills: a fixed name or a column. */
   readonly member?: { readonly group: string };
-  readonly managedBy?: "idp";
+  readonly managed_by?: "idp";
   readonly entitlements?: readonly string[];
   /** The instance or an ancestor is suspended: the permission keys the membership still grants. */
   readonly keep?: readonly string[];
@@ -150,7 +150,7 @@ function checkMembership(item: unknown, path: Path, issues: Issues): void {
     "tenant",
     "team",
     "via",
-    "grantedBy",
+    "granted_by",
     "reason",
   ]) {
     optional(item, key, path, issues, isString, "a string");
@@ -178,7 +178,7 @@ function checkMembership(item: unknown, path: Path, issues: Issues): void {
   );
   optional(
     item,
-    "expiresAt",
+    "expires_at",
     path,
     issues,
     (value) => typeof value === "number" && Number.isFinite(value),
@@ -197,7 +197,7 @@ function checkMembership(item: unknown, path: Path, issues: Issues): void {
   );
   optional(
     item,
-    "managedBy",
+    "managed_by",
     path,
     issues,
     (value) => value === "idp",

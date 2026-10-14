@@ -35,7 +35,7 @@ export default function EnterprisePage() {
           {
             title: "Signed evidence",
             description:
-              "typ permdock-decisions+jwt. Compact JWS, one private claim.",
+              "typ vnd.permdock.evidence+jwt. Compact JWS, one private claim.",
             href: "/docs/standards/jose",
             icon: <ShieldCheckIcon aria-hidden="true" className="size-4" />,
           },

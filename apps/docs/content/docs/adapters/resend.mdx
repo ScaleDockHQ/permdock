@@ -1,0 +1,77 @@
+---
+title: Resend
+description: permdock/resend is the email channel of permdock/delivery on Resend 6. resendTransport sends through emails.send and batch.send with idempotency keys and tags, approvalEmail renders an approval prompt that links to the approval page, and resendWebhook turns Resend webhooks into delivery events.
+---
+
+`permdock/resend` connects [delivery](/docs/concepts/delivery) to [Resend](https://resend.com) (`resend` 6, an optional peer). It ships `resendTransport`, `approvalEmail`, `resendWebhook` and `resendFailure`. The entry never imports `resend`: you pass in your `Resend` client.
+
+## Send email
+
+```ts
+import { createPermDock } from "permdock/delivery";
+import { resendTransport } from "permdock/resend";
+import { Resend } from "resend";
+
+const delivery = createPermDock(policy, {
+  transports: {
+    email: resendTransport(new Resend(process.env.RESEND_API_KEY), {
+      from: "Acme <billing@acme.test>",
+      tags: { app: "billing" },
+    }),
+  },
+  principals,
+  sink,
+});
+```
+
+`resendTransport(resend, options)`:
+
+- **Idempotency.** Each email is sent with the recipient's idempotency key as Resend's `idempotencyKey`, so a retried delivery with the same `id` sends once.
+- **Batches.** With two or more recipients, the router calls `batch.send` with up to 100 emails, keyed by a hash of the item keys.
+- **Tags.** Every email carries `permdock_delivery`, `permdock_key` and `permdock_category` tags after your `tags`, so a webhook maps back to the delivery. A tag name or value outside `[A-Za-z0-9_-]` throws a `TypeError` when you build the transport.
+- **Headers.** The router's `Auto-Submitted` and `List-Unsubscribe` headers are sent unchanged.
+
+`resendFailure(error)` maps a Resend error to a `DeliveryResult`:
+
+| Resend error `name`                                                            | `cause`           | Retryable |
+| ------------------------------------------------------------------------------ | ----------------- | --------- |
+| `rate_limit_exceeded`                                                          | `rate-limited`    | yes       |
+| `daily_quota_exceeded`, `monthly_quota_exceeded`                               | `quota-exceeded`  | yes       |
+| `concurrent_idempotent_requests`, `internal_server_error`, `application_error` | `unavailable`     | yes       |
+| `invalid_api_key`, `missing_api_key`, `restricted_api_key`, `invalid_access`   | `unauthorized`    | no        |
+| `invalid_from_address`, `invalid_attachment`                                   | `invalid-message` | no        |
+| `validation_error`, any other name with a 4xx status                           | `rejected`        | no        |
+| any other name with a 5xx or no status, or a client throw                      | `unavailable`     | yes       |
+
+## Approval emails
+
+`approvalEmail(prompt, { approvalUrl, product? })` returns an `EmailMessage` with category `approval` for an [`ApprovalPrompt`](/docs/concepts/delivery). The subject is `Approval needed: <title>`. The body names the detail, the requester and any actor, the permission and resource, the risk and the expiry, and links once to the approval page. It has no approve or reject link. `approvalUrl` is an https base URL the request id is appended to, or a function of the prompt. Replace it with a React Email template by building the same `EmailMessage`.
+
+## Webhooks
+
+`resendWebhook({ resend, secret, sink, replay })` returns a fetch handler for Resend's webhook endpoint:
+
+```ts
+import { resendWebhook } from "permdock/resend";
+import { memoryReplayStore } from "permdock/server";
+
+export const POST = resendWebhook({
+  resend,
+  secret: process.env.RESEND_WEBHOOK_SECRET!,
+  sink,
+  replay: memoryReplayStore(),
+});
+```
+
+- **Verification.** `resend.webhooks.verify` checks the `svix-*` (or `webhook-*`) signature headers. A missing header or a bad signature answers 401 Problem Details, a body over 1 MB 413, and any method but POST 405.
+- **Replays.** Each webhook id is claimed in the `ReplayStore` for 600 seconds. A repeat answers 200 and writes nothing.
+- **Events.** `email.delivered`, `email.bounced`, `email.complained`, `email.failed` and `email.suppressed` become `delivery` events with the delivery id, key and category from the tags, and `provider { name: 'resend', id }`. Opens, clicks, sends and mail without PermDock tags write nothing.
+- **Sink failures.** A sink that throws releases the claim and answers 503, so Resend retries.
+
+## Example app
+
+`apps/examples/resend` sends an invoice notice to a member, a client contact and an unlinked address, and an approval email to the other billing user. Without `RESEND_API_KEY` it uses `memoryDeliveryTransport`. `src/webhook.ts` serves `resendWebhook`.
+
+## Why
+
+The client is passed in, so `permdock` takes no dependency on `resend` and one PermDock version works across Resend releases. Resend tags carry the delivery id and key because a webhook names only Resend's email id; without the tags, a bounce could not be tied to a recipient without storing addresses. Quota errors are retryable because they clear with time, while key and sender errors are final because a retry cannot fix configuration.

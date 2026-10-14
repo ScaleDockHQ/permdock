@@ -1,7 +1,9 @@
+import type { Instant } from "../../src/core/time.ts";
+
 export type FakeClock = {
   /** Milliseconds since the epoch. */
   readonly now: () => number;
-  readonly seconds: () => number;
+  readonly instant: () => Instant;
   readonly date: () => Date;
   /** Resolves at once and advances the clock by `ms`. */
   readonly sleep: (ms: number) => Promise<void>;
@@ -15,7 +17,7 @@ export function fakeClock(start = Date.UTC(2026, 0, 1)): FakeClock {
   const slept: number[] = [];
   return {
     now: () => current,
-    seconds: () => Math.floor(current / 1000),
+    instant: () => ({ epochMilliseconds: current }),
     date: () => new Date(current),
     sleep: async (ms) => {
       slept.push(ms);

@@ -51,7 +51,7 @@ export type Membership = {
   readonly grantedBy?: string;
   /** Free text recording why the membership was written: the activation or consent justification. */
   readonly reason?: string;
-  /** A subgroup the holder belongs to inside the instance (`vendor-support`); a `fromJunction` group column fills it. */
+  /** A subgroup the holder belongs to inside the instance (`vendor-support`); a `junctionMembershipSource` group column fills it. */
   readonly member?: { readonly group: string };
   /** `idp`: the identity provider (SCIM) owns this membership; the application must not edit it. */
   readonly managedBy?: "idp";
@@ -128,7 +128,13 @@ export type CustomRole = TenantCustomRole | GlobalCustomRole;
 export type Principal = {
   readonly id: string;
   readonly issuer?: string;
-  readonly kind?: "user" | "service" | "workload" | "link" | "feed";
+  /**
+   * `contact`: an external person (a customer contact, a portal user). Only
+   * its `{ on }` memberships count; it never approves, creates keys or
+   * publishes, and is read-only unless a role whose `for` lists `contact`
+   * grants the write.
+   */
+  readonly kind?: "user" | "service" | "workload" | "link" | "feed" | "contact";
   readonly roles?: readonly string[];
   readonly plans?: readonly string[];
   readonly memberships?: readonly Membership[];
@@ -211,6 +217,7 @@ export function isPrincipal(value: unknown): value is Principal {
     record.kind === "workload" ||
     record.kind === "link" ||
     record.kind === "feed" ||
+    record.kind === "contact" ||
     typeof record.issuer === "string"
   );
 }
@@ -234,9 +241,9 @@ export function isActor(value: unknown): value is Actor {
   return typeof record.id === "string" && typeof record.kind === "string";
 }
 
-export function anonymousSubject(
+export function anonymousSubject<TPrincipal extends Principal = Principal>(
   context: Readonly<Record<string, unknown>> = {},
-): Subject {
+): Subject<TPrincipal> {
   return Object.freeze({
     principal: null,
     context: Object.freeze({ ...context }),

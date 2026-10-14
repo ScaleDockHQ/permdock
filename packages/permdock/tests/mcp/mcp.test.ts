@@ -775,11 +775,18 @@ describe("actorKind", () => {
       user === null ? null : { id: user.id, roles: user.roles },
   });
 
-  const updateServer = (actorKind?: string) => {
+  const updateServer = (
+    actorKind?: string,
+    overrides: Pick<
+      Parameters<typeof createPermDock>[1],
+      "actor" | "delegation"
+    > = {},
+  ) => {
     const server = new McpServer({ name: "posts", version: "1.0.0" });
     createPermDock(appOnly, {
       subject: () => adminUser,
       ...(actorKind === undefined ? {} : { actorKind }),
+      ...overrides,
     })
       .protectServer(server)
       .registerTool(
@@ -801,6 +808,36 @@ describe("actorKind", () => {
     const call = { name: "update_post", arguments: { id: "p1" } };
     expect((await byDefault.client.callTool(call)).isError).not.toBe(true);
     expect(await asOAuth.client.callTool(call)).toMatchObject({
+      isError: true,
+      structuredContent: { outcome: "denied" },
+    });
+  });
+
+  it("takes the actor and the delegation from the actor and delegation options", async () => {
+    const session = { authInfo: auth(["post:update"]) };
+    const call = { name: "update_post", arguments: { id: "p1" } };
+    const seen: unknown[] = [];
+    const asOAuth = await connect(
+      updateServer(undefined, {
+        actor: (authInfo) => {
+          seen.push(authInfo.clientId);
+          return { id: "svc", kind: "oauth-client" };
+        },
+      }),
+      session,
+    );
+    expect(await asOAuth.client.callTool(call)).toMatchObject({
+      isError: true,
+      structuredContent: { outcome: "denied" },
+    });
+    expect(seen).toEqual(["mcp-tester"]);
+    const readOnly = await connect(
+      updateServer(undefined, {
+        delegation: () => ({ scopes: ["post:read"] }),
+      }),
+      session,
+    );
+    expect(await readOnly.client.callTool(call)).toMatchObject({
       isError: true,
       structuredContent: { outcome: "denied" },
     });
@@ -842,10 +879,10 @@ describe("actorKind", () => {
     ).toBeNull();
   });
 
-  it("lets onDenied replace the refusal text and nothing else", async () => {
+  it("lets deniedText replace the refusal text and nothing else", async () => {
     const { server } = postServer({
       subject: () => memberUser,
-      onDenied: ({ decision, permission }) =>
+      deniedText: ({ decision, permission }) =>
         `Nope: ${permission?.key ?? "?"} (${decision?.outcome ?? "none"})`,
     });
     const { client } = await connect(server, {
@@ -863,10 +900,10 @@ describe("actorKind", () => {
     });
   });
 
-  it("keeps PermDock's text when onDenied throws", async () => {
+  it("keeps PermDock's text when deniedText throws", async () => {
     const { server } = postServer({
       subject: () => memberUser,
-      onDenied: () => {
+      deniedText: () => {
         throw new Error("hook broke");
       },
     });

@@ -1,16 +1,23 @@
 import type { JsonSchemaNode } from "../core/json-schema.ts";
 
 import { freezeDeep } from "../core/freeze.ts";
+import { RFC3339_PATTERN } from "../core/time.ts";
 
 /** The keywords `catalogSchema` uses, which `checkSchema` interprets. */
 export type CatalogSchemaNode = JsonSchemaNode;
 
 const name = { type: "string", pattern: "^[a-z][a-z0-9_]*$" } as const;
+const instant = {
+  type: "string",
+  format: "date-time",
+  pattern: RFC3339_PATTERN,
+} as const;
+const seconds = { type: "integer", minimum: 1 } as const;
 const validity = {
   type: "object",
   properties: {
-    from: { type: "integer" },
-    until: { type: "integer" },
+    from: instant,
+    until: instant,
   },
 } as const;
 const strings = { type: "array", items: { type: "string" } } as const;
@@ -33,11 +40,11 @@ const approval = {
         distinct: { type: "boolean" },
         staleOn: { const: "resource-change" },
         quorum: { type: "integer", minimum: 1 },
-        ttl: { type: "string" },
+        ttl: seconds,
         escalation: {
           type: "object",
           required: ["after", "to"],
-          properties: { after: { type: "string" }, to: {} },
+          properties: { after: seconds, to: {} },
         },
       },
     },
@@ -100,7 +107,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
             type: "object",
             required: ["justification"],
             properties: {
-              maxDuration: { type: "string" },
+              maxDuration: seconds,
               justification: { enum: ["required", "optional"] },
               approval: { type: "boolean" },
               assurance: { type: "object" },
@@ -112,7 +119,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
             properties: {
               actorRequired: { type: "boolean" },
               group: { type: "string" },
-              durations: strings,
+              durations: { type: "array", items: seconds },
             },
           },
         },
@@ -183,7 +190,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
               overrides: strings,
               purpose: strings,
               reason: { type: "boolean" },
-              maxDuration: { type: "string" },
+              maxDuration: seconds,
               obligations: strings,
             },
           },
@@ -223,7 +230,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
             required: ["count", "per"],
             properties: {
               count: { type: "integer", minimum: 1 },
-              per: { type: "string" },
+              per: seconds,
               mode: { enum: ["hard", "soft"] },
             },
           },
@@ -250,6 +257,40 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
           },
           permissions: strings,
           validity,
+        },
+      },
+    },
+    operations: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["name", "permission", "meta"],
+        properties: {
+          name: { type: "string", pattern: "^[A-Za-z0-9_.-]{1,128}$" },
+          permission: { type: "string" },
+          results: { type: "string" },
+          meta: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              risk: { enum: ["low", "medium", "high", "critical"] },
+              effects: {
+                type: "array",
+                uniqueItems: true,
+                items: {
+                  enum: [
+                    "read",
+                    "write",
+                    "delete",
+                    "send",
+                    "spend",
+                    "external",
+                  ],
+                },
+              },
+              title: { type: "string", minLength: 1 },
+            },
+          },
         },
       },
     },

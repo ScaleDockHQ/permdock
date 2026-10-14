@@ -4,7 +4,7 @@ import type { PermDock } from "../../src/core/permdock.ts";
 import type { PdpFactory, PdpPermDock } from "../../src/pdp/types.ts";
 
 import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
-import { createServerKernel, tenantScope } from "../../src/server/create.ts";
+import { tenantScope } from "../../src/server/create.ts";
 import { createPermDock } from "../../src/server/index.ts";
 import {
   memberUser,
@@ -45,7 +45,7 @@ describe("actor resolution", () => {
       undefined,
     ],
   ])("keeps %s only when it is an Actor", async (_label, actor, expected) => {
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       actor,
     });
@@ -54,11 +54,11 @@ describe("actor resolution", () => {
   });
 });
 
-describe("createServerKernel", () => {
+describe("createPermDock", () => {
   it("resolves the subject once per request and wraps every instance", async () => {
     const subject = vi.fn<() => typeof memberUser>(() => memberUser);
     const wrapped: PermDock[] = [];
-    const kernel = createServerKernel(policy, {
+    const kernel = createPermDock(policy, {
       subject,
       wrap: (permdock) => {
         wrapped.push(permdock);
@@ -66,9 +66,9 @@ describe("createServerKernel", () => {
       },
     });
     const shared = request();
-    const first = await kernel.permdock(shared);
-    expect(await kernel.permdock(shared)).toBe(first);
-    await kernel.permdock(shared, { tenant: "o1" });
+    const first = await kernel.getPermDock(shared);
+    expect(await kernel.getPermDock(shared)).toBe(first);
+    await kernel.getPermDock(shared, { tenant: "o1" });
     expect({
       calls: subject.mock.calls.length,
       wrapped: wrapped.length,
@@ -84,7 +84,7 @@ describe("createServerKernel", () => {
         tenant: "o1",
       }),
     );
-    const kernel = createServerKernel(policy, { subject: () => memberUser });
+    const kernel = createPermDock(policy, { subject: () => memberUser });
     const response = await kernel.permdockHandler(scope).POST(
       new Request("https://api.example/access/v1/evaluations", {
         method: "POST",

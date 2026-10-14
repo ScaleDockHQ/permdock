@@ -66,7 +66,7 @@ function subsetOf(small: readonly string[], large: readonly string[]): boolean {
  * A partial `where()` (a closure grant it cannot compile) may be refused or
  * return fewer rows, never more.
  */
-export async function ormParity<TUser>(
+export async function testOrmParity<TUser>(
   policy: Policy<TUser>,
   scenarios: readonly OrmParityScenario<TUser>[],
   options: OrmParityOptions<TUser>,

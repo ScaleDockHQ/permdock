@@ -18,7 +18,7 @@ import type {
 
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { PermDockProvider } from "../../src/react-native/provider.tsx";
-import { memoryStorage } from "../../src/react-native/storage.ts";
+import { memorySnapshotStorage } from "../../src/react-native/storage.ts";
 import { usePermDock } from "../../src/react/hooks.ts";
 
 beforeAll(() => {
@@ -80,7 +80,7 @@ function provider(
   },
 ): ReactNode {
   return createElement(PermDockProvider, {
-    storage: memoryStorage(),
+    storage: memorySnapshotStorage(),
     subjectId: null,
     snapshot: emptySnapshot(),
     ...(revalidate === undefined ? {} : { revalidate }),
@@ -162,7 +162,7 @@ describe("permdock/react-native PermDockProvider revalidation", () => {
   it("keeps its store across new inline headers and fetch, and sends the latest token", async () => {
     const first = counter();
     const second = counter();
-    const storage = memoryStorage();
+    const storage = memorySnapshotStorage();
     const snapshot = emptySnapshot();
     const tokens: (string | null)[] = [];
     const tree = (net: typeof first, token: string): ReactNode =>

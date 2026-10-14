@@ -8,7 +8,7 @@ import {
   accessReviewsHandler,
   decideAccessReviewItem,
   isAccessReviewError,
-  memoryAccessReviews,
+  memoryAccessReviewStore,
   pageAccessReviewItems,
   startAccessReview,
 } from "../../src/approvals/index.ts";
@@ -75,11 +75,11 @@ const memberships: MembershipSource = {
 };
 
 describe("access reviews", () => {
-  testAccessReviewStore(memoryAccessReviews());
+  testAccessReviewStore(memoryAccessReviewStore());
 
   it("lists members a rowless decide confirms, and marks global roles incomplete", async () => {
     const opener = await createPermDock(policy, inTenant("ann", ["owner"]));
-    const store = memoryAccessReviews();
+    const store = memoryAccessReviewStore();
     const review = await startAccessReview(
       opener,
       {
@@ -89,7 +89,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         memberships,
         policy,
         permdockFor: (id) =>
@@ -112,7 +112,7 @@ describe("access reviews", () => {
 
   it("uses a supplied holder list and refuses a reviewer deciding their own row", async () => {
     const opener = await createPermDock(policy, inTenant("ann", ["owner"]));
-    const store = memoryAccessReviews();
+    const store = memoryAccessReviewStore();
     const review = await startAccessReview(
       opener,
       {
@@ -122,7 +122,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ann", permission: "billing.manage", via: ["owner"] },
           { principal: "ben", permission: "billing.manage", via: ["owner"] },
@@ -178,7 +178,7 @@ describe("access reviews", () => {
 
   it("hides a review from someone who is not a reviewer", async () => {
     const opener = await createPermDock(policy, inTenant("ann", ["owner"]));
-    const store = memoryAccessReviews();
+    const store = memoryAccessReviewStore();
     await startAccessReview(
       opener,
       {
@@ -188,7 +188,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ben", permission: "billing.view", via: ["member"] },
         ],
@@ -210,8 +210,24 @@ describe("access reviews", () => {
         new AccessReviewError("review-closed", "access review is closed"),
       ),
     ).toBe(true);
+    expect(
+      isAccessReviewError(
+        Object.assign(new Error("x"), {
+          name: "AccessReviewError",
+          code: "review-closed",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isAccessReviewError(
+        Object.assign(new Error("x"), {
+          name: "AccessReviewError",
+          code: "nope",
+        }),
+      ),
+    ).toBe(false);
     const opener = await createPermDock(policy, inTenant("ann", ["owner"]));
-    const store = memoryAccessReviews();
+    const store = memoryAccessReviewStore();
     await expect(
       startAccessReview(
         await createPermDock(policy, { principal: null, context: {} }),
@@ -221,7 +237,7 @@ describe("access reviews", () => {
           reviewers: user("ann"),
           dueAt: "2026-12-31T00:00:00.000Z",
         },
-        { store, holders: [] },
+        { reviews: store, holders: [] },
       ),
     ).rejects.toThrow(/tenant/u);
     await expect(
@@ -233,7 +249,7 @@ describe("access reviews", () => {
           reviewers: user("ann"),
           dueAt: "not-a-date",
         },
-        { store, holders: [] },
+        { reviews: store, holders: [] },
       ),
     ).rejects.toThrow(/permissions/u);
     const review = await startAccessReview(
@@ -245,7 +261,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ben", permission: "billing.view", via: ["member"] },
           { principal: "ben", permission: "billing.view", via: ["member"] },
@@ -324,7 +340,7 @@ describe("access reviews", () => {
 
   it("refuses a closed review, a stray item and a listing that throws", async () => {
     const opener = await createPermDock(policy, inTenant("ann", ["owner"]));
-    const store = memoryAccessReviews();
+    const store = memoryAccessReviewStore();
     const review = await startAccessReview(
       opener,
       {
@@ -334,7 +350,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ben", permission: "billing.view", via: ["member"] },
         ],
@@ -395,7 +411,7 @@ describe("access reviews", () => {
     expect(() =>
       store.create(review, [{ ...item, review: "elsewhere" }]),
     ).not.toThrow();
-    const fresh = memoryAccessReviews();
+    const fresh = memoryAccessReviewStore();
     expect(() =>
       fresh.create({ ...review, id: "fresh" }, [
         { ...item, id: "x", review: "elsewhere" },
@@ -415,7 +431,7 @@ describe("access reviews", () => {
         reviewers: user("ann"),
         dueAt: "2026-12-31T00:00:00.000Z",
       },
-      { store: fresh, memberships: broken, policy },
+      { reviews: fresh, memberships: broken, policy },
     );
     expect(incomplete.complete).toBe(false);
     expect(await fresh.items({ review: "down" })).toEqual({ items: [] });
@@ -439,7 +455,7 @@ describe("access reviews", () => {
 
   it("rejects an unknown route, a missing item and a store that throws", async () => {
     const opener = await createPermDock(policy, inTenant("ann", ["owner"]));
-    const store = memoryAccessReviews();
+    const store = memoryAccessReviewStore();
     await startAccessReview(
       opener,
       {
@@ -449,7 +465,7 @@ describe("access reviews", () => {
         dueAt: "2026-12-31T00:00:00.000Z",
       },
       {
-        store,
+        reviews: store,
         holders: [
           { principal: "ben", permission: "billing.view", via: ["member"] },
         ],
@@ -465,16 +481,13 @@ describe("access reviews", () => {
     });
     expect(
       (await handler(new Request("https://api.example.com/"))).status,
-    ).toBe(405);
-    expect(
-      (
-        await handler(
-          new Request("https://api.example.com/access-reviews/http", {
-            method: "POST",
-          }),
-        )
-      ).status,
-    ).toBe(405);
+    ).toBe(404);
+    const post = await handler(
+      new Request("https://api.example.com/access-reviews/http", {
+        method: "POST",
+      }),
+    );
+    expect([post.status, post.headers.get("allow")]).toEqual([405, "GET"]);
     expect(
       (
         await handler(

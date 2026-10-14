@@ -25,7 +25,7 @@ describe("consumer bundles", () => {
     expect(sizes["hono createPermDock + withOtel"]).toBeGreaterThan(
       (sizes["hono createPermDock"] ?? 0) + 1000,
     );
-    expect(sizes["server createPermDock + verifyWebBotAuth"]).toBeGreaterThan(
+    expect(sizes["server createPermDock + webBotAuthVerifier"]).toBeGreaterThan(
       (sizes["server createPermDock"] ?? 0) + 1000,
     );
   });

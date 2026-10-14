@@ -5,12 +5,12 @@ import { allow } from "../../src/core/grant-builders.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { policy, tree } from "../fixtures/org-tree.ts";
 
 describe("instance edges", () => {
   it("answers checks, isolates throwing listeners and sinks, signs snapshots and simulates", async () => {
-    const sink = memorySink({ capacity: 8 });
+    const sink = memoryDecisionSink({ capacity: 8 });
     const throwingSink = {
       write(): void {
         throw new Error("sink");
@@ -76,7 +76,7 @@ describe("instance edges", () => {
     if (json instanceof Promise) {
       throw new Error("expected json");
     }
-    expect(json.expiresAt).toBe(9_999_999_999);
+    expect(json.expiresAt).toBe("2286-11-20T17:46:39.000Z");
     expect(permdock.memberships()).toEqual([]);
     expect(permdock.heldRoles().map((item) => item.key)).toEqual(["member"]);
     // Every scoped role grants only post.read, which the global member holds.

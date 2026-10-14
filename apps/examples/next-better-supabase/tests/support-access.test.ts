@@ -1,6 +1,6 @@
 import type { DecisionEvent } from "permdock";
 
-import { createPermDock, memorySink } from "permdock";
+import { createPermDock, memoryDecisionSink } from "permdock";
 import { subjectFromSupabase } from "permdock/supabase";
 import { describe, expect, it } from "vitest";
 
@@ -33,7 +33,7 @@ const support = (extra: Record<string, unknown> = {}) =>
   actingAs({ kind: "support", sub: admin, session_id: "support-1", ...extra });
 
 async function instance(claims: Record<string, unknown>) {
-  const sink = memorySink();
+  const sink = memoryDecisionSink();
   const permdock = await createPermDock(policy, subjectFromSupabase(claims), {
     tenant: organization,
     sink,

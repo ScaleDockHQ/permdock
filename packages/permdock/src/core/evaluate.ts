@@ -18,6 +18,7 @@ import {
   tightenApproval,
 } from "./approval-policies.ts";
 import { compact } from "./compact.ts";
+import { contactAllows } from "./contact.ts";
 import {
   holdsCustomRole,
   holdsGlobalCustomRole,
@@ -71,13 +72,13 @@ import {
   inTeam,
   isMembershipExpired,
   matchScopedMembership,
-  nowSeconds,
   type ResourceRoleWalk,
 } from "./tenancy.ts";
+import { epochSeconds, INVALID_NOW } from "./time.ts";
 import { decisionToken, payloadDigest, versionOf } from "./token.ts";
 import { PermDockValidationError } from "./validation-error.ts";
 import { validateBoundary } from "./validation.ts";
-import { isActive } from "./validity.ts";
+import { isActive, wireValidity } from "./validity.ts";
 
 type ScopeMatch = ReturnType<typeof matchScopedMembership>;
 
@@ -566,7 +567,7 @@ function evaluateCandidate(
       state.denials.push({
         role: displayRole,
         reason: "inactive-grant",
-        detail: grant.validity,
+        detail: wireValidity(grant.validity) ?? {},
       });
     } else {
       skip(tracer, grant, permission.key, "validity");
@@ -755,6 +756,7 @@ function approvalOf(
         next: state.next,
         now: state.now,
         scopes: state.scopes,
+        operation: state.options.operation?.meta,
       });
 }
 
@@ -785,7 +787,7 @@ function quotaAllow(
       now: state.now,
       consume:
         !requiresApproval(approval) &&
-        shouldConsumeQuota(state.options.source, env.simulated),
+        shouldConsumeQuota(state.options.call, env.simulated),
     });
     if (quota.ok) {
       return {
@@ -880,13 +882,19 @@ export function evaluate(
     permission,
     options,
     env,
-    now: options.now ?? nowSeconds(),
+    now: epochSeconds(options.now),
     resource: getResource(policy.permissions, permission.resource),
     tracer:
       options.explain === true
         ? { evaluated: 0, allows: [], denies: [], skipped: [] }
         : undefined,
   };
+  if (!Number.isFinite(call.now)) {
+    return deniedNow(
+      { ...call, now: epochSeconds(), current: data },
+      { role: null, reason: "validation", detail: INVALID_NOW },
+    );
+  }
   const rows = validatedRows(call, data, rowValues(permission, data));
   if (rows.invalid !== undefined) {
     return deniedNow(
@@ -952,9 +960,15 @@ export function evaluate(
     return deniedNow(state, { role: null, reason: "stale-credentials" });
   }
 
-  const usable = delegatedAllows(state);
-  if (!Array.isArray(usable)) {
-    return usable;
+  const delegated = delegatedAllows(state);
+  if (!Array.isArray(delegated)) {
+    return delegated;
+  }
+  const usable = contactAllows(policy, state.subject, permission, delegated);
+  if (usable.length === 0) {
+    return deniedWithAlternatives(state, [
+      { role: null, reason: "not-delegated" },
+    ]);
   }
   if (env.approvalPolicies === "failed" && usable.length > 0) {
     return deniedNow(state, {

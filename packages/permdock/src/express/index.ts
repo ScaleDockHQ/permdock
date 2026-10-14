@@ -2,11 +2,11 @@ export { createPermDock } from "./create.ts";
 export type {
   ExpressPermDock,
   ExpressPermDockOptions,
-  PermDockRequest,
+  ExpressPermDockRequest,
 } from "./create.ts";
 export { sendResponse, toRequest } from "./http.ts";
 export {
   discoverViaSignatureAgent,
   InvalidSignatureError,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "../server/web-bot-auth.ts";

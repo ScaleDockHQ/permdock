@@ -275,9 +275,9 @@ ${tenantBranch}
 end;`;
 }
 
-/** A claim membership whose `expiresAt` (epoch seconds) has passed no longer holds its roles. */
-const CLAIM_UNEXPIRED = `case jsonb_typeof(m -> 'expiresAt')
-          when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+/** A claim membership whose `expires_at` (epoch seconds) has passed no longer holds its roles. */
+const CLAIM_UNEXPIRED = `case jsonb_typeof(m -> 'expires_at')
+          when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
           else true
         end`;
 

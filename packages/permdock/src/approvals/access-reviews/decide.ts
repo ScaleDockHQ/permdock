@@ -5,6 +5,7 @@ import type {
   AccessReviewItem,
 } from "./types.ts";
 
+import { dateAt, type Instant } from "../../core/time.ts";
 import { matchesApprovers } from "../store.ts";
 import { AccessReviewError } from "./errors.ts";
 
@@ -19,18 +20,19 @@ export type AccessReviewVerdict = {
   readonly permissions?: readonly string[];
 };
 
-/** Whether `by` is named as a reviewer. A link or a feed is never a reviewer. */
+/** Whether `by` is named as a reviewer. A link, a feed or a contact is never a reviewer. */
 export function accessReviewerEligible(
   review: AccessReview,
   by: Subject,
   permissions: readonly string[] = [],
-  now: Date = new Date(),
+  now?: Instant,
 ): boolean {
   const principal = by.principal;
   if (
     principal === null ||
     principal.kind === "link" ||
-    principal.kind === "feed"
+    principal.kind === "feed" ||
+    principal.kind === "contact"
   ) {
     return false;
   }
@@ -38,7 +40,7 @@ export function accessReviewerEligible(
     review.reviewers,
     by,
     review.tenant,
-    now.getTime() / 1000,
+    dateAt(now).getTime() / 1000,
     { relations: new Set(), permissions: new Set(permissions) },
   );
 }
@@ -51,8 +53,9 @@ export function decideAccessReviewItem(
   review: AccessReview,
   item: AccessReviewItem,
   verdict: AccessReviewVerdict,
-  now: Date = new Date(),
+  at?: Instant,
 ): AccessReviewDecision {
+  const now = dateAt(at);
   if (review.status !== "open") {
     throw new AccessReviewError("review-closed", "access review is closed");
   }
@@ -79,7 +82,9 @@ export function decideAccessReviewItem(
     );
   }
   if (
-    !accessReviewerEligible(review, verdict.by, verdict.permissions ?? [], now)
+    !accessReviewerEligible(review, verdict.by, verdict.permissions ?? [], {
+      epochMilliseconds: now.getTime(),
+    })
   ) {
     throw new AccessReviewError(
       "reviewer-not-eligible",

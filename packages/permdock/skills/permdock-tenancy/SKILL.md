@@ -1,6 +1,6 @@
 ---
 name: permdock-tenancy
-description: Models tenants, memberships and role rules in PermDock. Use when declaring named scopes (organizations, workspaces, customers inside an organization), loading memberships through a MembershipSource, putting a role on one scope, keeping an owner per organization with min, max or transferOnly, controlling who hands out which role with assigns and for, checking a membership change with decideRoleChange, letting tenant admins define custom roles with customRoles and validateCustomRole, or fixing doctor PD023, PD025 or PD026 and denials such as tenant-mismatch, last-holder or not-assignable-by.
+description: Models tenants, memberships, contacts and support sessions in PermDock. Use when declaring named scopes (organizations, workspaces, customers inside an organization), loading memberships through a MembershipSource, putting a role on one scope, keeping an owner per organization with min, max or transferOnly, controlling who hands out which role with assigns and for, checking a membership change with decideRoleChange, letting tenant admins define custom roles with customRoles and validateCustomRole, giving external customer contacts portal access as kind contact principals found through a PrincipalSource and principalByIdentity, letting support staff view the app as a customer with decideSupportSession, signSupportSession and subjectFromSupportSession, or fixing doctor PD023, PD025 or PD026 and denials such as tenant-mismatch, last-holder, not-assignable-by or reason-required.
 license: MIT
 metadata:
   author: ScaleDockHQ
@@ -19,14 +19,18 @@ A policy declares its scopes in order (an organization, the customers inside it)
 - The membership kinds (`via`): staff, contact, guest, partner, support.
 - Which role manages each scope, who may hand out which role, and which roles a contact or guest may never hold.
 - Whether tenant admins define their own roles.
+- Whether external people (customer contacts, portal users) are accounts in the auth provider or rows in the app's own contacts table, and whether email delivery or a chat bot must reach them.
+- Whether support staff view the app as a customer, who approves that, and where the app records a session ending early.
 
 ## Invariants
 
-1. Memberships and custom roles come only from a `subjectFrom*` provider, the policy's `subject` or `context` function, a `MembershipSource` or a `RoleSource`. Never from a request body, an unsigned header, a model argument or a CLI flag.
+1. Memberships and custom roles come only from a `subjectFrom*` provider, the policy's `subject` or `context` function, a `MembershipSource` or a `CustomRoleSource`. Never from a request body, an unsigned header, a model argument or a CLI flag.
 2. A requested tenant with no matching membership is no tenant, never a default one. Team and tenant ids are identifiers, never display names.
 3. No cascade. An organization owner sees no customer portal unless they also hold a contact membership, and a global role never reaches scoped rows. An instance check without a row answers from first-scope memberships only; a nested membership needs the row or `permdock.team(id)`. A collection check (`create`, `list`) still answers from any membership in the tenant; for a staff-only guard pass `{ scope: '<first scope>' }` as the decide option.
 4. Role rules live on the role (`min`, `assigns`, `for`), not in handlers. `decideRoleChange` takes the actor from the instance and never writes.
 5. A custom role never exceeds the ceiling of declared `assignable` roles in its scope. Its grants carry no condition, approval or limit of their own; a `level` picks a condition the resource declares in code.
+6. A `kind: 'contact'` principal keeps only its `{ on }` resource memberships and is read-only unless a role's `for` lists `'contact'`; a scope role such as the `customer`-scope `contact` role below never reaches it. It never approves or creates keys. An email address or chat author with no identity link the app wrote is no principal, never a guest.
+7. A support session keeps the customer as principal and the staff member as a `support` actor, needs a reason and, by default, an approval by someone else, and is checked live on every request. A support actor never approves.
 
 ## Workflow
 
@@ -60,9 +64,13 @@ A policy declares its scopes in order (an organization, the customers inside it)
 
 4. **Put ownership on the roles.** Set `min: 1` on the role that manages each scope, `assigns` for who hands out what, `for: ['staff']` on admin-like roles, and `meta.audience` for the surface. Every server action that changes a membership calls `permdock.decideRoleChange(...)` with the target's current membership and the holder count before it writes. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md)
    ✓ PD026 is clean, and removing the last owner is denied with `last-holder`.
-5. **Custom roles, when tenant admins define roles.** Keep declared roles small and mark them in `defineRoles` (`editor: { on: 'organization', assignable: true }`). Pass a `RoleSource` as `customRoles`, build the editor from `useAssignablePermissions()`, and save through a server action that runs `validateCustomRole`. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md#custom-roles)
+5. **Custom roles, when tenant admins define roles.** Keep declared roles small and mark them in `defineRoles` (`editor: { on: 'organization', assignable: true }`). Pass a `CustomRoleSource` as `customRoles`, build the editor from `useAssignablePermissions()`, and save through a server action that runs `validateCustomRole`. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md#custom-roles)
    ✓ PD023 is clean, and saving a role with a permission outside the ceiling is refused.
-6. **Test.** Add `describePolicy` rows for a member of another tenant, a contact reaching an organization row, and a role change that breaks `min` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). Run `testMembershipSource` and `testRoleSource` from `permdock/testing` on custom sources. For list queries and RLS over scoped tables, follow the `permdock-data` skill.
+6. **Contact principals, when external people sign in or receive messages.** Pick the model: a signed-in user with a `via: 'contact'` membership on the `customer` scope, or a `kind: 'contact'` principal with `{ on: { resource, id }, roles }` memberships on the rows it is a party to. Give a contact a write only through a resource role with `for: ['contact']`. Pass a `PrincipalSource` as `principals` (`memoryPrincipalSource({ principals, identities })` in tests, `principalSource` from `permdock/better-supabase` there) and implement `principalByIdentity` over identity links the app writes after a signed-in link flow or a verified address, so [delivery](https://permdock.com/docs/concepts/delivery) and [chat](https://permdock.com/docs/concepts/chat) reach the contact ([contact principals](https://permdock.com/docs/concepts/subject#contact-principals)). -> [references/contacts-and-support-sessions.md](references/contacts-and-support-sessions.md)
+   ✓ A contact's write without a `for: ['contact']` role denies with `not-delegated`, and an unlinked address resolves to `null`.
+7. **Support sessions, when staff view the app as a customer.** Start each session with `staff.decideSupportSession({ id, principal, reason })`, record an approval by someone else and decide again with `{ approved: token, approvedBy }`. Sign the granted record with `signSupportSession(session, signer)` and resolve each request with `subjectFromSupportSession(token, { verifier, principals, permissions, sessions })` from `permdock/server`, where `sessions` is a `SupportSessionSource` that ends a session early. Send `supportSessionEvent` to the sink on start and end. On better-supabase, pass `supportPolicy` as the `authorize` option of `supportSessions` ([support sessions](https://permdock.com/docs/concepts/support-sessions)). -> [references/contacts-and-support-sessions.md](references/contacts-and-support-sessions.md#support-sessions)
+   ✓ An empty reason denies with `reason-required`, and a token for a session the source reports `ended` resolves to the anonymous subject.
+8. **Test.** Add `describePolicy` rows for a member of another tenant, a contact reaching an organization row, a contact principal writing without an opt-in role, and a role change that breaks `min` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). Run `testMembershipSource`, `testCustomRoleSource`, `testPrincipalSource` and `testSupportSessionSource` from `permdock/testing` on custom sources. For list queries and RLS over scoped tables, follow the `permdock-data` skill.
    ✓ The tests pass.
 
 ## Verify before done
@@ -72,9 +80,14 @@ A policy declares its scopes in order (an organization, the customers inside it)
 - [ ] No `assigns` list lets a role appoint a role ranked above it.
 - [ ] Every server action that writes a membership role calls `decideRoleChange` with a `holders` count from the store, never a guess.
 - [ ] Every custom-role save runs `validateCustomRole` and checks `assignablePermissions()`. No single assignable `admin` role makes the ceiling the whole product.
-- [ ] Custom `MembershipSource` and `RoleSource` implementations pass `testMembershipSource` / `testRoleSource`.
+- [ ] Custom `MembershipSource`, `CustomRoleSource`, `PrincipalSource` and `SupportSessionSource` implementations pass `testMembershipSource` / `testCustomRoleSource` / `testPrincipalSource` / `testSupportSessionSource`.
+- [ ] A `kind: 'contact'` principal gets portal access only through `{ on }` memberships, and every write it may make comes from a role whose `for` lists `'contact'`. When contacts query the database directly, their memberships are kept out of the tables the RLS functions read, or writes are gated in the application.
+- [ ] `principalByIdentity` reads only identity links the app wrote after a signed-in link flow or a verified address. No code creates a principal, a guest or a default role for an unlinked address or chat author.
+- [ ] Every support session goes through `decideSupportSession` with a reason, and approval stays on unless the app approves elsewhere; `approvedBy` is never the staff member.
+- [ ] Session requests resolve with `subjectFromSupportSession` and a `SupportSessionSource`, never by signing in as the customer, and `supportSessionEvent` is sent on start and end.
 
 ## Reference index
 
 - [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md): role options, `decideRoleChange` input and denial reasons, the SQL objects RLS uses, and the custom-role shape, ceiling and editor.
-- Docs: [named scopes](https://permdock.com/docs/concepts/scopes), [tenancy](https://permdock.com/docs/concepts/tenancy), [ownership](https://permdock.com/docs/concepts/ownership), [custom roles](https://permdock.com/docs/concepts/custom-roles), [extension interfaces](https://permdock.com/docs/concepts/extension-interfaces).
+- [references/contacts-and-support-sessions.md](references/contacts-and-support-sessions.md): the two contact models, contact principal rules, `PrincipalSource` and identity links for delivery and chat, the support-session start, token, live check and events, `supportPolicy`, and how support sessions differ from `supportAccess`.
+- Docs: [named scopes](https://permdock.com/docs/concepts/scopes), [tenancy](https://permdock.com/docs/concepts/tenancy), [ownership](https://permdock.com/docs/concepts/ownership), [custom roles](https://permdock.com/docs/concepts/custom-roles), [contact principals](https://permdock.com/docs/concepts/subject#contact-principals), [support sessions](https://permdock.com/docs/concepts/support-sessions), [elevated access](https://permdock.com/docs/concepts/elevated-access), [extension interfaces](https://permdock.com/docs/concepts/extension-interfaces).

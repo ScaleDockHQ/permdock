@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import type { RelationSource } from "../../src/core/interfaces.ts";
+import type { Instant } from "../../src/core/time.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
@@ -11,13 +12,17 @@ import {
   parsePolicyDocument,
 } from "../../src/core/hosted.ts";
 import { mayAccess } from "../../src/core/may-access.ts";
-import { memoryRelations } from "../../src/core/memory-relations.ts";
+import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { testRelationSource } from "../../src/testing/conformance/relations.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 const Folder = z.object({
   id: z.string(),
@@ -138,7 +143,7 @@ const doc = (id: string, folderId: string, ownerId = "nobody") => ({
   ownerId,
 });
 
-const source = memoryRelations(permissions, {
+const source = memoryRelationSource(permissions, {
   rows: { folder: folders },
   edges: {
     folder: {
@@ -196,7 +201,7 @@ describe("relationship graph", () => {
   });
 
   it("denies a cycle with relation-depth", async () => {
-    const cyclic = memoryRelations(permissions, {
+    const cyclic = memoryRelationSource(permissions, {
       rows: {
         folder: [
           { id: "a", parentId: "b", restricted: false, ownerId: "x" },
@@ -218,9 +223,9 @@ describe("relationship graph", () => {
   it("ignores an expired edge", async () => {
     const ed = await permdock("ed");
     expect(ed.can(permissions.doc.read, doc("d6", "eng"))).toBe(false);
-    expect(ed.can(permissions.doc.read, doc("d6", "eng"), { now: 999 })).toBe(
-      true,
-    );
+    expect(
+      ed.can(permissions.doc.read, doc("d6", "eng"), { now: at(999) }),
+    ).toBe(true);
   });
 
   it("denies with relation-unavailable without a source, on a throw and on an unloaded Promise", async () => {
@@ -300,7 +305,7 @@ describe("relationship graph", () => {
   });
 
   it("follows reporting lines to skip-level managers", async () => {
-    const people = memoryRelations(permissions, {
+    const people = memoryRelationSource(permissions, {
       rows: {
         employee: [
           { id: "ceo", managerId: null },
@@ -330,10 +335,10 @@ describe("relationship graph", () => {
     };
     const inside = Date.parse("2026-01-15T00:00:00Z") / 1000;
     const after = Date.parse("2026-03-01T00:00:00Z") / 1000;
-    expect(dana.can(permissions.account.act, account, { now: inside })).toBe(
-      true,
-    );
-    expect(dana.can(permissions.account.act, account, { now: after })).toBe(
+    expect(
+      dana.can(permissions.account.act, account, { now: at(inside) }),
+    ).toBe(true);
+    expect(dana.can(permissions.account.act, account, { now: at(after) })).toBe(
       false,
     );
   });
@@ -545,7 +550,7 @@ describe("hosted graph grants", () => {
         id: "doc",
         fingerprint: "fp",
         catalog: "cat",
-        issuedAt: 1,
+        issuedAt: "1970-01-01T00:00:01Z",
         grants: [
           grant("ok", { through: "parent", depth: 3 }),
           grant("deep", { through: "parent", depth: 99 }),
@@ -566,7 +571,7 @@ describe("hosted graph grants", () => {
   });
 });
 
-describe("memoryRelations conformance", () => {
+describe("memoryRelationSource conformance", () => {
   testRelationSource(source, {
     objects: [
       { resource: "folder", id: "deeper", relation: "viewer" },

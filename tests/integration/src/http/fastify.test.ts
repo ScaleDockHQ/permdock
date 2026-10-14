@@ -2,7 +2,7 @@ import type { FastifyRequest } from "fastify";
 
 import multipart from "@fastify/multipart";
 import Fastify from "fastify";
-import { createPermDock, type PermDockRequest } from "permdock/fastify";
+import { createPermDock, type FastifyPermDockRequest } from "permdock/fastify";
 import { testHttpAdapter } from "permdock/testing";
 import { saasPermissions as p } from "permdock/testing/saas";
 
@@ -13,7 +13,7 @@ type Params = { readonly org?: string; readonly id?: string };
 testHttpAdapter({
   name: "permdock/fastify",
   async mount(domain) {
-    const { permdock, protect, permdockHandler } = createPermDock(
+    const { middleware, protect, permdockHandler } = createPermDock(
       domain.policy,
       {
         subject: (request) =>
@@ -31,8 +31,8 @@ testHttpAdapter({
 
     const app = Fastify();
     await app.register(multipart);
-    await app.register(permdock);
-    await app.register(permdockHandler, {
+    await app.register(middleware());
+    await app.register(permdockHandler(), {
       prefix: "/:org/permdock/access/v1/evaluations",
     });
     await app.register(
@@ -48,7 +48,7 @@ testHttpAdapter({
       "/:org/projects/:id",
       { preHandler: protect(p.project.read, row) },
       // SAFETY: the protect() preHandler sets permdock and permdockData before this handler
-      (request) => (request as PermDockRequest).permdockData,
+      (request) => (request as FastifyPermDockRequest).permdockData,
     );
     app.patch(
       "/:org/projects/:id",
@@ -65,14 +65,14 @@ testHttpAdapter({
       },
       async (request, reply) =>
         // SAFETY: the protect() preHandler sets permdock and permdockData before this handler
-        reply.code(201).send((request as PermDockRequest).permdockData),
+        reply.code(201).send((request as FastifyPermDockRequest).permdockData),
     );
     app.delete(
       "/:org/projects/:id",
       { preHandler: protect(p.project.read, row) },
       async (request, reply) => {
         // SAFETY: the protect() preHandler sets permdock and permdockData before this handler
-        const scoped = request as PermDockRequest;
+        const scoped = request as FastifyPermDockRequest;
         scoped.permdock.assert(p.project.delete, scoped.permdockData);
         return reply.code(204).send();
       },

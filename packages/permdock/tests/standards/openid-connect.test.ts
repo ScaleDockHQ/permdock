@@ -2,6 +2,7 @@ import { SignJWT, exportJWK, generateKeyPair, importJWK } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { Instant } from "../../src/core/time.ts";
 import type { JwtSubjectOptions } from "../../src/jwt/index.ts";
 
 import { compact } from "../../src/core/compact.ts";
@@ -18,6 +19,10 @@ import {
 import { problemFromDecision } from "../../src/server/problem.ts";
 import { BACKCHANNEL_LOGOUT_EVENT } from "../../src/ssf/events.ts";
 import { createPermDock as createSsf } from "../../src/ssf/index.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 const ISSUER = "https://login.example.com";
 const API = "https://api.example.com";
@@ -416,7 +421,7 @@ describe("RFC 9470 OAuth 2.0 Step Up Authentication Challenge", () => {
       permissions.payout.create,
       { id: "p1" },
       {
-        now: NOW,
+        now: at(NOW),
       },
     );
     expect(decision).toMatchObject({
@@ -446,7 +451,7 @@ describe("RFC 9470 OAuth 2.0 Step Up Authentication Challenge", () => {
     );
     const permdock = await createPermDock(policy, subject);
     expect(
-      permdock.decide(permissions.payout.create, { id: "p1" }, { now: NOW })
+      permdock.decide(permissions.payout.create, { id: "p1" }, { now: at(NOW) })
         .outcome,
     ).toBe("granted");
   });

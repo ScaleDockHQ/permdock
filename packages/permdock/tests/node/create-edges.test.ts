@@ -34,7 +34,7 @@ function response(): {
 
 describe("permdock/node edge cases", () => {
   it("reuses the bound request and protects a collection without a loader", async () => {
-    const { permdock: permdockFor, protect } = createPermDock(policy, {
+    const { getPermDock: permdockFor, protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
     const req = get("/posts");
@@ -47,7 +47,7 @@ describe("permdock/node edge cases", () => {
   });
 
   it("resolves the actor from the incoming message", async () => {
-    const { permdock: permdockFor } = createPermDock(policy, {
+    const { getPermDock: permdockFor } = createPermDock(policy, {
       subject: () => memberUser,
       actor: (req) => ({ id: String(req.headers.host), kind: "agent" }),
     });

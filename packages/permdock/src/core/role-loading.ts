@@ -1,5 +1,8 @@
 import type { AuthEvent } from "./event-types.ts";
-import type { RoleSource, RoleSourceFactory } from "./interfaces.ts";
+import type {
+  CustomRoleSource,
+  CustomRoleSourceFactory,
+} from "./interfaces.ts";
 import type { CustomRole, Subject } from "./subject.ts";
 
 import { isCustomRoleName } from "./custom-roles.ts";
@@ -19,10 +22,10 @@ function onlyGlobal(roles: unknown): CustomRole[] {
 
 /** The `customRoles` option as a source: a factory is called with the resolved subject, and a throw reads none. */
 export function roleSourceFor(
-  option: RoleSource | RoleSourceFactory | undefined,
+  option: CustomRoleSource | CustomRoleSourceFactory | undefined,
   subject: Subject,
   auth: AuthEvent[],
-): RoleSource | undefined {
+): CustomRoleSource | undefined {
   if (typeof option !== "function") {
     return option;
   }
@@ -35,7 +38,7 @@ export function roleSourceFor(
 }
 
 export function customRolesFor(
-  source: RoleSource | undefined,
+  source: CustomRoleSource | undefined,
   tenants: readonly string[],
   auth: AuthEvent[],
   globalHeld: readonly string[] | undefined,
@@ -85,11 +88,11 @@ function stringList(value: unknown): readonly string[] {
 }
 
 /**
- * `RoleSource.assignable` per tenant; `undefined` when the source has no
+ * `CustomRoleSource.assignable` per tenant; `undefined` when the source has no
  * `assignable`. A tenant whose call throws or answers junk assigns nothing.
  */
 export function assignableNamesFor(
-  source: RoleSource | undefined,
+  source: CustomRoleSource | undefined,
   tenants: readonly string[],
   auth: AuthEvent[],
 ):

@@ -11,7 +11,7 @@ import {
   allow,
   definePermissions,
   definePolicy,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   resource,
   role,
 } from "../../src/index.ts";
@@ -71,8 +71,8 @@ describe("freeze and paths", () => {
     );
   });
 
-  it("returns copies from memoryRoleSource", async () => {
-    const source = memoryRoleSource([{ name: "editor", tenant: "acme" }]);
+  it("returns copies from memoryCustomRoleSource", async () => {
+    const source = memoryCustomRoleSource([{ name: "editor", tenant: "acme" }]);
     const first = await source.rolesFor("acme");
     first.length = 0;
     expect(await source.rolesFor("acme")).toHaveLength(1);

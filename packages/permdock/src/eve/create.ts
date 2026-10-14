@@ -1,20 +1,21 @@
-import type { ToolBinding, ToolMap, ToolVerdict } from "../agent/types.ts";
-import type { ApprovalRequest, ApprovalStore } from "../approvals/types.ts";
+import type { AgentPermDock } from "../agent/create.ts";
+import type {
+  AgentAdapterOptions,
+  ToolBinding,
+  ToolVerdict,
+} from "../agent/types.ts";
+import type { ApprovalRequest } from "../approvals/types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
-import type { Delegation, Principal } from "../core/subject.ts";
+import type { Principal } from "../core/subject.ts";
 
-import { createAgentKernel } from "../agent/kernel.ts";
+import { agentRuntime } from "../agent/create.ts";
 import { boundedMap } from "../agent/lru.ts";
 import { isApprovalError } from "../approvals/errors.ts";
 import { resolveApproval } from "../approvals/helpers.ts";
 import { memoryApprovalStore } from "../approvals/store.ts";
 import { compact } from "../core/compact.ts";
-import {
-  type InstanceOptions,
-  instanceOptions,
-} from "../core/instance-options.ts";
 
 /** Structural `SessionAuthContext` from `eve`. */
 export type EvePrincipal = {
@@ -66,20 +67,13 @@ export type EveApprovers =
   | { readonly roles: readonly string[] }
   | ((responder: EvePrincipal, request: ApprovalRequest) => boolean);
 
-export type EvePermDockOptions<TUser = unknown> = InstanceOptions & {
+export type EvePermDockOptions<TUser = unknown> = Omit<
+  AgentAdapterOptions<EveContext, TUser>,
+  "subject"
+> & {
+  /** Defaults to `subjectFromEve`: the session initiator's id and `roles` attribute. */
   readonly subject?: (context: EveContext) => TUser | Promise<TUser>;
-  readonly actor?: (context: EveContext) => unknown;
-  readonly delegation?: (
-    context: EveContext,
-  ) => Delegation | undefined | Promise<Delegation | undefined>;
-  readonly tenant?:
-    | string
-    | ((
-        context: EveContext,
-      ) => string | undefined | Promise<string | undefined>);
-  readonly tools: ToolMap;
   readonly approvers?: EveApprovers;
-  readonly store?: ApprovalStore;
 };
 
 export type EveRequestResult =
@@ -97,14 +91,15 @@ export type EveApprovalPair = {
   readonly response: (ctx: EveResponseContext) => Promise<EveResponseResult>;
 };
 
-export type EvePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly approval: EveApprovalPair;
-  readonly approvalFor: (
-    permission: Permission,
-    data?: (input: unknown) => unknown,
-  ) => EveApprovalPair;
-  readonly permdock: (ctx: EveContext) => Promise<PermDock<V>>;
-};
+export type EvePermDock<V extends PolicyVocabulary = PolicyVocabulary> =
+  AgentPermDock<EveContext, V> & {
+    readonly approval: EveApprovalPair;
+    readonly approvalFor: (
+      permission: Permission,
+      data?: (input: unknown) => unknown,
+    ) => EveApprovalPair;
+    readonly getPermDock: (ctx: EveContext) => Promise<PermDock<V>>;
+  };
 
 const TOKENS_PER_PROCESS = 1000;
 
@@ -119,7 +114,7 @@ export function rolesOf(principal: EvePrincipal | null | undefined): string[] {
   return roles.filter((role): role is string => typeof role === "string");
 }
 
-export function subjectFromSession(context: EveContext): unknown {
+export function subjectFromEve(context: EveContext): unknown {
   const initiator = context.session?.auth?.initiator;
   if (initiator === undefined || initiator === null) {
     return null;
@@ -127,7 +122,7 @@ export function subjectFromSession(context: EveContext): unknown {
   return { id: initiator.principalId, roles: rolesOf(initiator) };
 }
 
-export function actorFromSession(context: EveContext): unknown {
+export function actorFromEve(context: EveContext): unknown {
   const auth = context.session?.auth;
   const initiator = auth?.initiator;
   const current = auth?.current;
@@ -182,21 +177,19 @@ export function createPermDock<
 ): EvePermDock<V> {
   const store = options.store ?? memoryApprovalStore();
   const tokensByCall = boundedMap<string, string>(TOKENS_PER_PROCESS);
-  // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromSession builds, or null.
-  const kernel = createAgentKernel<EveContext, TUser, V>(policy, {
-    ...compact({
-      tenant: options.tenant,
-      delegation: options.delegation,
-    }),
-    ...instanceOptions(options),
-    subject:
-      options.subject ??
-      (subjectFromSession as (context: EveContext) => TUser | Promise<TUser>),
-    actor: options.actor ?? actorFromSession,
-    tools: options.tools,
-    store,
-    adapter: "eve",
-  });
+  // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromEve builds, or null.
+  const { agent, kernel } = agentRuntime(
+    policy,
+    {
+      ...options,
+      subject:
+        options.subject ??
+        (subjectFromEve as (context: EveContext) => TUser | Promise<TUser>),
+      actor: options.actor ?? actorFromEve,
+      store,
+    },
+    "eve",
+  );
 
   // The responder is mapped by the same `subject` as an initiator, so the
   // approver carries the memberships and tenant the grant's `by` checks.
@@ -227,6 +220,9 @@ export function createPermDock<
       ctx: EveApprovalContext,
     ): Promise<EveRequestResult> => {
       const binding = bindingFor(ctx.toolName);
+      if (binding === undefined && options.unmapped === "allow") {
+        return "not-applicable";
+      }
       const verdict =
         binding === undefined
           ? await kernel.decideTool(ctx.toolName, ctx.toolInput, ctx)
@@ -308,8 +304,8 @@ export function createPermDock<
   };
 
   const approval = pairFor((toolName) =>
-    Object.hasOwn(options.tools, toolName)
-      ? options.tools[toolName]
+    Object.hasOwn(options.operations, toolName)
+      ? options.operations[toolName]
       : undefined,
   );
 
@@ -321,9 +317,9 @@ export function createPermDock<
     return pairFor(() => binding);
   };
 
-  return {
+  return Object.freeze({
+    ...agent,
     approval,
     approvalFor,
-    permdock: (ctx) => kernel.instance(ctx),
-  };
+  });
 }

@@ -61,6 +61,9 @@ export default defineConfig({
         extends: true,
         test: {
           name: "node",
+          // The first CLI `run()` in a worker transforms and instruments `src/cli` from
+          // source; with coverage on and two suites running in parallel it measured 4.6 s.
+          testTimeout: 15_000,
           include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
           exclude: ["tests/**/*.browser.test.ts"],
         },

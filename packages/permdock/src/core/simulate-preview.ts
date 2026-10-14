@@ -89,7 +89,7 @@ export function simulateEvent(
     permission,
     data,
     decision,
-    { source: "simulate", trusted: true },
+    { call: "simulate", trusted: true },
     { ...env, emit: true },
     true,
     undefined,

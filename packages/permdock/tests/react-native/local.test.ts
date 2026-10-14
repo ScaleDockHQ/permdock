@@ -8,7 +8,7 @@ import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { authenticated, relation } from "../../src/core/grantee.ts";
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -21,11 +21,8 @@ import {
   buildLocalSnapshot,
   localSnapshot,
 } from "../../src/react-native/local.ts";
-import { memoryStorage } from "../../src/react-native/storage.ts";
-import {
-  connectSource,
-  createNativeStore,
-} from "../../src/react-native/store.ts";
+import { memorySnapshotStorage } from "../../src/react-native/storage.ts";
+import { connectSource, nativeStore } from "../../src/react-native/store.ts";
 import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
 const permissions = definePermissions({
@@ -256,7 +253,7 @@ async function serverSnapshot(
     { ...user, claims },
     {
       ...(tenant === undefined ? {} : { tenant }),
-      customRoles: memoryRoleSource(customRoles),
+      customRoles: memoryCustomRoleSource(customRoles),
     },
   );
   return parseSnapshot(JSON.stringify(server.snapshot()));
@@ -281,11 +278,9 @@ describe("localSnapshot", () => {
       for (const tenant of ["acme", "globex", undefined]) {
         const serverRaw = await serverSnapshot(user, tenant);
         const server = fromSnapshot(serverRaw);
-        const snapshot = buildLocalSnapshot(
-          manifest,
-          local(user, tenant),
-          1_700_000_000,
-        );
+        const snapshot = buildLocalSnapshot(manifest, local(user, tenant), {
+          epochMilliseconds: 1_700_000_000_000,
+        });
         const device = fromSnapshot(parseSnapshot(JSON.stringify(snapshot)));
         expect(snapshot.roles, `${user.id} in ${String(tenant)}`).toEqual(
           serverRaw.roles,
@@ -362,8 +357,8 @@ describe("localSnapshot", () => {
         };
       },
     });
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: null,
     });
     const disconnect = connectSource(store, source);
@@ -383,8 +378,8 @@ describe("localSnapshot", () => {
   });
 
   it("drops a read that settles after disconnect", async () => {
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: null,
     });
     const before = store.snapshot();
@@ -427,8 +422,8 @@ describe("localSnapshot", () => {
   });
 
   it("keeps the current snapshot when a read fails", async () => {
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: null,
     });
     const before = store.snapshot();

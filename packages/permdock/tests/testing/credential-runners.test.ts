@@ -1,19 +1,20 @@
 import { describe } from "vitest";
 
-import { memorySettings } from "../../src/core/memory-sources.ts";
+import { memorySettingsSource } from "../../src/core/memory-sources.ts";
 import {
   generateApiKey,
-  memoryCredentials,
+  memoryCredentialStore,
 } from "../../src/server/credentials.ts";
 import { testCredentialVerifier } from "../../src/testing/conformance/credentials.ts";
 import { testSettingsSource } from "../../src/testing/conformance/identity.ts";
 
 const NOW = Math.floor(Date.now() / 1000);
+const iso = (seconds: number): string => new Date(seconds * 1000).toISOString();
 
 describe("testSettingsSource", () => {
   describe("a tenant with credential rules", () => {
     testSettingsSource(
-      memorySettings({
+      memorySettingsSource({
         o_1: {
           credentials: {
             maxTtl: 86_400,
@@ -27,15 +28,15 @@ describe("testSettingsSource", () => {
   });
 
   describe("a tenant with settings but no credential rules", () => {
-    testSettingsSource(memorySettings({ o_1: {} }), { tenant: "o_1" });
+    testSettingsSource(memorySettingsSource({ o_1: {} }), { tenant: "o_1" });
   });
 
   describe("a tenant without settings", () => {
-    testSettingsSource(memorySettings({}), { tenant: "o_1" });
+    testSettingsSource(memorySettingsSource({}), { tenant: "o_1" });
   });
 
   describe("an async source", () => {
-    const settings = memorySettings({ o_1: { credentials: {} } });
+    const settings = memorySettingsSource({ o_1: { credentials: {} } });
     testSettingsSource(
       {
         settingsFor: (tenant) => Promise.resolve(settings.settingsFor(tenant)),
@@ -46,7 +47,7 @@ describe("testSettingsSource", () => {
 });
 
 describe("testCredentialVerifier without revoke", () => {
-  const store = memoryCredentials();
+  const store = memoryCredentialStore();
   testCredentialVerifier(store, {
     key: () =>
       store.issue({
@@ -56,8 +57,8 @@ describe("testCredentialVerifier without revoke", () => {
         principal: "u_1",
         permissions: [{ permission: "repo.read" }],
         createdBy: "u_1",
-        createdAt: NOW,
-        expiresAt: NOW + 3600,
+        createdAt: iso(NOW),
+        expiresAt: iso(NOW + 3600),
       }),
   });
 });
@@ -75,7 +76,7 @@ describe("testCredentialVerifier with a key given as a string", () => {
               principal: "u_1",
               permissions: [{ permission: "repo.read" }],
               createdBy: "u_1",
-              createdAt: NOW,
+              createdAt: iso(NOW),
             }
           : null,
     },

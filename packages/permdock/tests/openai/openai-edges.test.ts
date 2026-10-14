@@ -48,7 +48,7 @@ describe("permdock/openai edge cases", () => {
   it("reads the call from rawItem and accepts object arguments", async () => {
     const { resolveInterruptions } = createPermDock(policy, {
       subject: () => memberUser,
-      tools,
+      operations: tools,
     });
     const run = recorder();
     await resolveInterruptions(
@@ -95,7 +95,7 @@ describe("permdock/openai edge cases", () => {
   it("accepts parsed object arguments on the item", async () => {
     const { resolveInterruptions } = createPermDock(policy, {
       subject: () => memberUser,
-      tools,
+      operations: tools,
     });
     const run = recorder();
     // SAFETY: the SDK can hand over items whose arguments are already parsed.
@@ -112,7 +112,7 @@ describe("permdock/openai edge cases", () => {
   it("pauses for an unbound permission, a missing row and a throwing loader", async () => {
     const { needsApproval } = createPermDock(policy, {
       subject: () => memberUser,
-      tools,
+      operations: tools,
     });
     expect([
       await needsApproval(permissions.post.publish)(undefined, {}),

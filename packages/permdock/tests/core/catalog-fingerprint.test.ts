@@ -52,9 +52,9 @@ describe("catalogFingerprint", () => {
     ).not.toBe(catalogFingerprint(catalog));
   });
 
-  it("is base64url SHA-256 over sorted-key JSON", () => {
+  it("is the sha-256: digest of the RFC 8785 JSON", () => {
     expect(catalogFingerprint({ b: 1, a: [true, null] })).toBe(
-      "UXBaLJ6z5-QQpY9pancMOsOIWgz0Prf8iPXkfBHU0w0",
+      "sha-256:UXBaLJ6z5-QQpY9pancMOsOIWgz0Prf8iPXkfBHU0w0",
     );
   });
 

@@ -19,6 +19,20 @@ export type {
   ToolPolicy,
   ToolPolicyOptions,
 } from "./mcp.ts";
+export { principalSource } from "./principals.ts";
+export type {
+  BetterSupabaseIdentityLink,
+  PrincipalSourceOptions,
+} from "./principals.ts";
+export { subscriberPolicy } from "./subscribers.ts";
+export type {
+  SubscriberPolicyEvent,
+  SubscriberPolicyOptions,
+} from "./subscribers.ts";
+export { supportPolicy } from "./support.ts";
+export type { PendingSupportSession, SupportPolicyOptions } from "./support.ts";
+export { handlerCan, hookCan } from "./workflow.ts";
+export type { HandlerPermDockSource } from "./workflow.ts";
 export { subjectFromBetterSupabase } from "./subject.ts";
 export type {
   ApiKeySession,

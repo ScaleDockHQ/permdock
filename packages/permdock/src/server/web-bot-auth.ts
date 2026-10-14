@@ -2,6 +2,7 @@ import type { ProblemDetails } from "../core/errors.ts";
 import type { Actor, JsonWebKeyLike } from "../core/subject.ts";
 
 import { compact } from "../core/compact.ts";
+import { type Instant, secondsAt } from "../core/time.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 import { PROBLEM_BASE, problemResponse } from "./problem.ts";
 
@@ -11,6 +12,7 @@ const DIRECTORY_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_AGE = 300;
 const FUTURE_SKEW = 60;
 const DIRECTORY_PATH = "/.well-known/http-message-signatures-directory";
+const WEB_BOT_AUTH_TAG = "web-bot-auth";
 
 export type WebBotAuthJwk = JsonWebKeyLike & {
   readonly kid?: string;
@@ -32,12 +34,12 @@ export type WebBotAuthOptions = {
   readonly keys: WebBotAuthKeys | WebBotAuthKeyLookup;
   readonly required?: boolean;
   readonly maxAge?: number;
-  /** Unix seconds; defaults to the system clock. */
-  readonly now?: () => number;
+  /** The clock; defaults to the system clock. */
+  readonly now?: () => Instant;
 };
 
 /**
- * An adapter's `webBotAuth` option: `(request) => verifyWebBotAuth(request, options)`,
+ * An adapter's `webBotAuth` option: `webBotAuthVerifier(options)`,
  * so an app without it does not bundle RFC 9421 verification.
  */
 export type WebBotAuthVerifier = (
@@ -119,9 +121,29 @@ export function discoverViaSignatureAgent(
   return { lookup };
 }
 
-export async function verifyWebBotAuth(
+/**
+ * Verifies Web Bot Auth requests: an RFC 9421 signature tagged `web-bot-auth`
+ * that covers `@authority`, and `signature-agent` when the request sends
+ * `Signature-Agent` (draft-meunier-webbotauth-httpsig-protocol).
+ */
+export function webBotAuthVerifier(
+  options?: WebBotAuthOptions,
+): WebBotAuthVerifier {
+  return (request) => verifySignature(request, options, true);
+}
+
+/** RFC 9421 verification without the Web Bot Auth profile checks. */
+export function verifyMessageSignature(
   request: Request,
   options: WebBotAuthOptions | undefined,
+): Promise<Actor | undefined> {
+  return verifySignature(request, options, false);
+}
+
+async function verifySignature(
+  request: Request,
+  options: WebBotAuthOptions | undefined,
+  profile: boolean,
 ): Promise<Actor | undefined> {
   if (options === undefined || options.verify === false) {
     return undefined;
@@ -144,7 +166,7 @@ export async function verifyWebBotAuth(
   if (signature === undefined) {
     throw reject("Signature could not be parsed");
   }
-  const now = options.now?.() ?? Math.floor(Date.now() / 1000);
+  const now = secondsAt(options.now?.());
   const maxAge = options.maxAge ?? DEFAULT_MAX_AGE;
   if (typeof parsed.created !== "number") {
     throw reject("Signature-Input created is required");
@@ -160,6 +182,10 @@ export async function verifyWebBotAuth(
   }
   if (parsed.keyid === undefined) {
     throw reject("Signature-Input keyid is required");
+  }
+  const violation = profile ? profileViolation(request, parsed) : undefined;
+  if (violation !== undefined) {
+    throw reject(violation);
   }
   const agent = parseSignatureAgent(
     request.headers.get("Signature-Agent"),
@@ -191,6 +217,25 @@ export async function verifyWebBotAuth(
   return Object.freeze({ id: parsed.keyid, kind: "web-bot-auth" });
 }
 
+function profileViolation(
+  request: Request,
+  parsed: ParsedSignatureInput,
+): string | undefined {
+  if (parsed.tag !== WEB_BOT_AUTH_TAG) {
+    return `Signature-Input tag must be "${WEB_BOT_AUTH_TAG}"`;
+  }
+  if (!parsed.components.includes("@authority")) {
+    return "Signature-Input must cover @authority";
+  }
+  if (
+    request.headers.has("Signature-Agent") &&
+    !parsed.components.includes("signature-agent")
+  ) {
+    return "Signature-Input must cover signature-agent";
+  }
+  return undefined;
+}
+
 function reject(detail: string): InvalidSignatureError {
   return new InvalidSignatureError(invalidSignatureProblem(detail));
 }
@@ -202,6 +247,7 @@ type ParsedSignatureInput = {
   readonly expires?: number;
   readonly keyid?: string;
   readonly alg?: string;
+  readonly tag?: string;
   readonly innerListAndParams: string;
 };
 
@@ -221,6 +267,7 @@ function parseSignatureInput(header: string): ParsedSignatureInput | undefined {
     expires: inner.expires,
     keyid: inner.keyid,
     alg: inner.alg,
+    tag: inner.tag,
     innerListAndParams: member.value.trim(),
   });
 }
@@ -287,6 +334,7 @@ function parseInnerListAndParams(value: string):
       readonly expires?: number;
       readonly keyid?: string;
       readonly alg?: string;
+      readonly tag?: string;
     }
   | undefined {
   const trimmed = value.trim();
@@ -308,6 +356,7 @@ function parseInnerListAndParams(value: string):
     expires: asUnix(params["expires"]),
     keyid: typeof params["keyid"] === "string" ? params["keyid"] : undefined,
     alg: typeof params["alg"] === "string" ? params["alg"] : undefined,
+    tag: typeof params["tag"] === "string" ? params["tag"] : undefined,
   });
 }
 

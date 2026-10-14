@@ -8,7 +8,7 @@ import {
   type Policy,
   type RevocationEvent,
   type Role,
-  type RoleSource,
+  type CustomRoleSource,
   type SettingsSource,
   type Subject,
   type SubjectResolver,
@@ -150,8 +150,8 @@ export function testEntitlementSource(
   });
 }
 
-export function testRoleSource(
-  source: RoleSource,
+export function testCustomRoleSource(
+  source: CustomRoleSource,
   options: {
     readonly tenant: string;
     readonly declared: readonly (string | Role)[];
@@ -274,7 +274,7 @@ export function testDirectoryStore(
     const kinds: string[] = [];
     const token = "conformance-scim-token";
     const handle = scimHandler({
-      store,
+      directory: store,
       tenant: home,
       token: { hash: "sha256", lookup: () => sha256Hex(token) },
       revocations: feed,

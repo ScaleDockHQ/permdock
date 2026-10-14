@@ -15,12 +15,12 @@ import { createPermDock } from "permdock/node";
 import { policy } from "./policy";
 import { permissions } from "./permissions";
 
-const { permdock, protect, send } = createPermDock(policy, {
+const { getPermDock, protect, send } = createPermDock(policy, {
   subject: (req) => userFromCookie(req.headers.cookie),
 });
 
 createServer(async (req, res) => {
-  const instance = await permdock(req);
+  const instance = await getPermDock(req);
 
   if (req.method === "DELETE" && req.url?.startsWith("/posts/")) {
     const guard = await protect(permissions.post.delete, () =>
@@ -41,8 +41,8 @@ createServer(async (req, res) => {
 
 | Export                                           | Role                                                                                                                                                                                     |
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `permdock(req)`                                  | Converts the request once (headers, method, URL; body is streamed lazily), resolves the subject, builds the instance, memoises it in a `WeakMap` keyed by `req`.                         |
-| `protect(permission, loadData?, options?)`       | Returns `(req) => Promise<Guard>`; same result shape as the kernel (`ok`, `permdock`, `decision`, `data` or `response`). The `tenant` option (`(req) => ...`) is resolved for each call. |
+| `getPermDock(req)`                               | Converts the request once (headers, method, URL; body is streamed lazily), resolves the subject, builds the instance, memoises it in a `WeakMap` keyed by `req`.                         |
+| `protect(permission, data?, options?)`           | Returns `(req) => Promise<Guard>`; same result shape as the kernel (`ok`, `permdock`, `decision`, `data` or `response`). The `tenant` option (`(req) => ...`) is resolved for each call. |
 | `send(res, response)`                            | Writes a Fetch `Response` to a `ServerResponse` (status, headers, body). Used for Problem Details and for the decision endpoint.                                                         |
 | `permdockHandler()`                              | `(req, res) => Promise<void>` implementing the AuthZEN-shaped decision endpoint for mounting under any path.                                                                             |
 | `toRequest(req)` / `fromResponse(res, response)` | Exported converters so other adapters and custom frameworks can reuse them.                                                                                                              |
@@ -51,9 +51,9 @@ createServer(async (req, res) => {
 
 `permdock/node` follows the [shared adapter contract](/docs/adapters) through the [server kernel](/docs/adapters/server-kernel). What differs on raw `node:http`:
 
-- `permdock(req)` memoises on `req`, so later calls with the same request return the same instance.
+- `getPermDock(req)` memoises on `req`, so later calls with the same request return the same instance.
 - A PermDock error thrown by `assert` has no framework hook to catch it: wrap the handler and `send` the result of `problemFromError(error)` from `permdock/server` when it returns a `Response`.
-- The conversion is lazy. Headers, method and URL are copied when `permdock(req)` is first called; an unread body is exposed as a pull stream (`highWaterMark: 0`) on the Fetch `Request` and only read when a loader or the decision endpoint consumes it, so a body parser that runs later still sees every byte. A parsed `req.body` (Express, Nest) is reused instead of re-reading the stream. A missing `Host` header falls back to `localhost` and does not throw.
+- The conversion is lazy. Headers, method and URL are copied when `getPermDock(req)` is first called; an unread body is exposed as a pull stream (`highWaterMark: 0`) on the Fetch `Request` and only read when a loader or the decision endpoint consumes it, so a body parser that runs later still sees every byte. A parsed `req.body` (Express, Nest) is reused instead of re-reading the stream. A missing `Host` header falls back to `localhost` and does not throw.
 - `permdockHandler()` validates decision-endpoint bodies against the AuthZEN `evaluations` schema.
 
 Denials are the kernel's Problem Details responses, written through `send`.

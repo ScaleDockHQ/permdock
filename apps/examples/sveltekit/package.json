@@ -1,0 +1,27 @@
+{
+  "name": "@permdock/example-sveltekit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --host 127.0.0.1 --port 3485",
+    "doctor": "permdock doctor",
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "permdock": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "@sveltejs/kit": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "svelte": "catalog:",
+    "typescript": "catalog:ts6",
+    "vite": "catalog:"
+  }
+}

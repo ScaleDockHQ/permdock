@@ -1,7 +1,7 @@
 export { expectTypeOf } from "vitest";
 export { describePolicy } from "./describe-policy.ts";
-export { rlsParity } from "./rls-parity.ts";
-export { ormParity } from "./orm-parity.ts";
+export { testRlsParity } from "./rls-parity.ts";
+export { testOrmParity } from "./orm-parity.ts";
 export type {
   OrmParityCase,
   OrmParityOptions,
@@ -60,20 +60,30 @@ export type {
   AgentScenarioName,
   AgentToolName,
 } from "./agent-adapter.ts";
+export { testAgentRuntime } from "./agent-runtime.ts";
+export type {
+  AgentRuntimeContext,
+  AgentRuntimeDomain,
+  AgentRuntimeModel,
+  AgentRuntimeMounted,
+  AgentRuntimeOperation,
+  AgentRuntimeOptions,
+  AgentRuntimeScenarioName,
+} from "./agent-runtime.ts";
 export {
   authzenTodoData,
   authzenTodoPermissions,
   authzenTodoPolicy,
   authzenTodoUsers,
   authzenTodoVectors,
-  testAuthZen,
+  testAuthzen,
 } from "./authzen.ts";
 export type {
-  AuthZenEvaluationVector,
-  AuthZenEvaluationsVector,
-  AuthZenSearchVector,
-  AuthZenVectors,
-  TestAuthZenOptions,
+  AuthzenEvaluationVector,
+  AuthzenEvaluationsVector,
+  AuthzenSearchVector,
+  AuthzenVectors,
+  TestAuthzenOptions,
 } from "./authzen.ts";
 export type { ApprovalStoreOptions } from "./conformance/approvals.ts";
 export {
@@ -81,6 +91,7 @@ export {
   testApprovalDelegationSource,
   testApprovalPolicySource,
   testApprovalStore,
+  testIdempotencyStore,
 } from "./conformance/approvals.ts";
 export { testWhereCompiler } from "./conformance/where.ts";
 export {
@@ -96,12 +107,29 @@ export {
   testPolicySource,
   testSnapshotSource,
 } from "./conformance/runtime-stores.ts";
+export {
+  testDecisionProvider,
+  testSnapshotStorage,
+} from "./conformance/providers.ts";
+export type { DecisionProviderRunnerOptions } from "./conformance/providers.ts";
 export { testRelationSource } from "./conformance/relations.ts";
+export { testPrincipalSource } from "./conformance/principals.ts";
+export {
+  testApprovalWaiter,
+  testAutomationSource,
+  testSupportSessionSource,
+} from "./conformance/automations.ts";
+export { testDeliveryTransport } from "./delivery-transport.ts";
+export type {
+  DeliveryFailureKind,
+  DeliveryTransportHarness,
+  DeliveryTransportOptions,
+} from "./delivery-transport.ts";
 export {
   testEntitlementSource,
   testDirectoryStore,
   testMembershipSource,
-  testRoleSource,
+  testCustomRoleSource,
   testSettingsSource,
   testSubjectResolver,
 } from "./conformance/identity.ts";
@@ -122,3 +150,4 @@ export type {
   SupabaseClaimFixtureName,
   SupabaseClaimVectors,
 } from "./supabase-fixtures.ts";
+export { PROBLEM_EXAMPLES } from "./problem-examples.ts";

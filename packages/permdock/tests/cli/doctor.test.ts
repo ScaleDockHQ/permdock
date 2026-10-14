@@ -290,10 +290,10 @@ ${grants}
       );
       writeFileSync(
         join(cwd, "permdock.config.ts"),
-        `import { fromJunction } from ${supabase};
+        `import { junctionMembershipSource } from ${supabase};
 export default {
   permissions: './src/permissions.ts',
-  supabase: { hook: { memberships: [fromJunction({ table: 'contacts', scope: 'customer', id: 'customer_id', within: { organization: 'organization_id' }, roles: ['contact'] })] } },
+  supabase: { hook: { memberships: [junctionMembershipSource({ table: 'contacts', scope: 'customer', id: 'customer_id', within: { organization: 'organization_id' }, roles: ['contact'] })] } },
 };
 `,
       );

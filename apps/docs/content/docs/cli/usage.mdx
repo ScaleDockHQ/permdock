@@ -20,7 +20,7 @@ Inputs come from `permdock.config.ts`: `permissions` (the definition module), `p
 
 ### Defined but unused
 
-A permission exists in `definePermissions()` but no source file under `srcPath` passes it to `can`, `decide`, `assert`, `filter`, `where`, `usePermission`, `getPermission`, `protect`, `registerTool`, a `tools` map or any other checker. Usually a leftover after a refactor, sometimes a permission that only exists to be granted to an agent's delegation. Reported as a warning.
+A permission exists in `definePermissions()` but no source file under `srcPath` passes it to `can`, `decide`, `assert`, `filter`, `where`, `usePermission`, `getPermission`, `protect`, `registerTool`, an `operations` map or any other checker. Usually a leftover after a refactor, sometimes a permission that only exists to be granted to an agent's delegation. Reported as a warning.
 
 ### Used but ungranted
 

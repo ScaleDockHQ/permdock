@@ -6,6 +6,7 @@ import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { matchGrantee } from "../core/grantee-match.ts";
 import { rootMembershipId } from "../core/scopes.ts";
+import { dateAt, durationOf, type Instant } from "../core/time.ts";
 import { ApprovalError } from "./errors.ts";
 import { pageApprovals } from "./page.ts";
 import {
@@ -19,7 +20,7 @@ import {
   type ApprovalVerdict,
   approvalQuorum,
   approverRelationKey,
-  DEFAULT_APPROVAL_TTL_MS,
+  DEFAULT_APPROVAL_TTL,
   escalationOpenAt,
   stageEscalationOpenAt,
 } from "./types.ts";
@@ -203,10 +204,20 @@ function assertSeparateApprover(
       "approver must be authenticated",
     );
   }
-  if (principal.kind === "link" || principal.kind === "feed") {
+  if (
+    principal.kind === "link" ||
+    principal.kind === "feed" ||
+    principal.kind === "contact"
+  ) {
     throw new ApprovalError(
       "approver-not-eligible",
-      "a link or a feed cannot approve",
+      "a link, a feed or a contact cannot approve",
+    );
+  }
+  if (by.actor?.kind === "support") {
+    throw new ApprovalError(
+      "approver-not-eligible",
+      "a support session cannot approve",
     );
   }
   if (
@@ -266,10 +277,11 @@ export function assertApprover(
   request: ApprovalRequest,
   by: Subject,
   requireDistinctApprover: boolean,
-  now: Date = new Date(),
+  at?: Instant,
   relations: readonly string[] = [],
   permissions: readonly string[] = [],
 ): number | undefined {
+  const now = dateAt(at);
   const principal = assertSeparateApprover(
     request,
     by,
@@ -356,8 +368,9 @@ function isSystemSubject(by: Subject): boolean {
 export function applyApprovalVerdict(
   request: ApprovalRequest,
   verdict: ApprovalVerdict,
-  now: Date = new Date(),
+  at?: Instant,
 ): ApprovalRequest {
+  const now = dateAt(at);
   const principal = verdict.by.principal;
   if (principal === null) {
     throw new ApprovalError(
@@ -384,7 +397,7 @@ export function applyApprovalVerdict(
       request,
       verdict.by,
       false,
-      now,
+      { epochMilliseconds: now.getTime() },
       verdict.relations,
       verdict.permissions,
     );
@@ -402,7 +415,7 @@ export function applyApprovalVerdict(
       request,
       behalf.subject,
       false,
-      now,
+      { epochMilliseconds: now.getTime() },
       behalf.relations ?? [],
       behalf.permissions ?? [],
     );
@@ -491,7 +504,12 @@ function isStale(request: ApprovalRequest, now: Date): boolean {
 export function memoryApprovalStore(
   options: { readonly ttl?: number } = {},
 ): MemoryApprovalStore {
-  const ttl = options.ttl ?? DEFAULT_APPROVAL_TTL_MS;
+  if (options.ttl !== undefined && durationOf(options.ttl) === undefined) {
+    throw new RangeError(
+      `PermDock: memoryApprovalStore ttl must be a whole number of seconds above 0, got ${String(options.ttl)}`,
+    );
+  }
+  const ttl = options.ttl ?? DEFAULT_APPROVAL_TTL;
   const records = new Map<string, ApprovalRequest>();
 
   const store: MemoryApprovalStore = {
@@ -506,16 +524,20 @@ export function memoryApprovalStore(
     get(token: string): ApprovalRequest | null {
       return records.get(token) ?? null;
     },
+    getById(id: string): ApprovalRequest | null {
+      return records.values().find((request) => request.id === id) ?? null;
+    },
     resolve(token: string, verdict: ApprovalVerdict): ApprovalRequest {
       const current = records.get(token);
       if (current === undefined) {
         throw new ApprovalError("approval-not-found", "approval was not found");
       }
-      const next = applyApprovalVerdict(current, verdict, new Date());
+      const next = applyApprovalVerdict(current, verdict);
       records.set(token, next);
       return next;
     },
-    consume(token: string, now: Date = new Date()): ApprovalRequest | null {
+    consume(token: string, at?: Instant): ApprovalRequest | null {
+      const now = dateAt(at);
       const current = records.get(token);
       if (
         current?.status !== "approved" ||
@@ -537,12 +559,13 @@ export function memoryApprovalStore(
       }
       return pageApprovals(matching, query);
     },
-    expire(now: Date = new Date()): number {
+    expire(at?: Instant): number {
+      const now = dateAt(at);
       let count = 0;
       const instant = now.getTime();
       for (const [token, request] of records) {
         const deadline = Date.parse(request.expiresAt);
-        if (request.status !== "pending" && deadline + ttl <= instant) {
+        if (request.status !== "pending" && deadline + ttl * 1000 <= instant) {
           records.delete(token);
           continue;
         }

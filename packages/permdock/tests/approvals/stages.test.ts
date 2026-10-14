@@ -55,7 +55,7 @@ group("approval modes and approver kinds", () => {
       normalizeApproval({
         mode: "all",
         stages: [{ by: user("cfo") }, { by: "admin", quorum: 2 }],
-        ttl: "1d",
+        ttl: 86_400,
       }),
     ).toEqual({
       mode: "all",
@@ -66,7 +66,7 @@ group("approval modes and approver kinds", () => {
           quorum: 2,
         },
       ],
-      ttl: "1d",
+      ttl: 86_400,
     });
     expect(normalizeApproval({ by: [user("cfo"), "admin"] })).toEqual({
       by: [
@@ -150,7 +150,7 @@ group("approval modes and approver kinds", () => {
         roles: [
           role("admin", [allow(tree.doc.read)], {
             activation: {
-              maxDuration: "1h",
+              maxDuration: 3600,
               approval: { by: relation(tree.doc, "owner") },
             },
           }),
@@ -190,7 +190,7 @@ group("approval modes and approver kinds", () => {
     });
     const approve = () =>
       handler(
-        new Request(`${BASE}/${encodeURIComponent(request.token)}/approve`, {
+        new Request(`${BASE}/${encodeURIComponent(request.id)}/approve`, {
           method: "POST",
         }),
       );
@@ -200,15 +200,15 @@ group("approval modes and approver kinds", () => {
       const body = (await response.json()) as {
         readonly items: readonly ApprovalRequest[];
       };
-      return body.items.map((item) => item.token);
+      return body.items.map((item) => item.id);
     };
     expect(await inbox()).toEqual([]);
     expect((await approve()).status).toBe(403);
     who = "mia";
-    expect(await inbox()).toEqual([request.token]);
+    expect(await inbox()).toEqual([request.id]);
     expect((await approve()).status).toBe(200);
     who = "rob";
-    expect(await inbox()).toEqual([request.token]);
+    expect(await inbox()).toEqual([request.id]);
     const done = await approve();
     expect(done.status).toBe(200);
     const body: unknown = await done.json();
@@ -225,7 +225,7 @@ group("approval modes and approver kinds", () => {
     const { store, request } = await pendingPayment();
     const handler = approvalsHandler(store, { subject: () => member("mia") });
     const response = await handler(
-      new Request(`${BASE}/${encodeURIComponent(request.token)}/approve`, {
+      new Request(`${BASE}/${encodeURIComponent(request.id)}/approve`, {
         method: "POST",
       }),
     );
@@ -256,6 +256,7 @@ group("approval modes and approver kinds", () => {
     const store = memoryApprovalStore();
     const base: ApprovalRequest = {
       v: 1,
+      id: "all",
       token: "all",
       permission: "expense.pay",
       scope: "expense:pay",

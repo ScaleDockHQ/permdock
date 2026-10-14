@@ -1,3 +1,4 @@
+import type { OperationMeta } from "../core/operations.ts";
 import type { ResourceRelation } from "../core/permission-types.ts";
 
 export type CatalogUsage = {
@@ -37,7 +38,8 @@ export type CatalogBreakGlass = {
   readonly overrides: readonly string[];
   readonly purpose?: readonly string[];
   readonly reason: boolean;
-  readonly maxDuration?: string;
+  /** Seconds. */
+  readonly maxDuration?: number;
   readonly obligations: readonly string[];
 };
 
@@ -53,8 +55,10 @@ export type CatalogApproval =
       readonly distinct?: boolean;
       readonly staleOn?: "resource-change";
       readonly quorum?: number;
-      readonly ttl?: string;
-      readonly escalation?: { readonly after: string; readonly to: unknown };
+      /** Seconds. */
+      readonly ttl?: number;
+      /** `after` is seconds from the request's creation. */
+      readonly escalation?: { readonly after: number; readonly to: unknown };
     };
 
 export type CatalogResource = {
@@ -93,7 +97,8 @@ export type CatalogRole = {
 
 /** A role activation as the catalog carries it. */
 export type CatalogActivation = {
-  readonly maxDuration?: string;
+  /** Seconds. */
+  readonly maxDuration?: number;
   readonly justification: "required" | "optional";
   readonly approval?: boolean;
   readonly assurance?: {
@@ -107,7 +112,8 @@ export type CatalogActivation = {
 export type CatalogSupportAccess = {
   readonly actorRequired: boolean;
   readonly group: string;
-  readonly durations: readonly string[];
+  /** Seconds. */
+  readonly durations: readonly number[];
 };
 
 /** One declared scope, in declaration order. */
@@ -117,10 +123,10 @@ export type CatalogScope = {
   readonly within?: string;
 };
 
-/** A grant's `validFrom` / `validUntil` window in Unix seconds. */
+/** A grant's `validFrom` / `validUntil` window in RFC 3339. */
 export type CatalogValidity = {
-  readonly from?: number;
-  readonly until?: number;
+  readonly from?: string;
+  readonly until?: string;
 };
 
 /**
@@ -150,7 +156,8 @@ export type CatalogGrant = {
   readonly requires?: string | readonly string[];
   readonly limit?: {
     readonly count: number;
-    readonly per: string;
+    /** Seconds. */
+    readonly per: number;
     readonly mode?: "hard" | "soft";
   };
   /** Present when the grant is a closure, reads the relation graph or is opaque; `where` and `check` are then omitted. */
@@ -177,6 +184,16 @@ export type CatalogDocument = {
   readonly grants?: readonly CatalogGrant[];
   /** The policy's standing delegations, canonically ordered; present when the policy declares any. */
   readonly delegations?: readonly CatalogDelegation[];
+  /** The `defineOperations` map in definition order; present when the config names an `operations` module. */
+  readonly operations?: readonly CatalogOperation[];
+};
+
+/** One `defineOperations` entry: its name, the permission keys it is bound to, and its meta. */
+export type CatalogOperation = {
+  readonly name: string;
+  readonly permission: string;
+  readonly results?: string;
+  readonly meta: OperationMeta;
 };
 
 /** One `definePolicy({ delegations })` entry: who hands over, to which actor, which permission keys, and when. */

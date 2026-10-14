@@ -3,7 +3,7 @@ import { createPermDock } from "permdock/terminal";
 import { permissions, production, staging } from "./permissions.ts";
 import { developerUser, policy, releaseUser } from "./policy.ts";
 
-const { permdock, protect, filterCommands } = createPermDock(policy, {
+const { getPermDock, protect, filterCommands } = createPermDock(policy, {
   subject: async ({ token }) => {
     const raw = await token(["env", "keychain"]);
     if (raw === "release") {
@@ -46,7 +46,7 @@ const commands = [
 
 const raw = process.argv.slice(2);
 const argv = raw[0] === "--" ? raw.slice(1) : raw;
-await permdock();
+await getPermDock();
 
 if (argv[0] === "--help" || argv.length === 0) {
   for (const entry of filterCommands(commands, { mode: "annotate" })) {

@@ -1,6 +1,6 @@
 export {
   onRoleChange,
-  betterAuthRoleSource,
+  betterAuthCustomRoleSource,
   rolesFromAccessControl,
 } from "./roles.ts";
 export type { SeededRoles } from "./roles.ts";
@@ -13,7 +13,7 @@ export type {
   BetterAuthMemberQuery,
   BetterAuthPrincipal,
   BetterAuthRoleChangeEvent,
-  BetterAuthRoleSourceOptions,
+  BetterAuthCustomRoleSourceOptions,
   BetterAuthStatements,
   BetterAuthSubjectOptions,
   BetterAuthUnmatchedStatement,

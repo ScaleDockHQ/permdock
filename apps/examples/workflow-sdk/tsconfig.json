@@ -1,0 +1,8 @@
+{
+  "extends": "@permdock/typescript-config/next.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "plugins": [{ "name": "next" }, { "name": "workflow" }]
+  },
+  "include": ["next-env.d.ts", "src", "*.config.ts", ".next/types/**/*.ts"]
+}

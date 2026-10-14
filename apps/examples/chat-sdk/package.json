@@ -1,0 +1,28 @@
+{
+  "name": "@permdock/example-chat-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --experimental-strip-types src/serve.ts",
+    "doctor": "permdock doctor",
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "start": "node --experimental-strip-types src/serve.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@chat-adapter/slack": "catalog:",
+    "@chat-adapter/state-memory": "catalog:",
+    "chat": "catalog:",
+    "permdock": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@permdock/ox-config": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

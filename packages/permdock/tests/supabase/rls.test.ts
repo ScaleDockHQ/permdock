@@ -168,14 +168,14 @@ describe("authorizeSql", () => {
     });
   }
 
-  it("drops a jwt membership whose expiresAt has passed", () => {
+  it("drops a jwt membership whose expires_at has passed", () => {
     const sql = authorizeSql({
       authorize: "jwt",
       customRoles: { declared: [] },
     });
     expect(
       sql.match(
-        /when 'number' then \(m ->> 'expiresAt'\)::numeric > extract\(epoch from now\(\)\)/gu,
+        /when 'number' then \(m ->> 'expires_at'\)::numeric > extract\(epoch from now\(\)\)/gu,
       )?.length,
     ).toBe(3);
   });

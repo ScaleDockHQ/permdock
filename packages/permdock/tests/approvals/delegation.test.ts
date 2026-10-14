@@ -7,7 +7,7 @@ import {
   applyApprovalVerdict,
   approvalsHandler,
   matchDelegation,
-  memoryApprovalDelegations,
+  memoryApprovalDelegationSource,
   memoryApprovalStore,
   parseApprovalDelegation,
   requestApproval,
@@ -118,10 +118,11 @@ async function pending(
   return { store, request };
 }
 
-const now = new Date("2026-10-13T12:00:00.000Z");
+// approvalsHandler reads the real clock, so the delegation window is built around it.
+const now = new Date();
 
 describe("approver delegation", () => {
-  const delegations = memoryApprovalDelegations([
+  const delegations = memoryApprovalDelegationSource([
     {
       id: "d1",
       delegator: "cfo",
@@ -139,7 +140,7 @@ describe("approver delegation", () => {
   });
 
   it("treats from as inclusive and until as exclusive", () => {
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "edge",
         delegator: "cfo",
@@ -166,12 +167,12 @@ describe("approver delegation", () => {
     const { store, request } = await pending();
     const handler = approvalsHandler(store, {
       subject: () => inTenant("dana"),
-      delegations,
+      approvalDelegations: delegations,
       subjectFor: () => inTenant("cfo"),
     });
     const response = await handler(
       new Request(
-        `https://api.example.com/approvals/${encodeURIComponent(request.token)}/approve`,
+        `https://api.example.com/approvals/${encodeURIComponent(request.id)}/approve`,
         { method: "POST" },
       ),
     );
@@ -185,7 +186,7 @@ describe("approver delegation", () => {
 
   it("refuses a delegate who is the requester", async () => {
     const { request } = await pending();
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "self",
         delegator: "cfo",
@@ -216,6 +217,7 @@ describe("approver delegation", () => {
   it("refuses a delegation whose delegator is the requester", () => {
     const request = {
       v: 1 as const,
+      id: "r1",
       token: "t",
       permission: "payment.send",
       scope: "payment:send",
@@ -238,7 +240,7 @@ describe("approver delegation", () => {
 
   it("does not follow a second hop", async () => {
     const { store, request } = await pending();
-    const chain = memoryApprovalDelegations([
+    const chain = memoryApprovalDelegationSource([
       {
         id: "hop",
         delegator: "erin",
@@ -249,12 +251,12 @@ describe("approver delegation", () => {
     ]);
     const handler = approvalsHandler(store, {
       subject: () => inTenant("dana"),
-      delegations: chain,
+      approvalDelegations: chain,
       subjectFor: (id) => (id === "erin" ? inTenant("erin") : null),
     });
     const response = await handler(
       new Request(
-        `https://api.example.com/approvals/${encodeURIComponent(request.token)}/approve`,
+        `https://api.example.com/approvals/${encodeURIComponent(request.id)}/approve`,
         { method: "POST" },
       ),
     );
@@ -276,7 +278,7 @@ describe("approver delegation", () => {
       resource: { type: "payment", id: "p1" },
       subject: payer.subject,
     });
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "hold",
         delegator: "dana",
@@ -287,13 +289,13 @@ describe("approver delegation", () => {
     ]);
     const handler = approvalsHandler(store, {
       subject: () => inTenant("erin"),
-      delegations: source,
+      approvalDelegations: source,
       subjectFor: () => inTenant("dana", ["controller"]),
       permdockFor: (approver) => createPermDock(policy, approver),
     });
     const response = await handler(
       new Request(
-        `https://api.example.com/approvals/${encodeURIComponent(request.token)}/approve`,
+        `https://api.example.com/approvals/${encodeURIComponent(request.id)}/approve`,
         { method: "POST" },
       ),
     );
@@ -304,6 +306,7 @@ describe("approver delegation", () => {
     );
     const second: ApprovalRequest = {
       v: 1,
+      id: "rel",
       token: "rel-token",
       permission: "payment.send",
       scope: "payment:send",
@@ -334,6 +337,7 @@ describe("approver delegation", () => {
   it("counts one delegator once, whichever delegate signs", () => {
     const request = {
       v: 1 as const,
+      id: "quorum",
       token: "quorum",
       permission: "payment.send",
       scope: "payment:send",
@@ -370,7 +374,7 @@ describe("approver delegation", () => {
 
   it("ignores a delegation outside its permission or resource", async () => {
     const { store, request } = await pending();
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "narrow",
         delegator: "cfo",
@@ -383,12 +387,12 @@ describe("approver delegation", () => {
     ]);
     const handler = approvalsHandler(store, {
       subject: () => inTenant("dana"),
-      delegations: source,
+      approvalDelegations: source,
       subjectFor: () => inTenant("cfo"),
     });
     const response = await handler(
       new Request(
-        `https://api.example.com/approvals/${encodeURIComponent(request.token)}/approve`,
+        `https://api.example.com/approvals/${encodeURIComponent(request.id)}/approve`,
         { method: "POST" },
       ),
     );
@@ -427,6 +431,7 @@ describe("approver delegation", () => {
   it("matches nobody when the source or the delegator fails", async () => {
     const request = {
       v: 1 as const,
+      id: "r1",
       token: "t",
       permission: "payment.send",
       scope: "payment:send",
@@ -450,7 +455,7 @@ describe("approver delegation", () => {
         request,
         { principal: null, context: {} },
         {
-          delegations: memoryApprovalDelegations([]),
+          approvalDelegations: memoryApprovalDelegationSource([]),
           subjectFor: () => inTenant("cfo"),
           requireDistinct: true,
           factsFor,
@@ -464,7 +469,7 @@ describe("approver delegation", () => {
     };
     expect(
       await matchDelegation(request, inTenant("dana"), {
-        delegations: throwing,
+        approvalDelegations: throwing,
         subjectFor: () => inTenant("cfo"),
         requireDistinct: true,
         factsFor,
@@ -483,7 +488,7 @@ describe("approver delegation", () => {
     };
     expect(
       await matchDelegation(request, inTenant("dana"), {
-        delegations: listed,
+        approvalDelegations: listed,
         subjectFor: () => null,
         requireDistinct: true,
         factsFor,
@@ -491,7 +496,7 @@ describe("approver delegation", () => {
     ).toBeUndefined();
     expect(
       await matchDelegation(request, inTenant("dana"), {
-        delegations: listed,
+        approvalDelegations: listed,
         subjectFor: () => {
           throw new Error("down");
         },
@@ -519,7 +524,7 @@ describe("approver delegation", () => {
         until: "2026-10-02T00:00:00.000Z",
       }),
     ).toBeUndefined();
-    const source = memoryApprovalDelegations([
+    const source = memoryApprovalDelegationSource([
       {
         id: "open",
         delegator: "cfo",
@@ -558,11 +563,89 @@ describe("approver delegation", () => {
     };
     expect(
       await matchDelegation(unscoped, inTenant("dana"), {
-        delegations: source,
+        approvalDelegations: source,
         subjectFor: () => inTenant("erin"),
         requireDistinct: true,
         factsFor,
       }),
+    ).toBeUndefined();
+  });
+
+  it("refuses a contact, an outsider, a malformed answer and every entry that does not cover the request", async () => {
+    const request: ApprovalRequest = {
+      v: 1,
+      id: "r1",
+      token: "t",
+      permission: "payment.send",
+      scope: "payment:send",
+      resource: { type: "payment", id: "p1" },
+      subject: { principal: { id: "cara", roles: ["clerk"], tenant: "o1" } },
+      detail: "send",
+      createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + HOUR).toISOString(),
+      status: "pending",
+      approvers: { by: user("cfo") },
+    };
+    const factsFor = () => Promise.resolve({ relations: [], permissions: [] });
+    const open = window(now);
+    const match = (
+      delegate: Subject,
+      entries: unknown,
+      subjectFor: (id: string) => Subject | null = (id) => inTenant(id),
+    ) =>
+      matchDelegation(request, delegate, {
+        // SAFETY: a custom source may answer with anything; matchDelegation checks it.
+        approvalDelegations: { delegationsFor: () => entries as never },
+        subjectFor,
+        requireDistinct: true,
+        factsFor,
+        now: { epochMilliseconds: now.getTime() },
+      });
+    const entry = { id: "d1", delegator: "cfo", delegate: "dana", ...open };
+    expect(await match(inTenant("dana"), [entry])).toBeDefined();
+    const contact: Subject = {
+      principal: { id: "dana", kind: "contact", roles: [], tenant: "o1" },
+      context: {},
+    };
+    expect(await match(contact, [entry])).toBeUndefined();
+    const outsider: Subject = {
+      principal: {
+        id: "dana",
+        roles: [],
+        memberships: [{ scope: "tenant", id: "o2", roles: [] }],
+      },
+      context: {},
+    };
+    expect(await match(outsider, [entry])).toBeUndefined();
+    expect(
+      await match({ principal: null, context: {} }, [entry]),
+    ).toBeUndefined();
+    expect(await match(inTenant("dana"), { entries: [entry] })).toBeUndefined();
+    const later = new Date(now.getTime() + HOUR).toISOString();
+    for (const uncovered of [
+      { ...entry, delegate: "erin" },
+      { ...entry, delegator: "dana" },
+      {
+        ...entry,
+        from: later,
+        until: new Date(now.getTime() + 2 * HOUR).toISOString(),
+      },
+      { ...entry, tenant: "o2" },
+      { ...entry, permissions: ["payment.approve"] },
+      { ...entry, resources: ["invoice"] },
+      { ...entry, resources: [1] },
+    ]) {
+      expect({
+        uncovered,
+        match: await match(inTenant("dana"), [uncovered]),
+      }).toEqual({ uncovered, match: undefined });
+    }
+    const contactDelegator = (id: string): Subject => ({
+      principal: { id, kind: "contact", roles: [], tenant: "o1" },
+      context: {},
+    });
+    expect(
+      await match(inTenant("dana"), [entry], contactDelegator),
     ).toBeUndefined();
   });
 });

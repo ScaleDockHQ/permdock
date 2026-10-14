@@ -4,7 +4,7 @@ import { toStore, type Readable } from "svelte/store";
 import type { ClientStore } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
-import type { PermDockDefaults, PermDockSvelteOptions } from "./types.ts";
+import type { PermDockDefaults, SveltePermDockOptions } from "./types.ts";
 
 import { providerStore, switchTenant } from "../client/provider-store.ts";
 import { isPromiseLike } from "../client/source.ts";
@@ -29,7 +29,7 @@ function isReadable(value: unknown): value is Readable<Snapshot | string> {
 }
 
 function reactiveSource(
-  source: PermDockSvelteOptions["snapshot"],
+  source: SveltePermDockOptions["snapshot"],
 ): Readable<Snapshot | string> | undefined {
   if (typeof source === "function") {
     return toStore(source);
@@ -41,7 +41,7 @@ function reactiveSource(
  * Builds the store; the returned `stop` ends the subscription to a reactive
  * snapshot source.
  */
-function connectSvelteStore(options: PermDockSvelteOptions): {
+function connectSvelteStore(options: SveltePermDockOptions): {
   readonly store: ClientStore;
   readonly stop: () => void;
 } {
@@ -110,11 +110,11 @@ function connectSvelteStore(options: PermDockSvelteOptions): {
   };
 }
 
-export function createSvelteStore(options: PermDockSvelteOptions): ClientStore {
+export function createSvelteStore(options: SveltePermDockOptions): ClientStore {
   return connectSvelteStore(options).store;
 }
 
-export function providePermDock(options: PermDockSvelteOptions): ClientStore {
+export function providePermDock(options: SveltePermDockOptions): ClientStore {
   const { store, stop } = connectSvelteStore(options);
   onDestroy(() => {
     stop();

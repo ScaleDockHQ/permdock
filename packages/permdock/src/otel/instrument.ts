@@ -11,9 +11,14 @@ import {
   type OtelSpan,
   type OtelTracer,
   type StructuralLogger,
+  ERROR_TYPE,
   GENAI_SEMCONV_PIN,
+  GEN_AI_AGENT_ID,
+  GEN_AI_REQUEST_MODEL,
   GEN_AI_TOOL_CALL_ID,
   GEN_AI_TOOL_NAME,
+  USER_ID,
+  USER_ROLES,
 } from "./types.ts";
 
 export { GENAI_SEMCONV_PIN };
@@ -131,6 +136,26 @@ function omitPath(
   };
 }
 
+/**
+ * `error.type` for a decision that failed: a boundary validation failure
+ * always, and the first denial reason when `errorOnDeny` marks every denial
+ * an error.
+ */
+function errorType(
+  event: DecisionEvent,
+  options: OtelOptions,
+): string | undefined {
+  if (event.outcome !== "denied") {
+    return undefined;
+  }
+  if (
+    event.denials?.some((denial) => denial.reason === "validation") === true
+  ) {
+    return "validation";
+  }
+  return options.errorOnDeny === true ? event.denials?.[0]?.reason : undefined;
+}
+
 function attributesOf(
   event: DecisionEvent,
   options: OtelOptions,
@@ -138,7 +163,17 @@ function attributesOf(
 ): Record<string, unknown> {
   const extra =
     options.attributes === undefined ? {} : options.attributes(event);
+  const actor = event.subject.actor;
+  const scopes = event.subject.delegation?.scope
+    ?.split(" ")
+    .filter((scope) => scope !== "");
   const attributes = compact<Record<string, unknown>>({
+    [USER_ID]: event.subject.principal?.id,
+    [USER_ROLES]: event.subject.principal?.roles,
+    [GEN_AI_AGENT_ID]: actor?.kind === "agent" ? actor.id : undefined,
+    [GEN_AI_REQUEST_MODEL]:
+      event.model ?? parent?.attributes?.[GEN_AI_REQUEST_MODEL],
+    [ERROR_TYPE]: errorType(event, options),
     "permdock.outcome": event.outcome,
     "permdock.permission": event.permission,
     "permdock.scope": event.scope,
@@ -147,10 +182,11 @@ function attributesOf(
     "permdock.subject.id": event.subject.principal?.id,
     "permdock.actor.id": event.subject.actor?.id,
     "permdock.actor.kind": event.subject.actor?.kind,
-    "permdock.delegation.scopes": event.subject.delegation?.scopes?.join(","),
+    "permdock.support_session.id": event.subject.supportSession?.id,
+    "permdock.delegation.scopes": scopes,
     "permdock.matched.role": event.matched?.role,
     "permdock.matched.name": event.matched?.name,
-    "permdock.obligations": appObligationNames(event)?.join(","),
+    "permdock.obligations": appObligationNames(event),
     "permdock.denials.count": event.denials?.length,
     "permdock.token": event.token,
     "permdock.validate": event.trusted ? "trusted" : "boundary",
@@ -226,9 +262,9 @@ function recordSignals(
     span.addEvent?.(
       "permdock.denied",
       compact({
-        role: event.denials?.map((denial) => denial.role).join(","),
-        reason: event.denials?.map((denial) => denial.reason).join(","),
-        alternatives: event.alternatives?.join(","),
+        role: event.denials?.map((denial) => denial.role ?? ""),
+        reason: event.denials?.map((denial) => denial.reason),
+        alternatives: event.alternatives,
       }),
     );
     if (

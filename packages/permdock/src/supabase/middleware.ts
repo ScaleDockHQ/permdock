@@ -14,7 +14,10 @@ import {
 } from "../core/instance-options.ts";
 import { composeWraps } from "../core/wrap.ts";
 import { type ServerAdapterServices, attached } from "../server/bind.ts";
-import { type RequestContext, createServerKernel } from "../server/create.ts";
+import {
+  type RequestContext,
+  createPermDock as createServerPermDock,
+} from "../server/create.ts";
 import { methodNotAllowed } from "../server/problem.ts";
 
 /**
@@ -155,7 +158,7 @@ function secretKeySubjects(
       })),
       createdBy: key.id,
       // Declared in code: the key has no creation record.
-      createdAt: 0,
+      createdAt: "1970-01-01T00:00:00.000Z",
       name,
     };
     subjects.set(name, credentialSubject(credential, { permissions }));
@@ -203,7 +206,7 @@ export function createPermDock<
     contexts.get(request) ?? { jwtClaims: null };
   const secretKeys = secretKeySubjects(options.secretKeys, policy.permissions);
 
-  const kernel = createServerKernel(
+  const kernel = createServerPermDock(
     policy,
     compact({
       subject: (request: Request) => {
@@ -237,7 +240,7 @@ export function createPermDock<
       webBotAuth: options.webBotAuth,
       adapter: "supabase-middleware",
       wrap: composeWraps(options.otel, options.wrap),
-      onDenied: options.onDenied,
+      deniedResponse: options.deniedResponse,
     }),
   );
 
@@ -264,7 +267,7 @@ export function createPermDock<
           config?.protect === undefined &&
           config?.oauthScopes === undefined
         ) {
-          const instance = await attached(() => kernel.permdock(request));
+          const instance = await attached(() => kernel.getPermDock(request));
           return instance.ok
             ? { permdock: instance.permdock }
             : instance.response;

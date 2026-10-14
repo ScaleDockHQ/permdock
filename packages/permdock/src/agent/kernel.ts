@@ -1,5 +1,5 @@
 import type { Decision } from "../core/decision.ts";
-import type { PermDock } from "../core/permdock.ts";
+import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
@@ -17,14 +17,13 @@ import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
-import { mayUse } from "../core/may-use.ts";
 import {
   buildReportingInstance,
   requestContext,
   type Report,
 } from "../core/request-context.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import { deniedText } from "./denied-text.ts";
+import { refusalText } from "./denied-text.ts";
 import { modelReason, thrownReason, unmappedReason } from "./reason.ts";
 
 /** The resume token an agent run carries under the namespaced `permdockApproval` key. */
@@ -45,7 +44,8 @@ function runDecide(
   how: {
     readonly adapter: string;
     readonly boundary: Boundary;
-    readonly source: "adapter" | "simulate";
+    readonly call: "adapter" | "simulate";
+    readonly operation?: NonNullable<DecideOptions["operation"]>;
   },
 ): Decision {
   // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
@@ -53,11 +53,7 @@ function runDecide(
     permdock.decide as (
       next: Permission,
       row?: unknown,
-      decideOptions?: {
-        readonly source: "adapter" | "simulate";
-        readonly adapter: string;
-        readonly boundary: Boundary;
-      },
+      decideOptions?: DecideOptions,
     ) => Decision
   )(permission, data, how);
 }
@@ -175,7 +171,7 @@ export function createAgentKernel<
     context: TContext,
     how: {
       readonly resume: boolean;
-      readonly source: "adapter" | "simulate";
+      readonly call: "adapter" | "simulate";
       readonly decideOptions: DecideToolOptions;
     },
   ): Promise<CheckResult<V>> => {
@@ -196,11 +192,20 @@ export function createAgentKernel<
           return { ok: false, failure: "no-data", permdock };
         }
       }
-      const raw = runDecide(permdock, binding.permission, data, {
-        adapter: options.adapter,
-        boundary,
-        source: how.source,
-      });
+      const raw = runDecide(
+        permdock,
+        binding.permission,
+        data,
+        compact({
+          adapter: options.adapter,
+          boundary,
+          call: how.call,
+          operation:
+            binding.meta === undefined
+              ? undefined
+              : { name: binding.name ?? "", meta: binding.meta },
+        }),
+      );
       const decision = how.resume
         ? await resumeDecision({
             decision: raw,
@@ -234,7 +239,7 @@ export function createAgentKernel<
   ): Promise<CheckResult<V>> =>
     run(binding, args, context, {
       resume: checkOptions.simulate !== true,
-      source: checkOptions.simulate === true ? "simulate" : "adapter",
+      call: checkOptions.simulate === true ? "simulate" : "adapter",
       decideOptions: checkOptions,
     });
 
@@ -318,7 +323,7 @@ export function createAgentKernel<
     verdict: ToolVerdict,
     permdock: PermDock<V> | undefined,
   ): ToolVerdict => {
-    const hook = options.onDenied;
+    const hook = options.deniedText;
     if (hook === undefined || verdict.outcome === "granted") {
       return verdict;
     }
@@ -328,7 +333,7 @@ export function createAgentKernel<
     if (verdict.outcome === "denied") {
       return {
         ...verdict,
-        reason: deniedText(
+        reason: refusalText(
           hook,
           {
             decision: verdict.decision,
@@ -341,7 +346,7 @@ export function createAgentKernel<
     }
     return {
       ...verdict,
-      summary: deniedText(
+      summary: refusalText(
         hook,
         {
           decision: verdict.decision,
@@ -360,7 +365,7 @@ export function createAgentKernel<
   ): Promise<string | undefined> => {
     const checked = await run(binding, args, context, {
       resume: false,
-      source: "adapter",
+      call: "adapter",
       decideOptions: {},
     });
     return checked.ok && checked.raw.outcome === "approval-required"
@@ -399,7 +404,7 @@ export function createAgentKernel<
     const permdock = await instance(context);
     const allowed = new Set<string>();
     for (const [name, binding] of Object.entries(tools)) {
-      if (mayUse(permdock, binding.permission)) {
+      if (permdock.mayUse(binding.permission)) {
         allowed.add(name);
       }
     }

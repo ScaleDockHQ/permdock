@@ -255,7 +255,7 @@ export const policy = definePolicy(permissions, {
   roles: [
     supportAccess({
       role: 'support',
-      consent: { by: 'owner', durations: ['1d'] },
+      consent: { by: 'owner', durations: [86_400] },
     }),
   ],
   subject: () => null,

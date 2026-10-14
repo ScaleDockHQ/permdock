@@ -4,12 +4,9 @@ import type { PowerSyncWatchable } from "../../src/react-native/powersync.ts";
 
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
-import { powersyncSource } from "../../src/react-native/powersync.ts";
-import { memoryStorage } from "../../src/react-native/storage.ts";
-import {
-  connectSource,
-  createNativeStore,
-} from "../../src/react-native/store.ts";
+import { powerSyncSource } from "../../src/react-native/powersync.ts";
+import { memorySnapshotStorage } from "../../src/react-native/storage.ts";
+import { connectSource, nativeStore } from "../../src/react-native/store.ts";
 import { ownPost, permissions, policy } from "../fixtures/quick-start.ts";
 
 type Row = { readonly user_id: string; readonly role: string };
@@ -56,13 +53,13 @@ async function settle(): Promise<void> {
   });
 }
 
-describe("powersyncSource", () => {
+describe("powerSyncSource", () => {
   it("builds the snapshot from the watched rows and follows their changes", async () => {
     const tables: Record<string, Row[]> = {
       user_roles: [{ user_id: "u1", role: "member" }],
     };
     const db = fakeDb(tables);
-    const source = powersyncSource(db, {
+    const source = powerSyncSource(db, {
       manifest: localSnapshotManifest(policy),
       queries: {
         roles: {
@@ -81,8 +78,8 @@ describe("powersyncSource", () => {
         },
       }),
     });
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: "u1",
     });
     let notified = 0;
@@ -113,14 +110,14 @@ describe("powersyncSource", () => {
       orgId: "o1",
       roles: ["member"],
     });
-    const source = powersyncSource(fakeDb({ user_roles: [] }), {
+    const source = powerSyncSource(fakeDb({ user_roles: [] }), {
       manifest: localSnapshotManifest(policy),
       queries: {},
       read: () => ({ principal: { id: "u1", roles: ["member"] } }),
     });
     const snapshot = await source.get();
-    const store = createNativeStore({
-      storage: memoryStorage(),
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
       subjectId: "u1",
       snapshot,
     });

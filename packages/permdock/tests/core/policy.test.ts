@@ -149,15 +149,15 @@ describe("policy", () => {
       normalizeApproval({
         by: "admin",
         quorum: 2,
-        ttl: "30m",
-        escalation: { after: "4h", to: "auditor" },
+        ttl: 1800,
+        escalation: { after: 14_400, to: "auditor" },
       }),
     ).toEqual({
       by: { kind: "role", role: "admin", scope: "global" },
       quorum: 2,
-      ttl: "30m",
+      ttl: 1800,
       escalation: {
-        after: "4h",
+        after: 14_400,
         to: { kind: "role", role: "auditor", scope: "global" },
       },
     });
@@ -171,19 +171,24 @@ describe("policy", () => {
     expect(() => normalizeApproval({ quorum: 1.5 }, "org.delete")).toThrow(
       /quorum/u,
     );
-    expect(() => normalizeApproval({ ttl: "soon" }, "org.delete")).toThrow(
-      /ttl.*duration/u,
-    );
+    for (const ttl of ["1h", 0, -60, 1.5]) {
+      expect(() =>
+        // SAFETY: the invalid values test what a caller without types can pass.
+        normalizeApproval({ ttl: ttl as number }, "org.delete"),
+      ).toThrow(
+        /approval\.ttl on 'org\.delete' must be a whole number of seconds above 0/u,
+      );
+    }
     expect(() =>
       normalizeApproval(
-        { escalation: { after: "later", to: "auditor" } },
+        { escalation: { after: -1, to: "auditor" } },
         "org.delete",
       ),
-    ).toThrow(/escalation\.after.*duration/u);
+    ).toThrow(/escalation\.after.*whole number of seconds/u);
     expect(
       normalizeApproval(
         {
-          escalation: { after: "1h", to: relation(permissions.post, "owner") },
+          escalation: { after: 3600, to: relation(permissions.post, "owner") },
         },
         "org.delete",
       ),

@@ -16,16 +16,16 @@ import {
 } from "../server/bind.ts";
 import { hasCredentials, parsedBody } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
-import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
+import { POLICY_VIOLATION, closeReason, onRevoked } from "../server/stream.ts";
 
-export type ElysiaCtx = {
+export type ElysiaRequestContext = {
   readonly request: Request;
   readonly body?: unknown;
   readonly params?: Readonly<Record<string, string | undefined>>;
 };
 
 export type ElysiaPermDockOptions<TUser = unknown> = ServerAdapterOptions<
-  ElysiaCtx,
+  ElysiaRequestContext,
   TUser
 > & {
   /** Ends or revalidates open sockets. */
@@ -34,23 +34,24 @@ export type ElysiaPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 
 /** The `ws` Elysia passes to `.ws` handlers; `data` is the upgrade context. */
 export type ElysiaSocket = {
-  readonly data: ElysiaCtx;
+  readonly data: ElysiaRequestContext;
   close(code?: number, reason?: string): unknown;
 };
 
-export type ElysiaContext<V extends PolicyVocabulary = PolicyVocabulary> =
-  ElysiaCtx & {
-    permdock: PermDock<V>;
-    permdockData?: unknown;
-  };
+export type ElysiaPermDockContext<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = ElysiaRequestContext & {
+  permdock: PermDock<V>;
+  permdockData?: unknown;
+};
 
 export type ElysiaProtect = (
   permission: Permission | null,
-  loadData?: (ctx: ElysiaCtx) => unknown,
+  data?: (ctx: ElysiaRequestContext) => unknown,
   protectOptions?: ProtectOptions,
-) => (ctx: ElysiaCtx) => Promise<Response | undefined>;
+) => (ctx: ElysiaRequestContext) => Promise<Response | undefined>;
 
-/** The `permdock()` plugin: its global derive types `permdock` in every later handler. */
+/** The `middleware()` plugin: its global derive types `permdock` in every later handler. */
 export type ElysiaPermDockPlugin<
   V extends PolicyVocabulary = PolicyVocabulary,
 > = Elysia<
@@ -66,7 +67,7 @@ export type ElysiaPermDockPlugin<
 >;
 
 export type ElysiaPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: () => ElysiaPermDockPlugin<V>;
+  readonly middleware: () => ElysiaPermDockPlugin<V>;
   readonly protect: ElysiaProtect;
   /**
    * One connection per socket: the same promise for every handler
@@ -98,10 +99,13 @@ export function createPermDock<
   } = bindKernel(policy, options, "elysia", toRequest);
 
   // SAFETY: the chain returns an Elysia instance; its generics are narrowed to the global permdock derive.
-  const permdock = (): ElysiaPermDockPlugin<V> =>
+  const middleware = (): ElysiaPermDockPlugin<V> =>
     new Elysia({ name: "permdock", seed })
       .derive({ as: "global" }, async (ctx) => {
-        const instance = await kernel.permdock(bind(ctx), await scopeOf(ctx));
+        const instance = await kernel.getPermDock(
+          bind(ctx),
+          await scopeOf(ctx),
+        );
         decorate(ctx, instance);
         return { permdock: instance };
       })
@@ -112,8 +116,8 @@ export function createPermDock<
       ) as unknown as ElysiaPermDockPlugin<V>;
 
   const protect: ElysiaProtect =
-    (permission, loadData, protectOptions) => async (ctx) => {
-      const guard = await runGuard(permission, loadData, ctx, protectOptions);
+    (permission, data, protectOptions) => async (ctx) => {
+      const guard = await runGuard(permission, data, ctx, protectOptions);
       if (!guard.ok) {
         return guard.response;
       }
@@ -134,7 +138,7 @@ export function createPermDock<
         await scopeOf(ws.data),
       );
       onRevoked(conn, (problem) => {
-        ws.close(POLICY_VIOLATION, problem.type);
+        ws.close(POLICY_VIOLATION, closeReason(problem));
       });
       return conn;
     });
@@ -148,7 +152,7 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    middleware,
     protect,
     connection,
     permdockHandler,
@@ -156,7 +160,7 @@ export function createPermDock<
   };
 }
 
-function toRequest(ctx: ElysiaCtx): Request {
+function toRequest(ctx: ElysiaRequestContext): Request {
   const method = ctx.request.method;
   if (method === "GET" || method === "HEAD" || ctx.body === undefined) {
     return ctx.request;

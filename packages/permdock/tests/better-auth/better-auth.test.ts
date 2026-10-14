@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import {
-  betterAuthRoleSource,
+  betterAuthCustomRoleSource,
   onRoleChange,
   rolesFromAccessControl,
   subjectFromBetterAuth,
 } from "../../src/better-auth/index.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import {
-  testRoleSource,
+  testCustomRoleSource,
   testSubjectResolver,
 } from "../../src/testing/conformance/identity.ts";
 
@@ -111,22 +111,26 @@ const USER_TEAMS = [
 
 describe("subjectFromBetterAuth", () => {
   it("never throws and fails closed to anonymous", async () => {
-    await expect(subjectFromBetterAuth({}, null)).resolves.toMatchObject({
-      principal: null,
-    });
-    await expect(subjectFromBetterAuth({}, undefined)).resolves.toMatchObject({
+    await expect(
+      subjectFromBetterAuth(null, { auth: {} }),
+    ).resolves.toMatchObject({
       principal: null,
     });
     await expect(
-      subjectFromBetterAuth({}, { cookie: "raw" }),
+      subjectFromBetterAuth(undefined, { auth: {} }),
+    ).resolves.toMatchObject({
+      principal: null,
+    });
+    await expect(
+      subjectFromBetterAuth({ cookie: "raw" }, { auth: {} }),
     ).resolves.toMatchObject({ principal: null });
     await expect(
-      subjectFromBetterAuth({}, { user: { name: "no-id" } }),
+      subjectFromBetterAuth({ user: { name: "no-id" } }, { auth: {} }),
     ).resolves.toMatchObject({ principal: null });
   });
 
   it("maps session identity, global admin role, org and team memberships", async () => {
-    const subject = await subjectFromBetterAuth({}, session);
+    const subject = await subjectFromBetterAuth(session, { auth: {} });
     expect(subject.principal?.id).toBe("user-1");
     expect(subject.principal?.tenant).toBe("o_acme");
     expect(subject.principal?.roles).toEqual(["support"]);
@@ -147,14 +151,16 @@ describe("subjectFromBetterAuth", () => {
   });
 
   it("copies additional fields into claims only through a schema", async () => {
-    const subject = await subjectFromBetterAuth({}, session, {
+    const subject = await subjectFromBetterAuth(session, {
+      auth: {},
       schema: z.object({ plan: z.string() }),
     });
     expect(subject.principal?.claims).toEqual({ plan: "pro" });
   });
 
   it("limits memberships to the active organization when requested", async () => {
-    const subject = await subjectFromBetterAuth({}, session, {
+    const subject = await subjectFromBetterAuth(session, {
+      auth: {},
       memberships: "active",
     });
     expect(subject.principal?.memberships).toEqual([
@@ -171,19 +177,21 @@ describe("subjectFromBetterAuth", () => {
   it("loads only the signed-in member from organization plugin responses", async () => {
     const calls: unknown[] = [];
     const subject = await subjectFromBetterAuth(
+      { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
       {
-        api: {
-          listOrganizations: async () => ORGANIZATIONS,
-          listMembers: async (args) => {
-            calls.push(args?.query);
-            return args?.query?.organizationId === "o_acme"
-              ? ACME_MEMBERS
-              : GLOBEX_MEMBERS;
+        auth: {
+          api: {
+            listOrganizations: async () => ORGANIZATIONS,
+            listMembers: async (args) => {
+              calls.push(args?.query);
+              return args?.query?.organizationId === "o_acme"
+                ? ACME_MEMBERS
+                : GLOBEX_MEMBERS;
+            },
+            listUserTeams: async () => USER_TEAMS,
           },
-          listUserTeams: async () => USER_TEAMS,
         },
       },
-      { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
     );
     expect(subject.principal?.memberships).toEqual([
       { tenant: "o_acme", roles: ["member"] },
@@ -203,27 +211,33 @@ describe("subjectFromBetterAuth", () => {
     const queries: unknown[] = [];
     let listed = 0;
     const subject = await subjectFromBetterAuth(
+      { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
       {
-        $context: Promise.resolve({
-          adapter: {
-            findMany: async (query) => {
-              queries.push(query);
-              return [
-                { userId: "u_bob", organizationId: "o_acme", role: "member" },
-                { userId: "u_bob", organizationId: "o_globex", role: "admin" },
-                { userId: "u_eve", organizationId: "o_acme", role: "owner" },
-              ];
+        auth: {
+          $context: Promise.resolve({
+            adapter: {
+              findMany: async (query) => {
+                queries.push(query);
+                return [
+                  { userId: "u_bob", organizationId: "o_acme", role: "member" },
+                  {
+                    userId: "u_bob",
+                    organizationId: "o_globex",
+                    role: "admin",
+                  },
+                  { userId: "u_eve", organizationId: "o_acme", role: "owner" },
+                ];
+              },
             },
-          },
-        }),
-        api: {
-          listOrganizations: async () => {
-            listed += 1;
-            return ORGANIZATIONS;
+          }),
+          api: {
+            listOrganizations: async () => {
+              listed += 1;
+              return ORGANIZATIONS;
+            },
           },
         },
       },
-      { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
     );
     expect(subject.principal?.memberships).toEqual([
       { tenant: "o_acme", roles: ["member"] },
@@ -241,17 +255,19 @@ describe("subjectFromBetterAuth", () => {
 
   it("falls back to the organization API when the adapter query fails", async () => {
     const subject = await subjectFromBetterAuth(
+      { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
       {
-        $context: Promise.reject(new Error("no adapter")),
-        api: {
-          listOrganizations: async () => ORGANIZATIONS,
-          listMembers: async (args) =>
-            args?.query?.organizationId === "o_acme"
-              ? ACME_MEMBERS
-              : GLOBEX_MEMBERS,
+        auth: {
+          $context: Promise.reject(new Error("no adapter")),
+          api: {
+            listOrganizations: async () => ORGANIZATIONS,
+            listMembers: async (args) =>
+              args?.query?.organizationId === "o_acme"
+                ? ACME_MEMBERS
+                : GLOBEX_MEMBERS,
+          },
         },
       },
-      { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
     );
     expect(subject.principal?.memberships).toEqual([
       { tenant: "o_acme", roles: ["member"] },
@@ -261,14 +277,16 @@ describe("subjectFromBetterAuth", () => {
 
   it("uses getActiveMember for the active organization", async () => {
     const subject = await subjectFromBetterAuth(
-      {
-        api: {
-          getActiveMember: async () => ACME_MEMBERS.members[1],
-          listMembers: async () => ACME_MEMBERS,
-        },
-      },
       { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
-      { memberships: "active" },
+      {
+        auth: {
+          api: {
+            getActiveMember: async () => ACME_MEMBERS.members[1],
+            listMembers: async () => ACME_MEMBERS,
+          },
+        },
+        memberships: "active",
+      },
     );
     expect(subject.principal?.memberships).toEqual([
       { tenant: "o_acme", roles: ["member"] },
@@ -277,17 +295,18 @@ describe("subjectFromBetterAuth", () => {
 
   it("drops member rows that belong to another user", async () => {
     const subject = await subjectFromBetterAuth(
-      {
-        api: {
-          getActiveMember: async () => ACME_MEMBERS.members[0],
-        },
-      },
       { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
-      { memberships: "active" },
+      {
+        auth: {
+          api: {
+            getActiveMember: async () => ACME_MEMBERS.members[0],
+          },
+        },
+        memberships: "active",
+      },
     );
     expect(subject.principal?.memberships).toEqual([]);
     const injected = await subjectFromBetterAuth(
-      {},
       {
         user: { id: "u_bob" },
         session: {},
@@ -295,24 +314,27 @@ describe("subjectFromBetterAuth", () => {
           { organizationId: "o_acme", userId: "u_alice", role: "owner" },
         ],
       },
+      { auth: {} },
     );
     expect(injected.principal?.memberships).toEqual([]);
   });
 
   it("skips one organization whose lookup fails and keeps the rest", async () => {
     const subject = await subjectFromBetterAuth(
+      { user: { id: "u_bob" }, session: {} },
       {
-        api: {
-          listOrganizations: async () => ORGANIZATIONS,
-          listMembers: async (args) => {
-            if (args?.query?.organizationId === "o_acme") {
-              throw new Error("unavailable");
-            }
-            return GLOBEX_MEMBERS;
+        auth: {
+          api: {
+            listOrganizations: async () => ORGANIZATIONS,
+            listMembers: async (args) => {
+              if (args?.query?.organizationId === "o_acme") {
+                throw new Error("unavailable");
+              }
+              return GLOBEX_MEMBERS;
+            },
           },
         },
       },
-      { user: { id: "u_bob" }, session: {} },
     );
     expect(subject.principal?.memberships).toEqual([
       { tenant: "o_globex", roles: ["admin"] },
@@ -320,7 +342,8 @@ describe("subjectFromBetterAuth", () => {
   });
 
   it("drops extra fields when the schema fails and never uses profile fields", async () => {
-    const subject = await subjectFromBetterAuth({}, session, {
+    const subject = await subjectFromBetterAuth(session, {
+      auth: {},
       schema: z.object({ plan: z.number() }),
     });
     expect(subject.principal?.id).toBe("user-1");
@@ -328,7 +351,8 @@ describe("subjectFromBetterAuth", () => {
   });
 
   it("drops undeclared global roles when declared is set", async () => {
-    const subject = await subjectFromBetterAuth({}, session, {
+    const subject = await subjectFromBetterAuth(session, {
+      auth: {},
       declared: ["admin"],
     });
     expect(subject.principal?.roles).toEqual([]);
@@ -336,14 +360,16 @@ describe("subjectFromBetterAuth", () => {
 
   it("treats a thrown membership source as no memberships", async () => {
     const subject = await subjectFromBetterAuth(
+      { user: { id: "user-3", role: "support" }, session: {} },
       {
-        api: {
-          listOrganizations: async () => {
-            throw new Error("unavailable");
+        auth: {
+          api: {
+            listOrganizations: async () => {
+              throw new Error("unavailable");
+            },
           },
         },
       },
-      { user: { id: "user-3", role: "support" }, session: {} },
     );
     expect(subject.principal?.id).toBe("user-3");
     expect(subject.principal?.memberships).toEqual([]);
@@ -377,9 +403,9 @@ describe("rolesFromAccessControl", () => {
   });
 });
 
-describe("betterAuthRoleSource conformance", () => {
-  testRoleSource(
-    betterAuthRoleSource(
+describe("betterAuthCustomRoleSource conformance", () => {
+  testCustomRoleSource(
+    betterAuthCustomRoleSource(
       {
         api: {
           listOrganizationRoles: async () => [
@@ -399,14 +425,14 @@ describe("betterAuthRoleSource conformance", () => {
 
 describe("subjectFromBetterAuth conformance", () => {
   testSubjectResolver(
-    (input: unknown) => subjectFromBetterAuth({ api: {} }, input),
+    (input: unknown) => subjectFromBetterAuth(input, { auth: { api: {} } }),
     { invalid: { user: "not a user" } },
   );
 });
 
-describe("betterAuthRoleSource", () => {
+describe("betterAuthCustomRoleSource", () => {
   it("includes declared assignable roles whose statements the dynamic role covers", async () => {
-    const source = betterAuthRoleSource(
+    const source = betterAuthCustomRoleSource(
       {
         api: {
           listOrganizationRoles: async () => [
@@ -440,7 +466,7 @@ describe("betterAuthRoleSource", () => {
   });
 
   it("resolves to nothing when the organization role API throws", async () => {
-    const source = betterAuthRoleSource({
+    const source = betterAuthCustomRoleSource({
       api: {
         listOrganizationRoles: async () => {
           throw new Error("down");
@@ -462,7 +488,7 @@ describe("onRoleChange", () => {
   });
 
   it("writes a membership event when a sink is given", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const hook = onRoleChange(() => undefined, { sink });
     await hook({
       userId: "user-1",

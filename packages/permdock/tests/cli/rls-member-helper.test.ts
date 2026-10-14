@@ -25,8 +25,8 @@ afterEach(() => {
 });
 
 const SOURCES = `[
-    fromTable({ table: 'memberships', columns: { via: 'via', expiresAt: 'expires_at' } }),
-    fromJunction({
+    tableMembershipSource({ table: 'memberships', columns: { via: 'via', expiresAt: 'expires_at' } }),
+    junctionMembershipSource({
       table: 'contacts',
       scope: 'customer',
       within: { organization: 'organization_id' },
@@ -44,7 +44,7 @@ async function generate(
   temps.push(cwd);
   writeFileSync(
     join(cwd, "permdock.config.ts"),
-    `import { fromJunction, fromTable } from ${JSON.stringify(SUPABASE)};
+    `import { junctionMembershipSource, tableMembershipSource } from ${JSON.stringify(SUPABASE)};
 export default {
   permissions: ${JSON.stringify(POLICY)},
   policy: ${JSON.stringify(POLICY)},
@@ -83,7 +83,7 @@ describe("member_<scope>_ids", () => {
     expect(body).toContain("m ->> 'scope' = 'customer'");
     expect(body).toContain("jsonb_array_length(m -> 'roles') > 0");
     // Expired memberships stay out, as in permitted_<scope>_ids.
-    expect(body).toContain("(m ->> 'expiresAt')::numeric");
+    expect(body).toContain("(m ->> 'expires_at')::numeric");
     // No role_permissions join and no tenant claim: membership only.
     expect(body).not.toContain("role_permissions");
     expect(body).not.toContain("tenant_id");
@@ -122,7 +122,7 @@ describe("member_<scope>_ids", () => {
 
   it("prefers rls.membershipSources over the hook sources, and selects database mode", async () => {
     const { code, sql } = await generate(
-      `{ dialect: 'supabase', tenantType: 'text', membershipSources: [fromTable({ table: 'staff' })] }`,
+      `{ dialect: 'supabase', tenantType: 'text', membershipSources: [tableMembershipSource({ table: 'staff' })] }`,
       `{ memberships: ${SOURCES} }`,
     );
     expect(code).toBe(0);

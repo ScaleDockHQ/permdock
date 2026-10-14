@@ -373,7 +373,7 @@ describe("permdock supabase inspect", () => {
           },
         },
         membershipSources: [
-          fromJunction({ table: 'customer_contacts', scope: 'customer', within: { organization: 'organization_id' }, roles: ['contact'] }),
+          junctionMembershipSource({ table: 'customer_contacts', scope: 'customer', within: { organization: 'organization_id' }, roles: ['contact'] }),
         ],
       }`,
     );
@@ -616,7 +616,7 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
 describe("membership suspension in the manifest", () => {
   it("writes the disabledAt columns and the kept keys", async () => {
     const { code, cwd } = await generate(
-      `{ memberships: [fromJunction({ table: 'organization_users', scope: 'organization', roles: 'role', disabledAt: 'disabled_at', suspension: { memberships: { keep: ['invoice.read'] } } })] }`,
+      `{ memberships: [junctionMembershipSource({ table: 'organization_users', scope: 'organization', roles: 'role', disabledAt: 'disabled_at', suspension: { memberships: { keep: ['invoice.read'] } } })] }`,
       [],
       `{ tenantType: 'text', authorize: 'database', suspension: { memberships: { keep: ['invoice.read'] } }, memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', columns: { organization: 'organization_id' }, disabledAt: 'disabled_at' } } } }`,
     );

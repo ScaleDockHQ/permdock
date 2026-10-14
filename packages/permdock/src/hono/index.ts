@@ -2,11 +2,11 @@ export { createPermDock } from "./create.ts";
 export type {
   HonoPermDock,
   HonoPermDockOptions,
-  PermDockEnv,
+  HonoPermDockEnv,
   SseOptions,
 } from "./create.ts";
 export {
   discoverViaSignatureAgent,
   InvalidSignatureError,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "../server/web-bot-auth.ts";

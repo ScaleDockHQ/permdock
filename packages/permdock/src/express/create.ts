@@ -28,7 +28,7 @@ export type ExpressPermDockOptions<TUser = unknown> = ServerAdapterOptions<
   TUser
 >;
 
-export type PermDockRequest<
+export type ExpressPermDockRequest<
   T = unknown,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = Request & {
@@ -37,16 +37,16 @@ export type PermDockRequest<
 };
 
 export type ExpressPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: () => RequestHandler;
+  readonly middleware: () => RequestHandler;
   readonly protect: (
     permission: Permission | null,
-    loadData?: (req: Request) => unknown,
+    data?: (req: Request) => unknown,
     protectOptions?: ProtectOptions,
   ) => RequestHandler;
   readonly errorHandler: () => ErrorRequestHandler;
   readonly permdockHandler: () => Router;
   readonly withPermDock: (
-    fn: (req: PermDockRequest<unknown, V>, res: Response) => unknown,
+    fn: (req: ExpressPermDockRequest<unknown, V>, res: Response) => unknown,
   ) => RequestHandler;
   readonly openapi: OpenApiHooks;
 };
@@ -91,12 +91,12 @@ const errorHandler = (): ErrorRequestHandler => (err, req, res, next) => {
 
 const withPermDock =
   <V extends PolicyVocabulary>(
-    fn: (req: PermDockRequest<unknown, V>, res: Response) => unknown,
+    fn: (req: ExpressPermDockRequest<unknown, V>, res: Response) => unknown,
   ): RequestHandler =>
   (req, res, next) => {
     run(async () => {
       // SAFETY: withPermDock wraps routes mounted after permdock() or protect(), which set req.permdock from this factory's policy.
-      await fn(req as PermDockRequest<unknown, V>, res);
+      await fn(req as ExpressPermDockRequest<unknown, V>, res);
     }, next);
   };
 
@@ -117,9 +117,9 @@ export function createPermDock<
     guard: runGuard,
   } = bindKernel(policy, options, "express", toRequest);
 
-  const permdock = (): RequestHandler => (req, res, next) => {
+  const middleware = (): RequestHandler => (req, res, next) => {
     respond(req, res, next, async () => {
-      decorate(req, await kernel.permdock(bind(req), await scopeOf(req)));
+      decorate(req, await kernel.getPermDock(bind(req), await scopeOf(req)));
       next();
     });
   };
@@ -127,12 +127,12 @@ export function createPermDock<
   const protect =
     (
       permission: Permission | null,
-      loadData?: (req: Request) => unknown,
+      data?: (req: Request) => unknown,
       protectOptions?: ProtectOptions,
     ): RequestHandler =>
     (req, res, next) => {
       respond(req, res, next, async () => {
-        const guard = await runGuard(permission, loadData, req, protectOptions);
+        const guard = await runGuard(permission, data, req, protectOptions);
         if (!guard.ok) {
           await sendResponse(res, guard.response);
           return;
@@ -159,7 +159,7 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    middleware,
     protect,
     errorHandler,
     permdockHandler,

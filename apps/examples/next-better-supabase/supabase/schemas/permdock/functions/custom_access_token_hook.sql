@@ -53,9 +53,9 @@ begin
         (case when s.scope = 'organization' then s.id else s.within ->> 'organization' end) as tenant,
         jsonb_strip_nulls(jsonb_build_object(
           'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
-          'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+          'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
           'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
-          'managedBy', s.managed_by, 'entitlements', s.seats
+          'managed_by', s.managed_by, 'entitlements', s.seats
         )) as entry
       from (
         select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -68,9 +68,9 @@ begin
         (case when s.scope = 'organization' then s.id else s.within ->> 'organization' end) as tenant,
         jsonb_strip_nulls(jsonb_build_object(
           'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
-          'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+          'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
           'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
-          'managedBy', s.managed_by, 'entitlements', s.seats
+          'managed_by', s.managed_by, 'entitlements', s.seats
         )) as entry
       from (
         select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -195,9 +195,9 @@ begin
         (case when s.scope = 'organization' then s.id else s.within ->> 'organization' end) as tenant,
         jsonb_strip_nulls(jsonb_build_object(
           'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
-          'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+          'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
           'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
-          'managedBy', s.managed_by, 'entitlements', s.seats
+          'managed_by', s.managed_by, 'entitlements', s.seats
         )) as entry
       from (
         select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -210,9 +210,9 @@ begin
         (case when s.scope = 'organization' then s.id else s.within ->> 'organization' end) as tenant,
         jsonb_strip_nulls(jsonb_build_object(
           'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
-          'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+          'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
           'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
-          'managedBy', s.managed_by, 'entitlements', s.seats
+          'managed_by', s.managed_by, 'entitlements', s.seats
         )) as entry
       from (
         select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -269,9 +269,9 @@ as $$
       'principal', jsonb_build_object('id', s.user_id),
       'membership', jsonb_strip_nulls(jsonb_build_object(
         'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
-        'expiresAt', s.expires_at, 'grantedBy', s.granted_by, 'reason', s.reason,
+        'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
         'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
-        'managedBy', s.managed_by, 'entitlements', s.seats
+        'managed_by', s.managed_by, 'entitlements', s.seats
       ))
     ) order by s.user_id, s.roles::text), '[]'::jsonb)
   from (

@@ -103,8 +103,8 @@ describe("apiKeyVerifier", () => {
       tenant: ORG,
       permissions: [{ permission: "deals.read" }],
       createdBy: USER,
-      createdAt: 1_791_277_200,
-      expiresAt: 1_798_761_600,
+      createdAt: "2026-10-06T09:00:00.000Z",
+      expiresAt: "2027-01-01T00:00:00.000Z",
       name: "CI",
     });
     const unlimited = await verifier({
@@ -171,7 +171,7 @@ describe("apiKeyVerifier", () => {
   });
 
   it("expires a rotated key's credential when its grace period ends", async () => {
-    const graceEnds = 1_798_761_600;
+    const graceEnds = "2027-01-01T00:00:00.000Z";
     expect(
       await verifier({
         user_id: USER,

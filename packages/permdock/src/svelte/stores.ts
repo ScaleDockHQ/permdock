@@ -10,7 +10,7 @@ import type {
   ApprovalHandle,
   ClientPermDock,
   FilterResult,
-  PermDockSvelteOptions,
+  SveltePermDockOptions,
   PermissionSet,
   PermissionState,
   SubjectView,
@@ -49,7 +49,7 @@ export function sveltePermDock(store: ClientStore): ClientPermDock {
   return livePermDock(() => store.get());
 }
 
-export function setPermDock(options: PermDockSvelteOptions): ClientPermDock {
+export function setPermDock(options: SveltePermDockOptions): ClientPermDock {
   return sveltePermDock(providePermDock(options));
 }
 

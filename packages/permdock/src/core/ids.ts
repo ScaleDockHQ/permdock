@@ -16,6 +16,29 @@ export function idText(value: unknown): string | undefined {
   return undefined;
 }
 
+const MAX_ID = 256;
+const MAX_ENTRIES = 64;
+
+/** A wire id: a non-empty string of at most 256 characters. */
+export function isId(value: unknown): value is string {
+  return (
+    typeof value === "string" && value.length > 0 && value.length <= MAX_ID
+  );
+}
+
+/** A non-empty list of at most 64 wire ids, deduplicated, else `undefined`. */
+export function idList(value: unknown): readonly string[] | undefined {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > MAX_ENTRIES ||
+    !value.every(isId)
+  ) {
+    return undefined;
+  }
+  return [...new Set(value)];
+}
+
 /** Whether two ids are the same id once both are read as text; a missing id matches nothing. */
 export function sameId(left: unknown, right: unknown): boolean {
   const text = idText(left);

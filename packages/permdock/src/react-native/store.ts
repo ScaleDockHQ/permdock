@@ -2,7 +2,7 @@ import type { ClientStore } from "../client/store.ts";
 import type { SnapshotSource } from "../core/interfaces.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
 import type {
-  NativePermDockProviderProps,
+  ReactNativePermDockProviderProps,
   SubscribeForeground,
 } from "./types.ts";
 
@@ -21,7 +21,7 @@ import {
 } from "./storage.ts";
 
 export type NativeStoreOptions = Omit<
-  NativePermDockProviderProps,
+  ReactNativePermDockProviderProps,
   "children" | "headers" | "defaults" | "messages"
 > & {
   readonly headers?:
@@ -33,7 +33,7 @@ export type NativeStoreOptions = Omit<
 
 /** The snapshot's content without `issuedAt`, which every local rebuild changes. */
 function contentKey(snapshot: Snapshot): string {
-  return JSON.stringify({ ...snapshot, issuedAt: 0 });
+  return JSON.stringify({ ...snapshot, issuedAt: "" });
 }
 
 /**
@@ -120,7 +120,7 @@ function parseSeed(
   }
 }
 
-export function createNativeStore(options: NativeStoreOptions): ClientStore {
+export function nativeStore(options: NativeStoreOptions): ClientStore {
   const storage = guardStorage(options.storage);
   const signed = options.verifier !== undefined;
   const revalidates =

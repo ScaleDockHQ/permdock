@@ -1,10 +1,11 @@
 # Agent runtimes
 
-Every agent adapter exports `createPermDock` from `permdock/<runtime>` and takes `subject`, `actor`, `delegation`, `tools` and `store`. One permission per tool. Instance actions load the row through `data`; tool input arrives as `unknown`, so parse it before loading. The current adapter page is `https://permdock.com/docs/adapters/<name>`.
+Every agent adapter exports `createPermDock` from `permdock/<runtime>` and takes `subject`, `actor`, `delegation`, `tenant`, `operations`, `models`, `store`, `unmapped`, `context`, `otel`, `wrap` and `deniedText`. `ai-sdk`, `openai`, `claude-agent` and `eve` build on the `permdock/agent` contract, so each also returns `decideOperation`, `allowedOperations`, `decideModel`, `permittedModels`, `filterResults` and `gatewayOptions` ([operations-automations-chat.md](operations-automations-chat.md)). `operations` is the map `defineOperations(permissions, …)` returns, one permission per tool name. `unmapped: 'allow'` leaves a tool `operations` does not name to the runtime; the default denies it. Instance actions load the row through `data`; tool input arrives as `unknown`, so parse it before loading. The current adapter page is `https://permdock.com/docs/adapters/<name>`.
 
 ## AI SDK — `permdock/ai-sdk`
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/ai-sdk";
 import { z } from "zod";
 
@@ -18,12 +19,12 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
       kind: "ai-sdk",
     }),
     delegation: () => ({ scopes: [permissions.post.delete.scope] }),
-    tools: {
+    operations: defineOperations(permissions, {
       delete_post: {
         permission: permissions.post.delete,
         data: (args) => loadPost(PostArgs.parse(args).id),
       },
-    },
+    }),
   });
 ```
 
@@ -32,18 +33,19 @@ Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `
 ## Claude Agent SDK — `permdock/claude-agent`
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/claude-agent";
 
 export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
   subject: () => user,
   actor: () => ({ id: "claude", kind: "claude-agent" }),
   delegation: () => ({ scopes: [permissions.post.delete.scope] }),
-  tools: {
+  operations: defineOperations(permissions, {
     delete_post: {
       permission: permissions.post.delete,
       data: (args) => loadPost(args),
     },
-  },
+  }),
 });
 ```
 
@@ -52,16 +54,17 @@ export const { canUseTool, permissionRequestHook } = createPermDock(policy, {
 ## Eve — `permdock/eve`
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/eve";
 
-export const { approval, approvalFor, permdock } = createPermDock(policy, {
+export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
   delegation: () => ({ scopes: [permissions.post.delete.scope] }),
-  tools: {
+  operations: defineOperations(permissions, {
     delete_post: {
       permission: permissions.post.delete,
       data: (args) => loadPost(args),
     },
-  },
+  }),
 });
 ```
 
@@ -70,19 +73,20 @@ Pass `approval` as the tool's `approval`. Default subject and actor read `sessio
 ## OpenAI Agents SDK — `permdock/openai`
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/openai";
 
-export const { needsApproval, guardTools, resolveInterruptions, permdock } =
+export const { needsApproval, guardTools, resolveInterruptions, getPermDock } =
   createPermDock(policy, {
     subject: (ctx) => ctx.user,
     actor: (ctx) => ({ id: ctx.agentId, kind: "openai" }),
     delegation: (ctx) => ({ scopes: ctx.scopes }),
-    tools: {
+    operations: defineOperations(permissions, {
       delete_post: {
         permission: permissions.post.delete,
         data: (args) => loadPost(args),
       },
-    },
+    }),
   });
 ```
 
@@ -115,7 +119,7 @@ server.registerTool(
 
 `actor.kind` is `'mcp-client'` unless `actorKind` sets another (`'oauth-client'` makes the token the same actor kind `permdock/supabase` and `permdock/jwt` give it, so one delegation covers both), and `delegation` comes from the token's scopes and `authorization_details`. Every `registerTool` / `registerResource` / `registerPrompt` needs a `permission`. Lists are filtered per caller. A missing scope is an `insufficient_scope` step-up (HTTP `403`) naming only the scope the call needs. When the authorization server issues coarse scopes (`mcp:read`), declare them in `definePolicy({ oauthScopes })` instead of expanding scopes yourself: they are expanded into the delegation and named in challenges. Set `resource` to the server's URL so tokens for another audience are refused. Denied calls return `isError: true` with Decision `structuredContent`. `approval-required` parks the call in `store` and returns `isError: true` with the token, or an `input_required` URL request when `approval.at` is set and the client declares URL elicitation; the retried call runs once after approval (token optional under `_meta["dev.permdock/approval"]`, never from tool arguments) ([MCP adapter](https://permdock.com/docs/adapters/mcp)).
 
-An MCP server that is not an SDK `McpServer` cannot be wrapped: narrow the tool's `meta` with `isPermission`, filter its tool list with `mayUse(permdock, permission)` from `permdock`, and decide each call with `permdock.decide(permission, args)` in its `authorize` hook. `mayUse` is a listing hint, never a decision.
+An MCP server that is not an SDK `McpServer` cannot be wrapped: narrow the tool's `meta` with `isPermission`, filter its tool list with `permdock.mayUse(permission)`, and decide each call with `permdock.decide(permission, args)` in its `authorize` hook. `mayUse` is a listing hint, never a decision.
 
 When a tool's handler calls an oRPC procedure that runs `protect`, use `protectServer(server, { enforce: 'procedure', permissionFor: (name) => permissionOf(procedures.get(name)) })` with `permissionOf` from `permdock/orpc`. `tools/list` and annotations follow the permission; the call is not guarded, so each call decides once, in the procedure. `data` and `longRunning` throw in this mode, and the mode covers the whole server. When the same operations are REST routes, declare each permission once with `operationPermissions({ 'GET /customers/{id}': { permission, operationId } })` from `permdock/openapi` and pass `permissionFor: operations.forOperation`; the HTTP gate reads `operations.forRequest(method, path)` from the same object. When two operations share a permission but need different coarse scopes (reading an export with `mcp:read`, creating one with `mcp:write`), list the permission under both in `oauthScopes`, then narrow each operation with `oauthScopes: ['mcp:read']` on its entry (or on the tool config): pass `oauthScopesFor: operations.oauthScopesForOperation` to `protectServer`, and `operations` to `permdock/server` (or `protect`'s `oauthScopes`) for the REST routes, which then answer `insufficient_scope` naming that scope. A route that checks no permission but should still require a scope (a chat endpoint, setting the active organization) uses `protect(null, undefined, { oauthScopes: ['api:chat'] })` or an operation entry with only `oauthScopes`; never write an app-side rule that maps HTTP methods to scopes.
 
@@ -183,14 +187,14 @@ Never import a policy into this entry. A missing `document.modelContext` is a no
 import {
   createPermDock,
   discoverViaSignatureAgent,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "permdock/hono";
 
 const keys = discoverViaSignatureAgent({ allow: ["agents.example.com"] });
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
-  webBotAuth: (request) => verifyWebBotAuth(request, { verify: true, keys }),
+  webBotAuth: webBotAuthVerifier({ verify: true, keys }),
 });
 ```
 
@@ -201,7 +205,7 @@ A verified RFC 9421 signer becomes the actor with `kind: 'web-bot-auth'`; `deleg
 ```ts
 import { createPermDock } from "permdock/terminal";
 
-export const { permdock, protect, filterCommands, format, exitCode } =
+export const { getPermDock, protect, filterCommands, format, exitCode } =
   createPermDock(policy, {
     subject: async ({ token }) => {
       const jwt = await token(["env", "keychain", "ci-oidc", "device"]);

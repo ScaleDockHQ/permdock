@@ -43,7 +43,7 @@ function runtimeWith(
   return {
     clock,
     http,
-    runtime: { fetch: http.fetch, sleep: clock.sleep, now: clock.seconds },
+    runtime: { fetch: http.fetch, sleep: clock.sleep, now: clock.instant },
   };
 }
 
@@ -168,7 +168,7 @@ describe("runDeviceFlow (RFC 8628)", () => {
       expect(
         await runDeviceFlow(
           DEVICE,
-          { fetch: http.fetch, sleep: clock.sleep, now: clock.seconds },
+          { fetch: http.fetch, sleep: clock.sleep, now: clock.instant },
           () => undefined,
         ),
       ).toBeNull();
@@ -191,7 +191,7 @@ describe("runDeviceFlow (RFC 8628)", () => {
     });
     const credential = await runDeviceFlow(
       { clientId: "cli", issuer: "https://id.example/" },
-      { fetch: http.fetch, sleep: clock.sleep, now: clock.seconds },
+      { fetch: http.fetch, sleep: clock.sleep, now: clock.instant },
       () => undefined,
     );
     expect(credential).toEqual({ access_token: "at" });
@@ -208,7 +208,7 @@ describe("runDeviceFlow (RFC 8628)", () => {
     const runtime = (reply: () => Response) => ({
       fetch: fakeFetch(reply).fetch,
       sleep: clock.sleep,
-      now: clock.seconds,
+      now: clock.instant,
     });
     expect(
       await runDeviceFlow(
@@ -241,7 +241,7 @@ describe("refreshCredential (RFC 6749 §6)", () => {
     const refreshed = await refreshCredential(
       DEVICE,
       { access_token: "at", refresh_token: "rt" },
-      { fetch: http.fetch, now: () => 100 },
+      { fetch: http.fetch, now: () => ({ epochMilliseconds: 100_000 }) },
     );
     expect(refreshed).toEqual({ access_token: "at2", expires_at: 110 });
     expect(form(http.calls[0])).toEqual({

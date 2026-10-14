@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { CatalogFinding } from "../../core/sink.ts";
 import type { CommandResult } from "../shared/result.ts";
 import type {
   CatalogDelegation,
@@ -11,13 +12,15 @@ import type {
   ScanResult,
 } from "../types.ts";
 
+import { operationFindings } from "../../catalog/operation-findings.ts";
 import { parseCatalog } from "../../catalog/parse.ts";
 import { canonicalJson } from "../../core/canonical-json.ts";
+import { secondsOf } from "../../core/time.ts";
 import {
   type Policy,
   createPermDock,
   findPermission,
-  memoryRoleSource,
+  memoryCustomRoleSource,
 } from "../../index.ts";
 import { buildCatalog } from "../catalog-doc.ts";
 import { usageResult } from "../errors.ts";
@@ -113,6 +116,8 @@ export type CatalogDiff = {
     readonly removed: readonly CatalogDelegation[];
     readonly changed: readonly DelegationChange[];
   };
+  /** `operation-*` findings (`operationFindings`): a raised `meta.risk` or a removed approval; not breaking. */
+  readonly operations: readonly CatalogFinding[];
   readonly impact?: readonly ImpactRow[];
   readonly breaking: readonly BreakingChange[];
 };
@@ -265,9 +270,9 @@ function fieldsChange(
 }
 
 const validFrom = (value: CatalogGrant["validity"]): number =>
-  value?.from ?? Number.NEGATIVE_INFINITY;
+  secondsOf(value?.from) ?? Number.NEGATIVE_INFINITY;
 const validUntil = (value: CatalogGrant["validity"]): number =>
-  value?.until ?? Number.POSITIVE_INFINITY;
+  secondsOf(value?.until) ?? Number.POSITIVE_INFINITY;
 
 /** Narrowed when the window starts later or ends earlier than before; a new window on an open grant narrows it. */
 function validityChange(
@@ -632,6 +637,7 @@ export function diffCatalogs(original: Side, b: Side): CatalogDiff {
     roles: { ...roleNames, changed: changedRoles },
     ...(grants === undefined ? {} : { grants }),
     ...(delegations === undefined ? {} : { delegations }),
+    operations: operationFindings(original.catalog, b.catalog),
     breaking,
   };
 }
@@ -650,7 +656,9 @@ async function impactOf(input: {
     input.cwd,
     input.fixtures,
   );
-  const now = Math.floor(input.now.getTime() / 1000);
+  const now = {
+    epochMilliseconds: Math.floor(input.now.getTime() / 1000) * 1000,
+  };
   const outcome = async (
     policy: Policy,
     fixture: (typeof fixtures)[number],
@@ -663,7 +671,7 @@ async function impactOf(input: {
       policy,
       fixtureSubject(fixture.subject),
       {
-        customRoles: memoryRoleSource(customRoles),
+        customRoles: memoryCustomRoleSource(customRoles),
       },
     );
     const [decision] = permdock.simulate(
@@ -770,6 +778,19 @@ function formatText(diff: CatalogDiff): string {
       ),
     );
   }
+  section(
+    "operations",
+    [],
+    [],
+    diff.operations.map(
+      (finding) =>
+        `${[finding.operation, `(${finding.permission})`].join(" ")}: ${
+          finding.code === "operation-risk-raised"
+            ? `risk ${[finding.previous, finding.risk].join(" → ")}`
+            : "approval no longer required"
+        }`,
+    ),
+  );
   if (diff.impact !== undefined) {
     lines.push(
       diff.impact.length === 0

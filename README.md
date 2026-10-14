@@ -56,16 +56,19 @@ Permission logic in a typical TypeScript app lives in `if (user.role === 'admin'
 
 ## What ships
 
-| Surface             | Entries                                                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| UI                  | `permdock/react`, `react-native`, `vue`, `svelte`, `solid`                                                          |
-| Full-stack and HTTP | `permdock/next`, `server`, `hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `trpc`, `orpc`, `terminal`       |
-| Agents              | `permdock/mcp`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `webmcp`, `a2a`                                          |
-| Decision plane      | `permdock/authzen`, `approvals`, `cloud`, `scim`, `ssf`, `openapi`, `otel`, `pdp`                                   |
-| Data                | `permdock/drizzle`, `prisma`, `kysely`, and `permdock rls generate / import / verify / migrate`                     |
-| Auth providers      | `permdock/jwt`, `supabase`, `supabase/middleware`, `better-auth`, `clerk`, `convex`                                 |
-| CLI                 | `permdock collect`, `catalog`, `diff`, `usage`, `doctor`, `skills`, `openapi`, `rls`, `arazzo`, `cloud`, `supabase` |
-| Tooling             | `permdock/testing`, `permdock/next/plugin`, `permdock/unplugin`, the `permdock` and `permdock-*` agent skills       |
+| Surface        | Entries                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- |
+| UI             | `permdock/react`, `react-native`, `vue`, `svelte`, `solid`                                                          |
+| Full-stack     | `permdock/next`, `sveltekit`, `astro`, `solid-start`, `tanstack-start`                                              |
+| HTTP and RPC   | `permdock/server`, `hono`, `h3`, `express`, `fastify`, `elysia`, `nest`, `node`, `trpc`, `orpc`, `terminal`         |
+| Agents         | `permdock/agent`, `mcp`, `ai-sdk`, `claude-agent`, `eve`, `openai`, `webmcp`, `a2a`                                 |
+| Automations    | `permdock/workflow`, `workflow-sdk`                                                                                 |
+| Messaging      | `permdock/delivery`, `resend`, `chat`, `chat-sdk`                                                                   |
+| Decision plane | `permdock/authzen`, `approvals`, `cloud`, `scim`, `ssf`, `openapi`, `otel`, `pdp`                                   |
+| Data           | `permdock/drizzle`, `prisma`, `kysely`, and `permdock rls generate / import / verify / migrate`                     |
+| Auth providers | `permdock/jwt`, `supabase`, `supabase/middleware`, `better-supabase`, `better-auth`, `clerk`, `convex`              |
+| CLI            | `permdock collect`, `catalog`, `diff`, `usage`, `doctor`, `skills`, `openapi`, `rls`, `arazzo`, `cloud`, `supabase` |
+| Tooling        | `permdock/testing`, `permdock/next/plugin`, `permdock/unplugin`, the `permdock` and `permdock-*` agent skills       |
 
 Every entry has a page under [`apps/docs/content/docs/adapters`](./apps/docs/content/docs/adapters/index.mdx) and, where it has a runtime, an app under [`apps/examples`](./apps/examples).
 

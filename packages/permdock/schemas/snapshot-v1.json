@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/snapshot-v1.json",
+  "title": "PermDock snapshot v1",
+  "description": "A Snapshot as /snapshot serves it and a client store caches it. Signed as a vnd.permdock.snapshot+jwt, issuedAt and expiresAt move to iat and exp and the rest is the snapshot claim. Unknown properties are allowed so a v1 minor release can add one.",
+  "type": "object",
+  "required": ["v", "issuedAt", "subject", "roles", "grants", "tenants"],
+  "properties": {
+    "v": { "const": 1 },
+    "issuedAt": { "$ref": "#/$defs/instant" },
+    "expiresAt": { "$ref": "#/$defs/instant" },
+    "subject": {
+      "type": "object",
+      "required": ["principal", "context"],
+      "properties": {
+        "principal": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["id", "roles"],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "roles": { "$ref": "#/$defs/strings" },
+                "plans": { "$ref": "#/$defs/strings" },
+                "tenant": { "type": "string" },
+                "memberships": {
+                  "type": "array",
+                  "items": { "type": "object" }
+                }
+              }
+            }
+          ]
+        },
+        "delegation": { "$ref": "#/$defs/delegation" },
+        "context": { "type": "object" }
+      }
+    },
+    "roles": { "$ref": "#/$defs/strings" },
+    "audiences": { "$ref": "#/$defs/strings" },
+    "grants": { "type": "array", "items": { "$ref": "#/$defs/grant" } },
+    "tenants": { "$ref": "#/$defs/strings" },
+    "include": { "$ref": "#/$defs/strings" },
+    "simulated": { "const": true },
+    "vocabulary": { "type": "object" },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "key"],
+        "properties": {
+          "name": { "type": "string" },
+          "key": { "type": "string" },
+          "within": { "type": "string" },
+          "resources": { "$ref": "#/$defs/strings" },
+          "fields": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    "assignable": { "type": "array", "items": { "type": "object" } },
+    "notEntitled": { "type": "array", "items": { "type": "object" } },
+    "ids": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "delegated": { "$ref": "#/$defs/strings" }
+  },
+  "$defs": {
+    "instant": {
+      "description": "RFC 3339 date-time.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "strings": { "type": "array", "items": { "type": "string" } },
+    "delegation": {
+      "description": "OAuth scope (RFC 6749, space-separated) and RFC 9396 authorization_details.",
+      "type": "object",
+      "properties": {
+        "scope": { "type": "string" },
+        "authorization_details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "type": "string", "minLength": 1 } }
+          }
+        }
+      }
+    },
+    "grant": {
+      "type": "object",
+      "required": ["permission", "effect", "role", "to"],
+      "properties": {
+        "permission": { "type": "string", "minLength": 1 },
+        "effect": { "enum": ["allow", "deny"] },
+        "role": { "type": ["string", "null"] },
+        "to": {
+          "anyOf": [
+            { "type": "object" },
+            { "type": "array", "items": { "type": "object" } }
+          ]
+        },
+        "where": { "type": "object" },
+        "check": { "type": "object" },
+        "approval": {
+          "anyOf": [{ "const": "human" }, { "type": "object" }]
+        },
+        "scope": {
+          "anyOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "required": ["resource"],
+              "properties": { "resource": { "type": "string" } }
+            }
+          ]
+        },
+        "membership": { "type": "object" },
+        "portable": { "const": false },
+        "fields": { "$ref": "#/$defs/strings" },
+        "validity": {
+          "type": "object",
+          "properties": {
+            "from": { "$ref": "#/$defs/instant" },
+            "until": { "$ref": "#/$defs/instant" }
+          }
+        },
+        "name": { "type": "string" },
+        "meta": { "type": "object" },
+        "obligations": { "type": "array" }
+      }
+    }
+  }
+}

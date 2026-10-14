@@ -40,7 +40,8 @@ export type RemotePdpEndpoints = {
 };
 
 export type RemotePdpCache = {
-  readonly ttl: number | `${number}s` | `${number}ms`;
+  /** Seconds, at most 30. */
+  readonly ttl: number;
 };
 
 export type RemotePdpOptions = {
@@ -110,6 +111,7 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
   PermDock<V>,
   | "can"
   | "decide"
+  | "decideEach"
   | "assert"
   | "explain"
   | "filter"
@@ -139,6 +141,12 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
     data?: unknown,
     options?: DecideOptions,
   ) => Promise<Decision>;
+  /** `decide` for each row, in row order, asking the PDP per row. */
+  readonly decideEach: (
+    permission: Permission,
+    rows: readonly unknown[],
+    options?: DecideOptions,
+  ) => Promise<readonly Decision[]>;
   readonly assert: (
     permission: Permission,
     data?: unknown,

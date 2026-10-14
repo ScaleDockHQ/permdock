@@ -176,11 +176,11 @@ export const policy = definePolicy(permissions, {
       principal: "u_1",
       permissions: [{ permission: "post.read" }],
       createdBy: "u_1",
-      createdAt: 1_790_000_000,
+      createdAt: "2026-09-21T13:46:40.000Z",
     };
     const fixture = {
       credentials: [
-        { ...base, id: "expiring", expiresAt: 1_790_086_400 },
+        { ...base, id: "expiring", expiresAt: "2026-09-22T13:46:40.000Z" },
         { ...base, id: "forever" },
         { ...base, id: "broken", kind: "robot" },
       ],

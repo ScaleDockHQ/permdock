@@ -32,9 +32,9 @@ Authentication is upstream: core never verifies a token. A `subjectFrom*` resolv
 
 1. **Verify access tokens.** Create one `createJwtSubjectResolver({ discovery, audience })` per issuer from `permdock/jwt` for the life of the process, because it caches Discovery and the JWKS; `subjectFromJwt(token, options)` caches nothing and suits a one-off check. Or use `subjectFromIntrospection` when the app already called introspection. -> [references/tokens-keys-links.md](references/tokens-keys-links.md)
    ✓ An ID token, a token for another audience and an expired token each resolve to the anonymous subject.
-2. **Issue API keys, when the product has them.** Guard the creation endpoint with its own permission, call `decideCredential(permdock, request, { settings })`, store the hash with the returned `Credential`, and show the key once. -> [references/tokens-keys-links.md](references/tokens-keys-links.md#api-keys-and-service-accounts)
+2. **Issue API keys, when the product has them.** Guard the creation endpoint with its own permission, call `permdock.decideCredential(request, { settings })`, store the hash with the returned `Credential`, and show the key once. -> [references/tokens-keys-links.md](references/tokens-keys-links.md#api-keys-and-service-accounts)
    ✓ A service key wider than its creator is denied with `exceeds-creator`.
-3. **Resolve API keys.** Build `subjectFromApiKey({ verifier: apiKeyVerifier({ find }), permissions, owner, revoked, settings, sink })` and call it as `resolveKey(key, { tenant })`.
+3. **Resolve API keys.** Call `subjectFromApiKey(key, { verifier: apiKeyVerifier({ find }), permissions, principals, revoked, settings, sink, tenant })` on each request.
    ✓ A revoked or expired key is anonymous, and a user key never exceeds its owner's current rights.
 4. **Share links, when the product has them.** Declare the link's roles on the resource, mint with `signCapability` behind a guard of its own, and resolve with `subjectFromCapability` and the tenant's `linkPolicy`. With Supabase RLS, exchange the link with `exchangeCapability` and generate with `--capabilities`. -> [references/tokens-keys-links.md](references/tokens-keys-links.md#share-links)
    ✓ An expired, revoked or replayed (`once`) link resolves to the anonymous subject.
@@ -45,7 +45,7 @@ Authentication is upstream: core never verifies a token. A `subjectFrom*` resolv
 
 - [ ] `subjectFromJwt` uses Discovery or an explicit `jwks` plus `issuer`, sets `audience`, and allows only `Ed25519`, `ES256` or `PS256`.
 - [ ] No subject, tenant or membership comes from `user_metadata`, a request body or an unsigned header.
-- [ ] API keys are stored as hashes, created only through `decideCredential` behind their own guard, and expire (PD029).
+- [ ] API keys are stored as hashes, created only through `permdock.decideCredential` behind their own guard, and expire (PD029).
 - [ ] No `memberships` source is passed to `createPermDock` for service-key subjects.
 - [ ] Share links expire, are minted behind their own guard, and reach RLS only through `exchangeCapability`.
 

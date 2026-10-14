@@ -8,7 +8,7 @@ import {
   createPermDock,
   findPermission,
   hasConditionOp,
-  memoryRoleSource,
+  memoryCustomRoleSource,
 } from "../../index.ts";
 import { usageResult } from "../errors.ts";
 import { fixtureRow, fixtureSubject, loadFixtures } from "../fixtures.ts";
@@ -130,7 +130,7 @@ export async function runRlsVerify(input: {
       policy,
       fixtureSubject(fixture.subject),
       {
-        customRoles: memoryRoleSource(customRoles),
+        customRoles: memoryCustomRoleSource(customRoles),
       },
     );
     const granted = canFixture(

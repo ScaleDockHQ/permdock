@@ -99,7 +99,7 @@ export type SupabaseManifestRole =
   | SupabaseManifestValue
   | (SupabaseManifestColumn & { readonly through: SupabaseManifestThrough });
 
-/** One `fromTable` or `fromJunction` source. */
+/** One `tableMembershipSource` or `junctionMembershipSource` source. */
 export type SupabaseManifestMembership = {
   /** `schema.table`, `public` when the source names no schema. */
   readonly table: string;
@@ -107,7 +107,7 @@ export type SupabaseManifestMembership = {
   readonly user:
     | SupabaseManifestColumn
     | (SupabaseManifestColumn & { readonly through: SupabaseManifestThrough });
-  /** A column for `fromTable`, the fixed scope for `fromJunction`. */
+  /** A column for `tableMembershipSource`, the fixed scope for `junctionMembershipSource`. */
   readonly scope: SupabaseManifestValue;
   readonly id: SupabaseManifestColumn;
   /** A role column, the fixed roles every row holds, or several role columns whose keys the row holds together. */

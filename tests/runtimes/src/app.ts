@@ -1,7 +1,7 @@
 import type { JsonWebKeySet } from "permdock/jwt";
 
 import { Hono } from "hono";
-import { memoryRoleSource } from "permdock";
+import { memoryCustomRoleSource } from "permdock";
 import { createPermDock as createAuthzen } from "permdock/authzen";
 import { createPermDock as createHono } from "permdock/hono";
 import { createJwtSubjectResolver } from "permdock/jwt";
@@ -21,7 +21,7 @@ import {
 /** The only bearer the AuthZEN endpoint accepts: a test-only PEP credential. */
 export const PEP_TOKEN = "runtimes-pep-bearer";
 
-export const customRoles = memoryRoleSource(saasCustomRoles);
+export const customRoles = memoryCustomRoleSource(saasCustomRoles);
 
 const verify = createJwtSubjectResolver({
   // SAFETY: saasJwks is a well-formed EC JWKS; its EcJwk type differs from JsonWebKeySet's key type
@@ -88,7 +88,7 @@ const authzen = createAuthzen(saasPolicy, {
   trustedPep: (pep) =>
     // SAFETY: `principal` and `id` are optional; optional chaining covers null
     (pep as { principal?: { id?: string } } | null)?.principal?.id === "pep",
-  resources: { project: { load: (id) => projectOf(id) } },
+  resources: { project: { data: (id) => projectOf(id) } },
   memberships: {
     membershipsFor: (principal) => saasMemberships(principal.id),
   },
@@ -100,11 +100,11 @@ export const app = new Hono()
   .on(["GET", "PATCH"], "/kernel/:org/projects/:id", (c) =>
     kernelRoute(c.req.raw),
   )
-  .use("/hono/:org/*", hono.permdock())
+  .use("/hono/:org/*", hono.middleware())
   .get("/hono/:org/projects/:id", hono.protect(p.project.read, row), (c) =>
     c.json(projectOf(c.req.param("id"))),
   )
   .patch("/hono/:org/projects/:id", hono.protect(p.project.update, row), (c) =>
     c.json({ id: c.req.param("id") }),
   )
-  .all("/access/v1/*", (c) => authzen.permdockHandler(c.req.raw));
+  .all("/access/v1/*", (c) => authzen.permdockHandler()(c.req.raw));

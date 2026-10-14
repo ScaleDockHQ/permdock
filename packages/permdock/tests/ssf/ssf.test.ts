@@ -1,4 +1,5 @@
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -33,6 +34,7 @@ const SESSION_REVOKED =
 const CREDENTIAL_CHANGE =
   "https://schemas.openid.net/secevent/caep/event-type/credential-change";
 const UNKNOWN_EVENT = "https://schemas.example.com/event-type/custom";
+const RISC = "https://schemas.openid.net/secevent/risc/event-type/";
 
 function setRequest(token: string): Request {
   return new Request("https://app.example.com/ssf", {
@@ -214,6 +216,7 @@ describe("receiver.push", () => {
     const store = memoryApprovalStore();
     store.create({
       v: 1,
+      id: "apr-ssf",
       token: "pd1.ssf",
       permission: "post.delete",
       scope: "post:delete",
@@ -385,7 +388,7 @@ describe("receiver.push", () => {
     });
   });
 
-  it("returns 400 when a handler throws", async () => {
+  it("returns 500 when a handler throws so the transmitter retries", async () => {
     const { receiver } = createPermDock(policy, {
       issuer: ISSUER,
       audience: AUDIENCE,
@@ -405,8 +408,7 @@ describe("receiver.push", () => {
       },
     });
     const response = await receiver.push(setRequest("set-throw"));
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({ err: "invalid_request" });
+    expect(response.status).toBe(500);
   });
 });
 
@@ -692,7 +694,7 @@ describe("replay claim", () => {
         },
       },
     });
-    expect((await receiver.push(setRequest("set-multi"))).status).toBe(400);
+    expect((await receiver.push(setRequest("set-multi"))).status).toBe(500);
     expect((await receiver.push(setRequest("set-multi"))).status).toBe(202);
     expect((await receiver.push(setRequest("set-multi"))).status).toBe(202);
     expect(calls).toEqual([
@@ -789,7 +791,148 @@ describe("revocations", () => {
       },
     });
     const response = await receiver.push(setRequest("set-d"));
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(500);
     expect(seen).toEqual([]);
+  });
+
+  it.each(["account-disabled", "account-purged", "credential-compromise"])(
+    "ends every session and cancels approvals on RISC %s",
+    async (name) => {
+      const feed = memoryRevocationFeed();
+      const seen: unknown[] = [];
+      feed.subscribe((event) => {
+        seen.push(event);
+      });
+      const store = memoryApprovalStore();
+      const now = Temporal.Now.instant();
+      store.create({
+        v: 1,
+        id: `apr-${name}`,
+        token: `pd1.${name}`,
+        permission: "post.delete",
+        scope: "post:delete",
+        resource: { type: "post", id: "1" },
+        subject: {
+          principal: { id: "user-1", roles: ["member"] },
+          session: "sess-other",
+        },
+        detail: "pending",
+        createdAt: now.toString(),
+        expiresAt: now.add({ minutes: 1 }).toString(),
+        status: "pending",
+      });
+      const handled: string[] = [];
+      const { receiver } = createPermDock(policy, {
+        issuer: ISSUER,
+        audience: AUDIENCE,
+        verifier: verifier(claimsFor(`${RISC}${name}`, `risc-${name}`)),
+        subject: (setSubject) =>
+          setSubject.format === "iss_sub" ? String(setSubject["sub"]) : null,
+        revocations: feed,
+        approvals: store,
+        onEvent: {
+          [name]: ({ type }: { type: string }) => {
+            handled.push(type);
+          },
+        },
+      });
+      expect((await receiver.push(setRequest(`set-${name}`))).status).toBe(202);
+      expect(handled).toEqual([name]);
+      expect(seen).toEqual([{ principal: "user-1", kind: "session-revoked" }]);
+      expect((await store.get(`pd1.${name}`))?.status).toBe("rejected");
+    },
+  );
+});
+
+describe("stream verification", () => {
+  const VERIFICATION =
+    "https://schemas.openid.net/secevent/ssf/event-type/verification";
+
+  it("hands the echoed state to the verification handler without a subject", async () => {
+    const states: unknown[] = [];
+    const audit: unknown[] = [];
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(() => ({
+        iss: ISSUER,
+        aud: AUDIENCE,
+        iat: 1,
+        jti: "verify-1",
+        sub_id: { format: "opaque", id: "stream-1" },
+        events: { [VERIFICATION]: { state: "abc" } },
+      })),
+      subject: () => null,
+      onEvent: {
+        verification: (input) => {
+          states.push(input);
+        },
+      },
+    });
+    receiver.on("event", (event) => {
+      audit.push({ type: event.type, state: event.state });
+    });
+    expect((await receiver.push(setRequest("set-verify"))).status).toBe(202);
+    expect(states).toEqual([{ state: "abc", jti: "verify-1", issuer: ISSUER }]);
+    expect(audit).toEqual([{ type: "verification", state: "abc" }]);
+  });
+
+  it("acknowledges a verification event with no handler", async () => {
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(() => ({
+        iss: ISSUER,
+        iat: 1,
+        jti: "verify-2",
+        events: { [VERIFICATION]: {} },
+      })),
+      subject: () => null,
+    });
+    expect((await receiver.push(setRequest("set-verify-2"))).status).toBe(202);
+  });
+
+  it("answers 500 when the verification handler throws", async () => {
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(() => ({
+        iss: ISSUER,
+        iat: 1,
+        jti: "verify-3",
+        events: { [VERIFICATION]: { state: "x" } },
+      })),
+      subject: () => null,
+      onEvent: {
+        verification: () => {
+          throw new Error("down");
+        },
+      },
+    });
+    expect((await receiver.push(setRequest("set-verify-3"))).status).toBe(500);
+  });
+
+  it("answers 500 to a logout whose handler throws", async () => {
+    const { receiver } = createPermDock(policy, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      verifier: verifier(() => ({
+        iss: ISSUER,
+        iat: 1,
+        jti: "logout-fail",
+        sub: "user-9",
+        sid: "sess-9",
+        events: { [BACKCHANNEL_LOGOUT_EVENT]: {} },
+      })),
+      subject: (setSubject) => String(setSubject["sub"]),
+      onEvent: {
+        "session-revoked": () => {
+          throw new Error("down");
+        },
+      },
+    });
+    expect((await receiver.logout(logoutRequest("logout-fail"))).status).toBe(
+      500,
+    );
   });
 });

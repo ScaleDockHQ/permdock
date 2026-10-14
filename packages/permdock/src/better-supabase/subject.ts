@@ -9,12 +9,10 @@ import type {
 } from "../supabase/types.ts";
 
 import { isRecord } from "../core/compact.ts";
-import {
-  type CredentialPrincipal,
-  credentialSubject,
-} from "../core/credential.ts";
+import { type ApiKeyPrincipal, credentialSubject } from "../core/credential.ts";
 import { listPermissions } from "../core/permission-registry.ts";
 import { type Subject, anonymousSubject } from "../core/subject.ts";
+import { rfc3339 } from "../core/time.ts";
 import { subjectFromSupabaseSession } from "../supabase/subject.ts";
 import {
   type KeyRecord,
@@ -98,7 +96,7 @@ function isApiKeySession(session: unknown): session is ApiKeySession {
 function apiKeySubject(
   session: ApiKeySession,
   options: ApiKeySessionOptions,
-): Subject<CredentialPrincipal> | Subject {
+): Subject<ApiKeyPrincipal> | Subject {
   const roles =
     typeof options.serviceRoles === "function"
       ? options.serviceRoles(session)
@@ -114,9 +112,9 @@ function apiKeySubject(
     ...(session.createdBy === undefined
       ? {}
       : { createdBy: session.createdBy }),
-    ...(session.createdAt === undefined
+    ...(session.createdAt === undefined || !Number.isFinite(session.createdAt)
       ? {}
-      : { createdAt: session.createdAt }),
+      : { createdAt: rfc3339(session.createdAt) }),
   };
   const credential = keyCredential(
     key,
@@ -140,7 +138,7 @@ function apiKeySubject(
 export function subjectFromBetterSupabase(
   session: SupabaseSessionLike | ApiKeySession | null | undefined,
   options: BetterSupabaseSubjectOptions = {},
-): Subject<SupabasePrincipal> | Subject<CredentialPrincipal> | Subject {
+): Subject<SupabasePrincipal> | Subject<ApiKeyPrincipal> | Subject {
   const { apiKeys, plans = "features", ...rest } = options;
   if (isApiKeySession(session)) {
     return apiKeys === undefined

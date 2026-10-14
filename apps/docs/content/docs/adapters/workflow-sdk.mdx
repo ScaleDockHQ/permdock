@@ -1,0 +1,102 @@
+---
+title: Workflow SDK
+description: permdock/workflow-sdk runs PermDock automations on the Workflow SDK. workflowSdkWaiter parks a run on a hook while an approval is pending, startAutomation starts the PermDock run and the Workflow SDK run together, and authorizeHook resumes a hook only for a caller with the permission.
+---
+
+`permdock/workflow-sdk` connects [automations](/docs/concepts/automations) to the [Workflow SDK](https://useworkflow.dev) (`workflow` 5). It ships three functions: `workflowSdkWaiter`, `startAutomation` and `authorizeHook`. The entry never imports `workflow`: you pass in `createHook`, `resumeHook`, `sleep` and `start`, so the entry adds 1,841 bytes gzipped and no dependency.
+
+## Start a run
+
+`startAutomation` calls `workflow.start` from `permdock/workflow`. When that start is granted, it calls the Workflow SDK `start` with the run ticket as the workflow's first argument. A denied start never creates a Workflow SDK run.
+
+```ts
+import { start } from "workflow/api";
+import { startAutomation } from "permdock/workflow-sdk";
+
+const started = await startAutomation(
+  workflow,
+  start,
+  sendOverdue,
+  "weekly-overdue",
+  [invoiceId],
+  { caller: permdock, trigger: event },
+);
+if (started.outcome === "started") console.log(started.workflowRun.runId);
+```
+
+## Wait for an approval
+
+Workflow functions cannot do I/O outside a step, so a run calls `openApproval` and `resumeApproval` from `permdock/workflow` as steps. Between the two steps, the run parks on a hook from `workflowSdkWaiter`. The hook is named `approvalHookToken(token)`, which is `permdock:approval:<token>`.
+
+```ts
+import { createHook, sleep } from "workflow";
+import { resumeHook } from "workflow/api";
+import { workflowSdkWaiter } from "permdock/workflow-sdk";
+
+const waiter = workflowSdkWaiter({ createHook, resumeHook, sleep });
+
+async function open(ticket: string, invoiceId: string) {
+  "use step";
+  const decision = await workflow.openApproval(
+    ticket,
+    permissions.invoice.send,
+    { id: invoiceId },
+  );
+  return decision.outcome === "approval-required" ? decision.token : null;
+}
+
+async function send(ticket: string, token: string | null, invoiceId: string) {
+  "use step";
+  const row = { id: invoiceId };
+  const decision =
+    token === null
+      ? (await workflow.getPermDock(ticket)).decide(
+          permissions.invoice.send,
+          row,
+        )
+      : await workflow.resumeApproval(
+          ticket,
+          permissions.invoice.send,
+          token,
+          row,
+        );
+  if (decision.outcome !== "granted") return decision;
+  await invoices.send(invoiceId);
+  return decision;
+}
+
+export async function sendOverdue(ticket: string, invoiceId: string) {
+  "use workflow";
+  const token = await open(ticket, invoiceId);
+  if (token !== null) await waiter.wait(token);
+  return send(ticket, token, invoiceId);
+}
+```
+
+The approver handler calls `waiter.wake(token)` after `resolveApproval`. Waking a run that already ended, or never parked, does nothing. With `sleep` and an `expiresAt`, `wait` also ends when the request expires. Without them, only a wake ends the wait.
+
+## Resume a hook for a caller
+
+`authorizeHook(resumeHook, caller, permission, row, token, payload)` resumes any other hook only when `caller.decide(permission, row)` is granted. A denied caller gets the denial and the run stays parked. If the hook is gone or `resumeHook` throws, the caller gets a `validation` denial with `cause: 'hook-unavailable'`.
+
+```ts
+import { resumeHook } from "workflow/api";
+import { authorizeHook } from "permdock/workflow-sdk";
+
+const decision = await authorizeHook(
+  resumeHook,
+  permdock,
+  permissions.invoice.update,
+  invoice,
+  `input:${invoice.id}`,
+  { note },
+);
+```
+
+## Example app
+
+`apps/examples/workflow-sdk` runs the `send-overdue` automation in Next.js with `withWorkflow` from `workflow/next`. `POST /api/runs` starts it through `startAutomation`. The run parks on the approval hook until `POST /api/approvals/<token>` approves the request as `u_finance` and calls `waiter.wake(token)`.
+
+## Why
+
+A Workflow SDK hook resumes for anyone who holds its token. The approval hook therefore carries only a wake-up: the step after it reads the verdict from the approval store through `resumeApproval`, so a forged resume finds the request still pending and denies. For hooks that carry data, `authorizeHook` puts a permission check in front of `resumeHook`, because a token in a URL or a log is not an identity. The vendor functions are passed in, as `permdock/resend` takes its client, so `permdock` takes no dependency on `workflow` and one version of PermDock works across Workflow SDK releases. The entry grants nothing itself: rights still come from `getPermDock(ticket)` at each step, as on every other [runner](/docs/concepts/automations).

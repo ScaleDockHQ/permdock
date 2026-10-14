@@ -17,7 +17,7 @@ const authObject = {
 const clerkSubject = createClerkSubjectResolver({
   permissions: { "org:invoices:create": permissions.post.list },
   memberships: "all",
-  cache: { ttl: "10s" },
+  cache: { ttl: 10 },
   backend: {
     users: {
       getOrganizationMembershipList: async () => {

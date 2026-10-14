@@ -16,7 +16,11 @@ import {
   USER_ID_HELPER,
   sessionLiveHelperSql,
 } from "../sql/subject.ts";
-import { adoptedApprovalStoreSql, approvalStoreSql } from "./approvals.ts";
+import {
+  adoptedApprovalStoreSql,
+  approvalStoreSql,
+  isApproverSql,
+} from "./approvals.ts";
 import { assignmentSql } from "./assignments.ts";
 import { backfillSql } from "./backfill.ts";
 import { breakGlassEntries, breakGlassSql } from "./break-glass.ts";
@@ -184,9 +188,10 @@ function sectionsSql(
   try {
     approvals =
       rls?.approvals === true
-        ? approvalStoreSql(ctx, jsonSchema ?? false)
+        ? approvalStoreSql(ctx, jsonSchema ?? false) + isApproverSql(ctx)
         : typeof rls?.approvals === "object"
-          ? adoptedApprovalStoreSql(ctx, rls.approvals, jsonSchema ?? false)
+          ? adoptedApprovalStoreSql(ctx, rls.approvals, jsonSchema ?? false) +
+            isApproverSql(ctx)
           : undefined;
   } catch (cause) {
     return { refusal: describeError(cause) };

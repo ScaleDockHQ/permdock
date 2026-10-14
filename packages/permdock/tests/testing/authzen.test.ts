@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, inject, it } from "vitest";
 
-import type { AuthZenVectors } from "../../src/testing/authzen.ts";
+import type { AuthzenVectors } from "../../src/testing/authzen.ts";
 
 import { createPermDock } from "../../src/authzen/index.ts";
 import { createPermDock as createInstance } from "../../src/index.ts";
@@ -10,7 +10,7 @@ import {
   authzenTodoPermissions,
   authzenTodoPolicy,
   authzenTodoVectors,
-  testAuthZen,
+  testAuthzen,
 } from "../../src/testing/authzen.ts";
 
 const { permdockHandler } = createPermDock(authzenTodoPolicy, {
@@ -21,15 +21,15 @@ const { permdockHandler } = createPermDock(authzenTodoPolicy, {
 });
 
 describe("AuthZEN interop: PermDock vectors over the Todo domain", () => {
-  testAuthZen(permdockHandler, { vectors: authzenTodoVectors() });
+  testAuthzen(permdockHandler(), { vectors: authzenTodoVectors() });
 });
 
 describe("AuthZEN runner with partial vector sets", () => {
-  testAuthZen(permdockHandler, {
+  testAuthzen(permdockHandler(), {
     vectors: { search: authzenTodoVectors().search ?? {} },
     discovery: false,
   });
-  testAuthZen(permdockHandler, {
+  testAuthzen(permdockHandler(), {
     vectors: {
       evaluation: [
         {
@@ -93,8 +93,8 @@ describe.runIf(requireOfficial)(
     // SAFETY: the file is the official AuthZEN decisions vector set fetched by authzen:vectors.
     // A skipped describe still runs its body to collect tests.
     const vectors = requireOfficial
-      ? (JSON.parse(readFileSync(OFFICIAL, "utf8")) as AuthZenVectors)
+      ? (JSON.parse(readFileSync(OFFICIAL, "utf8")) as AuthzenVectors)
       : {};
-    testAuthZen(permdockHandler, { vectors, discovery: false });
+    testAuthzen(permdockHandler(), { vectors, discovery: false });
   },
 );

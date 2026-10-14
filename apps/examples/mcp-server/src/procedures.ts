@@ -17,10 +17,10 @@ type Ctx = { readonly user: User | null };
 
 const byId = z.object({ id: z.string() });
 
-const { permdock, protect } = createOrpcPermDock<Ctx>(policy, {
+const { middleware, protect } = createOrpcPermDock<Ctx>(policy, {
   subject: (opts) => opts.context.user,
 });
-const base = os.$context<Ctx>().use(permdock());
+const base = os.$context<Ctx>().use(middleware());
 
 /** The application's oRPC procedures; each decides with its own `protect`. */
 export const router = {

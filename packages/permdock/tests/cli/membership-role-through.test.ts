@@ -18,8 +18,8 @@ import {
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   authorizeSql,
-  fromJunction,
-  fromTable,
+  junctionMembershipSource,
+  tableMembershipSource,
 } from "../../src/supabase/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 
@@ -33,7 +33,7 @@ const suspension = {
   },
 };
 
-const organizationUsers = fromJunction({
+const organizationUsers = junctionMembershipSource({
   table: "organization_users",
   scope: "organization",
   roles: through,
@@ -334,7 +334,7 @@ describe("authorizeSql through a roles table", () => {
 
   it("refuses a through with more than one join column", () => {
     expect(() =>
-      fromTable({
+      tableMembershipSource({
         table: "memberships",
         columns: { role: { ...through, on: { a: "id", b: "id" } } },
       }),

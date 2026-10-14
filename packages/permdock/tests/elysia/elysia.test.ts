@@ -2,7 +2,10 @@ import { Elysia } from "elysia";
 import { describe, expect, it } from "vitest";
 
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
-import { createPermDock, type ElysiaContext } from "../../src/elysia/index.ts";
+import {
+  createPermDock,
+  type ElysiaPermDockContext,
+} from "../../src/elysia/index.ts";
 import {
   memberUser,
   otherPost,
@@ -11,7 +14,7 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 
-function isElysiaContext(ctx: unknown): ctx is ElysiaContext {
+function isElysiaPermDockContext(ctx: unknown): ctx is ElysiaPermDockContext {
   return typeof ctx === "object" && ctx !== null && "permdock" in ctx;
 }
 
@@ -40,22 +43,20 @@ describe("permdock/elysia sockets", () => {
     );
     expect(closes).toEqual([]);
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
-    expect(closes).toEqual([
-      [1008, "https://permdock.com/problems/unauthenticated"],
-    ]);
+    expect(closes).toEqual([[1008, "session-revoked"]]);
   });
 });
 
 describe("permdock/elysia", () => {
   it("sets a request-scoped instance and protects routes", async () => {
-    const { permdock, protect } = createPermDock(policy, {
+    const { middleware, protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const app = new Elysia().use(permdock()).delete(
+    const app = new Elysia().use(middleware()).delete(
       "/posts/:id",
       (ctx) => ({
         ok: true,
-        via: isElysiaContext(ctx)
+        via: isElysiaPermDockContext(ctx)
           ? ctx.permdock.subject.principal?.id
           : undefined,
       }),
@@ -123,9 +124,9 @@ describe("permdock/elysia", () => {
 });
 
 describe("permdock/elysia routes before the plugin", () => {
-  it("builds no instance for a route registered before use(permdock())", async () => {
+  it("builds no instance for a route registered before use(middleware())", async () => {
     let resolved = 0;
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => {
         resolved += 1;
         return memberUser;
@@ -133,7 +134,7 @@ describe("permdock/elysia routes before the plugin", () => {
     });
     const app = new Elysia()
       .get("/health", () => "ok")
-      .use(permdock())
+      .use(middleware())
       .get("/posts", () => "ok");
     await app.handle(new Request("http://localhost/health"));
     expect(resolved).toBe(0);

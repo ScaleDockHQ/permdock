@@ -21,9 +21,9 @@ import { CLIENT_CAPABILITIES, type Context } from "./mcp-auth.ts";
 
 export type Refusal = {
   readonly text: string;
-  /** The decision behind the refusal, for `onDenied`. */
+  /** The decision behind the refusal, for `deniedText`. */
   readonly decision?: Exclude<Decision, { readonly outcome: "granted" }>;
-  /** The instance that decided, for reporting a failing `onDenied`. */
+  /** The instance that decided, for reporting a failing `deniedText`. */
   readonly permdock?: PermDock;
   readonly structured: Readonly<Record<string, unknown>>;
   /** An MRTR `input_required` result, returned instead of the refusal. */

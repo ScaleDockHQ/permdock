@@ -2,8 +2,9 @@ import type { RelationGrantee } from "../core/grantee.ts";
 import type { ApprovalMode, ApprovalStage } from "../core/policy-types.ts";
 import type { Approver } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
+import type { WireDelegation } from "../core/wire-delegation.ts";
 
-import { parseDuration } from "../core/duration.ts";
+import { durationOf, type Instant } from "../core/time.ts";
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 
@@ -19,9 +20,9 @@ export type ApprovalApprovers = {
   readonly staleOn?: "resource-change";
   /** Distinct approvers of `by` needed before `status` becomes `approved`; absent means 1. */
   readonly quorum?: number;
-  /** Who else may approve once the request has waited `after` (a duration such as `'4h'`) since `createdAt`. */
+  /** Who else may approve once the request has waited `after` seconds since `createdAt`. */
   readonly escalation?: {
-    readonly after: string;
+    readonly after: number;
     readonly to: Approver | readonly Approver[];
   };
 };
@@ -79,14 +80,14 @@ export type ApprovalSubjectSummary = {
   } | null;
   readonly actor?: { readonly id: string; readonly kind: string };
   readonly session?: string;
-  readonly delegation?: {
-    readonly scopes?: readonly string[];
-    readonly authorizationDetails?: readonly unknown[];
-  };
+  /** OAuth `scope` (space-separated) and RFC 9396 `authorization_details`. */
+  readonly delegation?: WireDelegation;
 };
 
 export type ApprovalRequest = {
   readonly v: 1;
+  /** The request id: the signature's `jti`. */
+  readonly id: string;
   readonly token: string;
   readonly permission: string;
   readonly scope: string;
@@ -173,19 +174,26 @@ export type ApprovalCancelMeta = {
 
 export type ApprovalStore = {
   /**
-   * How long a request opened against this store stays open, in
-   * milliseconds, when the caller sets no `ttl`; absent means
-   * `DEFAULT_APPROVAL_TTL_MS`. A grant's `approval.ttl` still caps it.
+   * Seconds a request opened against this store stays open when the
+   * caller sets no `ttl`; absent means `DEFAULT_APPROVAL_TTL`. A grant's
+   * `approval.ttl` still caps it.
    */
   readonly ttl?: number;
   create(request: ApprovalRequest): Promise<void> | void;
   get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
+  /**
+   * The request with this `id`, for `approvalsHandler`, which routes by id.
+   * Without it the handler pages through `list` to find the id.
+   */
+  getById?(
+    id: string,
+  ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   resolve(
     token: string,
     verdict: ApprovalVerdict,
   ): Promise<ApprovalRequest> | ApprovalRequest;
   list(query: ApprovalListQuery): Promise<ApprovalPage> | ApprovalPage;
-  expire(now?: Date): Promise<number> | number;
+  expire(now?: Instant): Promise<number> | number;
   /**
    * Marks an approved, unexpired, unconsumed request consumed and returns it;
    * returns `null` otherwise. Must be atomic: two concurrent calls for one
@@ -193,7 +201,7 @@ export type ApprovalStore = {
    */
   consume(
     token: string,
-    now?: Date,
+    now?: Instant,
   ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
   cancel?(
     filter: ApprovalListFilter,
@@ -201,7 +209,7 @@ export type ApprovalStore = {
   ): Promise<number> | number;
 };
 
-export type ApprovalResumeFailure =
+export type ApprovalResumeFailureCause =
   | "approval-not-found"
   | "approval-pending"
   | "approval-rejected"
@@ -210,11 +218,12 @@ export type ApprovalResumeFailure =
 
 export type ApprovalInspectResult =
   | { readonly ok: true; readonly request: ApprovalRequest }
-  | { readonly ok: false; readonly detail: ApprovalResumeFailure };
+  | { readonly ok: false; readonly cause: ApprovalResumeFailureCause };
 
 export const APPROVAL_HEADER = "PermDock-Approval" as const;
 
-export const DEFAULT_APPROVAL_TTL_MS: number = 60 * 60 * 1000;
+/** Seconds a request stays open when neither the store nor the call sets a `ttl`. */
+export const DEFAULT_APPROVAL_TTL: number = 60 * 60;
 
 /** The approvals a request needs in total: `approvers.quorum` (or 1), or the sum of its stages' quorums. */
 export function approvalQuorum(request: ApprovalRequest): number {
@@ -231,8 +240,7 @@ export function approvalQuorum(request: ApprovalRequest): number {
  * `after` does not parse (then nobody escalates: fail-closed).
  */
 export function escalationOpenAt(request: ApprovalRequest): number | undefined {
-  const after = request.approvers?.escalation?.after;
-  const seconds = parseDuration(after);
+  const seconds = durationOf(request.approvers?.escalation?.after);
   if (seconds === undefined) {
     return undefined;
   }
@@ -244,7 +252,7 @@ export function stageEscalationOpenAt(
   request: ApprovalRequest,
   stage: ApprovalStage,
 ): number | undefined {
-  const seconds = parseDuration(stage.escalation?.after);
+  const seconds = durationOf(stage.escalation?.after);
   if (seconds === undefined) {
     return undefined;
   }

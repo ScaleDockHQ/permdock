@@ -3,6 +3,7 @@ import type { ProblemDetails } from "./errors.ts";
 import type { Grantee } from "./grantee.ts";
 
 import { compact } from "./compact.ts";
+import { problemType, statusProblem } from "./problem-types.ts";
 import { PROBLEM_BASE } from "./validation-error.ts";
 import { wireDenials } from "./wire-denial.ts";
 
@@ -96,13 +97,7 @@ export function stepUpOf(decision: Decision): {
 
 /** The `404` a missing row and a hidden one share, so the two read the same. */
 export function notFoundDetails(instance?: string): ProblemDetails {
-  return compact<ProblemDetails>({
-    type: `${PROBLEM_BASE}/not-found`,
-    title: "Not found",
-    status: 404,
-    detail: "No such resource",
-    instance,
-  });
+  return statusProblem(404, "No such resource", compact({ instance }));
 }
 
 /**
@@ -121,7 +116,7 @@ export function problemDetails(input: DecisionProblem): ProblemDetails {
   });
   if (decision.outcome === "approval-required") {
     return compact<ProblemDetails>({
-      type: `${PROBLEM_BASE}/approval-required`,
+      type: problemType("approval-required"),
       title: "Approval required",
       status: 403,
       detail: input.detail,
@@ -138,17 +133,14 @@ export function problemDetails(input: DecisionProblem): ProblemDetails {
     return notFoundDetails(input.instance);
   }
   if (reasons.has("anonymous")) {
-    return compact<ProblemDetails>({
-      type: `${PROBLEM_BASE}/unauthenticated`,
-      title: "Authentication required",
-      status: 401,
-      detail: "Authenticate and repeat the request",
-      instance: input.instance,
-      permission: input.permission,
-    });
+    return statusProblem(
+      401,
+      "Authenticate and repeat the request",
+      compact({ instance: input.instance, permission: input.permission }),
+    );
   }
   const denied = compact<ProblemDetails>({
-    type: `${PROBLEM_BASE}/denied`,
+    type: problemType("denied"),
     title: "Permission denied",
     status: 403,
     detail: input.detail,
@@ -160,7 +152,8 @@ export function problemDetails(input: DecisionProblem): ProblemDetails {
     return {
       ...denied,
       status: 401,
-      type: `${PROBLEM_BASE}/step-up-required`,
+      type: problemType("step-up-required"),
+      title: "Step-up required",
       ...stepUpOf(decision),
     };
   }
@@ -168,7 +161,7 @@ export function problemDetails(input: DecisionProblem): ProblemDetails {
   if (plans.length > 0) {
     return {
       ...denied,
-      type: `${PROBLEM_BASE}/not-entitled`,
+      type: problemType("not-entitled"),
       title: "Plan upgrade required",
       plans,
     };
@@ -177,7 +170,7 @@ export function problemDetails(input: DecisionProblem): ProblemDetails {
     return {
       ...denied,
       status: 429,
-      type: `${PROBLEM_BASE}/rate-limited`,
+      type: problemType("rate-limited"),
       title: "Rate limit exceeded",
     };
   }
@@ -190,7 +183,7 @@ export function problemDetails(input: DecisionProblem): ProblemDetails {
     return {
       ...denied,
       status: 503,
-      type: `${PROBLEM_BASE}/limit-unavailable`,
+      type: problemType("limit-unavailable"),
       title: "Rate limit unavailable",
     };
   }

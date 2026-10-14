@@ -9,13 +9,14 @@ import {
   memoryPolicySource,
   mergeHostedGrants,
   parsePolicyDocument,
+  policyDocumentFromClaims,
 } from "../../src/core/hosted.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy, grantList } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { definePlans } from "../../src/core/vocabulary.ts";
 
 const Invoice = z.object({
@@ -71,7 +72,7 @@ function document(grants: readonly unknown[]): PolicyDocument {
     id: "doc_1",
     fingerprint: "fp_doc_1",
     catalog: "cat_1",
-    issuedAt: 1,
+    issuedAt: "1970-01-01T00:00:01Z",
     grants,
   });
 }
@@ -242,7 +243,7 @@ describe("hosted grants", () => {
         roles: [
           role("member", [
             allow(permissions.invoice.delete, {
-              approval: { by: "auditor", quorum: 2, ttl: "1h" },
+              approval: { by: "auditor", quorum: 2, ttl: 3600 },
             }),
           ]),
           role("auditor", []),
@@ -279,7 +280,7 @@ describe("hosted grants", () => {
           approval: {
             by: { kind: "role", role: "auditor", scope: "global" },
             escalation: {
-              after: "1h",
+              after: 3600,
               to: { kind: "role", role: "ghost", scope: "global" },
             },
           },
@@ -291,7 +292,7 @@ describe("hosted grants", () => {
           approval: {
             by: { kind: "role", role: "auditor", scope: "global" },
             quorum: 1,
-            ttl: "1h",
+            ttl: 3600,
           },
         },
         {
@@ -301,7 +302,7 @@ describe("hosted grants", () => {
           approval: {
             by: { kind: "role", role: "auditor", scope: "global" },
             quorum: 2,
-            ttl: "2h",
+            ttl: 7200,
           },
         },
         {
@@ -311,7 +312,7 @@ describe("hosted grants", () => {
           approval: {
             by: { kind: "role", role: "auditor", scope: "global" },
             quorum: 3,
-            ttl: "30m",
+            ttl: 1800,
           },
         },
       ]),
@@ -459,7 +460,7 @@ describe("hosted grants", () => {
   });
 
   it("records the hosted grant on the decision event", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const permdock = await createPermDock(policy, proUser, {
       sink,
       policies: memoryPolicySource(
@@ -483,7 +484,7 @@ describe("hosted grants", () => {
     expect(() => parsePolicyDocument({ v: 2 })).toThrow(/version/);
     expect(() =>
       parsePolicyDocument(
-        '{"v":1,"id":"d","fingerprint":"f","catalog":"c","issuedAt":1,"grants":[{"__proto__":{}}]}',
+        '{"v":1,"id":"d","fingerprint":"f","catalog":"c","issuedAt":"1970-01-01T00:00:01Z","grants":[{"__proto__":{}}]}',
       ),
     ).toThrow(/unsafe/);
   });
@@ -649,12 +650,38 @@ describe("hosted grant validation", () => {
           id: "d",
           fingerprint: "f",
           catalog: "c",
-          issuedAt: 1,
+          issuedAt: "1970-01-01T00:00:01Z",
           grants: [],
         }),
       ),
     ).not.toThrow();
+    expect(() =>
+      parsePolicyDocument({
+        v: 1,
+        id: "d",
+        fingerprint: "f",
+        catalog: "c",
+        issuedAt: 1,
+        grants: [],
+      }),
+    ).toThrow(/malformed policy document/u);
     expect(mergeHostedGrants(policy, null)).toEqual({ policy, dropped: [] });
+  });
+
+  it("rebuilds a document from verified claims, taking id from jti and issuedAt from iat", () => {
+    const claim = { v: 1, fingerprint: "f", catalog: "c", grants: [] };
+    expect(
+      policyDocumentFromClaims({ policy: claim, jti: "d", iat: 1 }),
+    ).toEqual({ ...claim, id: "d", issuedAt: "1970-01-01T00:00:01.000Z" });
+    for (const claims of [
+      { policy: claim, iat: 1 },
+      { policy: claim, jti: "d" },
+      { policy: "nope", jti: "d", iat: 1 },
+    ]) {
+      expect(() => policyDocumentFromClaims(claims)).toThrow(
+        /malformed policy document/u,
+      );
+    }
   });
 
   it("drops malformed grants as invalid and names an id-less one by an empty string", () => {

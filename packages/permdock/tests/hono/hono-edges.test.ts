@@ -4,7 +4,7 @@ import type { WSContext } from "hono/ws";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 
-import type { PermDockEnv } from "../../src/hono/index.ts";
+import type { HonoPermDockEnv } from "../../src/hono/index.ts";
 import type { Connection } from "../../src/server/connection.ts";
 
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
@@ -149,9 +149,11 @@ describe("permdock/hono sockets", () => {
 
 describe("permdock/hono middleware", () => {
   it("maps a downstream denial and leaves other errors to Hono", async () => {
-    const { permdock } = createPermDock(policy, { subject: () => memberUser });
-    const app = new Hono<PermDockEnv>();
-    app.use(permdock());
+    const { middleware } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = new Hono<HonoPermDockEnv>();
+    app.use(middleware());
     app.get("/denied", (c) => {
       c.var.permdock.assert(permissions.post.update, otherPost);
       return c.text("ok");
@@ -167,14 +169,14 @@ describe("permdock/hono middleware", () => {
   });
 
   it("rethrows a build failure that is not a signature error", async () => {
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       pdp: async () => {
         throw new Error("pdp factory failed");
       },
     });
     const app = new Hono();
-    app.use(permdock());
+    app.use(middleware());
     app.get("/", (c) => c.text("reached"));
     const response = await app.request("/");
     expect(response.status).toBe(500);

@@ -167,10 +167,10 @@ Express, Fastify, Elysia, Nest, Node, tRPC and oRPC have the same shape.
 ```ts
 import { createPermDock } from "permdock/hono";
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
 });
-app.use(permdock());
+app.use(middleware());
 app.delete(
   "/posts/:id",
   protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),
@@ -204,6 +204,7 @@ protectServer(server).registerTool(
 The Claude Agent SDK, Eve, the OpenAI Agents SDK, WebMCP and A2A have their own entries with the same tool map.
 
 ```ts
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/ai-sdk";
 
 const { toolApproval } = createPermDock(policy, {
@@ -212,12 +213,12 @@ const { toolApproval } = createPermDock(policy, {
     id: runtimeContext.agentId,
     kind: "ai-sdk",
   }),
-  tools: {
+  operations: defineOperations(permissions, {
     delete_post: {
       permission: permissions.post.delete,
       data: (args) => loadPost(args.id),
     },
-  },
+  }),
 });
 generateText({ model, tools, toolApproval }); // granted → approved, denied → denied, approval-required → user-approval
 ```
@@ -253,8 +254,8 @@ allow(permissions.payout.release, {
   approval: {
     by: roles.finance,
     quorum: 2, // two distinct finance approvers
-    ttl: "30m",
-    escalation: { after: "10m", to: roles.cfo },
+    ttl: 1800, // seconds: 30 minutes
+    escalation: { after: 600, to: roles.cfo },
   },
 });
 ```
@@ -284,21 +285,22 @@ PermDock adopts the permission keys, SQL helpers, tokens and stored custom roles
 
 Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import path per target:
 
-| Group              | Entries                                                                                                                                                            |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| UI                 | `permdock/react` · `permdock/react-native` · `permdock/vue` · `permdock/svelte` · `permdock/solid`                                                                 |
-| Full-stack         | `permdock/next`                                                                                                                                                    |
-| HTTP               | `permdock/server` · `permdock/hono` · `permdock/express` · `permdock/fastify` · `permdock/elysia` · `permdock/nest` · `permdock/node`                              |
-| Terminal           | `permdock/terminal` for your own CLI (not the `permdock` binary)                                                                                                   |
-| RPC                | `permdock/trpc` · `permdock/orpc`                                                                                                                                  |
-| Agents             | `permdock/mcp` · `permdock/ai-sdk` · `permdock/claude-agent` · `permdock/eve` · `permdock/openai` · `permdock/webmcp` · `permdock/a2a`                             |
-| Decision plane     | `permdock/authzen` · `permdock/approvals` · `permdock/cloud` · `permdock/scim` · `permdock/ssf` · `permdock/openapi` · `permdock/otel` · `permdock/pdp`            |
-| Data               | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls` · `permdock powersync`                                                                 |
-| Auth and providers | `permdock/jwt` · `permdock/supabase` · `permdock/supabase/middleware` · `permdock/better-supabase` · `permdock/better-auth` · `permdock/clerk` · `permdock/convex` |
-| Build              | `permdock/next/plugin` · `permdock/unplugin`                                                                                                                       |
-| Testing            | `permdock/testing`                                                                                                                                                 |
+| Group              | Entries                                                                                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UI                 | `permdock/react` · `permdock/react-native` · `permdock/vue` · `permdock/svelte` · `permdock/solid`                                                                                                      |
+| Full-stack         | `permdock/next` · `permdock/sveltekit` · `permdock/astro` · `permdock/solid-start` · `permdock/tanstack-start`                                                                                          |
+| HTTP               | `permdock/server` · `permdock/hono` · `permdock/h3` · `permdock/express` · `permdock/fastify` · `permdock/elysia` · `permdock/nest` · `permdock/node`                                                   |
+| Terminal           | `permdock/terminal` for your own CLI (not the `permdock` binary)                                                                                                                                        |
+| RPC                | `permdock/trpc` · `permdock/orpc`                                                                                                                                                                       |
+| Agents             | `permdock/agent` · `permdock/mcp` · `permdock/ai-sdk` · `permdock/claude-agent` · `permdock/eve` · `permdock/openai` · `permdock/webmcp` · `permdock/a2a`                                               |
+| Messaging          | `permdock/delivery` · `permdock/resend` · `permdock/chat` · `permdock/chat-sdk`                                                                                                                         |
+| Decision plane     | `permdock/authzen` · `permdock/approvals` · `permdock/workflow` · `permdock/workflow-sdk` · `permdock/cloud` · `permdock/scim` · `permdock/ssf` · `permdock/openapi` · `permdock/otel` · `permdock/pdp` |
+| Data               | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls` · `permdock powersync`                                                                                                      |
+| Auth and providers | `permdock/jwt` · `permdock/supabase` · `permdock/supabase/middleware` · `permdock/better-supabase` · `permdock/better-auth` · `permdock/clerk` · `permdock/convex`                                      |
+| Build              | `permdock/next/plugin` · `permdock/unplugin`                                                                                                                                                            |
+| Testing            | `permdock/testing`                                                                                                                                                                                      |
 
-React Router, TanStack Start, SvelteKit and Nuxt loaders call `getSnapshot(request)` from `permdock/server` and send `snapshotHeaders(snapshot)`. Astro and Effect use these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.com/docs/adapters).
+React Router loaders call `getSnapshot(request)` from `permdock/server` and send `snapshotHeaders(snapshot)`; Nitro and Nuxt server routes use `permdock/h3`. Effect uses these entries plus `permdock/unplugin`. The full matrix with example apps and related standards is on the [adapters page](https://permdock.com/docs/adapters).
 
 ## Secure by default
 

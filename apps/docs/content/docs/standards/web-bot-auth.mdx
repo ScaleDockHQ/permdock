@@ -25,20 +25,19 @@ Two things Web Bot Auth does not provide, and PermDock does not infer from it: t
 import {
   createPermDock,
   discoverViaSignatureAgent,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "permdock/hono";
 
 const keys = discoverViaSignatureAgent({ allow: ["agents.example.com"] }); // key discovery policy
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
-  webBotAuth: (request) =>
-    verifyWebBotAuth(request, {
-      keys,
-      required: false, // unsigned requests are still allowed, with no actor
-    }),
+  webBotAuth: webBotAuthVerifier({
+    keys,
+    required: false, // unsigned requests are still allowed, with no actor
+  }),
 });
-app.use(permdock());
+app.use(middleware());
 app.delete(
   "/posts/:id",
   protect(permissions.post.delete, (c) => loadPost(c.req.param("id"))),
@@ -49,8 +48,9 @@ app.delete(
 
 Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
 
-- **Verification is optional and off by default.** When `webBotAuth` is set to a `verifyWebBotAuth` call, a request with `Signature-Input` is verified against keys discovered through `Signature-Agent`, subject to an allow-list of key directories.
-- **Freshness is bounded.** `created` is required, may be at most 60 seconds in the future and at most `maxAge` seconds old (default 300); a past `expires` rejects. `now` (Unix seconds) replaces the system clock, which is how the RFC 9421 Appendix B vectors are checked.
+- **Verification is optional and off by default.** When `webBotAuth` is set to a `webBotAuthVerifier` call, a request with `Signature-Input` is verified against keys discovered through `Signature-Agent`, subject to an allow-list of key directories.
+- **Freshness is bounded.** `created` is required, may be at most 60 seconds in the future and at most `maxAge` seconds old (default 300); a past `expires` rejects. `now`, a function returning an `Instant` such as `Temporal.Now.instant`, replaces the system clock.
+- **The profile is enforced.** `Signature-Input` must carry `tag="web-bot-auth"` and cover `@authority`; when the request sends `Signature-Agent`, the signature must cover `signature-agent` too. A signature that verifies under RFC 9421 but misses one of these is rejected with `Signature-Input tag must be "web-bot-auth"`, `Signature-Input must cover @authority` or `Signature-Input must cover signature-agent`. Only the plain `signature-agent` component is recognised, not its `;key=` form.
 - **Invalid signature fails closed.** A request that claims a signature but fails verification is rejected before any permission check, with a Problem Details body of type `.../invalid-signature`. It is never downgraded to an anonymous actor.
 - **Verified signer becomes `actor`.** `actor.id` is the signer's key identifier and `actor.kind` is `'web-bot-auth'`. Policies may reference `subject.actor` in conditions (for example, denying `post.publish` when any actor is present), and `on('decision')` events include it for audit.
 - **Delegation still comes from the token.** If the same request carries a bearer token with scopes, those fill `delegation` exactly as they do for non-signed requests. If it carries none, the subject has an actor and no `delegation`, so every check is `denied` with reason `no-delegation`, with or without a session.
@@ -59,7 +59,7 @@ Behaviour in the [HTTP adapters](/docs/adapters/server-kernel):
 ### Request lifecycle
 
 1. An agent sends `DELETE /posts/p_42` with a bearer token for user u_123 and RFC 9421 `Signature` and `Signature-Input` headers, plus `Signature-Agent` pointing at its key directory.
-2. The adapter's `permdock()` middleware sees the signature, checks the `Signature-Agent` host against the allow-list, fetches (or reads from cache) the public key, and verifies the signed components. A key directory fetch is aborted after 5 seconds, and the signature then counts as unverifiable.
+2. The adapter's `middleware()` sees the signature, checks the `Signature-Agent` host against the allow-list, fetches (or reads from cache) the public key, and verifies the signed components. A key directory fetch is aborted after 5 seconds, and the signature then counts as unverifiable.
 3. On success, the request-scoped `PermDock` is built with `principal` from the token, `actor` from the signer, and `delegation` from the token scopes.
 4. `protect(permissions.post.delete, ...)` loads the post and calls `decide`. A policy that denies `post.delete` for any `actor` (a "humans only" rule) yields `denied`; otherwise the normal grant and delegation intersection applies.
 5. The 403 body, if any, is a Problem Details document; the `on('decision')` event names the signer as `actor`.
@@ -78,18 +78,19 @@ const member = role("member", [
 
 ## Mapping table
 
-| Web Bot Auth / RFC 9421 concept           | PermDock concept                                                                              |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `Signature`, `Signature-Input` headers    | Verified by the HTTP adapter when `webBotAuth` is set                                         |
-| `Signature-Agent` key discovery           | The `keys` option of `verifyWebBotAuth`: a discovery policy with an allow-list of directories |
-| Signer key identifier                     | `actor.id`                                                                                    |
-| Signature scheme                          | `actor.kind: 'web-bot-auth'`                                                                  |
-| Unsigned request                          | No `actor`; principal from the session as usual                                               |
-| Failed verification                       | Rejected before authorization (fail closed)                                                   |
-| Verified agent without a token or session | `actor` set, anonymous principal, every check denied                                          |
-| Verified agent with a user token          | Two-principal subject; decision = principal grants ∩ delegation                               |
-| `actor('web-bot-auth')` grantee           | Policy can distinguish agent-driven from human-driven calls                                   |
-| Audit                                     | `actor` included in `on('decision')` events and OTel attributes                               |
+| Web Bot Auth / RFC 9421 concept                                  | PermDock concept                                                                                |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `Signature`, `Signature-Input` headers                           | Verified by the HTTP adapter when `webBotAuth` is set                                           |
+| `Signature-Agent` key discovery                                  | The `keys` option of `webBotAuthVerifier`: a discovery policy with an allow-list of directories |
+| Signer key identifier                                            | `actor.id`                                                                                      |
+| Signature scheme                                                 | `actor.kind: 'web-bot-auth'`                                                                    |
+| `tag="web-bot-auth"`, covered `@authority` and `signature-agent` | Required; a signature without them is rejected                                                  |
+| Unsigned request                                                 | No `actor`; principal from the session as usual                                                 |
+| Failed verification                                              | Rejected before authorization (fail closed)                                                     |
+| Verified agent without a token or session                        | `actor` set, anonymous principal, every check denied                                            |
+| Verified agent with a user token                                 | Two-principal subject; decision = principal grants ∩ delegation                                 |
+| `actor('web-bot-auth')` grantee                                  | Policy can distinguish agent-driven from human-driven calls                                     |
+| Audit                                                            | `actor` included in `on('decision')` events and OTel attributes                                 |
 
 ## Sources
 

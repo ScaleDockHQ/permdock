@@ -5,7 +5,7 @@ import type { Principal } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -24,7 +24,7 @@ async function permdockFor(
   tenant?: string,
 ): Promise<PermDock> {
   return createPermDock(policy, principal, {
-    customRoles: memoryRoleSource(customRoles),
+    customRoles: memoryCustomRoleSource(customRoles),
     ...(tenant === undefined ? {} : { tenant }),
   });
 }

@@ -8,7 +8,7 @@ import {
 import {
   createPermDock,
   fromSnapshot,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   parseSnapshot,
   type CustomRole,
   type Membership,
@@ -67,7 +67,7 @@ export type RlsParityOptions = {
   readonly role?: "authenticated" | "anon";
   /**
    * Tenant-defined roles the subjects' memberships may hold. `decide` resolves them through a
-   * `RoleSource`; each membership's claim carries them as the compact `grants` map, which the
+   * `CustomRoleSource`; each membership's claim carries them as the compact `grants` map, which the
    * helpers read in `jwt` mode. Seeding the `database`-mode tables is the caller's job.
    */
   readonly customRoles?: readonly CustomRole[];
@@ -247,7 +247,7 @@ function dbOutcome(result: RlsQueryResult): RlsDbOutcome {
   return count > 0 ? "allowed" : "filtered";
 }
 
-export async function rlsParity<TUser>(
+export async function testRlsParity<TUser>(
   policy: Policy<TUser>,
   options: RlsParityOptions,
 ): Promise<RlsParityReport> {
@@ -264,7 +264,7 @@ export async function rlsParity<TUser>(
     const permdock = await createPermDock(
       policy,
       toSubject(fixture.subject) as TUser,
-      { customRoles: memoryRoleSource(customRoles) },
+      { customRoles: memoryCustomRoleSource(customRoles) },
     );
     // SAFETY: each branch casts to the kind just checked; Permission's kind parameter does not narrow.
     const granted =
@@ -281,7 +281,9 @@ export async function rlsParity<TUser>(
     if (options.snapshot === true) {
       const snapshot = permdock.snapshot();
       if (typeof snapshot !== "object" || snapshot instanceof Promise) {
-        throw new TypeError("PermDock: rlsParity needs an unsigned snapshot");
+        throw new TypeError(
+          "PermDock: testRlsParity needs an unsigned snapshot",
+        );
       }
       // SAFETY: the snapshot client's can() treats both kinds alike at runtime; the row is optional.
       fromClient = fromSnapshot(parseSnapshot(JSON.stringify(snapshot))).can(

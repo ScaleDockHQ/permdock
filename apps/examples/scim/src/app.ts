@@ -17,7 +17,7 @@ export const TENANT = "o_acme";
 export const SCIM_TOKEN = "scim-example-token";
 
 const scim = scimHandler({
-  store: directory,
+  directory,
   tenant: (incoming) => {
     const fromPath = tenantFromPath(incoming);
     return fromPath === "" ? TENANT : fromPath;

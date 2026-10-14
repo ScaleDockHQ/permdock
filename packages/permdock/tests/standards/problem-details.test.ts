@@ -1,14 +1,32 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import type { Decision, Denial } from "../../src/core/decision.ts";
+import type { ProblemType } from "../../src/core/problem-types.ts";
 
+import {
+  approvalsHandler,
+  memoryApprovalStore,
+} from "../../src/approvals/index.ts";
 import { PermDockValidationError } from "../../src/core/errors.ts";
+import {
+  PROBLEM_TYPES,
+  problemType,
+  statusProblem,
+} from "../../src/core/problem-types.ts";
 import {
   PROBLEM_BASE,
   createPermDock,
   problemFromDecision,
 } from "../../src/server/index.ts";
+import { methodNotAllowed } from "../../src/server/problem.ts";
+import { invalidSignatureProblem } from "../../src/server/web-bot-auth.ts";
+import { PROBLEM_EXAMPLES } from "../../src/testing/problem-examples.ts";
 import { permissions, policy } from "../fixtures/quick-start.ts";
+
+const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
 
 const subject = { principal: null, context: {} };
 const permission = permissions.post.update;
@@ -37,7 +55,7 @@ describe("RFC 9457 Problem Details", () => {
       name: "a token that failed verification",
       decision: denied({ role: null, reason: "anonymous" }),
       status: 401,
-      type: "unauthenticated",
+      type: "about:blank",
       challenge:
         'Bearer error="invalid_token", error_description="The access token is invalid"',
     },
@@ -104,7 +122,7 @@ describe("RFC 9457 Problem Details", () => {
       decision: denied({
         role: "member",
         reason: "limit",
-        detail: { count: 10, window: 60, resetsAt: Date.now() / 1000 + 30 },
+        detail: { count: 10, per: 60, resetsAt: at(Date.now() / 1000 + 30) },
       }),
       status: 429,
       type: "rate-limited",
@@ -117,7 +135,7 @@ describe("RFC 9457 Problem Details", () => {
         {
           role: "admin",
           reason: "limit",
-          detail: { count: 1, window: 60, resetsAt: Date.now() / 1000 + 30 },
+          detail: { count: 1, per: 60, resetsAt: at(Date.now() / 1000 + 30) },
         },
       ),
       status: 503,
@@ -128,7 +146,7 @@ describe("RFC 9457 Problem Details", () => {
       name: "a hidden row",
       decision: denied({ role: "member", reason: "condition" }),
       status: 404,
-      type: "not-found",
+      type: "about:blank",
       challenge: null,
       disclosure: "hide",
     },
@@ -182,7 +200,9 @@ describe("RFC 9457 Problem Details", () => {
       );
       expect(response.headers.get("WWW-Authenticate")).toBe(row.challenge);
       const problem = await body(response);
-      expect(problem["type"]).toBe(`${PROBLEM_BASE}/${row.type}`);
+      expect(problem["type"]).toBe(
+        row.type === "about:blank" ? row.type : `${PROBLEM_BASE}/${row.type}`,
+      );
       expect(problem["status"]).toBe(row.status);
       expect(problem["title"]).toBeTypeOf("string");
     });
@@ -190,6 +210,39 @@ describe("RFC 9457 Problem Details", () => {
 
   it("uses the fixed base, never a configurable host", () => {
     expect(PROBLEM_BASE).toBe("https://permdock.com/problems");
+  });
+
+  it("defines PermDock types only where about:blank says too little", () => {
+    expect(PROBLEM_TYPES).toEqual([
+      "denied",
+      "approval-required",
+      "validation",
+      "step-up-required",
+      "not-entitled",
+      "rate-limited",
+      "limit-unavailable",
+      "invalid-signature",
+      "approver-not-eligible",
+    ]);
+    expect(problemType("denied")).toBe(`${PROBLEM_BASE}/denied`);
+    expect(statusProblem(409, "approval is not pending")).toEqual({
+      type: "about:blank",
+      title: "Conflict",
+      status: 409,
+      detail: "approval is not pending",
+    });
+    expect(statusProblem(599, "x").title).toBe("Error");
+  });
+
+  it("answers 405 with Allow and an about:blank body", async () => {
+    const response = methodNotAllowed("GET, POST");
+    expect(response.headers.get("allow")).toBe("GET, POST");
+    expect(await response.json()).toEqual({
+      type: "about:blank",
+      title: "Method Not Allowed",
+      status: 405,
+      detail: "use GET, POST",
+    });
   });
 
   it("carries permission, denials and alternatives as wire keys on a denial", async () => {
@@ -269,7 +322,7 @@ describe("RFC 9457 Problem Details", () => {
       denied({
         role: "member",
         reason: "limit",
-        detail: { count: 10, window: 60, resetsAt: Date.now() / 1000 + 30 },
+        detail: { count: 10, per: 60, resetsAt: at(Date.now() / 1000 + 30) },
       }),
       permission,
       subject,
@@ -356,5 +409,157 @@ describe("RFC 9457 Problem Details", () => {
         'Bearer error="invalid_token", error_description="The access token is invalid"',
       );
     });
+  });
+});
+
+describe("PROBLEM_EXAMPLES", () => {
+  const author = {
+    principal: { id: "u_123", roles: ["member"] },
+    context: {},
+  };
+  const remove = permissions.post.delete;
+  const refused = (...denials: readonly Denial[]): Decision => ({
+    outcome: "denied",
+    denials,
+    alternatives: [permissions.post.read, permissions.post.update],
+  });
+
+  async function approverRefusal(): Promise<Response> {
+    const store = memoryApprovalStore();
+    const now = Temporal.Now.instant();
+    store.create({
+      v: 1,
+      id: "apr_1",
+      token: "pd1.request",
+      permission: remove.key,
+      scope: remove.scope,
+      resource: { type: "post", id: "p_42" },
+      subject: { principal: author.principal },
+      detail: "post.delete requires human approval.",
+      createdAt: now.toString(),
+      expiresAt: now.add({ minutes: 1 }).toString(),
+      status: "pending",
+    });
+    const handler = approvalsHandler(store, { subject: () => author });
+    return handler(
+      new Request("https://api.example/permdock/approvals/apr_1/approve", {
+        method: "POST",
+      }),
+    );
+  }
+
+  const emitters: Readonly<
+    Record<ProblemType, () => Response | Promise<Response>>
+  > = {
+    denied: () =>
+      problemFromDecision(
+        refused({ role: "member", reason: "condition" }),
+        remove,
+        author,
+        { instance: "/posts/p_42" },
+      ),
+    "approval-required": () =>
+      problemFromDecision(
+        {
+          outcome: "approval-required",
+          grant: { role: "member", permission: remove.key, approval: "human" },
+          reason: "human",
+          token: "pd1.eyJhbGciOiJFZERTQSJ9",
+        },
+        remove,
+        author,
+        {
+          instance: "/posts/p_42",
+          approval: { at: "https://app.example/approvals" },
+        },
+      ),
+    validation: () =>
+      problemFromDecision(
+        refused({
+          role: null,
+          reason: "validation",
+          detail: new PermDockValidationError({
+            code: "invalid-data",
+            permission: remove.key,
+            resource: remove.resource,
+            issues: [{ message: "title is required", path: ["title"] }],
+            boundary: "http-body",
+            message: "invalid post",
+          }),
+        }),
+        remove,
+        author,
+      ),
+    "step-up-required": () =>
+      problemFromDecision(
+        refused({
+          role: "member",
+          reason: "insufficient-user-authentication",
+          to: { kind: "assurance", acr: ["urn:mfa"], maxAge: 600 },
+        }),
+        remove,
+        author,
+      ),
+    "not-entitled": () =>
+      problemFromDecision(
+        refused({
+          role: "admin",
+          reason: "not-entitled",
+          to: { kind: "plan", plan: "pro" },
+        }),
+        remove,
+        author,
+      ),
+    "rate-limited": () =>
+      problemFromDecision(
+        refused({
+          role: "member",
+          reason: "limit",
+          detail: { count: 10, per: 60, resetsAt: at(1_900_000_000) },
+        }),
+        remove,
+        author,
+      ),
+    "limit-unavailable": () =>
+      problemFromDecision(
+        refused({ role: "member", reason: "limit-unavailable" }),
+        remove,
+        author,
+      ),
+    "invalid-signature": () =>
+      invalidSignatureProblem("HTTP Message Signature did not verify"),
+    "approver-not-eligible": approverRefusal,
+  };
+
+  it.each(PROBLEM_TYPES)(
+    "%s is the body the emitting code writes",
+    async (type) => {
+      const response = await emitters[type]();
+      expect(response.headers.get("content-type")).toBe(
+        "application/problem+json",
+      );
+      expect(response.status).toBe(PROBLEM_EXAMPLES[type].status);
+      expect(await response.json()).toEqual(PROBLEM_EXAMPLES[type]);
+    },
+  );
+
+  it("the docs show each example under its problem type heading", () => {
+    const page = readFileSync(
+      path.join(
+        import.meta.dirname,
+        "../../../../apps/docs/content/docs/standards/problem-details.mdx",
+      ),
+      "utf8",
+    );
+    const section = page.slice(page.indexOf("\n## Problem types\n"));
+    for (const type of PROBLEM_TYPES) {
+      const start = section.indexOf(`\n### ${type}\n`);
+      expect({ type, start: start >= 0 }).toEqual({ type, start: true });
+      const fence = /```json\n([\s\S]*?)\n```/u.exec(
+        section.slice(start).split(/\n### /u)[1] ?? "",
+      );
+      const shown: unknown = JSON.parse(fence?.[1] ?? "null");
+      expect({ type, shown }).toEqual({ type, shown: PROBLEM_EXAMPLES[type] });
+    }
   });
 });

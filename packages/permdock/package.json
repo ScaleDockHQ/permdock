@@ -102,6 +102,26 @@
       "types": "./dist/node/index.d.ts",
       "default": "./dist/node/index.js"
     },
+    "./h3": {
+      "types": "./dist/h3/index.d.ts",
+      "default": "./dist/h3/index.js"
+    },
+    "./sveltekit": {
+      "types": "./dist/sveltekit/index.d.ts",
+      "default": "./dist/sveltekit/index.js"
+    },
+    "./astro": {
+      "types": "./dist/astro/index.d.ts",
+      "default": "./dist/astro/index.js"
+    },
+    "./solid-start": {
+      "types": "./dist/solid-start/index.d.ts",
+      "default": "./dist/solid-start/index.js"
+    },
+    "./tanstack-start": {
+      "types": "./dist/tanstack-start/index.d.ts",
+      "default": "./dist/tanstack-start/index.js"
+    },
     "./trpc": {
       "types": "./dist/trpc/index.d.ts",
       "default": "./dist/trpc/index.js"
@@ -122,6 +142,10 @@
     "./solid": {
       "types": "./dist/solid/index.d.ts",
       "default": "./dist/solid/index.js"
+    },
+    "./agent": {
+      "types": "./dist/agent/index.d.ts",
+      "default": "./dist/agent/index.js"
     },
     "./ai-sdk": {
       "types": "./dist/ai-sdk/index.d.ts",
@@ -158,6 +182,30 @@
     "./webmcp": {
       "types": "./dist/webmcp/index.d.ts",
       "default": "./dist/webmcp/index.js"
+    },
+    "./workflow": {
+      "types": "./dist/workflow/index.d.ts",
+      "default": "./dist/workflow/index.js"
+    },
+    "./workflow-sdk": {
+      "types": "./dist/workflow-sdk/index.d.ts",
+      "default": "./dist/workflow-sdk/index.js"
+    },
+    "./delivery": {
+      "types": "./dist/delivery/index.d.ts",
+      "default": "./dist/delivery/index.js"
+    },
+    "./resend": {
+      "types": "./dist/resend/index.d.ts",
+      "default": "./dist/resend/index.js"
+    },
+    "./chat": {
+      "types": "./dist/chat/index.d.ts",
+      "default": "./dist/chat/index.js"
+    },
+    "./chat-sdk": {
+      "types": "./dist/chat-sdk/index.d.ts",
+      "default": "./dist/chat-sdk/index.js"
     },
     "./a2a": {
       "types": "./dist/a2a/index.d.ts",
@@ -285,9 +333,12 @@
     "@orpc/server": "catalog:",
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
+    "@solidjs/start": "catalog:",
     "@supabase/middleware": "catalog:",
     "@supabase/supabase-js": "catalog:",
+    "@sveltejs/kit": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@tanstack/react-start": "catalog:",
     "@trpc/server": "catalog:",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
@@ -297,13 +348,16 @@
     "@vitest/coverage-v8": "catalog:",
     "ai": "catalog:",
     "ajv": "catalog:",
+    "astro": "catalog:",
     "babel-plugin-react-compiler": "catalog:",
     "better-supabase": "catalog:",
+    "chat": "catalog:",
     "drizzle-orm": "catalog:",
     "elysia": "catalog:",
     "eve": "catalog:",
     "express": "catalog:",
     "fastify": "catalog:",
+    "h3": "catalog:",
     "happy-dom": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
@@ -317,6 +371,7 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "reflect-metadata": "catalog:",
+    "resend": "catalog:",
     "rxjs": "catalog:",
     "solid-js": "catalog:",
     "svelte": "catalog:",
@@ -327,6 +382,7 @@
     "valibot": "catalog:",
     "vitest": "catalog:",
     "vue": "catalog:",
+    "workflow": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
   },
@@ -339,15 +395,21 @@
     "@openai/agents": "catalog:peers",
     "@opentelemetry/api": "catalog:peers",
     "@orpc/server": "catalog:peers",
+    "@solidjs/start": "catalog:peers",
     "@supabase/middleware": "catalog:peers",
+    "@sveltejs/kit": "catalog:peers",
+    "@tanstack/react-start": "catalog:peers",
     "@trpc/server": "catalog:peers",
     "ai": "catalog:peers",
+    "astro": "catalog:peers",
     "better-supabase": "catalog:peers",
+    "chat": "catalog:peers",
     "drizzle-orm": "catalog:peers",
     "elysia": "catalog:peers",
     "eve": "catalog:peers",
     "express": "catalog:peers",
     "fastify": "catalog:peers",
+    "h3": "catalog:peers",
     "hono": "catalog:peers",
     "jose": "catalog:peers",
     "kysely": "catalog:peers",
@@ -356,12 +418,14 @@
     "pgsql-parser": "catalog:peers",
     "react": "catalog:peers",
     "reflect-metadata": "catalog:peers",
+    "resend": "catalog:peers",
     "rxjs": "catalog:peers",
     "solid-js": "catalog:peers",
     "svelte": "catalog:peers",
     "unplugin": "catalog:peers",
     "vitest": "catalog:peers",
-    "vue": "catalog:peers"
+    "vue": "catalog:peers",
+    "workflow": "catalog:peers"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {
@@ -388,7 +452,16 @@
     "@orpc/server": {
       "optional": true
     },
+    "@solidjs/start": {
+      "optional": true
+    },
     "@supabase/middleware": {
+      "optional": true
+    },
+    "@sveltejs/kit": {
+      "optional": true
+    },
+    "@tanstack/react-start": {
       "optional": true
     },
     "@trpc/server": {
@@ -397,7 +470,13 @@
     "ai": {
       "optional": true
     },
+    "astro": {
+      "optional": true
+    },
     "better-supabase": {
+      "optional": true
+    },
+    "chat": {
       "optional": true
     },
     "drizzle-orm": {
@@ -413,6 +492,9 @@
       "optional": true
     },
     "fastify": {
+      "optional": true
+    },
+    "h3": {
       "optional": true
     },
     "hono": {
@@ -439,6 +521,9 @@
     "reflect-metadata": {
       "optional": true
     },
+    "resend": {
+      "optional": true
+    },
     "rxjs": {
       "optional": true
     },
@@ -455,6 +540,9 @@
       "optional": true
     },
     "vue": {
+      "optional": true
+    },
+    "workflow": {
       "optional": true
     }
   },

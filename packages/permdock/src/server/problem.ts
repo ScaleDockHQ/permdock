@@ -18,6 +18,13 @@ import {
   problemDetails,
   stepUpOf,
 } from "../core/problem-details.ts";
+import { problemType, statusProblem } from "../core/problem-types.ts";
+import {
+  type Instant,
+  durationOf,
+  nowSeconds,
+  secondsOf,
+} from "../core/time.ts";
 
 export { PROBLEM_BASE, stepUpOf };
 
@@ -158,18 +165,15 @@ export const DEFAULT_MAX_EVALUATIONS = 256;
 
 /** RFC 9457 413 for a batch over `max` evaluations. */
 export function batchTooLarge(max: number): Response {
-  return problemResponse({
-    type: `${PROBLEM_BASE}/payload-too-large`,
-    title: "Payload too large",
-    status: 413,
-    detail: `evaluations batch exceeds ${String(max)}`,
-  });
+  return problemResponse(
+    statusProblem(413, `evaluations batch exceeds ${String(max)}`),
+  );
 }
 
 export function validationProblem(detail: string): Response {
   return problemResponse(
     compact<ProblemDetails>({
-      type: `${PROBLEM_BASE}/validation`,
+      type: problemType("validation"),
       title: "Invalid request",
       status: 400,
       detail,
@@ -186,11 +190,11 @@ function isLimitDetail(value: unknown): value is LimitDetail {
     return false;
   }
   // SAFETY: value is a non-null object; each destructured field is checked below.
-  const { count, window, resetsAt } = value as Partial<LimitDetail>;
+  const { count, per, resetsAt } = value as Partial<LimitDetail>;
   return (
     Number.isFinite(count) &&
-    Number.isFinite(window) &&
-    Number.isFinite(resetsAt)
+    durationOf(per) !== undefined &&
+    secondsOf(resetsAt) !== undefined
   );
 }
 
@@ -200,7 +204,7 @@ function isLimitDetail(value: unknown): value is LimitDetail {
  */
 export function rateLimitHeaders(
   decision: Decision,
-  now: number = Date.now() / 1000,
+  now?: Instant,
 ): Record<string, string> {
   if (decision.outcome !== "denied") {
     return {};
@@ -221,7 +225,7 @@ export function rateLimitHeaders(
   const entries = [...policies].map(([name, detail]) => ({
     name: sfString(name),
     detail,
-    wait: Math.max(1, Math.ceil(detail.resetsAt - now)),
+    wait: Math.max(1, (secondsOf(detail.resetsAt) ?? 0) - nowSeconds(now)),
   }));
   return {
     "Retry-After": String(Math.min(...entries.map((entry) => entry.wait))),
@@ -231,7 +235,7 @@ export function rateLimitHeaders(
     "RateLimit-Policy": entries
       .map(
         (entry) =>
-          `${entry.name};q=${entry.detail.count};w=${entry.detail.window}`,
+          `${entry.name};q=${entry.detail.count};w=${entry.detail.per}`,
       )
       .join(", "),
   };
@@ -361,13 +365,14 @@ export function unauthenticatedProblem(credentials: boolean): Response {
   );
 }
 
+/** RFC 9110 section 15.5.6: a `405` lists the methods the resource supports in `Allow`. */
 export function methodNotAllowed(allow: string): Response {
-  const response = problemResponse({
-    type: `${PROBLEM_BASE}/method-not-allowed`,
-    title: "Method not allowed",
-    status: 405,
-    detail: `use ${allow}`,
-  });
-  response.headers.set("Allow", allow);
-  return response;
+  return problemResponse(
+    statusProblem(405, `use ${allow}`),
+    undefined,
+    undefined,
+    {
+      Allow: allow,
+    },
+  );
 }

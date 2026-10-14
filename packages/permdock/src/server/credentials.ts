@@ -3,15 +3,16 @@ import type {
   CredentialVerifier,
   DecisionSink,
   SettingsSource,
-  SubjectResolver,
 } from "../core/interfaces.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
+import type { PrincipalSource } from "../core/principal-source.ts";
+import type { Instant } from "../core/time.ts";
 
 import { compact } from "../core/compact.ts";
 import {
   type Credential,
   type CredentialKind,
-  type CredentialPrincipal,
+  type ApiKeyPrincipal,
   credentialPolicyViolation,
   credentialSubject,
   credentialTenant,
@@ -272,7 +273,7 @@ export function apiKeyVerifier(options: {
   });
 }
 
-export type MemoryCredentials = CredentialVerifier & {
+export type MemoryCredentialStore = CredentialVerifier & {
   /** Stores `credential` and returns its key; the key is never stored. */
   issue(credential: Credential): Promise<string>;
   /** A new secret for the same id; the old key stops verifying at once. */
@@ -280,8 +281,8 @@ export type MemoryCredentials = CredentialVerifier & {
   /** `true` when a credential was removed. */
   revoke(id: string): boolean;
   list(): readonly Credential[];
-  /** When `touch` last recorded a use of `id`, in Unix seconds. */
-  lastUsedAt(id: string): number | undefined;
+  /** When `touch` last recorded a use of `id`, as RFC 3339. */
+  lastUsedAt(id: string): string | undefined;
 };
 
 function write(
@@ -302,11 +303,11 @@ function write(
  * In-process credentials for tests and single-replica apps. `issue`, `rotate`
  * and `revoke` write `credential` events to `sink` when one is given.
  */
-export function memoryCredentials(
+export function memoryCredentialStore(
   options: { readonly sink?: DecisionSink; readonly source?: string } = {},
-): MemoryCredentials {
+): MemoryCredentialStore {
   const records = new Map<string, StoredCredential>();
-  const used = new Map<string, number>();
+  const used = new Map<string, string>();
   const verifier = apiKeyVerifier({ find: (id) => records.get(id) });
   const emit = (
     operation: "created" | "rotated" | "revoked",
@@ -330,12 +331,12 @@ export function memoryCredentials(
   };
   return Object.freeze({
     verify: (secret: string) => verifier.verify(secret),
-    touch(id: string, at: number): void {
+    touch(id: string, at: Instant): void {
       if (records.has(id)) {
-        used.set(id, at);
+        used.set(id, new Date(at.epochMilliseconds).toISOString());
       }
     },
-    lastUsedAt(id: string): number | undefined {
+    lastUsedAt(id: string): string | undefined {
       return used.get(id);
     },
     async issue(input: Credential): Promise<string> {
@@ -380,14 +381,15 @@ export type ApiKeySubjectOptions = {
   /** The definitions, to turn the credential's permission keys into its delegation. */
   readonly permissions: PermissionTree;
   /**
-   * The live owner of a user-bound key: roles and memberships as of this
-   * request. `null` (a deleted or suspended user) is anonymous. Without it
-   * the owner is `{ id, kind: 'user' }` and its rights come from the
-   * `memberships` source passed to `createPermDock`.
+   * Loads the live owner of a user-bound key: roles and memberships as of
+   * this request, asked with the key's tenant. `null` (a deleted or
+   * suspended user) is anonymous with `owner-unavailable`, and a throw is
+   * `source-threw`. Without it the owner is `{ id, kind: 'user' }` and its
+   * rights come from the `memberships` source passed to `createPermDock`.
    */
-  readonly owner?: (
-    id: string,
-  ) => Principal | null | undefined | Promise<Principal | null | undefined>;
+  readonly principals?: PrincipalSource;
+  /** The tenant the request acts in: a user key is held to its owner's memberships there. */
+  readonly tenant?: string;
   /** `true` when the application revoked the credential id; a throw denies. */
   readonly revoked?: (id: string) => boolean | Promise<boolean>;
   /**
@@ -412,6 +414,17 @@ type Checked =
   | { readonly ok: true; readonly owner?: Principal }
   | { readonly ok: false; readonly cause?: ApiKeyFailureCause };
 
+function isPrincipalRecord(value: unknown): value is Principal {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.hasOwn(value, "id") &&
+    "id" in value &&
+    typeof value.id === "string"
+  );
+}
+
 async function checkStores(
   options: ApiKeySubjectOptions,
   credential: Credential,
@@ -435,11 +448,14 @@ async function checkStores(
     ) {
       return { ok: false, cause: "credential-revoked" };
     }
-    if (credential.kind !== "user" || options.owner === undefined) {
+    if (credential.kind !== "user" || options.principals === undefined) {
       return { ok: true };
     }
-    const owner = await options.owner(credential.principal);
-    if (owner === null || owner === undefined) {
+    const owner: unknown = await options.principals.principal(
+      credential.principal,
+      tenant === undefined ? {} : { tenant },
+    );
+    if (!isPrincipalRecord(owner)) {
       return { ok: false, cause: "owner-unavailable" };
     }
     return { ok: true, owner };
@@ -453,7 +469,7 @@ function touch(verifier: CredentialVerifier, id: string): void {
     return;
   }
   try {
-    const touched = verifier.touch(id, Math.floor(Date.now() / 1000));
+    const touched = verifier.touch(id, { epochMilliseconds: Date.now() });
     if (isThenable(touched)) {
       void Promise.resolve(touched).catch(() => undefined);
     }
@@ -497,36 +513,29 @@ function reportUse(
   ]);
 }
 
+function anonymous(): Subject<ApiKeyPrincipal> {
+  return anonymousSubject();
+}
+
 /**
- * A `SubjectResolver` for opaque API keys (`pdk_<id>_<secret>`): each call
- * resolves a key into the subject its credential acts as. Every failure (a
- * malformed or unknown key, a record that is not a valid credential, expiry,
- * a tenant policy the key breaks, a revoked id, a missing owner, a throwing
- * verifier or callback) is the anonymous subject, never a throw.
+ * Resolves an opaque API key (`pdk_<id>_<secret>`) into the subject its
+ * credential acts as. Every failure (a malformed or unknown key, a record
+ * that is not a valid credential, expiry, a tenant policy the key breaks, a
+ * revoked id, a missing owner, a throwing verifier, source or callback) is
+ * the anonymous subject, never a throw.
  */
-export function subjectFromApiKey(
-  options: ApiKeySubjectOptions,
-): SubjectResolver<string | undefined | null, CredentialPrincipal> {
-  return (key, resolve) => resolveApiKey(key, options, resolve?.tenant);
-}
-
-function anonymous(): Subject<CredentialPrincipal> {
-  // SAFETY: the anonymous subject has a null principal, which fits any principal type.
-  return anonymousSubject() as Subject<CredentialPrincipal>;
-}
-
-async function resolveApiKey(
+export async function subjectFromApiKey(
   key: string | undefined | null,
   options: ApiKeySubjectOptions,
-  tenant: string | undefined,
-): Promise<Subject<CredentialPrincipal>> {
+): Promise<Subject<ApiKeyPrincipal>> {
+  const tenant = options.tenant;
   if (typeof key !== "string" || key.length === 0) {
     return anonymous();
   }
   const deny = (
     cause: ApiKeyFailureCause | undefined,
     reason: AuthEvent["reason"] = "invalid-token",
-  ): Subject<CredentialPrincipal> => {
+  ): Subject<ApiKeyPrincipal> => {
     try {
       options.onAuth?.(
         compact<AuthEvent>({
@@ -566,7 +575,7 @@ async function resolveApiKey(
   }
   if (
     credential.expiresAt !== undefined &&
-    credential.expiresAt <= Date.now() / 1000
+    Date.parse(credential.expiresAt) <= Date.now()
   ) {
     return deny("expired");
   }
@@ -585,6 +594,6 @@ async function resolveApiKey(
   }
   reportUse(options, credential);
   touch(options.verifier, credential.id);
-  // SAFETY: credentialSubject builds a CredentialPrincipal, and a null principal returned above.
-  return subject as Subject<CredentialPrincipal>;
+  // SAFETY: credentialSubject builds an ApiKeyPrincipal, and a null principal returned above.
+  return subject as Subject<ApiKeyPrincipal>;
 }

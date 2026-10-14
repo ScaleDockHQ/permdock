@@ -6,7 +6,7 @@ import { listPermissions } from "../../src/core/permission-registry.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { createServerKernel } from "../../src/server/create.ts";
+import { createPermDock } from "../../src/server/create.ts";
 import { createPermDock as createTrpcPermDock } from "../../src/trpc/create.ts";
 
 const RESOURCES = 200;
@@ -42,7 +42,7 @@ const byKey = JSON.stringify({
   })),
 });
 
-const kernel = createServerKernel(policy, { subject: () => ({ id: "u1" }) });
+const kernel = createPermDock(policy, { subject: () => ({ id: "u1" }) });
 const { POST } = kernel.permdockHandler();
 const trpc = createTrpcPermDock(policy, { subject: () => ({ id: "u1" }) });
 
@@ -58,7 +58,7 @@ test("evaluations, 100 items over 600 permissions", async ({ bench }) => {
       await POST(post(byKey));
     }),
     bench("tRPC permdockHandler, by permission key", async () => {
-      await trpc.permdockHandler(post(byKey));
+      await trpc.permdockHandler()(post(byKey));
     }),
   );
 });

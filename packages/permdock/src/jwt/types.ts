@@ -68,7 +68,10 @@ export type JoseTokenSignerOptions = {
   readonly key: Record<string, unknown> | Uint8Array;
   readonly alg: JwtAlgorithm;
   readonly kid: string;
-  readonly issuer?: string;
+  /** `iss` of every output; required. */
+  readonly issuer: string;
+  /** `aud` for an output whose `sign` call names none; without either, `sign` rejects. */
+  readonly audience?: string | readonly string[];
 };
 
 export type JwtClaimPaths = {
@@ -130,5 +133,8 @@ export type JwtPrincipal = Principal & {
 export type DpopProofResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly cause: TokenFailureCause };
+
+/** The principal `subjectFromIntrospection` maps an RFC 7662 response to. */
+export type IntrospectionPrincipal = JwtPrincipal;
 
 export type MappedSubject = Subject<JwtPrincipal>;

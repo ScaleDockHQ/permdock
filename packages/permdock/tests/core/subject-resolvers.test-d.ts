@@ -9,7 +9,7 @@ import type {
   ClerkPrincipal,
   ClerkSubjectOptions,
 } from "../../src/clerk/index.ts";
-import type { CredentialPrincipal, SubjectResolver } from "../../src/index.ts";
+import type { ApiKeyPrincipal, SubjectResolver } from "../../src/index.ts";
 import type { JwtPrincipal, JwtSubjectOptions } from "../../src/jwt/index.ts";
 import type {
   McpAuthInfo,
@@ -43,10 +43,10 @@ declare const mcp: McpSubjectOptions;
 type Token = string | undefined | null;
 
 describe("SubjectResolver", () => {
-  it("is what subjectFromApiKey returns, tenant argument included", () => {
-    expectTypeOf(subjectFromApiKey(apiKey)).toExtend<
-      SubjectResolver<Token, CredentialPrincipal>
-    >();
+  it("is what subjectFromApiKey becomes with the tenant passed through", () => {
+    expectTypeOf((key: Token, scope?: { readonly tenant?: string }) =>
+      subjectFromApiKey(key, { ...apiKey, ...scope }),
+    ).toExtend<SubjectResolver<Token, ApiKeyPrincipal>>();
   });
 
   it("is what a provider mapper becomes once its options are bound", () => {
@@ -64,7 +64,7 @@ describe("SubjectResolver", () => {
       SubjectResolver<unknown, ClerkPrincipal>
     >();
     expectTypeOf((session: unknown) =>
-      subjectFromBetterAuth(auth, session, betterAuth),
+      subjectFromBetterAuth(session, { ...betterAuth, auth }),
     ).toExtend<SubjectResolver<unknown, BetterAuthPrincipal>>();
     expectTypeOf((info: McpAuthInfo | undefined) =>
       subjectFromMcp(info, mcp),

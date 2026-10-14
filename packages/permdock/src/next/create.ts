@@ -17,7 +17,7 @@ import type {
   NextSubjectInput,
   RequireAccessInput,
   ServerPermissionState,
-  ServerPermDockProviderProps,
+  NextPermDockProviderProps,
 } from "./types.ts";
 
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
@@ -25,7 +25,7 @@ import { compact } from "../core/compact.ts";
 import { type Decision, NO_GRANT } from "../core/decision.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
 import { wrapPermDock } from "../core/wrap.ts";
-import { createEvaluationsHandler } from "../server/evaluations.ts";
+import { evaluationsHandler } from "../server/evaluations.ts";
 import { renderClientProvider } from "./provider.tsx";
 
 type GrantedDecision = Extract<Decision, { readonly outcome: "granted" }>;
@@ -250,9 +250,7 @@ export function createPermDock<
     });
   };
 
-  const PermDockProvider = (
-    props: ServerPermDockProviderProps,
-  ): ReactElement => {
+  const PermDockProvider = (props: NextPermDockProviderProps): ReactElement => {
     // A rejection reaches the client store as `server-only`, or with
     // `suspend` the nearest error boundary; Next.js interrupts keep working.
     const snapshotPromise = getPermDock(
@@ -278,8 +276,8 @@ export function createPermDock<
     );
   };
 
-  const permdockHandler = (): ReturnType<typeof createEvaluationsHandler> =>
-    createEvaluationsHandler(
+  const permdockHandler = (): ReturnType<typeof evaluationsHandler> =>
+    evaluationsHandler(
       compact({
         policy,
         getPermDock,

@@ -19,7 +19,7 @@ type Route = {
     readonly params: Readonly<Record<string, string | undefined>>;
     readonly data: unknown;
     readonly permdock: Awaited<
-      ReturnType<ReturnType<typeof createPermDock>["permdock"]>
+      ReturnType<ReturnType<typeof createPermDock>["getPermDock"]>
     >;
   }) => Promise<Response> | Response;
 };

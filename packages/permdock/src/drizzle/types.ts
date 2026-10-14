@@ -4,6 +4,7 @@ import type { MembershipsMapping } from "../conditions/compile.ts";
 import type { RelationsMapping } from "../conditions/graph-sql.ts";
 import type { WithSubjectOptions } from "../conditions/subject-settings.ts";
 import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 /** A column of the Drizzle table `T` or an `SQL` expression; anything for a structural stand-in. */
 export type DrizzleColumnOf<T> = T extends Table
@@ -17,7 +18,8 @@ export type DrizzleWhereOptions<T = unknown> = {
   readonly memberships?: MembershipsMapping;
   /** Where the relation graph lives; graph grants compile to Postgres subqueries with it and are refused without. */
   readonly relations?: RelationsMapping;
-  readonly now?: number;
+  /** The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults to the current time. */
+  readonly now?: Instant;
   readonly operators?: DrizzleOperators;
 };
 

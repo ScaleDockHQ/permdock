@@ -14,6 +14,7 @@ import {
   subjectMemberships,
   tenantOf,
 } from "../core/scopes.ts";
+import { epochSeconds, type Instant, INVALID_NOW } from "../core/time.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
 import {
   type Condition,
@@ -62,7 +63,8 @@ export type MembershipsMapping = {
 export type CompileWhereOptions = {
   readonly subject?: Subject;
   readonly memberships?: MembershipsMapping;
-  readonly now?: number;
+  /** The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults to the current time. */
+  readonly now?: Instant;
   /** The policy's scopes; `where()` results carry them. Defaults to the implicit `tenant` / `team` pair. */
   readonly scopes?: readonly Scope[];
   /** Where the relation graph lives; without it a `related` node is refused. */
@@ -451,7 +453,10 @@ function compileMemberOf(
   options: CompileWhereOptions,
 ): CompiledWhere {
   assertSafeKey(condition.field, "condition field");
-  const now = options.now ?? Date.now() / 1000;
+  const now = epochSeconds(options.now);
+  if (!Number.isFinite(now)) {
+    throw new TypeError(`PermDock: compileWhere ${INVALID_NOW.message}`);
+  }
   const scopes = options.scopes ?? scopeList(undefined);
   const scope =
     condition.scope === "resource"

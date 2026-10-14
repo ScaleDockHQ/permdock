@@ -11,7 +11,7 @@ import { createPermDock } from "../../src/eve/index.ts";
 import { ownPost, permissions, policy } from "../fixtures/quick-start.ts";
 
 const { approval, approvalFor } = createPermDock(policy, {
-  tools: { delete_post: { permission: permissions.post.delete } },
+  operations: { delete_post: { permission: permissions.post.delete } },
 });
 
 describe("permdock/eve against eve", () => {

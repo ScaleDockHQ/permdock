@@ -122,7 +122,7 @@ describe("permdock/ai-sdk inside generateText", () => {
   it("fails the call instead of offering approval for a denied tool", async () => {
     const { needsApproval } = createPermDock(policy, {
       subject: () => memberUser,
-      tools: bindings(),
+      operations: bindings(),
     });
     const execute = vi.fn<() => string>(() => "published");
     await expect(
@@ -146,7 +146,7 @@ describe("permdock/ai-sdk inside generateText", () => {
     const store = memoryApprovalStore();
     const { toolApproval } = createPermDock(policy, {
       subject: () => memberUser,
-      tools: bindings(),
+      operations: bindings(),
       store,
     });
     const execute = vi.fn<() => string>(() => "deleted");
@@ -176,7 +176,7 @@ describe("permdock/ai-sdk inside generateText", () => {
     const store = memoryApprovalStore();
     const { needsApproval } = createPermDock(policy, {
       subject: () => memberUser,
-      tools: bindings(),
+      operations: bindings(),
       store,
     });
     const execute = vi.fn<() => string>(() => "deleted");
@@ -212,7 +212,7 @@ describe("permdock/ai-sdk inside generateText", () => {
     const store = memoryApprovalStore();
     const { toolApproval } = createPermDock(policy, {
       subject: () => memberUser,
-      tools: bindings(),
+      operations: bindings(),
       store,
     });
     const execute = vi.fn<() => string>(() => "deleted");
@@ -244,7 +244,7 @@ describe("permdock/ai-sdk inside generateText", () => {
   it("hides tools from the model through wrapLanguageModel", async () => {
     const { capabilityMiddleware } = createPermDock(policy, {
       subject: (context) => context["user"],
-      tools: bindings(),
+      operations: bindings(),
     });
     const model = replies();
     await generateText({

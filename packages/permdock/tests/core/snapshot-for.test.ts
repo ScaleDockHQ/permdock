@@ -1,3 +1,4 @@
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -45,16 +46,19 @@ describe("snapshotFor", () => {
   it("matches createPermDock().snapshot() for the same subject", async () => {
     const permdock = await createPermDock(policy, alice, { tenant: "acme" });
     // SAFETY: the instance has no signer, so snapshot() returned an unsigned Snapshot.
-    const expected = permdock.snapshot() as { readonly issuedAt: number };
+    const expected = permdock.snapshot() as { readonly issuedAt: string };
     const actual = snapshotFor(policy, alice, {
       tenant: "acme",
-      now: expected.issuedAt,
+      now: Temporal.Instant.from(expected.issuedAt),
     });
     expect(actual).toEqual(expected);
   });
 
   it("is plain JSON that survives structuredClone and JSON", () => {
-    const snapshot = snapshotFor(policy, alice, { tenant: "acme", now: 100 });
+    const snapshot = snapshotFor(policy, alice, {
+      tenant: "acme",
+      now: Temporal.Instant.fromEpochMilliseconds(100_000),
+    });
     assertJson(snapshot);
     expect(structuredClone(snapshot)).toEqual(snapshot);
     const parsed = parseSnapshot(JSON.stringify(snapshot));
@@ -134,10 +138,13 @@ describe("snapshotFor", () => {
         context: {},
         expiresAt: 5000,
       },
-      { tenant: "acme", now: 1234.9 },
+      {
+        tenant: "acme",
+        now: Temporal.Instant.fromEpochMilliseconds(1_234_900),
+      },
     );
-    expect(snapshot.issuedAt).toBe(1234);
-    expect(snapshot.expiresAt).toBe(5000);
+    expect(snapshot.issuedAt).toBe("1970-01-01T00:20:34.000Z");
+    expect(snapshot.expiresAt).toBe("1970-01-01T01:23:20.000Z");
   });
 
   it("builds an anonymous snapshot for a null user", () => {

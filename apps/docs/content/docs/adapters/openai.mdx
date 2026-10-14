@@ -13,23 +13,24 @@ The SDK's [human-in-the-loop guide](https://openai.github.io/openai-agents-js/gu
 
 ```ts
 import { Agent, run, tool, RunState } from "@openai/agents";
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/openai";
 import { z } from "zod";
 
 const PostArgs = z.object({ id: z.string() }); // tool input arrives as `unknown`
 
-const { needsApproval, guardTools, resolveInterruptions, permdock } =
+const { needsApproval, guardTools, resolveInterruptions, getPermDock } =
   createPermDock(policy, {
     subject: (context) => context.user, // RunContext -> principal
     actor: (context) => ({ id: context.agentId, kind: "openai-agent" }),
     delegation: (context) => ({ scopes: context.scopes }),
-    tools: {
+    operations: defineOperations(permissions, {
       delete_post: {
         permission: permissions.post.delete,
         data: (args) => loadPost(PostArgs.parse(args).id),
       },
       list_posts: { permission: permissions.post.list },
-    },
+    }),
     store, // ApprovalStore; memoryApprovalStore() when omitted
   });
 
@@ -38,7 +39,10 @@ const deletePost = tool({
   parameters: z.object({ id: z.string() }),
   needsApproval: needsApproval(permissions.post.delete), // decide() per call; denied → approval never granted
   execute: async ({ id }, ctx) => {
-    (await permdock(ctx)).assert(permissions.post.delete, await loadPost(id));
+    (await getPermDock(ctx)).assert(
+      permissions.post.delete,
+      await loadPost(id),
+    );
     return remove(id);
   },
 });
@@ -78,8 +82,10 @@ if (pending.length === 0) result = await run(agent, state); // every interruptio
 - `needsApproval(permission)` returns the SDK predicate `(runContext, args) => Promise<boolean>`; it reads the application context from `runContext.context`. It returns `false` only when `can(permission, row)` holds for the resolved resource, and `true` (pause) for `approval-required`, `denied`, a thrown or empty `data` loader and anything else; the check does not touch the store. The tool never executes on a denial: `resolveInterruptions` rejects it.
 - `guardTools(tools, context)` filters the tool array to those whose permission has any grant for this subject, so the model cannot plan with tools it may not use (the `capabilityMiddleware` equivalent).
 - `resolveInterruptions(state, interruptions, { context })` decides each interruption in order. `granted` (including an approved record, which it consumes) calls `state.approve(i)`; `denied` (including a rejected, consumed or expired record) calls `state.reject(i, { message })` with the Decision's reason; `approval-required` writes or finds the pending `ApprovalRequest` and returns it. An interruption whose name or JSON arguments cannot be read is rejected. The token is recomputed from permission, resource, principal, actor and arguments, so any process with the same store finds the record.
-- `permdock(context)` returns a request-scoped `PermDock` for checks inside `execute`.
+- `getPermDock(context)` returns a request-scoped `PermDock` for checks inside `execute`.
 - `subject` and `actor` read from the `RunContext` the application passes to `run`; nothing is read from model output. `delegation` reads from the same context and has no default: an `actor` with no `delegation` is denied every tool with reason `no-delegation`.
+- `operations` maps SDK tool names to permissions; build it with `defineOperations` ([operations](/docs/concepts/operations)).
+- `context`, `otel`, `wrap` and `deniedText` behave as on [`permdock/ai-sdk`](/docs/adapters/ai-sdk#api). `unmapped: 'allow'` keeps a tool `operations` does not name in `guardTools`, and `resolveInterruptions` leaves its interruption for the application to answer; the default `'deny'` drops and rejects it.
 
 ## Request lifecycle
 
@@ -106,7 +112,7 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 - Arguments against the resource's Standard Schema when `data` exists; the SDK's own parse-failure path already fails closed for malformed JSON, and the adapter's validation covers well-formed but wrong data.
 - The subject comes from `RunContext`, never from arguments or `interruption.rawItem`.
 - Approvals on resume: token recomputed and compared; unknown, pending, rejected, expired or already consumed records reject the call. An approval resumes one call.
-- Tool coverage: in development, `guardTools` warns about tools missing from the `tools` map, because `needsApproval` will reject them at runtime.
+- Tool coverage: a tool `operations` does not name is dropped by `guardTools` and rejected by `resolveInterruptions`, unless `unmapped` is `'allow'`.
 - Serialised state: `RunState` is treated as opaque; the adapter reads `callId` and tool name from interruptions and nothing else. `runContext.context` is persisted data per the SDK's own warning, so `subject` and `actor` should be re-derived from authentication on resume, not trusted from the deserialised context; `RunState.fromStringWithContext(agent, s, freshContext)` is the recommended path.
 
 ## How denials surface
@@ -114,7 +120,7 @@ Sticky decisions (`alwaysApprove`, `alwaysReject`) are never issued by the adapt
 - `state.reject(i, { message })` with `message` built from the Decision: failing roles, reason kind and `alternatives`, phrased for the model. The SDK sends it back as the tool result so the model can pick a permitted action.
 - `guardTools` removals are silent to the model; they appear in `on('decision')` with `source: 'adapter'`.
 - Resume failures use `message` values `approval-expired`, `approval-mismatch`, `approval-rejected` and `approval-not-found`.
-- Hosted MCP tools reached through the SDK's `requireApproval` and `onApproval` can call `needsApproval` inside `onApproval`; the mapping is the same, with the MCP server name and tool name as the lookup key in `tools`.
+- Hosted MCP tools reached through the SDK's `requireApproval` and `onApproval` can call `needsApproval` inside `onApproval`; the mapping is the same, with the MCP server name and tool name as the lookup key in `operations`.
 - The SDK's tool guardrails (`toolInputGuardrails`, `toolOutputGuardrails`) are a second hook: an input guardrail can call `decide` and return a tripwire with the same Decision-derived message, which is useful when a team already routes all argument checks through guardrails. `needsApproval` remains the primary hook because it is the only one that can pause for `approval-required`; a guardrail can only allow or reject. OpenAI's Agent Builder is being retired on 30 November 2026 and does not affect this adapter, which targets the SDK ([landscape](/docs/research/landscape)).
 
 ## Why

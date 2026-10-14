@@ -2,6 +2,7 @@ import type { AuthEvent } from "./event-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
+import type { Instant } from "./time.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -10,6 +11,7 @@ import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
+import { nowSeconds } from "./time.ts";
 
 export type SnapshotForOptions = {
   /** Active tenant; ignored unless the subject holds a membership in it. */
@@ -18,14 +20,14 @@ export type SnapshotForOptions = {
   readonly memberships?: readonly Membership[];
   /** The tenant's custom roles, typically from a shared, tagged cache. */
   readonly customRoles?: readonly CustomRole[];
-  /** Per tenant, the role names `RoleSource.assignable` returns; narrows `assignable`. */
+  /** Per tenant, the role names `CustomRoleSource.assignable` returns; narrows `assignable`. */
   readonly assignable?: Readonly<Record<string, readonly string[]>>;
   /** Plans of the active tenant; replaces `principal.plans`. */
   readonly plans?: readonly string[];
   readonly include?: SnapshotInclude;
   readonly tenants?: "all";
-  /** Epoch seconds for `issuedAt` and membership expiry. Defaults to the clock. */
-  readonly now?: number;
+  /** The instant for `issuedAt` and membership expiry. Defaults to the clock. */
+  readonly now?: Instant;
 };
 
 function withPlans(
@@ -110,7 +112,7 @@ export function snapshotFor<
       assignable,
       include: options.include,
       tenants: options.tenants,
-      now: options.now,
+      now: options.now === undefined ? undefined : nowSeconds(options.now),
     }),
   );
 }

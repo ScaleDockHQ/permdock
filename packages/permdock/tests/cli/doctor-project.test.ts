@@ -14,7 +14,7 @@ import {
   pd028,
 } from "../../src/cli/doctor/project.ts";
 import { sqlFiles } from "../../src/cli/files.ts";
-import { fromJunction } from "../../src/supabase/sources.ts";
+import { junctionMembershipSource } from "../../src/supabase/sources.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);
@@ -296,7 +296,7 @@ grant update (user_id, name) on public.contact_profiles to authenticated;
         supabase: {
           hook: {
             memberships: [
-              fromJunction({
+              junctionMembershipSource({
                 table: "customer_contacts",
                 scope: "customer",
                 user: {

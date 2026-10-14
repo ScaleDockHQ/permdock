@@ -12,6 +12,7 @@ import type {
   CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
+  CatalogOperation,
   ScanResult,
 } from "./types.ts";
 
@@ -19,6 +20,7 @@ import { catalogSchema } from "../catalog/schema.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { byCodePoint } from "../core/compare.ts";
 import { policyRowConditionKeys } from "../core/row-conditions.ts";
+import { wireValidity } from "../core/validity.ts";
 import {
   catalogFingerprint,
   findRole,
@@ -45,6 +47,7 @@ export function buildCatalog(
   scan: ScanResult,
   generatedAt: string,
   policy?: Policy,
+  operations?: readonly CatalogOperation[],
 ): CatalogDocument {
   const hostable = new Set(policy?.hostable ?? []);
   const rowConditions =
@@ -113,6 +116,7 @@ export function buildCatalog(
     ...(policy?.delegations === undefined
       ? {}
       : { delegations: catalogDelegations(policy) }),
+    ...(operations === undefined ? {} : { operations }),
   };
   const head = {
     $schema: CATALOG_SCHEMA,
@@ -173,7 +177,7 @@ function catalogGrant(grant: Grant): CatalogGrant {
       check: grant.portable ? grant.check : undefined,
       approval: catalogApproval(grant.approval),
       fields: grant.fields,
-      validity: grant.validity,
+      validity: wireValidity(grant.validity),
       name: grant.name,
       purpose: grant.purpose,
       requires:
@@ -221,7 +225,7 @@ export function catalogDelegations(
         from: delegation.from,
         to: delegation.to,
         permissions: delegation.permissions,
-        validity: delegation.validity,
+        validity: wireValidity(delegation.validity),
       }),
     )
     .toSorted((a, b) => {

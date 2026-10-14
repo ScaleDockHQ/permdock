@@ -7,11 +7,7 @@ import type {
 } from "../../src/eve/index.ts";
 
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
-import {
-  actorFromSession,
-  createPermDock,
-  rolesOf,
-} from "../../src/eve/create.ts";
+import { actorFromEve, createPermDock, rolesOf } from "../../src/eve/create.ts";
 import {
   memberUser,
   ownPost,
@@ -78,7 +74,7 @@ describe("eve session helpers", () => {
 
   it("names the current principal as actor when it differs from the initiator", () => {
     expect(
-      actorFromSession({
+      actorFromEve({
         session: {
           id: "s1",
           auth: {
@@ -95,7 +91,7 @@ describe("permdock/eve responses", () => {
   it("asks an approvers function and rejects a responder it refuses", async () => {
     const seen: string[] = [];
     const { approval } = createPermDock(policy, {
-      tools,
+      operations: tools,
       delegation: () => delegated,
       approvers: (responder) => {
         seen.push(responder.principalId);
@@ -117,7 +113,7 @@ describe("permdock/eve responses", () => {
 
   it("rejects when the responder maps to no principal", async () => {
     const { approval } = createPermDock(policy, {
-      tools,
+      operations: tools,
       delegation: () => delegated,
       subject: (context) => {
         const id = context.session?.auth?.initiator?.principalId;
@@ -133,7 +129,7 @@ describe("permdock/eve responses", () => {
 
   it("recomputes the token for an unknown call and rejects an unmapped tool", async () => {
     const { approval } = createPermDock(policy, {
-      tools,
+      operations: tools,
       delegation: () => delegated,
     });
     await approval.request({
@@ -167,7 +163,7 @@ describe("permdock/eve responses", () => {
     const results = [];
     for (const store of [failingGet, failingResolve]) {
       const { approval } = createPermDock(policy, {
-        tools,
+        operations: tools,
         delegation: () => delegated,
         store,
       });

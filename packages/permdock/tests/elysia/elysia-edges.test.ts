@@ -1,7 +1,10 @@
 import { Elysia } from "elysia";
 import { describe, expect, it } from "vitest";
 
-import { createPermDock, type ElysiaContext } from "../../src/elysia/index.ts";
+import {
+  createPermDock,
+  type ElysiaPermDockContext,
+} from "../../src/elysia/index.ts";
 import {
   memberUser,
   otherPost,
@@ -21,7 +24,7 @@ describe("permdock/elysia edge cases", () => {
       };
       const response = await protect(permissions.post.list)(ctx);
       // SAFETY: protect decorates ctx with permdock when it grants.
-      const decorated = ctx as unknown as ElysiaContext;
+      const decorated = ctx as unknown as ElysiaPermDockContext;
       results.push({
         response,
         principal: decorated.permdock.subject.principal?.id,
@@ -43,22 +46,24 @@ describe("permdock/elysia edge cases", () => {
   });
 
   it("resolves the actor from the Elysia context", async () => {
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
       actor: (ctx) => ({ id: new URL(ctx.request.url).host, kind: "agent" }),
     });
     const app = new Elysia()
-      .use(permdock())
+      .use(middleware())
       .get("/posts", (ctx) => ctx.permdock.subject.actor);
     const response = await app.handle(new Request("http://bots.test/posts"));
     expect(await response.json()).toEqual({ id: "bots.test", kind: "agent" });
   });
 
   it("turns a thrown assert in a route into a problem response", async () => {
-    const { permdock } = createPermDock(policy, { subject: () => memberUser });
-    const app = new Elysia().use(permdock()).get("/posts/p2", (ctx) => {
-      // SAFETY: the permdock() plugin derives ctx.permdock for every route.
-      (ctx as unknown as ElysiaContext).permdock.assert(
+    const { middleware } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = new Elysia().use(middleware()).get("/posts/p2", (ctx) => {
+      // SAFETY: the middleware() plugin derives ctx.permdock for every route.
+      (ctx as unknown as ElysiaPermDockContext).permdock.assert(
         permissions.post.update,
         otherPost,
       );

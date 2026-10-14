@@ -3,7 +3,7 @@ title: OpenID AuthZEN
 description: How PermDock speaks the OpenID AuthZEN Authorization API 1.0 as a policy decision point (permdock/authzen) and as a policy enforcement point (the pdp provider).
 ---
 
-`permdock/authzen` serves the full endpoint set, the React adapter's batched client speaks the same schemas, and the `pdp` provider calls a remote PDP. Basic, Batch, Search and Discovery conformance runs in the repository through `testAuthZen` from `permdock/testing`, including the official interop Todo vectors; submitting for external certification is the last step ([checklist](#certification-checklist)).
+`permdock/authzen` serves the full endpoint set, the React adapter's batched client speaks the same schemas, and the `pdp` provider calls a remote PDP. Basic, Batch, Search and Discovery conformance runs in the repository through `testAuthzen` from `permdock/testing`, including the official interop Todo vectors; submitting for external certification is the last step ([checklist](#certification-checklist)).
 
 ## What it is
 
@@ -79,7 +79,7 @@ An evaluation request for `permdock.decide(permissions.post.update, post)`:
     "id": "p_42",
     "properties": { "authorId": "u_123", "orgId": "org_9", "published": false }
   },
-  "context": { "tenant": "org_9", "delegation": { "scopes": ["post:update"] } }
+  "context": { "tenant": "org_9", "delegation": { "scope": "post:update" } }
 }
 ```
 
@@ -94,14 +94,16 @@ The response carries the boolean AuthZEN decision plus a `context.permdock` memb
     "permdock": {
       "outcome": "denied",
       "denials": [{ "role": "member", "reason": "condition" }]
-    }
+    },
+    "reason_admin": { "en": "post.update denied: member (condition)." },
+    "reason_user": { "en": "post.update is not permitted." }
   }
 }
 ```
 
-A grant is `"decision": true` with `context.permdock.outcome` equal to `granted`; an `approval-required` outcome is `"decision": false` so AuthZEN-only PEPs fail closed, with `context.permdock.outcome` equal to `approval-required` and `context.permdock.token` for the approval flow. The application's own decision endpoint (`permdockHandler`) returns the full `Decision` under the same member, because its caller is the application's UI. PermDock does not propose a separate AuthZEN-level signal for it: a `false` that a PermDock-aware PEP can refine is the fail-closed reading every other PEP already gets.
+A grant is `"decision": true` with `context.permdock.outcome` equal to `granted`; an `approval-required` outcome is `"decision": false` so AuthZEN-only PEPs fail closed, with `context.permdock.outcome` equal to `approval-required` and `context.permdock.token` for the approval flow. A denied or `approval-required` result also carries the AuthZEN 1.0 section 7.2.1 reasons: `reason_admin` names the denying roles and reasons, and `reason_user` names only the permission. The application's own decision endpoint (`permdockHandler`) returns the full `Decision` under the same member, because its caller is the application's UI. PermDock does not propose a separate AuthZEN-level signal for it: a `false` that a PermDock-aware PEP can refine is the fail-closed reading every other PEP already gets.
 
-The `context` keys for `tenant`, `actor` and `delegation` are PermDock's names, listed in the mapping table below. If AuthZEN defines names for them, PermDock adopts the specification's names.
+The `context` keys for `tenant`, `actor` and `delegation` are PermDock's names, listed in the mapping table below. `delegation` uses the OAuth wire names, a space-separated `scope` string and RFC 9396 `authorization_details`. If AuthZEN defines names for them, PermDock adopts the specification's names.
 
 The boxcar form wraps many `{ action, resource }` pairs under one `subject`; a top-level `subject`, `action`, `resource` or `context` is the default for every item that omits it, and is what `simulate()` sends; resource search maps to `filter` / `where`; action search maps to iterating `listPermissions(permissions)` for one resource and returning the granted keys.
 
@@ -116,23 +118,26 @@ The boxcar form wraps many `{ action, resource }` pairs under one `subject`; a t
 | `.well-known/authzen-configuration/<tenant>`                | Per-tenant PDP metadata served by `permdockHandler` and the hosted ADS when the deployment is multi-tenant                                                                     |
 | `action.name`                                               | `permission.key` (`post.update`) resolved with `findPermission`, or the bare action (`update`) of the resource named by `resource.type`                                        |
 | `resource.type`                                             | Resource node name (`post`)                                                                                                                                                    |
-| `resource.id`                                               | Value of the resource's `id` field                                                                                                                                             |
+| `resource.id`                                               | Value of the resource's `id` field; `"*"` names the collection, a check with no row                                                                                            |
 | `resource.properties`                                       | The instance passed to `decide`; validated at the boundary                                                                                                                     |
-| `context`                                                   | `delegation` (scopes, `authorization_details`) and request context                                                                                                             |
+| `context`                                                   | `delegation` (`scope`, `authorization_details`) and request context                                                                                                            |
 | `decision: true`                                            | `outcome: 'granted'`                                                                                                                                                           |
 | `decision: false`                                           | `outcome: 'denied'` or `'approval-required'` (distinguished in `context.permdock.outcome`)                                                                                     |
 | Response `context.permdock`                                 | `outcome`, `denials` as `{ role, reason }`, `token`; the full `Decision` only from the application's own `permdockHandler`                                                     |
+| Response `context.reason_admin`, `context.reason_user`      | Section 7.2.1 reasons in `en` on a denied or `approval-required` result; `reason_user` names no role, grant or subject                                                         |
 | `/access/v1/evaluations` (boxcar)                           | `permdock.simulate([...])` and the batched React client                                                                                                                        |
+| `options.evaluations_semantic`                              | `execute_all` (default), `deny_on_first_deny` or `permit_on_first_permit`; an unknown value is a `400`                                                                         |
+| `X-Request-ID`                                              | Echoed on every response when the request sends one                                                                                                                            |
 | `/search/action`                                            | Granted keys from `listPermissions` for one resource (the catalog question)                                                                                                    |
 | `/search/resource`                                          | `filter` for arrays, `where` for query compilers; each permitted row is returned as `{ type, id }`, with `id` read from the resource's `id` field and rows without one dropped |
 | `/search/subject`                                           | Iterating the subjects returned by the `subjects.list` option; without it the route answers 404 and the metadata document omits `search_subject_endpoint`                      |
 | `/search/resource` as a claim source (AuthZEN claims draft) | `permdock.heldRoles({ tenant })` and `memberships()` for the authenticated subject ([JWT authorization claims](/docs/standards/jwt-authorization-claims))                      |
 | `.well-known` metadata                                      | `.well-known/authzen-configuration` served by `permdockHandler`                                                                                                                |
-| Certification levels Basic / Batch / Search / Discovery     | `testAuthZen` from `permdock/testing` over the interop Todo domain; external submission per the checklist below                                                                |
+| Certification levels Basic / Batch / Search / Discovery     | `testAuthzen` from `permdock/testing` over the interop Todo domain; external submission per the checklist below                                                                |
 
 ## Conformance
 
-`testAuthZen(permdockHandler, { vectors })` from [`permdock/testing`](/docs/adapters/testing) runs vectors in the interop harness layout (`evaluation` and `evaluations` arrays of `{ request, expected }`, and `search.subject`, `search.resource`, `search.action` lists compared order-insensitively) against any `(Request) => Promise<Response>`, and checks `/.well-known/authzen-configuration` names the same origin as every endpoint it lists. It works for PermDock's own `permdockHandler` and for any other AuthZEN PDP.
+`testAuthzen(permdockHandler(), { vectors })` from [`permdock/testing`](/docs/adapters/testing) runs vectors in the interop harness layout (`evaluation` and `evaluations` arrays of `{ request, expected }`, and `search.subject`, `search.resource`, `search.action` lists compared order-insensitively) against any `(Request) => Promise<Response>`, and checks `/.well-known/authzen-configuration` names the same origin as every endpoint it lists. It works for PermDock's own `permdockHandler` and for any other AuthZEN PDP.
 
 The package ships the interop Todo domain as `authzenTodoPermissions`, `authzenTodoPolicy`, `authzenTodoUsers` and `authzenTodoData` (Rick is `admin` and `evil_genius`, Morty and Summer are `editor`, Beth and Jerry are `viewer`; editors update and delete only todos whose `ownerID` is their email), and `authzenTodoVectors()` generates PermDock's own vectors from those rules. The official vectors live in [openid/authzen](https://github.com/openid/authzen), which carries no licence file, so the repository does not vendor them: `pnpm authzen:vectors` (the root `scripts/fetch-authzen-vectors.ts`) fetches `decisions-authorization-api-1_0-02.json` at commit `78a5165a0048895a345e4ac5b0f2b9c7904bb110` into the gitignored `fixtures/authzen/`, and the suite runs it whenever the file is present.
 

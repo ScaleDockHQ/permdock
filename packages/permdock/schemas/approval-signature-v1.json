@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/approval-signature-v1.json",
+  "title": "PermDock approval signature v1",
+  "description": "The JWT claims set of a vnd.permdock.approval+jwt: an approved ApprovalRequest, signed when it resolves. jti is the request id, iat its resolvedAt and exp its expiresAt. Unknown claims are allowed so a v1 minor release can add one.",
+  "type": "object",
+  "required": [
+    "iss",
+    "aud",
+    "iat",
+    "exp",
+    "jti",
+    "token",
+    "approvals",
+    "authorization_details"
+  ],
+  "properties": {
+    "iss": { "type": "string", "minLength": 1 },
+    "aud": { "$ref": "#/$defs/audience" },
+    "iat": { "$ref": "#/$defs/numericDate" },
+    "exp": { "$ref": "#/$defs/numericDate" },
+    "jti": { "type": "string", "minLength": 1 },
+    "sub": { "type": "string", "minLength": 1 },
+    "act": {
+      "description": "RFC 8693: the actor that asked for the approval.",
+      "type": "object",
+      "required": ["sub"],
+      "properties": { "sub": { "type": "string", "minLength": 1 } }
+    },
+    "token": {
+      "description": "The PermDock-Approval token the signature approves.",
+      "type": "string",
+      "minLength": 1
+    },
+    "resolved_by": { "type": "string", "minLength": 1 },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["by", "at"],
+        "properties": {
+          "by": { "type": "string", "minLength": 1 },
+          "at": { "$ref": "#/$defs/instant" },
+          "stage": { "type": "integer", "minimum": 0 },
+          "vouched": { "type": "string" },
+          "on_behalf_of": { "type": "string" },
+          "delegation": { "type": "string" }
+        }
+      }
+    },
+    "authorization_details": {
+      "description": "RFC 9396: one entry, the approved action on the approved resource.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "actions"],
+        "properties": {
+          "type": { "type": "string", "minLength": 1 },
+          "actions": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "identifier": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "numericDate": {
+      "description": "RFC 7519 NumericDate: seconds since the epoch.",
+      "type": "number",
+      "minimum": 0
+    },
+    "audience": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      ]
+    },
+    "instant": {
+      "description": "RFC 3339 date-time.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    }
+  }
+}

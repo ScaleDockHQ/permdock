@@ -37,7 +37,9 @@ PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents
    | Add PermDock, first guard, limits, plans, CLI checks                  | `permdock-wire`        |
    | Review an app or a pull request                                       | `permdock-audit`       |
    | Agent tool calls, actors, delegation, A2A, WebMCP                     | `permdock-agents`      |
+   | Automations, workflow runs, chat bots and chat commands               | `permdock-agents`      |
    | Human approval, approvers, quorum, resume, delegation, access reviews | `permdock-approvals`   |
+   | Approval prompts and notices by email or chat (delivery)              | `permdock-approvals`   |
    | Named scopes, memberships, ownership, custom roles                    | `permdock-tenancy`     |
    | ORM queries, generated RLS, relationship graphs, parity               | `permdock-data`        |
    | Access tokens, API keys, service accounts, feed keys, share links     | `permdock-credentials` |
@@ -52,6 +54,8 @@ PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents
    ✓ The cause is a named grant, condition or missing input, not a guess.
 5. **Check the project.** Run `pnpm exec permdock doctor` (`--json` for machine output). Each finding has a stable `PD0xx` code and a one-line fix ([doctor](https://permdock.com/docs/cli/doctor)); the topic skills name the codes for their area.
    ✓ `permdock doctor` reports no error.
+6. **Upgrade across a rename release.** After raising `permdock` to 0.5, run `pnpm exec permdock codemod 0.5 --dry-run`, then without `--dry-run`. It renames imported identifiers and lists each call site whose shape changed, and each option or method key to edit by hand, as `file:line:column` ([codemod](https://permdock.com/docs/cli/codemod)). Work through that list, then run `tsc` and the step 5 check.
+   ✓ The codemod's second run reports no changes, and every follow-up it listed is edited.
 
 ## Verify before done
 
@@ -63,4 +67,4 @@ PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents
 ## Reference index
 
 - Skills: `permdock-wire`, `permdock-audit`, `permdock-agents`, `permdock-approvals`, `permdock-tenancy`, `permdock-data`, `permdock-credentials`, all from `npx skills add ScaleDockHQ/PermDock --skill <name>`.
-- Docs: [for AI agents](https://permdock.com/docs/for-ai-agents), [naming](https://permdock.com/docs/getting-started/naming), [policies](https://permdock.com/docs/concepts/policies), [decisions](https://permdock.com/docs/concepts/decisions), [threat model](https://permdock.com/docs/security/threat-model), [doctor](https://permdock.com/docs/cli/doctor), `https://permdock.com/llms.txt`.
+- Docs: [for AI agents](https://permdock.com/docs/for-ai-agents), [naming](https://permdock.com/docs/getting-started/naming), [policies](https://permdock.com/docs/concepts/policies), [decisions](https://permdock.com/docs/concepts/decisions), [threat model](https://permdock.com/docs/security/threat-model), [doctor](https://permdock.com/docs/cli/doctor), [codemod](https://permdock.com/docs/cli/codemod), `https://permdock.com/llms.txt`.

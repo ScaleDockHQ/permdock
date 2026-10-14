@@ -8,7 +8,7 @@ import type { User } from "../fixtures/quick-start.ts";
 
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
 import { createPermDock } from "../../src/hono/index.ts";
-import { verifyWebBotAuth } from "../../src/server/web-bot-auth.ts";
+import { webBotAuthVerifier } from "../../src/server/web-bot-auth.ts";
 import {
   memberUser,
   otherPost,
@@ -124,15 +124,13 @@ describe("permdock/hono streams and sockets", () => {
     expect(await (await app.request("/ws")).text()).toBe("granted");
     expect(opened).toEqual(["open"]);
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
-    expect(closes).toEqual([
-      [1008, "https://permdock.com/problems/unauthenticated"],
-    ]);
+    expect(closes).toEqual([[1008, "session-revoked"]]);
   });
 });
 
 describe("permdock/hono", () => {
   it("sets a request-scoped instance and protects routes", async () => {
-    const { permdock, protect } = createPermDock(policy, {
+    const { middleware, protect } = createPermDock(policy, {
       subject: (c) => c.get("user"),
     });
     const app = new Hono<{ Variables: { user: User } }>();
@@ -140,7 +138,7 @@ describe("permdock/hono", () => {
       c.set("user", memberUser);
       await next();
     });
-    app.use(permdock());
+    app.use(middleware());
     app.delete(
       "/posts/:id",
       protect(permissions.post.update, (c) =>
@@ -164,19 +162,19 @@ describe("permdock/hono", () => {
     );
   });
 
-  it("passes context, wrap and onDenied through to the kernel", async () => {
+  it("passes context, wrap and deniedResponse through to the kernel", async () => {
     const wrapped: unknown[] = [];
-    const { permdock, protect } = createPermDock(policy, {
+    const { middleware, protect } = createPermDock(policy, {
       subject: () => memberUser,
       context: (c) => ({ path: c.req.path }),
       wrap: (instance) => {
         wrapped.push(instance.subject.context);
         return instance;
       },
-      onDenied: ({ problem }) => ({ ...problem, code: "LOCKED" }),
+      deniedResponse: ({ problem }) => ({ ...problem, code: "LOCKED" }),
     });
     const app = new Hono();
-    app.use(permdock());
+    app.use(middleware());
     app.delete(
       "/posts/:id",
       protect(permissions.post.update, (c) =>
@@ -218,16 +216,15 @@ describe("permdock/hono", () => {
   });
 
   it("rejects a claimed Web Bot Auth signature before the handler", async () => {
-    const { permdock } = createPermDock(policy, {
+    const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: (request) =>
-        verifyWebBotAuth(request, {
-          verify: true,
-          keys: { lookup: () => undefined },
-        }),
+      webBotAuth: webBotAuthVerifier({
+        verify: true,
+        keys: { lookup: () => undefined },
+      }),
     });
     const app = new Hono();
-    app.use(permdock());
+    app.use(middleware());
     app.get("/posts", (c) => c.json({ ok: true }));
     const response = await app.request("http://localhost/posts", {
       headers: {

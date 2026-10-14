@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { run } from "permdock/cli";
-import { rlsParity, type RlsParityFixture } from "permdock/testing";
+import { testRlsParity, type RlsParityFixture } from "permdock/testing";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -395,7 +395,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
       if (s === undefined) {
         throw new Error("PermDock: database missing");
       }
-      const report = await rlsParity(policy, {
+      const report = await testRlsParity(policy, {
         dialect: shape.dialect,
         fieldViews: true,
         fixtures: parityFixtures(),

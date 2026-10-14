@@ -9,7 +9,7 @@ import {
 } from "../../src/core/custom-roles.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -93,7 +93,7 @@ describe("global custom roles", () => {
   });
 
   it("grant through principal.roles and nothing else", async () => {
-    const customRoles = memoryRoleSource([platformRole]);
+    const customRoles = memoryCustomRoleSource([platformRole]);
     const holder = await createPermDock(policy, subject(["tier2"]), {
       customRoles,
     });

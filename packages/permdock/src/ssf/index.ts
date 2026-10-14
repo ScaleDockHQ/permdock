@@ -2,6 +2,7 @@ export { createPermDock } from "./create.ts";
 export { memoryReplayStore } from "./replay.ts";
 export type {
   CaepEventName,
+  RiscEventName,
   PollHandle,
   PollOptions,
   PollResult,
@@ -12,9 +13,11 @@ export type {
   SsfEventHandler,
   SsfEventInput,
   SsfEventListener,
+  SsfEventName,
   SsfOnEvent,
   SsfPermDockOptions,
   SsfReceiver,
   SsfSubject,
-  SsfSubjectMapper,
+  SsfSubjectResolver,
+  SsfVerification,
 } from "./types.ts";

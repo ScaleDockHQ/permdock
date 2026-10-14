@@ -4,13 +4,13 @@ import { createPermDock } from "permdock/fastify";
 import { ownPost, permissions } from "./permissions.ts";
 import { memberUser, policy } from "./policy.ts";
 
-const { permdock, protect } = createPermDock(policy, {
+const { middleware, protect } = createPermDock(policy, {
   subject: () => memberUser,
 });
 
 export const app = Fastify();
 
-await app.register(permdock);
+await app.register(middleware());
 
 app.get("/health", () => ({ ok: true }));
 

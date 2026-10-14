@@ -1,16 +1,17 @@
+import { defineOperations } from "permdock";
 import { createPermDock } from "permdock/openai";
 
 import { ownPost, permissions } from "./permissions.ts";
 import { memberUser, policy } from "./policy.ts";
 
-export const { needsApproval, guardTools, resolveInterruptions, permdock } =
+export const { needsApproval, guardTools, resolveInterruptions, getPermDock } =
   createPermDock(policy, {
     subject: (ctx) => ctx.user ?? memberUser,
     actor: (ctx) => ({ id: ctx.agentId ?? "openai-1", kind: "openai" }),
     delegation: () => ({
       scopes: [permissions.post.list.scope, permissions.post.delete.scope],
     }),
-    tools: {
+    operations: defineOperations(permissions, {
       list_posts: {
         permission: permissions.post.list,
       },
@@ -18,7 +19,7 @@ export const { needsApproval, guardTools, resolveInterruptions, permdock } =
         permission: permissions.post.delete,
         data: () => ownPost,
       },
-    },
+    }),
   });
 
 export async function askDelete() {

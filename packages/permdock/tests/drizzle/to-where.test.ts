@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { Subject } from "../../src/core/subject.ts";
+import type { Instant } from "../../src/core/time.ts";
 import type { DrizzleOperators } from "../../src/drizzle/types.ts";
 
 import { PermDockValidationError } from "../../src/core/errors.ts";
 import { toWhere } from "../../src/drizzle/to-where.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 function rec(
   op: string,
@@ -152,7 +157,7 @@ describe("permdock/drizzle toWhere", () => {
         {
           operators: ops(),
           subject,
-          now: 100.2,
+          now: at(100.2),
           memberships: {
             tenant: {
               table: "members",

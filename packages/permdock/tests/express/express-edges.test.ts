@@ -39,16 +39,16 @@ describe("permdock/express edge cases", () => {
 });
 
 describe("permdock/express subject reuse", () => {
-  it("resolves the subject once when permdock() runs before the decision endpoint", async () => {
+  it("resolves the subject once when middleware() runs before the decision endpoint", async () => {
     let resolved = 0;
-    const { permdock, permdockHandler } = createPermDock(policy, {
+    const { middleware, permdockHandler } = createPermDock(policy, {
       subject: () => {
         resolved += 1;
         return memberUser;
       },
     });
     const app = express();
-    app.use(permdock());
+    app.use(middleware());
     app.use(express.json());
     app.use("/api/permdock", permdockHandler());
     const request = await listen(app);

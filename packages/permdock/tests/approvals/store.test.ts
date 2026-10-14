@@ -40,6 +40,7 @@ function subject(id: string, tenant?: string): Subject {
 function pending(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
   return {
     v: 1,
+    id: "apr_1",
     token: "pd1.token-1",
     permission: "post.delete",
     scope: "post:delete",
@@ -126,9 +127,9 @@ describe("memoryApprovalStore", () => {
   it("marks stale pending requests expired", async () => {
     const store = memoryApprovalStore();
     store.create(pending({ expiresAt: past }));
-    expect(store.expire(new Date())).toBe(1);
+    expect(store.expire({ epochMilliseconds: Date.now() })).toBe(1);
     expect((await store.get("pd1.token-1"))?.status).toBe("expired");
-    expect(store.expire(new Date())).toBe(0);
+    expect(store.expire({ epochMilliseconds: Date.now() })).toBe(0);
   });
 
   it("refuses resolve on an expired pending request", () => {
@@ -167,7 +168,7 @@ describe("request and resume helpers", () => {
           context: {},
         },
         adapter: "eve",
-        ttl: 3_600_000,
+        ttl: 3600,
       },
     );
     expect(recorded.status).toBe("pending");
@@ -177,7 +178,7 @@ describe("request and resume helpers", () => {
     const pendingInspect = await inspectApproval(store, "pd1.abc");
     expect(pendingInspect.ok).toBe(false);
     if (!pendingInspect.ok) {
-      expect(pendingInspect.detail).toBe("approval-pending");
+      expect(pendingInspect.cause).toBe("approval-pending");
     }
 
     const approved = await resolveApproval(store, "pd1.abc", {
@@ -220,7 +221,7 @@ describe("request and resume helpers", () => {
         },
       },
     );
-    expect(recorded.subject.delegation?.scopes).toEqual(["post:delete"]);
+    expect(recorded.subject.delegation?.scope).toBe("post:delete");
     expect(recorded.detail).toBe("post.delete requires human approval.");
     expect(() =>
       store.resolve("pd1.del", {
@@ -233,7 +234,7 @@ describe("request and resume helpers", () => {
     store.create(pending({ token: "pd1.gone", status: "expired" }));
     expect(await inspectApproval(store, "pd1.gone")).toEqual({
       ok: false,
-      detail: "approval-expired",
+      cause: "approval-expired",
     });
     await expect(
       resolveApproval(store, "missing", {
@@ -258,7 +259,7 @@ describe("request and resume helpers", () => {
     );
     expect(await inspectApproval(store, "pd1.old-ok")).toEqual({
       ok: false,
-      detail: "approval-expired",
+      cause: "approval-expired",
     });
   });
 
@@ -272,11 +273,11 @@ describe("request and resume helpers", () => {
       { requireDistinctApprover: true },
     );
     const rejected = await inspectApproval(store, "pd1.rej");
-    expect(rejected).toEqual({ ok: false, detail: "approval-rejected" });
+    expect(rejected).toEqual({ ok: false, cause: "approval-rejected" });
 
     store.create(pending({ token: "pd1.old", expiresAt: past }));
     const expired = await inspectApproval(store, "pd1.old");
-    expect(expired).toEqual({ ok: false, detail: "approval-expired" });
+    expect(expired).toEqual({ ok: false, cause: "approval-expired" });
   });
 
   it("records grant approvers and the subject session on requests", async () => {
@@ -441,9 +442,7 @@ describe("approvalsHandler", () => {
     );
     expect(pendingRes.status).toBe(200);
     expect(await pendingRes.json()).toEqual({
-      items: [
-        expect.objectContaining({ token: "pd1.token-1", status: "pending" }),
-      ],
+      items: [expect.objectContaining({ id: "apr_1", status: "pending" })],
     });
 
     const mine = await fetch(
@@ -453,7 +452,7 @@ describe("approvalsHandler", () => {
     expect(await mine.json()).toEqual({ items: [] });
 
     const one = await fetch(
-      new Request("https://api.example.com/permdock/approvals/pd1.token-1"),
+      new Request("https://api.example.com/permdock/approvals/apr_1"),
     );
     expect(one.status).toBe(200);
   });
@@ -461,35 +460,36 @@ describe("approvalsHandler", () => {
   it("approves, rejects, and signs the approved token", async () => {
     const signer: TokenSigner = {
       async sign(payload, options) {
-        expect(options.typ).toBe("permdock-approval+jwt");
-        expect(payload["approval"]).toEqual(
-          expect.objectContaining({ token: "pd1.token-1", status: "approved" }),
+        expect(options.typ).toBe("vnd.permdock.approval+jwt");
+        expect(options.jti).toBe("apr_1");
+        expect(payload).toEqual(
+          expect.objectContaining({ token: "pd1.token-1", resolved_by: "u_9" }),
         );
         return "a.b.c";
       },
     };
     const { fetch } = handler(memoryApprovalStore(), { signer });
     const approved = await fetch(
-      new Request(
-        "https://api.example.com/permdock/approvals/pd1.token-1/approve",
-        { method: "POST" },
-      ),
+      new Request("https://api.example.com/permdock/approvals/apr_1/approve", {
+        method: "POST",
+      }),
     );
     expect(approved.status).toBe(200);
     expect(await approved.json()).toEqual(
-      expect.objectContaining({ status: "approved", signed: "a.b.c" }),
+      expect.objectContaining({ status: "approved" }),
     );
+    const signature = await fetch(
+      new Request("https://api.example.com/permdock/approvals/apr_1/signature"),
+    );
+    expect(await signature.text()).toBe("a.b.c");
 
     const { fetch: rejectFetch } = handler();
     const rejected = await rejectFetch(
-      new Request(
-        "https://api.example.com/permdock/approvals/pd1.token-1/reject",
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ note: "no" }),
-        },
-      ),
+      new Request("https://api.example.com/permdock/approvals/apr_1/reject", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ note: "no" }),
+      }),
     );
     expect(rejected.status).toBe(200);
     expect(await rejected.json()).toEqual(
@@ -532,7 +532,7 @@ describe("approvalsHandler", () => {
       (
         await actor.fetch(
           new Request(
-            "https://api.example.com/permdock/approvals/pd1.token-1/approve",
+            "https://api.example.com/permdock/approvals/apr_1/approve",
             { method: "POST" },
           ),
         )
@@ -547,7 +547,7 @@ describe("approvalsHandler", () => {
       (
         await fourEyes.fetch(
           new Request(
-            "https://api.example.com/permdock/approvals/pd1.token-1/approve",
+            "https://api.example.com/permdock/approvals/apr_1/approve",
             { method: "POST" },
           ),
         )
@@ -584,16 +584,15 @@ describe("approvalsHandler", () => {
 
     const twice = handler();
     await twice.fetch(
-      new Request(
-        "https://api.example.com/permdock/approvals/pd1.token-1/approve",
-        { method: "POST" },
-      ),
+      new Request("https://api.example.com/permdock/approvals/apr_1/approve", {
+        method: "POST",
+      }),
     );
     expect(
       (
         await twice.fetch(
           new Request(
-            "https://api.example.com/permdock/approvals/pd1.token-1/approve",
+            "https://api.example.com/permdock/approvals/apr_1/approve",
             { method: "POST" },
           ),
         )
@@ -616,14 +615,14 @@ describe("approvalsHandler", () => {
       new Request("https://api.example.com/permdock/approvals/mine"),
     );
     expect(await mine.json()).toEqual({
-      items: [expect.objectContaining({ token: "pd1.token-1" })],
+      items: [expect.objectContaining({ id: "apr_1" })],
     });
 
     const outsider = handler(memoryApprovalStore(), { tenant: "o_other" });
     expect(
       (
         await outsider.fetch(
-          new Request("https://api.example.com/permdock/approvals/pd1.token-1"),
+          new Request("https://api.example.com/permdock/approvals/apr_1"),
         )
       ).status,
     ).toBe(404);
@@ -653,7 +652,7 @@ describe("approvalsHandler", () => {
       (
         await invalidJson.fetch(
           new Request(
-            "https://api.example.com/permdock/approvals/pd1.token-1/reject",
+            "https://api.example.com/permdock/approvals/apr_1/reject",
             {
               method: "POST",
               headers: { "content-type": "application/json" },
@@ -665,14 +664,14 @@ describe("approvalsHandler", () => {
     ).toBe(200);
     expect(
       (await invalidJson.fetch(new Request("https://api.example.com/"))).status,
-    ).toBe(405);
+    ).toBe(404);
 
     const plain = handler();
     expect(
       (
         await plain.fetch(
           new Request(
-            "https://api.example.com/permdock/approvals/pd1.token-1/reject",
+            "https://api.example.com/permdock/approvals/apr_1/reject",
             {
               method: "POST",
               headers: { "content-type": "text/plain" },

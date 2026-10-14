@@ -20,7 +20,7 @@ import {
   definePermissions,
   definePolicy,
   holder,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   normalizeApproval,
   resource,
   role,
@@ -113,7 +113,14 @@ describe("approver kinds", () => {
     );
     expect(held).toEqual(["payment.approve"]);
     expect(() =>
-      assertApprover(request, dana, false, new Date(), [], held),
+      assertApprover(
+        request,
+        dana,
+        false,
+        { epochMilliseconds: Date.now() },
+        [],
+        held,
+      ),
     ).not.toThrow();
   });
 
@@ -121,7 +128,7 @@ describe("approver kinds", () => {
     const { request } = await pending();
     const erin = inTenant("erin", ["treasury"]);
     const instance = await createPermDock(policy, erin, {
-      customRoles: memoryRoleSource([
+      customRoles: memoryCustomRoleSource([
         {
           name: "treasury",
           tenant: "o1",
@@ -157,7 +164,7 @@ describe("approver kinds", () => {
     });
     const response = await handler(
       new Request(
-        `https://api.example.com/approvals/${encodeURIComponent(request.token)}/approve`,
+        `https://api.example.com/approvals/${encodeURIComponent(request.id)}/approve`,
         { method: "POST" },
       ),
     );
@@ -205,14 +212,14 @@ describe("escalation in data and per stage", () => {
   it("an entry's escalation widens only its own stage", () => {
     const code = normalizeApproval({
       by: "controller",
-      escalation: { after: "1d", to: user("ceo") },
+      escalation: { after: 86_400, to: user("ceo") },
     });
     expect(
       validateApprovalPolicy(policy, {
         permission: "payment.send",
         approval: {
           by: user("cfo"),
-          escalation: { after: "4h", to: "auditor" },
+          escalation: { after: 14_400, to: "auditor" },
         },
       }),
     ).toEqual({ ok: true });
@@ -224,7 +231,7 @@ describe("escalation in data and per stage", () => {
           approval:
             normalizeApproval({
               by: user("cfo"),
-              escalation: { after: "4h", to: "auditor" },
+              escalation: { after: 14_400, to: "auditor" },
             }) ?? "human",
         },
       ],
@@ -240,12 +247,12 @@ describe("escalation in data and per stage", () => {
     );
     expect(tightened).toMatchObject({
       mode: "all",
-      escalation: { after: "1d", to: { kind: "user", id: "ceo" } },
+      escalation: { after: 86_400, to: { kind: "user", id: "ceo" } },
       stages: [
         { by: { kind: "role", role: "controller" } },
         {
           by: { kind: "user", id: "cfo" },
-          escalation: { after: "4h", to: { kind: "role", role: "auditor" } },
+          escalation: { after: 14_400, to: { kind: "role", role: "auditor" } },
         },
       ],
     });
@@ -270,7 +277,7 @@ describe("escalation in data and per stage", () => {
                   { by: "controller" },
                   {
                     by: user("cfo"),
-                    escalation: { after: "4h", to: "auditor" },
+                    escalation: { after: 14_400, to: "auditor" },
                   },
                 ],
               },
@@ -298,15 +305,21 @@ describe("escalation in data and per stage", () => {
       permission: permissions.payment.send,
       resource: { type: "payment", id: "p1" },
       subject: permdock.subject,
-      now: created,
-      ttl: 24 * 60 * 60 * 1000,
+      now: { epochMilliseconds: created.getTime() },
+      ttl: 24 * 60 * 60,
     });
     const auditor = inTenant("ann", ["auditor"]);
     const early = new Date("2026-10-05T09:00:00Z");
     const late = new Date("2026-10-05T13:00:00Z");
-    expect(() => assertApprover(request, auditor, false, early)).toThrow(
-      /eligible/u,
-    );
-    expect(assertApprover(request, auditor, false, late)).toBe(1);
+    expect(() =>
+      assertApprover(request, auditor, false, {
+        epochMilliseconds: early.getTime(),
+      }),
+    ).toThrow(/eligible/u);
+    expect(
+      assertApprover(request, auditor, false, {
+        epochMilliseconds: late.getTime(),
+      }),
+    ).toBe(1);
   });
 });

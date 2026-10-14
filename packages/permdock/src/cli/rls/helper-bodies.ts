@@ -339,8 +339,8 @@ function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
     grant: string,
   ): string => `    and m ->> 'scope' = ${quoteLiteral(scope)}
     and m ->> 'id' is not null${narrow}${keyTenantLine(ctx, scope, claimTenant(ctx, scope))}
-    and case jsonb_typeof(m -> 'expiresAt')
-      when 'number' then (m ->> 'expiresAt')::numeric > extract(epoch from now())
+    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
       else true
     end${[
       ...claimKeptLines(ctx, "    ", grantPermissionSql(grant)),

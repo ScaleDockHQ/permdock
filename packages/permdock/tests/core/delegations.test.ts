@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { Instant } from "../../src/core/time.ts";
 import type { Permission, Snapshot } from "../../src/index.ts";
 
 import { catalogDelegations } from "../../src/cli/catalog-doc.ts";
@@ -14,11 +15,13 @@ import {
   delegatedPermissions,
   deny,
   fromSnapshot,
-  mayUse,
   relation,
   resource,
   role,
 } from "../../src/index.ts";
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 const Post = z.object({ id: z.string(), authorId: z.string() });
 const permissions = definePermissions({
@@ -33,7 +36,8 @@ const post = { id: "p1", authorId: "u1" };
 type User = { readonly id: string; readonly roles: readonly string[] };
 const subject = (user: User) => user;
 
-const UNTIL = Date.parse("2027-06-01T00:00:00Z") / 1000;
+const UNTIL_AT = "2027-06-01T00:00:00Z";
+const UNTIL = Date.parse(UNTIL_AT) / 1000;
 
 const policy = definePolicy(permissions, {
   roles: [
@@ -172,7 +176,7 @@ describe("policy delegations", () => {
           from: "member",
           to: actor("eve"),
           permissions: [permissions.post.update, permissions.post.read],
-          validUntil: UNTIL,
+          validUntil: UNTIL_AT,
         },
       ],
       subject,
@@ -245,11 +249,11 @@ describe("policy delegations", () => {
   it("stops applying after validUntil", async () => {
     const permdock = await createPermDock(policy, member, { actor: eve });
     const [during] = permdock.simulate([[permissions.post.read, post]], {
-      now: UNTIL - 60,
+      now: at(UNTIL - 60),
     });
     expect(during?.outcome).toBe("granted");
     const [expired] = permdock.simulate([[permissions.post.read, post]], {
-      now: UNTIL + 60,
+      now: at(UNTIL + 60),
     });
     expect(expired?.outcome === "denied" && expired.denials[0]?.reason).toBe(
       "no-delegation",
@@ -300,7 +304,7 @@ describe("policy delegations", () => {
       }),
     );
     expect(other.delegated).toBeUndefined();
-    expect(other.subject.delegation).toEqual({ scopes: [] });
+    expect(other.subject.delegation).toEqual({ scope: "" });
   });
 });
 
@@ -355,8 +359,8 @@ describe("read-only actors", () => {
     expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
       "not-delegated",
     );
-    expect(mayUse(permdock, permissions.post.read)).toBe(true);
-    expect(mayUse(permdock, permissions.post.update)).toBe(false);
+    expect(permdock.mayUse(permissions.post.read)).toBe(true);
+    expect(permdock.mayUse(permissions.post.update)).toBe(false);
   });
 
   it("follows meta.readOnly over the action name", async () => {

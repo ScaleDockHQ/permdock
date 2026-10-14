@@ -25,7 +25,7 @@ import {
 import {
   testEntitlementSource,
   testMembershipSource,
-  testRoleSource,
+  testCustomRoleSource,
 } from "../../src/testing/conformance/identity.ts";
 import { testRelationSource } from "../../src/testing/conformance/relations.ts";
 import {
@@ -94,7 +94,7 @@ describe("testRelationSource with periods and no objects", () => {
   testRelationSource(timed, { objects: [] });
 });
 
-describe("testRoleSource with declared role leaves and a policy ceiling", () => {
+describe("testCustomRoleSource with declared role leaves and a policy ceiling", () => {
   const permissions = definePermissions({
     doc: resource({ actions: ["read", "update"] }),
   });
@@ -106,7 +106,7 @@ describe("testRoleSource with declared role leaves and a policy ceiling", () => 
       subject: () => null,
     },
   );
-  testRoleSource(
+  testCustomRoleSource(
     {
       rolesFor: (tenant) => [{ tenant, name: "reviewer", grants: [] }],
     },
@@ -173,7 +173,8 @@ function base64url(value: string): string {
 describe("testTokenSigner with a padded header and no jwks", () => {
   let kid = "k";
   while (
-    JSON.stringify({ alg: "EdDSA", kid, typ: "permdock-snapshot+jwt" }).length %
+    JSON.stringify({ alg: "EdDSA", kid, typ: "vnd.permdock.snapshot+jwt" })
+      .length %
       3 ===
     0
   ) {
@@ -198,7 +199,7 @@ describe("testTokenSigner with a padded header and no jwks", () => {
           ? {
               ok: true,
               claims: { sub: "u_1" },
-              header: { alg: "EdDSA", typ: "permdock-snapshot+jwt" },
+              header: { alg: "EdDSA", typ: "vnd.permdock.snapshot+jwt" },
             }
           : { ok: false, reason: "invalid-token", cause: "invalid-signature" },
       ),
@@ -229,7 +230,7 @@ describe("testCredentialVerifier on a key ending in A", () => {
               principal: "u_1",
               permissions: [{ permission: "repo.read" }],
               createdBy: "u_1",
-              createdAt: 1_700_000_000,
+              createdAt: "2023-11-14T22:13:20.000Z",
             }
           : null,
     },

@@ -1,3 +1,4 @@
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import type { CustomRole, Membership } from "../../src/core/subject.ts";
@@ -10,7 +11,7 @@ import {
 } from "../../src/core/custom-roles.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { listPermissions } from "../../src/core/permission-registry.ts";
@@ -124,7 +125,7 @@ async function permdockFor(
 ) {
   return createPermDock(policy, subjectIn(memberships, tenant), {
     tenant,
-    customRoles: memoryRoleSource(customRoles),
+    customRoles: memoryCustomRoleSource(customRoles),
   });
 }
 
@@ -503,9 +504,9 @@ describe("assignable roles and permissions", () => {
     );
   });
 
-  it("honours RoleSource.assignable per tenant", async () => {
+  it("honours CustomRoleSource.assignable per tenant", async () => {
     const source = {
-      ...memoryRoleSource([]),
+      ...memoryCustomRoleSource([]),
       assignable: async (tenant: string) =>
         tenant === "acme" ? ["viewer", "editor"] : [],
     };
@@ -531,7 +532,7 @@ describe("assignable roles and permissions", () => {
     expect(permdock.assignableRoles({ tenant: "globex" })).toEqual([]);
   });
 
-  it("a throwing RoleSource.assignable assigns nothing", async () => {
+  it("a throwing CustomRoleSource.assignable assigns nothing", async () => {
     const auth: unknown[] = [];
     const permdock = await createPermDock(
       policy,
@@ -678,14 +679,14 @@ describe("assigning custom roles", () => {
     });
   });
 
-  it("follows RoleSource.assignable through the permissions it leaves", async () => {
+  it("follows CustomRoleSource.assignable through the permissions it leaves", async () => {
     const steward = await createPermDock(
       policy,
       subjectIn([{ tenant: "acme", roles: ["steward"] }]),
       {
         tenant: "acme",
         customRoles: {
-          ...memoryRoleSource(all),
+          ...memoryCustomRoleSource(all),
           assignable: () => ["editor"],
         },
       },
@@ -834,7 +835,7 @@ describe("snapshot parity", () => {
       const cached = snapshotFor(policy, subjectIn([membership]), {
         tenant: "acme",
         customRoles: [fixture.custom],
-        now: snapshot.issuedAt,
+        now: Temporal.Instant.from(snapshot.issuedAt),
       });
       expect(cached).toEqual(snapshot);
       const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));

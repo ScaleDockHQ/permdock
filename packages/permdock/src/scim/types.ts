@@ -7,7 +7,9 @@ export const GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group";
 export const LIST_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse";
 export const ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error";
 export const PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
-export const ROLES_EXTENSION = "urn:permdock:scim:schemas:extension:roles:1.0";
+/** The RFC 7643 section 3.3 Group extension that carries PermDock roles. */
+export const ROLES_EXTENSION =
+  "urn:ietf:params:scim:schemas:extension:permdock:2.0:Group";
 
 export type DirectoryMeta = {
   readonly created: string;
@@ -120,7 +122,7 @@ export type DirectoryChange = {
 };
 
 export type ScimHandlerOptions = {
-  readonly store: DirectoryStore;
+  readonly directory: DirectoryStore;
   readonly tenant: string | ((request: Request) => string | Promise<string>);
   readonly token?: ScimTokenOptions;
   readonly verifier?: TokenVerifier;
@@ -165,14 +167,24 @@ export class DirectoryNotFoundError extends Error {
   }
 }
 
+function isNamedError(error: unknown, name: string, code: string): boolean {
+  return (
+    error instanceof Error &&
+    error.name === name &&
+    Reflect.get(error, "code") === code
+  );
+}
+
+/** Matches by `name` and `code`, so an error from another copy of the module still maps. */
 export function isDirectoryUniquenessError(
   error: unknown,
 ): error is DirectoryUniquenessError {
-  return error instanceof DirectoryUniquenessError;
+  return isNamedError(error, "DirectoryUniquenessError", "uniqueness");
 }
 
+/** Matches by `name` and `code`, so an error from another copy of the module still maps. */
 export function isDirectoryNotFoundError(
   error: unknown,
 ): error is DirectoryNotFoundError {
-  return error instanceof DirectoryNotFoundError;
+  return isNamedError(error, "DirectoryNotFoundError", "not-found");
 }

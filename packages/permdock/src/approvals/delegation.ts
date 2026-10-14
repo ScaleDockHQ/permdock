@@ -5,9 +5,10 @@ import type {
   ApprovalRequest,
 } from "./types.ts";
 
-import { ownRecord } from "../core/capability.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { ownRecord } from "../core/paths.ts";
 import { rootMembershipId } from "../core/scopes.ts";
+import { dateAt, type Instant } from "../core/time.ts";
 import { assertApprover } from "./store.ts";
 
 const MAX_ID = 256;
@@ -91,7 +92,7 @@ export function parseApprovalDelegation(
 }
 
 /** In-process delegations. An entry that does not parse is dropped. */
-export function memoryApprovalDelegations(
+export function memoryApprovalDelegationSource(
   entries: readonly unknown[],
 ): ApprovalDelegationSource {
   const stored = entries.flatMap((entry) => {
@@ -180,12 +181,12 @@ export type ApprovalDelegationMatch = {
 };
 
 export type MatchDelegationOptions = {
-  readonly delegations?: ApprovalDelegationSource;
+  readonly approvalDelegations?: ApprovalDelegationSource;
   readonly subjectFor?: (
     principalId: string,
     request: ApprovalRequest,
   ) => Subject | null | undefined | Promise<Subject | null | undefined>;
-  readonly now?: Date;
+  readonly now?: Instant;
   readonly requireDistinct: boolean;
   readonly factsFor: (subject: Subject) => Promise<{
     readonly relations: readonly string[];
@@ -206,18 +207,19 @@ export async function matchDelegation(
   options: MatchDelegationOptions,
 ): Promise<ApprovalDelegationMatch | undefined> {
   const principal = delegate.principal;
-  const source = options.delegations;
+  const source = options.approvalDelegations;
   const subjectFor = options.subjectFor;
   if (
     principal === null ||
     principal.kind === "link" ||
     principal.kind === "feed" ||
+    principal.kind === "contact" ||
     source === undefined ||
     subjectFor === undefined
   ) {
     return undefined;
   }
-  const now = options.now ?? new Date();
+  const now = dateAt(options.now);
   const tenant = request.subject.principal?.tenant;
   if (!inTenant(delegate, tenant)) {
     return undefined;
@@ -253,7 +255,8 @@ export async function matchDelegation(
           resolved.principal === null ||
           resolved.principal.id !== entry.delegator ||
           resolved.principal.kind === "link" ||
-          resolved.principal.kind === "feed"
+          resolved.principal.kind === "feed" ||
+          resolved.principal.kind === "contact"
         ) {
           return undefined;
         }
@@ -262,7 +265,7 @@ export async function matchDelegation(
           request,
           resolved,
           options.requireDistinct,
-          now,
+          { epochMilliseconds: now.getTime() },
           facts.relations,
           facts.permissions,
         );

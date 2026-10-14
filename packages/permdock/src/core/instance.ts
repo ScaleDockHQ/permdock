@@ -22,8 +22,11 @@ import {
 } from "./arazzo.ts";
 import { assertDecision } from "./assert-decision.ts";
 import { type Assignable, assignableIn } from "./assignable.ts";
+import { decideAutomation } from "./automation.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
+import { decideCredential } from "./credential.ts";
 import { customGrantsFor } from "./custom-roles.ts";
+import { decideForTarget } from "./decide-for.ts";
 import { type ActivateInput, activate } from "./elevated.ts";
 import { evaluate } from "./evaluate.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
@@ -32,6 +35,7 @@ import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { type InstanceEnv, deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
+import { mayUse, permittedIds } from "./may-use.ts";
 import {
   type RoleChange,
   type RoleChangeDecision,
@@ -54,6 +58,7 @@ import {
 import { collectSnapshotGrants, whereGrant } from "./snapshot-grants.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { snapshotGrant } from "./snapshot.ts";
+import { decideSupportSession } from "./support-session.ts";
 import {
   nowSeconds,
   relatesTo,
@@ -132,7 +137,7 @@ export function buildInstance(
       permission,
       data,
       options ?? {},
-      envFor(options?.source !== "simulate", options?.source === "can"),
+      envFor(options?.call !== "simulate", options?.call === "can"),
     );
 
   const explainImpl = (
@@ -142,7 +147,7 @@ export function buildInstance(
   ): ExplainedDecision => {
     const decision = decideImpl(permission, data, {
       ...options,
-      source: options?.source ?? "explain",
+      call: options?.call ?? "explain",
       explain: true,
     });
     // SAFETY: evaluate attaches a trace to every decision made with explain: true.
@@ -158,7 +163,7 @@ export function buildInstance(
       return (
         decideImpl(permission, data, {
           ...options,
-          source: options?.source ?? "can",
+          call: options?.call ?? "can",
         }).outcome === "granted"
       );
     } catch {
@@ -173,7 +178,7 @@ export function buildInstance(
   ): Extract<Decision, { readonly outcome: "granted" }> => {
     const decision = decideImpl(permission, data, {
       ...options,
-      source: options?.source ?? "assert",
+      call: options?.call ?? "assert",
     });
     return assertDecision(
       policy,
@@ -189,6 +194,29 @@ export function buildInstance(
   const instance: PermDock = {
     can: canImpl as PermDock["can"],
     decide: decideImpl as PermDock["decide"],
+    decideEach(
+      permission: Permission,
+      rows: readonly unknown[],
+      options?: DecideOptions,
+    ): readonly Decision[] {
+      return Object.freeze(
+        rows.map((row) => decideImpl(permission, row, options)),
+      );
+    },
+    decideFor(
+      principalId: string,
+      permission: Permission,
+      row?: unknown,
+    ): Promise<Decision> {
+      return decideForTarget(
+        subject,
+        envBase.principals,
+        envBase.targets,
+        principalId,
+        permission,
+        row,
+      );
+    },
     assert: assertImpl as PermDock["assert"],
     explain: explainImpl as PermDock["explain"],
     permissions: policy.permissions,
@@ -207,7 +235,7 @@ export function buildInstance(
       const trusted = options?.trusted ?? true;
       const decideOptions: DecideOptions = {
         ...options,
-        source: "filter",
+        call: "filter",
         trusted,
       };
       for (const row of rows) {
@@ -348,7 +376,7 @@ export function buildInstance(
             subject,
             permission,
             row,
-            { source: "simulate", trusted: true },
+            { call: "simulate", trusted: true },
             quiet,
           );
         }
@@ -392,7 +420,7 @@ export function buildInstance(
           permission,
           data,
           compact<DecideOptions>({
-            source: "simulate",
+            call: "simulate",
             trusted: true,
             now: options?.now,
           }),
@@ -581,6 +609,35 @@ export function buildInstance(
         nowSeconds(),
         options,
       );
+    },
+    decideCredential(request, options) {
+      return decideCredential(
+        instance,
+        request,
+        envBase.settings === undefined
+          ? options
+          : { settings: envBase.settings, ...options },
+      );
+    },
+    decideAutomation(request, options) {
+      return Promise.resolve().then(() =>
+        decideAutomation(instance, request, options),
+      );
+    },
+    decideSupportSession(request, options) {
+      return decideSupportSession(
+        instance,
+        request,
+        envBase.settings === undefined
+          ? options
+          : { settings: envBase.settings, ...options },
+      );
+    },
+    mayUse(permission) {
+      return mayUse(instance, permission);
+    },
+    permittedIds(permission, scope, options) {
+      return permittedIds(instance, permission, scope, options);
     },
     activate(input: ActivateInput): Decision {
       return activate(policy, subject, input, nowSeconds());

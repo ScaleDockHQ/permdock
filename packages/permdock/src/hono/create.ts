@@ -17,6 +17,7 @@ import { type ServerAdapterOptions, bindKernel } from "../server/bind.ts";
 import { problemFromError } from "../server/map-error.ts";
 import {
   POLICY_VIOLATION,
+  closeReason,
   guardIterable,
   onRevoked,
 } from "../server/stream.ts";
@@ -30,7 +31,7 @@ export type HonoPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 };
 
 /** The `Variables` both middlewares set; Hono merges them into the route's Env. */
-export type PermDockEnv<
+export type HonoPermDockEnv<
   TData = unknown,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
@@ -41,12 +42,12 @@ export type PermDockEnv<
 };
 
 export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: () => MiddlewareHandler<PermDockEnv<unknown, V>>;
+  readonly middleware: () => MiddlewareHandler<HonoPermDockEnv<unknown, V>>;
   readonly protect: <TData = unknown>(
     permission: Permission | null,
-    loadData?: (c: Context) => TData | Promise<TData>,
+    data?: (c: Context) => TData | Promise<TData>,
     protectOptions?: ProtectOptions,
-  ) => MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>>;
+  ) => MiddlewareHandler<HonoPermDockEnv<NonNullable<TData>, V>>;
   /** A long-lived connection for the request behind `c`. */
   readonly connection: (
     c: Context,
@@ -78,7 +79,7 @@ function socket<T>(connection: Connection, events: WSEvents<T>): WSEvents<T> {
     ...events,
     onOpen: (evt, ws): void => {
       onRevoked(connection, (problem) => {
-        ws.close(POLICY_VIOLATION, problem.type);
+        ws.close(POLICY_VIOLATION, closeReason(problem));
       });
       if (!connection.signal.aborted) {
         events.onOpen?.(evt, ws);
@@ -183,8 +184,9 @@ export function createPermDock<
     guard: runGuard,
   } = bindKernel(policy, options, "hono", (c: Context) => c.req.raw);
 
-  const permdock =
-    (): MiddlewareHandler<PermDockEnv<unknown, V>> => async (c, next: Next) => {
+  const middleware =
+    (): MiddlewareHandler<HonoPermDockEnv<unknown, V>> =>
+    async (c, next: Next) => {
       const attached = await attach(c);
       if (!attached.ok) {
         return attached.response;
@@ -198,16 +200,16 @@ export function createPermDock<
   const protect =
     <TData = unknown>(
       permission: Permission | null,
-      loadData?: (c: Context) => TData | Promise<TData>,
+      data?: (c: Context) => TData | Promise<TData>,
       protectOptions?: ProtectOptions,
-    ): MiddlewareHandler<PermDockEnv<NonNullable<TData>, V>> =>
+    ): MiddlewareHandler<HonoPermDockEnv<NonNullable<TData>, V>> =>
     async (c, next: Next): Promise<Response | undefined> => {
-      const guard = await runGuard(permission, loadData, c, protectOptions);
+      const guard = await runGuard(permission, data, c, protectOptions);
       if (!guard.ok) {
         return guard.response;
       }
       c.set("permdock", guard.permdock);
-      // SAFETY: guard.data is loadData's TData result; protect answers 404 when it is null or undefined.
+      // SAFETY: guard.data is the data loader's TData result; protect answers 404 when it is null or undefined.
       c.set("permdockData", guard.data as NonNullable<TData>);
       await next();
       mapDownstream(c);
@@ -229,7 +231,7 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    middleware,
     protect,
     connection,
     socket,

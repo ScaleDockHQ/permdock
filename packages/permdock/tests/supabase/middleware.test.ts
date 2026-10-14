@@ -9,7 +9,7 @@ import {
   resolveApproval,
 } from "../../src/approvals/index.ts";
 import { APPROVAL_HEADER } from "../../src/approvals/types.ts";
-import { verifyWebBotAuth } from "../../src/server/web-bot-auth.ts";
+import { webBotAuthVerifier } from "../../src/server/web-bot-auth.ts";
 import {
   type SupabaseJwtClaims,
   createPermDock,
@@ -322,11 +322,10 @@ describe("permdock/supabase/middleware", () => {
   it("rejects a claimed Web Bot Auth signature before the handler", async () => {
     const { withPermDock } = createPermDock(policy, {
       subject: (ctx) => subjectFromSupabase(ctx.jwtClaims, subjectOptions),
-      webBotAuth: (incoming) =>
-        verifyWebBotAuth(incoming, {
-          verify: true,
-          keys: { lookup: () => undefined },
-        }),
+      webBotAuth: webBotAuthVerifier({
+        verify: true,
+        keys: { lookup: () => undefined },
+      }),
     });
     const fetch = pipeline(
       [withFixtureClaims({ claims: memberClaims }), withPermDock()],

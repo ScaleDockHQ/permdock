@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { run } from "permdock/cli";
-import { rlsParity } from "permdock/testing";
+import { testRlsParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -94,7 +94,7 @@ describe("RLS parity for uuid tenant ids", () => {
       throw new Error("PermDock: Postgres was not started");
     }
     const client = db.tester;
-    const report = await rlsParity(policy, {
+    const report = await testRlsParity(policy, {
       dialect: "supabase",
       snapshot: true,
       fixtures: [

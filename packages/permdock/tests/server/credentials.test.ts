@@ -8,21 +8,22 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { compact } from "../../src/core/compact.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { memorySettings } from "../../src/core/memory-sources.ts";
+import { memorySettingsSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { listPermissions } from "../../src/core/permission-registry.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
+import { memoryPrincipalSource } from "../../src/core/principal-source.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/index.ts";
 import {
   type ApiKeySubjectOptions,
   apiKeyVerifier,
   generateApiKey,
   hashApiKey,
-  memoryCredentials,
+  memoryCredentialStore,
   parseApiKey,
   subjectFromApiKey,
 } from "../../src/server/credentials.ts";
@@ -49,6 +50,7 @@ const policy = definePolicy(
 );
 
 const NOW = Math.floor(Date.now() / 1000);
+const iso = (seconds: number): string => new Date(seconds * 1000).toISOString();
 const BASE62 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const r1 = { id: "r_1", orgId: "o_1" };
 
@@ -61,8 +63,8 @@ function credential(overrides: Record<string, unknown> = {}): Credential {
     principal: "u_1",
     permissions: [{ permission: "repo.read" }],
     createdBy: "u_1",
-    createdAt: NOW,
-    expiresAt: NOW + 3600,
+    createdAt: iso(NOW),
+    expiresAt: iso(NOW + 3600),
     ...overrides,
   } as Credential;
 }
@@ -91,7 +93,7 @@ function permdockFor(subject: Subject) {
 }
 
 async function issue(overrides: Record<string, unknown> = {}) {
-  const store = memoryCredentials();
+  const store = memoryCredentialStore();
   const key = await store.issue(credential(overrides));
   return { store, key };
 }
@@ -101,14 +103,14 @@ function resolve(
   options: ApiKeySubjectOptions,
   tenant?: string,
 ) {
-  return subjectFromApiKey(options)(
+  return subjectFromApiKey(
     key,
-    tenant === undefined ? undefined : { tenant },
+    tenant === undefined ? options : { ...options, tenant },
   );
 }
 
-describe("testCredentialVerifier on memoryCredentials", () => {
-  const conformance = memoryCredentials();
+describe("testCredentialVerifier on memoryCredentialStore", () => {
+  const conformance = memoryCredentialStore();
   testCredentialVerifier(conformance, {
     key: () => conformance.issue(credential(service)),
     revoke: () => {
@@ -191,10 +193,10 @@ describe("API key format", () => {
   });
 });
 
-describe("memoryCredentials", () => {
+describe("memoryCredentialStore", () => {
   it("issues, rotates and revokes, reporting each to the sink", async () => {
-    const sink = memorySink();
-    const store = memoryCredentials({ sink, source: "app" });
+    const sink = memoryDecisionSink();
+    const store = memoryCredentialStore({ sink, source: "app" });
     const first = await store.issue(credential());
     expect(parseApiKey(first)?.id).toBe("key_1");
     expect(store.list()).toEqual([credential()]);
@@ -228,7 +230,7 @@ describe("memoryCredentials", () => {
   });
 
   it("keeps working when the sink throws", async () => {
-    const store = memoryCredentials({
+    const store = memoryCredentialStore({
       sink: {
         write() {
           throw new Error("down");
@@ -267,13 +269,15 @@ describe("apiKeyVerifier", () => {
 });
 
 describe("subjectFromApiKey", () => {
+  const verifier = memoryCredentialStore();
   testSubjectResolver(
-    subjectFromApiKey({ verifier: memoryCredentials(), permissions }),
+    (key: string | undefined | null, scope?: { readonly tenant?: string }) =>
+      subjectFromApiKey(key, { verifier, permissions, ...scope }),
     { invalid: `pdk_nope_${"a".repeat(49)}` },
   );
 
   it("checks a service key against its tenant and a user key against the request tenant", async () => {
-    const settings = memorySettings({
+    const settings = memorySettingsSource({
       o_1: { credentials: { maxTtl: 60 } },
     });
     const serviceKey = await issue(service);
@@ -300,7 +304,7 @@ describe("subjectFromApiKey", () => {
     const subject = await resolve(key, {
       verifier: store,
       permissions,
-      owner: (id) => (id === "u_1" ? owner : null),
+      principals: { principal: (id) => (id === "u_1" ? owner : null) },
     });
     expect(subject.principal).toMatchObject({
       id: "u_1",
@@ -315,12 +319,18 @@ describe("subjectFromApiKey", () => {
 
   it("touches the verifier on a resolved key only, and ignores a throwing touch", async () => {
     const { store, key } = await issue();
-    const options = { verifier: store, permissions, owner: () => owner };
+    const options = {
+      verifier: store,
+      permissions,
+      principals: { principal: () => owner },
+    };
     const wrong = key.endsWith("x") ? "y" : "x";
     await resolve(`${key.slice(0, -1)}${wrong}`, options);
     expect(store.lastUsedAt("key_1")).toBeUndefined();
     await resolve(key, options);
-    expect(store.lastUsedAt("key_1")).toBeGreaterThanOrEqual(NOW);
+    expect(Date.parse(store.lastUsedAt("key_1") ?? "")).toBeGreaterThanOrEqual(
+      NOW * 1000,
+    );
     const throwing = {
       verify: (secret: string) => store.verify(secret),
       touch: () => {
@@ -336,6 +346,28 @@ describe("subjectFromApiKey", () => {
     expect(
       (await resolve(key, { ...options, verifier: rejecting })).principal?.id,
     ).toBe("u_1");
+  });
+
+  it("asks principals for the owner in the key's tenant", async () => {
+    const { store, key } = await issue({ tenant: "o_1" });
+    const asked: unknown[] = [];
+    const subject = await resolve(key, {
+      verifier: store,
+      permissions,
+      principals: memoryPrincipalSource({ principals: [owner] }),
+    });
+    await resolve(key, {
+      verifier: store,
+      permissions,
+      principals: {
+        principal: (id, options) => {
+          asked.push([id, options]);
+          return owner;
+        },
+      },
+    });
+    expect(subject.principal?.id).toBe("u_1");
+    expect(asked).toEqual([["u_1", { tenant: "o_1" }]]);
   });
 
   it("takes the owner rights from createPermDock memberships without an owner loader", async () => {
@@ -373,7 +405,7 @@ describe("subjectFromApiKey", () => {
 
   it("fails closed with a cause for every refusal", async () => {
     const { store, key } = await issue();
-    const expired = await issue({ expiresAt: NOW - 1 });
+    const expired = await issue({ expiresAt: iso(NOW - 1) });
     const thrower = (): never => {
       throw new Error("db down");
     };
@@ -394,7 +426,9 @@ describe("subjectFromApiKey", () => {
       {
         key,
         options: {
-          settings: memorySettings({ o_1: { credentials: { maxTtl: 60 } } }),
+          settings: memorySettingsSource({
+            o_1: { credentials: { maxTtl: 60 } },
+          }),
         },
         tenant: "o_1",
         cause: "credential-policy",
@@ -404,10 +438,16 @@ describe("subjectFromApiKey", () => {
         options: { revoked: (id) => id === "key_1" },
         cause: "credential-revoked",
       },
-      { key, options: { owner: () => null }, cause: "owner-unavailable" },
       {
         key,
-        options: { owner: () => ({ id: "u_1", kind: "service" }) },
+        options: { principals: { principal: () => null } },
+        cause: "owner-unavailable",
+      },
+      {
+        key,
+        options: {
+          principals: { principal: () => ({ id: "u_1", kind: "service" }) },
+        },
         cause: "owner-unavailable",
       },
       {
@@ -415,7 +455,11 @@ describe("subjectFromApiKey", () => {
         options: { verifier: { verify: () => credential({ id: "key_2" }) } },
         cause: "invalid-claims",
       },
-      { key, options: { owner: thrower }, reason: "source-threw" },
+      {
+        key,
+        options: { principals: { principal: thrower } },
+        reason: "source-threw",
+      },
       {
         key,
         options: { settings: { settingsFor: thrower } },
@@ -467,7 +511,7 @@ describe("subjectFromApiKey", () => {
 
   it("reports sampled uses to the sink and never lets the sink decide", async () => {
     const { store, key } = await issue();
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     await resolve(key, {
       verifier: store,
       permissions,
@@ -484,7 +528,7 @@ describe("subjectFromApiKey", () => {
         sample: 1,
       }),
     ]);
-    const quiet = memorySink();
+    const quiet = memoryDecisionSink();
     for (const sample of [0, 2, Number.NaN]) {
       await resolve(key, {
         verifier: store,
@@ -504,7 +548,7 @@ describe("subjectFromApiKey", () => {
       },
     });
     expect(subject.principal?.id).toBe("u_1");
-    const counted = memorySink();
+    const counted = memoryDecisionSink();
     for (let index = 0; index < 200; index += 1) {
       await resolve(key, {
         verifier: store,
@@ -550,7 +594,7 @@ describe("subjectFromApiKey: a key over many permissions", () => {
   );
 
   it("resolves a verified key that delegates 200 permissions", async () => {
-    const store = memoryCredentials();
+    const store = memoryCredentialStore();
     const key = await store.issue(
       credential({
         permissions: delegated.map((leaf) => ({ permission: leaf.key })),
@@ -560,12 +604,14 @@ describe("subjectFromApiKey: a key over many permissions", () => {
     const subject = await resolve(key, {
       verifier: store,
       permissions: wide,
-      owner: () => ({
-        id: "u_1",
-        kind: "user",
-        tenant: "o_1",
-        memberships: [{ tenant: "o_1", roles: ["admin"] }],
-      }),
+      principals: {
+        principal: () => ({
+          id: "u_1",
+          kind: "user",
+          tenant: "o_1",
+          memberships: [{ tenant: "o_1", roles: ["admin"] }],
+        }),
+      },
       onAuth: (event) => {
         causes.push(event);
       },
@@ -597,11 +643,13 @@ describe("a user key held to one tenant on a route of another", () => {
 
   async function heldKey() {
     const { store, key } = await issue({ tenant: "o_2" });
-    const resolver = subjectFromApiKey({
-      verifier: store,
-      permissions,
-      owner: () => twoTenants,
-    });
+    const resolver = (k: string, scope: { readonly tenant: string }) =>
+      subjectFromApiKey(k, {
+        verifier: store,
+        permissions,
+        principals: { principal: () => twoTenants },
+        ...scope,
+      });
     return { key, resolver };
   }
 
@@ -625,7 +673,7 @@ describe("a user key held to one tenant on a route of another", () => {
     const permdock = await createServerPermDock(policy, {
       subject: () => resolver(key, { tenant: "o_1" }),
       tenant: "o_1",
-    }).permdock(new Request("https://api.example/r"));
+    }).getPermDock(new Request("https://api.example/r"));
     expect({
       tenant: permdock.subject.principal?.tenant,
       memberships: permdock.memberships(),

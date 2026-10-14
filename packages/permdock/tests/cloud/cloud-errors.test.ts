@@ -2,14 +2,19 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ApprovalRequest } from "../../src/approvals/types.ts";
 import type { SinkEvent } from "../../src/core/event-types.ts";
-import type { TokenVerifier } from "../../src/core/interfaces.ts";
+import type { TokenSigner, TokenVerifier } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { isApprovalError } from "../../src/approvals/errors.ts";
 import { cloud } from "../../src/cloud/create.ts";
+import { parseCloudEventBatch } from "../../src/core/parse-sink-events.ts";
 import { fakeFetch, json } from "../fakes/fetch.ts";
 
 const CLOUD_URL = "https://cloud.permdock.test";
+
+const approverSigner: TokenSigner = {
+  sign: () => Promise.resolve("approver.token.sig"),
+};
 
 function client(
   reply: Parameters<typeof fakeFetch>[0],
@@ -18,7 +23,13 @@ function client(
   const fake = fakeFetch(reply);
   return {
     ...fake,
-    client: cloud({ url: CLOUD_URL, key: "k", fetch: fake.fetch, ...extra }),
+    client: cloud({
+      url: CLOUD_URL,
+      key: "k",
+      fetch: fake.fetch,
+      approver: { signer: approverSigner },
+      ...extra,
+    }),
   };
 }
 
@@ -68,9 +79,9 @@ describe("cloud approvals over a failing API", () => {
     );
     expect({
       get: await failing.approvals.get("t"),
-      consume: await failing.approvals.consume("t", new Date(0)),
+      consume: await failing.approvals.consume("t", { epochMilliseconds: 0 }),
       list: await failing.approvals.list({}),
-      expire: await failing.approvals.expire(new Date(0)),
+      expire: await failing.approvals.expire({ epochMilliseconds: 0 }),
     }).toEqual({ get: null, consume: null, list: { items: [] }, expire: 0 });
 
     const { client: shaped } = client(() => json({ items: "x", expired: "x" }));
@@ -118,6 +129,12 @@ describe("cloud approvals over a failing API", () => {
 });
 
 describe("cloud sink and snapshots over a failing API", () => {
+  it("refuses a CloudEvents source that is not an absolute URI", () => {
+    expect(() =>
+      cloud({ url: "https://cloud.permdock.test", key: "k", source: "app" }),
+    ).toThrow(TypeError);
+  });
+
   it("re-queues a rejected batch and does nothing on an empty flush", async () => {
     let status = 500;
     const { client: c, calls } = client(() => new Response(null, { status }));
@@ -127,10 +144,11 @@ describe("cloud sink and snapshots over a failing API", () => {
     await c.sink.flush?.();
     status = 204;
     await c.sink.flush?.();
-    expect(calls.map((call) => JSON.parse(call.body))).toEqual([
-      { events: [event] },
-      { events: [event] },
-    ]);
+    expect(
+      calls.map((call) =>
+        parseCloudEventBatch(JSON.parse(call.body))?.map((item) => item.data),
+      ),
+    ).toEqual([[event], [event]]);
   });
 
   it("does not schedule a flush through waitUntil when the batch flushed inline", async () => {

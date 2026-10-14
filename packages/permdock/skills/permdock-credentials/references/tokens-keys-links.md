@@ -28,18 +28,18 @@ const subject = await resolve(token, request);
 ## API keys and service accounts
 
 ```ts
-import { decideCredential } from "permdock";
 import { generateApiKey, hashApiKey } from "permdock/server";
 
-const decision = await decideCredential(
-  permdock,
+const decision = await permdock.decideCredential(
   {
     kind: "service", // or 'user'
     id: "svc_01J8",
     tenant: "o_1",
     roles: ["developer"],
     permissions: [permissions.repo.read],
-    expiresAt: Math.floor(Date.now() / 1000) + 30 * 86_400,
+    expiresAt: Temporal.Now.instant()
+      .add({ hours: 30 * 24 })
+      .toString(), // RFC 3339
   },
   { settings },
 );
@@ -56,28 +56,28 @@ if (decision.outcome === "granted") {
 
 - Guard the endpoint that creates keys with its own permission (`apiKey.create`).
 - Every key lists at least one permission, with no upper bound. A `user` key is its owner's live rights narrowed to the key, and with `tenant` to the owner's memberships inside that tenant and no global role (never put a tenant id in `ids`, which holds resource ids); a `service` key is a `kind: 'service'` principal whose tenant, roles and permissions must be within the creator's `assignableRoles` / `assignablePermissions` (otherwise `exceeds-creator`). A key cannot mint keys.
-- Tenant rules come from a `SettingsSource` (`memorySettings({ o_1: { credentials: { maxTtl, kinds, approval, allowNoExpiry } } })`). A key without `expiresAt` needs `allowNoExpiry`. `approval: true` makes creation `approval-required`; after approval, call `decideCredential` again with `approved: token`.
+- Tenant rules come from a `SettingsSource` (`memorySettingsSource({ o_1: { credentials: { maxTtl, kinds, approval, allowNoExpiry } } })`). A key without `expiresAt` needs `allowNoExpiry`. `approval: true` makes creation `approval-required`; after approval, call `decideCredential` again with `approved: token`.
 - Store only `hashApiKey(key)`. The key is `pdk_<id>_<secret><checksum>`; `parseApiKey` rejects a bad checksum before any lookup.
-- A feed is `kind: 'feed'` with `on: { resource, id }`, `roles` and `permissions`. `generateFeedKey` returns `pdfeed_<id>_<secret><checksum>`, all lowercase. `expiresAt` is optional. `subjectFromApiKey({ kinds: ['feed'] })` accepts feed keys only. A feed cannot approve or create a key. See [feeds](https://permdock.com/docs/concepts/credentials#feeds).
+- A feed is `kind: 'feed'` with `on: { resource, id }`, `roles` and `permissions`. `generateFeedKey` returns `pdfeed_<id>_<secret><checksum>`, all lowercase. `expiresAt` is optional. `subjectFromApiKey(key, { kinds: ['feed'] })` accepts feed keys only. A feed cannot approve or create a key. See [feeds](https://permdock.com/docs/concepts/credentials#feeds).
 
 Resolve keys on each request:
 
 ```ts
 import { apiKeyVerifier, subjectFromApiKey } from "permdock/server";
 
-const resolveKey = subjectFromApiKey({
+const keys = {
   verifier: apiKeyVerifier({ find: (id) => findKeyRow(id) }), // returns { credential, hash }
   permissions,
-  owner: (id) => loadOwner(id), // the live owner of a user key
+  principals, // a PrincipalSource: the live owner of a user key
   revoked: (id) => isRevoked(id),
   settings,
   sink,
-});
+};
 
-const subject = await resolveKey(bearer, { tenant });
+const subject = await subjectFromApiKey(bearer, { ...keys, tenant });
 ```
 
-Never pass a `memberships` source to `createPermDock` for a service-key subject: its one membership comes from the credential. `memoryCredentials()` is an in-process store for tests.
+Never pass a `memberships` source to `createPermDock` for a service-key subject: its one membership comes from the credential. `memoryCredentialStore()` is an in-process store for tests.
 
 When the backend then queries Postgres for the key, put the key's permission keys (and, for a service key, its tenant and roles) in an `api_key` claim and set `rls.apiKeys` in `permdock.config.ts`: the generated helpers cap every allow at the key's permissions and hold a key that names a tenant to that tenant, so RLS agrees with `can()`. The key itself never goes to the database.
 

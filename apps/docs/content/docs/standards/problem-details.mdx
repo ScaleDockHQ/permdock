@@ -25,52 +25,29 @@ Model readability is a design goal: an agent that receives a 403 should be able 
 
 `assert` runs layered unauthorized handlers and rethrows `PermDockDeniedError` or `PermDockApprovalRequiredError`; the [server kernel](/docs/adapters/server-kernel) converts those errors into `application/problem+json` with the status `protect` sends for the same decision: 401 for no subject or a missing step-up, 404 for a hidden row, 429 for an exhausted limit, 503 for an unavailable limit store, 403 otherwise.
 
-A denial:
+PermDock defines a `type` URI only where `about:blank` says too little: the nine types under [Problem types](#problem-types). Every other answer is `about:blank`, with the RFC 9110 reason phrase as `title` (RFC 9457 section 4.2.1). That covers 401 without a step-up, 404 for an unknown path, a missing row or a hidden one, 405 (sent with `Allow`), 409, 412, 413 for an oversized `evaluations` batch, and 500 when an approval store throws:
 
 ```json
 {
-  "type": "https://permdock.com/problems/denied",
-  "title": "Permission denied",
-  "status": 403,
-  "detail": "Subject u_123 (role member) may not delete post p_42: the grant requires authorId = principal.id. Permitted on this post: post.read, post.update.",
-  "instance": "/posts/p_42",
-  "permission": "post.delete",
-  "denials": [
-    {
-      "role": "member",
-      "reason": {
-        "kind": "condition",
-        "condition": { "eq": ["authorId", { "subject": "id" }] }
-      }
-    }
-  ],
-  "alternatives": ["post.read", "post.update"]
-}
-```
-
-An approval-required decision:
-
-```json
-{
-  "type": "https://permdock.com/problems/approval-required",
-  "title": "Approval required",
-  "status": 403,
-  "detail": "Deleting post p_42 requires human approval. Resubmit with the approval token once approved.",
-  "instance": "/posts/p_42",
-  "permission": "post.delete",
-  "token": "sha256:..."
+  "type": "about:blank",
+  "title": "Method Not Allowed",
+  "status": 405,
+  "detail": "use GET, POST"
 }
 ```
 
 Rules:
 
-- **`type` URIs are stable** and per outcome: `.../denied`, `.../approval-required`, `.../validation` (for `PermDockValidationError` at a boundary, status 400), plus two 401 types that exist only where a `WWW-Authenticate` challenge is the real answer: `.../unauthenticated` (no token, or a token that failed verification) and `.../step-up-required` (RFC 9470, carrying `acrValues` and `maxAge`). An exhausted `limit` is `.../rate-limited` (429) and a limit store that cannot answer is `.../limit-unavailable` (503); a denied row of a resource with `disclosure: 'hide'` is `.../not-found` (404), and a denial only a plan stands behind is `.../not-entitled` (403, with `plans`). They sit under the fixed base `https://permdock.com/problems`; the host is not configurable, so a self-hosted deployment emits the same identifiers.
-- **`permission`** is the permission `key`, never the object; keys are the wire form of references.
-- **`denials`** mirrors `Decision.denials` and is always present, in production too, because what it reveals is bounded by the subject's own snapshot: one entry per role that had a matching grant and why it did not apply. Conditions are the portable JSON AST, so a client can show exactly which constraint failed. Closure grants appear as `{ "kind": "closure" }` with no further detail.
+- **`type` URIs are stable** and sit under the fixed base `https://permdock.com/problems`. The host is not configurable, so a self-hosted deployment emits the same identifiers.
+- **`permission`** is the permission `key`, never the object; keys are the wire form of references. `scope` and `resource.type` travel next to it.
+- **`denials`** mirrors `Decision.denials` and is always present on a decision problem, in production too, because what it reveals is bounded by the subject's own snapshot: one entry per role that had a matching grant and why it did not apply.
 - **`alternatives`** lists permission keys on the same resource the subject does hold, so a model can pick a permitted action.
-- **`token`** appears only on `approval-required` and is the replay-safe hash described in [approvals](/docs/security/approvals). `approval-required` is a 403 like a denial, so a client that ignores the `type` fails closed; once approved, the client resumes by repeating the request with the `PermDock-Approval` header ([approvals adapter](/docs/adapters/approvals)).
-- **Nothing secret** is in the body: no other users' grants, no role definitions beyond the role name, no raw SQL from opaque conditions. What a 403 reveals is bounded by what the subject's own snapshot already reveals.
+- **`token`** appears only on `approval-required`. `approval-required` is a 403 like a denial, so a client that ignores the `type` fails closed; once approved, the client resumes by repeating the request with the `PermDock-Approval` header ([approvals adapter](/docs/adapters/approvals)).
+- **Nothing secret** is in the body: no other users' grants, no role definitions beyond the role name, no raw SQL from opaque conditions.
+- An unauthenticated caller gets a generic `detail` and only `permission`: no `denials` and no `alternatives`, so nothing explains the failure to it.
 - HTTP adapters set `Content-Type: application/problem+json` and the status from `status`. tRPC and oRPC adapters embed the same object as the error's `data` because they own their envelopes.
+
+The examples below are `PROBLEM_EXAMPLES` from `permdock/testing`, one body per type for a `post.delete` request by subject `u_123`. A client can test its error handling against them; `tests/standards/problem-details.test.ts` rebuilds each one from the code that emits it and checks this page shows the same JSON.
 
 ### The `WWW-Authenticate` header next to the body
 
@@ -78,14 +55,14 @@ When the caller is an OAuth client, Problem Details is the body and RFC 6750 (wi
 
 | Situation                                                                                                     | Status | `WWW-Authenticate`                                                                                                                                                                                                                                                                | Problem Details `type`                                               |
 | ------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| No token: no `Authorization` header (Decision reason `anonymous`)                                             | 401    | `Bearer`, with no error code (RFC 6750 section 3.1)                                                                                                                                                                                                                               | `.../unauthenticated`; no `denials`                                  |
-| A token that failed verification: `on('auth')` `reason: 'invalid-token'`, Decision reason `anonymous`         | 401    | `Bearer error="invalid_token", error_description="The access token is invalid"`; the `cause` stays on the audit event (RFC 6750 section 3.1 says not to explain to an unauthenticated caller)                                                                                     | `.../unauthenticated`                                                |
+| No token: no `Authorization` header (Decision reason `anonymous`)                                             | 401    | `Bearer`, with no error code (RFC 6750 section 3.1)                                                                                                                                                                                                                               | `about:blank`; no `denials`                                          |
+| A token that failed verification: `on('auth')` `reason: 'invalid-token'`, Decision reason `anonymous`         | 401    | `Bearer error="invalid_token", error_description="The access token is invalid"`; the `cause` stays on the audit event (RFC 6750 section 3.1 says not to explain to an unauthenticated caller)                                                                                     | `about:blank`                                                        |
 | Decision `denied` with reason `not-delegated` or `no-delegation`                                              | 403    | `Bearer error="insufficient_scope", scope="<permission.scope>"`                                                                                                                                                                                                                   | `.../denied`, with `alternatives` listing what the token would allow |
 | Decision `denied` with reason `insufficient-user-authentication` (only `subject.assurance` conditions failed) | 401    | `Bearer error="insufficient_user_authentication", acr_values="<required acr>", max_age="<seconds>"` (RFC 9470 section 3): the union of `acr` and the smallest `maxAge` across the failed assurance grantees, a break-glass `requires.assurance` and a role `activation.assurance` | `.../step-up-required` with `acrValues` and `maxAge`                 |
 | Every denial is `not-entitled`                                                                                | 403    | none                                                                                                                                                                                                                                                                              | `.../not-entitled` with `plans`                                      |
 | Every denial is `limit`                                                                                       | 429    | none; `Retry-After`, `RateLimit` and `RateLimit-Policy` instead ([RateLimit header fields](/docs/standards/ratelimit-headers))                                                                                                                                                    | `.../rate-limited`                                                   |
 | Denials are `limit-unavailable`, possibly with `limit`                                                        | 503    | none                                                                                                                                                                                                                                                                              | `.../limit-unavailable`                                              |
-| Any `denied` on a loaded row of a `disclosure: 'hide'` resource, unless every reason is step-up or limit      | 404    | none                                                                                                                                                                                                                                                                              | `.../not-found`, the body a missing row gets                         |
+| Any `denied` on a loaded row of a `disclosure: 'hide'` resource, unless every reason is step-up or limit      | 404    | none                                                                                                                                                                                                                                                                              | `about:blank`, the body a missing row gets                           |
 | Any other `denied`                                                                                            | 403    | none (the token was fine; authorization was not)                                                                                                                                                                                                                                  | `.../denied`                                                         |
 | `approval-required`                                                                                           | 403    | none                                                                                                                                                                                                                                                                              | `.../approval-required`                                              |
 | `PermDockValidationError`                                                                                     | 400    | none                                                                                                                                                                                                                                                                              | `.../validation`                                                     |
@@ -100,89 +77,238 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
 
 403. A matching deny, no matching grant, or a condition that failed. Carries `permission`, `denials` and `alternatives`.
 
+```json
+{
+  "type": "https://permdock.com/problems/denied",
+  "title": "Permission denied",
+  "status": 403,
+  "detail": "post.delete denied for subject u_123: member (condition). Alternatives: post.read, post.update.",
+  "instance": "/posts/p_42",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": {
+    "type": "post"
+  },
+  "denials": [
+    {
+      "role": "member",
+      "reason": "condition"
+    }
+  ],
+  "alternatives": ["post.read", "post.update"]
+}
+```
+
 ### approval-required
 
-403. The grant needs a human approval first. Carries `permission`, `reason`, `token` and, when the adapter knows them, an optional `approval` object (`ApprovalHint`) with `at` (where to approve, a URL) and `hint` (a short instruction), set by the `approval` option on the [server kernel](/docs/adapters/server-kernel) and every HTTP adapter built on it, and on [permdock/terminal](/docs/adapters/terminal). Resume by repeating the call with the `PermDock-Approval` header.
+403. The grant needs a human approval first. Carries `permission`, `reason`, `token` and, when the adapter knows them, an `approval` object (`ApprovalHint`) with `at` (where to approve, a URL) and `hint` (a short instruction). The `approval` option on the [server kernel](/docs/adapters/server-kernel), every HTTP adapter built on it and [permdock/terminal](/docs/adapters/terminal) sets it. Resume by repeating the call with the `PermDock-Approval` header.
+
+```json
+{
+  "type": "https://permdock.com/problems/approval-required",
+  "title": "Approval required",
+  "status": 403,
+  "detail": "post.delete requires human approval (human). Token: pd1.eyJhbGciOiJFZERTQSJ9.",
+  "instance": "/posts/p_42",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": {
+    "type": "post"
+  },
+  "reason": "human",
+  "token": "pd1.eyJhbGciOiJFZERTQSJ9",
+  "approval": {
+    "at": "https://app.example/approvals"
+  }
+}
+```
 
 ### validation
 
 400. Boundary data failed the resource's Standard Schema. Carries `issues` instead of `denials`.
 
-### unauthenticated
-
-401. No token, or a token that failed verification. Sent with a `WWW-Authenticate` challenge and carries only `permission`: no `denials`, no `alternatives` and a generic `detail`, so nothing explains the failure to an unauthenticated caller.
+```json
+{
+  "type": "https://permdock.com/problems/validation",
+  "title": "Invalid resource data",
+  "status": 400,
+  "detail": "invalid post",
+  "permission": "post.delete",
+  "issues": [
+    {
+      "message": "title is required",
+      "path": ["title"]
+    }
+  ]
+}
+```
 
 ### step-up-required
 
 401. Only `subject.assurance` conditions failed (RFC 9470). Carries `acrValues` and `maxAge`.
 
+```json
+{
+  "type": "https://permdock.com/problems/step-up-required",
+  "title": "Step-up required",
+  "status": 401,
+  "detail": "post.delete denied for subject u_123: member (insufficient-user-authentication). Alternatives: post.read, post.update.",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": {
+    "type": "post"
+  },
+  "denials": [
+    {
+      "role": "member",
+      "reason": "insufficient-user-authentication",
+      "to": {
+        "kind": "assurance",
+        "acr": ["urn:mfa"],
+        "maxAge": 600
+      }
+    }
+  ],
+  "alternatives": ["post.read", "post.update"],
+  "acrValues": ["urn:mfa"],
+  "maxAge": 600
+}
+```
+
 ### not-entitled
 
-403. Every denial is `not-entitled`: the subject holds the roles, and one of the plans in `plans` would grant the permission. Carries `permission`, `denials` and `plans` (the plan keys from the denials' `to`, in grant order) so a client can link to the upgrade page. A mix with any other reason stays `.../denied`, because a plan alone would not grant.
+403. Every denial is `not-entitled`: the subject holds the roles, and one of the plans in `plans` would grant the permission. `plans` holds the plan keys from the denials' `to`, in grant order, so a client can link to the upgrade page. A mix with any other reason stays `.../denied`, because a plan alone would not grant.
 
 ```json
 {
   "type": "https://permdock.com/problems/not-entitled",
   "title": "Plan upgrade required",
   "status": 403,
-  "permission": "analytics.read",
-  "denials": [{ "role": "admin", "reason": "not-entitled" }],
+  "detail": "post.delete denied for subject u_123: admin (not-entitled). Alternatives: post.read, post.update.",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": {
+    "type": "post"
+  },
+  "denials": [
+    {
+      "role": "admin",
+      "reason": "not-entitled",
+      "to": {
+        "kind": "plan",
+        "plan": "pro"
+      }
+    }
+  ],
+  "alternatives": ["post.read", "post.update"],
   "plans": ["pro"]
 }
 ```
 
 ### rate-limited
 
-429. Every denial is `limit`: the subject holds the grant but used its count for the window. Sent with `Retry-After`, `RateLimit` and `RateLimit-Policy` ([RateLimit header fields](/docs/standards/ratelimit-headers)); carries `permission` and `denials` like `denied`.
+429. Every denial is `limit`: the subject holds the grant but used its count for the window. Sent with `Retry-After`, `RateLimit` and `RateLimit-Policy` ([RateLimit header fields](/docs/standards/ratelimit-headers)).
+
+```json
+{
+  "type": "https://permdock.com/problems/rate-limited",
+  "title": "Rate limit exceeded",
+  "status": 429,
+  "detail": "post.delete denied for subject u_123: member (limit). Alternatives: post.read, post.update.",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": {
+    "type": "post"
+  },
+  "denials": [
+    {
+      "role": "member",
+      "reason": "limit",
+      "detail": {
+        "count": 10,
+        "per": 60,
+        "resetsAt": "2030-03-17T17:46:40.000Z"
+      }
+    }
+  ],
+  "alternatives": ["post.read", "post.update"]
+}
+```
 
 ### limit-unavailable
 
 503. A `limit` grant could not be counted: no `LimitStore`, a store that threw, or one that returned a Promise. Fail-closed, and the server's fault rather than the caller's.
 
+```json
+{
+  "type": "https://permdock.com/problems/limit-unavailable",
+  "title": "Rate limit unavailable",
+  "status": 503,
+  "detail": "post.delete denied for subject u_123: member (limit-unavailable). Alternatives: post.read, post.update.",
+  "permission": "post.delete",
+  "scope": "post:delete",
+  "resource": {
+    "type": "post"
+  },
+  "denials": [
+    {
+      "role": "member",
+      "reason": "limit-unavailable"
+    }
+  ],
+  "alternatives": ["post.read", "post.update"]
+}
+```
+
 ### invalid-signature
 
-403. A request claimed a Web Bot Auth signature that did not verify. It never becomes an anonymous actor.
+403. A request claimed a Web Bot Auth signature that did not verify or did not follow the profile ([Web Bot Auth](/docs/standards/web-bot-auth)). It never becomes an anonymous actor.
 
-### method-not-allowed
+```json
+{
+  "type": "https://permdock.com/problems/invalid-signature",
+  "title": "Invalid signature",
+  "status": 403,
+  "detail": "HTTP Message Signature did not verify"
+}
+```
 
-405. A route of the [AuthZEN handler](/docs/adapters/authzen) or the [approvals handler](/docs/adapters/approvals) was called with the wrong method or an unknown path. The AuthZEN handler also sets `Allow`.
+### approver-not-eligible
 
-### not-found
+403. The [approvals handler](/docs/adapters/approvals) refused an approver: not in the request's `approvers`, the request's own principal, or its actor. `reason` is the `ApprovalError` code: `approver-not-eligible`, `approver-is-principal` or `approver-is-actor`.
 
-404. The approvals handler has no approval for the token, the AuthZEN handler has no endpoint at the path (including a search endpoint the application did not configure), or `protect`'s loader found no row. A denied row of a resource with `disclosure: 'hide'` answers with the same body and headers, so the two cannot be told apart; the reason stays on the decision event.
-
-### conflict
-
-409. The approvals handler was asked to resolve an approval that is no longer pending or has expired.
-
-### payload-too-large
-
-413. An `evaluations` batch, on the AuthZEN handler or the decision endpoint (`createEvaluationsHandler`, `permdockHandler`), carried more than its `maxEvaluations` (256 by default). The check runs before the subject is resolved, so an oversized batch costs no decision work.
-
-### internal
-
-500. The approval store threw. The body says only that the store failed and never carries the store's error.
+```json
+{
+  "type": "https://permdock.com/problems/approver-not-eligible",
+  "title": "Approver not eligible",
+  "status": 403,
+  "detail": "approver is the principal of this request",
+  "reason": "approver-is-principal"
+}
+```
 
 ## Mapping table
 
-| RFC 9457 member                                   | PermDock value                                                                                                                                                                                                     |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `type`                                            | `https://permdock.com/problems/denied`, `.../approval-required`, `.../validation`, `.../unauthenticated`, `.../step-up-required`, `.../not-entitled`, `.../rate-limited`, `.../limit-unavailable`, `.../not-found` |
-| `title`                                           | Fixed per type, for example "Permission denied", "Approval required", "Authentication required", "Plan upgrade required", "Rate limit exceeded"                                                                    |
-| `status`                                          | Fixed per type: the number in each heading under [Problem types](#problem-types)                                                                                                                                   |
-| `detail`                                          | Model-readable sentence built from `Decision` reasons and `alternatives`                                                                                                                                           |
-| `instance`                                        | Request path (adapter-supplied)                                                                                                                                                                                    |
-| Extension `permission`                            | `permission.key`                                                                                                                                                                                                   |
-| Extension `denials`                               | `Decision.denials` (role, reason, portable condition)                                                                                                                                                              |
-| Extension `alternatives`                          | `Decision.alternatives` as keys                                                                                                                                                                                    |
-| Extension `token`                                 | `Decision.token` (approval-required only)                                                                                                                                                                          |
-| Extension `issues`                                | Standard Schema `issues` (validation only)                                                                                                                                                                         |
-| Media type                                        | `application/problem+json`                                                                                                                                                                                         |
-| Companion `WWW-Authenticate` (RFC 6750, RFC 9470) | `invalid_token` from `on('auth')` `reason`, `insufficient_scope` from `not-delegated` / `no-delegation`, `insufficient_user_authentication` from `insufficient-user-authentication`                                |
+| RFC 9457 member                                   | PermDock value                                                                                                                                                                      |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`                                            | One of the nine URIs under [Problem types](#problem-types), or `about:blank`                                                                                                        |
+| `title`                                           | Fixed per type; for `about:blank`, the RFC 9110 reason phrase                                                                                                                       |
+| `status`                                          | Fixed per type: the number in each heading under [Problem types](#problem-types)                                                                                                    |
+| `detail`                                          | Model-readable sentence built from `Decision` reasons and `alternatives`                                                                                                            |
+| `instance`                                        | Request path (adapter-supplied)                                                                                                                                                     |
+| Extension `permission`                            | `permission.key`                                                                                                                                                                    |
+| Extension `denials`                               | `Decision.denials` (role, reason, `to`, `detail`)                                                                                                                                   |
+| Extension `alternatives`                          | `Decision.alternatives` as keys                                                                                                                                                     |
+| Extension `token`                                 | `Decision.token` (approval-required only)                                                                                                                                           |
+| Extension `issues`                                | Standard Schema `issues` (validation only)                                                                                                                                          |
+| Media type                                        | `application/problem+json`                                                                                                                                                          |
+| Companion `WWW-Authenticate` (RFC 6750, RFC 9470) | `invalid_token` from `on('auth')` `reason`, `insufficient_scope` from `not-delegated` / `no-delegation`, `insufficient_user_authentication` from `insufficient-user-authentication` |
 
 ## Why
 
 The `type` URI is an identifier first: clients and gateways switch on it, so it must be identical across every deployment. A configurable base would let two installs emit different identifiers for the same problem and break any client written against one of them, which is why the kernel has no `problem.base` option. RFC 9457 still asks that the URI dereference to documentation, so `permdock.com/problems/<type>` redirects to the section above for that type rather than living as a separate page tree.
+
+A status whose meaning HTTP already defines (an unknown path, a wrong method, a conflict, a server fault) answers `about:blank`, as RFC 9457 section 4.2.1 recommends: a PermDock URI there would add an identifier clients must learn without telling them anything the status does not.
 
 The `approval` member (`at`, `hint`) is shared across the terminal and HTTP adapters rather than terminal-only: it carries no secret, only where and how a human approves, and every surface that can return `approval-required` benefits from the same pointer.
 

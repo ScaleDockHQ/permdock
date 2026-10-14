@@ -1,4 +1,4 @@
-import { fromJunction } from "permdock/supabase";
+import { junctionMembershipSource } from "permdock/supabase";
 
 export default {
   permissions: "../rls-matrix/permissions.ts",
@@ -9,7 +9,7 @@ export default {
       before: ["auth_checks.require_verified", "auth_checks.tag_event"],
       roles: false,
       memberships: [
-        fromJunction({
+        junctionMembershipSource({
           table: "organization_members",
           scope: "tenant",
           id: "organization_id",

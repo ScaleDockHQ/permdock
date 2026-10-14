@@ -33,7 +33,7 @@ import { permissions } from "./permissions";
 
 const issuer = "https://auth.acme.dev";
 
-export const { permdock, protect, filterCommands, format, exitCode } =
+export const { getPermDock, protect, filterCommands, format, exitCode } =
   createPermDock(policy, {
     subject: async ({ token }) => {
       const jwt = await token(["env", "keychain", "ci-oidc", "device"]); // first source that yields a token wins
@@ -59,8 +59,8 @@ export const { permdock, protect, filterCommands, format, exitCode } =
 
 | Export                             | Role                                                                                                                                                                                                                                                                                                                                                                                           |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `permdock()`                       | Resolves the subject once and returns a process-scoped `PermDock`. Memoised for the process lifetime; `permdock({ refresh: true })` re-resolves after `login`, `logout` or `--as <profile>` switches the stored profile. Anonymous callers get an anonymous instance, not an error.                                                                                                            |
-| `protect(permission, load?)`       | Returns a wrapper for a command action. `load(...args)` receives the framework's action arguments and returns the resource instance; the wrapped action runs only on `granted` (or after an approval) and receives `{ permdock, data, decision }` as its first argument, ahead of whatever the framework passes (commander's positionals, `options` and `command`, or citty's single context). |
+| `getPermDock()`                    | Resolves the subject once and returns a process-scoped `PermDock`. Memoised for the process lifetime; `getPermDock({ refresh: true })` re-resolves after `login`, `logout` or `--as <profile>` switches the stored profile. Anonymous callers get an anonymous instance, not an error.                                                                                                         |
+| `protect(permission, data?)`       | Returns a wrapper for a command action. `data(...args)` receives the framework's action arguments and returns the resource instance; the wrapped action runs only on `granted` (or after an approval) and receives `{ permdock, data, decision }` as its first argument, ahead of whatever the framework passes (commander's positionals, `options` and `command`, or citty's single context). |
 | `filterCommands(entries, options)` | Removes or annotates entries the subject cannot run before they are registered with the framework, so help output matches authority.                                                                                                                                                                                                                                                           |
 | `format(decision, options)`        | Renders a `denied` or `approval-required` decision as text for stderr or, with `json: true`, as the RFC 9457 Problem Details object the HTTP adapters emit.                                                                                                                                                                                                                                    |
 | `exitCode(decision)`               | Maps an outcome to a `sysexits.h` code (table below).                                                                                                                                                                                                                                                                                                                                          |
@@ -84,7 +84,7 @@ All sources end in the same verification step. A `--user` flag, a `USER` environ
 ## Process lifecycle
 
 1. The CLI parses arguments; commands are registered through `filterCommands`, so `--help` already reflects the subject.
-2. The first call to `permdock()` resolves the subject (and actor) once. A `device` source may block here for the login round trip.
+2. The first call to `getPermDock()` resolves the subject (and actor) once. A `device` source may block here for the login round trip.
 3. `protect` runs `load` for instance actions, validates the result at the boundary when `load` is marked untrusted (JSON from stdin or a file), then decides. With `--dry-run` it prints the decision and exits with its code, running nothing. `granted` runs your action, after a typed confirmation when the permission is `destructive`; `denied` writes `format(decision)` to stderr and exits `77`; `approval-required` prompts when the grant lets the requester approve (`approval: { distinct: false }`, no actor) and `interactive` is true; otherwise it records the request in `store`, writes the Problem Details `approval` extension and exits `75`, or exits `77` when no `store` is configured.
 4. Every decision, including the human's answer to a prompt, is emitted through `on('decision')` with the command path so audit and [otel](/docs/adapters/otel) see it.
 
@@ -107,7 +107,7 @@ Failures inside your action keep whatever code your framework assigns; the adapt
 `filterCommands` is the terminal counterpart of the MCP adapter's `list_tools` filter ([MCP](/docs/adapters/mcp)): what the subject cannot run is hidden or marked before the framework ever sees it.
 
 ```ts
-const instance = await permdock();
+const instance = await getPermDock();
 
 const visible = filterCommands(
   [
@@ -187,9 +187,9 @@ The y/N prompt is the requester answering for themselves, so it is an approval o
   "permission": "deploy.run",
   "resource": { "type": "service", "id": "api" },
   "reason": "human",
-  "token": "pd1.…",
+  "token": "sha-256:…",
   "approval": {
-    "at": "https://console.acme.dev/approvals?token=pd1.…",
+    "at": "https://console.acme.dev/approvals?token=sha-256:…",
     "hint": "Ask a release manager to approve, then re-run."
   }
 }
@@ -269,7 +269,7 @@ program
   );
 
 program.command("login").action(async () => {
-  await permdock({ refresh: true, source: "device" });
+  await getPermDock({ refresh: true, source: "device" });
 });
 
 await program.parseAsync();

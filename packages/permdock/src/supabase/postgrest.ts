@@ -1,7 +1,7 @@
 import type {
   MemberEntry,
   MembershipSource,
-  RoleSource,
+  CustomRoleSource,
 } from "../core/interfaces.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type {
@@ -104,7 +104,7 @@ export type PostgrestSources = {
     }): Promise<MemberEntry[]>;
   };
   /** The custom roles `principal` holds, for `createPermDock`'s `customRoles`. */
-  customRoles(principal: { readonly id: string }): RoleSource;
+  customRoles(principal: { readonly id: string }): CustomRoleSource;
   /** The subject the hook would mint for `userId`: anonymous when the user is unknown or suspended. */
   subject(userId: string): Promise<Subject>;
   /** The raw record, `undefined` for an unknown user. */

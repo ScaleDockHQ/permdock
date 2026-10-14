@@ -19,10 +19,10 @@ export type {
   StartAccessReviewOptions,
 } from "./access-reviews/start.ts";
 export {
-  memoryAccessReviews,
+  memoryAccessReviewStore,
   pageAccessReviewItems,
 } from "./access-reviews/store.ts";
-export type { MemoryAccessReviews } from "./access-reviews/store.ts";
+export type { MemoryAccessReviewStore } from "./access-reviews/store.ts";
 export type {
   AccessReview,
   AccessReviewDecision,
@@ -35,7 +35,7 @@ export type {
 } from "./access-reviews/types.ts";
 export {
   matchDelegation,
-  memoryApprovalDelegations,
+  memoryApprovalDelegationSource,
   parseApprovalDelegation,
 } from "./delegation.ts";
 export type {
@@ -43,7 +43,9 @@ export type {
   MatchDelegationOptions,
 } from "./delegation.ts";
 export { approvalsHandler } from "./handler.ts";
-export type { ApprovalsHandlerOptions } from "./handler.ts";
+export type { ApprovalsHandlerOptions, ApprovalView } from "./handler.ts";
+export { memoryIdempotencyStore } from "./idempotency.ts";
+export type { IdempotencyStore, IdempotentResponse } from "./idempotency.ts";
 export {
   cancelApprovals,
   consumeApproval,
@@ -54,7 +56,7 @@ export {
   resumeDecision,
   resumeFromHeader,
   storedApprovalToken,
-  summariseSubject,
+  summarizeSubject,
   vouchApproval,
 } from "./helpers.ts";
 export {
@@ -76,7 +78,7 @@ export {
 export type { MemoryApprovalStore } from "./store.ts";
 export {
   APPROVAL_HEADER,
-  DEFAULT_APPROVAL_TTL_MS,
+  DEFAULT_APPROVAL_TTL,
   approvalQuorum,
   approverRelationKey,
   escalationOpenAt,
@@ -91,7 +93,7 @@ export type {
   ApprovalListQuery,
   ApprovalPage,
   ApprovalRequest,
-  ApprovalResumeFailure,
+  ApprovalResumeFailureCause,
   ApprovalSignature,
   ApprovalStatus,
   ApprovalStore,

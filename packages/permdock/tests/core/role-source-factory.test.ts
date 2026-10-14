@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { RoleSourceFactory } from "../../src/core/interfaces.ts";
+import type { CustomRoleSourceFactory } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";
@@ -23,7 +23,7 @@ function staff(id: string): Subject {
 const asset = { id: "a", organization_id: "T", customer_id: "c" };
 
 /** Only u1's store holds the mechanic role; every subject gets its own source. */
-const perUser: RoleSourceFactory = (subject) => {
+const perUser: CustomRoleSourceFactory = (subject) => {
   const id = subject.principal?.id;
   return id === undefined
     ? undefined
@@ -80,10 +80,10 @@ describe("customRoles as a factory of the subject", () => {
         headers: { "x-user": user },
       });
     expect(
-      (await server.permdock(as("u1"))).can(permissions.asset.read, asset),
+      (await server.getPermDock(as("u1"))).can(permissions.asset.read, asset),
     ).toBe(true);
     expect(
-      (await server.permdock(as("u2"))).can(permissions.asset.read, asset),
+      (await server.getPermDock(as("u2"))).can(permissions.asset.read, asset),
     ).toBe(false);
   });
 

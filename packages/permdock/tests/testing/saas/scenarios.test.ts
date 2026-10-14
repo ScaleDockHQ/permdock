@@ -7,7 +7,7 @@ import {
   createPermDock,
   fromSnapshot,
   memoryLimitStore,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   parseSnapshot,
 } from "../../../src/index.ts";
 import {
@@ -32,7 +32,7 @@ import { reasonOf } from "../../fixtures/decisions.ts";
 async function instanceFor(user: string, tenant: string | undefined) {
   return createPermDock(saasPolicy, saasPrincipal(user, tenant), {
     ...(tenant === undefined ? {} : { tenant }),
-    customRoles: memoryRoleSource(saasCustomRoles),
+    customRoles: memoryCustomRoleSource(saasCustomRoles),
     limits: memoryLimitStore(),
     relations: saasRelations(),
   });
@@ -92,7 +92,7 @@ describe("saas scenario helpers", () => {
     key: "apiKey.create",
     subjectId: "alice",
     count: 5,
-    per: "day",
+    per: 86_400,
     tenant: "acme",
   };
 
@@ -200,7 +200,9 @@ describe("saas seed", () => {
 
 describe("saas tokens", () => {
   it("signs an ES256 token jose verifies against the published JWKS", async () => {
-    const token = await signSaasToken("alice", { now: 1_900_000_000 });
+    const token = await signSaasToken("alice", {
+      now: { epochMilliseconds: 1_900_000_000_000 },
+    });
     const { payload, protectedHeader } = await jwtVerify(
       token,
       createLocalJWKSet({

@@ -74,3 +74,33 @@ export async function pd004(
     },
   ];
 }
+
+export async function pd067(
+  input: DoctorInput & { readonly now: Date; readonly io: CliIo },
+): Promise<readonly DoctorFinding[]> {
+  if (input.config.operations === undefined) {
+    return [];
+  }
+  const document = (await collectedOf(input)).document;
+  if (document?.operations === undefined) {
+    return [];
+  }
+  const declared = new Set(document.permissions.map(({ key }) => key));
+  return document.operations.flatMap((operation) =>
+    [
+      ["permission", operation.permission] as const,
+      ["results", operation.results] as const,
+    ].flatMap(([field, key]) =>
+      key === undefined || declared.has(key)
+        ? []
+        : [
+            {
+              code: "PD067",
+              severity: "error" as const,
+              message: `operation ${operation.name} has ${field} ${key}, which the permissions module does not declare`,
+              fix: "pass the same permission tree to defineOperations and to permdock.config.ts permissions, or declare the permission",
+            },
+          ],
+    ),
+  );
+}

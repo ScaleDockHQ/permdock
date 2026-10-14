@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { RoleSource } from "../../src/core/interfaces.ts";
+import type { CustomRoleSource } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import { memoryApprovalPolicies } from "../../src/core/approval-policies.ts";
+import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
 import { createPermDock, fromSnapshot } from "../../src/core/permdock.ts";
 import { permissions, policy, rows } from "../fixtures/expenses.ts";
 import {
@@ -30,7 +30,7 @@ describe("permdock.derive", () => {
       "granted",
     );
     const derived = await permdock.derive({
-      approvalPolicies: memoryApprovalPolicies([
+      approvalPolicies: memoryApprovalPolicySource([
         {
           permission: "expense.read",
           tenant: "o1",
@@ -59,7 +59,7 @@ describe("permdock.derive", () => {
       context: {},
     };
     const asked: string[] = [];
-    const source: RoleSource = {
+    const source: CustomRoleSource = {
       rolesFor(tenant) {
         asked.push(tenant);
         return mechanic.filter((role) => role.tenant === tenant);

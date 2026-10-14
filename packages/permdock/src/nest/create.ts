@@ -41,7 +41,7 @@ import {
 } from "../server/bind.ts";
 import { hasCredentials } from "../server/http.ts";
 import { problemFromError } from "../server/map-error.ts";
-import { POLICY_VIOLATION, onRevoked } from "../server/stream.ts";
+import { POLICY_VIOLATION, closeReason, onRevoked } from "../server/stream.ts";
 import { InvalidSignatureError } from "../server/web-bot-auth.ts";
 import { decorateMethod } from "./decorate.ts";
 import { sendNestResponse, toRequest, type NestHttpRequest } from "./http.ts";
@@ -74,10 +74,10 @@ export type NestSocket = {
   close?(code?: number, reason?: string): unknown;
 };
 
-/** `Protect(null, loadData?, { oauthScopes })` needs a principal and one of the OAuth scopes, but no permission. */
+/** `Protect(null, data?, { oauthScopes })` needs a principal and one of the OAuth scopes, but no permission. */
 export type NestProtect = (
   permission: Permission | null,
-  loadData?: (req: NestRequest) => unknown,
+  data?: (req: NestRequest) => unknown,
   protectOptions?: ProtectOptions,
 ) => ClassDecorator & MethodDecorator;
 
@@ -115,7 +115,7 @@ export type NestPermDock = {
 
 type ProtectRule = {
   readonly permission: Permission | null;
-  readonly loadData?: (req: NestRequest) => unknown;
+  readonly data?: (req: NestRequest) => unknown;
   readonly options?: ProtectOptions;
 };
 
@@ -200,10 +200,10 @@ function rulesOf(target: object): readonly ProtectRule[] {
   return found as ProtectRule[];
 }
 
-const Protect: NestProtect = (permission, loadData, protectOptions) => {
+const Protect: NestProtect = (permission, data, protectOptions) => {
   const rule = compact<ProtectRule>({
     permission,
-    loadData,
+    data,
     options: protectOptions,
   });
   // SAFETY: the function accepts both the class and the method decorator call shapes.
@@ -248,7 +248,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     }
     const guard = await kernel.protect(
       rule.permission,
-      load(rule.loadData),
+      load(rule.data),
       rule.options,
     )(request, scope);
     if (!guard.ok) {
@@ -277,7 +277,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         if (typeof client.disconnect === "function") {
           client.disconnect(true);
         } else {
-          client.close?.(POLICY_VIOLATION, problem.type);
+          client.close?.(POLICY_VIOLATION, closeReason(problem));
         }
       });
       return conn;
@@ -301,7 +301,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       const guard = await kernel.protectOn(
         conn.permdock,
         rule.permission,
-        load(rule.loadData),
+        load(rule.data),
         rule.options,
         request,
       );
@@ -338,7 +338,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       }
       const request = bind(req);
       const scope = await scopeOf(req);
-      req.permdock = await kernel.permdock(request, scope);
+      req.permdock = await kernel.getPermDock(request, scope);
       await applyProtect(rules, req, request, scope, loadsFor(req));
       return true;
     }

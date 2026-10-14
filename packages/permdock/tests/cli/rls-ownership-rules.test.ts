@@ -12,7 +12,10 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
-import { fromJunction, fromTable } from "../../src/supabase/sources.ts";
+import {
+  junctionMembershipSource,
+  tableMembershipSource,
+} from "../../src/supabase/sources.ts";
 
 const Doc = {
   "~standard": {
@@ -198,8 +201,8 @@ describe("ownershipSql in database mode", () => {
 
 describe("ownershipSql over membership sources", () => {
   const memberSources = [
-    fromTable({ table: "grants", columns: { via: "kind" } }),
-    fromJunction({
+    tableMembershipSource({ table: "grants", columns: { via: "kind" } }),
+    junctionMembershipSource({
       table: "team_leads",
       scope: "team",
       within: { org: "org_id" },

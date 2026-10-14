@@ -185,14 +185,14 @@ describe("events and telemetry", () => {
       { kind: "app", name: "mfa-reprompt", detail: { maxAge: 300 } },
     ]);
     expect(
-      event === undefined ? undefined : toOcsf(event).unmapped,
+      event === undefined ? undefined : toOcsf(event)?.unmapped,
     ).toMatchObject({
       grant: "watermarked-export",
       obligations: ["watermark", "mfa-reprompt"],
     });
     expect(lines[0]).toMatchObject({
       "permdock.matched.name": "watermarked-export",
-      "permdock.obligations": "watermark,mfa-reprompt",
+      "permdock.obligations": ["watermark", "mfa-reprompt"],
     });
   });
 });

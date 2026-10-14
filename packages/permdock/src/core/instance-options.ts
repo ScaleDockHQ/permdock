@@ -8,7 +8,8 @@ type InstanceKey =
   | "policies"
   | "approvalPolicies"
   | "sink"
-  | "limits";
+  | "limits"
+  | "principals";
 
 /**
  * The data sources an adapter passes through to every instance it creates.
@@ -26,6 +27,7 @@ const INSTANCE_KEYS: Readonly<Record<InstanceKey, true>> = {
   approvalPolicies: true,
   sink: true,
   limits: true,
+  principals: true,
 };
 
 /** The `InstanceOptions` set on `options`, without the adapter's own keys. */

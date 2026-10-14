@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/delivery-event-v1.json",
+  "title": "PermDock delivery event",
+  "description": "A DeliveryEvent, wire format v1: the data of com.permdock.delivery.* CloudEvents.",
+  "type": "object",
+  "required": ["type", "at", "source", "operation", "channel", "delivery"],
+  "properties": {
+    "type": {
+      "const": "delivery"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "source": {
+      "type": "string"
+    },
+    "operation": {
+      "enum": ["sent", "delivered", "bounced", "complained", "failed"]
+    },
+    "channel": {
+      "enum": ["email", "chat", "webhook"]
+    },
+    "delivery": {
+      "type": "object",
+      "required": ["id", "key"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "recipient": {
+      "type": "object",
+      "properties": {
+        "principal": {
+          "type": "object",
+          "required": ["id"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "trusted": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "permission": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tenant": {
+      "type": "string"
+    },
+    "category": {
+      "enum": ["transactional", "notification", "security", "approval"]
+    },
+    "approval": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cause": {
+      "enum": [
+        "denied",
+        "unlinked",
+        "no-transport",
+        "no-message",
+        "invalid-recipient",
+        "invalid-message",
+        "rate-limited",
+        "quota-exceeded",
+        "unauthorized",
+        "unavailable",
+        "suppressed",
+        "rejected"
+      ]
+    },
+    "retryable": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

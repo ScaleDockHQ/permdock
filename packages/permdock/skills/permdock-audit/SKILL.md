@@ -40,7 +40,7 @@ Read the app's `permissions.ts`, `policy.ts`, factory file and every adapter gua
      ✓ Each check has a pass or a file-level finding.
 4. **Topic checks.** For each area the app uses, run the Verify list of its skill (`npx skills add ScaleDockHQ/PermDock --skill <name>`): `permdock-agents`, `permdock-approvals`, `permdock-tenancy`, `permdock-data`, `permdock-credentials`.
    ✓ Every item of every applicable Verify list has a pass or a finding.
-5. **Tests.** No `describePolicy` suite, or one with `exhaustive: false`, is a finding: a new permission can ship untested. A custom `ApprovalStore`, `DecisionSink`, `MembershipSource`, `RoleSource`, `SnapshotSource`, `LimitStore`, `RelationSource` or `DirectoryStore` without its `test<Interface>` runner from `permdock/testing` is a finding.
+5. **Tests.** No `describePolicy` suite, or one with `exhaustive: false`, is a finding: a new permission can ship untested. A custom `ApprovalStore`, `DecisionSink`, `MembershipSource`, `CustomRoleSource`, `SnapshotSource`, `LimitStore`, `RelationSource` or `DirectoryStore` without its `test<Interface>` runner from `permdock/testing` is a finding.
    ✓ Every policy and custom store has its runner, or a finding.
 6. **ASI02 and ASI03.** Map the inventory onto [OWASP Agentic](https://permdock.com/docs/security/owasp-agentic); for the threat list itself, defer to the `owasp-agentic` spec skill (`npx skills add ScaleDockHQ/scaledock-skills --skill owasp-agentic`).
    - **ASI02** (tool misuse): unmapped tools, a collection permission on a row handler, a destructive tool without `approval`, capability lists that include denied tools.
@@ -50,7 +50,7 @@ Read the app's `permissions.ts`, `policy.ts`, factory file and every adapter gua
    - Run `permdock collect --check` and `permdock usage --json` on both sides and compare. New leaves with no grant, grants for leaves nobody checks, and new `undeclared` or `outsideInclude` findings are comments.
    - A new or widened `allow` (a role gains a leaf, a `where` is dropped or loosened, a `to` becomes `anyone()` or `authenticated()`), a new policy `delegations` entry, or a removed `deny` needs a matching `describePolicy` row in the same PR.
    - A new model-reachable tool, or a new destructive action on an existing one, goes through the `permdock-agents` and `permdock-approvals` Verify lists.
-   - A change to the `rls` config or generated RLS comes with `permdock rls generate --check` passing and an `rlsParity` or `rls verify` run.
+   - A change to the `rls` config or generated RLS comes with `permdock rls generate --check` passing and an `testRlsParity` or `rls verify` run.
    - `permdock doctor --json` on the head branch reports no new error.
      ✓ Every changed grant, leaf and tool has a comment on the changed line or an explicit pass.
 

@@ -3,27 +3,17 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { RemotePdpAuth, RemotePdpCache } from "./types.ts";
 
+import { durationOf } from "../core/time.ts";
 import { decisionToken } from "../core/token.ts";
 
 export const DEFAULT_TIMEOUT_MS = 300;
-const MAX_CACHE_TTL_MS = 30_000;
+const MAX_CACHE_TTL = 30;
 const CACHE_MAX = 1000;
 
-/** Milliseconds, clamped to `[0, 30s]`; anything unparseable disables the cache. */
+/** Milliseconds from `ttl` seconds, clamped to 30 s; a `ttl` that is not a whole number of seconds above 0 disables the cache. */
 export function ttlMs(cache: RemotePdpCache | undefined): number {
-  if (cache === undefined) {
-    return 0;
-  }
-  const raw =
-    typeof cache.ttl === "number"
-      ? cache.ttl
-      : cache.ttl.endsWith("ms")
-        ? Number(cache.ttl.slice(0, -2))
-        : Number(cache.ttl.slice(0, -1)) * 1000;
-  if (!Number.isFinite(raw) || raw <= 0) {
-    return 0;
-  }
-  return Math.min(raw, MAX_CACHE_TTL_MS);
+  const ttl = durationOf(cache?.ttl);
+  return ttl === undefined ? 0 : Math.min(ttl, MAX_CACHE_TTL) * 1000;
 }
 
 export function denied(reason: DenialReason): Decision {

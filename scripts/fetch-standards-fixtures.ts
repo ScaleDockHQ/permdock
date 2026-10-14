@@ -8,17 +8,22 @@ const JSON_SOURCES = {
   // Apache-2.0, cloudevents/spec v1.0.2.
   "cloudevents-1.0.2.schema.json":
     "https://raw.githubusercontent.com/cloudevents/spec/v1.0.2/cloudevents/formats/cloudevents.json",
-  // Apache-2.0, OCSF 1.3.0 class definitions.
-  "ocsf-1.3.0-authorize_session.json":
-    "https://schema.ocsf.io/api/1.3.0/classes/authorize_session",
-  "ocsf-1.3.0-account_change.json":
-    "https://schema.ocsf.io/api/1.3.0/classes/account_change",
+  // Apache-2.0, OCSF 1.9.0 class definitions.
+  "ocsf-1.9.0-authorize_session.json":
+    "https://schema.ocsf.io/api/1.9.0/classes/authorize_session",
+  "ocsf-1.9.0-user_management.json":
+    "https://schema.ocsf.io/api/1.9.0/classes/user_management",
   // Apache-2.0, the JSON Schema published with A2A 1.0.0.
   "a2a-1.0.0.schema.json": "https://a2a-protocol.org/v1.0.0/spec/a2a.json",
   // Apache-2.0, the Arazzo 1.1 schema `$id`.
   "arazzo-1.1.schema.json":
     "https://spec.openapis.org/arazzo/1.1/schema/2026-04-15",
 } as const;
+
+// MIT, standard-webhooks/standard-webhooks at a pinned commit: the
+// reference library's sign test is the specification's test vector.
+const STANDARD_WEBHOOKS_TEST =
+  "https://raw.githubusercontent.com/standard-webhooks/standard-webhooks/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/src/webhook.test.ts";
 
 const RFC_URL = (n: number): string =>
   `https://www.rfc-editor.org/rfc/rfc${String(n)}.txt`;
@@ -195,6 +200,31 @@ async function rfc7643(): Promise<void> {
   });
 }
 
+function quoted(block: string, name: string): string {
+  const match = new RegExp(`const ${name} = (["'])(.*?)\\1;`, "u").exec(block);
+  if (match?.[2] === undefined) {
+    throw new Error(`standard webhooks vector: ${name} not found`);
+  }
+  return match[2];
+}
+
+async function standardWebhooks(): Promise<void> {
+  const text = await (await get(STANDARD_WEBHOOKS_TEST, "text/plain")).text();
+  const block = slice(text, 'test("sign function works"', "});");
+  const timestamp = /new Date\((\d+) \* 1000\)/u.exec(block)?.[1];
+  if (timestamp === undefined) {
+    throw new Error("standard webhooks vector: timestamp not found");
+  }
+  await write("standard-webhooks-v1.json", {
+    source: STANDARD_WEBHOOKS_TEST,
+    secret: quoted(block, "key"),
+    id: quoted(block, "msgId"),
+    timestamp,
+    body: quoted(block, "payload"),
+    signature: quoted(block, "expected"),
+  });
+}
+
 await mkdir(out, { recursive: true });
 await Promise.all([
   ...Object.entries(JSON_SOURCES).map(
@@ -210,4 +240,5 @@ await Promise.all([
   rfc8037(),
   rfc9421(),
   rfc7643(),
+  standardWebhooks(),
 ]);

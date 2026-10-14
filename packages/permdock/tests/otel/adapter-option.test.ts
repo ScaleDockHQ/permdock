@@ -11,7 +11,7 @@ import { permissions, policy } from "../fixtures/vocabulary.ts";
 describe("the adapter otel option", () => {
   it("wraps every request-scoped instance and keeps the vocabulary", async () => {
     const wrapped: PermDock[] = [];
-    const { permdock, protect } = createPermDock(policy, {
+    const { middleware, protect } = createPermDock(policy, {
       subject: () => ({ id: "u1" }),
       otel: (instance) => {
         wrapped.push(instance);
@@ -19,7 +19,7 @@ describe("the adapter otel option", () => {
       },
     });
     const app = new Hono()
-      .use(permdock())
+      .use(middleware())
       .get("/", protect(permissions.post.read), (c) => {
         expectTypeOf(c.get("permdock")).toEqualTypeOf<VocabularyPermDock>();
         return c.body(null, 204);

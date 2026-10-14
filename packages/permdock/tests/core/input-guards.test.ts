@@ -20,10 +20,21 @@ describe("input guards", () => {
     });
     expect(() => parseSnapshot([])).toThrow(/must be an object/);
     expect(() =>
-      parseSnapshot({ v: 1, nested: { __proto__: {} } }),
+      parseSnapshot({
+        v: 1,
+        issuedAt: "2026-10-13T09:00:00Z",
+        nested: { __proto__: {} },
+      }),
     ).not.toThrow();
     const hashed = bytesToBase64Url(sha256("hello"));
     expect(hashed.length).toBeGreaterThan(10);
-    expect(parseSnapshot({ v: 1, grants: [] }).v).toBe(1);
+    const issuedAt = "2026-10-13T09:00:00Z";
+    expect(parseSnapshot({ v: 1, issuedAt, grants: [] }).v).toBe(1);
+    expect(() => parseSnapshot({ v: 1, issuedAt: 1, grants: [] })).toThrow(
+      /RFC 3339/,
+    );
+    expect(() =>
+      parseSnapshot({ v: 1, issuedAt, expiresAt: "tomorrow", grants: [] }),
+    ).toThrow(/RFC 3339/);
   });
 });

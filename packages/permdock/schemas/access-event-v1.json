@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/access-event-v1.json",
+  "title": "PermDock support access event",
+  "description": "An AccessEvent, wire format v1: the data of com.permdock.support-session.* CloudEvents.",
+  "type": "object",
+  "required": [
+    "type",
+    "at",
+    "source",
+    "operation",
+    "tenant",
+    "principal",
+    "via",
+    "roles"
+  ],
+  "properties": {
+    "type": {
+      "const": "access"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "source": {
+      "type": "string"
+    },
+    "operation": {
+      "enum": ["started", "ended", "revoked"]
+    },
+    "tenant": {
+      "type": "string",
+      "minLength": 1
+    },
+    "principal": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "via": {
+      "type": "string"
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "member": {
+      "type": "object",
+      "required": ["group"],
+      "properties": {
+        "group": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "grantedBy": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "actor": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "session": {
+      "type": "object",
+      "required": ["id", "principal"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "principal": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

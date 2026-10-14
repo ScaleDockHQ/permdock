@@ -98,6 +98,14 @@ export function sha256(message: string): Uint8Array {
   return out;
 }
 
+/**
+ * The one digest notation: `sha-256:` plus the unpadded base64url SHA-256
+ * of `text`. An RFC 9651 sf-token, so it fits a structured header as is.
+ */
+export function sha256Digest(text: string): string {
+  return `sha-256:${bytesToBase64Url(sha256(text))}`;
+}
+
 export function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) {

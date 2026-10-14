@@ -35,10 +35,10 @@ function project(hook = true, rls = ""): string {
   temps.push(cwd);
   writeFileSync(
     join(cwd, "permdock.config.ts"),
-    `import { fromJunction, fromTable } from ${JSON.stringify(SUPABASE)};
+    `import { junctionMembershipSource, tableMembershipSource } from ${JSON.stringify(SUPABASE)};
 const memberships = [
-  fromTable({ table: 'memberships', columns: { via: 'via', expiresAt: 'expires_at' } }),
-  fromJunction({ table: 'contacts', scope: 'customer', id: 'customer_id', within: { organization: 'organization_id' }, roles: ['contact'], via: 'contact' }),
+  tableMembershipSource({ table: 'memberships', columns: { via: 'via', expiresAt: 'expires_at' } }),
+  junctionMembershipSource({ table: 'contacts', scope: 'customer', id: 'customer_id', within: { organization: 'organization_id' }, roles: ['contact'], via: 'contact' }),
 ];
 export default {
   permissions: ${JSON.stringify(POLICY)},

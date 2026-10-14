@@ -1,6 +1,7 @@
 import type { Membership } from "../../index.ts";
 
 import { isRecord } from "../../core/compact.ts";
+import { type Instant, secondsAt } from "../../core/time.ts";
 import { saasMemberships } from "./seed.ts";
 
 type EcJwk = {
@@ -47,8 +48,8 @@ export type SaasTokenOptions = {
   /** Claim memberships; `false` omits the claim (database mode). Defaults to the seed. */
   readonly memberships?: readonly Membership[] | false;
   readonly ttl?: number;
-  /** Epoch seconds used for `iat`. */
-  readonly now?: number;
+  /** The instant used for `iat`; defaults to the current time. */
+  readonly now?: Instant;
   readonly issuer?: string;
   readonly audience?: string;
   readonly claims?: Readonly<Record<string, unknown>>;
@@ -74,7 +75,7 @@ export async function signSaasToken(
   sub: string,
   options: SaasTokenOptions = {},
 ): Promise<string> {
-  const iat = options.now ?? Math.floor(Date.now() / 1000);
+  const iat = secondsAt(options.now);
   const memberships =
     options.memberships === false
       ? undefined
@@ -129,7 +130,7 @@ function parseSegment(segment: string): Record<string, unknown> | null {
  */
 export async function verifySaasToken(
   token: string | null | undefined,
-  now: number = Math.floor(Date.now() / 1000),
+  now?: Instant,
 ): Promise<string | null> {
   return (await verifySaasSession(token, now))?.sub ?? null;
 }
@@ -137,8 +138,9 @@ export async function verifySaasToken(
 /** `verifySaasToken` plus the token's `exp` as `expiresAt` (epoch seconds). */
 export async function verifySaasSession(
   token: string | null | undefined,
-  now: number = Math.floor(Date.now() / 1000),
+  at?: Instant,
 ): Promise<{ readonly sub: string; readonly expiresAt: number } | null> {
+  const now = secondsAt(at);
   const parts = typeof token === "string" ? token.split(".") : [];
   const [head, body, signature] = parts;
   if (

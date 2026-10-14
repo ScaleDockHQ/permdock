@@ -26,7 +26,7 @@ const contract = {
 
 describe("permdock/orpc with a contract", () => {
   it("protects a contract procedure with a declared output", async () => {
-    const { permdock, protect } = createPermDock<Ctx>(policy, {
+    const { middleware, protect } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
     });
     const os = implement(contract).$context<Ctx>();
@@ -35,7 +35,7 @@ describe("permdock/orpc with a contract", () => {
       [otherPost.id, otherPost],
     ]);
     const update = os
-      .use(permdock())
+      .use(middleware())
       .posts.update.use(
         protect(permissions.post.update, ({ input }) =>
           posts.get(byId.parse(input).id),
@@ -81,7 +81,7 @@ async function rejection(promise: Promise<unknown>): Promise<unknown> {
 }
 
 describe("permdock/orpc typed errors", () => {
-  const { permdock, protect } = createPermDock<Ctx>(policy, {
+  const { middleware, protect } = createPermDock<Ctx>(policy, {
     subject: (opts) => opts.context.user,
   });
   const os = implement(typed).$context<Ctx>();
@@ -92,7 +92,7 @@ describe("permdock/orpc typed errors", () => {
   const router = os.router({
     posts: {
       update: os
-        .use(permdock())
+        .use(middleware())
         .posts.update.use(
           protect(permissions.post.update, ({ input }) =>
             posts.get(byId.parse(input).id),
@@ -129,7 +129,7 @@ describe("permdock/orpc typed errors", () => {
       call(
         implement(contract)
           .$context<Ctx>()
-          .use(permdock())
+          .use(middleware())
           .posts.update.use(
             protect(permissions.post.update, ({ input }) =>
               posts.get(byId.parse(input).id),

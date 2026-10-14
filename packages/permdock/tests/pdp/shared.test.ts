@@ -18,14 +18,15 @@ const permissions = definePermissions({
 describe("ttlMs", () => {
   const cases: readonly [Parameters<typeof ttlMs>[0], number][] = [
     [undefined, 0],
-    [{ ttl: 250 }, 250],
-    [{ ttl: "250ms" }, 250],
-    [{ ttl: "5s" }, 5000],
-    [{ ttl: "300s" }, 30_000],
+    [{ ttl: 1 }, 1000],
+    [{ ttl: 5 }, 5000],
+    [{ ttl: 30 }, 30_000],
+    [{ ttl: 300 }, 30_000],
     [{ ttl: 0 }, 0],
     [{ ttl: -5 }, 0],
-    // SAFETY: an unparseable value a JavaScript caller could pass.
-    [{ ttl: "soons" as `${number}s` }, 0],
+    [{ ttl: 0.5 }, 0],
+    // SAFETY: a duration string a JavaScript caller could still pass.
+    [{ ttl: "5s" as unknown as number }, 0],
     [{ ttl: Number.POSITIVE_INFINITY }, 0],
   ];
   it.each(cases)("maps %j to %d ms", (cache, expected) => {

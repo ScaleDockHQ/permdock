@@ -39,7 +39,7 @@ This is the short product brief: what PermDock is, who it is for, the principles
 
 - Requiring a network call to decide. PermDock is a decision point you embed; every hosted capability has an in-process default behind the same interface.
 - A policy language, an authentication product, token issuance, or Zanzibar-scale relationship graphs. PermDock bridges to OpenFGA or SpiceDB through a provider or a `RelationSource`; object hierarchies are relation grants that walk a parent chain to a bounded depth ([relationships](apps/docs/content/docs/concepts/relationships.mdx)), and resource roles follow declared, typed `parent` chains.
-- Storing or managing tenants, teams, invitations, memberships or custom roles. PermDock reads them through `MembershipSource` and `RoleSource`; the auth provider or the application owns the tables ([tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)).
+- Storing or managing tenants, teams, invitations, memberships or custom roles. PermDock reads them through `MembershipSource` and `CustomRoleSource`; the auth provider or the application owns the tables ([tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)).
 - UI components beyond `<Protected>`. Hooks return data and the application's design system renders it.
 
 ## Voice
@@ -61,7 +61,7 @@ The library is and stays MIT. PermDock Cloud is an optional hosted service built
 
 What the Cloud sells:
 
-- **Decision log and evidence.** Access-review queries per principal, actor, tenant and time window; agent activity views; the approval chain joined on `token`; signed exports (`permdock-decisions+jwt`), OCSF forwarding and CSV for compliance platforms; retention tiers. This is the lead product.
+- **Decision log and evidence.** Access-review queries per principal, actor, tenant and time window; agent activity views; the approval chain joined on `token`; signed exports (`vnd.permdock.evidence+jwt`), OCSF forwarding and CSV for compliance platforms; retention tiers. This is the lead product.
 - **Approvals inbox.** Pending approvals with delivery to Slack and Teams and approver management, behind the `ApprovalStore` interface.
 - **Snapshot distribution.** Signed snapshots with CAEP invalidation, behind the `SnapshotSource` interface.
 - **SCIM relay.** An identity-provider wizard, group-to-role mapping and a sync log that replays provisioning into a `DirectoryStore` the application owns (`permdock/scim`). In this bring-your-own mode the Cloud holds no authoritative directory copy. In Cloud-native directory mode the Cloud holds the directory of record, and it reaches a decision only as claims on a token the application verifies locally.

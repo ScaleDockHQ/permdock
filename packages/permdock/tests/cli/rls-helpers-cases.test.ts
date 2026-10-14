@@ -4,7 +4,7 @@ import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
 import { accessSql, helpersSql } from "../../src/cli/rls/helpers.ts";
 import { quoteQualified } from "../../src/cli/sql/quote.ts";
-import { fromTable } from "../../src/supabase/index.ts";
+import { tableMembershipSource } from "../../src/supabase/index.ts";
 
 const scopes = [
   { name: "org", key: "org_id" },
@@ -78,7 +78,7 @@ describe("helpersSql scopes off the root chain", () => {
   it("does not narrow a sourced scope outside the first scope (database)", () => {
     const sql = helpers({
       authorize: "database",
-      sources: [fromTable({ table: "memberships" })],
+      sources: [tableMembershipSource({ table: "memberships" })],
     });
     expect(fnBody(sql, "permitted_region_ids")).not.toContain("is null or");
   });
@@ -86,7 +86,7 @@ describe("helpersSql scopes off the root chain", () => {
   it("resolves custom roles over membership sources", () => {
     const sql = helpers({
       authorize: "database",
-      sources: [fromTable({ table: "memberships" })],
+      sources: [tableMembershipSource({ table: "memberships" })],
       customRoles: { declared: ["admin"], assignable: ["admin"] },
     });
     const org = fnBody(sql, "permitted_org_ids");
@@ -109,7 +109,7 @@ describe("helpersSql with rls.tenants 'all'", () => {
       {},
       {
         authorize: "database" as const,
-        sources: [fromTable({ table: "memberships" })],
+        sources: [tableMembershipSource({ table: "memberships" })],
       },
       {
         authorize: "database" as const,
@@ -139,7 +139,7 @@ describe("helpersSql custom-role writes", () => {
   it("lifts the hand-out check through manageRoles permissions and checks nested instances", () => {
     const sql = helpers({
       authorize: "database",
-      sources: [fromTable({ table: "memberships" })],
+      sources: [tableMembershipSource({ table: "memberships" })],
       customRoles: {
         declared: ["admin"],
         assignable: ["admin"],
@@ -170,7 +170,7 @@ describe("helpersSql custom-role writes", () => {
   it("lets a global manageRoles holder write any tenant's roles and the platform's", () => {
     const sql = helpers({
       authorize: "database",
-      sources: [fromTable({ table: "memberships" })],
+      sources: [tableMembershipSource({ table: "memberships" })],
       customRoles: {
         declared: ["admin"],
         assignable: ["admin"],
@@ -189,7 +189,7 @@ describe("helpersSql custom-role writes", () => {
     );
     const without = helpers({
       authorize: "database",
-      sources: [fromTable({ table: "memberships" })],
+      sources: [tableMembershipSource({ table: "memberships" })],
       customRoles: { declared: ["admin"], assignable: ["admin"] },
     });
     expect(fnBody(without, "permdock_custom_role_guard")).toContain(
@@ -198,7 +198,7 @@ describe("helpersSql custom-role writes", () => {
   });
 
   it("checks a user the caller names through the _for helpers when every scope can read its memberships", () => {
-    const sources = [fromTable({ table: "memberships" })];
+    const sources = [tableMembershipSource({ table: "memberships" })];
     const sql = helpers({
       authorize: "database",
       sources,
@@ -239,7 +239,7 @@ describe("helpersSql custom-role writes", () => {
   it("emits trusted variants that keep the definition checks and no caller check", () => {
     const sql = helpers({
       authorize: "database",
-      sources: [fromTable({ table: "memberships" })],
+      sources: [tableMembershipSource({ table: "memberships" })],
       customRoles: { declared: ["admin"], assignable: ["admin"] },
     });
     for (const verb of ["replace", "rename", "delete"]) {

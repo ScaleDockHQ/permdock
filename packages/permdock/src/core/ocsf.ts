@@ -3,9 +3,13 @@ import type { AccessEvent, DecisionEvent } from "./event-types.ts";
 import { compact } from "./compact.ts";
 
 /** The OCSF schema version `toOcsf` emits. */
-export const OCSF_VERSION = "1.3.0";
+export const OCSF_VERSION = "1.9.0";
 
-/** An OCSF Authorize Session (class 3003, category Identity and Access Management) event. */
+/**
+ * An OCSF Authorize Session (class 3003, category Identity and Access Management) event.
+ * API Activity (6003) would fit a per-request decision, but it requires `api` and
+ * `src_endpoint`, which a decision event does not carry.
+ */
 export type OcsfAuthorizeSession = {
   readonly class_uid: 3003;
   readonly category_uid: 3;
@@ -14,7 +18,8 @@ export type OcsfAuthorizeSession = {
   readonly severity_id: 1 | 4;
   readonly time: number;
   readonly status_id: 0 | 1 | 2 | 99;
-  readonly status: "Unknown" | "Success" | "Failure" | "Other";
+  /** OCSF requires a source label for status 99: `Approval Required`. */
+  readonly status: "Unknown" | "Success" | "Failure" | "Approval Required";
   readonly status_detail?: string;
   readonly message: string;
   readonly privileges: readonly string[];
@@ -38,7 +43,7 @@ export type OcsfAuthorizeSession = {
     readonly outcome: DecisionEvent["outcome"];
     readonly scope: string;
     readonly resource: DecisionEvent["resource"];
-    readonly source: DecisionEvent["source"];
+    readonly call: DecisionEvent["call"];
     readonly phase?: DecisionEvent["phase"];
     readonly role?: string | null;
     /** The matched grant's declared `name`. */
@@ -62,7 +67,7 @@ function status(
     case "denied":
       return { status_id: 2, status: "Failure" };
     case "approval-required":
-      return { status_id: 99, status: "Other" };
+      return { status_id: 99, status: "Approval Required" };
     default: {
       const exhaustive: never = outcome;
       return unknownStatus(exhaustive);
@@ -87,8 +92,21 @@ export function appObligationNames(
   return names.length === 0 ? undefined : names;
 }
 
-/** Projects a decision or approval event onto OCSF Authorize Session; the event itself is unchanged. */
-export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
+/** Epoch milliseconds of an RFC 3339 `at`, or `undefined` when it does not parse. */
+function epochMillis(at: string): number | undefined {
+  const time = Date.parse(at);
+  return Number.isNaN(time) ? undefined : time;
+}
+
+/**
+ * Projects a decision or approval event onto OCSF Authorize Session; the event itself is unchanged.
+ * An event whose `at` does not parse has no OCSF `time` and projects to `undefined`.
+ */
+export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession | undefined {
+  const time = epochMillis(event.at);
+  if (time === undefined) {
+    return undefined;
+  }
   const principal = event.subject.principal;
   const actor = event.subject.actor;
   const breakGlass = event.matched?.breakGlass === true;
@@ -96,14 +114,13 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
     event.outcome === "approval-required"
       ? "approval-required"
       : event.denials?.map((denial) => denial.reason).join(",");
-  const time = Date.parse(event.at);
   return compact<OcsfAuthorizeSession>({
     class_uid: 3003,
     category_uid: 3,
     activity_id: 1,
     type_uid: 300301,
     severity_id: breakGlass ? 4 : 1,
-    time: Number.isNaN(time) ? 0 : time,
+    time,
     ...status(event.outcome),
     status_detail: detail === "" ? undefined : detail,
     message: `${event.permission} ${event.outcome}`,
@@ -134,7 +151,7 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
       outcome: event.outcome,
       scope: event.scope,
       resource: event.resource,
-      source: event.source,
+      call: event.call,
       phase: event.phase,
       role: event.matched?.role,
       grant: event.matched?.name,
@@ -148,16 +165,17 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession {
 }
 
 /**
- * An OCSF Account Change (class 3001) event for a support-access lifecycle
+ * An OCSF User Management (class 3007) event for a support-access lifecycle
  * event: `started` enables the session, `ended` and `revoked` disable it.
  * Support access is high severity, so a SIEM can alert on vendor access.
+ * OCSF 1.9.0 deprecates Account Change (3001) in favour of this class.
  */
-export type OcsfAccountChange = {
-  readonly class_uid: 3001;
+export type OcsfUserManagement = {
+  readonly class_uid: 3007;
   readonly category_uid: 3;
-  /** 2 Enable for `started`, 5 Disable for `ended` and `revoked`. */
-  readonly activity_id: 2 | 5;
-  readonly type_uid: 300102 | 300105;
+  /** 4 Enable for `started`, 5 Disable for `ended` and `revoked`. */
+  readonly activity_id: 4 | 5;
+  readonly type_uid: 300704 | 300705;
   readonly severity_id: 4;
   readonly time: number;
   readonly message: string;
@@ -181,16 +199,22 @@ export type OcsfAccountChange = {
   };
 };
 
-export function accessToOcsf(event: AccessEvent): OcsfAccountChange {
-  const time = Date.parse(event.at);
+/** An access event whose `at` does not parse projects to `undefined`. */
+export function accessToOcsf(
+  event: AccessEvent,
+): OcsfUserManagement | undefined {
+  const time = epochMillis(event.at);
+  if (time === undefined) {
+    return undefined;
+  }
   const enable = event.operation === "started";
-  return compact<OcsfAccountChange>({
-    class_uid: 3001,
+  return compact<OcsfUserManagement>({
+    class_uid: 3007,
     category_uid: 3,
-    activity_id: enable ? 2 : 5,
-    type_uid: enable ? 300102 : 300105,
+    activity_id: enable ? 4 : 5,
+    type_uid: enable ? 300704 : 300705,
     severity_id: 4,
-    time: Number.isNaN(time) ? 0 : time,
+    time,
     message: `support access ${event.operation}`,
     user: { uid: event.principal.id },
     actor:

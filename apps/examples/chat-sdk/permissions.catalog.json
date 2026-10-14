@@ -1,0 +1,93 @@
+{
+  "$schema": "https://permdock.com/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-10-14T01:05:26.669Z",
+  "generator": "permdock@0.4.0",
+  "fingerprint": "sha-256:yVfNOaQ4gZC8EX1aVFk9l25wxG4v-b0qbQ3ItRJjYzE",
+  "resources": {
+    "invoice": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "orgId"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/permissions.ts",
+      "relations": {
+        "org": {
+          "field": "orgId",
+          "memberOf": "tenant"
+        }
+      }
+    }
+  },
+  "permissions": [
+    {
+      "key": "invoice.pay",
+      "scope": "invoice:pay",
+      "resource": "invoice",
+      "action": "pay",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/bot.ts",
+          "line": 93,
+          "call": "reference"
+        },
+        {
+          "file": "src/permissions.ts",
+          "line": 28,
+          "call": "tools"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "invoice.read",
+      "scope": "invoice:read",
+      "resource": "invoice",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/bot.ts",
+          "line": 99,
+          "call": "reference"
+        },
+        {
+          "file": "src/bot.ts",
+          "line": 109,
+          "call": "reference"
+        },
+        {
+          "file": "src/permissions.ts",
+          "line": 23,
+          "call": "tools"
+        }
+      ],
+      "rowConditions": true
+    }
+  ],
+  "roles": [
+    {
+      "key": "billing"
+    },
+    {
+      "key": "member"
+    }
+  ]
+}

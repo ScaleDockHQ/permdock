@@ -66,7 +66,7 @@ export type ServerPermissionState = {
   readonly decision: Decision;
 };
 
-export type ServerPermDockProviderProps = {
+export type NextPermDockProviderProps = {
   readonly children: ReactNode;
   readonly tenant?: string;
   readonly include?: readonly (
@@ -126,8 +126,6 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     input: RequireAccessInput,
   ) => Promise<Extract<Decision, { readonly outcome: "granted" }>>;
   /** Never awaits: passes an unawaited snapshot to the client provider, whose hooks suspend. */
-  readonly PermDockProvider: (
-    props: ServerPermDockProviderProps,
-  ) => ReactElement;
+  readonly PermDockProvider: (props: NextPermDockProviderProps) => ReactElement;
   readonly permdockHandler: () => PermDockHandler;
 };

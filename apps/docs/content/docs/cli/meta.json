@@ -15,6 +15,7 @@
     "cloud",
     "supabase",
     "powersync",
+    "codemod",
     "next-plugin",
     "unplugin"
   ]

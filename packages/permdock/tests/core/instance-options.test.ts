@@ -6,7 +6,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { createAgentKernel } from "../../src/agent/kernel.ts";
 import { createPermDock as createConvexPermDock } from "../../src/convex/create.ts";
-import { memoryApprovalPolicies } from "../../src/core/approval-policies.ts";
+import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
 import { instanceOptions } from "../../src/core/instance-options.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/create.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/create.ts";
@@ -23,7 +23,7 @@ const alice: Subject = {
   context: {},
 };
 
-const approvalPolicies = memoryApprovalPolicies([
+const approvalPolicies = memoryApprovalPolicySource([
   {
     permission: "expense.read",
     tenant: "o1",
@@ -53,7 +53,7 @@ describe("adapters forward InstanceOptions to core", () => {
       subject: () => alice,
       approvalPolicies,
     });
-    const permdock = await server.permdock(new Request("https://app.test/"));
+    const permdock = await server.getPermDock(new Request("https://app.test/"));
     expect(permdock.decide(permissions.expense.read, large).outcome).toBe(
       "approval-required",
     );
@@ -94,7 +94,7 @@ describe("adapters forward InstanceOptions to core", () => {
           : { id: c.req.header("x-agent"), kind: "agent" },
     });
     const app = new Hono()
-      .use(hono.permdock())
+      .use(hono.middleware())
       .get("/", (c) => c.json(c.get("permdock").subject.actor ?? null));
     const acting = await app.request("/", { headers: { "x-agent": "bot" } });
     expect(await acting.json()).toEqual({ id: "bot", kind: "agent" });

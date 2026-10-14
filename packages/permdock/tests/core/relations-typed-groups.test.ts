@@ -11,7 +11,7 @@ import {
   definePermissions,
   definePolicy,
   getResource,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
 } from "../../src/index.ts";
@@ -80,7 +80,7 @@ const tables = {
   ],
 };
 
-const relations = memoryRelations(permissions, { rows, tables });
+const relations = memoryRelationSource(permissions, { rows, tables });
 
 async function readable(user: string): Promise<readonly string[]> {
   const permdock = await createPermDock(policy, { id: user }, { relations });
@@ -143,7 +143,7 @@ describe("edge groups with a subject column per group", () => {
         },
       }),
     });
-    const source = memoryRelations(mixed, {
+    const source = memoryRelationSource(mixed, {
       tables: {
         drive_shares: [
           { drive_id: "a", kind: "user", user_id: "dana", team_id: 9 },

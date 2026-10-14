@@ -29,8 +29,9 @@ import {
   nowSeconds,
   rowInScope,
 } from "./tenancy.ts";
+import { epochSeconds, INVALID_NOW } from "./time.ts";
 import { decisionToken, payloadDigest } from "./token.ts";
-import { isActive } from "./validity.ts";
+import { isActive, readWireValidity } from "./validity.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
 function coveredByInclude(snapshot: Snapshot, permission: Permission): boolean {
@@ -229,7 +230,7 @@ export function evaluateSnapshot(
   // `can()` reads only the outcome: the decision is neither frozen nor given a token.
   outcomeOnly = false,
 ): Decision {
-  let clock = options.now;
+  let clock = options.now === undefined ? undefined : epochSeconds(options.now);
   const now = (): number => (clock ??= nowSeconds());
   const tracer: SnapshotTracer | undefined =
     options.explain === true
@@ -267,6 +268,13 @@ export function evaluateSnapshot(
     return done({
       outcome: "denied",
       denials: [{ role: null, reason: "opaque-condition" }],
+      alternatives: [],
+    });
+  }
+  if (clock !== undefined && !Number.isFinite(clock)) {
+    return done({
+      outcome: "denied",
+      denials: [{ role: null, reason: "validation", detail: INVALID_NOW }],
       alternatives: [],
     });
   }
@@ -328,7 +336,7 @@ export function evaluateSnapshot(
       );
       continue;
     }
-    if (!isActive(grant.validity, now())) {
+    if (!isActive(readWireValidity(grant.validity), now())) {
       if (grant.effect === "allow") {
         denials.push({
           role: grant.role,
@@ -455,7 +463,7 @@ export function evaluateSnapshot(
         resourceId,
         principal: subject.principal,
         actor: subject.actor,
-        fingerprint: `snapshot:${String(snapshot.issuedAt)}`,
+        fingerprint: `snapshot:${snapshot.issuedAt}`,
         payload:
           resourceId === "*" && (next ?? current) !== undefined
             ? payloadDigest(next ?? current)

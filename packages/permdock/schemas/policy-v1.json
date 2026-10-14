@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/policy-v1.json",
+  "title": "PermDock policy document v1",
+  "description": "The JWT claims set of a vnd.permdock.policy+jwt: hosted grants an environment serves. jti is the document id and iat its issue time; policyDocumentFromClaims reads both back into a PolicyDocument. Unknown claims are allowed so a v1 minor release can add one.",
+  "type": "object",
+  "required": ["iss", "aud", "iat", "exp", "jti", "policy"],
+  "properties": {
+    "iss": { "type": "string", "minLength": 1 },
+    "aud": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      ]
+    },
+    "iat": { "$ref": "#/$defs/numericDate" },
+    "exp": { "$ref": "#/$defs/numericDate" },
+    "jti": { "type": "string", "minLength": 1 },
+    "policy": {
+      "type": "object",
+      "required": ["v", "fingerprint", "catalog", "grants"],
+      "properties": {
+        "v": { "const": 1 },
+        "fingerprint": { "type": "string", "minLength": 1 },
+        "catalog": {
+          "description": "The catalog fingerprint the document was authored against.",
+          "type": "string",
+          "minLength": 1
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "permission", "to"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "permission": { "type": "string", "minLength": 1 },
+              "effect": { "enum": ["allow", "deny"] },
+              "to": {
+                "anyOf": [
+                  { "type": "object" },
+                  { "type": "array", "items": { "type": "object" } }
+                ]
+              },
+              "where": { "type": "object" },
+              "check": { "type": "object" },
+              "approval": {
+                "anyOf": [{ "const": "human" }, { "type": "object" }]
+              },
+              "fields": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "numericDate": {
+      "description": "RFC 7519 NumericDate: seconds since the epoch.",
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}

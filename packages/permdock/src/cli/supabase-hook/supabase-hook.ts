@@ -55,7 +55,7 @@ const SUPABASE_HELP = `permdock supabase hook generate | inspect
                 [--budget 1024] [--schema public] [--grants-out <file>|-]
   inspect [--json] [--out [permdock.manifest.json]] [--check]
 
-Reads supabase.hook from permdock.config.ts: the fromTable / fromJunction sources the app
+Reads supabase.hook from permdock.config.ts: the tableMembershipSource / junctionMembershipSource sources the app
 passes as memberships. hook generate emits custom_access_token_hook(jsonb), the grants it
 needs (the ones db diff drops in --grants-out, for declarative schemas), the permdock_authz_version table
 and its triggers. Never grants anything to

@@ -5,7 +5,8 @@ import { isRecord } from "./compact.ts";
 /**
  * The JSON Schema 2020-12 keywords the package's own schemas use;
  * `checkSchema` interprets exactly these. `$ref` resolves only `#/$defs/<name>`
- * against the root node. Annotations (`title`, `description`) are ignored.
+ * against the root node. Annotations (`title`, `description`, `format`) are
+ * ignored, so a `format` always sits next to a `pattern` that enforces it.
  */
 export type JsonSchemaNode = {
   readonly $schema?: string;
@@ -14,11 +15,15 @@ export type JsonSchemaNode = {
   readonly $defs?: Readonly<Record<string, JsonSchemaNode>>;
   readonly title?: string;
   readonly description?: string;
-  readonly type?: "object" | "array" | "string" | "boolean" | "integer";
+  readonly type?: JsonSchemaType | readonly JsonSchemaType[];
+  readonly format?: string;
   readonly const?: unknown;
   readonly enum?: readonly unknown[];
   readonly pattern?: string;
+  readonly minLength?: number;
   readonly minimum?: number;
+  readonly maximum?: number;
+  readonly exclusiveMinimum?: number;
   readonly minItems?: number;
   readonly uniqueItems?: boolean;
   readonly required?: readonly string[];
@@ -27,6 +32,15 @@ export type JsonSchemaNode = {
   readonly items?: JsonSchemaNode;
   readonly oneOf?: readonly JsonSchemaNode[];
 };
+
+export type JsonSchemaType =
+  | "object"
+  | "array"
+  | "string"
+  | "boolean"
+  | "integer"
+  | "number"
+  | "null";
 
 type Path = readonly PropertyKey[];
 type Issues = StandardSchemaV1.Issue[];
@@ -90,10 +104,7 @@ export function copyJson(
   }
 }
 
-function typeMatches(
-  type: NonNullable<JsonSchemaNode["type"]>,
-  value: unknown,
-): boolean {
+function typeMatches(type: JsonSchemaType, value: unknown): boolean {
   switch (type) {
     case "object":
       return isRecord(value);
@@ -105,6 +116,10 @@ function typeMatches(
       return typeof value === "boolean";
     case "integer":
       return Number.isInteger(value);
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "null":
+      return value === null;
     default: {
       const unreachable: never = type;
       return unreachable;
@@ -152,23 +167,43 @@ export function checkSchema(
     );
     return;
   }
-  if (node.type !== undefined && !typeMatches(node.type, value)) {
-    issue(issues, path, `Expected ${node.type}`);
-    return;
+  if (node.type !== undefined) {
+    const types: readonly JsonSchemaType[] =
+      typeof node.type === "string" ? [node.type] : node.type;
+    if (!types.some((type) => typeMatches(type, value))) {
+      issue(issues, path, `Expected ${types.join(" or ")}`);
+      return;
+    }
   }
-  if (
-    node.pattern !== undefined &&
-    typeof value === "string" &&
-    !new RegExp(node.pattern, "u").test(value)
-  ) {
-    issue(issues, path, `Expected a string matching ${node.pattern}`);
+  if (typeof value === "string") {
+    if (
+      node.pattern !== undefined &&
+      !new RegExp(node.pattern, "u").test(value)
+    ) {
+      issue(issues, path, `Expected a string matching ${node.pattern}`);
+    }
+    if (node.minLength !== undefined && value.length < node.minLength) {
+      issue(
+        issues,
+        path,
+        `Expected at least ${String(node.minLength)} characters`,
+      );
+    }
   }
-  if (
-    node.minimum !== undefined &&
-    typeof value === "number" &&
-    value < node.minimum
-  ) {
-    issue(issues, path, `Expected at least ${String(node.minimum)}`);
+  if (typeof value === "number") {
+    if (node.minimum !== undefined && value < node.minimum) {
+      issue(issues, path, `Expected at least ${String(node.minimum)}`);
+    }
+    if (node.maximum !== undefined && value > node.maximum) {
+      issue(issues, path, `Expected at most ${String(node.maximum)}`);
+    }
+    if (node.exclusiveMinimum !== undefined && value <= node.exclusiveMinimum) {
+      issue(
+        issues,
+        path,
+        `Expected more than ${String(node.exclusiveMinimum)}`,
+      );
+    }
   }
   if (node.oneOf !== undefined) {
     const matches = node.oneOf.filter((option) => {

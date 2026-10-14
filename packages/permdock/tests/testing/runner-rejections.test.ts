@@ -1,22 +1,31 @@
 import type * as Vitest from "vitest";
 
 import { type TestContext, describe, vi } from "vitest";
+import { z } from "zod";
 
+import type { Decision } from "../../src/core/decision.ts";
 import type {
   RevocationEvent,
   RevocationFeed,
 } from "../../src/core/revocations.ts";
+import type { Subject } from "../../src/core/subject.ts";
 
 import {
   type PolicySource,
   memoryPolicySource,
 } from "../../src/core/hosted.ts";
 import { memoryLimitStore } from "../../src/core/limits.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
 import {
   testCredentialVerifier,
   testRevocationFeed,
 } from "../../src/testing/conformance/credentials.ts";
 import { testMembershipSource } from "../../src/testing/conformance/identity.ts";
+import {
+  testDecisionProvider,
+  testSnapshotStorage,
+} from "../../src/testing/conformance/providers.ts";
 import { testRelationSource } from "../../src/testing/conformance/relations.ts";
 import {
   testLimitStore,
@@ -146,5 +155,78 @@ describe("testCredentialVerifier rejects a live key that is not an API key", () 
       { verify: () => null, touch: () => undefined },
       { key: "not-an-api-key" },
     );
+  });
+});
+
+describe("testDecisionProvider rejects a provider outside the contract", () => {
+  const permission = definePermissions({
+    post: resource(z.object({ id: z.string() }), {
+      id: "id",
+      actions: ["read"],
+    }),
+  }).post.read;
+  const subject: Subject = { principal: { id: "u1" }, context: {} };
+  const local = async ({ local: decision }: { readonly local: Decision }) =>
+    decision;
+  brokenFor(/./u, () => {
+    testDecisionProvider(
+      {
+        name: "",
+        handles: () => false,
+        // SAFETY: deliberately an outcome outside the three to prove the runner refuses it.
+        decide: async () => ({ outcome: "maybe" }) as never,
+        permitted: async () => [""],
+      },
+      {
+        permission,
+        subject,
+        unavailable: {
+          name: "offline",
+          handles: () => true,
+          decide: async () => {
+            throw new TypeError("offline");
+          },
+        },
+      },
+    );
+  });
+  brokenFor(/one of the three outcomes/u, () => {
+    testDecisionProvider(
+      {
+        name: "empty-denial",
+        handles: () => true,
+        decide: async () => ({
+          outcome: "denied",
+          denials: [],
+          alternatives: [],
+        }),
+      },
+      { permission, subject },
+    );
+  });
+  brokenFor(/transport fails/u, () => {
+    testDecisionProvider(
+      { name: "local", handles: () => true, decide: local },
+      {
+        permission,
+        subject,
+        unavailable: {
+          name: "open",
+          handles: () => true,
+          // SAFETY: deliberately a grant on failure to prove the runner refuses fail-open.
+          decide: async () => ({ outcome: "granted" }) as never,
+        },
+      },
+    );
+  });
+});
+
+describe("testSnapshotStorage rejects a storage that loses writes", () => {
+  brokenFor(/./u, () => {
+    testSnapshotStorage({
+      getItem: () => "stale",
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    });
   });
 });

@@ -210,10 +210,7 @@ describe("kernel connection", () => {
     await vi.advanceTimersByTimeAsync(5_500);
     expect(membership.reads()).toBe(2);
 
-    const periodic = setup(
-      { id: "u1", roles: ["member"] },
-      { revalidate: 1_000 },
-    );
+    const periodic = setup({ id: "u1", roles: ["member"] }, { revalidate: 1 });
     const conn = await periodic.open();
     await vi.advanceTimersByTimeAsync(3_100);
     expect(periodic.reads()).toBe(4);

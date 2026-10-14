@@ -23,8 +23,8 @@ export function removeHookProjects(): void {
   }
 }
 
-export const SOURCES = `fromTable({ table: 'memberships', columns: { via: 'via', expiresAt: 'expires_at', managedBy: 'managed_by', seats: 'seats' } }),
-    fromJunction({
+export const SOURCES = `tableMembershipSource({ table: 'memberships', columns: { via: 'via', expiresAt: 'expires_at', managedBy: 'managed_by', seats: 'seats' } }),
+    junctionMembershipSource({
       table: 'customer_contacts',
       scope: 'customer',
       within: { organization: 'organization_id' },
@@ -42,7 +42,7 @@ export async function generate(
   temps.push(cwd);
   writeFileSync(
     join(cwd, "permdock.config.ts"),
-    `import { fromJunction, fromTable } from ${JSON.stringify(SUPABASE)};
+    `import { junctionMembershipSource, tableMembershipSource } from ${JSON.stringify(SUPABASE)};
 export default {
   permissions: ${JSON.stringify(POLICY)},
   policy: ${JSON.stringify(POLICY)},

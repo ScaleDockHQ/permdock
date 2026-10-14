@@ -1,0 +1,70 @@
+---
+title: h3
+description: permdock/h3 sets the request-scoped PermDock on event.context through an h3 2 middleware, guards routes with protect, and serves the decision endpoint as one event handler.
+---
+
+## Purpose
+
+h3 2 is the HTTP layer under Nitro and Nuxt server routes, and it runs on Node, Bun, Deno and Workers. `permdock/h3` is the [server kernel](/docs/adapters/server-kernel) behind h3's own middleware type: `middleware()` puts the instance on `event.context.permdock`, `protect` is route middleware, and `withPermDock` types the handler that reads it.
+
+## API
+
+```ts
+import { H3 } from "h3";
+import { createPermDock } from "permdock/h3";
+import { policy } from "./policy";
+import { permissions } from "./permissions";
+
+export const { middleware, protect, withPermDock, permdockHandler } =
+  createPermDock(policy, { subject: (event) => event.context.user });
+
+const app = new H3();
+app.use(middleware());
+app.patch(
+  "/posts/:id",
+  withPermDock<Post>((event) => update(event.context.permdockData)),
+  {
+    middleware: [
+      protect(permissions.post.update, (event) =>
+        loadPost(event.context.params?.id),
+      ),
+    ],
+  },
+);
+app.all("/api/permdock", permdockHandler());
+```
+
+| Export                             | Role                                                                                                                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `middleware()`                     | h3 `Middleware` for `app.use` or a route's `middleware` list. Builds the instance once and sets `event.context.permdock`. A bad Web Bot Auth signature answers `401`.                                               |
+| `protect(target, data?, options?)` | Route middleware. `target` is a permission, an operation from `defineOperations` or `null`. A grant sets `event.context.permdock` and `event.context.permdockData`; a refusal returns the Problem Details response. |
+| `withPermDock(handler)`            | Wraps an `EventHandler`. Types `event.context.permdock` and `permdockData`, builds the instance when no middleware ran, and answers a thrown `PermDockError` (from `assert`) with Problem Details.                  |
+| `getPermDock(event)`               | The instance for the request behind `event`.                                                                                                                                                                        |
+| `getSnapshot(event, query?)`       | The snapshot for a client entry such as `permdock/vue`.                                                                                                                                                             |
+| `connection(event, options?)`      | A kernel [`Connection`](/docs/adapters/server-kernel#connections) for a stream or socket.                                                                                                                           |
+| `permdockHandler()`                | The decision endpoint as one `EventHandler`: `GET` and `HEAD` return the snapshot, `POST` answers AuthZEN-shaped evaluations, any other method is `405` with `Allow: GET, HEAD, POST`.                              |
+| `openapi`                          | The kernel's OpenAPI hook contract.                                                                                                                                                                                 |
+
+## Request lifecycle
+
+`permdock/h3` follows the [shared adapter contract](/docs/adapters). What differs on h3:
+
+- `subject(event)`, `tenant(event)` and `context(event)` receive the `H3Event`; the request is `event.req`.
+- The kernel caches one instance per request and tenant, so global `middleware()` plus route `protect` builds one instance.
+- A loader that returns `null` or `undefined` answers `404`.
+- An error a downstream handler throws from `assert` becomes the same Problem Details response as a `protect` refusal; every other error reaches h3's own `onError`.
+- `deniedResponse` and `onDenied` replace the refusal body as on the [server kernel](/docs/adapters/server-kernel#options).
+
+## Why
+
+h3 2 hands every handler a Fetch `Request` on `event.req` and lets a middleware return a `Response` to end the request. The adapter is the kernel with h3's context type, and no request conversion happens. Nitro and Nuxt server routes are h3 handlers, so the same entry covers them without a `permdock/nitro` or `permdock/nuxt`. h3 has no typed context chain, so `withPermDock` is where `event.context.permdock` gets its type; the row type is the generic, because a route option list cannot pass it from `protect` to the handler.
+
+## Example app
+
+`apps/examples/h3`: `src/permissions.ts`, `src/policy.ts`, `createPermDock` from `permdock/h3` in `src/app.ts`, `protect` on `PATCH /posts/:id` (granted) and `POST /posts/:id/publish` (denied for `member`), and the decision endpoint at `/api/permdock`. `src/serve.ts` serves the app with h3's `serve` for `pnpm start`.
+
+## Related standards
+
+- [Problem Details](/docs/standards/problem-details).
+- [AuthZEN](/docs/standards/authzen) for the decision endpoint.
+- [Web Bot Auth](/docs/standards/web-bot-auth).

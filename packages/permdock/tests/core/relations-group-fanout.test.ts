@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { memoryRelations } from "../../src/core/memory-relations.ts";
+import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { permissions, policy, rows } from "../fixtures/graph.ts";
 
@@ -28,7 +28,7 @@ function lattice(layers: number) {
       subject_id: "tina",
     });
   }
-  return memoryRelations(permissions, {
+  return memoryRelationSource(permissions, {
     rows,
     tables: {
       team_members: teamMembers,

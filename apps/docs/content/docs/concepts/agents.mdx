@@ -1,0 +1,52 @@
+---
+title: Agents
+description: permdock/agent is the runtime-neutral agent contract. Operations are decided by name, models are gated by permission, results are filtered by the operation's results permission, and the AI Gateway gets the caller as user and tags. The AI SDK, OpenAI Agents, Claude Agent SDK and Eve adapters each return one.
+---
+
+An agent acts for a person. PermDock decides each step the agent takes as that person, narrowed to what the person delegated and to any policy delegation for the agent's actor kind. `permdock/agent` holds the parts every agent runtime shares; `permdock/ai-sdk`, `permdock/openai`, `permdock/claude-agent` and `permdock/eve` add the hooks their runtime calls.
+
+```ts
+import { createPermDock } from "permdock/agent";
+
+const agent = createPermDock(policy, {
+  subject: (ctx: Ctx) => ctx.user,
+  actor: (ctx) => ({ id: ctx.agentId, kind: "agent" }),
+  delegation: (ctx) => ({ scopes: ctx.scopes }),
+  operations, // defineOperations(permissions, { ... })
+  models: {
+    "openai/gpt-5.2": permissions.model.frontier,
+    "openai/gpt-5.2-mini": permissions.model.standard,
+  },
+  store, // an ApprovalStore, for approval-required operations
+});
+```
+
+## Operations
+
+`decideOperation(name, input, ctx)` loads the row through the operation's `data` resolver, validates it against the resource schema, decides and resumes an approval when the call carries an approval token. It never throws. An operation that `operations` does not name is denied unless `unmapped: 'allow'`. `allowedOperations(ctx)` lists the names the subject could be granted for some row; it is a listing hint for the tool list, never a decision.
+
+## Model gate
+
+`models` maps a model id to the permission that unlocks it. `decideModel(id, ctx)` returns the decision for one model, and a model `models` does not name is denied. `permittedModels(ctx)` returns the granted ids in declaration order, so the first entry is a sensible default. The gate is an ordinary permission check: plans, roles, tenant settings and delegations apply to it like any other permission.
+
+## Results filter
+
+An operation's `results` permission decides each row the operation returns. `filterResults(name, rows, ctx)` keeps the rows the subject may see. Without `results` the rows come back unchanged; an operation `operations` does not name returns none. Use it on search and list tools whose backend does not filter by subject.
+
+## AI Gateway attribution
+
+`gatewayOptions(ctx)` returns `providerOptions.gateway` for the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway): the principal id as `user`, and `tenant:<id>` and `actor:<kind>` as `tags`. Spend and usage reports then group by the person the agent acted for. It carries identifiers only, never a decision.
+
+<auto-type-table
+  cwd
+  path="../../packages/permdock/src/agent/create.ts"
+  name="AgentPermDock"
+/>
+
+## Testing
+
+`testAgentRuntime` from `permdock/testing` runs the contract against any implementation: operations, the listing hint, the model gate, the results filter and gateway attribution, with every failure denying ([testing](/docs/adapters/testing)).
+
+## Why
+
+Every agent runtime asks the same three questions: may this call run, may this model answer, and may this person see these rows. Answering them once, in one entry, keeps the four adapters from drifting apart on fail-closed defaults, approval resumption and validation. The model gate is a permission rather than an allow-list option, so the plans and roles that already price features also price models. The results filter reads the operation's own `results` permission, so the rule for what a person may see lives in the policy and not in each tool. Gateway attribution sends the principal and tenant, never the delegation or the decision, because the gateway is a billing and observability system and is never on the decision path.

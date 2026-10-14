@@ -3,9 +3,13 @@ import type { Subject } from "../../core/subject.ts";
 import type { AccessReviewStore } from "./types.ts";
 
 import { compact } from "../../core/compact.ts";
-import { PROBLEM_BASE } from "../../core/validation-error.ts";
+import { problemType, statusProblem } from "../../core/problem-types.ts";
 import { hasCredentials } from "../../server/http.ts";
-import { unauthenticatedProblem } from "../../server/problem.ts";
+import {
+  methodNotAllowed,
+  problemResponse,
+  unauthenticatedProblem,
+} from "../../server/problem.ts";
 import { approverPermissions } from "../permissions.ts";
 import { accessReviewerEligible, decideAccessReviewItem } from "./decide.ts";
 import { isAccessReviewError } from "./errors.ts";
@@ -34,24 +38,8 @@ type Route =
       readonly item: string;
     };
 
-function problem(
-  status: number,
-  title: string,
-  detail: string,
-  slug: string,
-): Response {
-  return new Response(
-    JSON.stringify({
-      type: `${PROBLEM_BASE}/${slug}`,
-      title,
-      status,
-      detail,
-    }),
-    {
-      status,
-      headers: { "content-type": "application/problem+json" },
-    },
-  );
+function problem(status: number, detail: string): Response {
+  return problemResponse(statusProblem(status, detail));
 }
 
 function json(status: number, body: unknown): Response {
@@ -61,7 +49,11 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-function parseRoute(url: URL, method: string): Route | undefined {
+/** The route a path names, the methods it allows, or `undefined` for an unknown path. */
+function parseRoute(
+  url: URL,
+  method: string,
+): Route | { readonly allow: string } | undefined {
   const parts = url.pathname.replace(/\/+$/u, "").split("/").filter(Boolean);
   const last = parts.at(-1);
   const prev = parts.at(-2);
@@ -69,28 +61,32 @@ function parseRoute(url: URL, method: string): Route | undefined {
   if (last === undefined) {
     return undefined;
   }
-  if (method === "GET" && last === "items" && prev !== undefined) {
-    return { kind: "items", id: decodeURIComponent(prev) };
+  if (last === "items" && prev !== undefined) {
+    return method === "GET"
+      ? { kind: "items", id: decodeURIComponent(prev) }
+      : { allow: "GET" };
   }
-  if (method === "POST" && last === "close" && prev !== undefined) {
-    return { kind: "close", id: decodeURIComponent(prev) };
+  if (last === "close" && prev !== undefined) {
+    return method === "POST"
+      ? { kind: "close", id: decodeURIComponent(prev) }
+      : { allow: "POST" };
   }
   if (
-    method === "POST" &&
     (last === "keep" || last === "revoke" || last === "applied") &&
     prev !== undefined &&
     review !== undefined
   ) {
-    return {
-      kind: last,
-      id: decodeURIComponent(review),
-      item: decodeURIComponent(prev),
-    };
+    return method === "POST"
+      ? {
+          kind: last,
+          id: decodeURIComponent(review),
+          item: decodeURIComponent(prev),
+        }
+      : { allow: "POST" };
   }
-  if (method === "GET" && last !== "items") {
-    return { kind: "get", id: decodeURIComponent(last) };
-  }
-  return undefined;
+  return method === "GET"
+    ? { kind: "get", id: decodeURIComponent(last) }
+    : { allow: "GET" };
 }
 
 async function resolveSubject(
@@ -155,15 +151,10 @@ async function findItem(
 
 function mapError(error: unknown, credentials: boolean): Response {
   if (!isAccessReviewError(error)) {
-    return problem(
-      500,
-      "Internal error",
-      "access review store failed",
-      "internal",
-    );
+    return problem(500, "access review store failed");
   }
   if (error.code === "review-not-found" || error.code === "item-not-found") {
-    return problem(404, "Not found", error.message, "not-found");
+    return problem(404, error.message);
   }
   if (
     error.code === "review-closed" ||
@@ -171,12 +162,17 @@ function mapError(error: unknown, credentials: boolean): Response {
     error.code === "not-revoked" ||
     error.code === "already-applied"
   ) {
-    return problem(409, "Conflict", error.message, "conflict");
+    return problem(409, error.message);
   }
   if (error.code === "reviewer-unauthenticated") {
     return unauthenticatedProblem(credentials);
   }
-  return problem(403, "Permission denied", error.message, "denied");
+  return problemResponse({
+    type: problemType("denied"),
+    title: "Permission denied",
+    status: 403,
+    detail: error.message,
+  });
 }
 
 /**
@@ -192,12 +188,10 @@ export function accessReviewsHandler(
     const url = new URL(request.url);
     const route = parseRoute(url, request.method);
     if (route === undefined) {
-      return problem(
-        405,
-        "Method not allowed",
-        "unknown access review route",
-        "method-not-allowed",
-      );
+      return problem(404, "unknown access review route");
+    }
+    if ("allow" in route) {
+      return methodNotAllowed(route.allow);
     }
     const subject = await resolveSubject(request, options.subject);
     const principal = subject?.principal ?? null;
@@ -207,18 +201,14 @@ export function accessReviewsHandler(
     try {
       const review = await store.get(route.id);
       if (review === null) {
-        return problem(
-          404,
-          "Not found",
-          "access review was not found",
-          "not-found",
-        );
+        return problem(404, "access review was not found");
       }
       let held: readonly string[] = [];
       if (options.permdockFor !== undefined) {
         held = approverPermissions(
           {
             v: 1,
+            id: review.id,
             token: review.id,
             permission: review.permissions[0] ?? "",
             scope: "",
@@ -243,12 +233,7 @@ export function accessReviewsHandler(
         review.createdBy !== principal.id &&
         !accessReviewerEligible(review, subject, held)
       ) {
-        return problem(
-          404,
-          "Not found",
-          "access review was not found",
-          "not-found",
-        );
+        return problem(404, "access review was not found");
       }
       if (route.kind === "get") {
         return json(200, review);
@@ -279,7 +264,7 @@ export function accessReviewsHandler(
       }
       const item = await findItem(store, route.id, route.item);
       if (item === undefined) {
-        return problem(404, "Not found", "item was not found", "not-found");
+        return problem(404, "item was not found");
       }
       if (route.kind === "applied") {
         return json(

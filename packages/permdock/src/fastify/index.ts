@@ -3,11 +3,11 @@ export type {
   FastifyPermDock,
   FastifyPermDockOptions,
   FastifyProtect,
-  PermDockRequest,
+  FastifyPermDockRequest,
 } from "./create.ts";
 export { sendReply, toRequest } from "./http.ts";
 export {
   discoverViaSignatureAgent,
   InvalidSignatureError,
-  verifyWebBotAuth,
+  webBotAuthVerifier,
 } from "../server/web-bot-auth.ts";

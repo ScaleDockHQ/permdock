@@ -60,7 +60,7 @@ permdock.assert(permissions.post.update, post)
     language: "ts",
     code: `import { createPermDock } from 'permdock/hono'
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get('user'),
 })
 

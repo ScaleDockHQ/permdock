@@ -3,6 +3,7 @@ import type { Obligation } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
 import type { GrantMeta, HostedGrantRef } from "./policy-types.ts";
 import type { Membership } from "./subject.ts";
+import type { WireDelegation } from "./wire-delegation.ts";
 import type { WireDenial } from "./wire-denial.ts";
 
 export type DirectoryEvent = {
@@ -34,8 +35,8 @@ export type MembershipEvent = {
   /** The id of every ancestor scope, keyed by scope name. */
   readonly within?: Readonly<Record<string, string>>;
   readonly via?: string;
-  /** When the membership lapses, in seconds since the epoch. */
-  readonly expiresAt?: number;
+  /** When the membership lapses, an RFC 3339 instant. */
+  readonly expiresAt?: string;
   readonly roles: {
     readonly added: readonly string[];
     readonly removed: readonly string[];
@@ -56,9 +57,38 @@ export type CredentialEvent = {
   readonly credential: { readonly id: string; readonly kind: CredentialKind };
   readonly principal: { readonly id: string };
   readonly tenant?: string;
-  readonly expiresAt?: number;
+  /** When the key expires, an RFC 3339 instant. */
+  readonly expiresAt?: string;
   readonly by?: { readonly id: string; readonly kind: string };
   readonly sample?: number;
+};
+
+/**
+ * An automation's lifecycle: `published`, `changed` (a new version) and
+ * `revoked` from the application, `run` when a run starts. It records the
+ * delegation for access review; it never decides.
+ */
+export type AutomationEvent = {
+  readonly type: "automation";
+  readonly at: string;
+  readonly source: string;
+  readonly operation: "published" | "changed" | "revoked" | "run";
+  readonly automation: {
+    readonly id: string;
+    readonly version: number | string;
+    readonly mode: "publisher" | "service";
+    readonly name?: string;
+  };
+  /** The principal each run acts as. */
+  readonly principal: { readonly id: string };
+  readonly publishedBy: string;
+  readonly tenant?: string;
+  readonly roles?: readonly string[];
+  /** The delegated permission keys. */
+  readonly permissions: readonly string[];
+  /** Set on `run` events only. */
+  readonly run?: { readonly id: string };
+  readonly by?: { readonly id: string; readonly kind: string };
 };
 
 export type SinkEvent =
@@ -66,7 +96,76 @@ export type SinkEvent =
   | DirectoryEvent
   | MembershipEvent
   | CredentialEvent
-  | AccessEvent;
+  | AccessEvent
+  | AutomationEvent
+  | DeliveryEvent;
+
+/** A delivery channel: an email, a chat message or an outbound webhook. */
+export type DeliveryChannel = "email" | "chat" | "webhook";
+
+/** What an email is for; only `notification` mail carries `List-Unsubscribe`. */
+export type EmailCategory =
+  | "transactional"
+  | "notification"
+  | "security"
+  | "approval";
+
+/**
+ * Why a delivery failed. `denied` and `unlinked` are the router's refusals of
+ * a recipient; the rest come from a transport or a provider webhook.
+ */
+export type DeliveryFailureCause =
+  | "denied"
+  | "unlinked"
+  | "no-transport"
+  | "no-message"
+  | "invalid-recipient"
+  | "invalid-message"
+  | "rate-limited"
+  | "quota-exceeded"
+  | "unauthorized"
+  | "unavailable"
+  | "suppressed"
+  | "rejected";
+
+/**
+ * One recipient's delivery: `sent` when a transport accepted it, then
+ * `delivered`, `bounced` or `complained` from the provider, or `failed`.
+ * It carries no address, only the principal the router checked.
+ */
+export type DeliveryEvent = {
+  readonly type: "delivery";
+  readonly at: string;
+  readonly source: string;
+  readonly operation:
+    | "sent"
+    | "delivered"
+    | "bounced"
+    | "complained"
+    | "failed";
+  readonly channel: DeliveryChannel;
+  /** The delivery's id and this recipient's key, sent as the `Idempotency-Key`. */
+  readonly delivery: { readonly id: string; readonly key: string };
+  /** The checked principal, or `trusted` for an address the server loaded itself. */
+  readonly recipient?: {
+    readonly principal?: { readonly id: string };
+    readonly trusted?: true;
+  };
+  /** The permission the recipient was checked for. */
+  readonly permission?: string;
+  readonly tenant?: string;
+  readonly category?: EmailCategory;
+  /** The approval request a prompt was delivered for. */
+  readonly approval?: string;
+  /** The transport or provider, and its message id. */
+  readonly provider?: { readonly name: string; readonly id?: string };
+  /** Set on `failed` only. */
+  readonly cause?: DeliveryFailureCause;
+  /** Set on `failed` only: whether a retry with the same key may succeed. */
+  readonly retryable?: boolean;
+  /** The denial reason when `cause` is `denied`. */
+  readonly reason?: string;
+};
 
 /**
  * A support-access session lifecycle event: a tenant consented to vendor
@@ -85,15 +184,21 @@ export type AccessEvent = {
   readonly via: string;
   readonly roles: readonly string[];
   readonly member?: { readonly group: string };
-  readonly expiresAt?: number;
+  /** When the session lapses, an RFC 3339 instant. */
+  readonly expiresAt?: string;
   /** The tenant principal that consented. */
   readonly grantedBy?: string;
   readonly reason?: string;
   readonly actor?: { readonly id: string; readonly kind: string };
+  /** A `SupportSession`: its id and the principal the staff member views as. */
+  readonly session?: { readonly id: string; readonly principal: string };
+  /** A `SupportSession`'s permission keys. */
+  readonly permissions?: readonly string[];
 };
 
 export type DecisionEvent = {
   readonly type: "decision";
+  /** An RFC 3339 instant. */
   readonly at: string;
   readonly outcome: "granted" | "denied" | "approval-required";
   readonly permission: string;
@@ -106,18 +211,21 @@ export type DecisionEvent = {
       readonly tenant?: string;
     } | null;
     readonly actor?: { readonly id: string; readonly kind: string };
-    readonly delegation?: {
-      readonly scopes?: readonly string[];
-      readonly authorizationDetails?: readonly unknown[];
-    };
+    /** OAuth `scope` and RFC 9396 `authorization_details`, as every wire form carries a delegation. */
+    readonly delegation?: WireDelegation;
     /** The API key the subject came from. */
     readonly credential?: {
       readonly id: string;
       readonly kind: CredentialKind;
     };
+    /** The support session the subject came from: the `id` its `access` events carry as `session.id`. */
+    readonly supportSession?: { readonly id: string };
   };
   readonly tenant?: string;
-  readonly membership?: Membership;
+  /** The membership that answered, with `expiresAt` as an RFC 3339 instant. */
+  readonly membership?: Omit<Membership, "expiresAt"> & {
+    readonly expiresAt?: string;
+  };
   readonly via?: string | null;
   readonly matched?: {
     readonly role: string | null;
@@ -140,7 +248,8 @@ export type DecisionEvent = {
   readonly alternatives?: readonly string[];
   readonly token?: string;
   readonly trusted: boolean;
-  readonly source:
+  /** The call that produced the decision. */
+  readonly call:
     | "can"
     | "decide"
     | "assert"
@@ -151,7 +260,10 @@ export type DecisionEvent = {
     | "simulate"
     | "explain";
   readonly adapter?: string;
-  readonly phase?: "requested" | "resolved";
+  /** The model id the agent model gate decided, or the model that drove the call. */
+  readonly model?: string;
+  /** Set on an approval lifecycle event (`com.permdock.approval.<phase>`). */
+  readonly phase?: "requested" | "resolved" | "expired" | "cancelled";
   readonly counts?: {
     readonly granted: number;
     readonly denied: number;

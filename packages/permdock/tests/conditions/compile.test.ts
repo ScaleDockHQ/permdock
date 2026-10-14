@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import type { Condition } from "../../src/conditions/ast.ts";
 import type { Subject } from "../../src/core/subject.ts";
+import type { Instant } from "../../src/core/time.ts";
 
 import { compileWhere } from "../../src/conditions/compile.ts";
 import { opaque } from "../../src/conditions/opaque.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import { sqlFunction } from "../../src/conditions/sql-function.ts";
 import { PermDockValidationError } from "../../src/core/errors.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 const now = 1_700_000_000;
 
@@ -138,6 +143,24 @@ describe("compileWhere", () => {
     ).toEqual({ kind: "isNull", field: "deletedAt", negated: true });
   });
 
+  it("refuses a memberOf clock that is not an Instant", () => {
+    const member = sub({ id: "u1", memberships: [] });
+    for (const clock of [now, new Date(), { epochMilliseconds: Number.NaN }]) {
+      expect(() =>
+        compileWhere(
+          {
+            op: "memberOf",
+            scope: "tenant",
+            field: "orgId",
+            roles: ["viewer"],
+          },
+          // SAFETY: the values test what a caller without types can pass.
+          { subject: member, now: clock as Instant },
+        ),
+      ).toThrow("compileWhere now must be an Instant");
+    }
+  });
+
   it("compiles memberOf tenant as equality, in-list or never", () => {
     const member = sub({
       id: "u1",
@@ -151,13 +174,13 @@ describe("compileWhere", () => {
     expect(
       compileWhere(
         { op: "memberOf", scope: "tenant", field: "orgId", roles: ["viewer"] },
-        { subject: member, now },
+        { subject: member, now: at(now) },
       ),
     ).toEqual({ kind: "compare", op: "eq", field: "orgId", value: "o1" });
     expect(
       compileWhere(
         { op: "memberOf", scope: "tenant", field: "orgId", roles: ["admin"] },
-        { subject: member, now },
+        { subject: member, now: at(now) },
       ),
     ).toEqual({ kind: "never" });
     const noActive = sub({
@@ -170,7 +193,7 @@ describe("compileWhere", () => {
     expect(
       compileWhere(
         { op: "memberOf", scope: "tenant", field: "orgId", roles: ["viewer"] },
-        { subject: noActive, now },
+        { subject: noActive, now: at(now) },
       ),
     ).toEqual({
       kind: "compare",
@@ -194,7 +217,7 @@ describe("compileWhere", () => {
     expect(
       compileWhere(
         { op: "memberOf", scope: "team", field: "teamId", roles: ["lead"] },
-        { subject: member, now },
+        { subject: member, now: at(now) },
       ),
     ).toEqual({ kind: "compare", op: "eq", field: "teamId", value: "t1" });
     expect(
@@ -207,7 +230,7 @@ describe("compileWhere", () => {
           resource: "document",
           parents: ["folderId"],
         },
-        { subject: member, now },
+        { subject: member, now: at(now) },
       ),
     ).toEqual({
       kind: "or",
@@ -427,7 +450,7 @@ describe("compileWhere", () => {
     expect(
       compileWhere(
         { op: "memberOf", scope: "team", field: "teamId", roles: ["lead"] },
-        { subject: incomplete, now },
+        { subject: incomplete, now: at(now) },
       ),
     ).toEqual({ kind: "compare", op: "eq", field: "teamId", value: "t1" });
     expect(
@@ -438,7 +461,7 @@ describe("compileWhere", () => {
           field: "id",
           roles: ["editor"],
         },
-        { subject: incomplete, now },
+        { subject: incomplete, now: at(now) },
       ),
     ).toEqual({ kind: "never" });
   });
@@ -508,7 +531,7 @@ describe("compileWhere", () => {
           roles: ["editor"],
           resource: "document",
         },
-        { subject: sub({ id: "u1", memberships: [] }), now },
+        { subject: sub({ id: "u1", memberships: [] }), now: at(now) },
       ),
     ).toEqual({ kind: "never" });
   });
@@ -552,7 +575,7 @@ describe("compileWhere", () => {
     expect(
       compileWhere(condition, {
         subject: holder,
-        now: 1,
+        now: at(1),
         memberships: { resource: { doc: table } },
       }),
     ).toMatchObject({ kind: "exists", rowField: "id" });
@@ -560,7 +583,7 @@ describe("compileWhere", () => {
     expect(
       compileWhere(condition, {
         subject: holder,
-        now: 1,
+        now: at(1),
         memberships: { resource: { doc: shared, folder: shared } },
       }),
     ).toMatchObject({
@@ -708,7 +731,7 @@ describe("compileWhere", () => {
         },
         {
           subject: holder,
-          now: 1,
+          now: at(1),
           memberships: {
             resource: {
               doc: {

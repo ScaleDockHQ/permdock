@@ -70,7 +70,7 @@ export type OrpcOpenApiHooks<
 > = {
   readonly protect: (
     permission: Permission | null,
-    loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
+    data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ) => OrpcMiddleware<TCtx, unknown, V>;
   readonly security: (permission: Permission) => {
@@ -84,10 +84,10 @@ export type OrpcPermDock<
   TCtx extends object = object,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
-  readonly permdock: () => OrpcMiddleware<TCtx, unknown, V>;
+  readonly middleware: () => OrpcMiddleware<TCtx, unknown, V>;
   readonly protect: (
     permission: Permission | null,
-    loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
+    data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ) => OrpcMiddleware<TCtx, unknown, V>;
   /** A long-lived connection for the request behind `context`. */
@@ -95,7 +95,7 @@ export type OrpcPermDock<
     opts: OrpcMiddlewareOpts<TCtx>,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
-  readonly permdockHandler: (request: Request) => Promise<Response>;
+  readonly permdockHandler: () => (request: Request) => Promise<Response>;
   readonly openapi: OrpcOpenApiHooks<TCtx, V>;
 };
 
@@ -262,7 +262,7 @@ export function createPermDock<
   };
 
   // SAFETY: the function has oRPC's middleware call shape; its generics cannot be inferred from it.
-  const permdock = (): OrpcMiddleware<TCtx, unknown, V> =>
+  const middleware = (): OrpcMiddleware<TCtx, unknown, V> =>
     ((mwOptions, input) => {
       // SAFETY: oRPC passes this middleware's context as TCtx and next takes the extended context.
       const opts = toOpts(
@@ -281,7 +281,7 @@ export function createPermDock<
           attached(
             async () =>
               boundFor(opts.context, scope) ??
-              issue(await kernel.permdock(request, scope), scope),
+              issue(await kernel.getPermDock(request, scope), scope),
           ),
         )
         .then((instance) => {
@@ -302,7 +302,7 @@ export function createPermDock<
     result: unknown,
     opts: OrpcMiddlewareOpts<TCtx>,
     permission: Permission | null,
-    loadData: (() => unknown) | undefined,
+    data: (() => unknown) | undefined,
     protectOptions: StreamProtectOptions | undefined,
     errors: ErrorConstructors,
   ): Promise<unknown> => {
@@ -320,7 +320,7 @@ export function createPermDock<
         output,
         (connectionOptions) => connection(opts, connectionOptions),
         permission,
-        loadData,
+        data,
         protectOptions,
         {
           onRevoked: (error: PermDockRevokedError) =>
@@ -332,7 +332,7 @@ export function createPermDock<
 
   const protect = (
     permission: Permission | null,
-    loadData?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
+    data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
     protectOptions?: StreamProtectOptions,
   ): OrpcMiddleware<TCtx, unknown, V> =>
     tagged(
@@ -352,7 +352,7 @@ export function createPermDock<
         );
         const { request, scope, guard } = await runGuard(
           permission,
-          loadData,
+          data,
           opts,
           protectOptions,
         );
@@ -370,9 +370,9 @@ export function createPermDock<
             ),
             opts,
             permission,
-            loadData === undefined
+            data === undefined
               ? undefined
-              : reloadAfter(guard.data, (): unknown => loadData(opts)),
+              : reloadAfter(guard.data, (): unknown => data(opts)),
             protectOptions,
             mwOptions.errors,
           );
@@ -381,7 +381,7 @@ export function createPermDock<
       }) as OrpcMiddleware<TCtx, unknown, V>,
     );
 
-  const permdockHandler = (request: Request): Promise<Response> => {
+  const handler = (request: Request): Promise<Response> => {
     // SAFETY: the handler route runs outside oRPC, so its only context is the request as req.
     const opts = {
       context: { req: request } as TCtx,
@@ -399,5 +399,11 @@ export function createPermDock<
     securitySchemes: kernelOpenApi.securitySchemes,
   };
 
-  return { permdock, protect, connection, permdockHandler, openapi };
+  return {
+    middleware,
+    protect,
+    connection,
+    permdockHandler: () => handler,
+    openapi,
+  };
 }

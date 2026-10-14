@@ -302,11 +302,11 @@ describe("RFC 8725 JWT Best Current Practices (February 2020)", () => {
 
 describe("PermDock outputs: compact JWS with registered headers", () => {
   const TYPES = [
-    "permdock-snapshot+jwt",
-    "permdock-approval+jwt",
-    "permdock-decisions+jwt",
-    "permdock-policy+jwt",
-    "permdock-capability+jwt",
+    "vnd.permdock.snapshot+jwt",
+    "vnd.permdock.approval+jwt",
+    "vnd.permdock.evidence+jwt",
+    "vnd.permdock.policy+jwt",
+    "vnd.permdock.capability+jwt",
   ] as const satisfies readonly Parameters<TokenSigner["sign"]>[1]["typ"][];
 
   it("every typ carries alg, kid and typ only, and round-trips through joseTokenVerifier", async () => {
@@ -350,13 +350,28 @@ describe("PermDock outputs: compact JWS with registered headers", () => {
 
   it("a signer refuses HS256, polymorphic EdDSA and an empty kid", () => {
     expect(() =>
-      joseTokenSigner({ key: new Uint8Array(32), alg: "HS256", kid: "k" }),
+      joseTokenSigner({
+        key: new Uint8Array(32),
+        alg: "HS256",
+        kid: "k",
+        issuer: ISSUER,
+      }),
     ).toThrow(/refuses HS\* and polymorphic EdDSA/u);
     expect(() =>
-      joseTokenSigner({ key: rfc8037.privateKey, alg: "EdDSA", kid: "k" }),
+      joseTokenSigner({
+        key: rfc8037.privateKey,
+        alg: "EdDSA",
+        kid: "k",
+        issuer: ISSUER,
+      }),
     ).toThrow(/refuses HS\* and polymorphic EdDSA/u);
     expect(() =>
-      joseTokenSigner({ key: rfc8037.privateKey, alg: "Ed25519", kid: "" }),
+      joseTokenSigner({
+        key: rfc8037.privateKey,
+        alg: "Ed25519",
+        kid: "",
+        issuer: ISSUER,
+      }),
     ).toThrow(/requires kid/u);
   });
 });

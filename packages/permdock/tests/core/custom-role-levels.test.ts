@@ -1,3 +1,4 @@
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import type { ScanResult } from "../../src/cli/types.ts";
@@ -14,7 +15,7 @@ import {
 } from "../../src/core/custom-roles.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -92,7 +93,7 @@ async function permdockFor(
 ) {
   return createPermDock(policy, subjectIn(memberships), {
     tenant: "acme",
-    customRoles: memoryRoleSource(customRoles),
+    customRoles: memoryCustomRoleSource(customRoles),
   });
 }
 
@@ -336,7 +337,7 @@ describe("resolveCustomRole with levels", () => {
     const cached = snapshotFor(policy, subjectIn(memberships), {
       tenant: "acme",
       customRoles: [dispatcher],
-      now: snapshot.issuedAt,
+      now: Temporal.Instant.from(snapshot.issuedAt),
     });
     expect(cached).toEqual(snapshot);
   });
@@ -501,7 +502,7 @@ describe("deny with levels", () => {
       subjectIn([{ scope: "tenant", id: "acme", roles: ["reader"] }]),
       {
         tenant: "acme",
-        customRoles: memoryRoleSource([
+        customRoles: memoryCustomRoleSource([
           {
             tenant: "acme",
             name: "reader",

@@ -7,7 +7,7 @@ import type { DirectoryChange } from "../../src/scim/types.ts";
 
 import { createPermDock } from "../../src/core/permdock.ts";
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import {
   allow,
   definePermissions,
@@ -49,7 +49,7 @@ function handler(
   return {
     store,
     handle: scimHandler({
-      store,
+      directory: store,
       tenant: (incoming) => tenantFromPath(incoming) || TENANT,
       token: tokenOptions(),
       ...extras,
@@ -347,12 +347,16 @@ describe("identity-provider memberships hold only assignable roles", () => {
 });
 
 describe("scimHandler", () => {
-  it("rejects missing or wrong bearer without a body", async () => {
+  it("rejects a missing or wrong bearer with a SCIM Error", async () => {
     const { handle } = handler();
     const missing = await handle(request("/Users", {}, ""));
     expect(missing.status).toBe(401);
     expect(missing.headers.get("www-authenticate")).toBe("Bearer");
-    expect(await missing.text()).toBe("");
+    expect(await missing.json()).toEqual({
+      schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
+      status: "401",
+      detail: "authentication required",
+    });
     const wrong = await handle(request("/Users", {}, "nope"));
     expect(wrong.status).toBe(401);
   });
@@ -360,7 +364,7 @@ describe("scimHandler", () => {
   it("forbids an unresolved tenant and never reads tenant from the body", async () => {
     const store = memoryDirectoryStore();
     const handle = scimHandler({
-      store,
+      directory: store,
       tenant: () => "",
       token: tokenOptions(),
     });
@@ -382,7 +386,7 @@ describe("scimHandler", () => {
   });
 
   it("creates, lists, patches and deactivates a user", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const { handle, store } = handler({ sink });
     const created = await handle(
       request("/Users", {
@@ -524,7 +528,7 @@ describe("scimHandler", () => {
   });
 
   it("emits a membership event per affected group member", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const { handle } = handler({ sink });
     const user = await json(
       await handle(
@@ -707,7 +711,7 @@ describe("scimHandler", () => {
       },
     };
     const handle = scimHandler({
-      store,
+      directory: store,
       tenant: TENANT,
       audience: "https://app.example.com/scim/v2",
       verifier,
@@ -735,7 +739,11 @@ describe("scimHandler", () => {
       }),
     };
     expect(() =>
-      scimHandler({ store: memoryDirectoryStore(), tenant: TENANT, verifier }),
+      scimHandler({
+        directory: memoryDirectoryStore(),
+        tenant: TENANT,
+        verifier,
+      }),
     ).toThrow(/audience/);
   });
 
@@ -752,7 +760,7 @@ describe("scimHandler", () => {
       },
     };
     const handle = scimHandler({
-      store: memoryDirectoryStore(),
+      directory: memoryDirectoryStore(),
       tenant: TENANT,
       audience: "https://app.example.com/scim/v2",
       verifier,

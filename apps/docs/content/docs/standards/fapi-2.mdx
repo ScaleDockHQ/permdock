@@ -58,7 +58,7 @@ const resolve = createJwtSubjectResolver({
   sender: "dpop", // or 'mtls'; 'none' is not accepted under this profile
 });
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => resolve(bearerFrom(c.req.raw.headers), c.req.raw), // the request carries the DPoP proof
 });
 ```

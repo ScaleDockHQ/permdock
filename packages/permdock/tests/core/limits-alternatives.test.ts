@@ -25,7 +25,7 @@ const report = { id: "r1" };
 const policy = definePolicy(permissions, {
   roles: [
     role("member", [
-      allow(permissions.report.export, { limit: { count: 2, per: "hour" } }),
+      allow(permissions.report.export, { limit: { count: 2, per: 3600 } }),
     ]),
   ],
   subject: (user: { readonly id: string; readonly roles: readonly string[] }) =>

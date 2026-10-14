@@ -1,6 +1,6 @@
 import { allow } from "../../src/core/grant-builders.ts";
 import { relation } from "../../src/core/grantee.ts";
-import { memoryRelations } from "../../src/core/memory-relations.ts";
+import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -67,4 +67,4 @@ export const rows = {
   report: [{ id: "r1", approverId: "rob" }],
 };
 
-export const relations = memoryRelations(permissions, { rows });
+export const relations = memoryRelationSource(permissions, { rows });

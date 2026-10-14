@@ -27,6 +27,8 @@ import {
   wwwAuthenticate,
 } from "../../src/server/problem.ts";
 
+const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
+
 const Report = z.object({ id: z.string(), ownerId: z.string() });
 
 type User = {
@@ -51,7 +53,7 @@ describe("rate limit responses", () => {
   const policy = definePolicy(permissions, {
     roles: [
       role("member", [
-        allow(permissions.report.export, { limit: { count: 2, per: "hour" } }),
+        allow(permissions.report.export, { limit: { count: 2, per: 3600 } }),
       ]),
     ],
     subject: (user: User) => user,
@@ -112,18 +114,18 @@ describe("rate limit responses", () => {
           {
             role: "a",
             reason: "limit",
-            detail: { count: 5, window: 60, resetsAt: 1030 },
+            detail: { count: 5, per: 60, resetsAt: at(1030) },
           },
           {
             role: "b",
             reason: "limit",
-            detail: { count: 100, window: 3600, resetsAt: 1500 },
+            detail: { count: 100, per: 3600, resetsAt: at(1500) },
           },
           { role: "c", reason: "limit", detail: { count: "x" } },
         ],
         alternatives: [],
       },
-      1000,
+      { epochMilliseconds: 1_000_000 },
     );
     expect(headers).toEqual({
       "Retry-After": "30",
@@ -192,7 +194,8 @@ describe("disclosure", () => {
     expect(bodies[2]).toEqual(bodies[1]);
     expect(bodies[1]?.status).toBe(404);
     expect(JSON.parse(bodies[1]?.body ?? "{}")).toMatchObject({
-      type: "https://permdock.com/problems/not-found",
+      type: "about:blank",
+      title: "Not Found",
     });
   });
 
@@ -433,7 +436,7 @@ describe("assert and protect parity", () => {
           {
             role: "member",
             reason: "limit",
-            detail: { count: 2, window: 3600, resetsAt: now + 60 },
+            detail: { count: 2, per: 3600, resetsAt: at(now + 60) },
           },
         ],
         alternatives: [],

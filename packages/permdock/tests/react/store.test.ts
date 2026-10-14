@@ -758,19 +758,28 @@ describe("createClientStore invalidate and refresh", () => {
       vi.setSystemTime(10_000_000);
       const now = Math.floor(Date.now() / 1000);
       const aged = createClientStore({
-        snapshot: { ...signedIn("u1"), issuedAt: now - 120 },
+        snapshot: {
+          ...signedIn("u1"),
+          issuedAt: new Date((now - 120) * 1000).toISOString(),
+        },
         maxAge: 60,
         server: false,
       });
       expect(aged.get().status()).toBe("stale");
       const fresh = createClientStore({
-        snapshot: { ...signedIn("u1"), issuedAt: now - 10 },
+        snapshot: {
+          ...signedIn("u1"),
+          issuedAt: new Date((now - 10) * 1000).toISOString(),
+        },
         maxAge: 60,
         server: false,
       });
       expect(fresh.get().status()).toBe("ready");
       const expired = createClientStore({
-        snapshot: { ...signedIn("u1"), expiresAt: now - 1 },
+        snapshot: {
+          ...signedIn("u1"),
+          expiresAt: new Date((now - 1) * 1000).toISOString(),
+        },
         server: false,
       });
       expect(expired.get().status()).toBe("stale");

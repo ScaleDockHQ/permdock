@@ -13,7 +13,7 @@ import {
   deny,
   inherit,
   localSnapshotManifest,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
   role,
@@ -89,7 +89,7 @@ const policy = definePolicy(
   },
 );
 
-const relations = memoryRelations(permissions, {
+const relations = memoryRelationSource(permissions, {
   tables: { drive_shares: [{ drive_id: "d1", user_id: "ana" }] },
 });
 

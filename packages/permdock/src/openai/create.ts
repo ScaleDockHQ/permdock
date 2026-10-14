@@ -1,17 +1,15 @@
-import type { ToolMap } from "../agent/types.ts";
-import type { ApprovalRequest, ApprovalStore } from "../approvals/types.ts";
+import type { AgentPermDock } from "../agent/create.ts";
+import type { AgentAdapterOptions } from "../agent/types.ts";
+import type { ApprovalRequest } from "../approvals/types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
-import type { Delegation, Principal } from "../core/subject.ts";
+import type { Principal } from "../core/subject.ts";
 
-import { approvalTokenOf, createAgentKernel } from "../agent/kernel.ts";
+import { agentRuntime } from "../agent/create.ts";
+import { approvalTokenOf } from "../agent/kernel.ts";
 import { memoryApprovalStore } from "../approvals/store.ts";
 import { compact } from "../core/compact.ts";
-import {
-  type InstanceOptions,
-  instanceOptions,
-} from "../core/instance-options.ts";
 
 /** The app context passed to `run(agent, input, { context })`. */
 export type OpenAiContext = {
@@ -26,20 +24,10 @@ export type OpenAiRunContext = {
   readonly context?: unknown;
 };
 
-export type OpenAiPermDockOptions<TUser = unknown> = InstanceOptions & {
-  readonly subject: (context: OpenAiContext) => TUser | Promise<TUser>;
-  readonly actor?: (context: OpenAiContext) => unknown;
-  readonly delegation?: (
-    context: OpenAiContext,
-  ) => Delegation | undefined | Promise<Delegation | undefined>;
-  readonly tenant?:
-    | string
-    | ((
-        context: OpenAiContext,
-      ) => string | undefined | Promise<string | undefined>);
-  readonly tools: ToolMap;
-  readonly store?: ApprovalStore;
-};
+export type OpenAiPermDockOptions<TUser = unknown> = AgentAdapterOptions<
+  OpenAiContext,
+  TUser
+>;
 
 export type OpenAiTool = {
   readonly name: string;
@@ -67,26 +55,27 @@ export type OpenAiRunState<TItem> = {
   ): unknown;
 };
 
-export type OpenAiPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  /** A `ToolApprovalFunction`: pass it as a tool's `needsApproval`. */
-  readonly needsApproval: (
-    permission: Permission,
-  ) => (
-    runContext: OpenAiRunContext | undefined,
-    input: unknown,
-    callId?: string,
-  ) => Promise<boolean>;
-  readonly guardTools: <T extends OpenAiTool>(
-    tools: readonly T[],
-    context: OpenAiContext,
-  ) => Promise<readonly T[]>;
-  readonly resolveInterruptions: <TItem extends OpenAiInterruption>(
-    state: OpenAiRunState<TItem>,
-    interruptions: readonly TItem[],
-    options: { readonly context: OpenAiContext },
-  ) => Promise<readonly ApprovalRequest[]>;
-  readonly permdock: (context: OpenAiContext) => Promise<PermDock<V>>;
-};
+export type OpenAiPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
+  AgentPermDock<OpenAiContext, V> & {
+    /** A `ToolApprovalFunction`: pass it as a tool's `needsApproval`. */
+    readonly needsApproval: (
+      permission: Permission,
+    ) => (
+      runContext: OpenAiRunContext | undefined,
+      input: unknown,
+      callId?: string,
+    ) => Promise<boolean>;
+    readonly guardTools: <T extends OpenAiTool>(
+      tools: readonly T[],
+      context: OpenAiContext,
+    ) => Promise<readonly T[]>;
+    readonly resolveInterruptions: <TItem extends OpenAiInterruption>(
+      state: OpenAiRunState<TItem>,
+      interruptions: readonly TItem[],
+      options: { readonly context: OpenAiContext },
+    ) => Promise<readonly ApprovalRequest[]>;
+    readonly getPermDock: (context: OpenAiContext) => Promise<PermDock<V>>;
+  };
 
 function appContext(runContext: OpenAiRunContext | undefined): OpenAiContext {
   const context = runContext?.context;
@@ -128,23 +117,19 @@ export function createPermDock<
   options: OpenAiPermDockOptions<TUser>,
 ): OpenAiPermDock<V> {
   const store = options.store ?? memoryApprovalStore();
-  const kernel = createAgentKernel<OpenAiContext, TUser, V>(policy, {
-    ...compact({
-      actor: options.actor,
-      delegation: options.delegation,
-      tenant: options.tenant,
-    }),
-    ...instanceOptions(options),
-    subject: options.subject,
-    tools: options.tools,
-    store,
-    adapter: "openai",
-  });
+  const { agent, kernel } = agentRuntime(
+    policy,
+    { ...options, store },
+    "openai",
+  );
 
   const byPermission = new Map<string, string>();
-  for (const [name, binding] of Object.entries(options.tools)) {
+  for (const [name, binding] of Object.entries(options.operations)) {
     byPermission.set(binding.permission.key, name);
   }
+  const passes = (toolName: string): boolean =>
+    options.unmapped === "allow" &&
+    !Object.hasOwn(options.operations, toolName);
 
   // A denial also pauses the run: `resolveInterruptions` rejects it with the
   // reason, so the model sees why instead of the tool running.
@@ -159,7 +144,7 @@ export function createPermDock<
         return true;
       }
       const context = appContext(runContext);
-      const binding = options.tools[toolName];
+      const binding = options.operations[toolName];
       if (binding === undefined) {
         return true;
       }
@@ -174,7 +159,7 @@ export function createPermDock<
     context: OpenAiContext,
   ): Promise<readonly T[]> => {
     const allowed = await kernel.allowedToolNames(context);
-    return tools.filter((tool) => allowed.has(tool.name));
+    return tools.filter((tool) => allowed.has(tool.name) || passes(tool.name));
   };
 
   const resolveOne = async <TItem extends OpenAiInterruption>(
@@ -185,6 +170,9 @@ export function createPermDock<
     const call = parseCall(item);
     if (!call.ok) {
       await state.reject(item, { message: "Denied: unreadable tool call." });
+      return null;
+    }
+    if (passes(call.name)) {
       return null;
     }
     const verdict = await kernel.decideTool(
@@ -221,10 +209,10 @@ export function createPermDock<
     return resolved.filter((record) => record !== null);
   };
 
-  return {
+  return Object.freeze({
+    ...agent,
     needsApproval,
     guardTools,
     resolveInterruptions,
-    permdock: (context) => kernel.instance(context),
-  };
+  });
 }

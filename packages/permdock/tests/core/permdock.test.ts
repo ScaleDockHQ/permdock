@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { Instant } from "../../src/core/time.ts";
+
 import { opaque } from "../../src/conditions/opaque.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import { sqlFunction } from "../../src/conditions/sql-function.ts";
@@ -9,13 +11,13 @@ import {
 } from "../../src/core/errors.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { memoryRoleSource } from "../../src/core/memory-sources.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { memorySink } from "../../src/core/sink.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { isDecisionEvent } from "../fixtures/decisions.ts";
 import {
@@ -27,6 +29,10 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 import { unsigned } from "../fixtures/snapshots.ts";
+
+const at = (seconds: number): Instant => ({
+  epochMilliseconds: seconds * 1000,
+});
 
 async function permdockFor(
   user: Parameters<typeof createPermDock>[1],
@@ -73,7 +79,7 @@ describe("createPermDock", () => {
     const decision = permdock.decide(permissions.post.delete, ownPost);
     expect(decision.outcome).toBe("approval-required");
     if (decision.outcome === "approval-required") {
-      expect(decision.token.startsWith("pd1.")).toBe(true);
+      expect(decision.token).toMatch(/^sha-256:[\w-]{43}$/u);
     }
     expect(() => permdock.assert(permissions.post.delete, ownPost)).toThrow(
       PermDockApprovalRequiredError,
@@ -125,7 +131,7 @@ describe("createPermDock", () => {
   });
 
   it("filters rows and emits one event with counts", async () => {
-    const sink = memorySink();
+    const sink = memoryDecisionSink();
     const permdock = await permdockFor(memberUser, { sink });
     const rows = permdock.filter(permissions.post.update, [ownPost, otherPost]);
     expect(rows).toEqual([ownPost]);
@@ -178,7 +184,7 @@ describe("createPermDock", () => {
     const signed = permdock.snapshot({
       signer: {
         async sign(payload, options) {
-          expect(options.typ).toBe("permdock-snapshot+jwt");
+          expect(options.typ).toBe("vnd.permdock.snapshot+jwt");
           expect("snapshot" in payload).toBe(true);
           return "signed.jws";
         },
@@ -361,7 +367,7 @@ describe("createPermDock", () => {
         roles: ["staff"],
       },
       {
-        customRoles: memoryRoleSource([
+        customRoles: memoryCustomRoleSource([
           { tenant: "unused", name: "staff", includes: ["member"] },
         ]),
       },
@@ -379,7 +385,7 @@ describe("createPermDock", () => {
       },
       {
         tenant: "o1",
-        customRoles: memoryRoleSource([
+        customRoles: memoryCustomRoleSource([
           { tenant: "o1", name: "staff", includes: ["member"] },
         ]),
       },
@@ -526,7 +532,7 @@ describe("decide alternatives", () => {
       tenant: "T",
     });
     const decision = permdock.decide(tenancy.doc.create, undefined, {
-      now: 500,
+      now: at(500),
     });
     expect(decision.outcome).toBe("denied");
     if (decision.outcome !== "denied") return;

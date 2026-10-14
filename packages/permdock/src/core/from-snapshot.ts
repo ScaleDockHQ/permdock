@@ -11,6 +11,7 @@ import type { Membership } from "./subject.ts";
 
 import { isArazzoSimulateInput, simulateArazzo } from "./arazzo.ts";
 import { compact } from "./compact.ts";
+import { deniedFor } from "./decide-for.ts";
 import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -19,6 +20,7 @@ import {
 } from "./errors.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
+import { mayUse, permittedIds } from "./may-use.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
@@ -146,13 +148,21 @@ export function fromSnapshot(
   ): ExplainedDecision =>
     run(permission, data, {
       ...decideOptions,
-      source: decideOptions?.source ?? "explain",
+      call: decideOptions?.call ?? "explain",
       explain: true,
     }) as ExplainedDecision) as PermDock["explain"];
 
   const instance: PermDock = {
     can,
     decide,
+    decideEach(permission, rows, decideOptions) {
+      return Object.freeze(
+        rows.map((row) => run(permission, row, decideOptions)),
+      );
+    },
+    decideFor(_principalId, permission) {
+      return Promise.resolve(deniedFor(permission, "unsupported"));
+    },
     assert,
     explain,
     permissions: {},
@@ -323,6 +333,39 @@ export function fromSnapshot(
         denials: [{ role: null, reason: "unsupported" as const }],
       });
     },
+    decideCredential() {
+      // Credential creation is a server decision: a snapshot carries no settings or assignable ceilings to check.
+      return Promise.resolve(
+        freezeDeep({
+          outcome: "denied" as const,
+          denials: [{ role: null, reason: "unsupported" as const }],
+        }),
+      );
+    },
+    decideAutomation() {
+      // Publishing is a server decision: a snapshot carries no assignable ceilings to check.
+      return Promise.resolve(
+        freezeDeep({
+          outcome: "denied" as const,
+          denials: [{ role: null, reason: "unsupported" as const }],
+        }),
+      );
+    },
+    decideSupportSession() {
+      // Starting a support session is a server decision: a snapshot carries no tenant settings.
+      return Promise.resolve(
+        freezeDeep({
+          outcome: "denied" as const,
+          denials: [{ role: null, reason: "unsupported" as const }],
+        }),
+      );
+    },
+    mayUse(permission) {
+      return mayUse(instance, permission);
+    },
+    permittedIds(permission, scope, query) {
+      return permittedIds(instance, permission, scope, query);
+    },
     derive() {
       // A snapshot carries its grants already resolved: no source applies to it.
       return instance;
@@ -395,7 +438,7 @@ export function fromSnapshot(
 export function emptySnapshot(): Snapshot {
   return freezeDeep({
     v: 1 as const,
-    issuedAt: 0,
+    issuedAt: "1970-01-01T00:00:00.000Z",
     subject: { principal: null, context: {} },
     roles: [],
     grants: [],

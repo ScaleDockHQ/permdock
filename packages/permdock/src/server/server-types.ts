@@ -13,7 +13,7 @@ import type { Actor, Subject } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { PdpFactory, PdpPermDock } from "../pdp/types.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";
-import type { createEvaluationsHandler } from "./evaluations.ts";
+import type { evaluationsHandler } from "./evaluations.ts";
 import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
 
 export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
@@ -22,7 +22,7 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
     request: Request,
   ) => TUser | Subject | null | Promise<TUser | Subject | null>;
   readonly actor?: (request: Request) => unknown;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  /** `webBotAuthVerifier(options)`; a verified bot becomes the actor. */
   readonly webBotAuth?: WebBotAuthVerifier;
   readonly tenant?:
     | string
@@ -43,7 +43,7 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
    * Replaces the response of a refused guard. A status below 300, or a
    * throw, keeps the default response and reports through `on('error')`.
    */
-  readonly onDenied?: OnDenied;
+  readonly deniedResponse?: DeniedResponse;
   /**
    * Request values merged into `subject.context`, under `policy.context`.
    * Only values the server derived belong here, never client input. A throw
@@ -53,20 +53,22 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly context?: (
     request: Request,
   ) => RequestContext | undefined | Promise<RequestContext | undefined>;
-  /** Wraps each instance the kernel builds; build it with `wrapPermDock` to cover derived instances. */
+  /** Wraps each instance the factory builds; build it with `wrapPermDock` to cover derived instances. */
   readonly wrap?: PermDockWrap;
+  /** The `adapter` label on decision events, revocations and approvals. Defaults to `server`. */
+  readonly adapter?: string;
 };
 
-/** What `onDenied` receives: the refusal and the default Problem Details for it. */
-export type OnDeniedEvent = {
+/** What `deniedResponse` receives: the refusal and the default Problem Details for it. */
+export type DeniedResponseEvent = {
   readonly decision: Exclude<Decision, { readonly outcome: "granted" }>;
   readonly problem: ProblemDetails;
   readonly request: Request | undefined;
 };
 
 /** Returns Problem Details with extra members, a `Response`, or nothing for the default. */
-export type OnDenied = (
-  event: OnDeniedEvent,
+export type DeniedResponse = (
+  event: DeniedResponseEvent,
 ) =>
   | ProblemDetails
   | Response
@@ -120,7 +122,7 @@ export type Loader<T> = (
 ) => T | null | undefined | Promise<T | null | undefined>;
 
 /**
- * `protect(permission, loadData?, options?)`, or `protect(null, loadData?,
+ * `protect(permission, data?, options?)`, or `protect(null, data?,
  * { oauthScopes })` for a route that needs a signed-in principal and, from a
  * delegated token, one of the OAuth scopes it declares, but no permission.
  */
@@ -130,17 +132,17 @@ export type Protect<
 > = {
   <T = unknown>(
     permission: Permission,
-    loadData?: Loader<T>,
+    data?: Loader<T>,
     protectOptions?: ProtectOptions,
   ): (request: Request, ...args: TArgs) => Promise<Guard<T, V>>;
   <T = unknown>(
     permission: null,
-    loadData?: Loader<T>,
+    data?: Loader<T>,
     protectOptions?: ProtectOptions,
   ): (request: Request, ...args: TArgs) => Promise<ScopeGuard<T, V>>;
   <T = unknown>(
     permission: Permission | null,
-    loadData?: Loader<T>,
+    data?: Loader<T>,
     protectOptions?: ProtectOptions,
   ): (
     request: Request,
@@ -158,7 +160,7 @@ export type OpenApiHooks = {
 
 export type ProtectOptions = {
   /**
-   * `true` when `loadData` returns a row the server loaded itself, to skip
+   * `true` when `data` returns a row the server loaded itself, to skip
    * schema validation. Anything else is validated against the resource
    * schema before the check.
    */
@@ -175,21 +177,6 @@ export type ProtectOptions = {
   readonly explain?: boolean;
 };
 
-export type ServerKernelOptions<
-  TUser,
-  V extends PolicyVocabulary = PolicyVocabulary,
-> = Omit<ServerPermDockOptions<TUser>, "wrap"> & {
-  /** Wraps each instance the kernel builds: `otel`, then the adapter's `wrap`. */
-  readonly wrap?: (permdock: PermDock<V>) => PermDock<V>;
-  /** The `adapter` label on decision events, revocations and approvals. Defaults to `server`. */
-  readonly adapter?: string;
-};
-
-/**
- * What an HTTP adapter builds on: `ServerPermDock` plus an explicit
- * `TenantScope` on every call, so the adapter resolves the tenant from its
- * own framework context.
- */
 export type SnapshotQuery = {
   /** The active tenant; defaults to the `tenant` option resolved from the request. */
   readonly tenant?: string;
@@ -197,8 +184,13 @@ export type SnapshotQuery = {
   readonly tenants?: "all";
 };
 
-export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: (
+/**
+ * What `createPermDock` from `permdock/server` returns. Every member takes an
+ * optional `TenantScope`, so an adapter resolves the tenant from its own
+ * framework context.
+ */
+export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly getPermDock: (
     request: Request,
     scope?: TenantScope,
   ) => Promise<PermDock<V>>;
@@ -214,14 +206,16 @@ export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
   /**
    * `protect` against an instance the adapter already holds, such as a gateway
    * connection's: the same OAuth scope check, loader, decision and approval resume.
+   * A method, so a `ServerPermDock<V>` stays assignable to `ServerPermDock`.
    */
-  readonly protectOn: <T = unknown>(
+  protectOn<T = unknown>(
     instance: PermDock<V>,
     permission: Permission | null,
-    load?: () => T | null | undefined | Promise<T | null | undefined>,
+    data?: () => T | null | undefined | Promise<T | null | undefined>,
     protectOptions?: ProtectOptions,
     request?: Request,
-  ) => Promise<Guard<T, V> | ScopeGuard<T, V>>;
+  ): Promise<Guard<T, V> | ScopeGuard<T, V>>;
+  /** A long-lived connection for a stream or socket opened by `request`. */
   readonly connection: <T = unknown>(
     request: Request,
     options?: ConnectionOptions<T>,
@@ -233,28 +227,14 @@ export type ServerKernel<V extends PolicyVocabulary = PolicyVocabulary> = {
    * actor already resolved for `from`.
    */
   readonly shareSubject: (from: Request, to: Request) => void;
-  readonly problem: ServerPermDock<V>["problem"];
-  readonly openapi: OpenApiHooks;
-  readonly permdockHandler: (
-    scope?: (request: Request) => TenantScope | Promise<TenantScope>,
-  ) => ReturnType<typeof createEvaluationsHandler>;
-};
-
-export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: (request: Request) => Promise<PermDock<V>>;
-  readonly getSnapshot: ServerKernel<V>["getSnapshot"];
-  readonly protect: Protect<V>;
-  /** A long-lived connection for a stream or socket opened by `request`. */
-  readonly connection: <T = unknown>(
-    request: Request,
-    options?: ConnectionOptions<T>,
-  ) => Promise<Connection>;
   readonly problem: (
     decision: Decision,
     init?: { readonly permission?: Permission; readonly instance?: string },
   ) => Response;
   readonly openapi: OpenApiHooks;
-  readonly permdockHandler: () => ReturnType<typeof createEvaluationsHandler>;
+  readonly permdockHandler: (
+    scope?: (request: Request) => TenantScope | Promise<TenantScope>,
+  ) => ReturnType<typeof evaluationsHandler>;
 };
 
 export type Built<V extends PolicyVocabulary = PolicyVocabulary> = {

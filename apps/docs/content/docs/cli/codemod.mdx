@@ -1,0 +1,60 @@
+---
+title: codemod
+description: Rename the identifiers a permdock release renamed, in every file that imports permdock, and list the call sites whose shape changed for a manual edit.
+---
+
+`permdock codemod 0.5` applies the 0.5.0 renames to your source. It rewrites imports from `permdock` and `permdock/*` and every reference bound to them. Then it lists the sites it would not change on its own, each with `file:line:column`. It exits `0` whether or not it found anything; run your type checker afterwards.
+
+## Usage
+
+```bash
+permdock codemod 0.5                      # every source file under the working directory
+permdock codemod 0.5 src apps/web --dry-run # report only, write nothing
+permdock codemod 0.5 src --json           # the report as JSON
+```
+
+The positional arguments after the version are files or directories; the default is the working directory. The command reads `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue` and `.svelte` files and skips `node_modules`, `dist`, `.git`, `.next`, `.turbo`, `.svelte-kit` and `coverage`. In a Vue or Svelte file it rewrites each `<script>` block. A file that imports no `permdock` entry is never changed.
+
+| Flag        | Meaning                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------ |
+| `--dry-run` | Print the report without writing any file                                                              |
+| `--json`    | Print `{ version, dryRun, scanned, files, followUps }`; an unknown version is RFC 9457 Problem Details |
+
+The version is `0.5` (`0.5.0` and `v0.5` are read the same way). Any other version is a usage error that names the supported ones, exit `2`.
+
+## What it renames
+
+The rename map is `packages/permdock/src/cli/codemod/renames-0.5.ts`; the [Naming](/docs/getting-started/naming#renamed-in-050) page lists every row. A row renames an identifier only where it is imported from one of the entries the row names, so a local `memorySink` of your own stays as it is.
+
+| Source                                              | Result                                                                                                                                                  |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `import { memorySink } from 'permdock'`             | `import { memoryDecisionSink }`, and every reference to it renamed                                                                                      |
+| `import { memorySink as sink } from 'permdock'`     | `import { memoryDecisionSink as sink }`; `sink` stays                                                                                                   |
+| `import type { MemorySink }`, `{ type MemorySink }` | The type renamed the same way, in type positions too                                                                                                    |
+| `const config = { memorySink }`                     | `{ memorySink: memoryDecisionSink }`, so the object keeps its shape                                                                                     |
+| `export { memorySink }`                             | `export { memoryDecisionSink as memorySink }`, so your module's export keeps its name                                                                   |
+| `export { memorySink } from 'permdock'`             | `export { memoryDecisionSink as memorySink } from 'permdock'`                                                                                           |
+| `import * as pd from 'permdock'`, `pd.memorySink`   | `pd.memoryDecisionSink`                                                                                                                                 |
+| `scimHandler({ store })`                            | `scimHandler({ directory: store })`: an option key in an object literal passed straight to the function the row names                                   |
+| `const kit = createPermDock(…)`, `kit.permdock()`   | `kit.middleware()` from `permdock/hono`, `kit.getPermDock()` from `permdock/server`: a member on a module-level `const` that holds the factory's result |
+
+A reference the import does not bind keeps its name: a parameter, a local variable, a destructured name, a property key or a member of another object. When the new name is already bound where a reference sits, or the file is a Vue or Svelte component whose template may read the import, the codemod writes `import { memoryDecisionSink as memorySink }` instead and leaves the references alone.
+
+## What it reports
+
+These sites go under `Manual follow-ups` and are never rewritten:
+
+- **Call shapes.** A call to an import whose signature changed, such as `subjectFromApiKey(options)(key)`, now `subjectFromApiKey(key, options)`. An import of such a function that is never called is reported at the import.
+- **Members.** A member renamed on a value a factory returns, when the value is not a module-level `const` holding the factory's result: a parameter, `const { permdock } = …`, or a value passed between modules.
+- **Option keys.** An option key in any other object literal in a file that imports the entry, such as `{ source: 'mcp' }` for `call`; the codemod cannot tell which call the object reaches.
+- **Parse failures.** A file the parser rejects is listed and left as it is.
+
+## Why
+
+A rename that only a changelog describes costs every consumer the same search and replace, and a text replace renames a local `memorySink` or an object key along with the import. The codemod parses each file with `oxc-parser` and follows the import binding through its scopes, so it changes exactly the names PermDock exported. A call whose shape changed needs a person to move arguments, so the command lists those sites instead of guessing. The rename map is one TypeScript file that the changesets and the Naming page are checked against by `pnpm docs:drift`, so the three cannot drift apart.
+
+## Related
+
+- [Naming](/docs/getting-started/naming)
+- [CLI](/docs/cli)
+- [doctor](/docs/cli/doctor)

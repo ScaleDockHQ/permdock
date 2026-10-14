@@ -18,7 +18,7 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { DOCTOR_REPORT_SCHEMA } from "../version.ts";
 import { pd064 } from "./assignments.ts";
-import { pd002, pd003, pd004 } from "./catalog.ts";
+import { pd002, pd003, pd004, pd067 } from "./catalog.ts";
 import { pd042, pd043 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { pd044, pd065 } from "./next.ts";
@@ -125,6 +125,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   { code: "PD002", groups: ["references"], run: pd002 },
   { code: "PD003", groups: ["ungranted"], run: pd003 },
   { code: "PD004", groups: ["catalog"], run: pd004 },
+  {
+    code: "PD067",
+    groups: ["catalog", "operations"],
+    when: (config) => config.operations !== undefined,
+    run: pd067,
+  },
   {
     code: "PD005",
     groups: ["skills"],

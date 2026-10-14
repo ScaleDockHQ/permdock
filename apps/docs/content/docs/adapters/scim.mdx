@@ -26,7 +26,7 @@ import { createPermDock } from "permdock/hono";
 const directory = memoryDirectoryStore(); // default; replace with a store over your tables
 
 export const scim = scimHandler({
-  store: directory,
+  directory,
   tenant: (request) => tenantFromPath(request), // '/scim/v2/:tenant' or a lookup on the credential; never the body
   token: { hash: "sha256", lookup: (tenant) => db.scimTokens.hashFor(tenant) }, // static bearer per tenant (Okta, Entra ID)
   verifier: joseTokenVerifier({
@@ -43,17 +43,17 @@ export const scim = scimHandler({
 
 app.all("/scim/v2/:tenant/*", (c) => scim(c.req.raw));
 
-export const { permdock, protect } = createPermDock(policy, {
+export const { middleware, protect } = createPermDock(policy, {
   subject: (c) => c.get("user"),
   memberships: directoryMembershipSource(directory), // groups become team memberships inside the active tenant
 });
 ```
 
 - `scimHandler(options)` returns a Fetch handler serving `/Users`, `/Users/:id`, `/Groups`, `/Groups/:id`, `/ServiceProviderConfig`, `/ResourceTypes` and `/Schemas` under the mount point. Supported operations: `GET` (with `filter`, `startIndex` / `count`, and RFC 9865 `cursor` / `nextCursor`), `POST`, `PUT`, `PATCH` (`add`, `replace`, `remove` with the path forms Okta, Entra ID and Google Workspace emit) and `DELETE`. Responses use the SCIM media type `application/scim+json` and the RFC 7644 error body (`schemas`, `status`, `scimType`, `detail`).
-- `store` is a `DirectoryStore` ([extension interfaces](/docs/concepts/extension-interfaces)). `memoryDirectoryStore()` is the in-process default and what `permdock/testing` asserts against; a store over Drizzle, Prisma or Kysely is the recipe at the end of this page.
+- `directory` is a `DirectoryStore` ([extension interfaces](/docs/concepts/extension-interfaces)). `memoryDirectoryStore()` is the in-process default and what `permdock/testing` asserts against; a store over Drizzle, Prisma or Kysely is the recipe at the end of this page.
 - `tenant` resolves the tenant for a request from the mount path or from the credential. SCIM has no tenant attribute, so one endpoint (or one credential) per tenant is the model every IdP expects.
 - `token` and `verifier` are the two credential kinds; at least one is required and both may be set. `token` is a per-tenant static bearer compared in constant time against a stored hash (never stored plain). `verifier` is a `TokenVerifier` for an RFC 7523 JWT bearer whose `aud` must equal the configured `audience` and whose tenant claim must equal the resolved tenant; `scimHandler` throws when `verifier` is set without `audience`; this is what the Cloud relay presents and what the IPSIE AL1 profile prescribes.
-- `groupRoles` maps a group `id` to the role names its members hold. When a `Group` arrives with the PermDock extension attribute (`urn:permdock:scim:schemas:extension:roles:1.0` with a `roles` array), the attribute is stored on the group and takes precedence; the Cloud's mapping UI writes it, and an IdP that supports custom group attributes may too. Role names are offered to the tenant's `RoleSource` as custom roles first and then matched against declared `assignable` roles; anything else is dropped and reported in development.
+- `groupRoles` maps a group `id` to the role names its members hold. When a `Group` arrives with the PermDock extension attribute (`urn:ietf:params:scim:schemas:extension:permdock:2.0:Group` with a `roles` array), the attribute is stored on the group and takes precedence; the Cloud's mapping UI writes it, and an IdP that supports custom group attributes may too. Role names are offered to the tenant's `CustomRoleSource` as custom roles first and then matched against declared `assignable` roles; anything else is dropped and reported in development.
 - `sink` is a `DecisionSink` ([audit and observability](/docs/concepts/audit-and-observability)); the handler writes one `directory` event per accepted operation so provisioning and the decisions it later explains share one log. Group create, replace, patch and delete also write one `membership` event per affected user (`source: 'scim'`, `via: 'group:<id>'`, roles from the extension). `onChange` receives the tenant, the affected user ids and a `kind` after a write, for snapshot invalidation: `session-revoked` when the write deactivated (`active: false`) or deleted a user, `changed` otherwise.
 - `revocations` is a `RevocationFeed`. After a write, the handler publishes in the tenant for each affected user, once for each of the user's SCIM `id`, `userName` and `externalId`, because a principal id is whichever of them `directoryMembershipSource` matched on. A user write that leaves `active: false`, and a user delete, publish the CAEP `session-revoked` kind, so the user's open streams and sockets end without revalidating; every other write (a group change, a rename, a reactivation) publishes `changed`, so connections resolve their subject again and stay open only if access still holds. A deleted user's record is read before the delete; a throwing feed never fails the IdP write.
 - `directoryMembershipSource(store)` returns a `MembershipSource` whose `membershipsFor(principal, { tenant })` looks the principal up by `externalId` or `userName` (configurable `match`) with a single `eq` comparison built as a filter node, so a principal id holding quotes or filter syntax is only ever a value, returns nothing when the user is missing or `active: false`, and otherwise one membership of the tenant per group: `{ tenant, roles: group.roles, via: 'group:' + group.id, managedBy: 'idp' }`. `managedBy` marks the membership as owned by the identity provider: `decideRoleChange` refuses to change it with `externally-managed`, and `isExternallyManaged(membership)` lets a member list render it read-only ([Supabase token hook](/docs/adapters/supabase-hook)). Group roles hold in the tenant (no cascade from a team scope); the group id stays in `via` for audit.
@@ -109,21 +109,21 @@ type DirectoryGroup = {
 };
 ```
 
-The store is a repository, unlike `MembershipSource` and `RoleSource`, which are queries: this is the one place PermDock writes membership data, and it writes only what an authenticated IdP or relay sent. `displayName` is stored for the mapping UI and is never used as an identifier. `roles` on a group is the extension attribute. Every method may throw; the handler turns a throw into a SCIM `500` and never a partial write.
+The store is a repository, unlike `MembershipSource` and `CustomRoleSource`, which are queries: this is the one place PermDock writes membership data, and it writes only what an authenticated IdP or relay sent. `displayName` is stored for the mapping UI and is never used as an identifier. `roles` on a group is the extension attribute. Every method may throw; the handler turns a throw into a SCIM `500` and never a partial write.
 
 ## Protocol subset
 
-| RFC 7644 feature                                                                                                              | `permdock/scim`        | Note                                                                                                                                                                                                                 |
-| ----------------------------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/Users`, `/Groups` `GET`, `POST`, `PUT`, `PATCH`, `DELETE`                                                                   | Implements             | The operations Okta, Entra ID and Google Workspace send                                                                                                                                                              |
-| `filter` with `eq`, `ne`, `co`, `sw`, `pr`, `and`, `or` on `userName`, `externalId`, `active`, `displayName`, `members.value` | Implements             | Enough for every IdP's lookup-before-create; `pr` matches only a non-empty value (not null, not an empty string, not an empty array, RFC 7644 section 3.4.2.2); other operators return `400 invalidFilter`           |
-| Index pagination (`startIndex`, `count`)                                                                                      | Implements             | Required by RFC 7644                                                                                                                                                                                                 |
-| Cursor pagination (RFC 9865)                                                                                                  | Implements             | Advertised in `/ServiceProviderConfig`; used when the store returns a cursor                                                                                                                                         |
-| `PATCH` path forms (`members[value eq "…"]`, `active`, `emails[type eq "work"].value`)                                        | Implements, normalised | Each IdP's dialect is rewritten to one operation shape before the store sees it                                                                                                                                      |
-| `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas`                                                                        | Implements             | Advertises the supported subset and the PermDock extension; `/Schemas` and `/ResourceTypes` are ListResponses, `/Schemas/:id` and `/ResourceTypes/:id` return one item, and a `filter` gets 403 (RFC 7644 section 4) |
-| `/Me`, `/Bulk`, `/.search`                                                                                                    | Not implemented        | No IdP requires them for provisioning; the routes do not exist                                                                                                                                                       |
-| `ETag` and `If-Match`                                                                                                         | Not implemented        | Stores may return `meta.version`; conditional requests are not enforced                                                                                                                                              |
-| `sortBy`, `sortOrder`                                                                                                         | Not implemented        | Ignored                                                                                                                                                                                                              |
+| RFC 7644 feature                                                                                                              | `permdock/scim`        | Note                                                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/Users`, `/Groups` `GET`, `POST`, `PUT`, `PATCH`, `DELETE`                                                                   | Implements             | The operations Okta, Entra ID and Google Workspace send                                                                                                                                                                    |
+| `filter` with `eq`, `ne`, `co`, `sw`, `pr`, `and`, `or` on `userName`, `externalId`, `active`, `displayName`, `members.value` | Implements             | Enough for every IdP's lookup-before-create; `pr` matches only a non-empty value (not null, not an empty string, not an empty array, RFC 7644 section 3.4.2.2); other operators return `400 invalidFilter`                 |
+| Index pagination (`startIndex`, `count`)                                                                                      | Implements             | Required by RFC 7644                                                                                                                                                                                                       |
+| Cursor pagination (RFC 9865)                                                                                                  | Implements             | Advertised in `/ServiceProviderConfig`; used when the store returns a cursor                                                                                                                                               |
+| `PATCH` path forms (`members[value eq "…"]`, `active`, `emails[type eq "work"].value`)                                        | Implements, normalised | Each IdP's dialect is rewritten to one operation shape before the store sees it                                                                                                                                            |
+| `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas`                                                                        | Implements             | Advertises the supported subset and the PermDock extension; `/Schemas` and `/ResourceTypes` are ListResponses, `/Schemas/:id` and `/ResourceTypes/:id` return one item, and a `filter` gets 403 (RFC 7644 section 4)       |
+| `/Me`, `/Bulk`, `/.search`                                                                                                    | Not implemented        | No IdP requires them for provisioning; the routes do not exist                                                                                                                                                             |
+| `ETag`, `If-Match` and `If-None-Match`                                                                                        | Implements             | `meta.version` is a weak entity tag of the SHA-256 digest of the resource without `meta.location`, sent as `ETag`; a stale `If-Match` on `PUT`, `PATCH` or `DELETE` is `412`, a matching `If-None-Match` on `GET` is `304` |
+| `sortBy`, `sortOrder`                                                                                                         | Not implemented        | Ignored                                                                                                                                                                                                                    |
 
 ### The PermDock extension schema
 
@@ -133,17 +133,19 @@ Group-to-role mapping is application data, carried in a SCIM extension:
 {
   "schemas": [
     "urn:ietf:params:scim:schemas:core:2.0:Group",
-    "urn:permdock:scim:schemas:extension:roles:1.0"
+    "urn:ietf:params:scim:schemas:extension:permdock:2.0:Group"
   ],
   "id": "g_9f2c",
   "externalId": "00g1abc",
   "displayName": "Editors",
   "members": [{ "value": "u_1" }, { "value": "u_7" }],
-  "urn:permdock:scim:schemas:extension:roles:1.0": { "roles": ["editor"] }
+  "urn:ietf:params:scim:schemas:extension:permdock:2.0:Group": {
+    "roles": ["editor"]
+  }
 }
 ```
 
-`roles` is a multi-valued string attribute. The Cloud relay's mapping UI writes it, an IdP with custom group attributes may write it, and `groupRoles` is the fallback. The URN is under the `permdock` namespace in the form RFC 7643 section 10 requires of an unregistered extension; no IANA registration is planned. The relay's RFC 7523 bearer is a plain assertion (`typ: JWT`) with no new JWS `typ` value, and `permdock/jwt`'s default `accept: 'access-token'` check applies to it.
+`roles` is a multi-valued string attribute. The Cloud relay's mapping UI writes it, an IdP with custom group attributes may write it, and `groupRoles` is the fallback. The URN follows the `urn:ietf:params:scim:schemas:extension:<name>:2.0:<resource>` form that RFC 7643 section 3.3 uses for extensions and IdP attribute mappers expect; PermDock has not registered it with IANA. The relay's RFC 7523 bearer is a plain assertion (`typ: JWT`) with no new JWS `typ` value, and `permdock/jwt`'s default `accept: 'access-token'` check applies to it.
 
 ### IdP dialects
 
@@ -162,12 +164,13 @@ The dialect table is maintained with recorded requests in `apps/examples/scim`; 
 - `meta.location` on every returned resource, discovery resources included; `meta.created` and `meta.lastModified` in RFC 3339.
 - Every attribute in `/Schemas` states `type`, `multiValued` and `required`, as the RFC 7643 section 7 Schema schema requires.
 - `ListResponse` with `totalResults` even when paging by cursor.
+- `scimType` only on `400` and `409`, as RFC 7644 section 3.12 defines it; `401` and `403` carry a SCIM Error body without it.
 - The extension URN advertised under `/Schemas` and in `/ResourceTypes` `schemaExtensions` with `required: false`.
 
 ## Request lifecycle
 
 1. The IdP (or the Cloud relay) sends an HTTP request to the mount point with a bearer credential.
-2. `tenant` resolves the tenant. The handler authenticates: a static `token` is hashed and compared in constant time against the tenant's stored hash; a JWT bearer is passed to `verifier` with `aud` set to the configured `audience` and the tenant claim required to match. Failure is `401` with `WWW-Authenticate: Bearer` and no body detail.
+2. `tenant` resolves the tenant. The handler authenticates: a static `token` is hashed and compared in constant time against the tenant's stored hash; a JWT bearer is passed to `verifier` with `aud` set to the configured `audience` and the tenant claim required to match. Failure is `401` with `WWW-Authenticate: Bearer` and a SCIM Error body whose `detail` is only "authentication required".
 3. The body is validated against the SCIM core schemas plus the PermDock extension; an unknown attribute is ignored, a malformed body is `400` with `scimType: invalidSyntax` or `invalidValue`.
 4. The operation is applied to the store. `PATCH` operations are normalised (Entra's `members[value eq "…"]` remove form, Okta's `replace` on `active`, Google's full `PUT`) before they reach `patchUser` / `patchGroup`, so a store implements one shape.
 5. The response is the resource as stored (`201` on create, `200` otherwise, `204` on delete) with `meta.location`.
@@ -176,15 +179,16 @@ The dialect table is maintained with recorded requests in `apps/examples/scim`; 
 
 ## What it validates
 
-| Check                                                                                                   | Failure                                                                    |
-| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Bearer present and valid (`token` hash match, or `verifier` `ok: true` with `aud` and tenant claim)     | `401`, `WWW-Authenticate: Bearer`                                          |
-| Tenant resolved and equal to the credential's tenant                                                    | `403`; never falls back to a default tenant                                |
-| `schemas` names a supported schema; required attributes present (`userName`, `displayName`)             | `400 invalidSyntax` / `invalidValue`                                       |
-| `filter` uses a supported operator (`eq`, `ne`, `co`, `sw`, `pr`, `and`, `or`) on a supported attribute | `400 invalidFilter`                                                        |
-| Uniqueness of `userName` and `externalId` within the tenant                                             | `409 uniqueness`                                                           |
-| Extension `roles` values are role names the policy declares or the tenant's `RoleSource` resolves       | Unknown names stored as sent, contribute no grant, reported in development |
-| Resource exists                                                                                         | `404`                                                                      |
+| Check                                                                                                   | Failure                                                                                            |
+| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Bearer present and valid (`token` hash match, or `verifier` `ok: true` with `aud` and tenant claim)     | `401`, `WWW-Authenticate: Bearer`, SCIM Error body                                                 |
+| Tenant resolved and equal to the credential's tenant                                                    | `403`, `WWW-Authenticate: Bearer error="insufficient_scope"`; never falls back to a default tenant |
+| `schemas` names a supported schema; required attributes present (`userName`, `displayName`)             | `400 invalidSyntax` / `invalidValue`                                                               |
+| `filter` uses a supported operator (`eq`, `ne`, `co`, `sw`, `pr`, `and`, `or`) on a supported attribute | `400 invalidFilter`                                                                                |
+| Uniqueness of `userName` and `externalId` within the tenant                                             | `409 uniqueness`                                                                                   |
+| Extension `roles` values are role names the policy declares or the tenant's `CustomRoleSource` resolves | Unknown names stored as sent, contribute no grant, reported in development                         |
+| Resource exists                                                                                         | `404`                                                                                              |
+| `If-Match` equals the stored `meta.version` on `PUT`, `PATCH` or `DELETE`                               | `412`                                                                                              |
 
 The handler never trusts the body to name the tenant or the caller, never accepts a `roles` value that widens beyond declared `assignable` roles, and never returns another tenant's resources. Bulk operations (RFC 7644 section 3.7) are not supported, because the IdPs PermDock targets do not require them. Enterprise User attributes such as `department` and `manager` stay in the store for the application to read; they never become `principal` fields.
 
@@ -207,7 +211,7 @@ Deprovisioning latency is bounded by how memberships are read: per request throu
 
 ## Hosted relay
 
-PermDock Cloud runs a SCIM endpoint per connected tenant, with the IdP-specific setup instructions (Okta and Entra ID applications, Google Workspace auto-provisioning), a group-to-role mapping UI that writes the extension attribute, and a sync log. Each operation the Cloud accepts is replayed unchanged to your `scimHandler`, authenticated with an RFC 7523 JWT bearer signed by the Cloud's per-environment key and verified by your `verifier` against the same JWKS that signs snapshots ([Cloud adapter](/docs/adapters/cloud)). The Cloud keeps no authoritative copy of your directory (the relay is the bring-your-own directory mode; a Cloud-native environment has no `scimHandler` target and delivers memberships as token claims): if the relay is unreachable, the IdP retries, and your store keeps its last state. The Cloud never implements `MembershipSource` or `RoleSource` (invariant 15).
+PermDock Cloud runs a SCIM endpoint per connected tenant, with the IdP-specific setup instructions (Okta and Entra ID applications, Google Workspace auto-provisioning), a group-to-role mapping UI that writes the extension attribute, and a sync log. Each operation the Cloud accepts is replayed unchanged to your `scimHandler`, authenticated with an RFC 7523 JWT bearer signed by the Cloud's per-environment key and verified by your `verifier` against the same JWKS that signs snapshots ([Cloud adapter](/docs/adapters/cloud)). The Cloud keeps no authoritative copy of your directory (the relay is the bring-your-own directory mode; a Cloud-native environment has no `scimHandler` target and delivers memberships as token claims): if the relay is unreachable, the IdP retries, and your store keeps its last state. The Cloud never implements `MembershipSource` or `CustomRoleSource` (invariant 15).
 
 ## Store recipe
 

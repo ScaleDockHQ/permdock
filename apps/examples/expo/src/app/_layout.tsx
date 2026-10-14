@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import {
   appStateForeground,
-  memoryStorage,
+  memorySnapshotStorage,
   PermDockProvider,
   secureStoreStorage,
   usePermissionGuard,
@@ -14,7 +14,9 @@ import { ownPost, permissions } from "../permissions.ts";
 
 // expo-secure-store has no web implementation; the web build keeps the snapshot in memory.
 const storage =
-  Platform.OS === "web" ? memoryStorage() : secureStoreStorage(SecureStore);
+  Platform.OS === "web"
+    ? memorySnapshotStorage()
+    : secureStoreStorage(SecureStore);
 // Rows another device changed arrive while the app is in the background.
 const foreground = appStateForeground(AppState);
 

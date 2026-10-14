@@ -1,5 +1,7 @@
 import type { Snapshot } from "./snapshot-types.ts";
+import type { Instant } from "./time.ts";
 
+import { nowSeconds, secondsOf } from "./time.ts";
 import { payloadDigest } from "./token.ts";
 
 export type CacheLifeForOptions = {
@@ -7,9 +9,16 @@ export type CacheLifeForOptions = {
   readonly min?: number;
   /** Upper bound in seconds. Next.js keeps a per-session App Shell entry from 300. */
   readonly max?: number;
-  /** Seconds since the epoch; defaults to the snapshot's `issuedAt`, then the clock. */
-  readonly now?: number;
+  /** Defaults to the snapshot's `issuedAt`, then the clock. */
+  readonly now?: Instant;
 };
+
+/** Seconds since the epoch of a NumericDate or an RFC 3339 instant. */
+function epochSeconds(
+  value: number | string | null | undefined,
+): number | undefined {
+  return typeof value === "number" ? value : secondsOf(value);
+}
 
 /**
  * `{ stale }` in seconds: `max` when the value never expires, otherwise the seconds left, clamped
@@ -18,22 +27,25 @@ export type CacheLifeForOptions = {
  */
 export function cacheLifeFor(
   value: {
-    readonly expiresAt?: number | null;
-    readonly issuedAt?: number;
+    /** RFC 3339, or a NumericDate. */
+    readonly expiresAt?: number | string | null;
+    /** RFC 3339, or a NumericDate. */
+    readonly issuedAt?: number | string;
   } | null,
   options: CacheLifeForOptions = {},
 ): { readonly stale: number } {
   const min = options.min ?? 30;
   const max = Math.max(options.max ?? 300, min);
-  const expiresAt = value?.expiresAt;
-  if (expiresAt === undefined || expiresAt === null) {
+  const expiresAt = epochSeconds(value?.expiresAt);
+  if (expiresAt === undefined) {
     return { stale: max };
   }
-  const issuedAt =
-    value?.issuedAt !== undefined && value.issuedAt > 0
-      ? value.issuedAt
-      : undefined;
-  const now = options.now ?? issuedAt ?? Math.floor(Date.now() / 1000);
+  const issued = epochSeconds(value?.issuedAt);
+  const issuedAt = issued !== undefined && issued > 0 ? issued : undefined;
+  const now =
+    options.now === undefined
+      ? (issuedAt ?? nowSeconds())
+      : nowSeconds(options.now);
   const remaining = Math.floor(expiresAt - now);
   if (remaining < min) {
     return { stale: Math.max(0, remaining) };

@@ -7,7 +7,10 @@ import { buildCatalog } from "../../src/cli/catalog-doc.ts";
 import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { ownershipRules, ownershipSql } from "../../src/cli/rls/ownership.ts";
 import { scopeList } from "../../src/core/scopes.ts";
-import { fromJunction, fromTable } from "../../src/supabase/sources.ts";
+import {
+  junctionMembershipSource,
+  tableMembershipSource,
+} from "../../src/supabase/sources.ts";
 import { permissions, policy } from "../fixtures/named-scopes.ts";
 
 const scan: ScanResult = {
@@ -145,7 +148,7 @@ describe("ownership in generated RLS", () => {
 
   it("puts the holder triggers on every table-backed source of the scope", () => {
     const sources = [
-      fromTable({
+      tableMembershipSource({
         table: "access.grants",
         columns: {
           user: {
@@ -161,14 +164,14 @@ describe("ownership in generated RLS", () => {
           via: "kind",
         },
       }),
-      fromJunction({
+      junctionMembershipSource({
         table: "organization_owners",
         scope: "organization",
         roles: ["owner"],
         via: "staff",
         expiresAt: "until",
       }),
-      fromJunction({
+      junctionMembershipSource({
         table: "customer_contacts",
         scope: "customer",
         roles: ["contact"],
@@ -202,7 +205,7 @@ describe("ownership in generated RLS", () => {
   });
 
   it("falls back to decideRoleChange when a source has no table", () => {
-    const [table] = [fromTable({ table: "grants" })];
+    const [table] = [tableMembershipSource({ table: "grants" })];
     const { holders: _, ...sql } = table.sql;
     const source = { ...table, sql };
     expect(

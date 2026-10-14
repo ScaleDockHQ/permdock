@@ -522,7 +522,7 @@ describe("simulate over an Arazzo workflow", () => {
     });
     expect(events).toEqual([
       expect.objectContaining({
-        source: "simulate",
+        call: "simulate",
         outcome: "denied",
         counts: { granted: 1, denied: 1, approvalRequired: 1 },
       }),

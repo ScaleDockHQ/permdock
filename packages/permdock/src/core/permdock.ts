@@ -1,5 +1,15 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
+import type {
+  AutomationDecision,
+  AutomationRequest,
+  DecideAutomationOptions,
+} from "./automation.ts";
+import type {
+  CredentialDecision,
+  CredentialRequest,
+  DecideCredentialOptions,
+} from "./credential.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { ActivateInput } from "./elevated.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
@@ -10,10 +20,13 @@ import type {
   EntitlementSource,
   MembershipSource,
   RelationSource,
-  RoleSource,
-  RoleSourceFactory,
+  CustomRoleSource,
+  CustomRoleSourceFactory,
+  SettingsSource,
   TokenSigner,
 } from "./interfaces.ts";
+import type { PermittedIdsOptions } from "./may-use.ts";
+import type { Operation } from "./operations.ts";
 import type {
   RoleChange,
   RoleChangeDecision,
@@ -21,6 +34,7 @@ import type {
 } from "./ownership.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
+import type { PrincipalSource } from "./principal-source.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type {
   Actor,
@@ -30,6 +44,12 @@ import type {
   Principal,
   Subject,
 } from "./subject.ts";
+import type {
+  DecideSupportSessionOptions,
+  SupportSessionDecision,
+  SupportSessionRequest,
+} from "./support-session.ts";
+import type { Instant } from "./time.ts";
 import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 import type { WhoCan } from "./who-can.ts";
@@ -63,12 +83,14 @@ export type DecideOptions = {
   readonly trusted?: boolean;
   /** Where untrusted data came from, reported on validation errors. Defaults to `'manual'`. */
   readonly boundary?: Boundary;
-  /** Decision clock in Unix seconds, for expiries and limits. Defaults to the current time. */
-  readonly now?: number;
+  /** Decision clock, for expiries and limits; a `Temporal.Instant` fits. Defaults to the current time. */
+  readonly now?: Instant;
   /** The call that produced the decision, reported on the decision event. Defaults to `'decide'`. */
-  readonly source?: DecisionEvent["source"];
+  readonly call?: DecisionEvent["call"];
   /** The adapter that made the call, reported on the decision event. */
   readonly adapter?: string;
+  /** The model id the decision is about or that drove the call (`'openai/gpt-5'`), reported on the decision event. Never read when deciding. */
+  readonly model?: string;
   /** Per-call unauthorized handler for `assert`; runs before instance and policy handlers. */
   readonly onDenied?: (decision: Decision) => never | void;
   /** The field being read or written; only grants whose `fields` cover it match. */
@@ -82,11 +104,17 @@ export type DecideOptions = {
    * and memberships of other scopes are skipped with reason `scope`.
    */
   readonly scope?: string;
+  /**
+   * The operation the call decides, for `ApprovalPolicySource` entries that
+   * match on `meta.risk` and `meta.effects`. Surfaces that decide an
+   * operation (agent tools, workflow steps, `protect(operation)`) pass it.
+   */
+  readonly operation?: Pick<Operation, "name" | "meta">;
 };
 
 export type SimulateOptions = {
-  /** Decision clock in Unix seconds for the whole batch: grant validity, membership expiry and limits are read as of this instant. Defaults to the current time. */
-  readonly now?: number;
+  /** Decision clock for the whole batch: grant validity, membership expiry and limits are read as of this instant. Defaults to the current time. */
+  readonly now?: Instant;
 };
 
 export type RowPair<T> = {
@@ -158,6 +186,29 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
      */
     (permission: Permission, data: unknown, options?: DecideOptions): Decision;
   };
+  /**
+   * `decide` for each row, in row order. Each row is its own call: a limit
+   * is consumed once per granted row, so rows past the cap are denied with
+   * `limit`, and each `approval-required` row carries its own token.
+   */
+  readonly decideEach: (
+    permission: Permission,
+    rows: readonly unknown[],
+    options?: DecideOptions,
+  ) => readonly Decision[];
+  /**
+   * What `permission` on `row` decides for the principal `principalId`,
+   * loaded from `principals` in this instance's active tenant with no actor
+   * and no delegation. It grants this instance nothing, shares none of its
+   * caches and never consumes a limit. Denied with `anonymous` when there is
+   * no `principals`, no such principal or the source throws, and with
+   * `tenant-mismatch` when the principal is outside the active tenant.
+   */
+  readonly decideFor: (
+    principalId: string,
+    permission: Permission,
+    row?: unknown,
+  ) => Promise<Decision>;
   readonly assert: {
     (
       permission: Permission<string, unknown, "instance">,
@@ -299,6 +350,54 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     options?: RoleChangeOptions,
   ) => RoleChangeDecision;
   /**
+   * Decides whether the subject may create the credential in `request`: the
+   * creator's own reach, the `credentials` policy of the key's tenant, and
+   * `approval`. PermDock never stores the credential; the application does,
+   * after a `granted` result. An instance built from a snapshot denies with
+   * `unsupported`.
+   */
+  readonly decideCredential: (
+    request: CredentialRequest,
+    options?: DecideCredentialOptions,
+  ) => Promise<CredentialDecision>;
+  /**
+   * Decides whether the subject may publish the automation in `request` and
+   * returns the record to store: the publisher's own reach over every
+   * operation's permission and, for a `service` automation, their assignable
+   * ceiling. Each run re-checks the publisher live. An instance built from a
+   * snapshot denies with `unsupported`.
+   */
+  readonly decideAutomation: (
+    request: AutomationRequest,
+    options?: DecideAutomationOptions,
+  ) => Promise<AutomationDecision>;
+  /**
+   * Decides whether the subject may start the support session in `request`
+   * and returns the record to sign: a stated reason, membership of the
+   * tenant, the actor's own reach, the tenant's `supportSessions` policy and
+   * approval by someone else. An instance built from a snapshot denies with
+   * `unsupported`.
+   */
+  readonly decideSupportSession: (
+    request: SupportSessionRequest,
+    options?: DecideSupportSessionOptions,
+  ) => Promise<SupportSessionDecision>;
+  /**
+   * Whether `permission` could be granted to the subject for some row, within
+   * its delegation. A listing hint for tools and skills, never a decision.
+   */
+  readonly mayUse: (permission: Permission) => boolean;
+  /**
+   * The instances of `scope` in which the subject holds `permission`, the
+   * in-process mirror of the SQL `permitted_<scope>_ids_by_permission`. A
+   * listing, never a decision: a row's own check still runs `can`.
+   */
+  readonly permittedIds: (
+    permission: Permission,
+    scope: string,
+    options?: PermittedIdsOptions,
+  ) => readonly string[];
+  /**
    * Loads the relation facts `permission` needs for `rows` into this
    * instance's cache, so `can`, `decide` and `filter` answer synchronously
    * over an async `RelationSource`. It never grants; a failed load leaves
@@ -345,14 +444,14 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
 /** What `permdock.derive` may replace: the sources read after the subject is resolved. */
 export type DeriveOptions = Pick<
   PermDockOptions,
-  "customRoles" | "approvalPolicies" | "relations"
+  "customRoles" | "approvalPolicies" | "relations" | "principals"
 >;
 
 export type PermDockOptions = {
   readonly tenant?: string;
   /** One source, or several composed with `composeMemberships`. */
   readonly memberships?: MembershipSource | readonly MembershipSource[];
-  readonly customRoles?: RoleSource | RoleSourceFactory;
+  readonly customRoles?: CustomRoleSource | CustomRoleSourceFactory;
   /** Plans and seats from billing, merged into `principal.plans` for the active tenant. */
   readonly entitlements?: EntitlementSource;
   readonly actor?: Actor;
@@ -367,6 +466,10 @@ export type PermDockOptions = {
   readonly relations?: RelationSource;
   /** Approval requirements kept as data; they add to the code's and never remove one. A throw denies. */
   readonly approvalPolicies?: ApprovalPolicySource;
+  /** Other principals by id, for `decideFor`; asked with the active tenant. */
+  readonly principals?: PrincipalSource;
+  /** Tenant settings, read by `decideCredential` for the key's tenant; a call's own `settings` wins. */
+  readonly settings?: SettingsSource;
   /**
    * Request values an adapter's `context` hook derived on the server, merged
    * into `subject.context`; keys from `policy.context` win on a clash.
@@ -439,6 +542,23 @@ function instantiate(
           options.memberships === undefined
             ? undefined
             : asMembershipSource(options.memberships),
+        principals: options.principals,
+        settings: options.settings,
+        targets: (principal: Principal, tenant: string | undefined) =>
+          createPermDock(
+            codePolicy,
+            { principal, context: {} },
+            compact<PermDockOptions>({
+              tenant,
+              memberships: options.memberships,
+              customRoles: options.customRoles,
+              entitlements: options.entitlements,
+              limits: options.limits,
+              policies: options.policies,
+              relations: options.relations,
+              approvalPolicies: options.approvalPolicies,
+            }),
+          ),
       }),
     );
   if (

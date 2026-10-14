@@ -1,0 +1,52 @@
+---
+title: Support sessions
+description: A support session lets a staff member view the app as one person for a stated reason and a bounded time. The person is the principal, the staff member is a support actor, the session needs an approval by default, and a support actor can never approve anything.
+---
+
+A customer reports that their invoice totals look wrong, and a support engineer needs to see what the customer sees. A **support session** grants that: the engineer views the app as the customer, inside the customer's tenant, for a reason they must state and a time that ends. It is impersonation with an actor attached, so every decision and every event names both people.
+
+| Field         | Meaning                                                               |
+| ------------- | --------------------------------------------------------------------- |
+| `principal`   | The person the staff member views as                                  |
+| `actor`       | The staff member; the session's subject carries `{ kind: 'support' }` |
+| `reason`      | Required, 1 to 1,000 characters after trimming                        |
+| `permissions` | Read-only permissions by default                                      |
+| `expiresAt`   | One hour by default, 24 hours at most                                 |
+| `approvedBy`  | The principal that approved; never the staff member                   |
+
+<auto-type-table
+  cwd
+  path="../../packages/permdock/src/core/support-session.ts"
+  name="SupportSession"
+/>
+
+## Starting a session
+
+The staff member's own PermDock decides the request:
+
+```ts
+const decision = await staff.decideSupportSession({
+  id: crypto.randomUUID(),
+  principal: "u_customer",
+  reason: "Ticket 4411: invoice totals look wrong",
+});
+```
+
+- The staff member must be a `user`, be a member of the tenant, and be able to use each permission the session lists. A request without permissions gets every read-only permission (`readOnlyHint`) the staff member can use.
+- An empty reason denies with `reason-required`.
+- Approval is required by default: the decision is `approval-required` with a `token` bound to the request and the staff member. After an approver who is not the staff member accepts, decide again with `{ approved: token, approvedBy }`. `approval: false` is a server option for applications that approve elsewhere.
+- The tenant's `supportSessions` setting only tightens: `disabled` refuses every session, `maxTtl` caps the length, and `readOnly` refuses any write permission with `not-delegated`.
+
+## Using a session
+
+`signSupportSession(session, signer)` from `permdock/server` signs the record as a `vnd.permdock.support-session+jwt`. `subjectFromSupportSession(token, options)` turns it back into a subject on each request: the principal and the staff member are loaded live, the session must not have ended (`sessions` lets the application end one early), and the subject is narrowed to the session's permissions. `subject.context.supportSession` carries the id and reason for audit.
+
+A support actor can never approve a request; `assertApprover` refuses it with `approver-not-eligible`.
+
+## Events
+
+`supportSessionEvent({ operation, session })` builds an `access` event with `via: 'support-session'`, the session id and the permissions, sent as `com.permdock.support-session.started` or `.ended` ([CloudEvents](/docs/standards/cloudevents)). Every decision made under the session carries `subject.supportSession: { id }`, the same id, so a session's decisions match its `access` events exactly; the [OpenTelemetry adapter](/docs/adapters/otel) maps it to `permdock.support_session.id`. It shares the family with the membership-based support access on [elevated access](/docs/concepts/elevated-access).
+
+## Why
+
+Support staff who sign in as the customer leave an audit trail that blames the customer for what staff did. Keeping the customer as principal and the staff member as actor makes every decision name both, and a policy delegation to `actor('support')` can narrow what any session reaches. The reason is required because a session without one cannot be reviewed. Approval is on by default because viewing a person's data is the action access reviews ask about most. A tenant setting only tightens the policy, so a tenant admin can switch sessions off but cannot widen what the vendor allowed. A support actor never approves because an approval made while viewing as someone else would be that person's approval in all but name.

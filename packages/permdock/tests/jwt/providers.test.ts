@@ -435,7 +435,7 @@ describe("subjectFromCapability with an injected verifier", () => {
           exp: 1,
           capability: { ...capability, expiresAt: 1 },
         },
-        { alg: "ES256", typ: "permdock-capability+jwt" },
+        { alg: "ES256", typ: "vnd.permdock.capability+jwt" },
       ),
     );
     await subjectFromCapability("a.b.c", expired.options);
@@ -460,7 +460,7 @@ describe("subjectFromCapability with an injected verifier", () => {
         jti: "once-1",
         capability: { ...capability, once: true },
       },
-      { alg: "ES256", typ: "permdock-capability+jwt" },
+      { alg: "ES256", typ: "vnd.permdock.capability+jwt" },
     );
     const opts = { issuer: ISSUER, audience: AUDIENCE, verifier, replay };
     const first = await subjectFromCapability("a.b.c", opts);
@@ -480,6 +480,7 @@ describe("joseTokenSigner", () => {
         // SAFETY: a JavaScript caller can pass an algorithm outside the union.
         alg: "ES512" as "ES256",
         kid: "k",
+        issuer: "https://app.example.com",
       }),
     ).toThrow(/unsupported signing alg/u);
   });

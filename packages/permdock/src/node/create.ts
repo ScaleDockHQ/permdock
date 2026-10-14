@@ -28,18 +28,18 @@ export type NodePermDockOptions<TUser = unknown> = ServerAdapterOptions<
 type NodeProtect = {
   (
     permission: Permission,
-    loadData?: (req: NodeRequest) => unknown,
+    data?: (req: NodeRequest) => unknown,
     protectOptions?: ProtectOptions,
   ): (req: IncomingMessage) => Promise<Guard>;
   (
     permission: null,
-    loadData?: (req: NodeRequest) => unknown,
+    data?: (req: NodeRequest) => unknown,
     protectOptions?: ProtectOptions,
   ): (req: IncomingMessage) => Promise<ScopeGuard>;
 };
 
 export type NodePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  readonly permdock: (req: IncomingMessage) => Promise<PermDock<V>>;
+  readonly getPermDock: (req: IncomingMessage) => Promise<PermDock<V>>;
   readonly protect: NodeProtect;
   readonly send: typeof sendResponse;
   readonly permdockHandler: () => (
@@ -69,19 +69,19 @@ export function createPermDock<
   const scopeOf = (req: IncomingMessage): Promise<TenantScope> =>
     bound.scopeOf(nodeRequest(req));
 
-  const permdock = async (req: IncomingMessage): Promise<PermDock<V>> =>
-    kernel.permdock(bind(req), await scopeOf(req));
+  const getPermDock = async (req: IncomingMessage): Promise<PermDock<V>> =>
+    kernel.getPermDock(bind(req), await scopeOf(req));
 
   // SAFETY: NodeProtect's overloads only narrow the guard by whether permission is null, as the kernel's do.
   const protect = ((
     permission: Permission | null,
-    loadData?: (req: NodeRequest) => unknown,
+    data?: (req: NodeRequest) => unknown,
     protectOptions?: ProtectOptions,
   ): ((req: IncomingMessage) => Promise<Guard | ScopeGuard>) =>
     (req: IncomingMessage): Promise<Guard | ScopeGuard> =>
       bound.guard(
         permission,
-        loadData,
+        data,
         nodeRequest(req),
         protectOptions,
       )) as NodeProtect;
@@ -101,7 +101,7 @@ export function createPermDock<
   };
 
   return {
-    permdock,
+    getPermDock,
     protect,
     send: sendResponse,
     permdockHandler,

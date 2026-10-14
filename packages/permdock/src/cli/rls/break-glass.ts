@@ -171,8 +171,8 @@ begin
     or session ->> 'v' <> '1'
     or session ->> 'permission' <> p_permission
     or coalesce(session ->> 'reason', '') = ''
-    or jsonb_typeof(session -> 'expiresAt') <> 'number'
-    or (session ->> 'expiresAt')::numeric <= extract(epoch from now())
+    or jsonb_typeof(session -> 'expires_at') <> 'number'
+    or (session ->> 'expires_at')::numeric <= extract(epoch from now())
   then
     raise exception 'PermDock: no valid break-glass session for %', p_permission
       using errcode = '42501';

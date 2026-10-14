@@ -189,11 +189,11 @@ async function loadMemberships(
 }
 
 export async function subjectFromBetterAuth(
-  auth: BetterAuthLike,
   session: unknown,
-  options: BetterAuthSubjectOptions = {},
+  options: BetterAuthSubjectOptions,
 ): Promise<Subject<BetterAuthPrincipal>> {
   try {
+    const auth = options.auth;
     if (
       session === null ||
       session === undefined ||

@@ -1,0 +1,79 @@
+---
+title: TanStack Start
+description: permdock/tanstack-start is request middleware that adds context.permdock for server routes and server functions, a protect middleware, and the decision endpoint for permdock/react.
+---
+
+## Purpose
+
+`permdock/tanstack-start` is the server half for TanStack Start apps on React; [`permdock/react`](/docs/adapters/react) is the client half. `middleware()` and `protect` are TanStack Start request middleware, so the instance and the loaded row arrive as typed `context` in server routes and server functions.
+
+## API
+
+```ts title="src/lib/permdock.ts"
+import { createPermDock } from "permdock/tanstack-start";
+import { policy } from "./policy";
+
+export const { middleware, protect, permdockHandler } = createPermDock(policy, {
+  subject: (request) => userFromSession(request),
+});
+```
+
+```ts title="src/start.ts"
+import { createStart } from "@tanstack/react-start";
+
+export const startInstance = createStart(() => ({
+  requestMiddleware: [middleware()],
+}));
+```
+
+```ts title="src/routes/api/posts.$id.ts"
+export const Route = createFileRoute("/api/posts/$id")({
+  server: {
+    middleware: [protect(permissions.post.update, postFromPath)],
+    handlers: {
+      PATCH: ({ context }) => Response.json(update(context.permdockData)),
+    },
+  },
+});
+```
+
+```ts title="src/routes/api/permdock.ts"
+export const Route = createFileRoute("/api/permdock")({
+  server: { handlers: permdockHandler() },
+});
+```
+
+| Export                             | Role                                                                                                                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `middleware()`                     | Request middleware for `requestMiddleware` in `createStart`, a server route's `server.middleware` or a server function's `.middleware([...])`. Adds `context.permdock`. A bad Web Bot Auth signature answers `401`. |
+| `protect(target, data?, options?)` | Request middleware. `data` receives the `Request`. A grant adds `context.permdock` and `context.permdockData`; a refusal ends the request with the Problem Details response.                                        |
+| `getPermDock(request)`             | The instance for a server function: `getPermDock(getRequest())` with `getRequest` from `@tanstack/react-start/server`.                                                                                              |
+| `getSnapshot(request, query?)`     | The snapshot a route `loader` returns through a server function for `permdock/react`.                                                                                                                               |
+| `connection(request, options?)`    | A kernel [`Connection`](/docs/adapters/server-kernel#connections) for a stream.                                                                                                                                     |
+| `permdockHandler()`                | `GET` (snapshot) and `POST` (AuthZEN-shaped evaluations) for `server.handlers`.                                                                                                                                     |
+| `openapi`                          | The kernel's OpenAPI hook contract.                                                                                                                                                                                 |
+
+There is no `withPermDock`: the middleware chain types `context`, so a handler after `middleware()` or `protect` reads `context.permdock` without a wrapper.
+
+## Request lifecycle
+
+`permdock/tanstack-start` follows the [shared adapter contract](/docs/adapters). What differs on TanStack Start:
+
+- `subject`, `tenant`, `context` and `protect`'s `data` receive the Fetch `Request`. Route params are not part of it; parse them from `request.url`, as the example's `postFromPath` does.
+- A loader that returns `null` or `undefined` answers `404`.
+- An `assert` error that propagates back through `next()` becomes the same Problem Details response as a `protect` refusal.
+- Route `beforeLoad` and `loader` run on the client as well, so they are not a guard; guard server routes and server functions.
+
+## Why
+
+TanStack Start request middleware receives the Fetch `Request` and passes typed `context` to the next step with `next({ context })`. The adapter returns that middleware type, so `context.permdock` and `context.permdockData` are inferred in server routes and server functions with no module augmentation and no wrapper. The entry targets `@tanstack/react-start`; Solid Start for TanStack would need its own peer and is not supported.
+
+## Example app
+
+`apps/examples/tanstack-start`: `src/lib/permissions.ts`, `src/lib/policy.ts` and `src/lib/permdock.ts`, `middleware()` in `src/start.ts`, `protect` on `PATCH /api/posts/$id` (granted) and `POST /api/posts/$id/publish` (denied for `member`), and the decision endpoint at `src/routes/api/permdock.ts`. `src/routeTree.gen.ts` is generated by `pnpm dev`.
+
+## Related standards
+
+- [Problem Details](/docs/standards/problem-details).
+- [AuthZEN](/docs/standards/authzen) for the decision endpoint.
+- [Web Bot Auth](/docs/standards/web-bot-auth).

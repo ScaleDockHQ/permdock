@@ -8,11 +8,11 @@ import { policy, type User } from "./policy.ts";
 type Ctx = { readonly user: User };
 
 const t = initTRPC.context<Ctx>().create();
-const { permdock, protect } = createPermDock<Ctx>(policy, {
+const { middleware, protect } = createPermDock<Ctx>(policy, {
   subject: (opts) => opts.ctx.user,
 });
 
-const procedure = t.procedure.use(permdock());
+const procedure = t.procedure.use(middleware());
 
 export const appRouter = t.router({
   health: t.procedure.query(() => ({ ok: true as const })),

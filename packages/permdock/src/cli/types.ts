@@ -96,7 +96,7 @@ export type RlsConfig = {
   readonly dialect?: RlsDialect;
   readonly memberships?: RlsMemberships;
   /**
-   * `database` mode: the `fromTable` / `fromJunction` sources the helpers
+   * `database` mode: the `tableMembershipSource` / `junctionMembershipSource` sources the helpers
    * read for every scope `memberships` maps no table for. Default
    * `supabase.hook.memberships`, so the helpers and the token hook run the
    * same SQL. Setting it selects `database` mode.
@@ -528,7 +528,7 @@ export type RlsStorage = {
 
 /** `permdock supabase hook generate` input. */
 export type SupabaseHookConfig = {
-  /** The same `fromTable` / `fromJunction` sources the app passes as `memberships`. */
+  /** The same `tableMembershipSource` / `junctionMembershipSource` sources the app passes as `memberships`. */
   readonly memberships: readonly SqlMembershipSource[];
   /** Schema of the hook and the version table. Default `rls.schema`, else `permdock`. */
   readonly schema?: string;
@@ -606,7 +606,7 @@ export type DoctorConfig = {
   readonly srcPath?: readonly string[];
   readonly sensitiveActions?: readonly string[];
   readonly memberships?: string;
-  /** A JSON fixture `{ credentials?, settings? }` of API-key credentials and per-tenant settings (the `memorySettings` input) for PD029. */
+  /** A JSON fixture `{ credentials?, settings? }` of API-key credentials and per-tenant settings (the `memorySettingsSource` input) for PD029. */
   readonly credentials?: string;
   /** Globs or directories whose files are client entries for PD001, for frameworks with no `'use client'` convention. */
   readonly clientEntries?: readonly string[];
@@ -619,6 +619,8 @@ export type DoctorConfig = {
 export type PermDockConfig = {
   readonly permissions?: string;
   readonly policy?: string;
+  /** A module exporting the `defineOperations` map as `operations` or default; `collect` writes it to the catalog's `operations`. */
+  readonly operations?: string;
   readonly collect?: CollectConfig;
   readonly catalog?: CatalogConfig;
   readonly openapi?: {
@@ -638,7 +640,7 @@ export type PowerSyncConfig = {
   readonly resources?: readonly string[];
   /** The action whose grants decide which rows sync; default `read`. */
   readonly action?: string;
-  /** Where `generate` writes `localSnapshotManifest(policy)` as JSON for `localSnapshot` and `powersyncSource`; none by default. */
+  /** Where `generate` writes `localSnapshotManifest(policy)` as JSON for `localSnapshot` and `powerSyncSource`; none by default. */
   readonly manifest?: string;
 };
 
@@ -649,6 +651,7 @@ export type {
   CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
+  CatalogOperation,
   CatalogPermission,
   CatalogResource,
   CatalogRole,

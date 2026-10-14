@@ -5,6 +5,11 @@ import type { PolicyVocabulary } from "../core/policy-types.ts";
 export const GENAI_SEMCONV_PIN = "1.37.0";
 export const GEN_AI_TOOL_NAME = "gen_ai.tool.name";
 export const GEN_AI_TOOL_CALL_ID = "gen_ai.tool.call.id";
+export const GEN_AI_AGENT_ID = "gen_ai.agent.id";
+export const GEN_AI_REQUEST_MODEL = "gen_ai.request.model";
+export const USER_ID = "user.id";
+export const USER_ROLES = "user.roles";
+export const ERROR_TYPE = "error.type";
 
 export type StructuralLogger = {
   readonly debug?: (

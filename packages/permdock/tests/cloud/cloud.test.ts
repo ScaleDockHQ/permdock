@@ -13,6 +13,7 @@ import type { Subject } from "../../src/core/subject.ts";
 import { isApprovalError } from "../../src/approvals/errors.ts";
 import { memoryApprovalStore } from "../../src/approvals/store.ts";
 import { cloud, cloudEndpoints } from "../../src/cloud/create.ts";
+import { parseCloudEventBatch } from "../../src/core/parse-sink-events.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import { testApprovalStore } from "../../src/testing/conformance/approvals.ts";
@@ -23,10 +24,24 @@ import {
 } from "../../src/testing/conformance/runtime-stores.ts";
 
 const CLOUD_URL = "https://cloud.permdock.test";
+const CLOUD_ENV = `${CLOUD_URL}/v1/environments/production`;
 const KEY = "env-key";
+const approver = {
+  signer: joseTokenSigner({
+    key: {
+      crv: "Ed25519",
+      d: "qco_Uh5slpzay2a-eC3woOxpC4DlS6aEzLtBRjrdtd4",
+      x: "79ab4WR6Eb9LkefWpmh5ZlvjXg7wqVGNMwIEHQqduIQ",
+      kty: "OKP",
+    },
+    alg: "Ed25519",
+    kid: "app-2026",
+    issuer: "https://app.example.com",
+  }),
+};
 const SNAPSHOT: Snapshot = {
   v: 1,
-  issuedAt: 1,
+  issuedAt: "1970-01-01T00:00:01Z",
   subject: { principal: { id: "u_1", roles: ["member"] }, context: {} },
   roles: ["member"],
   grants: [],
@@ -87,14 +102,17 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       store.create(record);
       return new Response(null, { status: 204 });
     }
-    const resolve = /^\/approvals\/([^/]+)\/resolve$/u.exec(path);
-    if (method === "POST" && resolve?.[1] !== undefined) {
+    const token = request.headers.get("PermDock-Approval") ?? "";
+    if (method === "POST" && path === "/approvals/by-token/resolve") {
+      // SAFETY: the cloud client under test posts the resolution it was given.
+      const verdict = (await request.json()) as Parameters<
+        typeof store.resolve
+      >[1];
+      const system =
+        verdict.status === "rejected" && verdict.by.actor?.kind === "system";
+      expect(request.headers.has("PermDock-Approver")).toBe(!system);
       try {
-        // SAFETY: the cloud client under test posts the resolution it was given.
-        const next = store.resolve(
-          decodeURIComponent(resolve[1]),
-          (await request.json()) as Parameters<typeof store.resolve>[1],
-        );
+        const next = store.resolve(token, verdict);
         return json(next);
       } catch (error) {
         if (isApprovalError(error)) {
@@ -111,14 +129,19 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
         throw error;
       }
     }
-    const consume = /^\/approvals\/([^/]+)\/consume$/u.exec(path);
-    if (method === "POST" && consume?.[1] !== undefined) {
-      const next = store.consume(decodeURIComponent(consume[1]));
+    if (method === "POST" && path === "/approvals/by-token/consume") {
+      const next = store.consume(token);
       return next === null ? json({}, 409) : json(next);
+    }
+    if (method === "GET" && path === "/approvals/by-token") {
+      const loaded = store.get(token);
+      return loaded === null
+        ? new Response(null, { status: 404 })
+        : json(loaded);
     }
     const getOne = /^\/approvals\/([^/]+)$/u.exec(path);
     if (method === "GET" && getOne?.[1] !== undefined) {
-      const loaded = store.get(decodeURIComponent(getOne[1]));
+      const loaded = store.getById?.(decodeURIComponent(getOne[1])) ?? null;
       return loaded === null
         ? new Response(null, { status: 404 })
         : json(loaded);
@@ -149,14 +172,20 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
       // SAFETY: the cloud client under test posts this expire body.
       const body = (await request.json()) as { readonly now?: string };
       const expired = store.expire(
-        body.now === undefined ? undefined : new Date(body.now),
+        body.now === undefined
+          ? undefined
+          : { epochMilliseconds: Date.parse(body.now) },
       );
       return json({ expired });
     }
     if (method === "POST" && path === "/decisions") {
-      // SAFETY: the cloud sink under test posts its batch as { events }.
-      const body = (await request.json()) as { readonly events: SinkEvent[] };
-      decisions.push(body.events);
+      expect(request.headers.get("content-type")).toBe(
+        "application/cloudevents-batch+json",
+      );
+      const batch = parseCloudEventBatch(await request.json());
+      expect(batch?.every((event) => event.source === CLOUD_ENV)).toBe(true);
+      // SAFETY: the sink sends only sink events, never catalog data.
+      decisions.push((batch ?? []).map((event) => event.data as SinkEvent));
       return new Response(null, { status: 204 });
     }
     if (method === "GET" && path === "/snapshot") {
@@ -260,7 +289,7 @@ describe("cloud", () => {
             resource: { type: "post" },
             subject: { principal: { id: "u_1", roles: [] } },
             trusted: true,
-            source: "decide",
+            call: "decide",
           },
         ]),
       ),
@@ -282,11 +311,11 @@ describe("cloud", () => {
         if (!online) {
           throw new Error("offline");
         }
-        // SAFETY: the cloud sink under test posts its batch as { events }.
-        const body = (await new Request(input, init).json()) as {
-          readonly events: SinkEvent[];
-        };
-        delivered.push(body.events);
+        const batch = parseCloudEventBatch(
+          await new Request(input, init).json(),
+        );
+        // SAFETY: the sink sends only sink events, never catalog data.
+        delivered.push((batch ?? []).map((event) => event.data as SinkEvent));
         return new Response(null, { status: 204 });
       },
     });
@@ -376,10 +405,12 @@ describe("cloud", () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
+      approver,
       fetch: fakeCloud().fetch,
     });
     const request: ApprovalRequest = {
       v: 1,
+      id: "a_1",
       token: "opaque-token",
       permission: "post.delete",
       scope: "post:delete",
@@ -395,11 +426,17 @@ describe("cloud", () => {
     };
     await client.approvals.create(request);
     expect(await client.approvals.get("opaque-token")).toEqual(request);
+    expect(await client.approvals.getById?.("a_1")).toEqual(request);
+    expect(await client.approvals.getById?.("a_missing")).toBeNull();
     const listed = await client.approvals.list({ status: "pending" });
     expect(listed.items.some((item) => item.token === "opaque-token")).toBe(
       true,
     );
-    await client.approvals.create({ ...request, token: "second-token" });
+    await client.approvals.create({
+      ...request,
+      id: "a_2",
+      token: "second-token",
+    });
     const first = await client.approvals.list({ status: "pending", limit: 1 });
     expect(first.items).toHaveLength(1);
     expect(first.next).toBeTypeOf("string");
@@ -411,29 +448,30 @@ describe("cloud", () => {
     expect(second.items).toHaveLength(1);
     expect(second.items[0]?.token).not.toBe(first.items[0]?.token);
     expect(second.next).toBeUndefined();
-    const approver: Subject = {
+    const person: Subject = {
       principal: { id: "u_9", roles: ["admin"] },
       context: {},
     };
     const resolved = await client.approvals.resolve("opaque-token", {
       status: "approved",
-      by: approver,
+      by: person,
     });
     expect(resolved.status).toBe("approved");
     await expect(
       client.approvals.resolve("opaque-token", {
         status: "rejected",
-        by: approver,
+        by: person,
       }),
     ).rejects.toThrow(/not pending/);
     await client.approvals.create({
       ...request,
+      id: "a_3",
       token: "stale-token",
       status: "pending",
     });
-    const expired = await client.approvals.expire(
-      new Date(Date.now() + 2 * 60 * 60 * 1000),
-    );
+    const expired = await client.approvals.expire({
+      epochMilliseconds: Date.now() + 2 * 60 * 60 * 1000,
+    });
     expect(expired).toBeGreaterThanOrEqual(1);
   });
 
@@ -445,6 +483,7 @@ describe("cloud", () => {
     });
     const pending = (token: string, session: string): ApprovalRequest => ({
       v: 1,
+      id: `a_${token}`,
       token,
       permission: "post.delete",
       scope: "post:delete",
@@ -484,10 +523,12 @@ describe("cloud", () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
+      approver,
       fetch: fakeCloud().fetch,
     });
     const request: ApprovalRequest = {
       v: 1,
+      id: "a_pd1",
       token: "pd1.v2",
       permission: "post.delete",
       scope: "post:delete",
@@ -535,27 +576,29 @@ describe("cloud", () => {
     });
     const policy = {
       v: 1,
-      id: "doc_1",
       fingerprint: "fp_1",
       catalog: "cat_1",
-      issuedAt: 1,
       grants: [],
     };
     const good = await signer.sign(
       { policy },
-      { typ: "permdock-policy+jwt", audience: ENV_URL },
+      { typ: "vnd.permdock.policy+jwt", audience: ENV_URL, jti: "doc_1" },
     );
     const wrongTyp = await signer.sign(
-      { policy: { ...policy, id: "doc_2" } },
-      { typ: "permdock-snapshot+jwt", audience: ENV_URL },
+      { policy },
+      { typ: "vnd.permdock.snapshot+jwt", audience: ENV_URL, jti: "doc_2" },
     );
     const appAudience = await signer.sign(
-      { policy: { ...policy, id: "doc_3" } },
-      { typ: "permdock-policy+jwt", audience: "https://app.example.com" },
+      { policy },
+      {
+        typ: "vnd.permdock.policy+jwt",
+        audience: "https://app.example.com",
+        jti: "doc_3",
+      },
     );
     const wrongIssuer = await foreign.sign(
-      { policy: { ...policy, id: "doc_4" } },
-      { typ: "permdock-policy+jwt", audience: ENV_URL },
+      { policy },
+      { typ: "vnd.permdock.policy+jwt", audience: ENV_URL, jti: "doc_4" },
     );
     const bodies = [
       good,
@@ -625,6 +668,7 @@ describe("cloud conformance", () => {
   const client = cloud({
     url: CLOUD_URL,
     key: KEY,
+    approver,
     flushAt: 1,
     fetch: fakeCloud({ snapshot: "aaa.bbb.ccc" }).fetch,
   });
@@ -678,12 +722,13 @@ describe("cloud approval refusals", () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
+      approver,
       fetch: () => Promise.resolve(response),
     });
     const refused = await Promise.resolve(
       client.approvals.resolve("t", {
         status: "approved",
-        by: { principal: null, context: {} },
+        by: { principal: { id: "u_9", roles: [] }, context: {} },
       }),
     ).then(
       () => undefined,

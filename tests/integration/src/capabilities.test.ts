@@ -264,7 +264,7 @@ describe("link capabilities through the Supabase exchange", () => {
     expect(
       await visible("quote", {
         ...claims,
-        capability: { ...capability, expiresAt: 1 },
+        capability: { ...capability, expires_at: 1 },
       }),
     ).toEqual([]);
   });

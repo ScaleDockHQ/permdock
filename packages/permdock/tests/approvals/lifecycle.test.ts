@@ -25,6 +25,7 @@ function pending(
 ): ApprovalRequest {
   return {
     v: 1,
+    id: token,
     token,
     permission: "post.delete",
     scope: "post:delete",
@@ -89,10 +90,10 @@ describe("single-use approvals", () => {
     const first = await consumeApproval(store, "pd1.a");
     expect(first.ok).toBe(true);
     const second = await consumeApproval(store, "pd1.a");
-    expect(second).toEqual({ ok: false, detail: "approval-consumed" });
+    expect(second).toEqual({ ok: false, cause: "approval-consumed" });
     expect(await inspectApproval(store, "pd1.a")).toEqual({
       ok: false,
-      detail: "approval-consumed",
+      cause: "approval-consumed",
     });
   });
 
@@ -223,14 +224,14 @@ describe("approval errors", () => {
 
 describe("memory store retention", () => {
   it("drops settled records one ttl after they expire", async () => {
-    const store = memoryApprovalStore({ ttl: 1000 });
+    const store = memoryApprovalStore({ ttl: 1 });
     const expiresAt = new Date(Date.now() + 1000).toISOString();
     store.create(pending("pd1.old", "o_1", { expiresAt }));
     store.create(pending("pd1.new", "o_1"));
     const later = new Date(Date.now() + 1500);
-    expect(store.expire(later)).toBe(1);
+    expect(store.expire({ epochMilliseconds: later.getTime() })).toBe(1);
     expect((await store.get("pd1.old"))?.status).toBe("expired");
-    store.expire(new Date(Date.now() + 2500));
+    store.expire({ epochMilliseconds: Date.now() + 2500 });
     expect(store.get("pd1.old")).toBeNull();
     expect((await store.get("pd1.new"))?.status).toBe("pending");
   });
@@ -268,7 +269,7 @@ describe("approval tenancy", () => {
       const body = (await response.json()) as {
         readonly items: readonly ApprovalRequest[];
       };
-      return body.items.map((request) => request.token).toSorted();
+      return body.items.map((request) => request.id).toSorted();
     };
     expect(await inbox(approver("u_9", ["o_1"]))).toEqual([
       "pd1.none",
@@ -311,7 +312,7 @@ describe("approval tenancy", () => {
       const body = (await response.json()) as {
         readonly items: readonly ApprovalRequest[];
       };
-      return body.items.map((request) => request.token).toSorted();
+      return body.items.map((request) => request.id).toSorted();
     };
     expect(await inbox(true)).toEqual([]);
     expect(await inbox(false)).toEqual(["pd1.optout"]);

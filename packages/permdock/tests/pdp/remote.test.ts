@@ -178,8 +178,19 @@ describe("remotePdp decide", () => {
       data: { id: 7 },
       subject: {
         ...subject,
+        principal: {
+          id: "u1",
+          roles: ["member"],
+          tenant: "acme",
+          memberships: [
+            { scope: "org", id: "acme", roles: ["member"], via: "idp" },
+          ],
+        },
         actor: { id: "agent-1", kind: "mcp-client" },
-        delegation: { scopes: ["post:read"] },
+        delegation: {
+          scopes: ["post:read", "post:list"],
+          authorizationDetails: [{ type: "post", actions: ["read"] }],
+        },
       },
       local: { outcome: "denied", denials: [], alternatives: [] },
     });
@@ -190,8 +201,8 @@ describe("remotePdp decide", () => {
         properties: {
           orgId: "acme",
           roles: ["member"],
+          memberships: [{ scope: "org", id: "acme", roles: ["member"] }],
           actor: { id: "agent-1", kind: "mcp-client" },
-          delegation: { scopes: ["post:read"] },
         },
       },
       action: { name: "read" },
@@ -199,7 +210,10 @@ describe("remotePdp decide", () => {
       context: {
         tenant: "acme",
         actor: { id: "agent-1", kind: "mcp-client" },
-        delegation: { scopes: ["post:read"] },
+        delegation: {
+          scope: "post:read post:list",
+          authorization_details: [{ type: "post", actions: ["read"] }],
+        },
       },
     });
   });
@@ -405,7 +419,7 @@ describe("remotePdp decide", () => {
     const options = {
       url: "https://pdp.test",
       endpoints: { evaluation },
-      cache: { ttl: "500ms" },
+      cache: { ttl: 1 },
       fetch: fake.fetch,
     } as const;
     const provider = remotePdp(options);

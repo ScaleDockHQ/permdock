@@ -7,7 +7,8 @@ import type { WireDenial } from "./wire-denial.ts";
 
 import { compact } from "./compact.ts";
 import { approvalDigest, deniedDigest } from "./digest.ts";
-import { PROBLEM_BASE, problemDetails } from "./problem-details.ts";
+import { problemDetails } from "./problem-details.ts";
+import { problemType, statusProblem } from "./problem-types.ts";
 import { PermDockValidationError } from "./validation-error.ts";
 import { wireDenials } from "./wire-denial.ts";
 
@@ -224,7 +225,7 @@ export class PermDockRevokedError extends Error {
   }): ProblemDetails {
     if (this.code === "denied") {
       return compact<ProblemDetails>({
-        type: `${PROBLEM_BASE}/denied`,
+        type: problemType("denied"),
         title: "Permission denied",
         status: 403,
         detail: this.code,
@@ -236,13 +237,10 @@ export class PermDockRevokedError extends Error {
             : undefined,
       });
     }
-    return compact<ProblemDetails>({
-      type: `${PROBLEM_BASE}/unauthenticated`,
-      title: "Authorization ended",
-      status: 401,
-      detail: this.code,
-      instance: options?.instance,
-      permission: this.permission,
-    });
+    return statusProblem(
+      401,
+      this.code,
+      compact({ instance: options?.instance, permission: this.permission }),
+    );
   }
 }

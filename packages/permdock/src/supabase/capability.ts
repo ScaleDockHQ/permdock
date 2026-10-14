@@ -1,6 +1,8 @@
 import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 import { parseCapability } from "../core/capability.ts";
+import { nowSeconds } from "../core/time.ts";
 import { loadJose } from "../jwt/load-jose.ts";
 
 export type ExchangeCapabilityOptions = {
@@ -16,7 +18,7 @@ export type ExchangeCapabilityOptions = {
   readonly issuer?: string;
   /** Lifetime in seconds, capped by the capability's own expiry. Default 300. */
   readonly ttl?: number;
-  readonly now?: number;
+  readonly now?: Instant;
 };
 
 const DEFAULT_TTL = 300;
@@ -58,19 +60,23 @@ export async function exchangeCapability(
   if (capability?.holder !== "link" || capability.id !== principal.id) {
     return undefined;
   }
-  const now = Math.floor(options.now ?? Date.now() / 1000);
+  const now = nowSeconds(options.now);
   const ttl = Math.min(Math.max(1, options.ttl ?? DEFAULT_TTL), MAX_TTL);
   const exp = Math.min(now + ttl, Math.floor(capability.expiresAt));
   if (exp <= now) {
     return undefined;
   }
+  const { id: _id, expiresAt: _expiresAt, cnf: _cnf, ...claim } = capability;
   const jose = await loadJose();
   // SAFETY: a non-secret key is the private JWK the options type declares; jose validates it on import.
   const key = isSecret(options.key)
     ? new TextEncoder().encode(options.key.secret)
     : await jose.importJWK(options.key as never, alg);
   // No `sub`: `auth.uid()` casts it to uuid, and a link id is not a user.
-  const jwt = new jose.SignJWT({ role: "anon", capability })
+  const jwt = new jose.SignJWT({
+    role: "anon",
+    capability: { ...claim, expires_at: exp },
+  })
     .setProtectedHeader(
       secret
         ? { alg: "HS256", typ: "JWT" }

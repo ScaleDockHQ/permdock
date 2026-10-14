@@ -11,6 +11,8 @@ The OpenID Foundation's [Shared Signals Framework (SSF) 1.0 and Continuous Acces
 - `credential-change`: a password, key or MFA factor was changed, added or removed.
 - `assurance-level-change`: the user's authentication assurance went up or down.
 
+CAEP 1.0 defines eight events in all; the others are `session-established`, `session-presented`, `token-claims-change`, `device-compliance-change` and `risk-level-change`. RISC 1.0 is the sibling vocabulary for account-level events such as `account-disabled`, `account-purged` and `credential-compromise`. SSF 1.0 adds a stream `verification` event that a transmitter sends to check a stream end to end.
+
 Transmitters in production include Microsoft Entra, Okta and Auth0; Keycloak shipped an [experimental SSF transmitter](https://www.keycloak.org/2026/07/experimental-ssf-support) in July 2026. PermDock's receiver is tested against SETs in the Entra, Okta and Auth0 shapes; Keycloak joins when its transmitter leaves experimental status ([SSF adapter](/docs/adapters/ssf)).
 
 ## Why it matters for PermDock
@@ -41,6 +43,10 @@ What the [ssf adapter](/docs/adapters/ssf) does:
 - **Invalidates.** Each handler receives the resolved subject and the raw event. The typical action is `updateTag(snapshotTag(user))` in Next.js, or calling the client `invalidate()` channel so `usePermDock()` refetches. Snapshots scoped with `include` share the same tag, so one event clears all of a user's scoped snapshots.
 - **Feeds audit.** Events are emitted on the same observability path as decisions (see [audit and observability](/docs/concepts/audit-and-observability)) so a `session-revoked` followed by a `denied` decision is traceable.
 
+- **Revokes the account on RISC.** `account-disabled`, `account-purged` and `credential-compromise` end every session of the principal on the `revocations` feed and cancel its pending approvals in the `approvals` store, because each one means the account itself can no longer be trusted.
+- **Answers stream verification.** A `verification` event runs `onEvent.verification` with its `state` and is recorded on the audit path; it never touches a snapshot.
+- **Asks for a retry on its own failures.** A handler that throws gets `500` back to the transmitter, so RFC 8935 push redelivers; `400` stays for a SET that can never succeed.
+
 PermDock is only a receiver. It never transmits events and does not manage SSF streams beyond the configuration needed to verify incoming SETs. Invalidation is strictly per subject; there is no handler that invalidates everything for an issuer.
 
 Outside Next.js, the `revocations` option carries the signal to clients: the receiver publishes `session-revoked` or `changed` on a `RevocationFeed`, and open connections end or revalidate ([streams](/docs/concepts/streams)). An app without long-lived connections relies on the client's next revalidation.
@@ -61,22 +67,26 @@ CAEP does not replace the TTL; it shortens the window. Snapshots still expire so
 
 ## Mapping table
 
-| SSF / CAEP concept                         | PermDock concept                                                                                                                             |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Transmitter (Entra, Okta, Auth0, Keycloak) | Configured issuer whose SETs `receiver` accepts                                                                                              |
-| Receiver                                   | `receiver` from `createPermDock` in `permdock/ssf`                                                                                           |
-| RFC 8935 push delivery                     | `receiver` mounted as an HTTP endpoint                                                                                                       |
-| RFC 8936 poll delivery                     | `receiver` run as a poller with the stream's poll endpoint                                                                                   |
-| SET (Security Event Token)                 | Verified, then dispatched to `onEvent` by event type                                                                                         |
-| `session-revoked`                          | Invalidate the subject's snapshot and client caches                                                                                          |
-| `credential-change`                        | Invalidate the subject's snapshot (roles may depend on MFA state)                                                                            |
-| `assurance-level-change`                   | Invalidate only. The next `subjectFrom*` carries the new `acr` / `amr`; `assurance()` on the grant decides. The event never raises a policy. |
-| Subject identifier formats                 | Adapter option mapping to the application's `principal.id`                                                                                   |
-| Unverifiable SET                           | Dropped and logged; no invalidation, no grant change                                                                                         |
+| SSF / CAEP concept                                                 | PermDock concept                                                                                                                             |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Transmitter (Entra, Okta, Auth0, Keycloak)                         | Configured issuer whose SETs `receiver` accepts                                                                                              |
+| Receiver                                                           | `receiver` from `createPermDock` in `permdock/ssf`                                                                                           |
+| RFC 8935 push delivery                                             | `receiver` mounted as an HTTP endpoint                                                                                                       |
+| RFC 8936 poll delivery                                             | `receiver` run as a poller with the stream's poll endpoint                                                                                   |
+| SET (Security Event Token)                                         | Verified, then dispatched to `onEvent` by event type                                                                                         |
+| `session-revoked`                                                  | Invalidate the subject's snapshot and client caches                                                                                          |
+| `credential-change`                                                | Invalidate the subject's snapshot (roles may depend on MFA state)                                                                            |
+| `assurance-level-change`                                           | Invalidate only. The next `subjectFrom*` carries the new `acr` / `amr`; `assurance()` on the grant decides. The event never raises a policy. |
+| Other CAEP 1.0 events                                              | Dispatched to `onEvent` by name; `token-claims-change` also revalidates open connections                                                     |
+| RISC `account-disabled`, `account-purged`, `credential-compromise` | With `revocations` and `approvals` set, revoke every session of the principal and cancel its pending approvals                               |
+| SSF `verification` event                                           | `onEvent.verification({ state, jti, issuer })` and a `verification` audit event                                                              |
+| Subject identifier formats                                         | Adapter option mapping to the application's `principal.id`                                                                                   |
+| Unverifiable SET                                                   | Dropped and logged; no invalidation, no grant change                                                                                         |
 
 ## Sources
 
 - [OpenID Foundation CAEP and Shared Signals announcements](https://openid.net/tag/caep/).
+- [CAEP 1.0](https://openid.net/specs/openid-caep-1_0-final.html), [RISC 1.0](https://openid.net/specs/openid-risc-1_0-final.html) and [SSF 1.0](https://openid.net/specs/openid-sharedsignals-framework-1_0-final.html), including stream verification.
 - [Keycloak experimental SSF support](https://www.keycloak.org/2026/07/experimental-ssf-support).
 - RFC 8935 (push) and RFC 8936 (poll) are referenced by number.
 - Product plan, "Standards and agent runtimes (Sept 2026)" section.

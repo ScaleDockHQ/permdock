@@ -56,7 +56,7 @@ const policy = definePolicy(permissions, {
       {
         on: "organization",
         activation: {
-          maxDuration: "4h",
+          maxDuration: 14_400,
           justification: "required",
           assurance: { maxAge: 300 },
         },
@@ -65,7 +65,7 @@ const policy = definePolicy(permissions, {
     supportAccess({
       role: "support",
       actorRequired: true,
-      consent: { by: "owner", durations: ["1d", "7d"] },
+      consent: { by: "owner", durations: [86_400, 604_800] },
       forbid: [permissions.billing],
     }),
   ],
@@ -81,7 +81,7 @@ const policy = definePolicy(permissions, {
     breakGlass(permissions.patient.read, {
       overrides: ["restricted-record"],
       requires: { purpose: ["BTG", "ETREAT"], reason: true },
-      maxDuration: "1h",
+      maxDuration: 3600,
       obligations: ["notify", "review"],
     }),
   ],
@@ -137,7 +137,7 @@ describe("E1 role activation", () => {
       role: "admin",
       scope: "organization",
       id: "T",
-      duration: "2h",
+      duration: 7200,
       reason: "covering shift",
     });
     expect(decision.outcome).toBe("granted");
@@ -161,7 +161,7 @@ describe("E1 role activation", () => {
       role: "admin",
       scope: "organization",
       id: "T",
-      duration: "2h",
+      duration: 7200,
     });
     expect(decision.outcome).toBe("denied");
     if (decision.outcome === "denied") {
@@ -292,12 +292,12 @@ describe("E2 break-glass", () => {
       purpose: ["BTG"],
       reason: "cardiac arrest",
       trusted: true,
-      source: "decide",
+      call: "decide",
     };
     const ocsf = toOcsf(event);
-    expect(ocsf.severity_id).toBe(4);
-    expect(ocsf.unmapped.breakGlass).toBe(true);
-    expect(ocsf.unmapped.reason).toBe("cardiac arrest");
+    expect(ocsf?.severity_id).toBe(4);
+    expect(ocsf?.unmapped.breakGlass).toBe(true);
+    expect(ocsf?.unmapped.reason).toBe("cardiac arrest");
   });
 });
 
@@ -373,9 +373,9 @@ describe("E3 support access", () => {
     expect(started.type).toBe("access");
     expect(started.via).toBe("support");
     const ocsf = accessToOcsf(started);
-    expect(ocsf.class_uid).toBe(3001);
-    expect(ocsf.severity_id).toBe(4);
-    expect(ocsf.unmapped.operation).toBe("started");
+    expect(ocsf?.class_uid).toBe(3007);
+    expect(ocsf?.severity_id).toBe(4);
+    expect(ocsf?.unmapped.operation).toBe("started");
   });
 });
 
@@ -427,8 +427,8 @@ describe("activate binds a nested elevation to the eligible membership", () => {
         role("team-admin", [allow(tree.project.create)], {
           on: "team",
           activation: approval
-            ? { maxDuration: "1h", approval: "human" }
-            : { maxDuration: "1h" },
+            ? { maxDuration: 3600, approval: "human" }
+            : { maxDuration: 3600 },
         }),
       ],
       subject: (user: { readonly principal: Principal } | null) =>

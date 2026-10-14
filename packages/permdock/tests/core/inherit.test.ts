@@ -18,7 +18,7 @@ import {
   definePolicy,
   deny,
   inherit,
-  memoryRelations,
+  memoryRelationSource,
   relation,
   resource,
   role,
@@ -99,7 +99,7 @@ const nodes = [
   { id: "n4", orgId: "acme", driveId: "missing", folderId: "f1" },
 ];
 
-const relations = memoryRelations(permissions, {
+const relations = memoryRelationSource(permissions, {
   rows: { drive: drives, folder: folders, node: nodes },
   tables: { drive_shares: [{ drive_id: "d2", user_id: "vera" }] },
 });

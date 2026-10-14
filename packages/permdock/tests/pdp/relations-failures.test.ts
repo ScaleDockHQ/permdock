@@ -166,7 +166,7 @@ describe("relation providers", () => {
         ? json({ allowed: false })
         : json({ objects: ["document:d1"] }),
     );
-    const provider = fga(fake.fetch, { cache: { ttl: "5s" } });
+    const provider = fga(fake.fetch, { cache: { ttl: 5 } });
     expect(reasonOf(await decide(provider))).toBe("pdp-denied");
     expect(reasonOf(await decide(provider))).toBe("pdp-denied");
     expect(await permitted(provider)).toEqual(["d1"]);

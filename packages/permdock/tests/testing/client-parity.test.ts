@@ -4,7 +4,7 @@ import {
   allow,
   definePermissions,
   definePolicy,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   resource,
   role,
 } from "../../src/index.ts";
@@ -28,7 +28,7 @@ describe("testClientParity over the saas scenarios", () => {
       stricter:
         scenario.client === false || scenario.clientOutcome !== undefined,
     })),
-    { customRoles: memoryRoleSource(saasCustomRoles) },
+    { customRoles: memoryCustomRoleSource(saasCustomRoles) },
   );
 });
 

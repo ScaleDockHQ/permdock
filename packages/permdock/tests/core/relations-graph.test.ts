@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { relation } from "../../src/core/grantee.ts";
-import { memoryRelations } from "../../src/core/memory-relations.ts";
+import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -103,7 +103,7 @@ describe("relationship graph: match, includes, groups, links", () => {
   });
 
   it("matches the edge role column literally", async () => {
-    const edit = memoryRelations(permissions, {
+    const edit = memoryRelationSource(permissions, {
       rows,
       tables: {
         folder_members: [
@@ -128,7 +128,7 @@ describe("relationship graph: match, includes, groups, links", () => {
   });
 
   it("ignores a row whose kind names no declared group", async () => {
-    const odd = memoryRelations(permissions, {
+    const odd = memoryRelationSource(permissions, {
       rows,
       tables: {
         folder_members: [
@@ -153,7 +153,7 @@ describe("relationship graph: match, includes, groups, links", () => {
   });
 
   it("denies a group cycle with relation-depth", async () => {
-    const cyclic = memoryRelations(permissions, {
+    const cyclic = memoryRelationSource(permissions, {
       rows,
       tables: {
         team_members: [

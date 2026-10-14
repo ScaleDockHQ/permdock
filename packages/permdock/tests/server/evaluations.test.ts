@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PermDock } from "../../src/core/permdock.ts";
 
 import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
-import { createEvaluationsHandler } from "../../src/server/index.ts";
+import { evaluationsHandler } from "../../src/server/index.ts";
 import {
   InvalidSignatureError,
   invalidSignatureProblem,
@@ -26,9 +26,9 @@ function post(body: unknown): Request {
 }
 
 function handler(
-  extra: Partial<Parameters<typeof createEvaluationsHandler>[0]> = {},
+  extra: Partial<Parameters<typeof evaluationsHandler>[0]> = {},
 ) {
-  return createEvaluationsHandler({
+  return evaluationsHandler({
     policy,
     resolve: async (): Promise<PermDock> =>
       createCorePermDock(policy, memberUser),
@@ -50,7 +50,7 @@ async function rows(response: Response): Promise<readonly Row[]> {
     .evaluations;
 }
 
-describe("createEvaluationsHandler POST", () => {
+describe("evaluationsHandler POST", () => {
   it.each<[string, string]>([
     ["{nope", "evaluations body was not valid JSON"],
     ["[]", "evaluations body must be an object"],
@@ -113,6 +113,69 @@ describe("createEvaluationsHandler POST", () => {
     });
   });
 
+  it.each<[string | undefined, readonly boolean[]]>([
+    [undefined, [true, false, true]],
+    ["execute_all", [true, false, true]],
+    ["deny_on_first_deny", [true, false]],
+    ["permit_on_first_permit", [true]],
+  ])("evaluates under evaluations_semantic %s", async (semantic, decisions) => {
+    const response = await handler().POST(
+      post({
+        ...(semantic === undefined
+          ? {}
+          : { options: { evaluations_semantic: semantic } }),
+        evaluations: [
+          {
+            action: { name: "post.update" },
+            resource: { properties: ownPost },
+          },
+          {
+            action: { name: "post.update" },
+            resource: { properties: otherPost },
+          },
+          { action: { name: "post.read" }, resource: { properties: ownPost } },
+        ],
+      }),
+    );
+    expect((await rows(response)).map((row) => row.decision)).toEqual(
+      decisions,
+    );
+  });
+
+  it("refuses an unknown evaluations_semantic and echoes X-Request-ID", async () => {
+    const request = new Request(ENDPOINT, {
+      method: "POST",
+      headers: { "x-request-id": "req-9" },
+      body: JSON.stringify({
+        options: { evaluations_semantic: "first" },
+        evaluations: [],
+      }),
+    });
+    const response = await handler().POST(request);
+    expect([response.status, response.headers.get("x-request-id")]).toEqual([
+      400,
+      "req-9",
+    ]);
+  });
+
+  it("gives a denial reason_admin and reason_user", async () => {
+    const [row] = await rows(
+      await handler().POST(
+        post({
+          evaluations: [
+            {
+              action: { name: "post.update" },
+              resource: { properties: otherPost },
+            },
+          ],
+        }),
+      ),
+    );
+    expect(row?.context).toMatchObject({
+      reason_user: { en: "post.update is not permitted." },
+    });
+  });
+
   it("answers the signature problem when resolving the instance rejects it", async () => {
     const problem = invalidSignatureProblem("bad signature");
     const response = await handler({
@@ -130,16 +193,16 @@ describe("createEvaluationsHandler POST", () => {
     const getPermDock = vi.fn<
       (query?: { readonly tenant?: string }) => Promise<PermDock>
     >(async (): Promise<PermDock> => createCorePermDock(policy, memberUser));
-    const viaGet = createEvaluationsHandler({ policy, getPermDock });
+    const viaGet = evaluationsHandler({ policy, getPermDock });
     expect((await viaGet.POST(post({ evaluations: [] }))).status).toBe(200);
     expect(getPermDock).toHaveBeenCalledWith(undefined);
     await expect(
-      createEvaluationsHandler({ policy }).POST(post({ evaluations: [] })),
+      evaluationsHandler({ policy }).POST(post({ evaluations: [] })),
     ).rejects.toThrow(TypeError);
   });
 });
 
-describe("createEvaluationsHandler GET", () => {
+describe("evaluationsHandler GET", () => {
   it("serves AuthZEN discovery for the origin", async () => {
     const response = await handler().GET(
       new Request("https://api.example/.well-known/authzen-configuration"),
@@ -171,7 +234,7 @@ describe("createEvaluationsHandler GET", () => {
     const getPermDock = vi.fn<
       (query?: { readonly tenant?: string }) => Promise<PermDock>
     >(async (): Promise<PermDock> => createCorePermDock(policy, memberUser));
-    await createEvaluationsHandler({ policy, getPermDock }).GET(
+    await evaluationsHandler({ policy, getPermDock }).GET(
       new Request("https://api.example/snapshot?tenant=o2"),
     );
     expect(getPermDock).toHaveBeenCalledWith({ tenant: "o2" });

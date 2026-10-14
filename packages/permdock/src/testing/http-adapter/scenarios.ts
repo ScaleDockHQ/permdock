@@ -495,7 +495,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           });
           const end = await untilEnd(stream);
           expect(end.problem).toMatchObject({
-            type: "https://permdock.com/problems/unauthenticated",
+            type: "about:blank",
             status: 401,
             detail: "session-revoked",
           });
@@ -575,7 +575,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           expect((await stream.next())?.event).toBe("message");
           const end = await untilEnd(stream);
           expect(end.problem).toMatchObject({
-            type: "https://permdock.com/problems/unauthenticated",
+            type: "about:blank",
             detail: "expired",
           });
           expect(end.ended).toBe(true);

@@ -5,18 +5,18 @@ import type { Membership } from "../../src/core/subject.ts";
 
 import {
   memoryMembershipSource,
-  memoryRoleSource,
+  memoryCustomRoleSource,
   memorySnapshotSource,
 } from "../../src/core/memory-sources.ts";
 import {
   testMembershipSource,
-  testRoleSource,
+  testCustomRoleSource,
 } from "../../src/testing/conformance/identity.ts";
 import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
 const snapshot: Snapshot = {
   v: 1,
-  issuedAt: 1,
+  issuedAt: "1970-01-01T00:00:01Z",
   subject: { principal: null, context: {} },
   roles: [],
   grants: [],
@@ -42,9 +42,9 @@ describe("memorySnapshotSource conformance", () => {
   testSnapshotSource(memorySnapshotSource(snapshot));
 });
 
-describe("memoryRoleSource conformance", () => {
-  testRoleSource(
-    memoryRoleSource([
+describe("memoryCustomRoleSource conformance", () => {
+  testCustomRoleSource(
+    memoryCustomRoleSource([
       { tenant: "o1", name: "staff", includes: ["member"] },
       { scope: "global", name: "auditor", includes: ["viewer"] },
     ]),
@@ -77,7 +77,7 @@ describe("memoryMembershipSource", () => {
 describe("memorySnapshotSource", () => {
   it("replaces the snapshot and notifies each subscriber until it leaves", async () => {
     const source = memorySnapshotSource(snapshot);
-    const next: Snapshot = { ...snapshot, issuedAt: 2 };
+    const next: Snapshot = { ...snapshot, issuedAt: "1970-01-01T00:00:02Z" };
     let calls = 0;
     const unsubscribe = source.subscribe?.(() => {
       calls += 1;
@@ -92,9 +92,9 @@ describe("memorySnapshotSource", () => {
   });
 });
 
-describe("memoryRoleSource", () => {
+describe("memoryCustomRoleSource", () => {
   it("keeps global roles apart from tenant roles", async () => {
-    const source = memoryRoleSource([
+    const source = memoryCustomRoleSource([
       { tenant: "o1", name: "staff", includes: ["member"] },
       { scope: "global", name: "auditor", includes: ["viewer"] },
     ]);

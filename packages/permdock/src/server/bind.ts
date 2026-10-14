@@ -9,10 +9,10 @@ import type { PdpFactory } from "../pdp/types.ts";
 import type { Connection } from "./connection.ts";
 import type {
   Guard,
-  OnDenied,
+  DeniedResponse,
   ProtectOptions,
   ScopeGuard,
-  ServerKernel,
+  ServerPermDock,
 } from "./server-types.ts";
 
 import { compact } from "../core/compact.ts";
@@ -25,7 +25,7 @@ import {
   type RequestContext,
   type TenantOption,
   type TenantScope,
-  createServerKernel,
+  createPermDock,
   tenantScope,
 } from "./create.ts";
 import {
@@ -56,12 +56,12 @@ export type ServerAdapterServices = {
   readonly pdp?: PdpFactory;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
-  /** `(request) => verifyWebBotAuth(request, options)`; a verified bot becomes the actor. */
+  /** `webBotAuthVerifier(options)`; a verified bot becomes the actor. */
   readonly webBotAuth?: WebBotAuthVerifier;
   /** Wraps each instance after `otel`; build it with `wrapPermDock` to cover derived instances. */
   readonly wrap?: PermDockWrap;
   /** Replaces the response of a refused guard; it can never turn a refusal into a grant. */
-  readonly onDenied?: OnDenied;
+  readonly deniedResponse?: DeniedResponse;
 };
 
 export type Attached<V extends PolicyVocabulary = PolicyVocabulary> =
@@ -74,7 +74,7 @@ export type AnyGuard<V extends PolicyVocabulary = PolicyVocabulary> =
   | ScopeGuard<unknown, V>;
 
 export type BoundKernel<TContext, V extends PolicyVocabulary> = {
-  readonly kernel: ServerKernel<V>;
+  readonly kernel: ServerPermDock<V>;
   /** The `Request` for `context`, built once and mapped back to it for the option callbacks. */
   readonly bind: (context: TContext) => Request;
   /**
@@ -87,10 +87,10 @@ export type BoundKernel<TContext, V extends PolicyVocabulary> = {
   readonly handlerScope: (request: Request) => Promise<TenantScope>;
   /** The instance for `context`; an invalid Web Bot Auth signature is its `401` response. */
   readonly attach: (context: TContext) => Promise<Attached<V>>;
-  /** `protect` for `context`: `loadData` reads the framework context and the tenant comes from `scopeOf`. */
+  /** `protect` for `context`: `data` reads the framework context and the tenant comes from `scopeOf`. */
   readonly guard: (
     permission: Permission | null,
-    loadData: ((context: TContext) => unknown) | undefined,
+    data: ((context: TContext) => unknown) | undefined,
     context: TContext,
     protectOptions?: ProtectOptions,
   ) => Promise<AnyGuard<V>>;
@@ -109,8 +109,8 @@ export function adapterKernel<
   },
   adapter: string,
   contextOf: (request: Request) => TContext | undefined,
-): ServerKernel<V> {
-  return createServerKernel(
+): ServerPermDock<V> {
+  return createPermDock(
     policy,
     compact({
       subject: (request: Request) => {
@@ -144,7 +144,7 @@ export function adapterKernel<
       revocations: options.revocations,
       adapter,
       wrap: composeWraps(options.otel, options.wrap),
-      onDenied: options.onDenied,
+      deniedResponse: options.deniedResponse,
     }),
   );
 }
@@ -205,18 +205,18 @@ export function bindKernel<
 
   const attach = (context: TContext): Promise<Attached<V>> =>
     attached(async () =>
-      kernel.permdock(bind(context), await scopeOf(context)),
+      kernel.getPermDock(bind(context), await scopeOf(context)),
     );
 
   const guard = async (
     permission: Permission | null,
-    loadData: ((context: TContext) => unknown) | undefined,
+    data: ((context: TContext) => unknown) | undefined,
     context: TContext,
     protectOptions?: ProtectOptions,
   ): Promise<AnyGuard<V>> =>
     kernel.protect(
       permission,
-      loadData === undefined ? undefined : (): unknown => loadData(context),
+      data === undefined ? undefined : (): unknown => data(context),
       protectOptions,
     )(bind(context), await scopeOf(context));
 

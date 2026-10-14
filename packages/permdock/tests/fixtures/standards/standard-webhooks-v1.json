@@ -1,0 +1,8 @@
+{
+  "source": "https://raw.githubusercontent.com/standard-webhooks/standard-webhooks/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/src/webhook.test.ts",
+  "secret": "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw",
+  "id": "msg_p5jXN8AQM9LWM0D4loKWxJek",
+  "timestamp": "1614265330",
+  "body": "{\"test\": 2432232314}",
+  "signature": "v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE="
+}

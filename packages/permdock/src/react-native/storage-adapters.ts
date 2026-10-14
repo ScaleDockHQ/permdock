@@ -1,4 +1,4 @@
-import type { PermDockStorage } from "./types.ts";
+import type { SnapshotStorage } from "./types.ts";
 
 /** The `expo-secure-store` functions `secureStoreStorage` calls. */
 export type SecureStoreModule = {
@@ -59,14 +59,14 @@ function chunkKey(key: string, index: number): string {
 }
 
 /**
- * A `PermDockStorage` over `expo-secure-store`. Values are split into chunks
+ * A `SnapshotStorage` over `expo-secure-store`. Values are split into chunks
  * of at most 2048 bytes under `<key>.<n>`; `<key>` holds the chunk count and
  * is written last, so an interrupted write reads as absent.
  */
 export function secureStoreStorage(
   store: SecureStoreModule,
   options?: object,
-): PermDockStorage {
+): SnapshotStorage {
   const removeChunks = async (
     key: string,
     from: number,
@@ -111,8 +111,8 @@ export function secureStoreStorage(
   };
 }
 
-/** A synchronous `PermDockStorage` over a `react-native-mmkv` instance: the first frame already has the snapshot. */
-export function mmkvStorage(mmkv: MmkvInstance): PermDockStorage {
+/** A synchronous `SnapshotStorage` over a `react-native-mmkv` instance: the first frame already has the snapshot. */
+export function mmkvStorage(mmkv: MmkvInstance): SnapshotStorage {
   return {
     getItem: (key) => mmkv.getString(key) ?? null,
     setItem: (key, value) => {

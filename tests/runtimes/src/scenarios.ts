@@ -7,12 +7,12 @@ export type Outcome = { readonly name: string; readonly result: unknown };
 type Tokens = Readonly<Record<string, string>>;
 
 async function tokens(): Promise<Tokens> {
-  const now = Math.floor(Date.now() / 1000);
+  const twoHoursAgo = { epochMilliseconds: Date.now() - 7_200_000 };
   return {
     alice: await signSaasToken("alice"),
     bob: await signSaasToken("bob"),
     dave: await signSaasToken("dave"),
-    expired: await signSaasToken("bob", { now: now - 7200, ttl: 60 }),
+    expired: await signSaasToken("bob", { now: twoHoursAgo, ttl: 60 }),
     forged: await signSaasToken("bob", { issuer: "https://evil.example" }),
   };
 }

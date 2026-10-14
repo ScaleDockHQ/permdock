@@ -223,7 +223,7 @@ describe("permdock/pdp", () => {
       remotePdp({
         url: "https://pdp.example",
         endpoints: { evaluation: "https://pdp.example/access/v1/evaluation" },
-        cache: { ttl: "5s" },
+        cache: { ttl: 5 },
         fetch: async () => {
           calls += 1;
           return jsonResponse({ decision: true });
@@ -282,7 +282,7 @@ describe("permdock/pdp", () => {
         remotePdp({
           url: "https://pdp.example",
           endpoints: { evaluation: "https://pdp.example/access/v1/evaluation" },
-          cache: { ttl: "5s" },
+          cache: { ttl: 5 },
           fetch: async (_url, init) => {
             // SAFETY: remotePdp posts an AuthZEN evaluation request as a JSON object body.
             const body = JSON.parse(String(init?.body)) as {
@@ -315,7 +315,7 @@ describe("permdock/pdp", () => {
       remotePdp({
         url: "https://pdp.example",
         endpoints: { evaluation: "https://pdp.example/access/v1/evaluation" },
-        cache: { ttl: "5s" },
+        cache: { ttl: 5 },
         fetch: async () => {
           calls += 1;
           return jsonResponse({ decision: true });
@@ -428,7 +428,7 @@ describe("permdock/pdp", () => {
         remotePdp({
           url: "https://pdp.example",
           endpoints: { evaluation: "https://pdp.example/access/v1/evaluation" },
-          cache: { ttl: "300s" },
+          cache: { ttl: 300 },
           fetch: async () => {
             calls += 1;
             return jsonResponse({ decision: true });

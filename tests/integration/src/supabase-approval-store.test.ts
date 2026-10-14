@@ -113,6 +113,7 @@ describe("supabaseApprovalStore over the generated store", () => {
   it("runs onOpen once for a request a repeated ask finds still open", async () => {
     const request = {
       v: 1 as const,
+      id: "repeat",
       token: "repeat-token",
       permission: "job.update",
       scope: "job:update",
@@ -149,5 +150,73 @@ describe("supabaseApprovalStore over the generated store", () => {
         target.tester.query("select permdock.permdock_approval_get('x')"),
       ),
     ).rejects.toThrow(/permission denied/u);
+  });
+});
+
+describe("permdock_is_approver", () => {
+  const ADMIN = "00000000-0000-4000-8000-000000000001";
+  const SUPPORT = "00000000-0000-4000-8000-000000000002";
+  const claims: Record<string, unknown> = {
+    [ADMIN]: {
+      sub: ADMIN,
+      memberships: [{ scope: "tenant", id: "o1", roles: ["admin"] }],
+    },
+    [SUPPORT]: { sub: SUPPORT, user_role: "support" },
+  };
+
+  async function isApprover(
+    user: string | undefined,
+    approvers: unknown,
+    tenant: string | null = null,
+  ): Promise<boolean> {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    return target.as(
+      {
+        role: "authenticated",
+        settings: {
+          "request.jwt.claims":
+            user === undefined ? "{}" : JSON.stringify(claims[user]),
+        },
+      },
+      async () => {
+        const result = await target.tester.query<{ readonly ok: boolean }>(
+          "select permdock.permdock_is_approver($1::jsonb, $2) as ok",
+          [JSON.stringify(approvers), tenant],
+        );
+        return result.rows[0]?.ok === true;
+      },
+    );
+  }
+
+  it("matches a named user and a permission holder in the tenant", async () => {
+    expect(await isApprover(ADMIN, { kind: "user", id: ADMIN })).toBe(true);
+    expect(await isApprover(SUPPORT, { kind: "user", id: ADMIN })).toBe(false);
+    const holder = { kind: "permission", permission: "job.update" };
+    expect(await isApprover(ADMIN, holder, "o1")).toBe(true);
+    expect(await isApprover(ADMIN, holder, "o2")).toBe(false);
+    expect(
+      await isApprover(SUPPORT, { kind: "permission", permission: "job.read" }),
+    ).toBe(true);
+  });
+
+  it("needs every item of a list and one of any-of, and denies what SQL cannot check", async () => {
+    const user = { kind: "user", id: ADMIN };
+    const holder = { kind: "permission", permission: "job.update" };
+    expect(await isApprover(ADMIN, [user, holder], "o1")).toBe(true);
+    expect(await isApprover(SUPPORT, [user, holder], "o1")).toBe(false);
+    expect(
+      await isApprover(SUPPORT, {
+        kind: "any-of",
+        of: [user, { kind: "user", id: SUPPORT }],
+      }),
+    ).toBe(true);
+    expect(await isApprover(ADMIN, { kind: "role", role: "admin" })).toBe(
+      false,
+    );
+    expect(await isApprover(ADMIN, [])).toBe(false);
+    expect(await isApprover(undefined, user)).toBe(false);
   });
 });
