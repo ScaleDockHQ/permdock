@@ -20,9 +20,10 @@ import {
 
 const FROM = "Acme <billing@acme.test>";
 
-async function send(
-  message: Partial<EmailMessage>,
-): Promise<{ readonly email?: OutgoingEmail; readonly reason?: string }> {
+async function send(message: Partial<EmailMessage>): Promise<{
+  readonly email?: OutgoingEmail;
+  readonly reason?: string | undefined;
+}> {
   const transport = memoryDeliveryTransport("email");
   const delivery = createPermDock(deliveryPolicy, {
     transports: { email: transport },

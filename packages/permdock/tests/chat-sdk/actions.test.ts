@@ -120,7 +120,7 @@ describe("approvalActions", () => {
       event(REJECT_ACTION, user("U3"), undefined, replies),
     );
     expect(String(replies[0]?.text)).toContain("invalid-action");
-    expect((await store.getById(id))?.status).toBe("pending");
+    expect((await store.getById?.(id))?.status).toBe("pending");
   });
 
   it("hands the result to onResult instead of replying", async () => {

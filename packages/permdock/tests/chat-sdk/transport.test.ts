@@ -76,7 +76,11 @@ const granted = {
 };
 
 function target(
-  overrides: Partial<DeliveryTarget<"chat">> = {},
+  overrides: {
+    readonly [K in keyof DeliveryTarget<"chat">]?:
+      | DeliveryTarget<"chat">[K]
+      | undefined;
+  } = {},
 ): DeliveryTarget<"chat"> {
   // SAFETY: a granted decision shaped like the router's, for a unit test of the transport alone.
   return {

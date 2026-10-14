@@ -34,10 +34,8 @@ describe("chatSdkAuthor", () => {
   });
 
   it("never reads the email or display name", () => {
-    const author = chatSdkAuthor(
-      { ...user, email: "ceo@acme.test", fullName: "CEO" },
-      "slack",
-    );
+    const withProfile = { ...user, email: "ceo@acme.test", fullName: "CEO" };
+    const author = chatSdkAuthor(withProfile, "slack");
     expect(JSON.stringify(author)).not.toMatch(/ceo|CEO/u);
   });
 });
