@@ -1,7 +1,7 @@
 import type { Principal } from "./subject.ts";
 
-import { ownRecord } from "./capability.ts";
 import { freezeCopy } from "./freeze.ts";
+import { ownRecord } from "./paths.ts";
 
 /**
  * An identity the application has linked to one of its principals: an email

@@ -23,10 +23,10 @@ import type {
   WebhookMessage,
 } from "./types.ts";
 
-import { ownRecord } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
 import { deliveryEvent } from "../core/delivery-event.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { ownRecord } from "../core/paths.ts";
 import { loadPrincipalByIdentity } from "../core/principal-source.ts";
 import { outgoingEmail } from "./email.ts";
 import {

@@ -5,8 +5,8 @@ import type { Instant } from "./time.ts";
 import { compact } from "./compact.ts";
 import { expiredAt } from "./expiry.ts";
 import { freezeDeep } from "./freeze.ts";
-import { sameId } from "./ids.ts";
-import { isForbiddenKey } from "./paths.ts";
+import { idList, isId, sameId } from "./ids.ts";
+import { ownRecord } from "./paths.ts";
 import { listPermissions } from "./permission-registry.ts";
 import {
   type Membership,
@@ -149,41 +149,6 @@ export function linkPolicyViolation(
     }
   }
   return undefined;
-}
-
-const MAX_ID = 256;
-const MAX_ENTRIES = 64;
-
-/** A copy holding only own enumerable properties, so a prototype never supplies a field. */
-export function ownRecord(value: unknown): Record<string, unknown> | undefined {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-  const record: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(value)) {
-    if (!isForbiddenKey(key)) {
-      record[key] = item;
-    }
-  }
-  return record;
-}
-
-export function isId(value: unknown): value is string {
-  return (
-    typeof value === "string" && value.length > 0 && value.length <= MAX_ID
-  );
-}
-
-export function idList(value: unknown): readonly string[] | undefined {
-  if (
-    !Array.isArray(value) ||
-    value.length === 0 ||
-    value.length > MAX_ENTRIES ||
-    !value.every(isId)
-  ) {
-    return undefined;
-  }
-  return [...new Set(value)];
 }
 
 function parseRedeemer(input: unknown): CapabilityRedeemer | undefined {

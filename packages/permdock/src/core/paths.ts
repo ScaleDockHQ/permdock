@@ -27,6 +27,20 @@ export function ownGet(object: object, key: string): unknown {
   return (object as Record<string, unknown>)[key];
 }
 
+/** A copy holding only own enumerable properties, so a prototype never supplies a field. */
+export function ownRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const record: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (!isForbiddenKey(key)) {
+      record[key] = item;
+    }
+  }
+  return record;
+}
+
 export function ownKeys(object: object): readonly string[] {
   return Object.keys(object).filter((key) => !isForbiddenKey(key));
 }

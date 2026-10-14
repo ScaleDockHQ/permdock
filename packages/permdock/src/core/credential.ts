@@ -4,11 +4,12 @@ import type { PermDock } from "./permdock.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
-import { idList, isId, ownRecord } from "./capability.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { coveredByDelegation } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { type Grantee, flattenGrantee } from "./grantee.ts";
+import { idList, isId } from "./ids.ts";
+import { ownRecord } from "./paths.ts";
 import { formerKeys } from "./permission-leaf.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { sha256Digest } from "./sha256.ts";

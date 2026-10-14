@@ -4,9 +4,10 @@ import type { PermDock } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Instant } from "./time.ts";
 
-import { idList, isId, ownRecord } from "./capability.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
+import { idList, isId } from "./ids.ts";
+import { ownRecord } from "./paths.ts";
 import { findPermission } from "./permission-registry.ts";
 import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
 

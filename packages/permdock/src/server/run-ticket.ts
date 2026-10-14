@@ -14,10 +14,9 @@ import type {
 } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
 
-import { ownRecord } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { isForbiddenKey } from "../core/paths.ts";
+import { isForbiddenKey, ownRecord } from "../core/paths.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { nowSeconds } from "../core/time.ts";
 import {

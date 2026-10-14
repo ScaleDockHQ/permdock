@@ -1,6 +1,6 @@
 import type { DeliveryChannel, DeliveryTarget } from "./types.ts";
 
-import { ownRecord } from "../core/capability.ts";
+import { ownRecord } from "../core/paths.ts";
 import { bytesToBase64Url, sha256 } from "../core/sha256.ts";
 
 /**

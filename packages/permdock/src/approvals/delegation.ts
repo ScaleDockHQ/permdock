@@ -5,8 +5,8 @@ import type {
   ApprovalRequest,
 } from "./types.ts";
 
-import { ownRecord } from "../core/capability.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { ownRecord } from "../core/paths.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { dateAt, type Instant } from "../core/time.ts";
 import { assertApprover } from "./store.ts";

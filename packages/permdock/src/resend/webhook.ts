@@ -2,9 +2,9 @@ import type { DeliveryEvent, EmailCategory } from "../core/event-types.ts";
 import type { DecisionSink } from "../core/interfaces.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 
-import { ownRecord } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
 import { deliveryEvent } from "../core/delivery-event.ts";
+import { ownRecord } from "../core/paths.ts";
 import { statusProblem } from "../core/problem-types.ts";
 import { isRfc3339, nowSeconds } from "../core/time.ts";
 import { methodNotAllowed, problemResponse } from "../server/problem.ts";

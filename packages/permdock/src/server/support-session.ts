@@ -9,8 +9,8 @@ import type { PrincipalSource } from "../core/principal-source.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type { SupportSession } from "../core/support-session.ts";
 
-import { ownRecord } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
+import { ownRecord } from "../core/paths.ts";
 import { annotationsFor } from "../core/permission-leaf.ts";
 import { findPermission } from "../core/permission-registry.ts";
 import { anonymousSubject } from "../core/subject.ts";
