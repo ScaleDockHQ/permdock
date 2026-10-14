@@ -618,9 +618,9 @@ export async function subjectFromRunTicket(
     }
     return anonymous();
   };
-  let verified: Awaited<ReturnType<TokenVerifier["verify"]>>;
+  let ticket: RunTicket | undefined;
   try {
-    verified = await options.verifier.verify(
+    const verified = await options.verifier.verify(
       token,
       compact({
         typ: RUN_TICKET_TYP,
@@ -629,16 +629,16 @@ export async function subjectFromRunTicket(
         clockTolerance: options.clockTolerance,
       }),
     );
+    if (!verified.ok) {
+      return deny(verified.cause);
+    }
+    if (mediaType(verified.header.typ) !== RUN_TICKET_TYP) {
+      return deny("wrong-token-type");
+    }
+    ticket = parseRunTicket(verified.claims);
   } catch {
     return deny("malformed");
   }
-  if (!verified.ok) {
-    return deny(verified.cause);
-  }
-  if (mediaType(verified.header.typ) !== RUN_TICKET_TYP) {
-    return deny("wrong-token-type");
-  }
-  const ticket = parseRunTicket(verified.claims);
   if (ticket === undefined) {
     return deny("invalid-claims");
   }

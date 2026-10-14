@@ -192,9 +192,9 @@ export async function subjectFromSupportSession(
     }
     return anonymousSubject();
   };
-  let verified: Awaited<ReturnType<TokenVerifier["verify"]>>;
+  let session: ReturnType<typeof sessionOf>;
   try {
-    verified = await options.verifier.verify(
+    const verified = await options.verifier.verify(
       token,
       compact({
         typ: SUPPORT_SESSION_TYP,
@@ -203,17 +203,19 @@ export async function subjectFromSupportSession(
         clockTolerance: options.clockTolerance,
       }),
     );
+    if (!verified.ok) {
+      return deny(verified.cause);
+    }
+    const typ = verified.header.typ
+      ?.toLowerCase()
+      .replace(/^application\//u, "");
+    if (typ !== SUPPORT_SESSION_TYP) {
+      return deny("wrong-token-type");
+    }
+    session = sessionOf(verified.claims);
   } catch {
     return deny("malformed");
   }
-  if (!verified.ok) {
-    return deny(verified.cause);
-  }
-  const typ = verified.header.typ?.toLowerCase().replace(/^application\//u, "");
-  if (typ !== SUPPORT_SESSION_TYP) {
-    return deny("wrong-token-type");
-  }
-  const session = sessionOf(verified.claims);
   if (session === undefined) {
     return deny("invalid-claims");
   }
