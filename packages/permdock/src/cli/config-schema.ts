@@ -84,7 +84,7 @@ const RLS = {
   storage: true,
 } as const satisfies Record<keyof RlsConfig, true>;
 
-const SUPABASE = { hook: true } as const satisfies Record<
+const SUPABASE = { hook: true, schemas: true } as const satisfies Record<
   keyof SupabaseConfig,
   true
 >;

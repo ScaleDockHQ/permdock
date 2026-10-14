@@ -15,11 +15,14 @@ export type SupabaseConfig = {
   /** `[api] schemas`: the schemas the Data API exposes. */
   readonly apiSchemas?: readonly string[];
   /**
-   * `[experimental.pgdelta] enabled = true`: declarative schemas on pg-delta,
-   * which orders statements by their dependencies, so files are unnumbered.
+   * The `[experimental.pgdelta]` table, when the file has one: declarative
+   * schemas on pg-delta, which orders statements by their dependencies, so
+   * files are unnumbered.
    */
   readonly pgDelta?: {
-    /** `declarative_schema_path`, relative to the working directory. */
+    /** `enabled`; `undefined` when the table does not set it to a boolean. */
+    readonly enabled?: boolean;
+    /** `supabase/` joined with `declarative_schema_path` (default `schemas`). */
     readonly schemaDir: string;
   };
 };
@@ -67,26 +70,30 @@ export function readSupabaseConfig(
   const apiSchemas = strings(table(root["api"])?.["schemas"]);
   const pgDelta = table(table(root["experimental"])?.["pgdelta"]);
   const schemaPath = pgDelta?.["declarative_schema_path"];
+  const enabled = pgDelta?.["enabled"];
   return {
     ok: true,
     config: {
       ...(typeof expiry === "number" ? { jwtExpiry: expiry } : {}),
       ...(schemaPaths === undefined ? {} : { schemaPaths }),
       ...(apiSchemas === undefined ? {} : { apiSchemas }),
-      ...(pgDelta?.["enabled"] === true
-        ? {
+      ...(pgDelta === undefined
+        ? {}
+        : {
             pgDelta: {
-              schemaDir: posix
-                .join(
-                  "supabase",
-                  typeof schemaPath === "string" ? schemaPath : "schemas",
-                )
-                .replace(/\/$/u, ""),
+              ...(typeof enabled === "boolean" ? { enabled } : {}),
+              schemaDir: declarativeSchemaDir(schemaPath),
             },
-          }
-        : {}),
+          }),
     },
   };
+}
+
+/** `supabase/` joined with `declarative_schema_path`, which defaults to `schemas`. */
+export function declarativeSchemaDir(schemaPath?: unknown): string {
+  return posix
+    .join("supabase", typeof schemaPath === "string" ? schemaPath : "schemas")
+    .replace(/\/$/u, "");
 }
 
 /** The parsed config, or `{}` when it is missing or does not parse (PD045 reports that). */
@@ -106,7 +113,7 @@ export function pd045(cwd: string): readonly DoctorFinding[] {
       code: "PD045",
       severity: "warning",
       message: `${SUPABASE_CONFIG} does not parse: ${read.error.replace(/\n[\s\S]*/u, "")}`,
-      fix: `fix the TOML syntax in ${SUPABASE_CONFIG}; until then doctor assumes Supabase's defaults for jwt_expiry and schema_paths`,
+      fix: `fix the TOML syntax in ${SUPABASE_CONFIG}; until then PermDock assumes Supabase's defaults for jwt_expiry, schema_paths and [experimental.pgdelta], and generates for pg-delta`,
     },
   ];
 }

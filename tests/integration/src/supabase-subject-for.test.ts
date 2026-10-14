@@ -66,6 +66,8 @@ describe("subject_for and postgrestSources against Postgres", () => {
           "generate",
           "--target",
           "sql",
+          "--schemas",
+          "migrations",
           "--split",
           "helpers,hook",
           "--out",

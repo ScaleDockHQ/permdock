@@ -9,8 +9,9 @@ import { project, removeProjects } from "./doctor-kit.ts";
 afterAll(removeProjects);
 
 const HOOK_CONFIG: PermDockConfig = {
-  supabase: { hook: { memberships: [] } },
+  supabase: { hook: { memberships: [] }, schemas: "migra" },
 };
+const MIGRA: PermDockConfig = { supabase: { schemas: "migra" } };
 const CREATE =
   "create or replace function public.custom_access_token_hook(event jsonb) returns jsonb language sql as $$ select event $$;\n";
 const GRANT =
@@ -72,6 +73,7 @@ describe("PD042 hook grants after db diff", () => {
   });
 
   it("is silent under pg-delta, whose declarative sync keeps the grants", () => {
+    const pgDelta = { supabase: { hook: { memberships: [] } } };
     expect(
       pd042(
         project({
@@ -79,16 +81,34 @@ describe("PD042 hook grants after db diff", () => {
           "supabase/migrations/001.sql": CREATE,
           "supabase/config.toml": "[experimental.pgdelta]\nenabled = true\n",
         }),
-        HOOK_CONFIG,
+        pgDelta,
       ),
     ).toEqual([]);
+    expect(
+      pd042(
+        project({ ...declared, "supabase/migrations/001.sql": CREATE }),
+        pgDelta,
+      ),
+    ).toEqual([]);
+    expect(
+      pd042(
+        project({
+          ...declared,
+          "supabase/migrations/001.sql": CREATE,
+          "supabase/config.toml": "[experimental.pgdelta]\nenabled = false\n",
+        }),
+        pgDelta,
+      ),
+    ).toHaveLength(1);
   });
 });
 
 describe("PD043 schema_paths order", () => {
   it("is silent without supabase/schemas, or without a helpers file", () => {
-    expect(pd043(project({}))).toEqual([]);
-    expect(pd043(project({ "supabase/schemas/a.sql": POLICY }))).toEqual([]);
+    expect(pd043(project({}), MIGRA)).toEqual([]);
+    expect(pd043(project({ "supabase/schemas/a.sql": POLICY }), MIGRA)).toEqual(
+      [],
+    );
   });
 
   it("uses the default glob without a config, a [db.migrations] section or a list", () => {
@@ -96,13 +116,14 @@ describe("PD043 schema_paths order", () => {
       "supabase/schemas/010_helpers.sql": HELPERS,
       "supabase/schemas/020_policies.sql": POLICY,
     };
-    expect(pd043(project(files))).toEqual([]);
+    expect(pd043(project(files), MIGRA)).toEqual([]);
     expect(
       pd043(
         project({
           ...files,
           "supabase/config.toml": "[auth]\nenabled = true\n",
         }),
+        MIGRA,
       ),
     ).toEqual([]);
     expect(
@@ -111,6 +132,7 @@ describe("PD043 schema_paths order", () => {
           ...files,
           "supabase/config.toml": "[db.migrations]\nenabled = true\n",
         }),
+        MIGRA,
       ),
     ).toEqual([]);
     expect(
@@ -119,6 +141,7 @@ describe("PD043 schema_paths order", () => {
           ...files,
           "supabase/config.toml": "[db.migrations]\nschema_paths = []\n",
         }),
+        MIGRA,
       ),
     ).toEqual([]);
   });
@@ -129,7 +152,16 @@ describe("PD043 schema_paths order", () => {
       "supabase/schemas/permdock/helpers.sql": HELPERS,
       "supabase/config.toml": `[experimental.pgdelta]\nenabled = true\n[db.migrations]\nschema_paths = ['./schemas/public/*.sql', './schemas/permdock/*.sql']\n`,
     });
-    expect(pd043(cwd)).toEqual([]);
+    expect(pd043(cwd, {})).toEqual([]);
+    expect(
+      pd043(
+        project({
+          "supabase/schemas/010_policies.sql": POLICY,
+          "supabase/schemas/020_helpers.sql": HELPERS,
+        }),
+        {},
+      ),
+    ).toEqual([]);
   });
 
   it("reads single-quoted paths and warns on a policy listed before the helpers", () => {
@@ -139,7 +171,7 @@ describe("PD043 schema_paths order", () => {
       "supabase/schemas/notes.txt": POLICY,
       "supabase/config.toml": `[db.migrations]\nschema_paths = ['./schemas/020_*.sql', './schemas/*']\n`,
     });
-    expect(pd043(cwd)).toEqual([
+    expect(pd043(cwd, MIGRA)).toEqual([
       {
         code: "PD043",
         severity: "warning",

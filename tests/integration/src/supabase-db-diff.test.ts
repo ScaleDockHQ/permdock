@@ -83,24 +83,36 @@ alter table public.customer_contacts enable row level security;
 async function generateSplit(
   fixture: string,
   split: string,
-): Promise<{ readonly schema: string; readonly grants: string }> {
-  const [grants = "", ...parts] = await generated(
+): Promise<{
+  readonly schema: string;
+  readonly seeds: string;
+  readonly grants: string;
+}> {
+  const [grants = "", seeds = "", ...parts] = await generated(
     [
       "rls",
       "generate",
       "--target",
       "sql",
+      "--schemas",
+      "migra",
       "--split",
-      split,
+      `${split},seeds`,
       "--out",
       "{dir}/{part}.sql",
+      "--seeds-out",
+      "{dir}/seeds.sql",
       "--grants-out",
       "{dir}/grants.sql",
     ],
-    ["grants.sql", ...split.split(",").map((part) => `${part}.sql`)],
+    [
+      "grants.sql",
+      "seeds.sql",
+      ...split.split(",").map((part) => `${part}.sql`),
+    ],
     { cwd: join(HERE, "../fixtures", fixture) },
   );
-  return { schema: parts.join("\n"), grants };
+  return { schema: parts.join("\n"), seeds, grants };
 }
 
 describe("supabase db diff over rls generate --grants-out", () => {
@@ -158,9 +170,9 @@ describe("supabase db diff over rls generate --grants-out", () => {
     ["centrakit-roles", CENTRAKIT, "helpers,hook"],
   ] as const) {
     it(`finds nothing to change between the migrations and the ${split} schema (${fixture})`, async () => {
-      const { schema, grants } = await generateSplit(fixture, split);
-      const migrated = await database([setup, schema, grants]);
-      const declared = await database([setup, schema]);
+      const { schema, seeds, grants } = await generateSplit(fixture, split);
+      const migrated = await database([setup, schema, seeds, grants]);
+      const declared = await database([setup, schema, seeds]);
       expect(await diff(migrated, declared)).toBe("");
       expect(await diff(declared, migrated)).toBe("");
     });

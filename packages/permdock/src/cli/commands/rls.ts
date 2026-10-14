@@ -158,9 +158,15 @@ export function rls(ctx: CliContext): Command {
           "Write helpers, seeds, policies and hook as separate parts",
         valueHint: "parts",
       },
+      schemas: {
+        type: "enum",
+        options: ["pg-delta", "migra", "migrations"],
+        description:
+          "Schema workflow (default supabase.schemas, else pg-delta)",
+      },
       "grants-out": {
         type: "string",
-        description: "File for the helper and hook privileges db diff drops",
+        description: "migra: file for the privileges supabase db diff drops",
         valueHint: "file",
       },
       "seeds-out": {
@@ -228,6 +234,7 @@ export function rls(ctx: CliContext): Command {
         introspect: parsed.introspect === true,
         advisors: parsed.advisors === true,
         split: stringArg(parsed.split),
+        schemas: stringArg(parsed.schemas),
         grantsOut: stringArg(parsed["grants-out"]),
         seedsOut: stringArg(parsed["seeds-out"]),
         backfillOut: stringArg(parsed["backfill-out"]),

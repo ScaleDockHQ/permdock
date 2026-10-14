@@ -77,7 +77,8 @@ describe("permdock supabase inspect", () => {
       hook: {
         schema: "permdock",
         function: "custom_access_token_hook",
-        out: "supabase/permdock-hook.sql",
+        out: "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
+        schemas: "pg-delta",
       },
       helpers: {
         schema: "permdock",
@@ -543,7 +544,16 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
       `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, authorize: 'database', helpersOnly: true, memberships: { scopes: { organization: { table: 'memberships', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } }, customer: { table: 'contacts', user: 'user_id', role: 'role', columns: { customer: 'customer_id', organization: 'organization_id' } } } } }`,
     );
     const split = await run(
-      ["rls", "generate", "--target", "sql", "--split", "helpers"],
+      [
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--split",
+        "helpers",
+        "--schemas",
+        "migrations",
+      ],
       { cwd: configured.cwd },
     );
     expect(split.code).toBe(0);

@@ -73,7 +73,11 @@ function generate(
     io,
     ...(options.split === undefined
       ? { write: false }
-      : { split: options.split, out: options.out ?? "" }),
+      : {
+          split: options.split,
+          out: options.out ?? "",
+          schemas: "migrations" as const,
+        }),
   });
 }
 

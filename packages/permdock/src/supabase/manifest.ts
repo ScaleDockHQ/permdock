@@ -19,6 +19,13 @@ export type SupabaseHookManifest = {
     readonly schema: string;
     readonly function: "custom_access_token_hook";
     readonly out: string;
+    /**
+     * How the project turns SQL into migrations: `pg-delta` (`supabase db
+     * schema declarative sync`, which keeps the hook's grants in `out`),
+     * `migra` (`supabase db diff`, which drops them) or `migrations`
+     * (hand-written). Absent means `pg-delta`.
+     */
+    readonly schemas?: "pg-delta" | "migra" | "migrations";
     readonly before?: readonly string[];
   };
   readonly helpers: {

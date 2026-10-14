@@ -5,6 +5,7 @@ import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from "../types.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { usageResult } from "../errors.ts";
 import { requirePeer } from "../peer.ts";
+import { isSupabaseSchemas, schemasRefusal } from "../supabase-schemas.ts";
 import { type CliExec, runRlsAdvisors } from "./advisors.ts";
 import { type GenerateOutcome, runRlsGenerate } from "./generate.ts";
 import {
@@ -28,8 +29,10 @@ export const RLS_HELP = `permdock rls generate | import | verify | migrate
            [--policy-per-role] [--policy-name '{table}_{op}'] [--tenant-type uuid] [--custom-roles]
            [--capabilities] [--fields views [--revoke-columns]]
            [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
-           [--split helpers,seeds,policies,hook --out <dir>/056_permdock_{part}.sql]
-           [--grants-out <file>|-] [--seeds-out <file>|-] [--backfill-out <file>|<dir>/|-]
+           [--schemas pg-delta|migra|migrations]
+           [--split helpers,seeds,indexes,policies,hook --seeds-out supabase/migrations/]: pg-delta layout
+           [--split helpers,seeds,policies,hook --out <dir>/056_permdock_{part}.sql --grants-out <file>|-]: migra
+           [--seeds-out <file>|<dir>/|-] [--backfill-out <file>|<dir>/|-]
            [--helpers-only] [--shims] [--db $DATABASE_URL]
   import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
            [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
@@ -75,6 +78,8 @@ export type RlsRunInput = {
   readonly tree: boolean;
   readonly introspect: boolean;
   readonly split: string | undefined;
+  /** `--schemas`: `pg-delta`, `migra` or `migrations`. */
+  readonly schemas?: string | undefined;
   readonly grantsOut: string | undefined;
   readonly seedsOut: string | undefined;
   readonly backfillOut?: string | undefined;
@@ -150,6 +155,7 @@ function generateInput(
     ...(input.fields === undefined ? {} : { fields: input.fields }),
     revokeColumns: input.revokeColumns,
     ...(input.split === undefined ? {} : { split: input.split }),
+    ...(isSupabaseSchemas(input.schemas) ? { schemas: input.schemas } : {}),
     ...(input.grantsOut === undefined ? {} : { grantsOut: input.grantsOut }),
     ...(input.seedsOut === undefined ? {} : { seedsOut: input.seedsOut }),
     ...(input.backfillOut === undefined
@@ -308,6 +314,10 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
   const action = input.rest[0];
   if (action === undefined || action === "help") {
     return { code: 2, output: RLS_HELP };
+  }
+  const badSchemas = schemasRefusal(`rls ${action}`, input.schemas);
+  if (badSchemas !== undefined) {
+    return { code: 2, output: badSchemas };
   }
   switch (action) {
     case "generate": {

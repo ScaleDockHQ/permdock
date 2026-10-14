@@ -5,6 +5,10 @@ import {
   readSupabaseConfig,
   supabaseConfig,
 } from "../../src/cli/supabase-config.ts";
+import {
+  resolveSchemas,
+  schemasRefusal,
+} from "../../src/cli/supabase-schemas.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);
@@ -49,7 +53,7 @@ schema_paths = [
           "supabase/config.toml": "[experimental.pgdelta]\nenabled = true\n",
         }),
       ),
-    ).toEqual({ pgDelta: { schemaDir: "supabase/schemas" } });
+    ).toEqual({ pgDelta: { enabled: true, schemaDir: "supabase/schemas" } });
     expect(
       supabaseConfig(
         project({
@@ -57,14 +61,51 @@ schema_paths = [
             '[experimental.pgdelta]\nenabled = true\ndeclarative_schema_path = "./db/declarative/"\n',
         }),
       ),
-    ).toEqual({ pgDelta: { schemaDir: "supabase/db/declarative" } });
+    ).toEqual({
+      pgDelta: { enabled: true, schemaDir: "supabase/db/declarative" },
+    });
     expect(
       supabaseConfig(
         project({
           "supabase/config.toml": "[experimental.pgdelta]\nenabled = false\n",
         }),
       ),
-    ).toEqual({});
+    ).toEqual({ pgDelta: { enabled: false, schemaDir: "supabase/schemas" } });
+    expect(
+      supabaseConfig(
+        project({
+          "supabase/config.toml": '[experimental.pgdelta]\nenabled = "yes"\n',
+        }),
+      ),
+    ).toEqual({ pgDelta: { schemaDir: "supabase/schemas" } });
+  });
+
+  it("resolves the schema workflow: --schemas, then supabase.schemas, then enabled = false, else pg-delta", () => {
+    const none = project({});
+    expect(resolveSchemas(none, {})).toEqual({
+      mode: "pg-delta",
+      schemaDir: "supabase/schemas",
+    });
+    const off = project({
+      "supabase/config.toml":
+        '[experimental.pgdelta]\nenabled = false\ndeclarative_schema_path = "./db"\n',
+    });
+    expect(resolveSchemas(off, {})).toEqual({ mode: "migra" });
+    expect(resolveSchemas(off, {}, "pg-delta")).toEqual({
+      mode: "pg-delta",
+      schemaDir: "supabase/db",
+    });
+    expect(
+      resolveSchemas(off, { supabase: { schemas: "migrations" } }),
+    ).toEqual({ mode: "migrations" });
+    expect(
+      resolveSchemas(none, { supabase: { schemas: "migra" } }, "migrations"),
+    ).toEqual({ mode: "migrations" });
+    expect(schemasRefusal("rls generate", "pg-delta")).toBeUndefined();
+    expect(schemasRefusal("rls generate", undefined)).toBeUndefined();
+    expect(schemasRefusal("rls generate", "flyway")).toBe(
+      "rls generate --schemas must be pg-delta, migra, migrations (got flyway)",
+    );
   });
 
   it("ignores values of the wrong type", () => {

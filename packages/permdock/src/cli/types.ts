@@ -592,8 +592,22 @@ export type SupabaseHookConfig = {
   readonly out?: string;
 };
 
+/**
+ * How the project turns SQL into Supabase migrations: `'pg-delta'`
+ * (Declarative Schemas 2.0, `supabase db schema declarative sync`),
+ * `'migra'` (declarative schemas on `supabase db diff`) or `'migrations'`
+ * (hand-written migrations, no declarative schemas).
+ */
+export type SupabaseSchemas = "pg-delta" | "migra" | "migrations";
+
 export type SupabaseConfig = {
   readonly hook?: SupabaseHookConfig;
+  /**
+   * The schema workflow `rls generate --split`, `supabase hook generate` and
+   * doctor follow. Default: `'migra'` when `supabase/config.toml` sets
+   * `[experimental.pgdelta] enabled = false`, else `'pg-delta'`.
+   */
+  readonly schemas?: SupabaseSchemas;
 };
 
 export type DoctorConfig = {

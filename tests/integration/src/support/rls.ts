@@ -64,6 +64,8 @@ export async function generateRlsParts(
       "--target",
       "sql",
       ...args,
+      "--schemas",
+      "migrations",
       "--split",
       parts.join(","),
       "--out",

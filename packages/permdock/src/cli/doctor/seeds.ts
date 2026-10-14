@@ -150,7 +150,7 @@ export async function pd054(
       code: "PD054",
       severity: "warning",
       message: `${seeded.file} seeds ${schema}.role_permissions with rows the policy no longer compiles to: ${parts.join("; ")}`,
-      fix: "run permdock rls generate (with --split ...,seeds --seeds-out into a new migration for declarative schemas) and apply it",
+      fix: "run permdock rls generate (for declarative schemas, --split ...,seeds --seeds-out supabase/migrations/, which writes a new migration) and apply it",
     },
   ];
 }

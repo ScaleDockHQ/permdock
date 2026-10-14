@@ -1,5 +1,11 @@
 import type { SqlConnect } from "../pg.ts";
-import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from "../types.ts";
+import type {
+  CliIo,
+  PermDockConfig,
+  RlsDialect,
+  RlsTarget,
+  SupabaseSchemas,
+} from "../types.ts";
 import type { RbacAuthorizeMode } from "./rbac.ts";
 
 import { type SplitPart, parseSplit } from "../output-files.ts";
@@ -29,7 +35,9 @@ export type RlsGenerateInput = {
   readonly revokeColumns?: boolean;
   /** `--split helpers,seeds,policies,hook`: one file per part, `{part}` in `out` naming it. */
   readonly split?: string;
-  /** The hook's `supabase_auth_admin` grants go here (`-` prints them); needs the `hook` part. */
+  /** `--schemas`; default from `resolveSchemas`. */
+  readonly schemas?: SupabaseSchemas;
+  /** migra only: the privileges `supabase db diff` drops go here (`-` prints them); needs the `helpers` or `hook` part. */
   readonly grantsOut?: string;
   /**
    * The `seeds` part goes here instead of `{part}` in `out` (`-` prints it), so

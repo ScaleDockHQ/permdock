@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import type { Policy } from "../../core/policy-types.ts";
 import type { SupabaseHookManifest } from "../../supabase/manifest.ts";
 import type { CommandResult } from "../shared/result.ts";
-import type { CliIo, PermDockConfig } from "../types.ts";
+import type { CliIo, PermDockConfig, SupabaseSchemas } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { type Scope, scopeList } from "../../core/scopes.ts";
@@ -24,7 +24,11 @@ import {
   hookMarkerFields,
 } from "../sql/markers.ts";
 import { splitUndiffed } from "../sql/statements.ts";
-import { supabaseConfig } from "../supabase-config.ts";
+import {
+  isSupabaseSchemas,
+  resolveSchemas,
+  schemasRefusal,
+} from "../supabase-schemas.ts";
 import {
   missingHelpersInDb,
   missingHelpersInFiles,
@@ -50,15 +54,16 @@ import { versionSql } from "./version.ts";
 
 const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
-  hook generate [--out supabase/permdock-hook.sql] [--check] [--db <url>]
+  hook generate [--out <file>] [--check] [--db <url>] [--schemas pg-delta|migra|migrations]
                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                 [--budget 1024] [--schema public] [--grants-out <file>|-]
   inspect [--json] [--out [permdock.manifest.json]] [--check]
 
 Reads supabase.hook from permdock.config.ts: the tableMembershipSource / junctionMembershipSource sources the app
 passes as memberships. hook generate emits custom_access_token_hook(jsonb), the grants it
-needs (the ones db diff drops in --grants-out, for declarative schemas), the permdock_authz_version table
-and its triggers. Never grants anything to
+needs, the permdock_authz_version table and its triggers. Under pg-delta (the default) --out defaults to
+supabase/schemas/<schema>/functions/custom_access_token_hook.sql and the grants stay in it; under
+--schemas migra, --grants-out takes the privileges supabase db diff drops. Never grants anything to
 service_role unless supabase.hook.api is set, which grants its wrappers to it. inspect prints the manifest: helper schema, names and signatures, tenant claim,
 budget, the claims the hook writes, the membership sources and the columns that decide them.
 --out writes it as JSON, to permdock.manifest.json without a path; --check exits 1 when that
@@ -67,17 +72,18 @@ file differs.
 
 const MANIFEST_FILE = "permdock.manifest.json";
 
-/** `supabase.hook.out`, else pg-delta's per-schema path, else `supabase/permdock-hook.sql`. */
+/** `supabase.hook.out`, else pg-delta's per-schema path under pg-delta, else `supabase/permdock-hook.sql`. */
 export function hookOut(
   cwd: string,
   config: PermDockConfig,
   schema?: string,
+  flag?: SupabaseSchemas,
 ): string {
-  const pgDelta = supabaseConfig(cwd).pgDelta;
-  return config.supabase?.hook?.out !== undefined || pgDelta === undefined
+  const schemas = resolveSchemas(cwd, config, flag);
+  return config.supabase?.hook?.out !== undefined || schemas.mode !== "pg-delta"
     ? defaultOut(config)
     : pgDeltaPath(
-        pgDelta.schemaDir,
+        schemas.schemaDir,
         "hook",
         schema ??
           config.supabase?.hook?.schema ??
@@ -94,11 +100,22 @@ export function hookOut(
 export function supabaseHookManifest(
   scopes: readonly Scope[],
   config: PermDockConfig,
-  overrides: HookOverrides & { readonly out?: string } = {},
+  overrides: HookOverrides & {
+    readonly out?: string;
+    readonly schemas?: SupabaseSchemas;
+  } = {},
   policy?: Policy,
 ): SupabaseHookManifest {
   const parts = hookParts(scopes, config, overrides);
-  return manifestOf(parts, overrides.out ?? defaultOut(config), config, policy);
+  const manifest = manifestOf(
+    parts,
+    overrides.out ?? defaultOut(config),
+    config,
+    policy,
+  );
+  return overrides.schemas === undefined
+    ? manifest
+    : { ...manifest, hook: { ...manifest.hook, schemas: overrides.schemas } };
 }
 
 /**
@@ -252,9 +269,17 @@ export async function runSupabase(input: {
   readonly budget?: string;
   readonly schema?: string;
   readonly grantsOut?: string;
+  /** `--schemas`: `pg-delta`, `migra` or `migrations`. */
+  readonly schemas?: string;
   readonly io: CliIo;
 }): Promise<CommandResult> {
   const [area, action] = input.rest;
+  const badSchemas = schemasRefusal("supabase", input.schemas);
+  if (badSchemas !== undefined) {
+    return { code: 2, output: badSchemas };
+  }
+  const flag = isSupabaseSchemas(input.schemas) ? input.schemas : undefined;
+  const schemas = resolveSchemas(input.cwd, input.config, flag);
   const overrides: HookOverrides = Object.fromEntries(
     Object.entries({
       activeFrom: input.activeFrom,
@@ -269,7 +294,8 @@ export async function runSupabase(input: {
       input.config,
       {
         ...overrides,
-        out: hookOut(input.cwd, input.config, input.schema),
+        out: hookOut(input.cwd, input.config, input.schema, flag),
+        schemas: schemas.mode,
       },
       policy,
     );
@@ -292,6 +318,12 @@ export async function runSupabase(input: {
   if (area !== "hook" || action !== "generate") {
     return { code: 2, output: SUPABASE_HELP };
   }
+  if (input.grantsOut !== undefined && schemas.mode !== "migra") {
+    return {
+      code: 2,
+      output: `supabase hook generate --grants-out is for --schemas migra: ${schemas.mode === "pg-delta" ? "pg-delta keeps the grants in the hook file" : "a hand-written migration keeps its grants"}, so drop --grants-out`,
+    };
+  }
   const scopes = await loadScopes(input.cwd, input.config);
   const { sql, grants, manifest } = supabaseHookSql(
     scopes,
@@ -302,7 +334,7 @@ export async function runSupabase(input: {
   const outRel =
     typeof input.out === "string"
       ? input.out
-      : hookOut(input.cwd, input.config, input.schema);
+      : hookOut(input.cwd, input.config, input.schema, flag);
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
   const grantsFile: readonly OutputFile[] =
