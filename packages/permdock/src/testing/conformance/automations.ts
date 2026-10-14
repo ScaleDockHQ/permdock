@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 
 import type { Automation, AutomationSource } from "../../index.ts";
 import type { SupportSessionSource } from "../../server/index.ts";
+import type { ApprovalWaiter } from "../../workflow/index.ts";
 
 import { parseAutomation } from "../../core/automation.ts";
 
@@ -126,4 +127,110 @@ export function testSupportSessionSource(
       await sessionOf(source, "permdock-conformance-unknown-session"),
     ).toBeNull();
   });
+}
+
+const SETTLED = Symbol("settled");
+
+/** Whether `promise` settles within `ms` milliseconds; a rejection counts as settled. */
+async function settlesWithin(
+  promise: Promise<unknown>,
+  ms: number,
+): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<false>((resolve) => {
+    timer = setTimeout(() => {
+      resolve(false);
+    }, ms);
+  });
+  try {
+    return await Promise.race([
+      promise.then(
+        () => SETTLED,
+        () => SETTLED,
+      ),
+      timeout,
+    ]).then((result) => result === SETTLED);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Checks an `ApprovalWaiter`: a wait ends when its token is woken and not
+ * when another token is; waking a token nobody waits on resolves; a wait
+ * whose `expiresAt` has passed ends; an aborted `signal` rejects the wait with its reason.
+ * Pass `expiry: false` or `abort: false` for a waiter whose runner offers no
+ * timer or no cancellation, `pending` when the waiter reads a store, and
+ * `parked` when a wait parks asynchronously.
+ */
+export function testApprovalWaiter(
+  waiter: ApprovalWaiter,
+  options: {
+    /** Opens a pending approval request and returns its token; a fixed token per label when absent. */
+    readonly pending?: (label: string) => string | Promise<string>;
+    /** Resolves once `wait(token)` has parked; one macrotask when absent. */
+    readonly parked?: (token: string) => Promise<void>;
+    readonly expiry?: boolean;
+    readonly abort?: boolean;
+    /** Milliseconds a wait may take to end after its trigger. Defaults to 1000. */
+    readonly timeout?: number;
+  } = {},
+): void {
+  const timeout = options.timeout ?? 1000;
+  const pending = async (label: string): Promise<string> => {
+    const token =
+      options.pending === undefined
+        ? `permdock-conformance-${label}`
+        : await options.pending(label);
+    return token;
+  };
+  const parked =
+    options.parked ??
+    (() =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      }));
+
+  it("ends a wait when its token is woken, and only then", async () => {
+    const woken = await pending("woken");
+    const still = await pending("other");
+    const waiting = waiter.wait(woken);
+    const other = waiter.wait(still);
+    await parked(woken);
+    await parked(still);
+    await waiter.wake(woken);
+    expect(await settlesWithin(waiting, timeout)).toBe(true);
+    await expect(waiting).resolves.toBeUndefined();
+    expect(await settlesWithin(other, 20)).toBe(false);
+    await waiter.wake(still);
+    await expect(other).resolves.toBeUndefined();
+  });
+
+  it("resolves a wake for a token nobody waits on", async () => {
+    await expect(
+      Promise.resolve(waiter.wake("permdock-conformance-nobody")),
+    ).resolves.toBeUndefined();
+  });
+
+  if (options.expiry !== false) {
+    it("ends a wait whose expiresAt has passed", async () => {
+      const waiting = waiter.wait(await pending("expired"), {
+        expiresAt: { epochMilliseconds: Date.now() - 1000 },
+      });
+      expect(await settlesWithin(waiting, timeout)).toBe(true);
+      await expect(waiting).resolves.toBeUndefined();
+    });
+  }
+
+  if (options.abort !== false) {
+    it("rejects a wait when its signal aborts", async () => {
+      const token = await pending("aborted");
+      const controller = new AbortController();
+      const waiting = waiter.wait(token, { signal: controller.signal });
+      await parked(token);
+      const reason = new Error("permdock-conformance-abort");
+      controller.abort(reason);
+      await expect(waiting).rejects.toBe(reason);
+    });
+  }
 }

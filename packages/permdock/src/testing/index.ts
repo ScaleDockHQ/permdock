@@ -115,6 +115,7 @@ export type { DecisionProviderRunnerOptions } from "./conformance/providers.ts";
 export { testRelationSource } from "./conformance/relations.ts";
 export { testPrincipalSource } from "./conformance/principals.ts";
 export {
+  testApprovalWaiter,
   testAutomationSource,
   testSupportSessionSource,
 } from "./conformance/automations.ts";

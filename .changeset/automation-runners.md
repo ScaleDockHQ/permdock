@@ -2,4 +2,4 @@
 "permdock": minor
 ---
 
-`permdock/testing` adds `testAutomationSource` and `testSupportSessionSource`, the conformance runners for an `AutomationSource` and a `SupportSessionSource`.
+`permdock/testing` adds `testApprovalWaiter`, `testAutomationSource` and `testSupportSessionSource`, the conformance runners for an `ApprovalWaiter`, an `AutomationSource` and a `SupportSessionSource`.
