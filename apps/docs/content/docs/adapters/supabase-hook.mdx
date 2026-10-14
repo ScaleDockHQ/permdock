@@ -255,19 +255,24 @@ uri = "pg-functions://postgres/public/custom_access_token_hook"
 
 ## Declarative schemas
 
-With pg-delta (`[experimental.pgdelta] enabled = true`), `supabase db schema declarative sync` keeps grants and policies, so the hook file keeps its grants. Without `--out`, `hook generate` writes it to `supabase/schemas/<schema>/functions/custom_access_token_hook.sql`, under `declarative_schema_path` when that is set.
-
-A project that writes migrations with `supabase db diff` instead cannot keep every privilege in the hook file: `db diff` drops schema and function privileges, so the hook would land executable by `public` and not by the auth server. `--grants-out` moves those statements to a migration of their own and leaves a comment in the hook file that says where they went:
+`hook generate` writes for Declarative Schemas 2.0 (pg-delta) unless the project opts out with `[experimental.pgdelta] enabled = false`, `supabase.schemas` or `--schemas` ([schema workflow](/docs/cli/rls#schema-workflow)). pg-delta's `supabase db schema declarative sync` keeps grants and policies, so the hook file keeps its grants. Without `--out`, `hook generate` writes it to `supabase/schemas/<schema>/functions/custom_access_token_hook.sql`, under `declarative_schema_path` when that is set. `supabase/config.toml` needs `[experimental.pgdelta]` with `enabled = true`, or the Supabase CLI diffs the file with migra; doctor PD068 fails until it does.
 
 ```bash
-permdock supabase hook generate --out supabase/schemas/identity/056_permdock_hook.sql --grants-out -
+permdock supabase hook generate
+supabase db schema declarative sync --no-apply -f permdock_hook
+```
+
+A project on Declarative Schemas 1.0 (`--schemas migra`), which writes migrations with `supabase db diff`, cannot keep every privilege in the hook file: `db diff` drops schema and function privileges, so the hook would land executable by `public` and not by the auth server. `--grants-out` moves those statements to a migration of their own and leaves a comment in the hook file that says where they went:
+
+```bash
+permdock supabase hook generate --schemas migra --out supabase/schemas/identity/056_permdock_hook.sql --grants-out -
 supabase db diff -f permdock_hook
 supabase migration new permdock_hook_grants
-permdock supabase hook generate --out supabase/schemas/identity/056_permdock_hook.sql \
+permdock supabase hook generate --schemas migra --out supabase/schemas/identity/056_permdock_hook.sql \
   --grants-out supabase/migrations/<timestamp>_permdock_hook_grants.sql
 ```
 
-The grants file starts with `-- permdock:grants v1 schema=<schema>` and holds `usage` on each schema the hook reads, `execute` on the hook and on each `supabase.hook.claims` function, the revoke on the hook from `authenticated`, `anon` and `public`, the revokes on the version and protection trigger functions, and the revoke on the hook schema from `public`. The `select` grants and `permdock_auth_admin_read_*` policies on the tables the hook reads stay in the hook file, because `db diff` diffs table privileges and policies and would drop them from a migration that held them. `--check` compares both files. `permdock rls generate --split helpers,policies,hook` writes the hook as one part next to the helpers and policies and takes the same `--grants-out` ([declarative schemas](/docs/cli/rls#declarative-schemas)). Doctor PD042 errors while no migration from the one that creates the hook on carries the grants.
+The grants file starts with `-- permdock:grants v1 schema=<schema>` and holds `usage` on each schema the hook reads, `execute` on the hook and on each `supabase.hook.claims` function, the revoke on the hook from `authenticated`, `anon` and `public`, the revokes on the version and protection trigger functions, and the revoke on the hook schema from `public`. The `select` grants and `permdock_auth_admin_read_*` policies on the tables the hook reads stay in the hook file, because `db diff` diffs table privileges and policies and would drop them from a migration that held them. `--check` compares both files. `permdock rls generate --split helpers,policies,hook` writes the hook as one part next to the helpers and policies and takes the same `--grants-out` under migra ([migra](/docs/cli/rls#migra)). Doctor PD042 errors while no migration from the one that creates the hook on carries the grants. A project without declarative schemas (`--schemas migrations`) gets `supabase/permdock-hook.sql` by default and keeps the grants in it.
 
 ## Attributes
 
@@ -430,7 +435,7 @@ The format, its JSON Schema (`schemas/supabase-manifest-v1.json`) and the versio
 - **A version, not a shorter expiry, for sensitive verbs.** Dropping `jwt_expiry` to a minute taxes every request to protect a few. The version costs one indexed lookup per request that uses `claimsFirst` with `version`, and only `fresh` permissions depend on it. Missing either side counts as stale, because a check that passes when it cannot compare fails open.
 - **Attributes are server-owned or absent.** An attribute that decides row access and that the user can edit is a self-grant. Refusing `user_metadata` catches the obvious case; the migration guard catches a `profiles` table with a broad `update` grant, which is the common one.
 - **IdP ownership is enforced where edits happen.** The member list, `decideRoleChange` and the database all refuse, so a client that skips the UI still cannot edit a SCIM-provisioned row.
-- **Grants in their own migration for `db diff`.** `db diff` reads the schema files back from a shadow database and leaves out what it cannot diff for the auth role. A separate, hand-created migration keeps those statements in the history in the right order; putting them in the schema file would make them silently disappear, and a hook the auth server cannot call fails every sign-in. pg-delta diffs grants, which was checked against `declarative sync` in Supabase CLI 2.119, so under pg-delta the grants stay in the hook file.
+- **pg-delta by default, grants in their own migration for `db diff`.** `db diff` reads the schema files back from a shadow database and leaves out what it cannot diff for the auth role. A separate, hand-created migration keeps those statements in the history in the right order; putting them in the schema file would make them silently disappear, and a hook the auth server cannot call fails every sign-in. pg-delta diffs grants, which was checked against `declarative sync` in Supabase CLI 2.119 and is covered by an integration test against `@supabase/pg-delta`, so under pg-delta the grants stay in the hook file. Supabase made pg-delta the declarative engine in [Declarative Schemas 2.0](https://supabase.com/blog/declarative-schemas-2-0-pg-delta), so it is the default; migra and plain migrations stay as opt-outs for projects that have not moved.
 - **`uid` is a uuid.** Supabase Auth issues uuid user ids, so the hook casts `user_id` once and a malformed one fails the sign-in. Each `%type` variable is then assigned from a uuid, which `supabase db lint` accepts.
 - **Plans from billing, seats per membership.** Stripe recommends reading entitlements as a projection of billing state; a per-membership seat keeps "which products this person uses here" apart from permissions and from other tenants.
 
