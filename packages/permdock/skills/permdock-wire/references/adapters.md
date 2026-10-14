@@ -417,6 +417,8 @@ export const { getPermDock } = createPermDock(policy, {
 
 Hosted grants are opt-in per permission. List the permissions a Cloud admin may grant in `definePolicy(..., { hostable: [permissions.auditLog.read] })`, pass `verifier: joseTokenVerifier({ jwks: cloudEndpoints({ url, environment }).jwks })` to `cloud()` (the policy document's issuer and audience are both the environment URL), forward `policies: permdockCloud.policies`, and call `permdockCloud.policies.refresh()` on a timer. Never mark a permission `hostable` when `permdock rls` compiles its table (`permdock doctor` PD020).
 
+An app that calls `permdockCloud.approvals.resolve` also passes `approver: { signer }`, a `TokenSigner` over the app's own key whose JWK Set the Cloud environment trusts. Each resolve then carries a `PermDock-Approver` RFC 9068 `at+jwt` for `verdict.by.principal.id`. Without it, `resolve` throws `approver-unauthenticated`, and a verdict with an actor throws `approver-not-eligible`. Never pass `cloudSigner` here: it refuses `at+jwt` ([approver token](https://permdock.com/docs/adapters/cloud#approver-token)).
+
 `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are server-only. Production `PERMDOCK_CLOUD_URL` is `https://api.permdock.com`. The dashboard is `https://app.permdock.com`; the read-only MCP server is `https://mcp.permdock.com`. A Cloud outage leaves directory memberships at their last synced state.
 
 ## Delivery, chat and automation implementations — `permdock/resend`, `permdock/chat-sdk`, `permdock/workflow-sdk`

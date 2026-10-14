@@ -112,7 +112,8 @@ interface TokenSigner {
         | "vnd.permdock.capability+jwt"
         | "vnd.permdock.run+jwt"
         | "vnd.permdock.support-session+jwt"
-        | "vnd.permdock.evidence+jwt";
+        | "vnd.permdock.evidence+jwt"
+        | "at+jwt"; // RFC 9068: the Cloud approver token
       audience?: string | string[]; // `aud`; required when the signer has no default
       expiresAt?: number; // `exp`, NumericDate; default `iat` + 3600
       issuedAt?: number; // `iat`, NumericDate: the artefact's own time; default the signer's clock
