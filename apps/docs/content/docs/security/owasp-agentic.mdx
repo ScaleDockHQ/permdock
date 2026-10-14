@@ -64,6 +64,8 @@ Tool arguments are model output and therefore untrusted. `validate: 'boundary'` 
 
 `approval: 'human'` on a grant produces `outcome: 'approval-required'`, which the adapters surface as AI SDK `user-approval`, `WorkflowAgent` `needsApproval`, Claude Agent SDK `canUseTool` asking, or an MCP `input_required` result, always with a replay-safe `token`. An organisation adds its own gates as data through an `ApprovalPolicySource`, for example "an agent paying more than 1000 needs finance": entries apply only to the actor kinds they list, only add approval stages, and deny every allowed call when they fail to load. See [approvals](/docs/security/approvals) and [approval policies as data](/docs/adapters/approvals#approval-policies-as-data).
 
+A durable run parks on an `ApprovalWaiter` until the request is decided ([automations](/docs/concepts/automations)). `permdock/delivery` sends the prompt by email or chat; the prompt links to the approval page and never approves by itself ([delivery](/docs/concepts/delivery)).
+
 ### Least Agency
 
 - `capabilityMiddleware` (AI SDK) and `list_tools` filtering (MCP) narrow the tools a model sees to those the subject may call, before the model plans.
@@ -81,6 +83,7 @@ The failure is an agent operating with more authority than the human it serves, 
 - **Two principals.** `createPermDock(policy, user, { actor, delegation })`. The human is `principal`, the agent is `actor`, and `delegation` is the authority the human granted (OAuth scopes, RFC 9396 `authorization_details`, or an attenuated chain). Adapters fill `actor` and `delegation` from verified `authInfo`, never from prompt content.
 - **Intersection, not union.** A decision is the principal's grants intersected with the delegation. An agent with `post:delete` scope acting for a user who lacks `post.delete` is denied. An agent acting for an admin but delegated only `post:read` is denied everything else. "An agent can never exceed its user" is not a rule the developer writes; it is how `decide` works.
 - **Monotonic attenuation.** Delegation-chain hops can only narrow. The token layer enforces it when it issues the token; core evaluates the final delegation and carries the chain for audit ([delegation](/docs/security/delegation)).
+- **Automations act for a named human.** A published automation runs as its publisher with live rights, narrowed to its operations. The event that starts it never grants, and a demoted publisher's runs deny on the next step ([automations](/docs/concepts/automations)).
 - **No anonymous agents.** An `actor` without `delegation` has no authority: every check is `denied` with `no-delegation`, and agent adapters apply no default delegation; a Web Bot Auth signature that fails verification is rejected, not downgraded.
 - **Traceability.** `actor.id` (MCP client id, CIMD URL, AI SDK agent name, signing key, A2A card) is in every decision event and in the AuthZEN `subject.properties`, so privilege use is attributable to a specific agent and a specific human.
 - **Revocation propagates.** CAEP `session-revoked` and `credential-change` events invalidate the principal's snapshots, so a compromised human session does not leave agents holding stale authority.
