@@ -598,7 +598,12 @@
     "authorizer",
     "bucketPolicy",
     "credentialGuard",
+    "handlerCan",
+    "hookCan",
+    "principalSource",
     "subjectFromBetterSupabase",
+    "subscriberPolicy",
+    "supportPolicy",
     "toolPolicy",
     "topicPolicy"
   ],
@@ -634,6 +639,7 @@
     "testApprovalPolicySource",
     "testApprovalStore",
     "testAuthzen",
+    "testAutomationSource",
     "testClientParity",
     "testClientStore",
     "testCredentialVerifier",
@@ -658,6 +664,7 @@
     "testSnapshotSource",
     "testSnapshotStorage",
     "testSubjectResolver",
+    "testSupportSessionSource",
     "testTokenSigner",
     "testTokenVerifier",
     "testWhereCompiler"
