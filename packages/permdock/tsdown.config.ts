@@ -137,6 +137,7 @@ export default defineConfig({
     "src/cloud/index.ts",
     "src/drizzle/index.ts",
     "src/workflow/index.ts",
+    "src/workflow-sdk/index.ts",
     "src/delivery/index.ts",
     "src/resend/index.ts",
     "src/chat/index.ts",

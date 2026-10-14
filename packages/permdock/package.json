@@ -207,6 +207,10 @@
       "types": "./dist/workflow/index.d.ts",
       "default": "./dist/workflow/index.js"
     },
+    "./workflow-sdk": {
+      "types": "./dist/workflow-sdk/index.d.ts",
+      "default": "./dist/workflow-sdk/index.js"
+    },
     "./delivery": {
       "types": "./dist/delivery/index.d.ts",
       "default": "./dist/delivery/index.js"

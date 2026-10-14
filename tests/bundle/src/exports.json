@@ -473,6 +473,12 @@
     "parseAutomation",
     "pollingApprovalWaiter"
   ],
+  "./workflow-sdk": [
+    "approvalHookToken",
+    "authorizeHook",
+    "startAutomation",
+    "workflowSdkWaiter"
+  ],
   "./a2a": ["createPermDock"],
   "./otel": [
     "GENAI_SEMCONV_PIN",

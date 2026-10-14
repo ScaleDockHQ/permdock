@@ -42,6 +42,7 @@ export const ENTRIES = {
   "./terminal": "terminal/index.js",
   "./webmcp": "webmcp/index.js",
   "./workflow": "workflow/index.js",
+  "./workflow-sdk": "workflow-sdk/index.js",
   "./a2a": "a2a/index.js",
   "./otel": "otel/index.js",
   "./scim": "scim/index.js",
@@ -355,6 +356,7 @@ export const SERVER_FOLDERS = [
   "terminal",
   "trpc",
   "workflow",
+  "workflow-sdk",
 ] as const;
 
 /** Dist folders that are neither server-only nor a client entry. */

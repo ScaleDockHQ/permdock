@@ -54,6 +54,7 @@ export const SERVER_SPECIFIERS = [
   "permdock/terminal",
   "permdock/trpc",
   "permdock/workflow",
+  "permdock/workflow-sdk",
 ] as const;
 
 /** Entries that feed request, tool or model data into a check. */
