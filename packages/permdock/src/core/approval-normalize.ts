@@ -34,7 +34,9 @@ function approversOf(requirement: ApprovalRequirement): readonly Approver[] {
   ];
 }
 
-function asApprover(input: ApproverInput): Approver | readonly Approver[] {
+export function asApprover(
+  input: ApproverInput,
+): Approver | readonly Approver[] {
   if (isPermissionApprover(input)) {
     if (typeof input.permission !== "string" || input.permission === "") {
       throw new Error("PermDock: a permission approver needs a permission key");

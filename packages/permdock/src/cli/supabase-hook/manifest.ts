@@ -18,6 +18,7 @@ import { hasConditionOp } from "../../conditions/ast.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
+import { IS_APPROVER } from "../rls/approvals.ts";
 import { guardedTables } from "../rls/assignments.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "../rls/ownership-names.ts";
 import { ownershipRules } from "../rls/ownership.ts";
@@ -143,6 +144,16 @@ function trustedHelpers(
     ...(readOnlyActorKinds(config.rls?.readOnlyActors) === undefined
       ? []
       : [helperEntry(ACTOR_MAY_WRITE, "", "boolean", client)]),
+    ...(!config.rls?.approvals
+      ? []
+      : [
+          helperEntry(
+            IS_APPROVER,
+            "p_approvers jsonb, p_tenant text",
+            "boolean",
+            client,
+          ),
+        ]),
     ...forUser,
   ];
   const assigns =

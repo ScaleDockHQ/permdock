@@ -600,6 +600,7 @@
     "subjectFromBetterAuth"
   ],
   "./better-supabase": [
+    "accessReviewApplier",
     "apiKeyClaimOptions",
     "apiKeyVerifier",
     "authorizationProvider",

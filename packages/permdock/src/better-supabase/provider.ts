@@ -12,6 +12,7 @@ import type { CatalogDocument } from "../catalog/types.ts";
 import type { Permission } from "../core/permission-types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
+import { holder } from "../core/approvers.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import {
@@ -21,6 +22,11 @@ import {
   type SupabaseManifestMembership,
   parseSupabaseManifest,
 } from "../supabase/manifest.ts";
+import {
+  IS_APPROVER,
+  type ProviderApprovers,
+  isApproverTemplate,
+} from "./approvers.ts";
 
 export type AuthorizationProviderOptions = {
   /** `permdock.manifest.json`, parsed or as JSON text, from `permdock supabase inspect --out`. */
@@ -37,9 +43,20 @@ export type AuthorizationProviderOptions = {
    * The permission that lets a user decide a tool call waiting for approval
    * in a tenant, for better-supabase's `canApprove`. The approver is never
    * the user who asked (`approvals.distinctApprover`). Without it the chat's
-   * owner decides.
+   * owner decides. With `approvers` it is the `'ai-tool'` entry unless
+   * `approvers` names one.
    */
   readonly approver?: Permission;
+  /**
+   * Who may approve each request kind, for better-supabase's `isApprover`
+   * (0.9): `'ai-tool'`, `'support-session'` or the approvals block's
+   * `'<subject type>.<action>'`, each mapped to `user()`, `holder()` or
+   * `anyOf()` approvers. A kind it does not name has no provider approver,
+   * which for tool calls and support sessions means nobody but the service
+   * role. Needs `permdock_is_approver` from `rls.approvals`; with it
+   * `canApprove` is not set.
+   */
+  readonly approvers?: ProviderApprovers;
   /**
    * Templates to fill that better-supabase 0.8.0's config schema refuses:
    * `holdersOf` (a notification's permission audience, from
@@ -54,13 +71,15 @@ export type AuthorizationProviderOptions = {
 };
 
 /**
- * `AuthorizationFunctions` plus the two templates better-supabase reads after
- * 0.8.0: `holdersOf` for a notification's permission audience and
- * `actorMayWrite` for write functions and policies. 0.8.0 ignores both.
+ * `AuthorizationFunctions` plus the templates better-supabase reads after
+ * 0.8.0: `holdersOf` for a notification's permission audience,
+ * `actorMayWrite` for write functions and policies, and `isApprover` for
+ * every request that waits on an approval.
  */
 type ProviderFunctions = AuthorizationFunctions & {
   readonly holdersOf?: string;
   readonly actorMayWrite?: string;
+  readonly isApprover?: string;
 };
 
 type DisabledRow = NonNullable<
@@ -374,8 +393,9 @@ function grantsCommandOf(
  * templates, the membership tables, suspension rows, the token hook and
  * every catalog key with `sqlComplete` set from its `rowConditions`. A
  * `_for` template and `permissionsFor` are set only when the manifest lists
- * their helper, which `rls.mode: 'database'` writes; `canApprove` only with
- * `approver`. `holdersOf` (`permitted_<tenant scope>_users`) and
+ * their helper, which `rls.mode: 'database'` writes; `isApprover` only with
+ * `approvers` and `permdock_is_approver`, and otherwise `canApprove` only
+ * with `approver`. `holdersOf` (`permitted_<tenant scope>_users`) and
  * `actorMayWrite` (`permdock_actor_may_write()`) are set when the manifest
  * lists their helper. Throws when the manifest or catalog is invalid, or when the
  * tenant scope is ambiguous.
@@ -464,8 +484,25 @@ export function authorizationProvider(
   const users = rls.suspension?.users;
   const tenants = rls.suspension?.scopes?.[tenantScope];
   const approver = options.approver;
+  let isApprover: string | undefined;
+  if (options.approvers !== undefined) {
+    const built = isApproverTemplate({
+      approvers:
+        approver === undefined || Object.hasOwn(options.approvers, "ai-tool")
+          ? options.approvers
+          : { "ai-tool": holder(approver), ...options.approvers },
+      schema: rls.schema,
+      listed: helpers.has(IS_APPROVER),
+      tenantScope,
+      rootTenant,
+      catalog,
+    });
+    problems.push(...built.problems);
+    isApprover = built.template;
+    if (built.requires !== undefined) requires.push(built.requires);
+  }
   let canApprove: string | undefined;
-  if (approver !== undefined) {
+  if (approver !== undefined && isApprover === undefined) {
     if (
       catalog !== undefined &&
       !catalog.permissions.some((permission) => permission.key === approver.key)
@@ -519,6 +556,7 @@ export function authorizationProvider(
     ...(canApprove === undefined ? {} : { canApprove }),
     ...(holdersOf === undefined ? {} : { holdersOf }),
     ...(actorMayWrite === undefined ? {} : { actorMayWrite }),
+    ...(isApprover === undefined ? {} : { isApprover }),
   };
   const scopes = rls.scopes.map((scope) => {
     const idType = ID_TYPES[scope.type.trim().toLowerCase()];

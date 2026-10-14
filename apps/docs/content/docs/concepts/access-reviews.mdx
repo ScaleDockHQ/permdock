@@ -44,7 +44,7 @@ By default the review lists every member `MembershipSource.list` returns for the
 
 `decideAccessReviewItem` checks the reviewer against `reviewers` with the same forms an approval uses: `user()`, `holder()` and `anyOf()`. A link or a feed is never a reviewer. A reviewer cannot decide an item whose principal is themselves (`reviewer-is-holder`).
 
-`status` moves from `pending` to `kept` or `revoked`. `markApplied` records `appliedAt` on a revoked item, after the application has changed the source. Calling it on a kept or pending item is `not-revoked`. `close` sets the review to `closed`; a closed review refuses further decisions.
+`status` moves from `pending` to `kept` or `revoked`. `markApplied` records `appliedAt` on a revoked item, after the application has changed the source. Calling it on a kept or pending item is `not-revoked`. With better-supabase, [`accessReviewApplier`](/docs/adapters/better-supabase#access-reviews) changes the membership and calls `markApplied`. `close` sets the review to `closed`; a closed review refuses further decisions.
 
 ## HTTP
 
@@ -73,3 +73,4 @@ Errors are RFC 9457 problems. `401` is `reviewer-unauthenticated`, `403` is `rev
 - [Audit and observability](/docs/concepts/audit-and-observability): the review template this page implements.
 - [Approvals](/docs/adapters/approvals): the approver forms `reviewers` reuses.
 - [Wire formats](/docs/concepts/wire-formats): `AccessReview` v1 and `AccessReviewItem` v1.
+- [better-supabase](/docs/adapters/better-supabase#access-reviews): `accessReviewApplier` applies revoked items to organization memberships and invitations.

@@ -5,9 +5,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { authorizationProvider } from "permdock/better-supabase";
 import { run } from "permdock/cli";
 import { supabaseApprovalStore } from "permdock/supabase";
-import { testApprovalStore } from "permdock/testing";
+import {
+  supabaseHookManifestFixture,
+  testApprovalStore,
+} from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -218,5 +222,61 @@ describe("permdock_is_approver", () => {
     );
     expect(await isApprover(ADMIN, [])).toBe(false);
     expect(await isApprover(undefined, user)).toBe(false);
+  });
+
+  it("answers better-supabase's isApprover template from authorizationProvider", async () => {
+    const provider = authorizationProvider({
+      manifest: {
+        ...supabaseHookManifestFixture,
+        rls: {
+          ...supabaseHookManifestFixture.rls,
+          helpers: [
+            ...supabaseHookManifestFixture.rls.helpers,
+            {
+              name: "permdock_is_approver",
+              args: "p_approvers jsonb, p_tenant text",
+              returns: "boolean",
+              execute: ["authenticated"],
+            },
+          ],
+        },
+      },
+      approvers: {
+        "job.update": { kind: "permission", permission: "job.update" },
+        "support-session": { kind: "user", id: SUPPORT },
+      },
+    });
+    const template = provider.functions.isApprover;
+    if (template === undefined) {
+      throw new Error(`no isApprover: ${String(provider.problems)}`);
+    }
+    const check = async (user: string, kind: string, tenant: string) => {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      const target = db;
+      const sql = template
+        .replaceAll("{kind}", "$1::text")
+        .replaceAll("{tenant}", "$2::text");
+      return target.as(
+        {
+          role: "authenticated",
+          settings: { "request.jwt.claims": JSON.stringify(claims[user]) },
+        },
+        async () => {
+          const result = await target.tester.query<{ readonly ok: boolean }>(
+            `select ${sql} as ok`,
+            [kind, tenant],
+          );
+          return result.rows[0]?.ok === true;
+        },
+      );
+    };
+    expect(await check(ADMIN, "job.update", "o1")).toBe(true);
+    expect(await check(ADMIN, "job.update", "o2")).toBe(false);
+    expect(await check(SUPPORT, "job.update", "o1")).toBe(false);
+    expect(await check(SUPPORT, "support-session", "o1")).toBe(true);
+    expect(await check(ADMIN, "support-session", "o1")).toBe(false);
+    expect(await check(ADMIN, "invoice.send", "o1")).toBe(false);
   });
 });
