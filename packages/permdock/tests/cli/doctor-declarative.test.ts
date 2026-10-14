@@ -2,7 +2,12 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { pd042, pd043 } from "../../src/cli/doctor/declarative.ts";
+import {
+  pd042,
+  pd043,
+  pd068,
+  pd069,
+} from "../../src/cli/doctor/declarative.ts";
 import { HOOK_MARKER } from "../../src/cli/sql/markers.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
@@ -100,6 +105,66 @@ describe("PD042 hook grants after db diff", () => {
         pgDelta,
       ),
     ).toHaveLength(1);
+  });
+});
+
+describe("PD068 and PD069 outside their case", () => {
+  const generated = `${HOOK_MARKER} schema=public\n${CREATE}`;
+
+  it("PD068 is silent without config.toml, with pg-delta on, under migra, or with no PermDock file", () => {
+    const off = "[experimental.pgdelta]\nenabled = false\n";
+    expect(
+      pd068(project({ "supabase/schemas/hook.sql": generated }), {}),
+    ).toEqual([]);
+    expect(
+      pd068(
+        project({
+          "supabase/schemas/hook.sql": generated,
+          "supabase/config.toml": "[experimental.pgdelta]\nenabled = true\n",
+        }),
+        {},
+      ),
+    ).toEqual([]);
+    expect(
+      pd068(
+        project({
+          "supabase/schemas/hook.sql": generated,
+          "supabase/config.toml": off,
+        }),
+        {},
+      ),
+    ).toEqual([]);
+    expect(
+      pd068(
+        project({
+          "supabase/schemas/hook.sql": CREATE,
+          "supabase/config.toml": "[auth]\nenabled = true\n",
+        }),
+        {},
+      ),
+    ).toEqual([]);
+    expect(
+      pd068(
+        project({
+          "supabase/schemas/hook.sql": generated,
+          "supabase/config.toml": "[auth]\nenabled = true\n",
+        }),
+        {},
+      ).map((item) => item.code),
+    ).toEqual(["PD068"]);
+  });
+
+  it("PD069 is silent under migra and warns on each leftover under pg-delta", () => {
+    const files = {
+      "supabase/schemas/056_permdock_helpers.sql": `-- permdock:helpers\n${HELPERS}`,
+      "supabase/config.toml":
+        "[db.migrations]\nschema_paths = ['./schemas/*.sql']\n",
+    };
+    expect(pd069(project(files), MIGRA)).toEqual([]);
+    expect(pd069(project(files), {}).map((item) => item.code)).toEqual([
+      "PD069",
+      "PD069",
+    ]);
   });
 });
 

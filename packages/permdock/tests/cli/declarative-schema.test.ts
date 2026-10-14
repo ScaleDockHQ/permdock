@@ -672,6 +672,13 @@ describe("the schema workflow rls generate and supabase hook generate follow", (
     expect(flagged.stdout).toContain(
       "wrote supabase/schemas/permdock/indexes.sql",
     );
+    const flaggedHook = await run(
+      ["supabase", "hook", "generate", "--schemas", "pg-delta"],
+      { cwd },
+    );
+    expect(flaggedHook.stdout).toContain(
+      "wrote supabase/schemas/permdock/functions/custom_access_token_hook.sql",
+    );
   });
 
   it("writes hand-written migrations with supabase.schemas: 'migrations' and refuses --grants-out there", async () => {

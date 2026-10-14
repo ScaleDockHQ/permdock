@@ -95,6 +95,16 @@ describe("runRls dispatch", () => {
     });
   });
 
+  it("refuses an unknown --schemas value before any action runs", async () => {
+    expect(
+      await runRls(input({ rest: ["generate"], schemas: "flyway" })),
+    ).toEqual({
+      code: 2,
+      output:
+        "rls generate --schemas must be pg-delta, migra, migrations (got flyway)",
+    });
+  });
+
   it("refuses an unknown verify format", async () => {
     expect(await runRls(input({ rest: ["verify"], format: "tap" }))).toEqual({
       code: 2,
