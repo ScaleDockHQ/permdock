@@ -46,14 +46,16 @@ import {
   supportPolicy,
   subscriberPolicy,
   principalSource,
+  accessReviewApplier,
 } from "permdock/better-supabase";
 ```
 
-- `authorizationProvider({ manifest, catalog?, scope?, approver?, functions? })` returns better-supabase's `AuthorizationProvider` (`apiVersion: 1`, `name: "PermDock"`). `manifest` is `permdock.manifest.json`, parsed or as JSON text; `catalog` is `permissions.catalog.json`. Without a catalog the provider lists no permissions, so better-supabase refuses every key a bucket, topic or module checks, and `problems` asks for it. `scope` names the tenant scope and defaults to the manifest's one root scope.
+- `authorizationProvider({ manifest, catalog?, scope?, approver?, approvers?, functions? })` returns better-supabase's `AuthorizationProvider` (`apiVersion: 1`, `name: "PermDock"`). `manifest` is `permdock.manifest.json`, parsed or as JSON text; `catalog` is `permissions.catalog.json`. Without a catalog the provider lists no permissions, so better-supabase refuses every key a bucket, topic or module checks, and `problems` asks for it. `scope` names the tenant scope and defaults to the manifest's one root scope.
 - Its `functions` call `permitted_<scope>_ids_by_permission`, `member_<scope>_ids`, `permdock_has_permission` and their `_for` forms in `rls.schema`. These take a permission key and subtract the instances a deny of it reaches, so a permission split into `#n` grant keys still matches. `permissionsFor` calls `permitted_<scope>_permission_keys_for`, so better-supabase's `member_permissions` lists a member's keys; like the other `_for` templates it is set only when the manifest lists the helper, which `rls.mode: 'database'` writes.
 - `canAssign` and `canAssignFor` call `permdock_can_assign` and `permdock_can_assign_for`. When the manifest's `rls.customRoles` is set and the tenant scope is a root scope, they call `permdock_can_assign_any` and `permdock_can_assign_any_for` at the tenant scope instead, so better-supabase's `can_assign` and `can_assign_as` also answer for a custom role.
 - `functions: { holdersOf?, actorMayWrite? }` fills two slots that better-supabase 0.8.0 does not have yet ([waiting on upstream](#waiting-on-upstream)). `holdersOf: true` sets `holdersOf` to `permitted_<scope>_users(permission, tenant)`, the user ids holding a permission in a tenant, for a notification's audience. `actorMayWrite: true` sets `actorMayWrite` to `permdock_actor_may_write()`, which the inbox and workflow modules call before a write. Each requires its helper with the role that runs it, and a manifest without the helper is a problem. Both are off by default because 0.8.0's config schema and `testAuthorizationProvider` refuse an unknown template.
-- `approver` is a permission. With it, `canApprove` lets a member who holds that permission in the tenant approve an AI tool call (`decide_ai_tool_approval`), and `approvals.distinctApprover` is `true`, so the requester never approves their own call. A key the catalog lacks is a problem.
+- `approver` is a permission. Without `approvers`, `canApprove` lets a member who holds that permission in the tenant approve an AI tool call (`decide_ai_tool_approval`), and `approvals.distinctApprover` is `true`, so the requester never approves their own call. With `approvers`, it becomes the `'ai-tool'` entry unless `approvers` names one. A key the catalog lacks is a problem.
+- `approvers` maps each better-supabase request kind to `user()`, `holder()` or `anyOf()` approvers and fills `isApprover`, which better-supabase 0.9 asks for every request that waits on an approval ([Approvers](#approvers)). It needs `permdock_is_approver`, which `rls.approvals` writes. With `isApprover` set, `canApprove` and `approvals` are not.
 - `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
 - `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function, the claims it owns and the `grantsCommand` that restores the hook's grants for the manifest's `hook.schemas`: `permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook` under pg-delta, the `--grants-out` command under migra. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
 - `authorizer({ policy, subject?, operations?, options? })` returns better-supabase's `Authorizer` (`apiVersion: 1`, `name: "PermDock"`) for its `authorizer` server option. It decides every `permission` a resource, action, route guard or MCP tool declares ([Authorizer](#authorizer)). Needs better-supabase 0.8.
@@ -67,6 +69,7 @@ import {
 - `supportPolicy({ policy, subject?, options?, writable?, approval?, approved? })` returns the `authorize` option of `supportSessions` ([Support sessions](#support-sessions)).
 - `subscriberPolicy({ policy, principals, events, row?, sender?, options? })` returns the per-subscriber check for an outbox, webhook or realtime fan-out ([Subscriber fan-out](#subscriber-fan-out)).
 - `principalSource({ claims, identities?, subject? })` returns a `PrincipalSource` over the claims better-supabase mints ([Principals](#principals)).
+- `accessReviewApplier({ client, reviews, policy, demoteTo?, email?, permdockFor?, schema?, scope?, now? })` applies the revoked items of an [access review](/docs/concepts/access-reviews) through the organizations and invitations blocks, then marks each one applied ([Access reviews](#access-reviews)).
 
 ## Setup
 
@@ -377,6 +380,58 @@ const support = supportSessions({
 
 better-supabase 0.8.0 holds no approval of its own, so the app records approvals and looks them up in `approved`.
 
+## Approvers
+
+`approvers` names who may approve each kind of request better-supabase holds for approval. The kinds are `'ai-tool'` for a tool call, `'support-session'` for a support session, and `'<subject type>.<action>'` for the approvals block:
+
+```ts title="better-supabase.config.ts"
+import { anyOf, holder, user } from "permdock";
+import { authorizationProvider } from "permdock/better-supabase";
+
+authorizationProvider({
+  manifest,
+  catalog,
+  approvers: {
+    "ai-tool": holder(permissions.tools.approve),
+    "support-session": anyOf(
+      holder(permissions.support.approve),
+      user(securityLead),
+    ),
+    "invoice.send": holder(permissions.invoice.approve),
+  },
+});
+```
+
+- `isApprover` is one `case` over the kind. Each branch calls `permdock_is_approver` with that kind's approvers and the request's tenant. A kind `approvers` does not name answers `false`.
+- better-supabase refuses the requester before it asks, so nobody approves their own request.
+- For tool calls and support sessions, `isApprover` replaces the module's default approver. Leave `'support-session'` out and only the service role can approve a support session.
+- `permdock_is_approver` checks `user()` by id and `holder()` through `permitted_<root scope>_ids_by_permission` in the tenant. A role, relation or other grantee approver matches nobody in SQL and is a problem. So is a `holder()` key the catalog lacks, and a tenant scope that is not the root scope.
+
+## Access reviews
+
+`accessReviewApplier` applies the revoked items of an [access review](/docs/concepts/access-reviews) through better-supabase's organizations and invitations blocks, then calls `markApplied` for each:
+
+```ts
+import { accessReviewApplier } from "permdock/better-supabase";
+
+const apply = accessReviewApplier({
+  client: supabase, // the reviewer's client
+  reviews,
+  policy,
+  demoteTo: { admin: "member" },
+  email: (userId) => directory.emailOf(userId),
+});
+
+const { applied, failed } = await apply("review_1");
+```
+
+- The review's tenant is the `organization` argument. A revoked member moves to the `demoteTo` role with `update_member_role` when no allow grant in `policy` gives that role the permission at the tenant scope. Otherwise, or without `demoteTo`, `remove_member` removes the member. A role the policy does not declare, such as a custom role, counts as granting it.
+- With `email`, the tenant's open invitations to that address whose role grants the permission are revoked with `revoke_invitation`.
+- Pass the reviewer's client, so the blocks' own `updateRole`, `removeMember` and role-ceiling checks run as the reviewer.
+- A member who is no longer in the organization (`ORGANIZATION_NOT_MEMBER`) counts as applied. Any other error, such as `ORGANIZATION_ROLE_CEILING` or the owner invariant, leaves the item unapplied in `failed` with the message. One item's failure does not stop the others.
+- With `permdockFor(principalId, tenant)`, the applier decides the permission again after the change. It does not mark applied an item the member still holds through another source, such as a global role.
+- `schema` names the blocks' schema and defaults to `better_supabase`. `scope` defaults to the policy's first scope.
+
 ## Subscriber fan-out
 
 `subscriberPolicy` filters the subscribers of an outbox event to those who may read it, with [`subscribersFor`](/docs/concepts/delivery) as the event's sender in its tenant:
@@ -425,10 +480,11 @@ These parts target better-supabase slots that 0.8.0 does not ship:
 | PermDock                                         | better-supabase slot                                        |
 | ------------------------------------------------ | ----------------------------------------------------------- |
 | `functions.holdersOf`, `functions.actorMayWrite` | `AuthorizationFunctions.holdersOf` and `actorMayWrite`      |
+| `approvers`                                      | `AuthorizationFunctions.isApprover`                         |
 | `subscriberPolicy`                               | a per-subscriber check on webhooks-out, outbox and realtime |
 | `principalSource` with `identities`              | identity links for email and chat users                     |
 
-Until a release has them, call `subscriberPolicy` and `principalSource` from the app's own fan-out and link code, and leave `functions` unset.
+Until a release has them, call `subscriberPolicy` and `principalSource` from the app's own fan-out and link code, and leave `functions` and `approvers` unset.
 
 ## Agents and tool approval
 
