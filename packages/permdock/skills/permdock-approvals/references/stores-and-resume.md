@@ -22,6 +22,10 @@ const handler = approvalsHandler(store, {
 app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 ```
 
+- `GET /:id` returns one request without its token, with a strong `ETag`; `If-None-Match` answers `304`. Unknown and foreign ids are `404`.
+- `POST /:id/approve` and `POST /:id/reject` honour `If-Match` with that `ETag`. A stale tag is `412`, so two approvers on one screen cannot overwrite each other. Send `If-Match` from the confirmation screen.
+- `GET /:id/signature` serves the signed approval (`vnd.permdock.approval+jwt`) when the handler has a `signer` and the request is approved, to the requester and the approvers only.
+
 The store's `ttl` is the window a request stays open when the call sets none; `resumeDecision({ ..., ttl })` sets it per call (milliseconds). A grant's `approval.ttl` only shortens either.
 
 - `memoryApprovalStore` is per process. On serverless or with several replicas, implement `ApprovalStore` over the app's database; the Drizzle recipe on the adapter page is the template, and `cloud().approvals` from `permdock/cloud` is the hosted implementation of the same interface. On Postgres or Supabase, set `rls.approvals: true` and use `supabaseApprovalStore(admin, { onOpen })` from `permdock/supabase` over the generated table and functions; grant the functions to the server's role, and put notifications and superseding older requests in `onOpen`.
@@ -60,7 +64,9 @@ const permdock = await createPermDock(policy, user, {
 2. The runtime surfaces the ask (table below). A person answers through `approvalsHandler`, the runtime's own UI or the Cloud inbox.
 3. The original call is retried with the token. The adapter re-runs `decide`, recomputes the token, compares it, and calls `store.consume`. Only then does the tool or route run.
 
-The token binds the permission key, the resource id (or a digest of the data when there is no id), the principal, the tenant, the actor and the matched grant's conditions. Under `staleOn: 'resource-change'` it also binds the row's `version`.
+The token is `sha-256:<base64url>`, a digest of the RFC 8785 JSON of the permission key, the resource id (or a digest of the data when there is no id), the principal, the tenant, the actor and the matched grant's conditions. Under `staleOn: 'resource-change'` it also binds the row's `version`. Treat it as opaque: compare it, never parse it.
+
+A `DecisionSink` receives the request's lifecycle as CloudEvents `com.permdock.approval.requested`, `com.permdock.approval.resolved`, `com.permdock.approval.expired` and `com.permdock.approval.cancelled` ([wire formats](https://permdock.com/docs/concepts/wire-formats)). An event never approves; a consumer that acts on `resolved` still resumes through the store.
 
 A gate in your own code resumes the same way with `resumeDecision` from `permdock/approvals`, passing `token: carried ?? (await storedApprovalToken(store, decision))`: `storedApprovalToken` finds an approved or rejected request for the recomputed token, so the caller need not carry it. Do not reimplement it.
 
@@ -95,7 +101,7 @@ For AG-UI event shapes, defer to the `ag-ui` spec skill (`npx skills add ScaleDo
 
 ## Delivery
 
-Notifying an approver is a listener on the `approval` event (`permdock.on('approval', …)`), never a package. A message or email carries only the token and links to a page where the approver signs in; the verdict goes through `approvalsHandler` with that session's subject. A link never approves on its own ([approvals adapter, Delivery](https://permdock.com/docs/adapters/approvals#delivery)).
+Send the prompt with `approvalPrompt` and `permdock/delivery`: `approvalEmail` from `permdock/resend`, `approvalCard` and `approvalActions` from `permdock/chat-sdk`. A prompt carries the request id, never the token, and links to the app's approval page, where the approver signs in; the verdict goes through `approvalsHandler` with that session's subject. A link never approves. Details in [delivery-and-waiters.md](delivery-and-waiters.md#approval-prompts).
 
 ## Approvers
 
