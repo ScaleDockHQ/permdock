@@ -9,4 +9,8 @@ export type {
   ChatPermDockOptions,
 } from "./create.ts";
 export { isChatAuthor, subjectFromChat } from "./subject.ts";
-export type { ChatAuthor, SubjectFromChatOptions } from "./subject.ts";
+export type {
+  ChatAuthor,
+  ChatPrincipal,
+  SubjectFromChatOptions,
+} from "./subject.ts";

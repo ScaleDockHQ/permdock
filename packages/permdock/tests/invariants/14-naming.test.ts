@@ -68,7 +68,7 @@ const allNames = entries.flatMap((item) =>
   [...item.values, ...item.types].map((name) => ({ entry: item.entry, name })),
 );
 
-/** Server and agent adapters: the import path names the framework, the factory is always `createPermDock`. */
+/** Server and agent adapters and feature entries: the import path names the entry, the factory is always `createPermDock`. */
 const FACTORY_ENTRIES = [
   ".",
   "./next",
@@ -94,6 +94,15 @@ const FACTORY_ENTRIES = [
   "./ssf",
   "./convex",
   "./pdp",
+  "./h3",
+  "./sveltekit",
+  "./astro",
+  "./solid-start",
+  "./tanstack-start",
+  "./agent",
+  "./workflow",
+  "./delivery",
+  "./chat",
 ];
 
 /** `with*` belongs to `withSubject` and the OpenTelemetry instance wrapper. */
@@ -106,6 +115,7 @@ const WITH_EXPORTS: Readonly<Record<string, readonly string[]>> = {
 
 /** Interfaces named like a store, sink or source that are not extension points. */
 const NOT_EXTENSION_POINTS = new Set([
+  "HandlerPermDockSource",
   "SqlMembershipSource",
   "SupabaseStorage",
   "TokenSource",
@@ -116,7 +126,7 @@ describe("invariant 14: the naming convention", () => {
     expect(entries.length).toBeGreaterThan(40);
   });
 
-  it("exports createPermDock from exactly the server and agent adapters", () => {
+  it("exports createPermDock from exactly the server and agent adapters and the feature entries", () => {
     const withFactory = entries
       .filter((item) => item.values.includes("createPermDock"))
       .map((item) => item.entry);

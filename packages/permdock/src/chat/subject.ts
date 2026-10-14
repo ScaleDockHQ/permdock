@@ -18,6 +18,9 @@ export type ChatAuthor = {
   readonly workspace?: string;
 };
 
+/** The principal a chat author's identity link names, as the `PrincipalSource` returns it. */
+export type ChatPrincipal = Principal;
+
 export type SubjectFromChatOptions = {
   /** Resolves the author through `principalByIdentity({ kind: 'chat', … })`. */
   readonly principals: PrincipalSource;
@@ -42,10 +45,10 @@ export function isChatAuthor(value: unknown): value is ChatAuthor {
 }
 
 /** The principal linked to `author`, or `null` for an unlinked or malformed author. Never throws. */
-export function principalFromChat(
+function principalFromChat(
   author: ChatAuthor | null | undefined,
   principals: PrincipalSource,
-): Promise<Principal | null> {
+): Promise<ChatPrincipal | null> {
   if (!isChatAuthor(author)) {
     return Promise.resolve(null);
   }
