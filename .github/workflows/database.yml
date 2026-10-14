@@ -7,6 +7,7 @@ on:
       - apps/examples/next-better-supabase/**
       - packages/permdock/src/cli/**
       - packages/permdock/src/supabase/**
+      - packages/permdock/src/better-supabase/**
       - .github/workflows/database.yml
   pull_request:
     branches: [main]
@@ -14,6 +15,7 @@ on:
       - apps/examples/next-better-supabase/**
       - packages/permdock/src/cli/**
       - packages/permdock/src/supabase/**
+      - packages/permdock/src/better-supabase/**
       - .github/workflows/database.yml
 
 permissions: {}
@@ -56,10 +58,11 @@ jobs:
       - name: Start the local stack
         run: pnpm run supabase:start
 
-      # pg-delta replays the migrations, then diffs them against supabase/schemas.
+      # pg-delta replays the migrations, then diffs them against supabase/schemas;
+      # --strict-coverage fails on an object pg-delta cannot manage.
       - name: Declarative schemas match the migrations
         run: |
-          pnpm run supabase:diff drift_check 2>&1 | tee sync.log
+          pnpm run supabase:diff drift_check --strict-coverage 2>&1 | tee sync.log
           grep -q 'No schema changes found' sync.log
           test -z "$(git status --porcelain -- supabase/migrations)"
 

@@ -4,7 +4,8 @@
   "hook": {
     "schema": "permdock",
     "function": "custom_access_token_hook",
-    "out": "supabase/schemas/permdock/functions/custom_access_token_hook.sql"
+    "out": "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
+    "schemas": "pg-delta"
   },
   "helpers": {
     "schema": "permdock",
