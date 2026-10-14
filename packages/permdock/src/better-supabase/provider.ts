@@ -40,6 +40,27 @@ export type AuthorizationProviderOptions = {
    * owner decides.
    */
   readonly approver?: Permission;
+  /**
+   * Templates to fill that better-supabase 0.8.0's config schema refuses:
+   * `holdersOf` (a notification's permission audience, from
+   * `permitted_<scope>_users`) and `actorMayWrite` (from
+   * `permdock_actor_may_write()`). Set them once the installed
+   * better-supabase reads them.
+   */
+  readonly functions?: {
+    readonly holdersOf?: boolean;
+    readonly actorMayWrite?: boolean;
+  };
+};
+
+/**
+ * `AuthorizationFunctions` plus the two templates better-supabase reads after
+ * 0.8.0: `holdersOf` for a notification's permission audience and
+ * `actorMayWrite` for write functions and policies. 0.8.0 ignores both.
+ */
+type ProviderFunctions = AuthorizationFunctions & {
+  readonly holdersOf?: string;
+  readonly actorMayWrite?: string;
 };
 
 type DisabledRow = NonNullable<
@@ -144,6 +165,14 @@ const ASSIGN_ANY: Readonly<
 
 const listedName = (entry: TemplateEntry): string =>
   entry.listedAs ?? entry.helper;
+
+/**
+ * No client role may execute `permitted_<scope>_users`, so `holdersOf` is
+ * required for `postgres`, inside better-supabase's `security definer`
+ * functions; better-supabase fills it for the tenant scope only.
+ */
+const HOLDERS_OF = "permitted_{scope}_users";
+const ACTOR_MAY_WRITE = "permdock_actor_may_write";
 
 const OPTIONAL: readonly Template[] = [
   "idsWithFor",
@@ -328,12 +357,14 @@ function tokenHookOf(manifest: SupabaseHookManifest): AuthorizationTokenHook {
  * every catalog key with `sqlComplete` set from its `rowConditions`. A
  * `_for` template and `permissionsFor` are set only when the manifest lists
  * their helper, which `rls.mode: 'database'` writes; `canApprove` only with
- * `approver`. Throws when the manifest or catalog is invalid, or when the
+ * `approver`. `holdersOf` (`permitted_<tenant scope>_users`) and
+ * `actorMayWrite` (`permdock_actor_may_write()`) are set when the manifest
+ * lists their helper. Throws when the manifest or catalog is invalid, or when the
  * tenant scope is ambiguous.
  */
 export function authorizationProvider(
   options: AuthorizationProviderOptions,
-): AuthorizationProvider {
+): AuthorizationProvider & { readonly functions: ProviderFunctions } {
   const manifest = parseSupabaseManifest(options.manifest);
   const catalog =
     options.catalog === undefined ? undefined : parseCatalog(options.catalog);
@@ -433,11 +464,43 @@ export function authorizationProvider(
       role: "postgres",
     });
   }
-  const functions: AuthorizationFunctions = {
+  const holdersName = HOLDERS_OF.replace("{scope}", tenantScope);
+  const holders = helpers.get(holdersName);
+  let holdersOf: string | undefined;
+  if (options.functions?.holdersOf === true) {
+    if (holders === undefined) {
+      problems.push(
+        `holdersOf needs ${rls.schema}.${holdersName}, which \`permdock rls generate\` writes in rls.mode "database" for the scopes in rls.helpers.holders. Without it better-supabase refuses a notification's permission audience.`,
+      );
+    } else {
+      const fn = `${schema}.${sqlIdent(holders.name)}`;
+      holdersOf = `${fn}({permission}, {tenant})`;
+      requires.push({
+        function: fn,
+        args: argTypes(holders.args),
+        role: "postgres",
+      });
+    }
+  }
+  let actorMayWrite: string | undefined;
+  if (options.functions?.actorMayWrite === true) {
+    if (helpers.has(ACTOR_MAY_WRITE)) {
+      const fn = `${schema}.${sqlIdent(ACTOR_MAY_WRITE)}`;
+      actorMayWrite = `${fn}()`;
+      requires.push({ function: fn, role: "authenticated" });
+    } else {
+      problems.push(
+        `actorMayWrite needs ${rls.schema}.${ACTOR_MAY_WRITE}, which \`permdock rls generate\` writes with rls.readOnlyActors. Without it better-supabase's write functions use their built-in act check.`,
+      );
+    }
+  }
+  const functions: ProviderFunctions = {
     ...optional,
     idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,
     isPlatform: `${schema}.${TEMPLATES.isPlatform.sql}`,
     ...(canApprove === undefined ? {} : { canApprove }),
+    ...(holdersOf === undefined ? {} : { holdersOf }),
+    ...(actorMayWrite === undefined ? {} : { actorMayWrite }),
   };
   const scopes = rls.scopes.map((scope) => {
     const idType = ID_TYPES[scope.type.trim().toLowerCase()];
