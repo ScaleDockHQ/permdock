@@ -114,6 +114,10 @@ export {
 export type { DecisionProviderRunnerOptions } from "./conformance/providers.ts";
 export { testRelationSource } from "./conformance/relations.ts";
 export { testPrincipalSource } from "./conformance/principals.ts";
+export {
+  testAutomationSource,
+  testSupportSessionSource,
+} from "./conformance/automations.ts";
 export { testDeliveryTransport } from "./delivery-transport.ts";
 export type {
   DeliveryFailureKind,
