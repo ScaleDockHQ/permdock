@@ -1,9 +1,9 @@
+import type { OperationRisk } from "./operation-risks.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
 
+import { OPERATION_RISKS, isOperationRisk } from "./operation-risks.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { isPermission, listPermissions } from "./permission-registry.ts";
-
-export type OperationRisk = "low" | "medium" | "high" | "critical";
 
 export type OperationEffect =
   | "read"
@@ -12,14 +12,6 @@ export type OperationEffect =
   | "send"
   | "spend"
   | "external";
-
-/** Every `meta.risk` level, lowest first. */
-export const OPERATION_RISKS: readonly OperationRisk[] = Object.freeze([
-  "low",
-  "medium",
-  "high",
-  "critical",
-]);
 
 const OPERATION_EFFECTS: readonly OperationEffect[] = Object.freeze([
   "read",
@@ -101,10 +93,6 @@ export type OperationMap<
 const NAME = /^[A-Za-z0-9_.-]{1,128}$/u;
 
 const META_KEYS: ReadonlySet<string> = new Set(["risk", "effects", "title"]);
-
-export function isOperationRisk(value: unknown): value is OperationRisk {
-  return OPERATION_RISKS.some((risk) => risk === value);
-}
 
 export function isOperationEffect(value: unknown): value is OperationEffect {
   return OPERATION_EFFECTS.some((effect) => effect === value);

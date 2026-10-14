@@ -1,8 +1,8 @@
-import type { OperationRisk } from "../core/operations.ts";
+import type { OperationRisk } from "../core/operation-risks.ts";
 import type { CatalogFinding } from "../core/sink.ts";
 import type { CatalogDocument } from "./types.ts";
 
-import { OPERATION_RISKS } from "../core/operations.ts";
+import { OPERATION_RISKS } from "../core/operation-risks.ts";
 
 function rank(risk: OperationRisk | undefined): number {
   return OPERATION_RISKS.indexOf(risk ?? "low");

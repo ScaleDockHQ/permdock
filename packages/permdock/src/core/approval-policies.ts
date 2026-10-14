@@ -1,10 +1,7 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { AuthEvent } from "./event-types.ts";
-import type {
-  OperationEffect,
-  OperationMeta,
-  OperationRisk,
-} from "./operations.ts";
+import type { OperationRisk } from "./operation-risks.ts";
+import type { OperationEffect, OperationMeta } from "./operations.ts";
 import type {
   ApprovalOption,
   ApprovalRequirement,
@@ -23,7 +20,8 @@ import {
 import { compact, isRecord } from "./compact.ts";
 import { authenticated } from "./grantee.ts";
 import { isPortableCondition } from "./hosted.ts";
-import { isOperationEffect, isOperationRisk } from "./operations.ts";
+import { isOperationRisk } from "./operation-risks.ts";
+import { isOperationEffect } from "./operations.ts";
 import { findPermission } from "./permission-registry.ts";
 import { type Scope, rootMembershipId } from "./scopes.ts";
 import { isThenable } from "./thenable.ts";

@@ -11,7 +11,7 @@ import type {
   SinkEvent,
 } from "./event-types.ts";
 import type { DecisionSink, TokenSigner } from "./interfaces.ts";
-import type { OperationRisk } from "./operations.ts";
+import type { OperationRisk } from "./operation-risks.ts";
 import type { SupportSession } from "./support-session.ts";
 
 import { compact } from "./compact.ts";

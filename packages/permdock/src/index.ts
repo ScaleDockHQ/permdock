@@ -230,11 +230,9 @@ export type {
   WhereResult,
 } from "./core/permdock.ts";
 export { definePermissions } from "./core/permissions.ts";
-export {
-  OPERATION_RISKS,
-  defineOperations,
-  isOperationRisk,
-} from "./core/operations.ts";
+export { OPERATION_RISKS, isOperationRisk } from "./core/operation-risks.ts";
+export type { OperationRisk } from "./core/operation-risks.ts";
+export { defineOperations } from "./core/operations.ts";
 export type {
   Operation,
   OperationData,
@@ -243,7 +241,6 @@ export type {
   OperationInput,
   OperationMap,
   OperationMeta,
-  OperationRisk,
 } from "./core/operations.ts";
 export {
   findPermission,

@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 import type { CatalogOperation } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
-import { isOperationEffect, isOperationRisk } from "../core/operations.ts";
+import { isOperationRisk } from "../core/operation-risks.ts";
+import { isOperationEffect } from "../core/operations.ts";
 import { isPermission } from "../core/permission-registry.ts";
 import { rel } from "./files.ts";
 import { type LoadOptions, loadModule, pickNamed } from "./load.ts";
