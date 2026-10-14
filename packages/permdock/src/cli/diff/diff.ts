@@ -782,10 +782,13 @@ function formatText(diff: CatalogDiff): string {
     "operations",
     [],
     [],
-    diff.operations.map((finding) =>
-      finding.code === "operation-risk-raised"
-        ? `${finding.operation ?? ""} (${finding.permission}): risk ${finding.previous ?? ""} → ${finding.risk ?? ""}`
-        : `${finding.operation ?? ""} (${finding.permission}): approval no longer required`,
+    diff.operations.map(
+      (finding) =>
+        `${[finding.operation, `(${finding.permission})`].join(" ")}: ${
+          finding.code === "operation-risk-raised"
+            ? `risk ${[finding.previous, finding.risk].join(" → ")}`
+            : "approval no longer required"
+        }`,
     ),
   );
   if (diff.impact !== undefined) {

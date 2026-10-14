@@ -244,6 +244,26 @@ describe("permdock diff", () => {
     expect(result.stdout).toBe(
       `operations\n  ~ readPost (${key}): risk low → critical\n`,
     );
+    const [first, ...rest] = base.permissions;
+    const approved = (name: string, approvals: readonly string[]): string => {
+      const file = join(dir, name);
+      writeFileSync(
+        file,
+        JSON.stringify({
+          ...base,
+          permissions: [{ ...first, approvals }, ...rest],
+          operations: [{ name: "readPost", permission: key, meta: {} }],
+        }),
+      );
+      return file;
+    };
+    const unapproved = await diff(
+      approved("gated.json", ["human"]),
+      approved("open.json", []),
+    );
+    expect(unapproved.stdout).toBe(
+      `operations\n  ~ readPost (${key}): approval no longer required\n`,
+    );
   });
 
   it("reads a committed catalog on one side", async () => {
