@@ -37,7 +37,9 @@ PermDock is typed permissions for TypeScript apps, APIs, databases and AI agents
    | Add PermDock, first guard, limits, plans, CLI checks                  | `permdock-wire`        |
    | Review an app or a pull request                                       | `permdock-audit`       |
    | Agent tool calls, actors, delegation, A2A, WebMCP                     | `permdock-agents`      |
+   | Automations, workflow runs, chat bots and chat commands               | `permdock-agents`      |
    | Human approval, approvers, quorum, resume, delegation, access reviews | `permdock-approvals`   |
+   | Approval prompts and notices by email or chat (delivery)              | `permdock-approvals`   |
    | Named scopes, memberships, ownership, custom roles                    | `permdock-tenancy`     |
    | ORM queries, generated RLS, relationship graphs, parity               | `permdock-data`        |
    | Access tokens, API keys, service accounts, feed keys, share links     | `permdock-credentials` |
