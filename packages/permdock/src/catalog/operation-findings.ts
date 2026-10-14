@@ -1,6 +1,6 @@
 import type { OperationRisk } from "../core/operation-risks.ts";
 import type { CatalogFinding } from "../core/sink.ts";
-import type { CatalogDocument } from "./types.ts";
+import type { CatalogOperation } from "./types.ts";
 
 import { OPERATION_RISKS } from "../core/operation-risks.ts";
 
@@ -8,8 +8,17 @@ function rank(risk: OperationRisk | undefined): number {
   return OPERATION_RISKS.indexOf(risk ?? "low");
 }
 
+/** What `operationFindings` reads of a catalog: a `CatalogDocument` fits. */
+type OperationCatalog = {
+  readonly permissions: readonly {
+    readonly key: string;
+    readonly approvals?: readonly unknown[];
+  }[];
+  readonly operations?: readonly CatalogOperation[];
+};
+
 function requiresApproval(
-  catalog: CatalogDocument,
+  catalog: OperationCatalog,
   permission: string,
 ): boolean {
   const found = catalog.permissions.find((entry) => entry.key === permission);
@@ -22,8 +31,8 @@ function requiresApproval(
  * operation is not a finding.
  */
 export function operationFindings(
-  previous: CatalogDocument,
-  next: CatalogDocument,
+  previous: OperationCatalog,
+  next: OperationCatalog,
 ): readonly CatalogFinding[] {
   const before = new Map(
     (previous.operations ?? []).map((operation) => [operation.name, operation]),
