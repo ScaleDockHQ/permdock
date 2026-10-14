@@ -199,6 +199,18 @@ describe("permdock/otel", () => {
     expect(histograms[0]?.name).toBe("permdock.decide.duration");
   });
 
+  it("names the support session a decision ran under", async () => {
+    const { api, spans } = fakeApi();
+    const permdock = await createPermDock(policy, memberUser, {
+      actor: { id: "u_staff", kind: "support" },
+      delegation: { scopes: ["post:read"] },
+      context: { supportSession: { id: "ss_1", reason: "Ticket 4411" } },
+    });
+    instrument(permdock, { api });
+    permdock.can(permissions.post.read, ownPost);
+    expect(spans[0]?.attributes["permdock.support_session.id"]).toBe("ss_1");
+  });
+
   it("copies pinned GenAI tool attributes from the parent span", async () => {
     const { api, spans } = fakeApi({
       "gen_ai.tool.name": "update_post",

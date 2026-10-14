@@ -4,6 +4,9 @@ import type { Principal } from "../../src/core/subject.ts";
 import type { SupportSession } from "../../src/core/support-session.ts";
 
 import { assertApprover } from "../../src/approvals/store.ts";
+import { parseSinkEvent } from "../../src/core/parse-sink-events.ts";
+import { createPermDock } from "../../src/core/permdock.ts";
+import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import {
@@ -16,6 +19,7 @@ import {
   permdockFor,
   permissions,
   person,
+  policy,
   userSubject,
 } from "../fixtures/automation.ts";
 
@@ -97,6 +101,43 @@ describe("support session tokens", () => {
     expect(viewing.can(permissions.invoice.read, invoice)).toBe(true);
     expect(viewing.can(permissions.invoice.send, invoice)).toBe(false);
     expect(viewing.can(permissions.invoice.delete, invoice)).toBe(false);
+  });
+
+  it("stamp every decision of the session with its id", async () => {
+    const { options } = setup([
+      person("u_customer", ["owner"]),
+      person("u_staff", ["billing"]),
+    ]);
+    const token = await signSupportSession(sessionFrom(), signer);
+    const subject = await subjectFromSupportSession(token, options);
+    const sink = memoryDecisionSink();
+    const viewing = await createPermDock(policy, subject, { sink });
+    viewing.can(permissions.invoice.read, invoice);
+    viewing.can(permissions.invoice.delete, invoice);
+    const events = sink.events();
+    expect(events).toHaveLength(2);
+    for (const event of events) {
+      expect(event.type === "decision" && event.subject.supportSession).toEqual(
+        { id: "ss_1" },
+      );
+      expect(parseSinkEvent(event)).not.toBeNull();
+    }
+  });
+
+  it("leave decisions without a support actor unstamped", async () => {
+    const sink = memoryDecisionSink();
+    const forged = await createPermDock(
+      policy,
+      userSubject("u_customer", ["owner"], {
+        context: { supportSession: { id: "ss_1" } },
+      }),
+      { sink },
+    );
+    forged.can(permissions.invoice.read, invoice);
+    const [event] = sink.events();
+    expect(event?.type === "decision" && event.subject).not.toHaveProperty(
+      "supportSession",
+    );
   });
 
   it("deny once the customer, the staff member or the session is gone", async () => {

@@ -182,6 +182,7 @@ function attributesOf(
     "permdock.subject.id": event.subject.principal?.id,
     "permdock.actor.id": event.subject.actor?.id,
     "permdock.actor.kind": event.subject.actor?.kind,
+    "permdock.support_session.id": event.subject.supportSession?.id,
     "permdock.delegation.scopes": scopes,
     "permdock.matched.role": event.matched?.role,
     "permdock.matched.name": event.matched?.name,

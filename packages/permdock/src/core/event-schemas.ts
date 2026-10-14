@@ -130,6 +130,12 @@ export const DECISION_EVENT_SCHEMA: JsonSchemaNode = family(
             properties: { id, kind: credentialKind },
             additionalProperties: false,
           },
+          supportSession: {
+            type: "object",
+            required: ["id"],
+            properties: { id },
+            additionalProperties: false,
+          },
         },
         additionalProperties: false,
       },

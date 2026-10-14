@@ -45,7 +45,7 @@ A support actor can never approve a request; `assertApprover` refuses it with `a
 
 ## Events
 
-`supportSessionEvent({ operation, session })` builds an `access` event with `via: 'support-session'`, the session id and the permissions, sent as `com.permdock.support-session.started` or `.ended` ([CloudEvents](/docs/standards/cloudevents)). It shares the family with the membership-based support access on [elevated access](/docs/concepts/elevated-access).
+`supportSessionEvent({ operation, session })` builds an `access` event with `via: 'support-session'`, the session id and the permissions, sent as `com.permdock.support-session.started` or `.ended` ([CloudEvents](/docs/standards/cloudevents)). Every decision made under the session carries `subject.supportSession: { id }`, the same id, so a session's decisions match its `access` events exactly; the [OpenTelemetry adapter](/docs/adapters/otel) maps it to `permdock.support_session.id`. It shares the family with the membership-based support access on [elevated access](/docs/concepts/elevated-access).
 
 ## Why
 

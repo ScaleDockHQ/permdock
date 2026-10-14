@@ -94,6 +94,24 @@ function credentialRef(
     : undefined;
 }
 
+/** `context.supportSession` counts only next to the `support` actor `subjectFromSupportSession` sets. */
+function supportSessionRef(
+  subject: Subject,
+): DecisionEvent["subject"]["supportSession"] {
+  const value = subject.context["supportSession"];
+  if (
+    subject.actor?.kind !== "support" ||
+    value === null ||
+    typeof value !== "object" ||
+    !("id" in value) ||
+    typeof value.id !== "string" ||
+    value.id === ""
+  ) {
+    return undefined;
+  }
+  return { id: value.id };
+}
+
 export function finish(
   policy: Policy,
   subject: Subject,
@@ -152,6 +170,7 @@ export function finish(
             : { id: subject.actor.id, kind: subject.actor.kind },
         delegation: toWireDelegation(subject.delegation),
         credential: credentialRef(subject),
+        supportSession: supportSessionRef(subject),
       }),
       tenant: subject.principal?.tenant,
       membership:

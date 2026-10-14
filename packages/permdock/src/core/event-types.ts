@@ -218,6 +218,8 @@ export type DecisionEvent = {
       readonly id: string;
       readonly kind: CredentialKind;
     };
+    /** The support session the subject came from: the `id` its `access` events carry as `session.id`. */
+    readonly supportSession?: { readonly id: string };
   };
   readonly tenant?: string;
   /** The membership that answered, with `expiresAt` as an RFC 3339 instant. */
