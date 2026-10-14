@@ -1,0 +1,93 @@
+{
+  "$schema": "https://permdock.com/schemas/catalog-v1.json",
+  "version": 1,
+  "generatedAt": "2026-10-14T00:49:50.378Z",
+  "generator": "permdock@0.4.0",
+  "fingerprint": "sha-256:Lhnx8CsMfeXPZzx11R5NXVpiQHAiW-bi_W8r9PaZqFk",
+  "resources": {
+    "invoice": {
+      "id": "id",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "orgId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "orgId"
+        ],
+        "additionalProperties": false
+      },
+      "definedIn": "src/permissions.ts",
+      "relations": {
+        "org": {
+          "field": "orgId",
+          "memberOf": "tenant"
+        }
+      }
+    }
+  },
+  "permissions": [
+    {
+      "key": "invoice.read",
+      "scope": "invoice:read",
+      "resource": "invoice",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/permissions.ts",
+          "line": 19,
+          "call": "tools"
+        }
+      ],
+      "rowConditions": true
+    },
+    {
+      "key": "invoice.send",
+      "scope": "invoice:send",
+      "resource": "invoice",
+      "action": "send",
+      "arity": "instance",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/permissions.ts",
+          "line": 23,
+          "call": "tools"
+        },
+        {
+          "file": "src/workflows/steps.ts",
+          "line": 19,
+          "call": "reference"
+        },
+        {
+          "file": "src/workflows/steps.ts",
+          "line": 36,
+          "call": "decide"
+        },
+        {
+          "file": "src/workflows/steps.ts",
+          "line": 41,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": true
+    }
+  ],
+  "roles": [
+    {
+      "key": "billing"
+    },
+    {
+      "key": "finance"
+    }
+  ]
+}

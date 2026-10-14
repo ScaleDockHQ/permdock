@@ -93,6 +93,10 @@ const decision = await authorizeHook(
 );
 ```
 
+## Example app
+
+`apps/examples/workflow-sdk` runs the `send-overdue` automation in Next.js with `withWorkflow` from `workflow/next`. `POST /api/runs` starts it through `startAutomation`. The run parks on the approval hook until `POST /api/approvals/<token>` approves the request as `u_finance` and calls `waiter.wake(token)`.
+
 ## Why
 
 A Workflow SDK hook resumes for anyone who holds its token. The approval hook therefore carries only a wake-up: the step after it reads the verdict from the approval store through `resumeApproval`, so a forged resume finds the request still pending and denies. For hooks that carry data, `authorizeHook` puts a permission check in front of `resumeHook`, because a token in a URL or a log is not an identity. The vendor functions are passed in, as `permdock/resend` takes its client, so `permdock` takes no dependency on `workflow` and one version of PermDock works across Workflow SDK releases. The entry grants nothing itself: rights still come from `getPermDock(ticket)` at each step, as on every other [runner](/docs/concepts/automations).

@@ -382,6 +382,7 @@
     "valibot": "catalog:",
     "vitest": "catalog:",
     "vue": "catalog:",
+    "workflow": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
   },
@@ -423,7 +424,8 @@
     "svelte": "catalog:peers",
     "unplugin": "catalog:peers",
     "vitest": "catalog:peers",
-    "vue": "catalog:peers"
+    "vue": "catalog:peers",
+    "workflow": "catalog:peers"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/claude-agent-sdk": {
@@ -450,19 +452,19 @@
     "@orpc/server": {
       "optional": true
     },
-    "@supabase/middleware": {
-      "optional": true
-    },
-    "@trpc/server": {
-      "optional": true
-    },
     "@solidjs/start": {
+      "optional": true
+    },
+    "@supabase/middleware": {
       "optional": true
     },
     "@sveltejs/kit": {
       "optional": true
     },
     "@tanstack/react-start": {
+      "optional": true
+    },
+    "@trpc/server": {
       "optional": true
     },
     "ai": {
@@ -538,6 +540,9 @@
       "optional": true
     },
     "vue": {
+      "optional": true
+    },
+    "workflow": {
       "optional": true
     }
   },

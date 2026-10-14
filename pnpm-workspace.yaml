@@ -181,6 +181,7 @@ catalog:
   "@babel/core": 8.0.6
   chat: 4.41.1
   resend: 6.32.1
+  workflow: 5.2.1
   "@solidjs/start": 2.0.6
   "@sveltejs/kit": 3.0.1
   "@tanstack/react-start": 1.168.61
@@ -235,6 +236,7 @@ catalogs:
     unplugin: ">=2"
     vitest: ">=3"
     vue: ">=3"
+    workflow: ">=5"
 
 auditConfig:
   # No patched release yet; drop each entry once one ships.
@@ -269,6 +271,8 @@ peerDependencyRules:
   allowedVersions:
     # Only its optional Nest integration needs the peer; tests/integration runs Nest 12.
     "@supabase/server>@nestjs/common": "12"
+    # Reached only through `workflow`'s Nest integration, which no workspace loads; @supabase/server picks Nest 11 beside it.
+    "@nestjs/core>@nestjs/common": "11"
     # typegen 0.4.0 pins oxfmt 0.66.0 exactly; the example's `better-supabase gen` formats with the repo's oxfmt.
     "@supabase/postgrest-typegen>oxfmt": "0.71"
     # The optional typescript peer of SvelteKit 3 reads only its public types; the repository builds with TypeScript 7.
@@ -291,6 +295,17 @@ packageExtensions:
       eslint:
         optional: true
       "@typescript-eslint/parser":
+        optional: true
+  # `workflow` always installs its Nest integration; only `workflow/nest` loads these peers.
+  "@workflow/nest":
+    peerDependenciesMeta:
+      "@nestjs/common":
+        optional: true
+      "@nestjs/core":
+        optional: true
+      "@swc/cli":
+        optional: true
+      "@swc/core":
         optional: true
 
 # No `typescript: 'catalog:'` override: tests/types pins TypeScript 5.9 and 6
@@ -342,3 +357,6 @@ allowBuilds:
   lefthook: true
   # The Supabase CLI binary for the next-better-supabase stack, pgTAP and declarative sync.
   supabase: true
+  # Reached through `workflow`'s Nest integration and Vercel world, which no workspace runs.
+  "@swc/core": false
+  cbor-extract: false
