@@ -130,6 +130,29 @@ export type WorkflowPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     data?: unknown,
     options?: AwaitApprovalOptions,
   ) => Promise<Decision>;
+  /**
+   * The first half of `awaitApproval`, for runners that wait outside the
+   * call: decides, and on `approval-required` opens the request and returns
+   * the decision with its token.
+   */
+  readonly openApproval: (
+    ticket: string,
+    permission: Permission,
+    data?: unknown,
+    options?: AwaitApprovalOptions,
+  ) => Promise<Decision>;
+  /**
+   * The second half: rebuilds the run from its ticket and decides again with
+   * the approval `token`. A request still pending denies with reason
+   * `approval`.
+   */
+  readonly resumeApproval: (
+    ticket: string,
+    permission: Permission,
+    token: string,
+    data?: unknown,
+    options?: AwaitApprovalOptions,
+  ) => Promise<Decision>;
 };
 
 const DEFAULT_TTL = 86_400;
@@ -164,6 +187,14 @@ function idOf(row: unknown): string | undefined {
   }
   const id: unknown = Reflect.get(row, "id");
   return typeof id === "string" ? id : undefined;
+}
+
+function targetOf(
+  permission: Permission,
+  data: unknown,
+  resource: AwaitApprovalOptions["resource"],
+): { readonly type: string; readonly id?: string } {
+  return resource ?? compact({ type: permission.resource, id: idOf(data) });
 }
 
 /**
@@ -347,60 +378,116 @@ export function createPermDock<
     });
   };
 
-  const awaitApproval = async (
+  const opened = async (
     ticket: string,
     permission: Permission,
-    data?: unknown,
-    decideOptions: AwaitApprovalOptions = {},
-  ): Promise<Decision> => {
-    const { resource, ttl, signal, ...rest } = decideOptions;
-    const target =
-      resource ??
-      compact({
-        type: permission.resource,
-        id: idOf(data),
-      });
+    data: unknown,
+    decideOptions: AwaitApprovalOptions,
+  ): Promise<{
+    readonly decision: Decision;
+    readonly expiresAt?: string;
+  }> => {
+    const { resource, ttl, signal: _signal, ...rest } = decideOptions;
     const first = await getPermDock(ticket);
     const decision = first.decide(permission, data, rest);
-    if (decision.outcome !== "approval-required") {
-      return decision;
-    }
-    if (approvals === undefined || waiter === undefined) {
-      return decision;
+    if (decision.outcome !== "approval-required" || approvals === undefined) {
+      return { decision };
     }
     const request = await requestApproval(
       approvals,
       decision,
       compact({
         permission,
-        resource: target,
+        resource: targetOf(permission, data, resource),
         subject: first.subject,
         adapter: "workflow",
         ttl,
       }),
     );
+    return { decision, expiresAt: request.expiresAt };
+  };
+
+  const openApproval = async (
+    ticket: string,
+    permission: Permission,
+    data?: unknown,
+    decideOptions: AwaitApprovalOptions = {},
+  ): Promise<Decision> =>
+    (await opened(ticket, permission, data, decideOptions)).decision;
+
+  const resumeApproval = async (
+    ticket: string,
+    permission: Permission,
+    token: string,
+    data?: unknown,
+    decideOptions: AwaitApprovalOptions = {},
+  ): Promise<Decision> => {
+    const { resource, ttl: _ttl, signal: _signal, ...rest } = decideOptions;
+    const run = await getPermDock(ticket);
+    const decision = run.decide(permission, data, rest);
+    if (approvals === undefined) {
+      return decision;
+    }
+    return resumeDecision({
+      decision,
+      permission,
+      subject: run.subject,
+      store: approvals,
+      resource: targetOf(permission, data, resource),
+      adapter: "workflow",
+      token,
+    });
+  };
+
+  const awaitApproval = async (
+    ticket: string,
+    permission: Permission,
+    data?: unknown,
+    decideOptions: AwaitApprovalOptions = {},
+  ): Promise<Decision> => {
+    if (waiter === undefined) {
+      const {
+        resource: _resource,
+        ttl: _ttl,
+        signal: _signal,
+        ...rest
+      } = decideOptions;
+      return (await getPermDock(ticket)).decide(permission, data, rest);
+    }
+    const { decision, expiresAt } = await opened(
+      ticket,
+      permission,
+      data,
+      decideOptions,
+    );
+    if (decision.outcome !== "approval-required" || expiresAt === undefined) {
+      return decision;
+    }
     try {
       await waiter.wait(
         decision.token,
         compact({
-          expiresAt: { epochMilliseconds: Date.parse(request.expiresAt) },
-          signal,
+          expiresAt: { epochMilliseconds: Date.parse(expiresAt) },
+          signal: decideOptions.signal,
         }),
       );
     } catch {
-      // The store decides below: a request still pending denies with approval-pending.
+      // The store decides below: a request still pending denies with reason approval.
     }
-    const second = await getPermDock(ticket);
-    return resumeDecision({
-      decision: second.decide(permission, data, rest),
+    return resumeApproval(
+      ticket,
       permission,
-      subject: second.subject,
-      store: approvals,
-      resource: target,
-      adapter: "workflow",
-      token: decision.token,
-    });
+      decision.token,
+      data,
+      decideOptions,
+    );
   };
 
-  return Object.freeze({ start, getPermDock, awaitApproval });
+  return Object.freeze({
+    start,
+    getPermDock,
+    awaitApproval,
+    openApproval,
+    resumeApproval,
+  });
 }
