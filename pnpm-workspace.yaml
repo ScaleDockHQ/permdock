@@ -329,6 +329,8 @@ overrides:
   "openai>undici": 8.11.2
   mysql2: 3.24.5
   "@prisma/config>deepmerge-ts": 8.0.2
+  "@workflow/core>nanoid": 5.1.16
+  "@workflow/core>devalue": 5.9.4
   # Patched releases for advisories in transitive dependencies of Nuxt, Solid, Vue, Expo, React Native, Express, shadcn and the Claude Agent SDK; drop each once its parent resolves a fixed version.
   simple-git: 4.0.1
   "@simple-git/argv-parser": 2.0.1
