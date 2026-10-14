@@ -136,6 +136,7 @@ Each is a record in `docs/decisions`:
 
 - `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.41: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
 - `drizzle-orm` 1.0.0-rc.4: the release candidate the standard asks for; the peer also accepts 0.40.
+- `@supabase/pg-delta` 1.0.0-alpha.59: the Declarative Schemas 2.0 engine `tests/integration` plans against; it has no stable release.
 - Prisma 8 and Expo SDK 58 stay on 7.10.0 and SDK 57 until their blockers clear (0018).
 
 ## Turbo agent guidance
