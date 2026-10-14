@@ -1,6 +1,6 @@
 # Agent runtimes
 
-Every agent adapter exports `createPermDock` from `permdock/<runtime>` and takes `subject`, `actor`, `delegation`, `tenant`, `operations`, `store`, `unmapped`, `context`, `otel`, `wrap` and `deniedText`. `operations` is the map `defineOperations(permissions, …)` returns, one permission per tool name. `unmapped: 'allow'` leaves a tool `operations` does not name to the runtime; the default denies it. Instance actions load the row through `data`; tool input arrives as `unknown`, so parse it before loading. The current adapter page is `https://permdock.com/docs/adapters/<name>`.
+Every agent adapter exports `createPermDock` from `permdock/<runtime>` and takes `subject`, `actor`, `delegation`, `tenant`, `operations`, `models`, `store`, `unmapped`, `context`, `otel`, `wrap` and `deniedText`. `ai-sdk`, `openai`, `claude-agent` and `eve` build on the `permdock/agent` contract, so each also returns `decideOperation`, `allowedOperations`, `decideModel`, `permittedModels`, `filterResults` and `gatewayOptions` ([operations-automations-chat.md](operations-automations-chat.md)). `operations` is the map `defineOperations(permissions, …)` returns, one permission per tool name. `unmapped: 'allow'` leaves a tool `operations` does not name to the runtime; the default denies it. Instance actions load the row through `data`; tool input arrives as `unknown`, so parse it before loading. The current adapter page is `https://permdock.com/docs/adapters/<name>`.
 
 ## AI SDK — `permdock/ai-sdk`
 
