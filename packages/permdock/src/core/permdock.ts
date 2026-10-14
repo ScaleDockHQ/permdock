@@ -89,6 +89,8 @@ export type DecideOptions = {
   readonly call?: DecisionEvent["call"];
   /** The adapter that made the call, reported on the decision event. */
   readonly adapter?: string;
+  /** The model id the decision is about or that drove the call (`'openai/gpt-5'`), reported on the decision event. Never read when deciding. */
+  readonly model?: string;
   /** Per-call unauthorized handler for `assert`; runs before instance and policy handlers. */
   readonly onDenied?: (decision: Decision) => never | void;
   /** The field being read or written; only grants whose `fields` cover it match. */

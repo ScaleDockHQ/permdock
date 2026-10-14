@@ -123,7 +123,7 @@ function decideModelOn(
     return permdock.decide(
       permission,
       permission.kind === "instance" ? modelRow(modelId) : undefined,
-      { trusted: true, adapter, call: "adapter" },
+      { trusted: true, adapter, call: "adapter", model: modelId },
     );
   } catch {
     return deniedFor(permission, "closure-error");

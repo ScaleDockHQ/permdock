@@ -26,6 +26,7 @@ import {
   membershipEvent,
   toCloudEvent,
 } from "../../src/core/sink.ts";
+import * as root from "../../src/index.ts";
 
 const source = "https://app.example.com";
 
@@ -53,7 +54,9 @@ const decision: DecisionEvent = {
     expiresAt: "2026-12-31T00:00:00Z",
   },
   trusted: false,
-  call: "decide",
+  call: "adapter",
+  adapter: "agent",
+  model: "openai/gpt-5",
 };
 
 const directory: DirectoryEvent = {
@@ -98,6 +101,32 @@ const families: readonly SinkEvent[] = [
     roles: ["support"],
     expiresAt: 1_790_000_000,
   }),
+  {
+    type: "automation",
+    at: "2026-01-01T00:00:00.000Z",
+    source: "app",
+    operation: "run",
+    automation: { id: "a1", version: 3, mode: "publisher" },
+    principal: { id: "u1" },
+    publishedBy: "u1",
+    tenant: "o1",
+    permissions: ["post.read"],
+    run: { id: "run_1" },
+  },
+  {
+    type: "delivery",
+    at: "2026-01-01T00:00:00.000Z",
+    source: "app",
+    operation: "failed",
+    channel: "email",
+    delivery: { id: "dlv_1", key: "pdd_1" },
+    recipient: { principal: { id: "u1" } },
+    category: "approval",
+    approval: "apr_1",
+    provider: { name: "resend" },
+    cause: "rate-limited",
+    retryable: true,
+  },
 ];
 
 function schemaFile(name: string): unknown {
@@ -107,7 +136,11 @@ function schemaFile(name: string): unknown {
 }
 
 describe("event JSON Schemas", () => {
-  const ajv = new Ajv2020({ strict: true, allErrors: true });
+  const ajv = new Ajv2020({
+    strict: true,
+    allErrors: true,
+    allowUnionTypes: true,
+  });
   ajv.addFormat("date-time", true);
 
   it("publishes each family schema as a file under its $id", () => {
@@ -137,6 +170,33 @@ describe("event JSON Schemas", () => {
   });
 });
 
+describe("the permdock entry", () => {
+  it("exports the parsers and every event schema a receiver needs", () => {
+    expect(root.parseSinkEvents).toBe(parseSinkEvents);
+    expect(root.parseSinkEvent).toBe(parseSinkEvent);
+    expect(root.parseCloudEvent).toBe(parseCloudEvent);
+    expect(root.parseCloudEventBatch).toBe(parseCloudEventBatch);
+    expect(root.parseCatalogEventData).toBe(parseCatalogEventData);
+    expect(root.SINK_EVENT_SCHEMAS).toBe(SINK_EVENT_SCHEMAS);
+    expect(root.CATALOG_EVENT_SCHEMA).toBe(CATALOG_EVENT_SCHEMA);
+    expect(new Set(Object.keys(root.EVENT_SCHEMA_IDS))).toEqual(
+      new Set([...Object.keys(SINK_EVENT_SCHEMAS), "catalog"]),
+    );
+  });
+
+  it("maps every sink event family onto a CloudEvents type and back", () => {
+    const produced = new Set(
+      families.map((event) => toCloudEvent(event, { source }).type),
+    );
+    for (const type of produced) {
+      expect(Object.values(CLOUD_EVENT_TYPES)).toContain(type);
+    }
+    expect(new Set(families.map((event) => event.type))).toEqual(
+      new Set(Object.keys(SINK_EVENT_SCHEMAS)),
+    );
+  });
+});
+
 describe("parseSinkEvents", () => {
   it("returns frozen copies of valid events", () => {
     const parsed = parseSinkEvents(JSON.parse(JSON.stringify(families)));
@@ -154,6 +214,8 @@ describe("parseSinkEvents", () => {
       { ...decision, at: "2026-01-01" },
       { ...decision, at: "2026-13-01T00:00:00Z" },
       { ...decision, call: "check" },
+      { ...decision, model: "" },
+      { ...decision, model: 5 },
       { ...decision, membership: { ...decision.membership, expiresAt: 1 } },
       { ...directory, operation: "upsert" },
       JSON.parse(`{"type":"decision","__proto__":{"trusted":true}}`),

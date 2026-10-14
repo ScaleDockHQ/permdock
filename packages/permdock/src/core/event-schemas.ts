@@ -195,6 +195,7 @@ export const DECISION_EVENT_SCHEMA: JsonSchemaNode = family(
         ],
       },
       adapter: text,
+      model: id,
       phase: { enum: ["requested", "resolved", "expired", "cancelled"] },
       counts: {
         type: "object",

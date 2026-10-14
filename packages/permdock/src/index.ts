@@ -411,6 +411,8 @@ export type {
   SignDecisionBatchOptions,
 } from "./core/sink.ts";
 export {
+  parseCatalogEventData,
+  parseCloudEvent,
   parseCloudEventBatch,
   parseSinkEvent,
   parseSinkEvents,

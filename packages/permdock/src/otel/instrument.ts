@@ -171,7 +171,8 @@ function attributesOf(
     [USER_ID]: event.subject.principal?.id,
     [USER_ROLES]: event.subject.principal?.roles,
     [GEN_AI_AGENT_ID]: actor?.kind === "agent" ? actor.id : undefined,
-    [GEN_AI_REQUEST_MODEL]: parent?.attributes?.[GEN_AI_REQUEST_MODEL],
+    [GEN_AI_REQUEST_MODEL]:
+      event.model ?? parent?.attributes?.[GEN_AI_REQUEST_MODEL],
     [ERROR_TYPE]: errorType(event, options),
     "permdock.outcome": event.outcome,
     "permdock.permission": event.permission,

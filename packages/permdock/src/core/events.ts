@@ -214,6 +214,7 @@ export function finish(
       trusted,
       call: options.call ?? "decide",
       adapter: options.adapter,
+      model: options.model === "" ? undefined : options.model,
       counts,
     }),
   );

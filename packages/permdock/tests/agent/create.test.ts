@@ -9,6 +9,8 @@ import {
   definePermissions,
   definePolicy,
   memoryApprovalPolicySource,
+  memoryDecisionSink,
+  parseSinkEvent,
   principal,
   resource,
   role,
@@ -120,6 +122,27 @@ describe("permdock/agent createPermDock", () => {
       "openai/gpt-5",
       "openai/gpt-5-mini",
     ]);
+  });
+
+  it("records the model on the decision event of the model gate", async () => {
+    const sink = memoryDecisionSink();
+    const agent = createPermDock(policy, {
+      subject: (context: Context) => context.user,
+      operations,
+      models,
+      sink,
+    });
+    await agent.decideModel("openai/gpt-5", member);
+    await agent.decideOperation("read_doc", { id: "d1" }, member);
+    const [gate, operation] = sink.events();
+    expect(gate).toMatchObject({
+      type: "decision",
+      outcome: "denied",
+      permission: "model.use",
+      model: "openai/gpt-5",
+    });
+    expect(parseSinkEvent(JSON.parse(JSON.stringify(gate)))).toEqual(gate);
+    expect(operation).not.toHaveProperty("model");
   });
 
   it("without models, every model is denied and none is listed", async () => {

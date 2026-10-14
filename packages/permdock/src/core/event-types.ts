@@ -258,6 +258,8 @@ export type DecisionEvent = {
     | "simulate"
     | "explain";
   readonly adapter?: string;
+  /** The model id the agent model gate decided, or the model that drove the call. */
+  readonly model?: string;
   /** Set on an approval lifecycle event (`com.permdock.approval.<phase>`). */
   readonly phase?: "requested" | "resolved" | "expired" | "cancelled";
   readonly counts?: {

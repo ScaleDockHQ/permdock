@@ -229,6 +229,14 @@ describe("permdock/otel", () => {
     expect(spans[0]?.attributes).not.toHaveProperty("error.type");
   });
 
+  it("sets gen_ai.request.model from the decision's model ahead of the parent span", async () => {
+    const { api, spans } = fakeApi({ "gen_ai.request.model": "gpt-5" });
+    const permdock = await createPermDock(policy, memberUser);
+    instrument(permdock, { api });
+    permdock.decide(permissions.post.read, ownPost, { model: "openai/o4" });
+    expect(spans[0]?.attributes["gen_ai.request.model"]).toBe("openai/o4");
+  });
+
   it("leaves gen_ai.agent.id unset for a non-agent actor", async () => {
     const { api, spans } = fakeApi();
     const permdock = await createPermDock(policy, memberUser, {
