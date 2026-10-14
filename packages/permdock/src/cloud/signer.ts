@@ -9,6 +9,13 @@ type SignOptions = Parameters<TokenSigner["sign"]>[1];
 
 const REGISTERED = new Set(["iss", "aud", "exp", "iat", "nbf", "jti"]);
 
+/** The Cloud's own outputs; a client key that could mint them could forge them. */
+const CLOUD_ISSUED: ReadonlySet<string> = new Set([
+  "vnd.permdock.policy+jwt",
+  "vnd.permdock.snapshot+jwt",
+  "vnd.permdock.evidence+jwt",
+]);
+
 function headerTyp(token: string): unknown {
   const [encoded = ""] = token.split(".");
   try {
@@ -24,9 +31,10 @@ function headerTyp(token: string): unknown {
  * A `TokenSigner` backed by the environment's PermDock Cloud keys, typically
  * KMS-held, for run tickets (`vnd.permdock.run+jwt`) and every other signed
  * output an app issues. The Cloud signs only what the app sends: it sets
- * `iss` to the environment URL and adds no claim. A policy document is the
- * Cloud's own output, so `vnd.permdock.policy+jwt` is refused here. Verify
- * what it signs with `joseTokenVerifier({ jwks: cloudEndpoints().jwks })`.
+ * `iss` to the environment URL and adds no claim. Policy documents,
+ * snapshots and evidence exports are the Cloud's own outputs, so their
+ * `typ` values are refused here. Verify what it signs with
+ * `joseTokenVerifier({ jwks: cloudEndpoints().jwks })`.
  */
 export function cloudSigner(options: CloudSignerOptions = {}): TokenSigner {
   const connection = cloudConnection(options);
@@ -35,9 +43,9 @@ export function cloudSigner(options: CloudSignerOptions = {}): TokenSigner {
       payload: Readonly<Record<string, unknown>>,
       signOptions: SignOptions,
     ): Promise<string> {
-      if (signOptions.typ === "vnd.permdock.policy+jwt") {
+      if (CLOUD_ISSUED.has(signOptions.typ)) {
         throw new Error(
-          "PermDock: cloudSigner never signs a policy document; the Cloud issues its own.",
+          `PermDock: cloudSigner never signs ${signOptions.typ}; the Cloud issues its own.`,
         );
       }
       const audience = signOptions.audience ?? options.audience;

@@ -104,12 +104,18 @@ describe("cloudSigner", () => {
     });
   });
 
-  it("refuses a policy document and a missing audience without calling the Cloud", async () => {
+  it("refuses the Cloud's own token types and a missing audience without calling the Cloud", async () => {
     const fake = fakeCloud();
     const signer = cloudSigner({ url: CLOUD_URL, key: KEY, fetch: fake.fetch });
-    await expect(
-      signer.sign({}, { typ: "vnd.permdock.policy+jwt", audience: AUDIENCE }),
-    ).rejects.toThrow(/never signs a policy document/);
+    for (const typ of [
+      "vnd.permdock.policy+jwt",
+      "vnd.permdock.snapshot+jwt",
+      "vnd.permdock.evidence+jwt",
+    ] as const) {
+      await expect(
+        signer.sign({}, { typ, audience: AUDIENCE }),
+      ).rejects.toThrow(`never signs ${typ}`);
+    }
     await expect(
       signer.sign({}, { typ: "vnd.permdock.run+jwt" }),
     ).rejects.toThrow(/requires an audience/);

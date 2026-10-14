@@ -41,12 +41,18 @@ import {
   subjectFromBetterSupabase,
   toolPolicy,
   credentialGuard,
+  hookCan,
+  handlerCan,
+  supportPolicy,
+  subscriberPolicy,
+  principalSource,
 } from "permdock/better-supabase";
 ```
 
-- `authorizationProvider({ manifest, catalog?, scope?, approver? })` returns better-supabase's `AuthorizationProvider` (`apiVersion: 1`, `name: "PermDock"`). `manifest` is `permdock.manifest.json`, parsed or as JSON text; `catalog` is `permissions.catalog.json`. Without a catalog the provider lists no permissions, so better-supabase refuses every key a bucket, topic or module checks, and `problems` asks for it. `scope` names the tenant scope and defaults to the manifest's one root scope.
+- `authorizationProvider({ manifest, catalog?, scope?, approver?, functions? })` returns better-supabase's `AuthorizationProvider` (`apiVersion: 1`, `name: "PermDock"`). `manifest` is `permdock.manifest.json`, parsed or as JSON text; `catalog` is `permissions.catalog.json`. Without a catalog the provider lists no permissions, so better-supabase refuses every key a bucket, topic or module checks, and `problems` asks for it. `scope` names the tenant scope and defaults to the manifest's one root scope.
 - Its `functions` call `permitted_<scope>_ids_by_permission`, `member_<scope>_ids`, `permdock_has_permission` and their `_for` forms in `rls.schema`. These take a permission key and subtract the instances a deny of it reaches, so a permission split into `#n` grant keys still matches. `permissionsFor` calls `permitted_<scope>_permission_keys_for`, so better-supabase's `member_permissions` lists a member's keys; like the other `_for` templates it is set only when the manifest lists the helper, which `rls.mode: 'database'` writes.
 - `canAssign` and `canAssignFor` call `permdock_can_assign` and `permdock_can_assign_for`. When the manifest's `rls.customRoles` is set and the tenant scope is a root scope, they call `permdock_can_assign_any` and `permdock_can_assign_any_for` at the tenant scope instead, so better-supabase's `can_assign` and `can_assign_as` also answer for a custom role.
+- `functions: { holdersOf?, actorMayWrite? }` fills two slots that better-supabase 0.8.0 does not have yet ([waiting on upstream](#waiting-on-upstream)). `holdersOf: true` sets `holdersOf` to `permitted_<scope>_users(permission, tenant)`, the user ids holding a permission in a tenant, for a notification's audience. `actorMayWrite: true` sets `actorMayWrite` to `permdock_actor_may_write()`, which the inbox and workflow modules call before a write. Each requires its helper with the role that runs it, and a manifest without the helper is a problem. Both are off by default because 0.8.0's config schema and `testAuthorizationProvider` refuse an unknown template.
 - `approver` is a permission. With it, `canApprove` lets a member who holds that permission in the tenant approve an AI tool call (`decide_ai_tool_approval`), and `approvals.distinctApprover` is `true`, so the requester never approves their own call. A key the catalog lacks is a problem.
 - `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
 - `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function and the claims it owns. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
@@ -57,6 +63,10 @@ import {
 - `subjectFromBetterSupabase(session, options?)` is `subjectFromSupabaseSession` with better-supabase's defaults: `memberships` for the memberships and the entitlements module's `features` claim for `principal.plans`. A `user` session maps through `subjectFromSupabase`. With `apiKeys: { permissions, manifest?, serviceRoles? }`, an `apiKey` session maps like `apiKeyVerifier`'s credential; without it, and for `anon`, `service` and `invalid` sessions, the subject is anonymous. `plans: { claim?, keys? }` decodes the short codes `entitlements.claim.keys` writes back to feature keys. Other options override the defaults.
 - `toolPolicy({ permdock, data? })` returns the `authorize` and `visible` hooks of `createMcp` for tools whose `meta` is a permission ([MCP tools](#mcp-tools)).
 - `credentialGuard(provider, { permdock, use, revoke? })` wraps a `CredentialProvider` so PermDock decides each token use ([Credentials](#credentials)).
+- `hookCan(permdock)` and `handlerCan({ getPermDock })` return the `can` options of `authorizeHook` and `protectWebHandler` in `better-supabase/workflow-sdk` ([Workflows](#workflows)).
+- `supportPolicy({ policy, subject?, options?, writable?, approval?, approved? })` returns the `authorize` option of `supportSessions` ([Support sessions](#support-sessions)).
+- `subscriberPolicy({ policy, principals, events, row?, sender?, options? })` returns the per-subscriber check for an outbox, webhook or realtime fan-out ([Subscriber fan-out](#subscriber-fan-out)).
+- `principalSource({ claims, identities?, subject? })` returns a `PrincipalSource` over the claims better-supabase mints ([Principals](#principals)).
 
 ## Setup
 
@@ -316,6 +326,105 @@ const credentials = credentialGuard(vault, {
 ```
 
 Build it per request, with that request's PermDock. `testCredentialProvider` from `better-supabase/testing` accepts the guarded provider.
+
+## Workflows
+
+`better-supabase/workflow-sdk` checks a permission key before a workflow hook resumes and before a web handler runs. `hookCan` and `handlerCan` answer both with `decide` on no row:
+
+```ts
+import { authorizeHook, protectWebHandler } from "better-supabase/workflow-sdk";
+import { handlerCan, hookCan } from "permdock/better-supabase";
+
+await authorizeHook(hook, { can: hookCan(await permdockFor()) });
+
+export const POST = protectWebHandler(handler, {
+  permission: "invoices.approve",
+  can: handlerCan({ getPermDock: (request) => permdockForRequest(request) }),
+});
+```
+
+- `hookCan(permdock)` grants only when the caller is a member of the hook's tenant and the permission its `hookMetadata` names is `granted` there.
+- `handlerCan` returns `undefined`, which better-supabase answers with 401, when the request has no signed-in principal or `getPermDock` throws. Otherwise it decides in the request's active tenant, and a denial is 403.
+- An unknown key, `approval-required` and a throw are `false`. A permission with a row condition denies here; check it inside the handler.
+
+`tests/better-supabase/workflow.test-d.ts` type-checks both against `better-supabase/workflow-sdk`.
+
+## Support sessions
+
+`supportPolicy` is the `authorize` option of better-supabase's `supportSessions`. It decides each start with [`decideSupportSession`](/docs/concepts/support-sessions) as the admin, in the requested tenant:
+
+```ts
+import { supportPolicy } from "permdock/better-supabase";
+
+const support = supportSessions({
+  authorize: supportPolicy({
+    policy,
+    options: { settings }, // the tenant's supportSessions rules
+    approved: async (_input, pending) => approvals.find(pending.token),
+  }),
+});
+```
+
+- The admin's verified claims become the subject, and a principal whose id is not `admin.user.id` is refused.
+- A read-only start gets every `readOnlyHint` permission the admin can use. `readOnly: false` is refused unless `writable` lists the session's permissions.
+- `metadata.reference` becomes the request's `reference`, for settings that require a ticket.
+- An `approval-required` start passes once `approved(input, pending)` returns `{ approvedBy }` for `pending.token`, and `decideSupportSession` refuses an approver who is the admin. The token is bound to the admin, target, tenant, reason and mode, so a retried start gets the same token. `approval: false` skips approval.
+- `denied`, a missing approval and a throw are `false`.
+
+better-supabase 0.8.0 holds no approval of its own, so the app records approvals and looks them up in `approved`.
+
+## Subscriber fan-out
+
+`subscriberPolicy` filters the subscribers of an outbox event to those who may read it, with [`subscribersFor`](/docs/concepts/delivery) as the event's sender in its tenant:
+
+```ts
+import { principalSource, subscriberPolicy } from "permdock/better-supabase";
+
+const audience = subscriberPolicy({
+  policy,
+  principals: principalSource({ claims: store.claims }),
+  events: {
+    "invoice.paid": permissions.invoices.read,
+    "invoice.*": permissions.invoices.manage,
+  },
+});
+
+const allowed = await audience(event, subscribers); // each subscriber has a `principal`
+```
+
+- `events` maps an event type to the permission a subscriber needs: an exact type first, then the longest `prefix.*`, then `*`. A type with no entry reaches no one.
+- The row is `event.payload`, validated against the resource schema, or what `row(event)` returns.
+- The sender is `event.actorId`, or what `sender(event)` returns. An event without a tenant or sender, a sender outside the tenant and a throw reach no one.
+
+## Principals
+
+`principalSource` loads principals for `decideFor`, `subscribersFor` and [delivery](/docs/concepts/delivery) from the claims better-supabase mints:
+
+```ts
+import { principalSource } from "permdock/better-supabase";
+
+const principals = principalSource({
+  claims: (userId, { tenant }) => store.claims(userId, { tenant }),
+  identities: (identity) => links.find(identity),
+});
+```
+
+- `principal(id)` maps the claims with `subjectFromBetterSupabase`. Claims for another user and `null` claims are `null`, so a deleted or suspended user reaches nothing.
+- `principalByIdentity` exists only with `identities`. A `{ user }` link loads that user, and a `{ contact }` link is accepted only for a principal with `kind: "contact"`. Only links the app created through a signed-in link flow or a verified address belong there.
+
+`tests/better-supabase/principals.test.ts` runs `testPrincipalSource` from `permdock/testing` on it.
+
+## Waiting on upstream
+
+These parts target better-supabase slots that 0.8.0 does not ship:
+
+| PermDock                                         | better-supabase slot                                        |
+| ------------------------------------------------ | ----------------------------------------------------------- |
+| `functions.holdersOf`, `functions.actorMayWrite` | `AuthorizationFunctions.holdersOf` and `actorMayWrite`      |
+| `subscriberPolicy`                               | a per-subscriber check on webhooks-out, outbox and realtime |
+| `principalSource` with `identities`              | identity links for email and chat users                     |
+
+Until a release has them, call `subscriberPolicy` and `principalSource` from the app's own fan-out and link code, and leave `functions` unset.
 
 ## Agents and tool approval
 
