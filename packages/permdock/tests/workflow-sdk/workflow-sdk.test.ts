@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import type { start as workflowStart } from "workflow/api";
+
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { Automation } from "../../src/core/automation.ts";
 import type {
   WorkflowSdkCreateHook,
   WorkflowSdkHook,
   WorkflowSdkResumeHook,
+  WorkflowSdkStart,
 } from "../../src/workflow-sdk/index.ts";
 
 import { resolveApproval } from "../../src/approvals/helpers.ts";
@@ -232,16 +235,17 @@ describe("startAutomation", () => {
     const { workflow } = setup();
     const calls: unknown[][] = [];
     const start = (
-      _fn: (ticket: string, ...args: readonly [string]) => unknown,
-      args: readonly [string, string],
+      _fn: (ticket: string, invoiceId: string) => Promise<unknown>,
+      args: [string, string],
     ) => {
       calls.push([...args]);
       return Promise.resolve({ runId: "wrun_1" });
     };
-    const run = (_ticket: string, _invoiceId: string): void => undefined;
+    const run = (_ticket: string, _invoiceId: string): Promise<void> =>
+      Promise.resolve();
     const started = await startAutomation(workflow, start, run, "auto_1", [
       "inv_1",
-    ] as const);
+    ]);
     expect(started).toMatchObject({
       outcome: "started",
       workflowRun: { runId: "wrun_1" },
@@ -249,9 +253,15 @@ describe("startAutomation", () => {
     expect(calls).toEqual([[expect.any(String), "inv_1"]]);
     const denied = await startAutomation(workflow, start, run, "missing", [
       "inv_1",
-    ] as const);
+    ]);
     expect(denied.outcome).toBe("denied");
     expect(calls).toHaveLength(1);
+  });
+
+  it("accepts the Workflow SDK start", () => {
+    expectTypeOf<typeof workflowStart>().toExtend<
+      WorkflowSdkStart<[string], unknown>
+    >();
   });
 });
 

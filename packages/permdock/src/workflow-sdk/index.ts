@@ -34,9 +34,9 @@ export type WorkflowSdkResumeHook = (
 export type WorkflowSdkSleep = (until: Date) => PromiseLike<unknown>;
 
 /** `start` from `workflow/api`, with the workflow function and its arguments. */
-export type WorkflowSdkStart<TArgs extends readonly unknown[], TRun> = (
-  workflow: (ticket: string, ...args: TArgs) => unknown,
-  args: readonly [string, ...TArgs],
+export type WorkflowSdkStart<TArgs extends unknown[], TRun> = (
+  workflow: (ticket: string, ...args: TArgs) => Promise<unknown>,
+  args: [string, ...TArgs],
 ) => Promise<TRun>;
 
 export type WorkflowSdkWaiterOptions = {
@@ -98,10 +98,10 @@ export type StartAutomationRunResult<TRun> =
  * that executes it, with the run ticket as the workflow's first argument. A
  * denied start starts nothing.
  */
-export async function startAutomation<TArgs extends readonly unknown[], TRun>(
+export async function startAutomation<TArgs extends unknown[], TRun>(
   workflow: Pick<WorkflowPermDock, "start">,
   start: WorkflowSdkStart<TArgs, TRun>,
-  run: (ticket: string, ...args: TArgs) => unknown,
+  run: (ticket: string, ...args: TArgs) => Promise<unknown>,
   id: string,
   args: TArgs,
   options?: StartAutomationOptions,
