@@ -34,7 +34,7 @@ It returns a frozen `OperationMap`. Each entry is a frozen `Operation` `{ name, 
 | `results`    | The leaf each result row is filtered by                                                                               |
 | `meta`       | `{ risk?, effects?, title? }`; `{}` when absent                                                                       |
 
-`risk` is one of `low`, `medium`, `high`, `critical`. `effects` lists distinct values of `read`, `write`, `delete`, `send`, `spend`, `external`. A host reads `meta` to label, confirm or gate an operation; PermDock never decides on it.
+`risk` is one of `low`, `medium`, `high`, `critical`, exported in that order as `OPERATION_RISKS` with the guard `isOperationRisk`. `effects` lists distinct values of `read`, `write`, `delete`, `send`, `spend`, `external`. A host reads `meta` to label, confirm or gate an operation; PermDock never decides on it.
 
 `defineOperations` throws at definition time for:
 

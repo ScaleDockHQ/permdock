@@ -35,7 +35,7 @@ import {
   delegationOf,
   endsWithPath,
   evaluationRow,
-  mergeItem,
+  mergeEvaluationItem,
   pageOf,
   paged,
   pathnameOf,
@@ -240,7 +240,7 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     });
     return Response.json({
       evaluations: await evaluateBatch(items, semantic, (item) =>
-        rowOf(request, pep, mergeItem(shared, item)),
+        rowOf(request, pep, mergeEvaluationItem(shared, item)),
       ),
     });
   }

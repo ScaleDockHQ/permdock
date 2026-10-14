@@ -45,6 +45,31 @@ app.get("/.well-known/authzen-configuration", (c) => pdp(c.req.raw));
 - `subject` authenticates the calling PEP or end user; see "decision endpoint auth" below.
 - `trustedPep(pep)` is the allow-list of authenticated PEPs that may evaluate on behalf of another subject. It is off by default; a missing predicate, `false`, a non-function value or a throw means the request-body subject, actor and delegation are ignored.
 
+### Batch helpers
+
+A PDP that serves `/access/v1/evaluations` from its own evaluator, such as PermDock Cloud, reuses the batch rules `permdockHandler` follows:
+
+```ts
+import {
+  evaluateBatch,
+  evaluationsSemantic,
+  mergeEvaluationItem,
+  type AuthzenItem,
+} from "permdock/authzen";
+
+const semantic = evaluationsSemantic(body); // undefined: answer 400
+const shared: AuthzenItem = body; // top-level subject, action, resource, context
+const rows = await evaluateBatch(body.evaluations, semantic, (item) =>
+  evaluate(mergeEvaluationItem(shared, item)),
+);
+```
+
+- `EVALUATIONS_SEMANTICS` lists `execute_all`, `deny_on_first_deny` and `permit_on_first_permit`, typed `EvaluationsSemantic`.
+- `evaluationsSemantic(body)` reads `options.evaluations_semantic`: `execute_all` when absent, `undefined` for any other value.
+- `evaluateBatch(items, semantic, rowOf)` runs every item at once for `execute_all`, and otherwise in order, stopping after the first row whose `decision` is `false` (`deny_on_first_deny`) or `true` (`permit_on_first_permit`).
+- `mergeEvaluationItem(shared, item)` fills an item's missing `subject`, `action`, `resource` and `context` from the request's top-level fields; a non-object item is the shared fields alone.
+- `AuthzenItem` and `AuthzenEntity` type the unvalidated request; every field is `unknown` until the evaluator checks it.
+
 ## Request lifecycle
 
 1. The handler authenticates the request via `subject`. Unauthenticated requests get `401`; there is no anonymous evaluation unless the policy declares anonymous grants and the deployment opts in.

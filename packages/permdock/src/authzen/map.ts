@@ -184,7 +184,14 @@ export function endsWithPath(pathname: string, suffix: string): boolean {
   return pathname === suffix || pathname.endsWith(suffix);
 }
 
-export function mergeItem(shared: AuthzenItem, item: unknown): AuthzenItem {
+/**
+ * One item of an `evaluations` batch with the request's top-level `subject`,
+ * `action`, `resource` and `context` filled in where the item omits them.
+ */
+export function mergeEvaluationItem(
+  shared: AuthzenItem,
+  item: unknown,
+): AuthzenItem {
   if (!isRecord(item)) {
     return shared;
   }

@@ -3,7 +3,7 @@ import type { CloudApproverOptions } from "./types.ts";
 
 import { ApprovalError } from "../approvals/errors.ts";
 
-export const APPROVER_HEADER = "PermDock-Approver";
+const APPROVER_HEADER = "PermDock-Approver";
 
 /** Seconds an approver token lives: it proves one resolve call and the Cloud records no `jti`. */
 const APPROVER_TTL = 60;

@@ -7,7 +7,7 @@ import {
   actorOf,
   delegationOf,
   evaluationRow,
-  mergeItem,
+  mergeEvaluationItem,
   pageOf,
   paged,
   permissionOf,
@@ -235,7 +235,7 @@ describe("evaluationRow", () => {
   });
 });
 
-describe("mergeItem and paging", () => {
+describe("mergeEvaluationItem and paging", () => {
   const shared: AuthzenItem = {
     subject: { id: "s" },
     action: { name: "read" },
@@ -244,15 +244,18 @@ describe("mergeItem and paging", () => {
   };
 
   it("overrides only the record fields an item carries", () => {
-    expect(mergeItem(shared, "x")).toBe(shared);
+    expect(mergeEvaluationItem(shared, "x")).toBe(shared);
     expect(
-      mergeItem(shared, { action: { name: "update" }, subject: "bad" }),
+      mergeEvaluationItem(shared, {
+        action: { name: "update" },
+        subject: "bad",
+      }),
     ).toEqual({
       ...shared,
       action: { name: "update" },
     });
     expect(
-      mergeItem(shared, {
+      mergeEvaluationItem(shared, {
         subject: { id: "u" },
         resource: { type: "note" },
         context: { tenant: "o2" },

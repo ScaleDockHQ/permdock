@@ -15,6 +15,7 @@
     "EVENT_SCHEMA_IDS",
     "MEMBERSHIP_EVENT_SCHEMA",
     "OCSF_VERSION",
+    "OPERATION_RISKS",
     "PermDockApprovalRequiredError",
     "PermDockDeniedError",
     "PermDockRevokedError",
@@ -71,6 +72,7 @@
     "isConditionRef",
     "isExternallyManaged",
     "isFeedId",
+    "isOperationRisk",
     "isPermission",
     "isPlan",
     "isPortableCondition",
@@ -441,7 +443,13 @@
   "./eve": ["actorFromEve", "createPermDock", "rolesOf", "subjectFromEve"],
   "./openai": ["createPermDock"],
   "./mcp": ["APPROVAL_META_KEY", "createPermDock", "subjectFromMcp"],
-  "./authzen": ["createPermDock"],
+  "./authzen": [
+    "EVALUATIONS_SEMANTICS",
+    "createPermDock",
+    "evaluateBatch",
+    "evaluationsSemantic",
+    "mergeEvaluationItem"
+  ],
   "./openapi": [
     "DRAFT_PINS",
     "GNAP_RESERVED",
@@ -611,7 +619,7 @@
   "./convex": ["ConvexError", "createPermDock"],
   "./pdp": ["createPermDock", "openfga", "remotePdp", "spicedb"],
   "./compile": ["compileWhere", "escapeLike"],
-  "./catalog": ["parseCatalog", "rowConditionKeys"],
+  "./catalog": ["operationFindings", "parseCatalog", "rowConditionKeys"],
   "./testing": [
     "AGENT_THROWING_ROW",
     "AGENT_THROWING_USER",
