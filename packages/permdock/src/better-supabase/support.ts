@@ -110,14 +110,16 @@ export function supportPolicy(
           : {}),
       };
       const settings = options.options?.settings;
-      const decide = (
-        approved?: string,
-        approvedBy?: string,
-      ): Promise<SupportSessionDecision> =>
+      const decide = (approved?: {
+        readonly token: string;
+        readonly approvedBy: string;
+      }): Promise<SupportSessionDecision> =>
         permdock.decideSupportSession(request, {
           ...(settings === undefined ? {} : { settings }),
           ...(options.approval === false ? { approval: false } : {}),
-          ...(approved === undefined ? {} : { approved, approvedBy }),
+          ...(approved === undefined
+            ? {}
+            : { approved: approved.token, approvedBy: approved.approvedBy }),
         });
       const decision = await decide();
       switch (decision.outcome) {
@@ -131,7 +133,10 @@ export function supportPolicy(
             session: decision.session,
           });
           if (found === undefined) return false;
-          const resumed = await decide(decision.token, found.approvedBy);
+          const resumed = await decide({
+            token: decision.token,
+            approvedBy: found.approvedBy,
+          });
           return resumed.outcome === "granted";
         }
         default: {
