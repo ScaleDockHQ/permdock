@@ -118,6 +118,8 @@ describe("permdock supabase hook generate against Postgres", () => {
         "sql",
         "--rbac",
         "supabase",
+        "--schemas",
+        "migrations",
         "--split",
         "helpers,policies",
         "--out",

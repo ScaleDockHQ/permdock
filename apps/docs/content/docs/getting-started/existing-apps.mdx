@@ -35,6 +35,8 @@ permdock rls generate --target sql --rbac supabase --helpers-only --shims \
 
 `--helpers-only` writes the helper functions, `role_permissions` and its seeds, and no policies, so the app's hand-written policies stay in charge ([helpers only](/docs/cli/rls#helpers-only)). `--shims` adds a wrapper under each legacy helper name listed in `rls.migrate.helpers`, which maps the old key and calls the generated helper ([shims](/docs/cli/rls#shims)). From this deploy on, legacy SQL answers from PermDock's grants.
 
+A Supabase project with declarative schemas splits the same output instead: `--split helpers,seeds --seeds-out supabase/migrations/` writes the helpers under `supabase/schemas` for pg-delta, the default. A project still on `supabase db diff` adds `--schemas migra`, an `--out` with `{part}` and `--grants-out` ([schema workflow](/docs/cli/rls#schema-workflow)). Doctor PD068 and PD069 report a `config.toml` or a layout that does not match the workflow.
+
 ## Rewrite policies
 
 ```bash
@@ -98,7 +100,7 @@ Keep the old claims for at least one `jwt_expiry` after the hook deploys, so eve
 In `database` mode, name the app's role tables in `rls.customRoles.from` and the roles table in `rls.customRoleWrites.roles`, then let `generate` write the copy:
 
 ```bash
-permdock rls generate --target sql --rbac supabase --out supabase/schemas/permdock.sql \
+permdock rls generate --target sql --rbac supabase --out supabase/migrations/<n>_permdock_rls.sql \
   --backfill-out supabase/migrations/
 ```
 

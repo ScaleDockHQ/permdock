@@ -19,7 +19,7 @@ import { pd039 } from "../supabase-setup.ts";
 import { DOCTOR_REPORT_SCHEMA } from "../version.ts";
 import { pd064 } from "./assignments.ts";
 import { pd002, pd003, pd004, pd067 } from "./catalog.ts";
-import { pd042, pd043 } from "./declarative.ts";
+import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { pd044, pd065 } from "./next.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
@@ -267,7 +267,17 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   {
     code: "PD043",
     groups: ["supabase", "declarative"],
-    run: (project) => pd043(project.cwd, project.files),
+    run: (project) => pd043(project.cwd, project.config, project.files),
+  },
+  {
+    code: "PD068",
+    groups: ["supabase", "declarative"],
+    run: (project) => pd068(project.cwd, project.config, project.files),
+  },
+  {
+    code: "PD069",
+    groups: ["supabase", "declarative"],
+    run: (project) => pd069(project.cwd, project.config, project.files),
   },
   { code: "PD045", groups: ["supabase"], run: (project) => pd045(project.cwd) },
   ...SQL_CHECKS.map(([code, check]): DoctorCheck => ({

@@ -55,7 +55,7 @@ import {
 - `functions: { holdersOf?, actorMayWrite? }` fills two slots that better-supabase 0.8.0 does not have yet ([waiting on upstream](#waiting-on-upstream)). `holdersOf: true` sets `holdersOf` to `permitted_<scope>_users(permission, tenant)`, the user ids holding a permission in a tenant, for a notification's audience. `actorMayWrite: true` sets `actorMayWrite` to `permdock_actor_may_write()`, which the inbox and workflow modules call before a write. Each requires its helper with the role that runs it, and a manifest without the helper is a problem. Both are off by default because 0.8.0's config schema and `testAuthorizationProvider` refuse an unknown template.
 - `approver` is a permission. With it, `canApprove` lets a member who holds that permission in the tenant approve an AI tool call (`decide_ai_tool_approval`), and `approvals.distinctApprover` is `true`, so the requester never approves their own call. A key the catalog lacks is a problem.
 - `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
-- `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function and the claims it owns. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
+- `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function, the claims it owns and the `grantsCommand` that restores the hook's grants for the manifest's `hook.schemas`: `permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook` under pg-delta, the `--grants-out` command under migra. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
 - `authorizer({ policy, subject?, operations?, options? })` returns better-supabase's `Authorizer` (`apiVersion: 1`, `name: "PermDock"`) for its `authorizer` server option. It decides every `permission` a resource, action, route guard or MCP tool declares ([Authorizer](#authorizer)). Needs better-supabase 0.8.
 - `bucketPolicy(access, options)` and `topicPolicy(access, options)` return the `access` policy for `defineBucket` and `defineTopic`. `access` maps the operations (`read`, `list`, `write`, `delete` for a bucket; `receive`, `send` for a topic) to permissions, and `options` is `{ manifest, catalog, scope, segment? }` or `{ policy, schema?, scope, segment? }`. With `policy`, the `definePolicy` result the app already imports, nothing is read at runtime: the scopes, the permissions with row conditions and the scopes each permission is granted at come from the definitions, and `schema` names the helper schema (`rls.schema`, default `permdock`). The checks below are the same either way. They call `permitted_<scope>_ids_by_permission` and `permdock_has_permission`, which check role and scope only and subtract denies, so a permission the catalog marks `rowConditions: true` (or a conditioned grant in `policy`), or does not grant at `scope`, throws. `scope: "platform"` checks a permission granted globally.
 - `apiKeyVerifier({ keys, manifest?, serviceRoles?, allPermissions? })` is a `CredentialVerifier` over better-supabase's `createApiKeys()`, for [`subjectFromApiKey`](/docs/concepts/credentials#using-a-key). A personal key is a `user` credential acting as its user, a tenant key a `service` credential holding `serviceRoles` in its tenant, and the key's scopes are the credential's permissions. `serviceRoles` defaults to the manifest's `rls.apiKeys.serviceRoles`. A rotated key in its grace period verifies, and its credential's `expiresAt` is the end of the grace period when that comes before the key's own expiry. An invalid, revoked, expired or rate-limited key, and a failed lookup, verify to `null`.
@@ -73,11 +73,15 @@ import {
 Generate the helpers, the hook and the manifest first, as on the [Supabase page](/docs/adapters/supabase):
 
 ```bash
-permdock rls generate --target sql --out supabase/migrations/<n>_permdock_rls.sql
-permdock supabase hook generate
+SPLIT="--target sql --split helpers,seeds,indexes,policies,hook"
+permdock rls generate $SPLIT --seeds-out -                    # the schema files under supabase/schemas
+supabase db schema declarative sync --no-apply -f permdock    # their migration
+permdock rls generate $SPLIT --seeds-out supabase/migrations/ # the role_permissions seeds, after it
 permdock supabase inspect --out
 permdock catalog --out permissions.catalog.json
 ```
+
+That is Declarative Schemas 2.0, the default: `supabase/config.toml` needs `[experimental.pgdelta]` with `enabled = true`. A project on `supabase db diff` sets `supabase.schemas: 'migra'`, and one without declarative schemas sets `supabase.schemas: 'migrations'` ([schema workflow](/docs/cli/rls#schema-workflow)); the manifest records which, and better-supabase's doctor names the matching grants command.
 
 Then hand the provider to better-supabase. The config runs in Node, so it reads the two files directly:
 

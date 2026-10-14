@@ -44,6 +44,11 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         out: {
           type: "string",
         },
+        schemas: {
+          enum: ["pg-delta", "migra", "migrations"],
+          description:
+            "How the project turns SQL into migrations: pg-delta (supabase db schema declarative sync), migra (supabase db diff) or hand-written migrations. Absent means pg-delta.",
+        },
         before: {
           type: "array",
           items: {

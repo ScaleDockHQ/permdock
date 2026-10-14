@@ -168,6 +168,8 @@ describe("rls.realtime and rls.storage", () => {
         "helpers,policies",
         "--out",
         "rls.{part}.sql",
+        "--schemas",
+        "migrations",
       ],
       { cwd },
     );

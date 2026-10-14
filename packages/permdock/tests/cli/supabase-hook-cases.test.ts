@@ -109,6 +109,20 @@ describe("runSupabase dispatch", () => {
       io,
     });
     expect(help.code).toBe(2);
+    expect(
+      await runSupabase({
+        cwd: ".",
+        config: {},
+        rest: ["hook", "generate"],
+        check: false,
+        io,
+        schemas: "flyway",
+      }),
+    ).toEqual({
+      code: 2,
+      output:
+        "supabase --schemas must be pg-delta, migra, migrations (got flyway)",
+    });
     await expect(loadScopes(".", {})).rejects.toThrow(
       "supabase hook generate needs policy in permdock.config.ts",
     );

@@ -28,6 +28,7 @@
     "@prisma/adapter-pg": "catalog:",
     "@prisma/client": "catalog:",
     "@supabase/middleware": "catalog:",
+    "@supabase/pg-delta": "catalog:",
     "@supabase/server": "catalog:",
     "@testcontainers/postgresql": "catalog:",
     "@trpc/client": "catalog:",

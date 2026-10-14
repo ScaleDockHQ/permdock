@@ -346,8 +346,26 @@ function tokenHookOf(manifest: SupabaseHookManifest): AuthorizationTokenHook {
       hook: `-- permdock:hook ${manifest.markers.hook}`,
       grants: `-- permdock:grants ${manifest.markers.grants}`,
     },
-    grantsCommand: `permdock supabase hook generate --grants-out supabase/migrations/<timestamp>_permdock_hook_grants.sql`,
+    grantsCommand: grantsCommandOf(manifest.hook.schemas ?? "pg-delta"),
   };
+}
+
+/** The command better-supabase doctor prints when the hook lacks its grants. */
+function grantsCommandOf(
+  schemas: NonNullable<SupabaseHookManifest["hook"]["schemas"]>,
+): string {
+  switch (schemas) {
+    case "pg-delta":
+      return "permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook";
+    case "migra":
+      return "permdock supabase hook generate --grants-out supabase/migrations/<timestamp>_permdock_hook_grants.sql";
+    case "migrations":
+      return "permdock supabase hook generate --out supabase/migrations/<timestamp>_permdock_hook.sql";
+    default: {
+      const exhaustive: never = schemas;
+      return exhaustive;
+    }
+  }
 }
 
 /**

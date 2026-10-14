@@ -56,9 +56,15 @@ export function supabase(ctx: CliContext): Command {
         description: "Schema for the hook function",
         valueHint: "name",
       },
+      schemas: {
+        type: "enum",
+        options: ["pg-delta", "migra", "migrations"],
+        description:
+          "Schema workflow (default supabase.schemas, else pg-delta)",
+      },
       "grants-out": {
         type: "string",
-        description: "File for the privileges db diff drops",
+        description: "migra: file for the privileges supabase db diff drops",
         valueHint: "file",
       },
     },
@@ -69,6 +75,7 @@ export function supabase(ctx: CliContext): Command {
       const budget = stringArg(parsed.budget);
       const schema = stringArg(parsed.schema);
       const grantsOut = stringArg(parsed["grants-out"]);
+      const schemas = stringArg(parsed.schemas);
       // Lazy: the implementation loads only when this command runs, not for --help.
       const { runSupabase } = await import("../supabase-hook/supabase-hook.ts");
       ctx.report(
@@ -85,6 +92,7 @@ export function supabase(ctx: CliContext): Command {
           ...(budget === undefined ? {} : { budget }),
           ...(schema === undefined ? {} : { schema }),
           ...(grantsOut === undefined ? {} : { grantsOut }),
+          ...(schemas === undefined ? {} : { schemas }),
         }),
       );
     },

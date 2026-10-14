@@ -125,8 +125,27 @@ describe("authorizationProvider", () => {
         grants: "-- permdock:grants v1",
       },
       grantsCommand:
-        "permdock supabase hook generate --grants-out supabase/migrations/<timestamp>_permdock_hook_grants.sql",
+        "permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook",
     });
+  });
+
+  it("names the grants command of the manifest's schema workflow", () => {
+    const command = (schemas: "pg-delta" | "migra" | "migrations") =>
+      authorizationProvider({
+        manifest: {
+          ...supabaseHookManifestFixture,
+          hook: { ...supabaseHookManifestFixture.hook, schemas },
+        },
+      }).tokenHook?.grantsCommand;
+    expect(command("pg-delta")).toBe(
+      "permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook",
+    );
+    expect(command("migra")).toBe(
+      "permdock supabase hook generate --grants-out supabase/migrations/<timestamp>_permdock_hook_grants.sql",
+    );
+    expect(command("migrations")).toBe(
+      "permdock supabase hook generate --out supabase/migrations/<timestamp>_permdock_hook.sql",
+    );
   });
 
   it("reads the example's database-mode manifest and catalog", async () => {

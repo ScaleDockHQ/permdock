@@ -108,6 +108,8 @@ describe("rls.roles", () => {
         "helpers,hook",
         "--out",
         "{part}.sql",
+        "--schemas",
+        "migrations",
       ],
       { cwd },
     );
@@ -145,6 +147,8 @@ describe("rls.roles", () => {
         "helpers,hook",
         "--out",
         "{part}.sql",
+        "--schemas",
+        "migrations",
       ],
       { cwd },
     );

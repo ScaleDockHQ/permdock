@@ -12,11 +12,11 @@ import {
 } from "../output-files.ts";
 import { GRANTS_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { splitUndiffed } from "../sql/statements.ts";
-import { supabaseConfig } from "../supabase-config.ts";
 import {
   grantsLabel,
   supabaseHookSql,
 } from "../supabase-hook/supabase-hook.ts";
+import { type ResolvedSchemas, resolveSchemas } from "../supabase-schemas.ts";
 
 export type SplitSql = {
   readonly policies: string;
@@ -46,7 +46,64 @@ function moveUndiffed(
   };
 }
 
-/** The files `generate` writes: one, or one per `--split` part, plus the hook's grants. */
+/** Why `--split` cannot be written for `mode`, or `undefined`. */
+function splitRefusal(
+  mode: ResolvedSchemas["mode"],
+  plan: {
+    readonly split: readonly SplitPart[];
+    readonly placeholder: boolean;
+    readonly explicitOut: boolean;
+    readonly outRel: string;
+    readonly grantsOut: string | undefined;
+    readonly seedsOut: string | undefined;
+  },
+): string | undefined {
+  const seedsWithoutOut =
+    plan.split.includes("seeds") && plan.seedsOut === undefined;
+  const helpersWithoutSeeds =
+    plan.split.includes("helpers") && !plan.split.includes("seeds");
+  switch (mode) {
+    case "pg-delta":
+      if (plan.explicitOut && !plan.placeholder) {
+        return `rls generate --split needs {part} in --out, or no --out for pg-delta's per-schema layout (got ${plan.outRel})`;
+      }
+      if (plan.grantsOut !== undefined) {
+        return "rls generate --grants-out is for --schemas migra: pg-delta keeps the grants in each part, so drop --grants-out";
+      }
+      if (helpersWithoutSeeds) {
+        return "rls generate --split helpers under pg-delta needs the seeds part with --seeds-out: pg-delta rejects the role_permissions rows in a declarative file";
+      }
+      if (seedsWithoutOut) {
+        return "rls generate --split seeds under pg-delta needs --seeds-out: pg-delta does not diff the role_permissions rows, so they go in a migration";
+      }
+      return undefined;
+    case "migra":
+      if (!plan.placeholder) {
+        return `rls generate --split under migra needs {part} in --out, for example supabase/schemas/identity/056_permdock_{part}.sql (got ${plan.outRel})`;
+      }
+      if (helpersWithoutSeeds) {
+        return "rls generate --split helpers under migra needs the seeds part with --seeds-out: supabase db diff does not carry the role_permissions rows from a schema file";
+      }
+      if (seedsWithoutOut) {
+        return "rls generate --split seeds under migra needs --seeds-out: supabase db diff does not carry the role_permissions rows, so they go in a migration";
+      }
+      return undefined;
+    case "migrations":
+      if (!plan.placeholder) {
+        return `rls generate --split needs {part} in --out, for example supabase/migrations/20260101000000_permdock_{part}.sql (got ${plan.outRel})`;
+      }
+      if (plan.grantsOut !== undefined) {
+        return "rls generate --grants-out is for --schemas migra: a hand-written migration keeps its grants, so drop --grants-out";
+      }
+      return undefined;
+    default: {
+      const exhaustive: never = mode;
+      return exhaustive;
+    }
+  }
+}
+
+/** The files `generate` writes: one, or one per `--split` part, plus the hook's grants under migra. */
 export function outputFiles(plan: {
   readonly input: RlsGenerateInput;
   readonly outRel: string;
@@ -76,29 +133,22 @@ export function outputFiles(plan: {
   if (input.target !== "sql") {
     return "rls generate --split needs --target sql";
   }
-  const pgDelta =
-    input.out === undefined && input.config.rls?.out === undefined
-      ? supabaseConfig(input.cwd).pgDelta
-      : undefined;
-  if (pgDelta === undefined && !plan.outRel.includes("{part}")) {
-    return `rls generate --split needs {part} in --out, for example supabase/schemas/identity/056_permdock_{part}.sql (got ${plan.outRel})`;
-  }
-  if (
-    pgDelta !== undefined &&
-    split.includes("helpers") &&
-    !split.includes("seeds")
-  ) {
-    return "rls generate --split helpers under pg-delta needs the seeds part with --seeds-out: pg-delta rejects the role_permissions rows in a declarative file";
-  }
-  if (
-    pgDelta !== undefined &&
-    split.includes("seeds") &&
-    input.seedsOut === undefined
-  ) {
-    return "rls generate --split seeds under pg-delta needs --seeds-out: pg-delta does not diff the role_permissions rows, so they go in a migration";
+  const schemas = resolveSchemas(input.cwd, input.config, input.schemas);
+  const pgDelta = schemas.mode === "pg-delta" ? schemas : undefined;
+  const placeholder = plan.outRel.includes("{part}");
+  const refused = splitRefusal(schemas.mode, {
+    split,
+    placeholder,
+    explicitOut: input.out !== undefined,
+    outRel: plan.outRel,
+    grantsOut: input.grantsOut,
+    seedsOut: input.seedsOut,
+  });
+  if (refused !== undefined) {
+    return refused;
   }
   const at = (part: SplitPart, schema = plan.schema): string =>
-    pgDelta === undefined
+    pgDelta === undefined || placeholder
       ? partPath(plan.outRel, part)
       : pgDeltaPath(pgDelta.schemaDir, part, schema);
   if (
@@ -121,7 +171,7 @@ export function outputFiles(plan: {
     split.includes("policies") &&
     !split.includes("seeds")
   ) {
-    return "rls generate --split policies under pg-delta with rls.realtime or rls.storage needs the seeds part with --seeds-out: the shadow database has no realtime.messages or storage.objects, so their policies go in that migration";
+    return "rls generate --split policies under pg-delta with rls.realtime or rls.storage needs the seeds part with --seeds-out: the declarative sync shadow database has no realtime.messages or storage.objects, so their policies go in that migration";
   }
   const seeds =
     relocated === undefined || !split.includes("policies")
