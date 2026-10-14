@@ -120,7 +120,28 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       token: string,
       verdict: ApprovalVerdict,
     ): Promise<ApprovalRequest> {
-      const approver = await approverHeaders(verdict, options.approver, root);
+      const approver = await approverHeaders(
+        verdict,
+        options.approver,
+        root,
+        async () => {
+          const response = await request("/approvals/by-token", {
+            headers: { [APPROVAL_HEADER]: token },
+          });
+          if (!response.ok) {
+            throw await approvalErrorFrom(response);
+          }
+          const found = asApproval(await response.json());
+          if (found === null) {
+            throw new ApprovalError(
+              "approval-not-found",
+              "PermDock Cloud returned an unknown approval shape",
+            );
+          }
+          const etag = response.headers.get("etag");
+          return etag === null ? { id: found.id } : { id: found.id, etag };
+        },
+      );
       const response = await request("/approvals/by-token/resolve", {
         method: "POST",
         headers: { [APPROVAL_HEADER]: token, ...approver },

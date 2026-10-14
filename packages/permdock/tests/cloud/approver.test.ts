@@ -49,29 +49,73 @@ const APPROVED = {
 };
 
 type Sent = {
+  readonly method: string;
   readonly path: string;
   readonly approval: string | null;
   readonly approver: string | null;
   readonly body: unknown;
 };
 
-function recorder(): { readonly fetch: typeof fetch; readonly sent: Sent[] } {
+const RESOLVE_PATH = "/v1/environments/production/approvals/by-token/resolve";
+const LOOKUP_PATH = "/v1/environments/production/approvals/by-token";
+
+function recorder(
+  lookup: { readonly status?: number; readonly etag?: string } = {},
+): {
+  readonly fetch: typeof fetch;
+  readonly sent: Sent[];
+  readonly resolves: () => Sent[];
+} {
   const sent: Sent[] = [];
   return {
     sent,
+    resolves: () => sent.filter((item) => item.path === RESOLVE_PATH),
     fetch: async (input, init) => {
       const request = new Request(input, init);
+      const isLookup = request.method === "GET";
       sent.push({
+        method: request.method,
         path: new URL(request.url).pathname,
         approval: request.headers.get("PermDock-Approval"),
         approver: request.headers.get("PermDock-Approver"),
-        body: await request.json(),
+        body: isLookup ? null : await request.json(),
       });
-      return new Response(JSON.stringify(APPROVED), {
-        headers: { "content-type": "application/json" },
-      });
+      if (isLookup && lookup.status !== undefined) {
+        return new Response(JSON.stringify({ code: "approval-not-found" }), {
+          status: lookup.status,
+          headers: { "content-type": "application/problem+json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          ...APPROVED,
+          status: isLookup ? "pending" : "approved",
+        }),
+        {
+          headers: {
+            "content-type": "application/json",
+            ...(isLookup && lookup.etag !== undefined
+              ? { etag: lookup.etag }
+              : {}),
+          },
+        },
+      );
     },
   };
+}
+
+async function approverClaims(
+  token: string | null | undefined,
+): Promise<Readonly<Record<string, unknown>>> {
+  const verified = await verifier.verify(token ?? "", {
+    typ: "at+jwt",
+    issuer: APP_ISSUER,
+    audience: `${CLOUD_ENV}/approvals`,
+  });
+  if (!verified.ok) {
+    throw new Error("the approver token did not verify");
+  }
+  return verified.claims;
 }
 
 const approve: ApprovalVerdict = {
@@ -98,10 +142,8 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     expect((await client.approvals.resolve("opaque-token", approve)).id).toBe(
       "apr_1",
     );
-    const [sent] = backend.sent;
-    expect(sent?.path).toBe(
-      "/v1/environments/production/approvals/by-token/resolve",
-    );
+    const [sent] = backend.resolves();
+    expect(sent?.path).toBe(RESOLVE_PATH);
     expect(sent?.approval).toBe("opaque-token");
     const verified = await verifier.verify(sent?.approver ?? "", {
       typ: "at+jwt",
@@ -131,7 +173,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     });
     await client.approvals.resolve("opaque-token", approve);
     await client.approvals.resolve("opaque-token", approve);
-    const [first, second] = backend.sent;
+    const [first, second] = backend.resolves();
     expect(first?.approver).not.toBe(second?.approver);
     const verified = await verifier.verify(first?.approver ?? "", {
       typ: "at+jwt",
@@ -139,6 +181,110 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
       audience: "https://cloud.example/approvers",
     });
     expect(verified.ok).toBe(true);
+  });
+
+  it("binds the token to the request id and the verdict as authorization_details", async () => {
+    const backend = recorder();
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: backend.fetch,
+      approver: { signer },
+    });
+    await client.approvals.resolve("opaque-token", approve);
+    expect(backend.sent.map((item) => `${item.method} ${item.path}`)).toEqual([
+      `GET ${LOOKUP_PATH}`,
+      `POST ${RESOLVE_PATH}`,
+    ]);
+    expect(backend.sent[0]?.approval).toBe("opaque-token");
+    expect(backend.sent[0]?.approver).toBeNull();
+    const claims = await approverClaims(backend.resolves()[0]?.approver);
+    expect(claims["authorization_details"]).toEqual([
+      { type: "permdock_approval", id: "apr_1", status: "approved" },
+    ]);
+  });
+
+  it("binds a rejection to the rejected status", async () => {
+    const backend = recorder();
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: backend.fetch,
+      approver: { signer },
+    });
+    await client.approvals.resolve("opaque-token", {
+      ...approve,
+      status: "rejected",
+    });
+    const claims = await approverClaims(backend.resolves()[0]?.approver);
+    expect(claims["authorization_details"]).toEqual([
+      { type: "permdock_approval", id: "apr_1", status: "rejected" },
+    ]);
+  });
+
+  it("adds the request ETag when the lookup returns one", async () => {
+    const backend = recorder({ etag: '"sha-256:abc"' });
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: backend.fetch,
+      approver: { signer },
+    });
+    await client.approvals.resolve("opaque-token", approve);
+    const claims = await approverClaims(backend.resolves()[0]?.approver);
+    expect(claims["authorization_details"]).toEqual([
+      {
+        type: "permdock_approval",
+        id: "apr_1",
+        status: "approved",
+        etag: '"sha-256:abc"',
+      },
+    ]);
+  });
+
+  it("passes a fresh jti to any signer", async () => {
+    const backend = recorder();
+    const seen: (string | undefined)[] = [];
+    const recording: TokenSigner = {
+      sign: async (_payload, signOptions) => {
+        seen.push(signOptions.jti);
+        return "a.b.c";
+      },
+    };
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: backend.fetch,
+      approver: { signer: recording },
+    });
+    await client.approvals.resolve("opaque-token", approve);
+    await client.approvals.resolve("opaque-token", approve);
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).toEqual(expect.any(String));
+    expect(seen[0]).not.toBe(seen[1]);
+  });
+
+  it("signs nothing and sends no resolve when the lookup fails", async () => {
+    const backend = recorder({ status: 404 });
+    let signed = 0;
+    const counting: TokenSigner = {
+      sign: async () => {
+        signed += 1;
+        return "a.b.c";
+      },
+    };
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: backend.fetch,
+      approver: { signer: counting },
+    });
+    const refused = await refusal(
+      client.approvals.resolve("opaque-token", approve),
+    );
+    expect(refused).toMatchObject({ code: "approval-not-found" });
+    expect(signed).toBe(0);
+    expect(backend.resolves()).toEqual([]);
   });
 
   it("refuses to resolve without an approver signer and sends nothing", async () => {
@@ -250,7 +396,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
       client.approvals.resolve("opaque-token", approve),
     );
     expect(refused).toMatchObject({ code: "approver-unauthenticated" });
-    expect(backend.sent).toEqual([]);
+    expect(backend.resolves()).toEqual([]);
   });
 
   it("cloudSigner never mints an approver token", async () => {

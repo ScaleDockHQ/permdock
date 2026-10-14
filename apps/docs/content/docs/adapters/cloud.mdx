@@ -180,14 +180,30 @@ const permdockCloud = cloud({
 | `aud` | `approver.audience`, default `<issuer>/approvals` with `issuer` the environment URL (`cloud().issuer`) |
 | `iat` | The signing time                                                                                       |
 | `exp` | `iat` plus 60 seconds                                                                                  |
-| `jti` | Set by the signer                                                                                      |
+| `jti` | A fresh UUID per resolve; the Cloud refuses a `jti` it has seen                                        |
 | `act` | Never present                                                                                          |
 
+`authorization_details` ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)) binds the token to one verdict on one request. Before it signs, `resolve` reads the request through `GET /approvals/by-token` and adds one entry:
+
+```json
+{
+  "authorization_details": [
+    {
+      "type": "permdock_approval",
+      "id": "apr_…",
+      "status": "approved",
+      "etag": "\"sha-256:…\""
+    }
+  ]
+}
+```
+
+`id` is the request id and `status` the verdict's. `etag` is present when the Cloud sent an `ETag` on that read. The Cloud refuses a token whose entry names another request, another status or a stale ETag.
+
 - Register the signer's JWK Set in the environment as a trusted issuer. `sub` must equal the approver's `subject` in the Cloud directory, and a registered audience must equal `aud`.
-- `resolve` throws `ApprovalError` before sending anything when it cannot prove a person. The codes are `approver-unauthenticated` (no `approver` option, an anonymous principal, an empty id, or a signer that throws) and `approver-not-eligible` (a verdict whose subject has an `actor`, which is an agent approving).
+- `resolve` throws `ApprovalError` before sending a resolve when it cannot prove a person. The codes are `approver-unauthenticated` (no `approver` option, an anonymous principal, an empty id, or a signer that throws) and `approver-not-eligible` (a verdict whose subject has an `actor`, which is an agent approving). A failed read of the request throws the code the Cloud names, `approval-not-found` by default.
 - A system rejection carries no header, because no person resolved it. That is `status: 'rejected'` with `by.actor.kind: 'system'`, which `cancelApprovals` and expiry send.
 - `cloudSigner` refuses `at+jwt`. A token signed with the environment key would let any holder of the `client` key approve as anyone.
-- The token names the approver and not the approval. Within its 60 seconds a captured token can resolve another pending request the same person may approve.
 
 ### Run waits, delivery and signing
 
