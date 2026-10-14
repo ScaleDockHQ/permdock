@@ -236,7 +236,7 @@ describe("OpenAPI registries", () => {
           walk(full);
         } else if (entry.name.endsWith(".ts")) {
           for (const match of readFileSync(full, "utf8").matchAll(
-            /["'](vnd\.permdock\.[a-z-]+\+jwt)["']/gu,
+            /["'](vnd\.permdock\.[a-z-]+\+jwt|at\+jwt)["']/gu,
           )) {
             literals.add(match[1] ?? "");
           }
