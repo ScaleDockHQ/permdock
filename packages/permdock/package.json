@@ -183,26 +183,6 @@
       "types": "./dist/webmcp/index.d.ts",
       "default": "./dist/webmcp/index.js"
     },
-    "./a2a": {
-      "types": "./dist/a2a/index.d.ts",
-      "default": "./dist/a2a/index.js"
-    },
-    "./otel": {
-      "types": "./dist/otel/index.d.ts",
-      "default": "./dist/otel/index.js"
-    },
-    "./scim": {
-      "types": "./dist/scim/index.d.ts",
-      "default": "./dist/scim/index.js"
-    },
-    "./cloud": {
-      "types": "./dist/cloud/index.d.ts",
-      "default": "./dist/cloud/index.js"
-    },
-    "./drizzle": {
-      "types": "./dist/drizzle/index.d.ts",
-      "default": "./dist/drizzle/index.js"
-    },
     "./workflow": {
       "types": "./dist/workflow/index.d.ts",
       "default": "./dist/workflow/index.js"
@@ -226,6 +206,26 @@
     "./chat-sdk": {
       "types": "./dist/chat-sdk/index.d.ts",
       "default": "./dist/chat-sdk/index.js"
+    },
+    "./a2a": {
+      "types": "./dist/a2a/index.d.ts",
+      "default": "./dist/a2a/index.js"
+    },
+    "./otel": {
+      "types": "./dist/otel/index.d.ts",
+      "default": "./dist/otel/index.js"
+    },
+    "./scim": {
+      "types": "./dist/scim/index.d.ts",
+      "default": "./dist/scim/index.js"
+    },
+    "./cloud": {
+      "types": "./dist/cloud/index.d.ts",
+      "default": "./dist/cloud/index.js"
+    },
+    "./drizzle": {
+      "types": "./dist/drizzle/index.d.ts",
+      "default": "./dist/drizzle/index.js"
     },
     "./prisma": {
       "types": "./dist/prisma/index.d.ts",
