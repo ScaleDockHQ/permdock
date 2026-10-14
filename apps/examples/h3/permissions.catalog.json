@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-04T22:04:42.216Z",
-  "generator": "permdock@0.1.0",
-  "fingerprint": "E7G4R7NhectdtojbU3Zsh6WN8PJnXy5K7ZLDvAjp7gk",
+  "generatedAt": "2026-10-14T01:05:28.461Z",
+  "generator": "permdock@0.4.0",
+  "fingerprint": "sha-256:E7G4R7NhectdtojbU3Zsh6WN8PJnXy5K7ZLDvAjp7gk",
   "resources": {
     "post": {
       "id": "id",
@@ -99,7 +99,7 @@
       "usages": [
         {
           "file": "src/app.ts",
-          "line": 40,
+          "line": 28,
           "call": "protect"
         },
         {
@@ -141,7 +141,7 @@
       "usages": [
         {
           "file": "src/app.ts",
-          "line": 34,
+          "line": 24,
           "call": "protect"
         },
         {
