@@ -64,6 +64,7 @@ export const ENTRIES = {
   "./pdp": "pdp/index.js",
   "./compile": "compile/index.js",
   "./catalog": "catalog/index.js",
+  "./preset": "preset/index.js",
   "./testing": "testing/index.js",
   "./testing/saas": "testing/saas/index.js",
   "./testing/saas/permissions": "testing/saas/permissions.js",
@@ -165,8 +166,11 @@ export const CLIENT_ENTRIES = [
   "./next/client",
 ] as const;
 
+// Built chunks import each other with a `.js` extension; a relative path
+// without one is text inside a chunk, such as the code permdock/preset
+// generates, never a module the chunk loads.
 const RELATIVE_IMPORT =
-  /(?:from|import)\s*['"](\.\.?\/[^'"]+)['"]|import\s*\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/gu;
+  /(?:from|import)\s*['"](\.\.?\/[^'"]+\.[cm]?js)['"]|import\s*\(\s*['"](\.\.?\/[^'"]+\.[cm]?js)['"]\s*\)/gu;
 
 const NODE_SPECIFIER =
   /(?:from|import)\s*['"](node:[^'"]+|fs|path|crypto|buffer|child_process|worker_threads|async_hooks|os|net|tls|http|https|module|vm|inspector|v8|perf_hooks|querystring|assert|constants|domain|repl|readline|tty|dgram|dns|cluster|string_decoder|diagnostics_channel)['"]/u;
@@ -364,6 +368,7 @@ export const NEUTRAL_FOLDERS = [
   "catalog",
   "cli",
   "compile",
+  "preset",
   "testing",
   "unplugin",
 ] as const;
