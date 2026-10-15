@@ -267,6 +267,7 @@ describe("permdock/authzen", () => {
     const response = await pdp()(
       request("/access/v1/evaluation", {
         json: {
+          subject: { type: "user", id: "u1" },
           action: { name: "publish" },
           resource: { type: "post", id: "p2", properties: { id: "p2" } },
         },
@@ -298,6 +299,7 @@ describe("permdock/authzen", () => {
     })(
       request("/access/v1/evaluation", {
         json: {
+          subject: { type: "user", id: "u1" },
           action: { name: "publish" },
           resource: { type: "post", id: "p2" },
         },
@@ -452,6 +454,7 @@ describe("permdock/authzen", () => {
     const response = await pdp()(
       request("/access/v1/search/subject", {
         json: {
+          subject: { type: "user" },
           action: { name: "publish" },
           resource: { type: "post", id: "p1", properties: ownPost },
         },

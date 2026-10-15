@@ -166,10 +166,53 @@ describe("AuthZEN evaluation", () => {
       post("/access/v1/evaluation", {
         subject: member,
         action: { name: "read" },
-        resource: { type: "post", id: 9 },
+        resource: { type: "post", id: "9" },
       }),
     );
     expect((await json(unloaded))["decision"]).toBe(false);
+  });
+
+  it.each([
+    [
+      "no subject",
+      { action: { name: "read" }, resource: { type: "post", id: "p1" } },
+    ],
+    ["no action", { subject: member, resource: { type: "post", id: "p1" } }],
+    ["no resource", { subject: member, action: { name: "read" } }],
+    [
+      "a numeric resource id",
+      {
+        subject: member,
+        action: { name: "read" },
+        resource: { type: "post", id: 9 },
+      },
+    ],
+    [
+      "a subject without an id",
+      {
+        subject: { type: "user" },
+        action: { name: "read" },
+        resource: { type: "post", id: "p1" },
+      },
+    ],
+  ])("answers 400 for an evaluation with %s", async (_label, body) => {
+    const response = await pdp()(post("/access/v1/evaluation", body));
+    expect(response.status).toBe(400);
+  });
+
+  it("answers 400 for a body that is not sent as application/json", async () => {
+    const response = await pdp()(
+      post(
+        "/access/v1/evaluation",
+        {
+          subject: member,
+          action: { name: "read" },
+          resource: { type: "post", id: "p1" },
+        },
+        { "content-type": "text/plain" },
+      ),
+    );
+    expect(response.status).toBe(400);
   });
 });
 
@@ -263,23 +306,19 @@ describe("AuthZEN search", () => {
     },
   );
 
-  it("lists actions across every resource when no type is given", async () => {
+  it("answers 400 for an action search without a resource", async () => {
     const response = await pdp()(
       post("/access/v1/search/action", {
         subject: member,
         page: { limit: 2 },
       }),
     );
-    expect(await json(response)).toMatchObject({
-      results: [{ name: "read" }, { name: "create" }],
-      page: { count: 2, next_token: "2" },
-    });
+    expect(response.status).toBe(400);
   });
 
   it("answers an empty page for an unknown resource search", async () => {
     const handle = pdp();
     for (const body of [
-      { subject: member, action: { name: "read" } },
       {
         subject: member,
         action: { name: "archive" },
