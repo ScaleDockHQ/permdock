@@ -36,6 +36,7 @@ import type { Instant } from "./time.ts";
 import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 
+import { withApp } from "./app.ts";
 import { compact } from "./compact.ts";
 import { buildInstance } from "./instance.ts";
 import { asMembershipSource } from "./memberships.ts";
@@ -478,8 +479,9 @@ export function createPermDock<
 >(
   policy: Policy<TUser, TPrincipal, V>,
   user: TUser | Subject | null,
-  options: PermDockOptions = {},
+  given: PermDockOptions = {},
 ): PermDock<V> | Promise<PermDock<V>> {
+  const options = withApp(policy, given);
   const auth: AuthEvent[] = [];
   const subject = resolveSubject(policy, user, options, auth);
   if (isThenable(subject)) {

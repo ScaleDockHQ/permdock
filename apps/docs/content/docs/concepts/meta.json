@@ -4,6 +4,7 @@
   "pages": [
     "permissions",
     "policies",
+    "apps",
     "conditions",
     "subject",
     "scopes",

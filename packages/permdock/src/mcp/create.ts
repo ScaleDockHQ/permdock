@@ -10,6 +10,7 @@ import type {
 } from "./types.ts";
 
 import { createAgentKernel } from "../agent/kernel.ts";
+import { adapterOptions } from "../approvals/app.ts";
 import { clientNameOf } from "../core/clients.ts";
 import { compact } from "../core/compact.ts";
 import { delegationFrom } from "../core/delegation-input.ts";
@@ -21,8 +22,9 @@ import { mcpActorKind } from "./subject.ts";
 
 export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
-  options: McpPermDockOptions<TUser>,
+  given: McpPermDockOptions<TUser>,
 ): McpPermDock {
+  const options = adapterOptions(policy, given);
   const actorKind = mcpActorKind(options.actorKind);
   if (actorKind === undefined) {
     throw new TypeError("permdock/mcp: actorKind must be a non-empty string");

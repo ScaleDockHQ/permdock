@@ -8,7 +8,7 @@ import type { Principal } from "../core/subject.ts";
 
 import { agentRuntime } from "../agent/create.ts";
 import { approvalTokenOf } from "../agent/kernel.ts";
-import { memoryApprovalStore } from "../approvals/store.ts";
+import { adapterOptions } from "../approvals/app.ts";
 import { compact } from "../core/compact.ts";
 
 /** The app context passed to `run(agent, input, { context })`. */
@@ -114,14 +114,11 @@ export function createPermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: OpenAiPermDockOptions<TUser>,
+  given: OpenAiPermDockOptions<TUser>,
 ): OpenAiPermDock<V> {
-  const store = options.store ?? memoryApprovalStore();
-  const { agent, kernel } = agentRuntime(
-    policy,
-    { ...options, store },
-    "openai",
-  );
+  const options = adapterOptions(policy, given);
+  const store = options.store;
+  const { agent, kernel } = agentRuntime(policy, options, "openai");
 
   const byPermission = new Map<string, string>();
   for (const [name, binding] of Object.entries(options.operations)) {
@@ -187,6 +184,9 @@ export function createPermDock<
     }
     if (verdict.outcome === "denied") {
       await state.reject(item, { message: verdict.reason });
+      return null;
+    }
+    if (store === undefined) {
       return null;
     }
     try {

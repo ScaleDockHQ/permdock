@@ -24,6 +24,7 @@ import type {
 } from "../server/run-ticket.ts";
 import type { ApprovalWaiter } from "./waiter.ts";
 
+import { adapterOptions } from "../approvals/app.ts";
 import { requestApproval, resumeDecision } from "../approvals/helpers.ts";
 import { parseAutomation } from "../core/automation.ts";
 import { compact } from "../core/compact.ts";
@@ -209,8 +210,9 @@ export function createPermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: WorkflowPermDockOptions,
+  given: WorkflowPermDockOptions,
 ): WorkflowPermDock<V> {
+  const options = adapterOptions(policy, given);
   const {
     signer,
     verifier,

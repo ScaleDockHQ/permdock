@@ -5,6 +5,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 
 import { agentRuntime } from "../agent/create.ts";
+import { adapterOptions } from "../approvals/app.ts";
 import { compact, isRecord } from "../core/compact.ts";
 
 /** Structural `McpServerProvenance` from `@anthropic-ai/claude-agent-sdk`. */
@@ -129,8 +130,9 @@ export function createPermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: ClaudeAgentPermDockOptions<TUser>,
+  given: ClaudeAgentPermDockOptions<TUser>,
 ): ClaudeAgentPermDock<V> {
+  const options = adapterOptions(policy, given);
   const sources = options.mcpSources ?? ["sdk"];
   const { agent, kernel } = agentRuntime(policy, options, "claude-agent");
 

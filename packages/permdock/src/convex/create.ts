@@ -10,6 +10,7 @@ import type {
 } from "./types.ts";
 
 import { actorFrom, tenantScope } from "../core/adapter-context.ts";
+import { withApp } from "../core/app.ts";
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
 import {
@@ -52,8 +53,9 @@ export function createPermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: ConvexPermDockOptions<TCtx, TUser>,
+  given: ConvexPermDockOptions<TCtx, TUser>,
 ): ConvexPermDock<TCtx, V> {
+  const options = withApp(policy, given);
   const withPermDock = <TArgs, TResult>(
     handler: ConvexHandler<TCtx, TArgs, TResult, V>,
   ): ((ctx: TCtx, args: TArgs) => Promise<TResult>) => {

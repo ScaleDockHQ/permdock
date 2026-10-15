@@ -15,6 +15,7 @@ import type {
   ServerPermDock,
 } from "./server-types.ts";
 
+import { adapterOptions } from "../approvals/app.ts";
 import { compact } from "../core/compact.ts";
 import {
   type InstanceOptions,
@@ -160,12 +161,13 @@ export function bindKernel<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: ServerAdapterOptions<TContext, TUser> & {
+  given: ServerAdapterOptions<TContext, TUser> & {
     readonly revocations?: RevocationFeed;
   },
   adapter: string,
   toRequest: (context: TContext) => Request,
 ): BoundKernel<TContext, V> {
+  const options = adapterOptions(policy, given);
   const contexts = new WeakMap<Request, TContext>();
   const bound = new WeakMap<TContext, Request>();
   const kernel = adapterKernel(policy, options, adapter, (request) =>

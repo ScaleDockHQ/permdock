@@ -12,9 +12,9 @@ import type { Principal } from "../core/subject.ts";
 
 import { agentRuntime } from "../agent/create.ts";
 import { boundedMap } from "../agent/lru.ts";
+import { adapterOptions } from "../approvals/app.ts";
 import { isApprovalError } from "../approvals/errors.ts";
 import { resolveApproval } from "../approvals/helpers.ts";
-import { memoryApprovalStore } from "../approvals/store.ts";
 import { compact } from "../core/compact.ts";
 
 /** Structural `SessionAuthContext` from `eve`. */
@@ -173,9 +173,10 @@ export function createPermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: EvePermDockOptions<TUser>,
+  given: EvePermDockOptions<TUser>,
 ): EvePermDock<V> {
-  const store = options.store ?? memoryApprovalStore();
+  const options = adapterOptions(policy, given);
+  const store = options.store;
   const tokensByCall = boundedMap<string, string>(TOKENS_PER_PROCESS);
   // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromEve builds, or null.
   const { agent, kernel } = agentRuntime(
@@ -186,7 +187,6 @@ export function createPermDock<
         options.subject ??
         (subjectFromEve as (context: EveContext) => TUser | Promise<TUser>),
       actor: options.actor ?? actorFromEve,
-      store,
     },
     "eve",
   );
@@ -260,7 +260,7 @@ export function createPermDock<
       ctx: EveResponseContext,
     ): Promise<EveResponseResult> => {
       const token = await tokenOf(ctx);
-      if (token === undefined) {
+      if (token === undefined || store === undefined) {
         return { status: "rejected", reason: "approval-not-found" };
       }
       let current: ApprovalRequest | null;

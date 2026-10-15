@@ -13,6 +13,7 @@ import type {
   ToolVerdict,
 } from "./types.ts";
 
+import { adapterOptions } from "../approvals/app.ts";
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { resolveOrNull } from "../core/build-instance.ts";
@@ -65,7 +66,7 @@ export function createAgentKernel<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, Principal, V>,
-  options: AgentKernelOptions<TContext, TUser>,
+  given: AgentKernelOptions<TContext, TUser>,
 ): {
   /** One instance per context object while a call is in flight; later calls re-read the subject. */
   readonly instance: (context: TContext) => Promise<PermDock<V>>;
@@ -105,6 +106,7 @@ export function createAgentKernel<
   /** Sends `error` to the `on('error')` handlers of an instance this kernel built. */
   readonly report: (permdock: PermDock<V> | undefined, error: unknown) => void;
 } {
+  const options = adapterOptions(policy, given);
   const cache = new WeakMap<object, Promise<PermDock<V>>>();
   const reporters = new WeakMap<PermDock<V>, Report>();
 

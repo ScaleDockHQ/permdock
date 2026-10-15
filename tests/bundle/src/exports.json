@@ -55,6 +55,7 @@
     "decideCredential",
     "decideRoleChange",
     "decideSupportSession",
+    "defineApp",
     "defineOperations",
     "definePermissions",
     "definePlans",
