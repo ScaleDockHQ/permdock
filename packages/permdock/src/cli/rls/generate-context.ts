@@ -1,4 +1,5 @@
 import type { RlsMemberships } from "../types.ts";
+import type { RlsMigrateConfig } from "../types.ts";
 import type {
   GenerateOptions,
   Refusal,
@@ -18,6 +19,20 @@ import { apiKeysPlan } from "./api-keys.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
 import { ownershipRules } from "./ownership.ts";
 import { type RbacAuthorizeMode, resolveAuthorize } from "./rbac.ts";
+
+/** The scopes an `rls.migrate` `role` helper names, so `rls generate` writes their role-filtered member helper. */
+function roleMemberScopesOf(migrate: RlsMigrateConfig | undefined): {
+  readonly roleMemberScopes?: readonly string[];
+} {
+  const scopes = [
+    ...new Set(
+      Object.values(migrate?.helpers ?? {}).flatMap((helper) =>
+        helper.form === "role" ? [helper.scope] : [],
+      ),
+    ),
+  ].toSorted();
+  return scopes.length === 0 ? {} : { roleMemberScopes: scopes };
+}
 
 export type GenerateContext = {
   readonly ctx: RlsSqlContext;
@@ -167,6 +182,8 @@ export function buildContext(
     dialect: input.dialect,
     scopes,
     tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
+    ...roleMemberScopesOf(rls?.migrate),
+    ...(rls?.roleValues === undefined ? {} : { roleValues: rls.roleValues }),
     ...(rls?.tenants === "all" ? { tenants: "all" as const } : {}),
     gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? "app",
     ...(rls?.actions === undefined ? {} : { actions: rls.actions }),

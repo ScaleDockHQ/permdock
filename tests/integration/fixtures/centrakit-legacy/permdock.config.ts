@@ -10,6 +10,7 @@ export default {
     tenantType: "uuid",
     suspension,
     helpersOnly: true,
+    roleValues: { org_member: "member" },
     migrate: {
       helpers: {
         org_ids_with_permission: { form: "ids", scope: "organization" },
@@ -17,6 +18,7 @@ export default {
         authorize_scope: { form: "scoped" },
         is_system_user_with: { form: "global" },
         is_org_member: { form: "membership", scope: "organization" },
+        has_org_role: { form: "role", scope: "organization" },
       },
       keys: {
         "organization.customers.view": "customers.read",

@@ -125,6 +125,13 @@ export type RlsConfig = {
   /** Postgres type of each named scope's id column; overrides `tenantType` / `teamType`. */
   readonly scopeTypes?: Readonly<Record<string, string>>;
   readonly roleClaim?: string;
+  /**
+   * Role values the existing SQL compares against (a string literal or an
+   * enum label) and the PermDock role each one is. `rls import` writes the
+   * PermDock name for a mapped value; `rls migrate` filters a `role` helper by
+   * it. An unmapped value must already be a declared role.
+   */
+  readonly roleValues?: Readonly<Record<string, string>>;
   readonly gucPrefix?: string;
   readonly out?: string;
   /** `--target drizzle`: where each policy's `.link()` finds its table. */
@@ -456,6 +463,8 @@ export type RlsActions = Readonly<
  */
 export type RlsMigrateHelper =
   | { readonly form: "ids" | "row" | "membership"; readonly scope: string }
+  /** `role(id, 'role', …)`: the subject holds one of the named roles on instance `id`. */
+  | { readonly form: "role"; readonly scope: string }
   | { readonly form: "scoped" }
   | { readonly form: "global" };
 

@@ -206,7 +206,12 @@ async function migrate(input: RlsRunInput): Promise<CommandResult> {
     cwd: input.cwd,
     sql: input.sql,
     config,
-    target: migrateTarget(generated),
+    target: {
+      ...migrateTarget(generated),
+      ...(input.config.rls?.roleValues === undefined
+        ? {}
+        : { roleValues: input.config.rls.roleValues }),
+    },
     write: input.write,
     json: input.json,
     retireOut: input.retireOut,

@@ -83,6 +83,7 @@ alter table public.organizations enable row level security;
 create policy organizations_select on public.organizations for select to authenticated
   using (
     public.is_org_member(organizations.id)
+    or public.has_org_role(organizations.id, 'org_member')
     or (select public.is_system_user_with('system.organizations.view'))
   );
 
@@ -161,9 +162,12 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
     );
 
   it("calls only the generated helpers", () => {
-    expect(rewrote).toContain("rewrote 5 call(s) in 1 file(s), skipped 0");
+    expect(rewrote).toContain("rewrote 6 call(s) in 1 file(s), skipped 0");
     expect(migrated).not.toMatch(
-      /org_ids_with_permission|has_org_permission|authorize_scope|is_system_user_with|is_org_member/u,
+      /org_ids_with_permission|has_org_permission|authorize_scope|is_system_user_with|is_org_member|has_org_role/u,
+    );
+    expect(migrated).toContain(
+      "(organizations.id in (select permdock.member_organization_ids(array['member'])))",
     );
     expect(migrated).toContain(
       "(select permdock.permitted_organization_ids('customers.read'))",
@@ -174,6 +178,20 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
     expect(migrated).toContain(
       "(select permdock.permdock_has('organizations.read'))",
     );
+  });
+
+  it("narrows the role-filtered member helper to the mapped role", async () => {
+    const held = (roles: readonly string[]) =>
+      as(MEMBER, async (client) =>
+        (
+          await client.query<{ id: string }>(
+            "select permdock.member_organization_ids($1::text[]) as id",
+            [roles],
+          )
+        ).rows.map((row) => row.id),
+      );
+    expect(await held(["member"])).toEqual([ORG_A]);
+    expect(await held(["owner"])).toEqual([]);
   });
 
   it("enforces the migrated policies", async () => {

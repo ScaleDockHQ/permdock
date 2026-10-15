@@ -40,7 +40,12 @@ import { instancesActive, keyTenantLine, userActive } from "./helper-rows.ts";
  * a live membership of, with any role. Not narrowed to the active tenant, and
  * no cascade: a membership of a child scope is not one of its parent.
  */
-function memberBody(ctx: RlsSqlContext, scope: string, type: string): Body {
+function memberBody(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+  roles?: string,
+): Body {
   if (ctx.authorize !== "database") {
     return sqlBody(`  select distinct (m ->> 'id')::${type}
   from jsonb_array_elements(
@@ -50,7 +55,7 @@ function memberBody(ctx: RlsSqlContext, scope: string, type: string): Body {
     and m ->> 'scope' = ${quoteLiteral(scope)}
     and m ->> 'id' is not null${keyTenantLine(ctx, scope, claimTenant(ctx, scope))}
     and jsonb_typeof(m -> 'roles') = 'array'
-    and jsonb_array_length(m -> 'roles') > 0
+    and jsonb_array_length(m -> 'roles') > 0${roles === undefined ? "" : `\n    and (m -> 'roles') ?| ${roles}`}
     and case jsonb_typeof(m -> 'expires_at')
       when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
       else true
@@ -77,6 +82,7 @@ function memberBody(ctx: RlsSqlContext, scope: string, type: string): Body {
     subjectIdSql(ctx),
     scopeSources(ctx, scope),
     true,
+    roles,
   );
 }
 
@@ -91,6 +97,7 @@ function memberRowsBody(
   user: string,
   sources: readonly SqlMembershipSource[],
   keyed = false,
+  roles?: string,
 ): Body {
   if (sources.length > 0) {
     const narrow = keyed
@@ -104,7 +111,7 @@ ${sourceRows(sources)}
   where ${signedIn(ctx, user)}
     and ms.scope = ${quoteLiteral(scope)}
     and jsonb_typeof(ms.roles) = 'array'
-    and jsonb_array_length(ms.roles) > 0${narrow}${sourceFilters(ctx, scope, user, undefined, sourcesKeep(sources))}`,
+    and jsonb_array_length(ms.roles) > 0${roles === undefined ? "" : `\n    and ms.roles ?| ${roles}`}${narrow}${sourceFilters(ctx, scope, user, undefined, sourcesKeep(sources))}`,
       sources,
       user,
     );
@@ -123,6 +130,11 @@ ${sourceRows(sources)}
     `  where ${memberColumn(table.user)} = ${user}`,
     `    and ${role.through === undefined && !role.lateral ? memberColumn(role.column) : role.sql} is not null`,
   ];
+  if (roles !== undefined) {
+    lines.push(
+      `    and (${role.through === undefined && !role.lateral ? memberColumn(role.column) : role.sql})::text = any(${roles})`,
+    );
+  }
   const narrow = keyed
     ? keyTenantSql(
         ctx,
@@ -185,6 +197,30 @@ grant execute on function ${fn}() to authenticated;`;
   return `create or replace function ${fn}()
 returns setof ${type}
 ${functionBody(keyed)}
+${grants}`;
+}
+
+/**
+ * `member_<scope>_ids(p_roles text[])`: `member_<scope>_ids()` narrowed to
+ * memberships holding one of `p_roles` by name, for `rls migrate`'s `role`
+ * helpers. Generated only for a scope such a helper names.
+ */
+export function memberRolesFunction(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+  anonExecute: boolean,
+): string {
+  const fn = qualified(ctx, memberIdsHelper(scope));
+  const body = memberBody(ctx, scope, type, "p_roles");
+  const grants = anonExecute
+    ? `revoke execute on function ${fn}(text[]) from public;
+grant execute on function ${fn}(text[]) to anon, authenticated;`
+    : `revoke execute on function ${fn}(text[]) from public, anon;
+grant execute on function ${fn}(text[]) to authenticated;`;
+  return `create or replace function ${fn}(p_roles text[])
+returns setof ${type}
+${functionBody(body)}
 ${grants}`;
 }
 

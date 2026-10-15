@@ -47,6 +47,7 @@ const RLS = {
   teamType: true,
   scopeTypes: true,
   roleClaim: true,
+  roleValues: true,
   gucPrefix: true,
   out: true,
   drizzle: true,

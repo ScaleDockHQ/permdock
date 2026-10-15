@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { RlsMemberships } from "../../src/cli/types.ts";
 
 import { conditionFromAst } from "../../src/cli/rls/import-ast.ts";
+import { mapRoleValues } from "../../src/cli/rls/import-membership.ts";
 import { textArrayLiteral } from "../../src/cli/sql/quote.ts";
 
 const memberships: RlsMemberships = {
@@ -57,6 +58,20 @@ describe("rls import membership subqueries", () => {
       ),
       ["owner"],
     ],
+    [
+      "roles as = any(array[...])",
+      ORG(
+        "m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.role = any(array['owner', 'admin'])",
+      ),
+      ["owner", "admin"],
+    ],
+    [
+      "enum casts on a role literal and an array",
+      ORG(
+        "m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.role = 'owner'::app_role and m.role = any(array['owner']::app_role[])",
+      ),
+      ["owner"],
+    ],
   ])("imports %s as memberOf", async (_label, sql, roles) => {
     expect(await imported(sql)).toEqual({
       op: "memberOf",
@@ -100,6 +115,18 @@ describe("rls import membership subqueries", () => {
       ),
     ],
     [
+      "an any array with a non-literal",
+      ORG(
+        "m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.role = any(array['owner', m.kind])",
+      ),
+    ],
+    [
+      "an any over a subquery",
+      ORG(
+        "m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.role = any(select r from roles r)",
+      ),
+    ],
+    [
       "an in list with a number",
       ORG(
         "m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.role in ('owner', 2)",
@@ -126,6 +153,39 @@ describe("rls import membership subqueries", () => {
     ],
   ])("keeps %s opaque", async (_label, sql) => {
     expect(await imported(sql)).toMatchObject({ op: "opaque" });
+  });
+});
+
+describe("mapRoleValues", () => {
+  it("renames memberOf roles anywhere in a condition and leaves other values", () => {
+    expect(
+      mapRoleValues(
+        {
+          op: "or",
+          conditions: [
+            {
+              op: "memberOf",
+              scope: "tenant",
+              field: "org_id",
+              roles: ["org_admin", "member"],
+            },
+            { op: "eq", field: "role", value: "org_admin" },
+          ],
+        },
+        { org_admin: "owner" },
+      ),
+    ).toEqual({
+      op: "or",
+      conditions: [
+        {
+          op: "memberOf",
+          scope: "tenant",
+          field: "org_id",
+          roles: ["owner", "member"],
+        },
+        { op: "eq", field: "role", value: "org_admin" },
+      ],
+    });
   });
 });
 

@@ -34,6 +34,10 @@ export type RlsSqlContext = {
    */
   readonly memberSources?: readonly SqlMembershipSource[];
   readonly tenantClaim: string;
+  /** Scopes whose `member_<scope>_ids(p_roles text[])` overload `rls.migrate`'s `role` helpers rewrite to. */
+  readonly roleMemberScopes?: readonly string[];
+  /** `rls.roleValues`: a legacy role value to the PermDock role it is; the `role` shim maps through it. */
+  readonly roleValues?: Readonly<Record<string, string>>;
   /**
    * SQL for the subject's user id in place of the dialect's (`auth.uid()`):
    * `p_user` inside a `_for` helper, which answers for a user the caller names.

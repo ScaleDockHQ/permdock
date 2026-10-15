@@ -232,6 +232,22 @@ function shim(
         `  select coalesce(p_id in (select ${qualified(ctx, memberIdsHelper(scope))}()), false)`,
       );
     }
+    case "role": {
+      const scope = scopeOf(ctx, helper.scope);
+      const type = scopeTypeOf(ctx, scope);
+      const values = Object.entries(ctx.roleValues ?? {});
+      const role =
+        values.length === 0
+          ? "p_role"
+          : `case p_role ${values.map(([from, to]) => `when ${quoteLiteral(from)} then ${quoteLiteral(to)}`).join(" ")} else p_role end`;
+      return shimFunction(
+        fn,
+        `p_id ${type}, p_role text`,
+        `${type}, text`,
+        "boolean",
+        `  select coalesce(p_id in (select ${qualified(ctx, memberIdsHelper(scope))}(array[${role}])), false)`,
+      );
+    }
     case "global":
       return shimFunction(
         fn,

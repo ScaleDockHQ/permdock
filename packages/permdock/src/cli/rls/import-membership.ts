@@ -116,6 +116,24 @@ function readConjunct(
   }
   const kind = expr["kind"];
   const left = columnName(expr["lexpr"]);
+  if (kind === "AEXPR_OP_ANY" || kind === 2) {
+    // `role = any(array['a', 'b'])`, a cast to an enum array included.
+    const elements = asNode(asNode(unwrap(expr["rexpr"]))?.["A_ArrayExpr"])?.[
+      "elements"
+    ];
+    if (
+      left === undefined ||
+      left !== roleColumn ||
+      !Array.isArray(elements) ||
+      elements.length === 0
+    ) {
+      return undefined;
+    }
+    const values = elements.map((item) => constValue(item));
+    return values.every((item): item is string => typeof item === "string")
+      ? { kind: "roles", roles: values }
+      : undefined;
+  }
   if (kind === "AEXPR_IN" || kind === 7) {
     const raw = expr["rexpr"];
     const items = asNode(raw)?.["List"];
@@ -158,4 +176,37 @@ function readConjunct(
     }
   }
   return undefined;
+}
+
+/**
+ * `condition` with every `memberOf` role read through `rls.roleValues`, so a
+ * legacy role value imports as the PermDock role it stands for.
+ */
+export function mapRoleValues(
+  condition: unknown,
+  roleValues: Readonly<Record<string, string>> | undefined,
+): unknown {
+  if (roleValues === undefined || condition === null) {
+    return condition;
+  }
+  if (Array.isArray(condition)) {
+    return condition.map((item) => mapRoleValues(item, roleValues));
+  }
+  if (typeof condition !== "object") {
+    return condition;
+  }
+  const mapped = Object.fromEntries(
+    Object.entries(condition).map(([key, value]) => [
+      key,
+      mapRoleValues(value, roleValues),
+    ]),
+  );
+  if (mapped["op"] === "memberOf" && Array.isArray(mapped["roles"])) {
+    mapped["roles"] = mapped["roles"].map((role: unknown) =>
+      typeof role === "string" && Object.hasOwn(roleValues, role)
+        ? roleValues[role]
+        : role,
+    );
+  }
+  return mapped;
 }

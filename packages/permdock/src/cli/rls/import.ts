@@ -19,6 +19,7 @@ import {
   conditionFromAst,
   helperGrants,
 } from "./import-ast.ts";
+import { mapRoleValues } from "./import-membership.ts";
 import { canonicalDump, fingerprintSql } from "./import-nodes.ts";
 import { seedFromRow, seedsFromSql } from "./import-seeds.ts";
 import {
@@ -315,19 +316,30 @@ export async function runRlsImport(input: {
   }
   const memberships =
     parseMembershipsFlag(input.memberships) ?? input.config.rls?.memberships;
+  const roleValues = input.config.rls?.roleValues;
+  if (roleValues !== undefined) {
+    seeds = seeds.map((row) =>
+      Object.hasOwn(roleValues, row.role)
+        ? { ...row, role: roleValues[row.role] ?? row.role }
+        : row,
+    );
+  }
   const functions = input.config.rls?.functions;
   const unmapped: string[] = [];
   const joins: string[] = [];
   const catalog: CatalogEntry[] = [];
   for (const item of policies) {
     const sourceSql = item.using ?? item.check ?? "true";
-    const condition = await conditionFromAst(
-      item.using ?? item.check,
-      memberships,
-      functions,
-      unmapped,
-      joins,
-      seeds,
+    const condition = mapRoleValues(
+      await conditionFromAst(
+        item.using ?? item.check,
+        memberships,
+        functions,
+        unmapped,
+        joins,
+        seeds,
+      ),
+      input.config.rls?.roleValues,
     );
     const grants = await helperGrants(
       item.using ?? item.check,

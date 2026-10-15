@@ -41,6 +41,8 @@ export type MigrateSkipReason =
   | "unknown-scope"
   | "function-body"
   | "not-in-policy"
+  | "dynamic-role"
+  | "unknown-role"
   | "unparsed";
 
 export type MigrateSkip = {
@@ -68,11 +70,17 @@ export type MigrateTarget = {
   readonly granted: ReadonlyMap<string, ReadonlySet<string>>;
   /** Former key to current key, applied after `keys` and before `prefixes`. */
   readonly renamed: Readonly<Record<string, string>>;
+  /** Every role the seeded `role_permissions` rows name. */
+  readonly roles: ReadonlySet<string>;
+  /** `rls.roleValues`: a legacy role value to the PermDock role it is. */
+  readonly roleValues?: Readonly<Record<string, string>>;
 };
 
 export function migrateTarget(generated: GenerateOutcome): MigrateTarget {
   const granted = new Map<string, Set<string>>();
+  const roles = new Set<string>();
   for (const row of generated.seeds ?? []) {
+    roles.add(row.role);
     if (row.effect !== "allow") {
       continue;
     }
@@ -90,6 +98,7 @@ export function migrateTarget(generated: GenerateOutcome): MigrateTarget {
     rowConditions: new Set(generated.keys?.rowConditions ?? []),
     granted,
     renamed: generated.keys?.renamed ?? {},
+    roles,
   };
 }
 
@@ -351,6 +360,45 @@ class Rewriter {
       : column;
   }
 
+  #role(scope: string, idArg: unknown, roleArgs: readonly unknown[]): Outcome {
+    const name = `member_${scope}_ids`;
+    const helper = this.#helper(name);
+    if (
+      helper === undefined ||
+      !this.#target.sql.includes(`.${name}(p_roles text[])`)
+    ) {
+      return skip(
+        "missing-helper",
+        `rls generate writes no ${name}(p_roles text[]): run it with this rls.migrate config, which asks for it`,
+      );
+    }
+    const legacy = roleArgs.map((arg) => stringConst(arg));
+    if (legacy.length === 0 || legacy.some((role) => role === undefined)) {
+      return skip(
+        "dynamic-role",
+        "a role is not a string literal; map it by hand",
+      );
+    }
+    const mapped: string[] = [];
+    for (const role of legacy) {
+      const value = role ?? "";
+      const declared = this.#target.roleValues?.[value] ?? value;
+      if (!this.#target.roles.has(declared)) {
+        return skip(
+          "unknown-role",
+          `${value} maps to ${declared}, which no role grants; add it to rls.roleValues or declare the role`,
+        );
+      }
+      mapped.push(declared);
+    }
+    const column = this.#column(idArg);
+    return "to" in column
+      ? {
+          to: `(${column.to} in (select ${helper}(array[${mapped.map(literal).join(", ")}])))`,
+        }
+      : column;
+  }
+
   #scoped(args: readonly unknown[], selected: boolean): Outcome {
     const [scopeArg, idArg, keyArg] = args;
     const named = stringConst(scopeArg);
@@ -379,6 +427,8 @@ class Rewriter {
         return this.#row(helper.scope, args[0], args[1]);
       case "membership":
         return this.#membership(helper.scope, args[0]);
+      case "role":
+        return this.#role(helper.scope, args[0], args.slice(1));
       case "scoped":
         return this.#scoped(args, selected);
       case "global":
