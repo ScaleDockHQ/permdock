@@ -318,11 +318,12 @@ export async function runRlsImport(input: {
     parseMembershipsFlag(input.memberships) ?? input.config.rls?.memberships;
   const roleValues = input.config.rls?.roleValues;
   if (roleValues !== undefined) {
-    seeds = seeds.map((row) =>
-      Object.hasOwn(roleValues, row.role)
-        ? { ...row, role: roleValues[row.role] ?? row.role }
-        : row,
-    );
+    seeds = seeds.map((row) => {
+      const mapped = Object.hasOwn(roleValues, row.role)
+        ? roleValues[row.role]
+        : undefined;
+      return mapped === undefined ? row : { ...row, role: mapped };
+    });
   }
   const functions = input.config.rls?.functions;
   const unmapped: string[] = [];

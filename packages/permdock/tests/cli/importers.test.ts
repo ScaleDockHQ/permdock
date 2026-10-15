@@ -16,6 +16,7 @@ import {
   runCasbinImport,
 } from "../../src/cli/importers/casbin.ts";
 import { importCasl, runCaslImport } from "../../src/cli/importers/casl.ts";
+import { run } from "../../src/cli/run.ts";
 import { createPermDock } from "../../src/index.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
@@ -280,5 +281,405 @@ g, bob, viewer
     expect(JSON.parse(result.output)).toMatchObject({
       skipped: [{ reason: "not-an-identifier", deny: true }],
     });
+  });
+});
+
+describe("casl conditions and rule shapes", () => {
+  it("reads packed rules, logical operators, comparisons, $exists and arrays", () => {
+    const imported = importCasl({
+      ops: [
+        ["read,update", "Invoice", { total: { $gte: 10, $lt: 100 } }],
+        [
+          "read",
+          "Invoice",
+          { $or: [{ status: "open" }, { status: { $ne: "void" } }] },
+          1,
+        ],
+        [
+          "delete",
+          "Invoice",
+          {
+            $and: [{ archived: { $exists: false } }],
+            $nor: [{ owner: "${user.orgId}" }],
+          },
+          0,
+          "total,status",
+        ],
+        {
+          action: "read",
+          subject: ["Invoice", "Receipt"],
+          conditions: { tags: ["a", 1, null, true] },
+        },
+        {
+          action: "list",
+          subject: "Receipt",
+          conditions: {
+            amount: { $in: [1, 2], $nin: [3], $gt: 0, $lte: 9, $eq: 5 },
+          },
+        },
+        {
+          action: "read",
+          subject: "Receipt",
+          conditions: { meta: { nested: { deep: 1 } } },
+        },
+        { action: "read", subject: "Receipt", conditions: { "author.id": 1 } },
+        { action: "read", subject: "Receipt", conditions: { $where: "x" } },
+        { action: "read", subject: "Receipt", conditions: { $or: "x" } },
+        { action: "read", subject: "Receipt", conditions: { $or: [1] } },
+        {
+          action: "read",
+          subject: "Receipt",
+          conditions: { owner: [{ id: 1 }] },
+        },
+        {
+          action: "read",
+          subject: "Receipt",
+          conditions: { $and: [{ x: { $regex: "y" } }] },
+        },
+        { action: 1 },
+        { action: "read", subject: 2 },
+      ],
+    });
+    expect(imported.skipped.map((item) => [item.rule, item.reason])).toEqual([
+      [12, "not-a-rule"],
+      [13, "not-a-rule"],
+      [5, "unsupported-condition"],
+      [6, "unsupported-condition"],
+      [7, "unsupported-condition"],
+      [8, "unsupported-condition"],
+      [9, "unsupported-condition"],
+      [10, "unsupported-condition"],
+      [11, "unsupported-condition"],
+    ]);
+    const grants = imported.roles[0]?.grants ?? [];
+    expect(
+      grants.map(
+        (grant) => `${grant.effect} ${grant.resource}.${grant.action}`,
+      ),
+    ).toEqual([
+      "allow invoice.read",
+      "allow invoice.update",
+      "deny invoice.read",
+      "allow invoice.delete",
+      "allow invoice.read",
+      "allow receipt.read",
+      "allow receipt.list",
+    ]);
+    expect(grants[3]).toMatchObject({ fields: ["total", "status"] });
+  });
+
+  it("expands manage to CRUD for a subject the rules give no action", () => {
+    const imported = importCasl({
+      admin: [{ action: "manage", subject: "Report" }],
+    });
+    expect([...(imported.actions.get("report") ?? [])].toSorted()).toEqual([
+      "create",
+      "delete",
+      "read",
+      "update",
+    ]);
+  });
+
+  it("renders every operator into a module the policy accepts", async () => {
+    const cwd = dir();
+    writeFileSync(
+      path.join(cwd, "rules.json"),
+      JSON.stringify({
+        clerk: [
+          {
+            action: "read",
+            subject: "Invoice",
+            conditions: {
+              $nor: [{ status: "void" }],
+              total: {
+                $gt: 1,
+                $gte: 1,
+                $lt: 9,
+                $lte: 9,
+                $ne: 5,
+                $in: [1, 2],
+                $nin: [3],
+              },
+              archived: { $exists: true },
+              tag: null,
+              owner: "${user.orgId}",
+            },
+          },
+        ],
+      }),
+    );
+    const result = runCaslImport({
+      cwd,
+      rules: "rules.json",
+      out: "policy.ts",
+      json: true,
+    });
+    expect(JSON.parse(result.output)).toEqual({
+      out: "policy.ts",
+      skipped: [],
+    });
+    const { permissions, policy } = await load(path.join(cwd, "policy.ts"));
+    const clerk = createPermDock(policy, { id: "u1", roles: ["clerk"] });
+    const invoice = permissions["invoice"] ?? {};
+    expect(
+      clerk.can(leaf(invoice, "read"), {
+        id: "i1",
+        status: "open",
+        total: 2,
+        archived: true,
+        tag: null,
+        owner: "o1",
+      }),
+    ).toBe(false);
+  });
+
+  it("answers 2 for a file that is not JSON", () => {
+    const cwd = dir();
+    writeFileSync(path.join(cwd, "rules.json"), "{");
+    expect(
+      runCaslImport({ cwd, rules: "rules.json", out: "x.ts", json: false }),
+    ).toMatchObject({ code: 2 });
+  });
+});
+
+const DOMAINS = `[request_definition]
+r = sub, dom, obj, act
+
+[policy_definition]
+p = sub, dom, obj, act
+
+[role_definition]
+g = _, _, _
+
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act
+`;
+
+describe("casbin models and lines", () => {
+  it("refuses request, policy and effect shapes it cannot translate", () => {
+    expect(
+      readCasbinModel(RBAC.replace("r = sub, obj, act", "r = sub, obj")),
+    ).toMatchObject({ refused: expect.stringContaining("r = sub, obj") });
+    expect(
+      readCasbinModel(RBAC.replace("p = sub, obj, act, eft", "p = sub, act")),
+    ).toMatchObject({ refused: expect.stringContaining("p = sub, act") });
+    expect(
+      readCasbinModel(RBAC.replace(/e = .*/u, "e = priority(p.eft) || deny")),
+    ).toMatchObject({ refused: expect.stringContaining("e = priority") });
+    expect(readCasbinModel(RBAC.replace(/m = .*/u, "m = "))).toMatchObject({
+      refused: expect.stringContaining("(empty)"),
+    });
+  });
+
+  it("imports wildcard-domain grants and reports domain, malformed and effect-less deny lines", () => {
+    const model = readCasbinModel(DOMAINS);
+    expect(model).toEqual({ domains: true, roles: true, denies: false });
+    if ("refused" in model) {
+      throw new Error(model.refused);
+    }
+    const imported = importCasbin(
+      model,
+      `# a comment
+p, admin, *, invoice, read
+p, admin, t1, invoice, update
+p, admin, *, invoice
+p, admin, *, invoice, delete, deny
+g, alice, admin, t1
+g, admin
+g, owner, admin
+g, admin, owner
+`,
+    );
+    expect(imported.assignments).toEqual([
+      { user: "alice", role: "admin", domain: "t1" },
+    ]);
+    expect(imported.skipped.map((item) => [item.line, item.reason])).toEqual([
+      [7, "malformed"],
+      [3, "domain-grant"],
+      [4, "malformed"],
+      [5, "deny-without-effect"],
+    ]);
+    expect(
+      imported.roles.map((role) => [role.name, role.grants.length]),
+    ).toEqual([
+      ["admin", 1],
+      ["owner", 1],
+    ]);
+  });
+
+  it("answers 2 for missing files and a refused model, and prints a summary", () => {
+    const cwd = dir();
+    writeFileSync(
+      path.join(cwd, "model.conf"),
+      RBAC.replace(/m = .*/u, "m = true"),
+    );
+    writeFileSync(path.join(cwd, "policy.csv"), "");
+    expect(
+      runCasbinImport({
+        cwd,
+        model: undefined,
+        policy: "policy.csv",
+        out: "p.ts",
+        json: false,
+      }).code,
+    ).toBe(2);
+    expect(
+      runCasbinImport({
+        cwd,
+        model: "model.conf",
+        policy: "nope.csv",
+        out: "p.ts",
+        json: false,
+      }).code,
+    ).toBe(2);
+    expect(
+      runCasbinImport({
+        cwd,
+        model: "model.conf",
+        policy: "policy.csv",
+        out: undefined,
+        json: false,
+      }).code,
+    ).toBe(2);
+    expect(
+      runCasbinImport({
+        cwd,
+        model: "model.conf",
+        policy: "policy.csv",
+        out: "p.ts",
+        json: false,
+      }),
+    ).toMatchObject({
+      code: 2,
+      output: expect.stringContaining("casbin import --model"),
+    });
+    writeFileSync(path.join(cwd, "model.conf"), RBAC);
+    writeFileSync(path.join(cwd, "policy.csv"), "p, alice, report, read\n");
+    expect(
+      runCasbinImport({
+        cwd,
+        model: "model.conf",
+        policy: "policy.csv",
+        out: "p.ts",
+        json: false,
+      }).output,
+    ).toContain("user-grant: line 1");
+  });
+});
+
+describe("casl and casbin commands", () => {
+  it("run the import action and refuse any other", async () => {
+    const cwd = dir();
+    writeFileSync(
+      path.join(cwd, "rules.json"),
+      JSON.stringify({ viewer: [{ action: "read", subject: "Doc" }] }),
+    );
+    writeFileSync(path.join(cwd, "model.conf"), RBAC);
+    writeFileSync(
+      path.join(cwd, "policy.csv"),
+      "p, viewer, doc, read\ng, bob, viewer\n",
+    );
+    const casl = await run(
+      ["casl", "import", "--rules", "rules.json", "--out", "a.ts"],
+      { cwd },
+    );
+    const casbin = await run(
+      [
+        "casbin",
+        "import",
+        "--model",
+        "model.conf",
+        "--policy",
+        "policy.csv",
+        "--out",
+        "b.ts",
+      ],
+      { cwd },
+    );
+    const other = await run(["casl", "export"], { cwd });
+    const otherCasbin = await run(["casbin", "export"], { cwd });
+    expect([casl.code, casbin.code, other.code, otherCasbin.code]).toEqual([
+      0, 0, 2, 2,
+    ]);
+    expect(casl.stdout).toContain(
+      "casl import: wrote 1 role(s) with 1 grant(s) to a.ts, skipped 0",
+    );
+    expect(casbin.stdout).toContain(
+      "casbin import: wrote 1 role(s) and 1 assignment(s) to b.ts, skipped 0",
+    );
+  });
+});
+
+describe("casbin model and line edges", () => {
+  it("refuses a model without a request, matcher or effect and ignores a line without =", () => {
+    expect(readCasbinModel("[matchers]\nm = r.obj == p.obj\n")).toMatchObject({
+      refused: expect.stringContaining("r = :"),
+    });
+    expect(
+      readCasbinModel(RBAC.replace(/\[matchers\][\s\S]*/u, "")),
+    ).toMatchObject({ refused: expect.stringContaining("(empty)") });
+    expect(
+      readCasbinModel(
+        RBAC.replace(
+          /\[policy_effect\]\ne = .*\n/u,
+          "[policy_effect]\nnot a pair\n",
+        ),
+      ),
+    ).toMatchObject({ refused: expect.stringContaining("e = :") });
+  });
+
+  it("reports a bare p line and prints the widened-access warning", () => {
+    const model = readCasbinModel(RBAC);
+    if ("refused" in model) {
+      throw new Error(model.refused);
+    }
+    expect(importCasbin(model, "p\ng, a, viewer\n").skipped).toMatchObject([
+      { line: 1, reason: "malformed" },
+    ]);
+    const cwd = dir();
+    writeFileSync(path.join(cwd, "model.conf"), RBAC);
+    writeFileSync(
+      path.join(cwd, "policy.csv"),
+      "p, editor, /x/*, read, deny\ng, alice, editor\n",
+    );
+    const result = runCasbinImport({
+      cwd,
+      model: "model.conf",
+      policy: "policy.csv",
+      out: "p.ts",
+      json: false,
+    });
+    expect(result).toMatchObject({
+      code: 1,
+      output: expect.stringContaining("a deny line did not import"),
+    });
+  });
+});
+
+describe("casl rule edges", () => {
+  it("reports a rule without a subject and quotes a field that is not an identifier", async () => {
+    const imported = importCasl({
+      viewer: [
+        { action: "read" },
+        { action: "read", subject: "Doc", conditions: { "first-name": "a" } },
+      ],
+    });
+    expect(imported.skipped).toMatchObject([{ rule: 0, reason: "no-subject" }]);
+    const cwd = dir();
+    writeFileSync(
+      path.join(cwd, "rules.json"),
+      JSON.stringify({
+        viewer: [
+          { action: "read", subject: "Doc", conditions: { "first-name": "a" } },
+        ],
+      }),
+    );
+    runCaslImport({ cwd, rules: "rules.json", out: "policy.ts", json: false });
+    expect(readFileSync(path.join(cwd, "policy.ts"), "utf8")).toContain(
+      "where: { 'first-name': 'a' }",
+    );
   });
 });

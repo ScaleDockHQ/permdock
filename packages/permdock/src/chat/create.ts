@@ -29,7 +29,7 @@ import {
 import { withApp } from "../core/app.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { loadPermDock as loadCorePermDock } from "../core/permdock.ts";
 import { approvalPrompt } from "../delivery/approval-prompt.ts";
 import { isChatAuthor, subjectFromChat } from "./subject.ts";
 
@@ -179,7 +179,7 @@ export function createPermDock<
   const { store: approvals, ...permdockOptions } = options;
 
   const instanceFor = (subject: Subject): Promise<PermDock<V>> =>
-    Promise.resolve(createCorePermDock(policy, subject, permdockOptions));
+    loadCorePermDock(policy, subject, permdockOptions);
 
   const getPermDock = async (
     author: ChatAuthor | null | undefined,

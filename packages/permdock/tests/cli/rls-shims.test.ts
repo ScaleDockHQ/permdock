@@ -314,6 +314,18 @@ describe("shimsSql", () => {
     );
   });
 
+  it("passes the role through as written without rls.roleValues", () => {
+    expect(
+      shimsSql(
+        base,
+        { helpers: { has_org_role: { form: "role", scope: "tenant" } } },
+        {},
+        {},
+        grants,
+      ),
+    ).toContain(`member_tenant_ids(array[p_role])`);
+  });
+
   it("answers a scoped helper from the declared scope names alone", () => {
     const scoped = shimsSql(
       base,

@@ -372,16 +372,17 @@ class Rewriter {
         `rls generate writes no ${name}(p_roles text[]): run it with this rls.migrate config, which asks for it`,
       );
     }
-    const legacy = roleArgs.map((arg) => stringConst(arg));
-    if (legacy.length === 0 || legacy.some((role) => role === undefined)) {
+    const legacy = roleArgs
+      .map((arg) => stringConst(arg))
+      .filter((role): role is string => role !== undefined);
+    if (legacy.length === 0 || legacy.length !== roleArgs.length) {
       return skip(
         "dynamic-role",
         "a role is not a string literal; map it by hand",
       );
     }
     const mapped: string[] = [];
-    for (const role of legacy) {
-      const value = role ?? "";
+    for (const value of legacy) {
       const declared = this.#target.roleValues?.[value] ?? value;
       if (!this.#target.roles.has(declared)) {
         return skip(

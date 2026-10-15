@@ -8,7 +8,6 @@ import {
   allow,
   claimsFirst,
   composeMemberships,
-  createPermDock,
   definePolicy,
   loadPermDock,
   plan,
@@ -352,7 +351,7 @@ describe("permdock supabase hook generate against Postgres", () => {
     });
     const before = await mint(OWNER);
     const permdockFor = async (claims: Claims) =>
-      createPermDock(
+      loadPermDock(
         policy,
         // SAFETY: minted claims always carry a subject, so the principal is set
         subjectFromSupabase({ ...claims, tenant_id: "T" })

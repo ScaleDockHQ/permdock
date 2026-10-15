@@ -70,9 +70,8 @@ function renderValue(value: ImportedValue): string {
     return `[${value.map((item) => renderValue(item)).join(", ")}]`;
   }
   if (typeof value === "object") {
-    return isIdentifier(value.principal)
-      ? `principal.${value.principal}`
-      : `principal[${quote(value.principal)}]`;
+    // The CASL reader accepts only `${user.<identifier>}` templates.
+    return `principal.${value.principal}`;
   }
   return typeof value === "string" ? quote(value) : String(value);
 }

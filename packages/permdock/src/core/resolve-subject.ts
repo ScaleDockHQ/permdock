@@ -13,6 +13,7 @@ import { expandOAuthScopes } from "./oauth-scopes.ts";
 import { policyX } from "./policy-fingerprint.ts";
 import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
+import { sourceName } from "./source-name.ts";
 import {
   type Actor,
   type Delegation,
@@ -137,7 +138,7 @@ function assemblePrincipal(
       auth.push({
         reason: "source-threw",
         source: "memberships",
-        ...(source?.name === undefined ? {} : { name: source.name }),
+        ...sourceName(source),
       });
       return [];
     }
@@ -209,7 +210,7 @@ function rereadStale(
     auth.push({
       reason: "source-threw",
       source: "memberships",
-      ...(source?.name === undefined ? {} : { name: source.name }),
+      ...sourceName(source),
     });
     return "unknown";
   };
@@ -415,7 +416,7 @@ function staleness(
           auth.push({
             reason: "source-threw",
             source: "memberships",
-            ...(source?.name === undefined ? {} : { name: source.name }),
+            ...sourceName(source),
           });
         })
       : compare(current);
@@ -423,7 +424,7 @@ function staleness(
     auth.push({
       reason: "source-threw",
       source: "memberships",
-      ...(source?.name === undefined ? {} : { name: source.name }),
+      ...sourceName(source),
     });
     return true;
   }

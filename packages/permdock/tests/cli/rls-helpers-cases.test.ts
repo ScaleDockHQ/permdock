@@ -497,3 +497,60 @@ describe("helpersSql role readers", () => {
     expect(body).toContain("c.permission || coalesce('@' || c.level, '')");
   });
 });
+
+describe("the role-filtered member helper", () => {
+  const roles = (sql: string): string => {
+    const start = sql.indexOf(
+      `create or replace function "permdock".member_org_ids(p_roles text[])`,
+    );
+    return start === -1 ? "" : sql.slice(start, sql.indexOf("$$;", start));
+  };
+
+  it("is written only for a scope a role helper names", () => {
+    expect(roles(helpers({}))).toBe("");
+    expect(helpers({ roleMemberScopes: ["org"] })).toContain(
+      `grant execute on function "permdock".member_org_ids(text[]) to authenticated;`,
+    );
+    expect(
+      helpersSql(ctx({ roleMemberScopes: ["org"] }), [], {
+        userRoles: false,
+        anonExecute: true,
+      }),
+    ).toContain(
+      `grant execute on function "permdock".member_org_ids(text[]) to anon, authenticated;`,
+    );
+  });
+
+  it("filters claim, source and table memberships by role", () => {
+    expect(roles(helpers({ roleMemberScopes: ["org"] }))).toContain(
+      "and (m -> 'roles') ?| p_roles",
+    );
+    expect(
+      roles(
+        helpers({
+          roleMemberScopes: ["org"],
+          authorize: "database",
+          sources: [tableMembershipSource({ table: "memberships" })],
+        }),
+      ),
+    ).toContain("and ms.roles ?| p_roles");
+    expect(
+      roles(
+        helpers({
+          roleMemberScopes: ["org"],
+          authorize: "database",
+          memberships: {
+            scopes: {
+              org: {
+                table: "app.org_members",
+                user: "user_id",
+                role: "role",
+                columns: { org: "org_id" },
+              },
+            },
+          },
+        }),
+      ),
+    ).toContain(`and (m."role")::text = any(p_roles)`);
+  });
+});

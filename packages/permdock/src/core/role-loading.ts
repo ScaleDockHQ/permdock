@@ -6,6 +6,7 @@ import type {
 import type { CustomRole, Subject } from "./subject.ts";
 
 import { isCustomRoleName } from "./custom-roles.ts";
+import { sourceName } from "./source-name.ts";
 import { isThenable } from "./thenable.ts";
 
 function isGlobalRole(value: unknown): value is CustomRole {
@@ -55,7 +56,7 @@ export function customRolesFor(
       auth.push({
         reason: "source-threw",
         source: "customRoles",
-        ...(source?.name === undefined ? {} : { name: source.name }),
+        ...sourceName(source),
       });
       loaded.push([]);
     }
@@ -70,7 +71,7 @@ export function customRolesFor(
       auth.push({
         reason: "source-threw",
         source: "customRoles",
-        ...(source?.name === undefined ? {} : { name: source.name }),
+        ...sourceName(source),
       });
       loaded.push([]);
     }
@@ -82,7 +83,7 @@ export function customRolesFor(
           auth.push({
             reason: "source-threw",
             source: "customRoles",
-            ...(source?.name === undefined ? {} : { name: source.name }),
+            ...sourceName(source),
           });
           return [];
         }),
@@ -118,7 +119,7 @@ export function assignableNamesFor(
     auth.push({
       reason: "source-threw",
       source: "customRoles",
-      ...(source?.name === undefined ? {} : { name: source.name }),
+      ...sourceName(source),
     });
     return [];
   };

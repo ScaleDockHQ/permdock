@@ -91,6 +91,46 @@ describe("runRlsImport inputs", () => {
   });
 });
 
+describe("runRlsImport with rls.roleValues", () => {
+  it("writes the PermDock role for a mapped value in memberOf and in the seeds", async () => {
+    const cwd = project({
+      "dump.sql": `
+create policy docs_admin on docs for select using (
+  exists (select 1 from org_members m where m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.role = any(array['org_admin', 'member']))
+);
+insert into public.role_permissions (role, permission, grant_key, scope, effect) values ('org_admin', 'docs.read', 'docs.read', 'tenant', 'allow'), ('member', 'docs.read', 'docs.read', 'tenant', 'allow');
+`,
+    });
+    const result = await runRlsImport({
+      cwd,
+      config: {
+        ...config,
+        rls: {
+          memberships: {
+            tenant: {
+              table: "org_members",
+              user: "user_id",
+              role: "role",
+              tenant: "tenant_id",
+            },
+          },
+          roleValues: { org_admin: "owner" },
+        },
+      },
+      sql: "dump.sql",
+      schema: "zod",
+      io,
+    });
+    expect(result.code).toBe(0);
+    expect(catalogOf(cwd)[0]?.condition).toEqual({
+      op: "memberOf",
+      scope: "tenant",
+      field: "org_id",
+      roles: ["owner", "member"],
+    });
+  });
+});
+
 describe("runRlsImport --sql", () => {
   it("reads commands, restrictive policies, default roles and with check", async () => {
     const cwd = project({
