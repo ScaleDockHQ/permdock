@@ -273,7 +273,13 @@ function compareSql(
   }
 }
 
-function existsSql(
+/**
+ * Whether the row's `rowField` is among the ids in `table.rowColumn` the
+ * subject holds a matching membership on. The row field stays outside the
+ * subquery: inside it, an unqualified name resolves to the membership table
+ * first, so `m.org_id = "org_id"` would compare the membership with itself.
+ */
+function membershipSql(
   table: RlsMembershipTable,
   rowColumn: string,
   rowField: string,
@@ -282,10 +288,7 @@ function existsSql(
   tenantColumn?: string,
   scope?: string,
 ): string {
-  const parts = [
-    `m.${quoteIdent(rowColumn)} = ${quoteIdent(rowField)}`,
-    `m.${quoteIdent(table.user)} = ${subjectIdSql(ctx)}`,
-  ];
+  const parts = [`m.${quoteIdent(table.user)} = ${subjectIdSql(ctx)}`];
   const role = memberRoleOf(table);
   if (roles.length > 0) {
     const roleList = roles.map((name) => name.replaceAll("'", "''")).join(",");
@@ -338,7 +341,7 @@ function existsSql(
     );
   }
   const expand = roles.length > 0 && role.lateral ? role.join : "";
-  return `exists (select 1 from ${quoteTable(table.table)} m${expand} where ${parts.join(" and ")})`;
+  return `${quoteIdent(rowField)} in (select m.${quoteIdent(rowColumn)} from ${quoteTable(table.table)} m${expand} where ${parts.join(" and ")})`;
 }
 
 function compileMemberOf(
@@ -372,7 +375,7 @@ function compileMemberOf(
       scope === undefined || scope === rootScope(ctx.scopes)
         ? undefined
         : named?.tenantColumn;
-    const primary = existsSql(
+    const primary = membershipSql(
       mapping,
       rowColumn,
       condition.field,
@@ -387,7 +390,7 @@ function compileMemberOf(
     const extras = condition.parents.flatMap((parent) => {
       if (typeof parent === "string") {
         return [
-          existsSql(
+          membershipSql(
             mapping,
             rowColumn,
             parent,
@@ -401,7 +404,7 @@ function compileMemberOf(
       return hopTable?.id === undefined
         ? []
         : [
-            existsSql(
+            membershipSql(
               hopTable,
               hopTable.id,
               parent.field,

@@ -97,15 +97,15 @@ describe("rls.suspension", () => {
     });
     expect(code).toBe(0);
     const user =
-      'exists (select 1 from "public"."profiles" s where s."id" = (select "permdock".permdock_user_id()) and s."disabled_at" is null)';
+      'coalesce((select "permdock".permdock_user_id()) in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)';
     expect(helper(sql, "permdock_has")).toContain(user);
     const customer = helper(sql, "permitted_customer_ids");
     expect(customer).toContain(user);
     expect(customer).toContain(
-      `exists (select 1 from "public"."customers" s where s."id" = (m."customer_id")::text and s."status"::text = any(array['active', 'prospect']::text[]))`,
+      `coalesce((m."customer_id")::text in (select s."id" from "public"."customers" s where s."status"::text = any(array['active', 'prospect']::text[])), false)`,
     );
     expect(customer).toContain(
-      'exists (select 1 from "public"."organizations" s where s."id" = (m."organization_id")::text and s."disabled_at" is null)',
+      'coalesce((m."organization_id")::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)',
     );
     expect(helper(sql, "permitted_organization_ids")).not.toContain(
       '"customers"',
@@ -121,9 +121,11 @@ describe("rls.suspension", () => {
     });
     expect(code).toBe(0);
     const customer = helper(sql, "permitted_customer_ids");
-    expect(customer).toContain(`s."id" = (m ->> 'id')::text`);
     expect(customer).toContain(
-      `s."id" = (m -> 'within' ->> 'organization')::text and s."disabled_at" is null`,
+      `coalesce((m ->> 'id')::text in (select s."id" from`,
+    );
+    expect(customer).toContain(
+      `coalesce((m -> 'within' ->> 'organization')::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)`,
     );
   });
 

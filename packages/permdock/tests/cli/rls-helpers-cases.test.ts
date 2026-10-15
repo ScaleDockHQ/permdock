@@ -373,7 +373,7 @@ describe("helpersSql database mode", () => {
       },
     });
     expect(fnBody(sql, "member_team_ids")).toContain(
-      's."id" = (m."org_id")::uuid',
+      'coalesce((m."org_id")::uuid in (select s."id" from',
     );
   });
 });

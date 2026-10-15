@@ -95,17 +95,17 @@ A failed check denies with reason `condition`. Only the `supabase` dialect compi
 
 ### Common patterns
 
-| Intent                          | Condition                                                                  | Supabase RLS output                                                                                                      |
-| ------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Ownership                       | `{ where: { authorId: principal.id } }`                                    | `(select auth.uid()) = author_id`                                                                                        |
-| Tenancy                         | `{ where: { orgId: principal.orgId } }`                                    | `org_id = ((select auth.jwt()) ->> 'orgId')::uuid`                                                                       |
-| Public rows                     | `{ where: { published: true } }`                                           | `published = true`                                                                                                       |
-| Owner or public                 | `{ where: { or: [{ published: true }, { authorId: principal.id }] } }`     | `(published = true OR (select auth.uid()) = author_id)`                                                                  |
-| Membership (array in `context`) | `{ where: { teamId: { in: context.teamIds } } }`                           | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))`                                         |
-| Tenancy (scoped role)           | `role('viewer', [allow(permissions.post.read)], { on: 'tenant' })`         | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid`                                                                   |
-| Team role (scoped role)         | `role('lead', [allow(permissions.post.publish)], { on: 'team' })`          | `exists (select 1 from team_member m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = 'lead')` |
-| Not archived                    | `{ where: { archivedAt: { isNull: true } } }`                              | `archived_at IS NULL`                                                                                                    |
-| Cannot reassign owner           | `{ where: { authorId: principal.id }, check: { authorId: principal.id } }` | `USING (...) WITH CHECK (...)`                                                                                           |
+| Intent                          | Condition                                                                  | Supabase RLS output                                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Ownership                       | `{ where: { authorId: principal.id } }`                                    | `(select auth.uid()) = author_id`                                                                            |
+| Tenancy                         | `{ where: { orgId: principal.orgId } }`                                    | `org_id = ((select auth.jwt()) ->> 'orgId')::uuid`                                                           |
+| Public rows                     | `{ where: { published: true } }`                                           | `published = true`                                                                                           |
+| Owner or public                 | `{ where: { or: [{ published: true }, { authorId: principal.id }] } }`     | `(published = true OR (select auth.uid()) = author_id)`                                                      |
+| Membership (array in `context`) | `{ where: { teamId: { in: context.teamIds } } }`                           | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))`                             |
+| Tenancy (scoped role)           | `role('viewer', [allow(permissions.post.read)], { on: 'tenant' })`         | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid`                                                       |
+| Team role (scoped role)         | `role('lead', [allow(permissions.post.publish)], { on: 'team' })`          | `team_id in (select m.team_id from team_member m where m.user_id = (select auth.uid()) and m.role = 'lead')` |
+| Not archived                    | `{ where: { archivedAt: { isNull: true } } }`                              | `archived_at IS NULL`                                                                                        |
+| Cannot reassign owner           | `{ where: { authorId: principal.id }, check: { authorId: principal.id } }` | `USING (...) WITH CHECK (...)`                                                                               |
 
 The right-hand column assumes the Supabase dialect; Neon and generic Postgres substitute `auth.user_id()` or a GUC. Column naming follows the mapping the RLS adapter derives from your schema or Drizzle table.
 

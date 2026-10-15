@@ -119,12 +119,13 @@ export function keptRowSql(
 }
 
 /**
- * `exists` over an active row whose id column equals `id`: a missing row is
- * suspended, so the check fails closed.
+ * Whether `id` is among the active rows' ids: a missing row is suspended, so
+ * the check fails closed, and so does a null `id`. `id` stays outside the
+ * subquery so a column of the same name on `row.table` cannot capture it.
  */
 export function activeRowSql(row: RlsActiveRow, id: string): string {
   const table = quoteTable(qualifySqlTable(row.table));
-  const parts = [`s.${quoteIdent(row.id)} = ${id}`];
+  const parts: string[] = [];
   if (row.disabledAt !== undefined) {
     parts.push(`s.${quoteIdent(row.disabledAt)} is null`);
   }
@@ -134,7 +135,8 @@ export function activeRowSql(row: RlsActiveRow, id: string): string {
       `s.${quoteIdent(row.status)}::text = any(array[${values}]::text[])`,
     );
   }
-  return `exists (select 1 from ${table} s where ${parts.join(" and ")})`;
+  const where = parts.length === 0 ? "" : ` where ${parts.join(" and ")}`;
+  return `coalesce(${id} in (select s.${quoteIdent(row.id)} from ${table} s${where}), false)`;
 }
 
 /** The active-user check for `user`; empty without `rls.suspension.users`. */

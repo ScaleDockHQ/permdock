@@ -1,0 +1,19 @@
+export default {
+  permissions: "./policy.ts",
+  policy: "./policy.ts",
+  rls: {
+    dialect: "guc",
+    tenantType: "text",
+    authorize: "database",
+    memberships: {
+      resource: {
+        project: {
+          table: "project_members",
+          id: "project_id",
+          user: "user_id",
+          role: "role",
+        },
+      },
+    },
+  },
+};

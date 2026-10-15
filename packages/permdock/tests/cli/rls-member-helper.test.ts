@@ -108,7 +108,7 @@ describe("member_<scope>_ids", () => {
     expect(permitted).toContain("rp.grant_key = p_grant");
     // A suspended organization voids a customer membership under it, read from the row's within.
     expect(permitted).toContain(
-      `"public"."organizations" s where s."id" = (ms.within ->> 'organization')::text`,
+      `coalesce((ms.within ->> 'organization')::text in (select s."id" from "public"."organizations" s`,
     );
     const member = helper(sql, "member_organization_ids");
     expect(member).toContain("ms.scope = 'organization'");
@@ -116,7 +116,7 @@ describe("member_<scope>_ids", () => {
     // The junction source holds only customer memberships, so it is not read for organizations.
     expect(member).not.toContain('"public"."contacts"');
     expect(member).toContain(
-      `"public"."profiles" s where s."user_id" = (select "permdock".permdock_user_id())`,
+      `coalesce((select "permdock".permdock_user_id()) in (select s."user_id" from "public"."profiles" s`,
     );
   });
 

@@ -66,12 +66,12 @@ describe("suspension rows", () => {
         "x",
       ),
     ).toBe(
-      'exists (select 1 from "app"."users" s where s."id" = x and s."banned_at" is null)',
+      'coalesce(x in (select s."id" from "app"."users" s where s."banned_at" is null), false)',
     );
     expect(
       activeRowSql({ table: "users", id: "id", status: "state" }, "x"),
     ).toBe(
-      'exists (select 1 from "public"."users" s where s."id" = x and s."state"::text = any(array[]::text[]))',
+      'coalesce(x in (select s."id" from "public"."users" s where s."state"::text = any(array[]::text[])), false)',
     );
   });
 
@@ -120,7 +120,7 @@ describe("suspension rows", () => {
         name === "org" ? "m.org_id" : "m.team_id",
       ),
     ).toEqual([
-      'exists (select 1 from "public"."orgs" s where s."id" = (m.org_id)::uuid and s."d" is null)',
+      'coalesce((m.org_id)::uuid in (select s."id" from "public"."orgs" s where s."d" is null), false)',
     ]);
     expect(() =>
       activeInstancesSql(suspended, "team", () => undefined),
@@ -144,9 +144,9 @@ describe("suspension keep", () => {
   });
   const idOf = (name: string) => (name === "org" ? "m.org_id" : "m.team_id");
   const org =
-    'exists (select 1 from "public"."orgs" s where s."id" = (m.org_id)::uuid and s."d" is null)';
+    'coalesce((m.org_id)::uuid in (select s."id" from "public"."orgs" s where s."d" is null), false)';
   const team =
-    'exists (select 1 from "public"."teams" s where s."id" = (m.team_id)::uuid and s."d" is null)';
+    'coalesce((m.team_id)::uuid in (select s."id" from "public"."teams" s where s."d" is null), false)';
 
   it("normalises references to sorted keys", () => {
     expect(
@@ -581,7 +581,7 @@ describe("compileConditionSql memberOf", () => {
       { memberships },
     );
     expect(out).toBe(
-      `(exists (select 1 from "doc_members" m where m."doc_id" = "id" and m."user_id" = (select "permdock".permdock_user_id())) or exists (select 1 from "doc_members" m where m."doc_id" = "parent_id" and m."user_id" = (select "permdock".permdock_user_id())) or exists (select 1 from "folder_members" m where m."folder_id" = "folder_id" and m."user_id" = (select "permdock".permdock_user_id())))`,
+      `("id" in (select m."doc_id" from "doc_members" m where m."user_id" = (select "permdock".permdock_user_id())) or "parent_id" in (select m."doc_id" from "doc_members" m where m."user_id" = (select "permdock".permdock_user_id())) or "folder_id" in (select m."folder_id" from "folder_members" m where m."user_id" = (select "permdock".permdock_user_id())))`,
     );
   });
 
@@ -642,7 +642,7 @@ describe("compileConditionSql memberOf", () => {
         },
       ),
     ).toBe(
-      `("org_id" = ((select auth.jwt()) ->> 'tenant_id')::uuid and exists (select 1 from "public"."users" s where s."id" = (select "permdock".permdock_user_id()) and s."d" is null) and exists (select 1 from "public"."orgs" s where s."id" = ("org_id")::uuid and s."d" is null))`,
+      `("org_id" = ((select auth.jwt()) ->> 'tenant_id')::uuid and coalesce((select "permdock".permdock_user_id()) in (select s."id" from "public"."users" s where s."d" is null), false) and coalesce(("org_id")::uuid in (select s."id" from "public"."orgs" s where s."d" is null), false))`,
     );
   });
 

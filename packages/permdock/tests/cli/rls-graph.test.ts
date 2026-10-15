@@ -389,7 +389,7 @@ describe("graph helpers and suspension", () => {
     expect(where.length).toBeGreaterThan(0);
     for (const line of where) {
       expect(line).toContain(
-        `exists (select 1 from "public"."profiles" s where s."id" = (select "permdock".permdock_user_id()) and s."disabled_at" is null)`,
+        `coalesce((select "permdock".permdock_user_id()) in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)`,
       );
     }
     expect(graphSql(context(), plan, undefined)).not.toContain("profiles");

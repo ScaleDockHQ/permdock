@@ -134,7 +134,7 @@ describe("member_<scope>_ids_for", () => {
     });
     const organization = fn(sql, "member_organization_ids_for");
     expect(organization).toContain(
-      'exists (select 1 from "public"."profiles" s where s."id" = p_user and s."disabled_at" is null)',
+      'coalesce(p_user in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)',
     );
     expect(organization).toContain('"public"."organizations" s');
   });
