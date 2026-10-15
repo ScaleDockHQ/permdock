@@ -162,7 +162,7 @@ const { protect } = createPermDock(policy, {
   subject: (request) => sessionUser(request),
   wrap: (permdock) =>
     wrapPermDock(permdock, (inner) => ({
-      // `can` is overloaded; the cast restores the overloads.
+      // SAFETY: `can` is overloaded; the wrapper forwards every argument unchanged, so it has the same overloads.
       can: ((...args: Parameters<typeof inner.can>) => {
         metrics.increment("permdock.can", { permission: args[0].key });
         return inner.can(...args);
