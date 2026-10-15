@@ -75,7 +75,7 @@ import {
   type ResourceRoleWalk,
 } from "./tenancy.ts";
 import { epochSeconds, INVALID_NOW } from "./time.ts";
-import { decisionToken, payloadDigest, versionOf } from "./token.ts";
+import { decisionToken, tokenPayload, versionOf } from "./token.ts";
 import { PermDockValidationError } from "./validation-error.ts";
 import { validateBoundary } from "./validation.ts";
 import { isActive, wireValidity } from "./validity.ts";
@@ -832,10 +832,11 @@ function allowedDecision(
           actor: subject.actor,
           fingerprint: policy.fingerprint,
           version,
-          payload:
-            resourceId === "*" && (next ?? current) !== undefined
-              ? payloadDigest(next ?? current)
-              : undefined,
+          payload: tokenPayload(
+            resourceId,
+            next ?? current,
+            state.options.args,
+          ),
         });
   const matched = compact<MatchedGrant>({
     ...matchedOf(allow.grant, permission.key, allow.breakGlass),

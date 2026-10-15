@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import { sha256Digest } from "../../src/core/sha256.ts";
 import {
   decisionToken,
   payloadDigest,
+  tokenPayload,
   versionOf,
 } from "../../src/core/token.ts";
+import {
+  allow,
+  createPermDock,
+  definePermissions,
+  definePolicy,
+  resource,
+  role,
+} from "../../src/index.ts";
 
 describe("decisionToken", () => {
   it("is a sha-256: digest and stable for the same inputs", () => {
@@ -61,5 +71,58 @@ describe("payloadDigest", () => {
   it("is stable across key order and differs across values", () => {
     expect(payloadDigest({ a: 1, b: 2 })).toBe(payloadDigest({ b: 2, a: 1 }));
     expect(payloadDigest({ a: 1 })).not.toBe(payloadDigest({ a: 2 }));
+  });
+});
+
+describe("tokenPayload", () => {
+  it("binds the args when given, for a row or a collection", () => {
+    expect(tokenPayload("p1", { id: "p1" }, { to: "a" })).toBe(
+      payloadDigest({ to: "a" }),
+    );
+    expect(tokenPayload("*", { amount: 1 }, { to: "a" })).toBe(
+      payloadDigest({ to: "a" }),
+    );
+  });
+
+  it("binds a collection call's data without args, and nothing for a row", () => {
+    expect(tokenPayload("*", { amount: 1 }, undefined)).toBe(
+      payloadDigest({ amount: 1 }),
+    );
+    expect(tokenPayload("*", undefined, undefined)).toBeUndefined();
+    expect(tokenPayload("p1", { id: "p1" }, undefined)).toBeUndefined();
+  });
+});
+
+describe("decide with args", () => {
+  it("gives an approval-required token per argument set", async () => {
+    const permissions = definePermissions({
+      email: resource(z.object({ id: z.string() }), {
+        id: "id",
+        collection: ["send"],
+      }),
+    });
+    const policy = definePolicy(permissions, {
+      roles: [
+        role("member", [allow(permissions.email.send, { approval: "human" })]),
+      ],
+      subject: (user: { readonly id: string } | null) =>
+        user === null ? null : { id: user.id, roles: ["member"] },
+    });
+    const permdock = await createPermDock(policy, { id: "u1" });
+    const tokenOf = (args: unknown): string | undefined => {
+      const decision = permdock.decide(
+        permissions.email.send,
+        undefined,
+        args === undefined ? {} : { args },
+      );
+      return decision.outcome === "approval-required"
+        ? decision.token
+        : undefined;
+    };
+    const a = tokenOf({ to: "a" });
+    expect(a).toBeDefined();
+    expect(tokenOf({ to: "a" })).toBe(a);
+    expect(tokenOf({ to: "b" })).not.toBe(a);
+    expect(tokenOf(undefined)).not.toBe(a);
   });
 });

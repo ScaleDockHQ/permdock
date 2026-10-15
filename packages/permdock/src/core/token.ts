@@ -42,6 +42,24 @@ export function payloadDigest(data: unknown): string {
 }
 
 /**
+ * The payload a decision token binds: the call's `args` when the caller
+ * passes them (an agent or MCP tool call, row or not), otherwise the data of
+ * a call without a row id. `undefined` binds nothing beyond the row id.
+ */
+export function tokenPayload(
+  resourceId: string,
+  data: unknown,
+  args: unknown,
+): string | undefined {
+  if (args !== undefined) {
+    return payloadDigest(args);
+  }
+  return resourceId === "*" && data !== undefined
+    ? payloadDigest(data)
+    : undefined;
+}
+
+/**
  * `version` is set only for an approval that goes stale on a resource
  * change; without it the payload, and so every other token, is unchanged.
  * `payload` is set when `resourceId` is `*` (a collection action or a row

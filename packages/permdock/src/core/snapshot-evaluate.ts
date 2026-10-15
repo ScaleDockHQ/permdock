@@ -30,7 +30,7 @@ import {
   rowInScope,
 } from "./tenancy.ts";
 import { epochSeconds, INVALID_NOW } from "./time.ts";
-import { decisionToken, payloadDigest } from "./token.ts";
+import { decisionToken, tokenPayload } from "./token.ts";
 import { isActive, readWireValidity } from "./validity.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
@@ -464,10 +464,7 @@ export function evaluateSnapshot(
         principal: subject.principal,
         actor: subject.actor,
         fingerprint: `snapshot:${snapshot.issuedAt}`,
-        payload:
-          resourceId === "*" && (next ?? current) !== undefined
-            ? payloadDigest(next ?? current)
-            : undefined,
+        payload: tokenPayload(resourceId, next ?? current, options.args),
       });
   const grant = matchedOf(matched);
   if (requiresApproval(matched.approval)) {

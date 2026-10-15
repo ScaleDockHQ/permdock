@@ -8,6 +8,7 @@ import {
   createPermDock,
   definePolicy,
   deny,
+  role,
 } from "../../src/index.ts";
 import {
   adminUser,
@@ -285,6 +286,48 @@ describe("createAgentKernel", () => {
     if (again.outcome === "denied") {
       expect(again.decision?.denials[0]?.detail).toBe("approval-consumed");
     }
+  });
+
+  it.each([
+    ["a collection tool without a loader", "send_email"],
+    ["a row tool with a loader", "delete_post"],
+  ])("binds the approval of %s to its arguments", async (_name, tool) => {
+    const store = memoryApprovalStore();
+    const approved = definePolicy(permissions, {
+      roles: [
+        role("member", [
+          allow(permissions.post.create, { approval: "human" }),
+          allow(permissions.post.delete, { approval: "human" }),
+        ]),
+      ],
+      subject: (user: typeof memberUser | null) => user,
+    });
+    const kernel = createAgentKernel(approved, {
+      adapter: "test",
+      subject: () => memberUser,
+      store,
+      tools: {
+        send_email: { permission: permissions.post.create },
+        delete_post: {
+          permission: permissions.post.delete,
+          data: () => ownPost,
+        },
+      },
+    });
+    const asked = await kernel.decideTool(tool, { to: "boss@corp" }, {});
+    if (asked.outcome !== "approval-required") {
+      throw new Error("expected approval-required");
+    }
+    await store.resolve(asked.token, {
+      status: "approved",
+      by: { principal: { id: "u2", roles: ["admin"] }, context: {} },
+    });
+    expect(
+      (await kernel.decideTool(tool, { to: "attacker@evil" }, {})).outcome,
+    ).toBe("approval-required");
+    expect(
+      (await kernel.decideTool(tool, { to: "boss@corp" }, {})).outcome,
+    ).toBe("granted");
   });
 
   it("reports a rejected approval instead of asking again", async () => {
