@@ -1,7 +1,7 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-14T01:05:26.669Z",
+  "generatedAt": "2026-10-15T11:33:54.159Z",
   "generator": "permdock@0.4.0",
   "fingerprint": "sha-256:yVfNOaQ4gZC8EX1aVFk9l25wxG4v-b0qbQ3ItRJjYzE",
   "resources": {
@@ -44,7 +44,7 @@
       "usages": [
         {
           "file": "src/bot.ts",
-          "line": 93,
+          "line": 94,
           "call": "reference"
         },
         {
@@ -65,12 +65,12 @@
       "usages": [
         {
           "file": "src/bot.ts",
-          "line": 99,
+          "line": 100,
           "call": "reference"
         },
         {
           "file": "src/bot.ts",
-          "line": 109,
+          "line": 110,
           "call": "reference"
         },
         {
