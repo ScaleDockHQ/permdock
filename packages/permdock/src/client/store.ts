@@ -531,6 +531,10 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           signed = body;
           body = await verifyJws(body);
           ok = body !== undefined;
+        } else if (ok && options.verifier !== undefined) {
+          // A configured verifier means the endpoint signs: an unsigned
+          // body is a downgrade, never a snapshot to apply.
+          ok = false;
         }
         refreshing -= 1;
         if (started !== generation || seq !== refreshSeq) {
