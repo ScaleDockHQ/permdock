@@ -166,7 +166,7 @@ With [scoped roles](/docs/concepts/tenancy) the same lookup produces memberships
 
 ### Enterprise SSO
 
-OIDC enterprise SSO is `subjectFromJwt({ discovery })` against the IdP or the auth layer's issuer. SAML is terminated upstream: Better Auth's SSO plugin, Clerk Enterprise SSO, WorkOS AuthKit, Auth.js, Supabase SAML, or the Cloud gateway of [PermDock Cloud](/docs/adapters/cloud). A SAML assertion is never a PermDock input, and there is no `permdock/saml` entry ([ecosystem index](/docs/research/ecosystem-index)).
+OIDC enterprise SSO is `subjectFromJwt({ discovery, audience })` against the IdP or the auth layer's issuer. SAML is terminated upstream: Better Auth's SSO plugin, Clerk Enterprise SSO, WorkOS AuthKit, Auth.js, Supabase SAML, or the Cloud gateway of [PermDock Cloud](/docs/adapters/cloud). A SAML assertion is never a PermDock input, and there is no `permdock/saml` entry ([ecosystem index](/docs/research/ecosystem-index)).
 
 ## JWT validation checklist
 

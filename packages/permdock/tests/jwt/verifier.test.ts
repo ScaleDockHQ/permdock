@@ -758,6 +758,7 @@ describe("configuration", () => {
         assertSubjectConfig({
           jwks: { keys: [] },
           issuer: ISSUER,
+          audience: "api",
           claims: { kind: "workload", assurance: { verified: "vc" } },
         }),
       ),

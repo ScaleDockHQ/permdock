@@ -34,7 +34,7 @@ const subject = await subjectFromJwt(token, {
   discovery: "https://login.example.com", // OIDC Discovery, RFC 8414 fallback; supplies jwks_uri and issuer
   // jwks: new URL('https://login.example.com/.well-known/jwks.json'),  // alternative: URL | URL string | JSONWebKeySet | { secret: Uint8Array }
   // issuer: 'https://login.example.com',                               // required with any `jwks` but a secret; derived from the document with `discovery`
-  audience: "https://api.example.com",
+  audience: "https://api.example.com", // required unless `verifier` is set; `false` accepts any audience on purpose
   accept: "access-token", // default; 'id-token' for BFF patterns
   algorithms: ["ES256", "PS256", "Ed25519"], // default allow-list (+ 'RS256' outside fapi2); 'none' never
   clockTolerance: 5, // seconds

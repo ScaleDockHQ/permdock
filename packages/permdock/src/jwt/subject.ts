@@ -13,7 +13,12 @@ import {
   type Subject,
   anonymousSubject,
 } from "../core/subject.ts";
-import { assertSubjectConfig, fail, issuerFromDiscovery } from "./config.ts";
+import {
+  assertSubjectConfig,
+  fail,
+  issuerFromDiscovery,
+  verifierOptions,
+} from "./config.ts";
 import { verifyDpopProof } from "./dpop.ts";
 import { decodeHeader } from "./header.ts";
 import { acceptMismatch, mapClaimsToSubject } from "./map-claims.ts";
@@ -112,7 +117,8 @@ export function createJwtSubjectResolver(
   request?: Request,
 ) => Promise<MappedSubject> {
   assertSubjectConfig(options);
-  const verifier = options.verifier ?? joseTokenVerifier(options);
+  const verifier =
+    options.verifier ?? joseTokenVerifier(verifierOptions(options));
   return (token, request) =>
     resolveSubject(token, { ...options, verifier }, request);
 }
@@ -132,7 +138,9 @@ async function resolveSubject(
     emitAuth(options, "token-in-query", token);
     return anonymousSubject();
   }
-  const verifier = options.verifier ?? joseTokenVerifier(options);
+  const verifier =
+    options.verifier ?? joseTokenVerifier(verifierOptions(options));
+  const audience = options.audience === false ? undefined : options.audience;
   const issuer =
     options.issuer ??
     (options.discovery === undefined
@@ -143,7 +151,7 @@ async function resolveSubject(
     verified = await verifier.verify(
       token,
       compact({
-        audience: options.audience,
+        audience,
         issuer,
         clockTolerance: options.clockTolerance,
         typ:
@@ -161,14 +169,7 @@ async function resolveSubject(
     emitAuth(options, verified.cause, token);
     return anonymousSubject();
   }
-  if (
-    acceptMismatch(
-      verified.claims,
-      verified.header.typ,
-      options,
-      options.audience,
-    )
-  ) {
+  if (acceptMismatch(verified.claims, verified.header.typ, options, audience)) {
     emitAuth(options, "wrong-token-type", token);
     return anonymousSubject();
   }

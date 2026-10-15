@@ -580,6 +580,19 @@ describe("configuration and remaining causes", () => {
       }),
     ).toThrow(/issuer is required/);
     expect(() =>
+      createJwtSubjectResolver({
+        jwks: PUBLIC_JWKS,
+        issuer: ISSUER,
+      }),
+    ).toThrow(/audience is required/);
+    expect(() =>
+      createJwtSubjectResolver({
+        jwks: PUBLIC_JWKS,
+        issuer: ISSUER,
+        audience: false,
+      }),
+    ).not.toThrow();
+    expect(() =>
       joseTokenSigner({
         key: { ...PRIVATE_JWK },
         alg: "HS256",
