@@ -158,11 +158,11 @@ describe("cloudApprovalWaiter", () => {
     const notEvents = await delivery([], { body: '[{"type":"nope"}]' });
 
     const forgedResponse = await cloud.webhook(forged);
-    expect(forgedResponse.status).toBe(401);
+    expect(forgedResponse.status).toBe(403);
     expect(forgedResponse.headers.get("content-type")).toContain(
       "application/problem+json",
     );
-    expect((await cloud.webhook(unsigned)).status).toBe(401);
+    expect((await cloud.webhook(unsigned)).status).toBe(400);
     expect((await cloud.webhook(notEvents)).status).toBe(400);
     expect(waiter.woken).toEqual([]);
   });

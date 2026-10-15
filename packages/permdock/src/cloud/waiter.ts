@@ -76,12 +76,17 @@ function refusal(cause: WebhookFailureCause): Response {
       return problemResponse(
         statusProblem(400, "the body is not a PermDock CloudEvents batch"),
       );
+    // Not 401: a webhook has no authentication scheme to name in the
+    // WWW-Authenticate header RFC 9110 section 15.5.2 requires with it.
     case "missing-headers":
     case "malformed":
     case "timestamp-out-of-range":
+      return problemResponse(
+        statusProblem(400, `webhook verification failed: ${cause}`),
+      );
     case "invalid-signature":
       return problemResponse(
-        statusProblem(401, `webhook verification failed: ${cause}`),
+        statusProblem(403, `webhook verification failed: ${cause}`),
       );
     case "replayed":
       return new Response(null, { status: 204 });

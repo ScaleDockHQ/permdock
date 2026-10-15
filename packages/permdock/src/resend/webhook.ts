@@ -142,9 +142,17 @@ function eventOf(payload: unknown, source: string): DeliveryEvent | null {
   );
 }
 
+// Not 401: a webhook has no authentication scheme to name in the
+// WWW-Authenticate header RFC 9110 section 15.5.2 requires with it.
+function unsigned(): Response {
+  return problemResponse(
+    statusProblem(400, "webhook signature headers are missing"),
+  );
+}
+
 function unverified(): Response {
   return problemResponse(
-    statusProblem(401, "webhook signature did not verify"),
+    statusProblem(403, "webhook signature did not verify"),
   );
 }
 
@@ -180,7 +188,7 @@ export function resendWebhook(
     const timestamp = header(request, "timestamp");
     const signature = header(request, "signature");
     if (id === null || timestamp === null || signature === null) {
-      return unverified();
+      return unsigned();
     }
     const body = await request.text();
     if (body.length > MAX_BODY) {
