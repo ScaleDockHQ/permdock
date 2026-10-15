@@ -460,7 +460,7 @@ app.patch(
 
 `pick` returns only own keys the grant lists, so a column added to the table later stays out of the response until a grant names it. The write check runs against the stored row, not the body, so the grant's `where` sees the real owner. `permdock rls generate --fields views` gives a direct database read the same answer as `pick` ([field security](/docs/adapters/rls#field-security)).
 
-## Design rationale
+## Why
 
 **No protected-query helper.** A `protect(queryFn, { before, after })` wrapper, as Kilpi's `$query` offers, was considered and rejected. `where` already runs before the fetch and reaches the database, which a post-fetch hook cannot; `filter` and `pick` already cover the after step. A wrapper would add a fourth way to say the same thing and hide which of the three steps ran, so it is the recipe under Protected queries instead.
 
