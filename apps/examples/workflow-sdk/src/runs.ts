@@ -37,7 +37,7 @@ async function createRuns() {
     }),
     principals,
     automations,
-    approvals,
+    store: approvals,
     issuer: ISSUER,
     audience: AUDIENCE,
   });
