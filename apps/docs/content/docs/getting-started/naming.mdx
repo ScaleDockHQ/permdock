@@ -588,7 +588,7 @@ These changed their call shape; the codemod lists each call site:
 | `capabilitySubject(...)`                        | `subjectFromCapability(token, options)`                |
 | `credentialSubject(...)`                        | `subjectFromApiKey(key, options)`                      |
 | `MappedSubject`                                 | `Subject<JwtPrincipal>`                                |
-| `verifyWebBotAuth(request, options)`            | `webBotAuthVerifier(options)(request)`                 |
+| `verifyWebBotAuth(request, options)`            | `webBotAuthVerifier(options).verify(request)`          |
 | `verifyWebhook(request, options).reason`        | `verifyWebhook(request, options).cause`                |
 | `inspectApproval(store, token).detail`          | `inspectApproval(store, token).cause`                  |
 | `consumeApproval(store, token).detail`          | `consumeApproval(store, token).cause`                  |

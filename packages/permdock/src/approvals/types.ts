@@ -65,6 +65,8 @@ export type ApprovalDelegation = {
  * nobody. One hop: the handler never reads the delegator's own delegations.
  */
 export type ApprovalDelegationSource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   delegationsFor(query: {
     readonly delegate: string;
     readonly tenant?: string;
@@ -174,6 +176,8 @@ export type ApprovalCancelMeta = {
 };
 
 export type ApprovalStore = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   /**
    * Seconds a request opened against this store stays open when the
    * caller sets no `ttl`; absent means `DEFAULT_APPROVAL_TTL`. A grant's

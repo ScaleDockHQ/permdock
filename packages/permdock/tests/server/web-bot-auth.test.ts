@@ -169,7 +169,7 @@ describe("webBotAuthVerifier", () => {
     for (const signer of [ed, ec]) {
       const request = await signed(signer, { components, headers });
       expect(
-        await webBotAuthVerifier(options(() => signer.jwk))(request),
+        await webBotAuthVerifier(options(() => signer.jwk)).verify(request),
       ).toEqual({
         id: signer.jwk.kid,
         kind: "web-bot-auth",
@@ -182,24 +182,28 @@ describe("webBotAuthVerifier", () => {
       params: `;created=${NOW};keyid="ec-key";alg="ecdsa-p256-sha256";tag="web-bot-auth"`,
     });
     expect(
-      await webBotAuthVerifier(options({ lookup: () => ec.jwk }))(request),
+      await webBotAuthVerifier(options({ lookup: () => ec.jwk })).verify(
+        request,
+      ),
     ).toMatchObject({ id: "ec-key" });
   });
 
   it("skips verification when off or absent, and requires a signature when asked", async () => {
     const bare = new Request(SIGNED_URL);
-    expect(await webBotAuthVerifier(undefined)(bare)).toBeUndefined();
+    expect(await webBotAuthVerifier(undefined).verify(bare)).toBeUndefined();
     expect(
-      await webBotAuthVerifier(options(() => undefined, { verify: false }))(
-        await signed(ed),
-      ),
+      await webBotAuthVerifier(
+        options(() => undefined, { verify: false }),
+      ).verify(await signed(ed)),
     ).toBeUndefined();
     expect(
-      await webBotAuthVerifier(options(() => ed.jwk))(bare),
+      await webBotAuthVerifier(options(() => ed.jwk)).verify(bare),
     ).toBeUndefined();
     expect(
       await detailOf(
-        webBotAuthVerifier(options(() => ed.jwk, { required: true }))(bare),
+        webBotAuthVerifier(options(() => ed.jwk, { required: true })).verify(
+          bare,
+        ),
       ),
     ).toBe("Signature-Input is required");
   });
@@ -318,7 +322,7 @@ describe("webBotAuthVerifier", () => {
   ])("rejects %s", async (_label, headers, detail) => {
     const request = new Request(SIGNED_URL, { headers });
     expect(
-      await detailOf(webBotAuthVerifier(options(() => ed.jwk))(request)),
+      await detailOf(webBotAuthVerifier(options(() => ed.jwk)).verify(request)),
     ).toBe(detail);
   });
 
@@ -330,11 +334,13 @@ describe("webBotAuthVerifier", () => {
           options(() => {
             throw new Error("directory down");
           }),
-        )(request),
+        ).verify(request),
       ),
     ).toBe("Web Bot Auth key lookup failed");
     expect(
-      await detailOf(webBotAuthVerifier(options(() => undefined))(request)),
+      await detailOf(
+        webBotAuthVerifier(options(() => undefined)).verify(request),
+      ),
     ).toBe("Web Bot Auth key was not found");
   });
 
@@ -347,9 +353,9 @@ describe("webBotAuthVerifier", () => {
           Signature: "sig1=:AA==:",
         },
       });
-      expect(await detailOf(webBotAuthVerifier(options(edKey))(request))).toBe(
-        "signed components could not be covered",
-      );
+      expect(
+        await detailOf(webBotAuthVerifier(options(edKey)).verify(request)),
+      ).toBe("signed components could not be covered");
     }
   });
 
@@ -361,7 +367,7 @@ describe("webBotAuthVerifier", () => {
       { kty: "EC", crv: "P-384", kid: "ed-key" },
     ]) {
       expect(
-        await detailOf(webBotAuthVerifier(options(() => jwk))(request)),
+        await detailOf(webBotAuthVerifier(options(() => jwk)).verify(request)),
       ).toBe("signature algorithm is not supported");
     }
   });
@@ -404,7 +410,7 @@ describe("webBotAuthVerifier", () => {
     ],
   ])("rejects %s", async (_label, request, key) => {
     expect(
-      await detailOf(webBotAuthVerifier(options(key))(await request())),
+      await detailOf(webBotAuthVerifier(options(key)).verify(await request())),
     ).toBe("HTTP Message Signature did not verify");
   });
 
@@ -413,7 +419,7 @@ describe("webBotAuthVerifier", () => {
       params: `;created=${NOW};expires=${NOW + 60};keyid="ed-key";;nonce;tag="web-bot-auth"`,
     });
     expect(
-      await webBotAuthVerifier(options(() => ed.jwk))(request),
+      await webBotAuthVerifier(options(() => ed.jwk)).verify(request),
     ).toMatchObject({ id: "ed-key" });
   });
 
@@ -435,7 +441,7 @@ describe("webBotAuthVerifier", () => {
         components: ["@method", "@authority", "@path", "signature-agent"],
         headers: { "Signature-Agent": header },
       });
-      await webBotAuthVerifier(options(lookup))(request);
+      await webBotAuthVerifier(options(lookup)).verify(request);
     }
     expect(agents).toEqual([
       "https://bots.example",
@@ -473,7 +479,7 @@ describe("the Web Bot Auth profile", () => {
   ])("rejects a signature with %s", async (_label, input, detail) => {
     const request = await signed(ed, input);
     expect(
-      await detailOf(webBotAuthVerifier(options(() => ed.jwk))(request)),
+      await detailOf(webBotAuthVerifier(options(() => ed.jwk)).verify(request)),
     ).toBe(detail);
   });
 

@@ -59,6 +59,8 @@ export type AccessReviewDecision = {
 };
 
 export type AccessReviewStore = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   create(
     review: AccessReview,
     items: readonly AccessReviewItem[],

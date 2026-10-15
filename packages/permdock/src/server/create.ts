@@ -53,7 +53,7 @@ async function resolveActor(
   const verified =
     options.webBotAuth === undefined
       ? undefined
-      : await options.webBotAuth(request);
+      : await options.webBotAuth.verify(request);
   return verified ?? actorFrom(options.actor, request);
 }
 

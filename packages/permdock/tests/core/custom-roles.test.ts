@@ -556,6 +556,31 @@ describe("assignable roles and permissions", () => {
     expect(auth).toEqual([{ reason: "source-threw", source: "customRoles" }]);
   });
 
+  it("names the source that threw when it has a name", () => {
+    const auth: unknown[] = [];
+    const permdock = createPermDock(
+      policy,
+      subjectIn([{ tenant: "acme", roles: ["steward"] }]),
+      {
+        tenant: "acme",
+        customRoles: {
+          name: "roles-table",
+          rolesFor: () => [],
+          assignable: () => {
+            throw new Error("down");
+          },
+        },
+      },
+    );
+    permdock.on("auth", (event) => {
+      auth.push(event);
+    });
+    expect(permdock.assignableRoles()).toEqual([]);
+    expect(auth).toEqual([
+      { reason: "source-threw", source: "customRoles", name: "roles-table" },
+    ]);
+  });
+
   it("is empty for anonymous subjects and without a tenant", async () => {
     const anonymous = createPermDock(policy, null);
     expect(anonymous.assignableRoles()).toEqual([]);

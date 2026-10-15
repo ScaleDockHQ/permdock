@@ -134,7 +134,11 @@ function assemblePrincipal(
         compact({ tenant: options.tenant }),
       );
     } catch {
-      auth.push({ reason: "source-threw", source: "memberships" });
+      auth.push({
+        reason: "source-threw",
+        source: "memberships",
+        ...(source?.name === undefined ? {} : { name: source.name }),
+      });
       return [];
     }
   };
@@ -202,7 +206,11 @@ function rereadStale(
       ? "fresh"
       : "reread";
   const unknown = (): Freshness => {
-    auth.push({ reason: "source-threw", source: "memberships" });
+    auth.push({
+      reason: "source-threw",
+      source: "memberships",
+      ...(source?.name === undefined ? {} : { name: source.name }),
+    });
     return "unknown";
   };
   let freshness: Freshness | Promise<Freshness>;
@@ -404,11 +412,19 @@ function staleness(
     const current = source.version(versionQuery(principal));
     return isThenable(current)
       ? settle(Promise.resolve(current).then(compare), true, () => {
-          auth.push({ reason: "source-threw", source: "memberships" });
+          auth.push({
+            reason: "source-threw",
+            source: "memberships",
+            ...(source?.name === undefined ? {} : { name: source.name }),
+          });
         })
       : compare(current);
   } catch {
-    auth.push({ reason: "source-threw", source: "memberships" });
+    auth.push({
+      reason: "source-threw",
+      source: "memberships",
+      ...(source?.name === undefined ? {} : { name: source.name }),
+    });
     return true;
   }
 }

@@ -49,6 +49,8 @@ export type PolicyDocument = {
  * the application calls `refresh()` on its own schedule, never a check.
  */
 export type PolicySource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   current(): PolicyDocument | null;
   refresh(): Promise<void>;
 };

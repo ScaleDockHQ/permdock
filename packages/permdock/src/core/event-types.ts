@@ -282,6 +282,8 @@ export type AuthEvent = {
     | "source-threw";
   readonly cause?: string;
   readonly source: string;
+  /** The `name` of the source that threw, when it has one. */
+  readonly name?: string;
   readonly kid?: string;
   readonly alg?: string;
   readonly typ?: string;

@@ -42,9 +42,11 @@ export type WebBotAuthOptions = {
  * An adapter's `webBotAuth` option: `webBotAuthVerifier(options)`,
  * so an app without it does not bundle RFC 9421 verification.
  */
-export type WebBotAuthVerifier = (
-  request: Request,
-) => Promise<Actor | undefined>;
+export type WebBotAuthVerifier = {
+  readonly name?: string;
+  /** The verified signer as an actor, `undefined` for an unsigned request; throws `InvalidSignatureError` for a bad signature. */
+  verify(request: Request): Promise<Actor | undefined>;
+};
 
 export type DiscoverViaSignatureAgentOptions = {
   readonly allow: readonly string[];
@@ -129,7 +131,10 @@ export function discoverViaSignatureAgent(
 export function webBotAuthVerifier(
   options?: WebBotAuthOptions,
 ): WebBotAuthVerifier {
-  return (request) => verifySignature(request, options, true);
+  return Object.freeze({
+    name: "web-bot-auth",
+    verify: (request: Request) => verifySignature(request, options, true),
+  });
 }
 
 /** RFC 9421 verification without the Web Bot Auth profile checks. */

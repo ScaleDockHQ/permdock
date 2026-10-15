@@ -23,6 +23,8 @@ export type PrincipalIdentity = {
  * `principalByIdentity`: every reader fails closed.
  */
 export type PrincipalSource<TPrincipal extends Principal = Principal> = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   /** The principal as of this request, or `null` for one deleted, suspended or unknown. */
   principal(
     id: string,

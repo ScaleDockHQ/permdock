@@ -39,6 +39,14 @@ PermDock has no plugin system. What it has instead is a short list of interfaces
 
 Two rules follow from the table. **Subject inputs run once per `createPermDock`**, before any check, and their output is frozen into the subject; they never run during `can` or `decide`, so a slow membership lookup costs one await per request, not one per button. **Operational interfaces never sit in the decision path**: `decide` returns before a sink is awaited, a store is consulted only on resume (and the resume re-runs `decide`), a snapshot source distributes what the in-process instance already computed, and a signer signs it afterwards (invariant 15). `permdock/cloud` implements the three operational stores and a `TokenSigner` for the snapshots it distributes, and none of the subject inputs; the Cloud's SCIM relay writes _to_ an application's `DirectoryStore` through `scimHandler` and never _is_ one. Core declares `TokenVerifier` and `TokenSigner` as types only, so the one runtime dependency rule holds: the JOSE implementation lives in `permdock/jwt` behind the optional `jose` peer.
 
+Every interface has the same shape, so an implementation reads the same whichever one it fills:
+
+- **An object with methods.** A compiler (`WhereCompiler`) is the one bare function, because it has one operation and no state. A verifier is an object with `verify` too: `webBotAuthVerifier(options)` returns `{ name, verify(request) }`.
+- **An optional `name`.** It names the implementation in errors and events: a source that throws is reported as `{ reason: 'source-threw', source: 'memberships', name }` on `on('auth')`.
+- **Values or promises.** Every method may answer with a value or a Promise of it (`T | Promise<T>`). Where an answer is read during `can` or `decide` (`LimitStore.remaining`, `RelationSource`), only the value counts and a Promise denies, as each section says.
+- **One failure shape per kind.** A lookup answers the value or `null` (`CredentialVerifier.verify`, `DirectoryStore.getUser`); a check of a signed artifact answers `{ ok: true, … } | { ok: false, cause }` (`TokenVerifier`, `WebhookVerifier`).
+- **Lifecycle only where it is needed.** `DecisionSink.flush?()` is the one lifecycle method; no interface has `init` or `close`.
+
 ## Subject inputs
 
 ### SubjectResolver
@@ -339,33 +347,49 @@ A verifier is where an API key is authenticated, so it belongs next to the `subj
 
 ```ts
 interface DirectoryStore {
-  getUser(tenant: string, id: string): Promise<DirectoryUser | null>;
+  name?: string;
+  getUser(
+    tenant: string,
+    id: string,
+  ): DirectoryUser | null | Promise<DirectoryUser | null>;
   findUsers(
     tenant: string,
     filter: ScimFilter,
     page: ScimPage,
-  ): Promise<ScimPageResult<DirectoryUser>>;
-  putUser(tenant: string, user: DirectoryUser): Promise<DirectoryUser>;
+  ): ScimPageResult<DirectoryUser> | Promise<ScimPageResult<DirectoryUser>>;
+  putUser(
+    tenant: string,
+    user: DirectoryUser,
+  ): DirectoryUser | Promise<DirectoryUser>;
   patchUser(
     tenant: string,
     id: string,
     ops: ScimPatchOp[],
-  ): Promise<DirectoryUser>;
-  deleteUser(tenant: string, id: string): Promise<void>;
-  getGroup(tenant: string, id: string): Promise<DirectoryGroup | null>;
+  ): DirectoryUser | Promise<DirectoryUser>;
+  deleteUser(tenant: string, id: string): void | Promise<void>;
+  getGroup(
+    tenant: string,
+    id: string,
+  ): DirectoryGroup | null | Promise<DirectoryGroup | null>;
   findGroups(
     tenant: string,
     filter: ScimFilter,
     page: ScimPage,
-  ): Promise<ScimPageResult<DirectoryGroup>>;
-  putGroup(tenant: string, group: DirectoryGroup): Promise<DirectoryGroup>;
+  ): ScimPageResult<DirectoryGroup> | Promise<ScimPageResult<DirectoryGroup>>;
+  putGroup(
+    tenant: string,
+    group: DirectoryGroup,
+  ): DirectoryGroup | Promise<DirectoryGroup>;
   patchGroup(
     tenant: string,
     id: string,
     ops: ScimPatchOp[],
-  ): Promise<DirectoryGroup>;
-  deleteGroup(tenant: string, id: string): Promise<void>;
-  groupsFor(tenant: string, userId: string): Promise<DirectoryGroup[]>;
+  ): DirectoryGroup | Promise<DirectoryGroup>;
+  deleteGroup(tenant: string, id: string): void | Promise<void>;
+  groupsFor(
+    tenant: string,
+    userId: string,
+  ): DirectoryGroup[] | Promise<DirectoryGroup[]>;
 }
 ```
 

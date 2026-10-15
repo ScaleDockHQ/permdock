@@ -116,10 +116,12 @@ describe("permdock/express", () => {
   it("answers its own errors with Problem Details without errorHandler", async () => {
     const { middleware } = createPermDock(policy, {
       subject: () => memberUser,
-      webBotAuth: async () => {
-        throw new InvalidSignatureError(
-          invalidSignatureProblem("bad signature"),
-        );
+      webBotAuth: {
+        verify: async () => {
+          throw new InvalidSignatureError(
+            invalidSignatureProblem("bad signature"),
+          );
+        },
       },
     });
     const app = express();

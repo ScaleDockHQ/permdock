@@ -52,7 +52,11 @@ export function customRolesFor(
     try {
       loaded.push(source.rolesFor(tenant, { held: heldIn(tenant) }));
     } catch {
-      auth.push({ reason: "source-threw", source: "customRoles" });
+      auth.push({
+        reason: "source-threw",
+        source: "customRoles",
+        ...(source?.name === undefined ? {} : { name: source.name }),
+      });
       loaded.push([]);
     }
   }
@@ -63,7 +67,11 @@ export function customRolesFor(
         isThenable(roles) ? roles.then(onlyGlobal) : onlyGlobal(roles),
       );
     } catch {
-      auth.push({ reason: "source-threw", source: "customRoles" });
+      auth.push({
+        reason: "source-threw",
+        source: "customRoles",
+        ...(source?.name === undefined ? {} : { name: source.name }),
+      });
       loaded.push([]);
     }
   }
@@ -71,7 +79,11 @@ export function customRolesFor(
     return Promise.all(
       loaded.map((item) =>
         Promise.resolve(item).catch((): CustomRole[] => {
-          auth.push({ reason: "source-threw", source: "customRoles" });
+          auth.push({
+            reason: "source-threw",
+            source: "customRoles",
+            ...(source?.name === undefined ? {} : { name: source.name }),
+          });
           return [];
         }),
       ),
@@ -103,7 +115,11 @@ export function assignableNamesFor(
     return undefined;
   }
   const failed = (): string[] => {
-    auth.push({ reason: "source-threw", source: "customRoles" });
+    auth.push({
+      reason: "source-threw",
+      source: "customRoles",
+      ...(source?.name === undefined ? {} : { name: source.name }),
+    });
     return [];
   };
   const loaded = tenants.map((tenant) => {

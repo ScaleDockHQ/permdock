@@ -51,6 +51,8 @@ export type Automation = {
 
 /** The live record of each automation, read on every run. */
 export type AutomationSource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   /** The automation as of now, or `null` for an unknown one. A throw is no automation. */
   automation(
     id: string,
