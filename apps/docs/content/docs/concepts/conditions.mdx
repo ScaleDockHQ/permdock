@@ -64,7 +64,7 @@ allow(permissions.job.read, {
 
 `principal` and `context` (imported from `permdock`) are typed reference builders, not the current user:
 
-- `principal.<field>` refers to a field returned by the policy's `principal` function (`principal.id`, `principal.orgId`).
+- `principal.<field>` refers to a field returned by the policy's `subject` function (`principal.id`, `principal.orgId`).
 - `context.<key>` refers to a value loaded by the policy's `context` function (`context.teamIds`).
 
 There is no `subject` builder: a ref whose path starts with `subject.` is not a reference at all, so it fails closed.

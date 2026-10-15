@@ -34,7 +34,7 @@ const permissions = definePermissions({
   }),
 });
 const policy = definePolicy(permissions, {
-  principal: () => null,
+  subject: () => null,
   grants: [allow(permissions.post.read, { to: { kind: "authenticated" } })],
 });
 

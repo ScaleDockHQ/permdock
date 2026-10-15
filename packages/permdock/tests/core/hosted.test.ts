@@ -57,7 +57,7 @@ const policy = definePolicy(
       ]),
       role("auditor", []),
     ],
-    principal: (user: User) => user,
+    subject: (user: User) => user,
     hostable: [permissions.invoice, permissions.auditLog.read],
   },
 );
@@ -249,7 +249,7 @@ describe("hosted grants", () => {
           ]),
           role("auditor", []),
         ],
-        principal: (user: User) => user,
+        subject: (user: User) => user,
         hostable: [permissions.invoice],
       },
     );
@@ -343,7 +343,7 @@ describe("hosted grants", () => {
           ]),
           role("auditor", []),
         ],
-        principal: (user: User) => user,
+        subject: (user: User) => user,
         hostable: [permissions.invoice],
       },
     );
@@ -373,7 +373,7 @@ describe("hosted grants", () => {
   it("drops a grant on a permission the policy does not mark hostable", () => {
     const narrow = definePolicy(permissions, {
       roles: [role("member", [])],
-      principal: (user: User) => ({ id: user.id, roles: user.roles }),
+      subject: (user: User) => ({ id: user.id, roles: user.roles }),
       hostable: [permissions.auditLog.read],
     });
     const merged = mergeHostedGrants(
@@ -541,7 +541,7 @@ describe("hosted approvals that go stale on a resource change", () => {
       ]),
       role("auditor", []),
     ],
-    principal: (user: User) => user,
+    subject: (user: User) => user,
     hostable: [tree.filing, tree.note],
   });
 
@@ -853,7 +853,7 @@ describe("hosted grant validation", () => {
           ]),
           role("auditor", []),
         ],
-        principal: (user: User) => user,
+        subject: (user: User) => user,
         hostable: [permissions.invoice],
       },
     );

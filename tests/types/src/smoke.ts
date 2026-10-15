@@ -44,7 +44,7 @@ export const policy = definePolicy(
   {
     roles: [member],
     grants: [allow(permissions.post.read, { to: anyone() })],
-    principal: (
+    subject: (
       user: { readonly id: string; readonly roles: readonly string[] } | null,
     ) => user,
   },

@@ -40,7 +40,7 @@ const policy = definePolicy(permissions, {
       },
     }),
   ],
-  principal: (user: {
+  subject: (user: {
     readonly id: string;
     readonly claims?: Readonly<Record<string, unknown>>;
   }) => user,

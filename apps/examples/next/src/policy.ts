@@ -54,7 +54,7 @@ export const policy = definePolicy(
         { on: "customer" },
       ),
     ],
-    principal: (user: User | null) =>
+    subject: (user: User | null) =>
       user === null
         ? null
         : { id: user.id, roles: [], memberships: user.memberships },

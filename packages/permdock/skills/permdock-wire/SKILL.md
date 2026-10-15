@@ -75,7 +75,7 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
      { permissions, roles },
      {
        roles: [member],
-       principal: (user) => user && { id: user.id, roles: user.roles },
+       subject: (user) => user && { id: user.id, roles: user.roles },
      },
    );
    ```

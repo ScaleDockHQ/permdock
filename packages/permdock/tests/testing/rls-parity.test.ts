@@ -243,10 +243,8 @@ const relationPermissions = definePermissions({
 });
 
 const relationPolicy = definePolicy(relationPermissions, {
-  principal: (user: {
-    readonly id: string;
-    readonly roles: readonly string[];
-  }) => user,
+  subject: (user: { readonly id: string; readonly roles: readonly string[] }) =>
+    user,
   grants: [
     allow(relationPermissions.post.read, { to: anyone() }),
     allow(relationPermissions.post.update, {

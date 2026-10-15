@@ -753,7 +753,7 @@ const selectorPolicy = definePolicy(
     plans: selectorPlans,
   },
   {
-    principal: (
+    subject: (
       user: {
         readonly id: string;
         readonly roles?: readonly string[];
