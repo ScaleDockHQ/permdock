@@ -14,6 +14,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { decideCredential } from "../../src/index.ts";
 import {
   generateFeedKey,
   memoryCredentialStore,
@@ -102,7 +103,7 @@ describe("feed credentials", () => {
 
   it("acts as a feed principal on one resource and cannot create a key or approve", async () => {
     const permdock = await createPermDock(policy, owner());
-    const decision = await permdock.decideCredential({
+    const decision = await decideCredential(permdock, {
       id: "cal-feed",
       kind: "feed",
       on: { resource: permissions.calendar, id: "cal_1" },
@@ -132,7 +133,7 @@ describe("feed credentials", () => {
       { type: "calendar", actions: ["read"], identifier: "cal_1" },
     ]);
     const asFeed = await createPermDock(policy, subject);
-    const minted = await asFeed.decideCredential({
+    const minted = await decideCredential(asFeed, {
       id: "other-feed",
       kind: "feed",
       on: { resource: permissions.calendar, id: "cal_1" },
@@ -183,7 +184,7 @@ describe("feed credentials", () => {
 
   it("refuses a feed role the resource does not declare and a permission the creator lacks", async () => {
     const permdock = await createPermDock(policy, owner());
-    const undeclared = await permdock.decideCredential({
+    const undeclared = await decideCredential(permdock, {
       id: "cal-feed",
       kind: "feed",
       on: { resource: permissions.calendar, id: "cal_1" },
@@ -204,18 +205,19 @@ describe("feed credentials", () => {
       },
       context: {},
     };
-    const lacking = await (
-      await createPermDock(policy, member)
-    ).decideCredential({
-      id: "cal-feed",
-      kind: "feed",
-      on: { resource: permissions.calendar, id: "cal_1" },
-      roles: ["guest"],
-      permissions: [permissions.calendar.read],
-      row,
-    });
+    const lacking = await decideCredential(
+      await createPermDock(policy, member),
+      {
+        id: "cal-feed",
+        kind: "feed",
+        on: { resource: permissions.calendar, id: "cal_1" },
+        roles: ["guest"],
+        permissions: [permissions.calendar.read],
+        row,
+      },
+    );
     expect(lacking.outcome).toBe("denied");
-    const pinned = await permdock.decideCredential({
+    const pinned = await decideCredential(permdock, {
       id: "cal-feed",
       kind: "feed",
       on: { resource: permissions.calendar, id: "cal_1" },
@@ -227,7 +229,7 @@ describe("feed credentials", () => {
     expect(() => generateFeedKey("Bad Id")).toThrow(/feed id/u);
     expect(parseFeedKey("pdfeed_ok_")).toBeUndefined();
     expect(parseFeedKey("not-a-key")).toBeUndefined();
-    const badId = await permdock.decideCredential({
+    const badId = await decideCredential(permdock, {
       id: "Bad",
       kind: "feed",
       on: { resource: permissions.calendar, id: "cal_1" },
@@ -236,7 +238,7 @@ describe("feed credentials", () => {
       row,
     });
     expect(badId.outcome).toBe("denied");
-    const noRow = await permdock.decideCredential({
+    const noRow = await decideCredential(permdock, {
       id: "cal-feed",
       kind: "feed",
       on: { resource: permissions.calendar, id: "cal_1" },

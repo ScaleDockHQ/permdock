@@ -233,7 +233,7 @@ A ruleset file for Spectral, Redocly and vacuum ships with the CLI. It checks th
 
 ### Adjacent formats
 
-AsyncAPI has no emitter. Overlay targets are JSONPath and not bound to OpenAPI, so if one is needed it is the same Overlay engine pointed at an AsyncAPI document, not a new adapter. Arazzo runners and `simulate({ arazzo, openapi })` must read the applied description so `x-permdock-permissions` is present.
+AsyncAPI has no emitter. Overlay targets are JSONPath and not bound to OpenAPI, so if one is needed it is the same Overlay engine pointed at an AsyncAPI document, not a new adapter. Arazzo runners and `simulateArazzo(permdock, { arazzo, openapi })` must read the applied description so `x-permdock-permissions` is present.
 
 ## Request lifecycle
 

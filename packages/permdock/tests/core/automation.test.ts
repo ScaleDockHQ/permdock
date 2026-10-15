@@ -7,6 +7,7 @@ import {
   parseAutomation,
 } from "../../src/core/automation.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { decideAutomation } from "../../src/index.ts";
 import {
   operations,
   permdockFor,
@@ -101,7 +102,8 @@ describe("decideAutomation", () => {
   };
 
   it("grants a publisher automation whose delegation is the operations' permissions", async () => {
-    const decision = await billing.decideAutomation(
+    const decision = await decideAutomation(
+      billing,
       { ...request, run: permissions.report.run, name: "Monthly invoices" },
       { now: NOW },
     );
@@ -117,7 +119,8 @@ describe("decideAutomation", () => {
   });
 
   it("accepts the OperationMap itself and keeps one key per permission", async () => {
-    const decision = await owner.decideAutomation(
+    const decision = await decideAutomation(
+      owner,
       { id: "auto_1", version: "v2", operations },
       { now: NOW },
     );
@@ -138,7 +141,7 @@ describe("decideAutomation", () => {
 
   it("caps the delegation at what the publisher can use now", async () => {
     expect(
-      await billing.decideAutomation({
+      await decideAutomation(billing, {
         ...request,
         operations: [operations.delete_invoice],
       }),
@@ -149,14 +152,15 @@ describe("decideAutomation", () => {
       ],
     });
     const reader = permdockFor(userSubject("u_3", ["reader"]));
-    expect(await reader.decideAutomation(request)).toMatchObject({
+    expect(await decideAutomation(reader, request)).toMatchObject({
       denials: [{ detail: { permission: "invoice.send" } }],
     });
   });
 
   it("refuses anonymous, link, feed, contact, credential and run publishers", async () => {
     expect(
-      await permdockFor({ principal: null, context: {} }).decideAutomation(
+      await decideAutomation(
+        permdockFor({ principal: null, context: {} }),
         request,
       ),
     ).toMatchObject({ denials: [{ reason: "anonymous" }] });
@@ -166,7 +170,7 @@ describe("decideAutomation", () => {
         ...subject,
         principal: { ...person("u_1", ["owner"]), kind },
       });
-      expect(await instance.decideAutomation(request)).toMatchObject({
+      expect(await decideAutomation(instance, request)).toMatchObject({
         denials: [{ reason: "exceeds-creator", detail: { creator: kind } }],
       });
     }
@@ -174,14 +178,14 @@ describe("decideAutomation", () => {
       principal: { ...person("u_1", ["owner"]), credential: { id: "key_1" } },
       context: {},
     });
-    expect(await viaKey.decideAutomation(request)).toMatchObject({
+    expect(await decideAutomation(viaKey, request)).toMatchObject({
       denials: [{ detail: { creator: "credential" } }],
     });
     const viaRun = permdockFor({
       principal: { ...person("u_1", ["owner"]), runTicket: { jti: "r" } },
       context: {},
     });
-    expect(await viaRun.decideAutomation(request)).toMatchObject({
+    expect(await decideAutomation(viaRun, request)).toMatchObject({
       denials: [{ detail: { creator: "run" } }],
     });
   });
@@ -210,7 +214,7 @@ describe("decideAutomation", () => {
       { ...request, mode: "agent" as never },
     ];
     for (const row of rows) {
-      expect(await owner.decideAutomation(row)).toMatchObject({
+      expect(await decideAutomation(owner, row)).toMatchObject({
         outcome: "denied",
         denials: [{ reason: "validation" }],
       });
@@ -219,20 +223,21 @@ describe("decideAutomation", () => {
 
   it("refuses a tenant the publisher is not a member of", async () => {
     expect(
-      await owner.decideAutomation({ ...request, tenant: "o_2" }),
+      await decideAutomation(owner, { ...request, tenant: "o_2" }),
     ).toMatchObject({
       denials: [{ reason: "exceeds-creator", detail: { tenant: "o_2" } }],
     });
   });
 
   it("caps a service automation at the publisher's assignable roles and permissions", async () => {
-    const granted = await owner.decideAutomation(
+    const granted = await decideAutomation(
+      owner,
       { ...request, id: "auto_2", mode: "service", roles: ["billing"] },
       { now: NOW },
     );
     expect(granted).toEqual({ outcome: "granted", automation: service });
     expect(
-      await billing.decideAutomation({
+      await decideAutomation(billing, {
         ...request,
         mode: "service",
         roles: ["owner"],
@@ -248,7 +253,7 @@ describe("decideAutomation", () => {
       throw new TypeError("expected a JSON snapshot");
     }
     expect(
-      await fromSnapshot(snapshot).decideAutomation(request),
+      await decideAutomation(fromSnapshot(snapshot), request),
     ).toMatchObject({
       denials: [{ reason: "unsupported" }],
     });

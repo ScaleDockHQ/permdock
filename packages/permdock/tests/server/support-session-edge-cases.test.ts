@@ -6,6 +6,7 @@ import type { TokenVerifier } from "../../src/core/interfaces.ts";
 import type { Principal } from "../../src/core/subject.ts";
 import type { SupportSession } from "../../src/core/support-session.ts";
 
+import { decideSupportSession } from "../../src/index.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import {
@@ -248,12 +249,12 @@ describe("decideSupportSession: the session record is validated", () => {
       reason: "Ticket 4411",
     };
     const now = Temporal.Instant.from("2026-10-14T09:00:00Z");
-    const pending = await staff.decideSupportSession(request, { now });
+    const pending = await decideSupportSession(staff, request, { now });
     if (pending.outcome !== "approval-required") {
       throw new Error("expected approval-required");
     }
     expect(
-      await staff.decideSupportSession(request, {
+      await decideSupportSession(staff, request, {
         now,
         approved: pending.token,
         approvedBy: "",

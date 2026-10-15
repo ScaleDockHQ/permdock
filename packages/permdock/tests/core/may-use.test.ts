@@ -12,6 +12,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
+import { decideCredential } from "../../src/index.ts";
 import { alice, policy as saas } from "../fixtures/saas.ts";
 
 const permissions = definePermissions({
@@ -136,7 +137,7 @@ describe("an instance built from a snapshot", () => {
     });
     expect(instance.permittedIds(permissions.doc.read, "team")).toEqual(["a"]);
     expect(
-      await instance.decideCredential({
+      await decideCredential(instance, {
         kind: "user",
         id: "k1",
         permissions: [permissions.doc.read],

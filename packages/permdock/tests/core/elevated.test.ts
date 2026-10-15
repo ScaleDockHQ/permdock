@@ -13,6 +13,7 @@ import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { normalizeMembership } from "../../src/core/scopes.ts";
 import { accessEvent } from "../../src/core/sink.ts";
+import { activate } from "../../src/index.ts";
 
 const Doc = {
   "~standard": {
@@ -133,7 +134,7 @@ describe("E1 role activation", () => {
 
   it("grants and carries the elevated membership to write", () => {
     const permdock = permdockFor(eligible);
-    const decision = permdock.activate({
+    const decision = activate(permdock, {
       role: "admin",
       scope: "organization",
       id: "T",
@@ -157,7 +158,7 @@ describe("E1 role activation", () => {
 
   it("denies without a justification when justification is required", () => {
     const permdock = permdockFor(eligible);
-    const decision = permdock.activate({
+    const decision = activate(permdock, {
       role: "admin",
       scope: "organization",
       id: "T",
@@ -171,7 +172,7 @@ describe("E1 role activation", () => {
 
   it("denies an ineligible subject", () => {
     const permdock = permdockFor(nurse);
-    const decision = permdock.activate({
+    const decision = activate(permdock, {
       role: "admin",
       scope: "organization",
       id: "T",
@@ -194,7 +195,7 @@ describe("E1 role activation", () => {
       ],
     };
     const permdock = permdockFor(stale);
-    const decision = permdock.activate({
+    const decision = activate(permdock, {
       role: "admin",
       scope: "organization",
       id: "T",
@@ -453,7 +454,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
       principal,
       context: {},
     });
-    const forged = permdock.activate({
+    const forged = activate(permdock, {
       role: "team-admin",
       scope: "team",
       id: "eng",
@@ -470,7 +471,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
       principal,
       context: {},
     });
-    const decision = permdock.activate({
+    const decision = activate(permdock, {
       role: "team-admin",
       scope: "team",
       id: "eng",
@@ -502,8 +503,8 @@ describe("activate binds a nested elevation to the eligible membership", () => {
       },
       context: {},
     });
-    const a = root.activate({ role: "team-admin", scope: "team", id: "eng" });
-    const c = other.activate({ role: "team-admin", scope: "team", id: "eng" });
+    const a = activate(root, { role: "team-admin", scope: "team", id: "eng" });
+    const c = activate(other, { role: "team-admin", scope: "team", id: "eng" });
     expect(a.outcome).toBe("approval-required");
     expect(c.outcome).toBe("approval-required");
     if (

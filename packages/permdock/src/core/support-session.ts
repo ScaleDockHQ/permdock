@@ -8,6 +8,7 @@ import { canonicalJson } from "./canonical-json.ts";
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { idList, isId } from "./ids.ts";
+import { type InstanceHandle, internalsOf } from "./internals.ts";
 import { ownRecord } from "./paths.ts";
 import { annotationsFor } from "./permission-leaf.ts";
 import { findPermission, listPermissions } from "./permission-registry.ts";
@@ -194,10 +195,39 @@ function sessionToken(
  * applies, and the result is `approval-required` until `approved` carries
  * its token and `approvedBy` names someone other than the actor.
  */
-export async function decideSupportSession(
-  permdock: PermDock,
+/**
+ * Decides whether the subject of `permdock` may start the support session
+ * in `request` and returns the record to sign: a stated reason, membership
+ * of the tenant, the actor's own reach, the tenant's `supportSessions`
+ * policy and approval by someone else. An instance built from a snapshot
+ * denies with `unsupported`.
+ */
+export function decideSupportSession(
+  permdock: InstanceHandle,
   request: SupportSessionRequest,
   options: DecideSupportSessionOptions = {},
+): Promise<SupportSessionDecision> {
+  const internals = internalsOf(permdock);
+  if (internals === undefined) {
+    return Promise.resolve(
+      freezeDeep({
+        outcome: "denied" as const,
+        denials: [{ role: null, reason: "unsupported" as const }],
+      }),
+    );
+  }
+  const settings = options.settings ?? internals.env.settings;
+  return decideSupportSessionWith(
+    internals.instance,
+    request,
+    settings === undefined ? options : { ...options, settings },
+  );
+}
+
+async function decideSupportSessionWith(
+  permdock: PermDock,
+  request: SupportSessionRequest,
+  options: DecideSupportSessionOptions,
 ): Promise<SupportSessionDecision> {
   const actor = permdock.subject.principal;
   if (actor === null) {

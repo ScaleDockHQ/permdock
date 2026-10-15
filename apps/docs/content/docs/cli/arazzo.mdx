@@ -3,7 +3,7 @@ title: arazzo
 description: Resolve every step of an Arazzo workflow to an operation's x-permdock-permissions and report steps that call undocumented operations.
 ---
 
-`permdock arazzo check` is the workflow counterpart of `permdock openapi --check`. It runs the resolution half of `permdock.simulate({ arazzo, openapi })` and never evaluates a subject. See [Arazzo workflows](/docs/standards/arazzo) and [Arazzo](/docs/standards/arazzo).
+`permdock arazzo check` is the workflow counterpart of `permdock openapi --check`. It runs the resolution half of `simulateArazzo(permdock, { arazzo, openapi })` and never evaluates a subject. See [Arazzo workflows](/docs/standards/arazzo) and [Arazzo](/docs/standards/arazzo).
 
 ```bash
 permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json
@@ -32,6 +32,6 @@ A finding is one of:
 | `unsupported`  | The step is an AsyncAPI operation or `channelPath`, or calls a workflow in another Arazzo document                                                                                                                    |
 | `unknown-key`  | `--from` (or config `permissions`) is set and a key is not in the catalog                                                                                                                                             |
 
-The command does not call `decide`, does not load a policy, and does not accept a subject. Pre-flighting grants is `permdock.simulate({ arazzo, openapi })` on an instance.
+The command does not call `decide`, does not load a policy, and does not accept a subject. Pre-flighting grants is `simulateArazzo(permdock, { arazzo, openapi })` on an instance.
 
 `--json` prints `{ "$schema": "permdock-arazzo-check", findings }`.

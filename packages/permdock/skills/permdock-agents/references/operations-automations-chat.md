@@ -82,7 +82,8 @@ A run acts as the automation's principal with live rights, narrowed to the autom
 ### Publish
 
 ```ts
-const decision = await permdock.decideAutomation({
+import { decideAutomation } from "permdock";
+const decision = await decideAutomation(permdock, {
   id: "weekly-overdue",
   version: 1,
   operations: [operations.read_invoice, operations.send_invoice],

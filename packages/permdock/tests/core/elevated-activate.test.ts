@@ -4,7 +4,7 @@ import type { Grant } from "../../src/core/policy-types.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import {
-  activate,
+  activateFor,
   breakGlass,
   evaluateBreakGlass,
   purposesOf,
@@ -126,11 +126,11 @@ describe("activate", () => {
       reason: "no-membership",
     },
   ])("denies $name", ({ who, input, reason }) => {
-    expect(reasonOf(activate(policy, who, input, NOW))).toBe(reason);
+    expect(reasonOf(activateFor(policy, who, input, NOW))).toBe(reason);
   });
 
   it("accepts a role reference and caps the requested duration", () => {
-    const capped = activate(
+    const capped = activateFor(
       policy,
       operator,
       {
@@ -142,7 +142,7 @@ describe("activate", () => {
       },
       NOW,
     );
-    const defaulted = activate(
+    const defaulted = activateFor(
       policy,
       operator,
       { role: "operator", scope: "project", id: "p1" },
@@ -169,7 +169,7 @@ describe("activate", () => {
   });
 
   it("asks for approval before minting an approval-gated elevation", () => {
-    const decision = activate(
+    const decision = activateFor(
       policy,
       subject({ memberships: [eligibleIn("organization", "o1", ["owner"])] }),
       { role: "owner", scope: "organization", id: "o1" },
@@ -201,7 +201,7 @@ describe("activate", () => {
         outcome: "granted",
       },
     ])("with $name: $outcome", ({ held, outcome }) => {
-      const decision = activate(policy, auditor(held), input, NOW);
+      const decision = activateFor(policy, auditor(held), input, NOW);
       expect({
         outcome: decision.outcome,
         reason: reasonOf(decision),

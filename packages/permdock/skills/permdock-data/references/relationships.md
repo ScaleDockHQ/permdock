@@ -53,7 +53,7 @@ Pass `relations: memoryRelationSource(permissions, { rows, edges })` in tests, o
 
 ## Share dialogs
 
-`const { holders, complete } = await permdock.whoCan(permission, row)` lists who holds a permission on one object and how. Show `complete: false` honestly: some holders could not be listed. `whoCan` never grants.
+`const { holders, complete } = await whoCan(permdock, permission, row)` lists who holds a permission on one object and how. Show `complete: false` honestly: some holders could not be listed. `whoCan` never grants.
 
 ## In Postgres
 

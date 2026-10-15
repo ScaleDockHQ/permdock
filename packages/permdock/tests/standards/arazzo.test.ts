@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Decision } from "../../src/core/decision.ts";
 
-import { arazzoFindings } from "../../src/core/arazzo.ts";
+import { arazzoFindings, simulateArazzo } from "../../src/core/arazzo.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
 import { standardsFixture } from "./fixtures.ts";
@@ -177,7 +177,10 @@ describe("Arazzo 1.1 document validation", () => {
         ),
       ).toEqual([["document", "validation"]]);
       const permdock = await createPermDock(policy, memberUser);
-      const plan = permdock.simulate({ arazzo: document, openapi: posts });
+      const plan = simulateArazzo(permdock, {
+        arazzo: document,
+        openapi: posts,
+      });
       expect(plan.outcome).toBe("denied");
       expect(reasonOf(plan.steps[0]?.decision)).toBe("validation");
     });
@@ -230,7 +233,7 @@ describe("simulate over an Arazzo workflow", () => {
   it("reports one decision per step in order and the worst outcome", async () => {
     const permdock = await createPermDock(policy, memberUser);
     const outcome = (steps: readonly Step[]) =>
-      permdock.simulate({ arazzo: doc(steps), openapi: posts });
+      simulateArazzo(permdock, { arazzo: doc(steps), openapi: posts });
 
     const granted = outcome([step("load", "getPost")]);
     expect(granted.outcome).toBe("granted");
@@ -266,7 +269,7 @@ describe("simulate over an Arazzo workflow", () => {
 
   it("fails closed on holes in the description", async () => {
     const permdock = await createPermDock(policy, memberUser);
-    const plan = permdock.simulate({
+    const plan = simulateArazzo(permdock, {
       arazzo: doc([
         step("load", "getPost"),
         step("touch", "touchPost"),
@@ -318,7 +321,7 @@ describe("simulate over an Arazzo workflow", () => {
       ],
     };
     const openapi = { posts, admin };
-    const plan = permdock.simulate({
+    const plan = simulateArazzo(permdock, {
       arazzo: doc(
         [
           step("qualified", "$sourceDescriptions.posts.deletePost"),
@@ -355,7 +358,7 @@ describe("simulate over an Arazzo workflow", () => {
 
   it("reports AsyncAPI steps as unsupported", async () => {
     const permdock = await createPermDock(policy, memberUser);
-    const plan = permdock.simulate({
+    const plan = simulateArazzo(permdock, {
       arazzo: doc(
         [
           step("load", "getPost"),
@@ -387,7 +390,7 @@ describe("simulate over an Arazzo workflow", () => {
 
   it("binds $inputs and marks unknown runtime values provisional", async () => {
     const permdock = await createPermDock(policy, memberUser);
-    const plan = permdock.simulate({
+    const plan = simulateArazzo(permdock, {
       arazzo: doc([
         step("edit", "updatePost", [
           { name: "id", in: "path", value: "$inputs.post.id" },
@@ -415,7 +418,7 @@ describe("simulate over an Arazzo workflow", () => {
 
   it("expands nested workflows with their own inputs and keeps duplicate stepIds apart", async () => {
     const permdock = await createPermDock(policy, memberUser);
-    const plan = permdock.simulate({
+    const plan = simulateArazzo(permdock, {
       arazzo: {
         ...doc([]),
         workflows: [
@@ -512,7 +515,7 @@ describe("simulate over an Arazzo workflow", () => {
     permdock.on("decision", (event) => {
       events.push(event);
     });
-    permdock.simulate({
+    simulateArazzo(permdock, {
       arazzo: doc([
         step("load", "getPost"),
         step("remove", "deletePost"),

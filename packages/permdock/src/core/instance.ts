@@ -14,20 +14,11 @@ import type { Snapshot } from "./snapshot-types.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
-import {
-  type ArazzoPlan,
-  type ArazzoSimulateInput,
-  isArazzoSimulateInput,
-  simulateArazzo,
-} from "./arazzo.ts";
 import { assertDecision } from "./assert-decision.ts";
 import { type Assignable, assignableIn } from "./assignable.ts";
-import { decideAutomation } from "./automation.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
-import { decideCredential } from "./credential.ts";
 import { customGrantsFor } from "./custom-roles.ts";
 import { decideForTarget } from "./decide-for.ts";
-import { type ActivateInput, activate } from "./elevated.ts";
 import { evaluate } from "./evaluate.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
@@ -35,6 +26,7 @@ import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { type InstanceEnv, deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
+import { attachInternals } from "./internals.ts";
 import { mayUse, permittedIds } from "./may-use.ts";
 import {
   type RoleChange,
@@ -58,7 +50,6 @@ import {
 import { collectSnapshotGrants, whereGrant } from "./snapshot-grants.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { snapshotGrant } from "./snapshot.ts";
-import { decideSupportSession } from "./support-session.ts";
 import {
   nowSeconds,
   relatesTo,
@@ -68,7 +59,6 @@ import {
 } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 import { whereFromGrants } from "./where-scope.ts";
-import { whoCan } from "./who-can.ts";
 
 /** Each round reads one more layer: link hops, then the chain, then nested groups. */
 const LOAD_ROUNDS = 48;
@@ -388,18 +378,6 @@ export function buildInstance(
         await Promise.all(pending);
       }
     },
-    whoCan(permission: Permission, row: unknown) {
-      return whoCan({
-        policy,
-        permission,
-        row,
-        memberships: envBase.memberships,
-        reader: relations,
-        cache: relationCache,
-        customGrants,
-        team,
-      });
-    },
     // SAFETY: the implementation returns the result type of each simulate overload for its input.
     simulate: ((
       input:
@@ -408,10 +386,9 @@ export function buildInstance(
             readonly roles?: readonly (string | Role)[];
             readonly memberships?: readonly Membership[];
             readonly tenant?: string;
-          }
-        | ArazzoSimulateInput,
+          },
       options?: SimulateOptions,
-    ): Decision[] | PermDock | ArazzoPlan => {
+    ): Decision[] | PermDock => {
       const evaluated: (readonly [Permission, unknown, Decision])[] = [];
       const quietly = (permission: Permission, data: unknown): Decision => {
         const decision = evaluate(
@@ -436,16 +413,7 @@ export function buildInstance(
         simulateEvent(policy, subject, envFor(false), evaluated);
         return decisions;
       }
-      if (isArazzoSimulateInput(input)) {
-        const plan = simulateArazzo(
-          input,
-          input.permissions ?? policy.permissions,
-          quietly,
-        );
-        simulateEvent(policy, subject, envFor(false), evaluated);
-        return plan;
-      }
-      // SAFETY: arrays and Arazzo input returned above, so the rest of the union is the preview.
+      // SAFETY: arrays returned above, so the rest of the union is the preview.
       const preview = input as SimulatePreview;
       return buildInstance(
         policy,
@@ -610,37 +578,11 @@ export function buildInstance(
         options,
       );
     },
-    decideCredential(request, options) {
-      return decideCredential(
-        instance,
-        request,
-        envBase.settings === undefined
-          ? options
-          : { settings: envBase.settings, ...options },
-      );
-    },
-    decideAutomation(request, options) {
-      return Promise.resolve().then(() =>
-        decideAutomation(instance, request, options),
-      );
-    },
-    decideSupportSession(request, options) {
-      return decideSupportSession(
-        instance,
-        request,
-        envBase.settings === undefined
-          ? options
-          : { settings: envBase.settings, ...options },
-      );
-    },
     mayUse(permission) {
       return mayUse(instance, permission);
     },
     permittedIds(permission, scope, options) {
       return permittedIds(instance, permission, scope, options);
-    },
-    activate(input: ActivateInput): Decision {
-      return activate(policy, subject, input, nowSeconds());
     },
     derive(options: DeriveOptions): PermDock | Promise<PermDock> {
       const derived = deriveEnv(
@@ -658,5 +600,33 @@ export function buildInstance(
     },
     subject,
   };
+  attachInternals(instance, {
+    instance,
+    policy,
+    subject,
+    env: envBase,
+    team,
+    customGrants,
+    relations,
+    relationCache,
+    now: () => nowSeconds(),
+    simulateWith: (run) => {
+      const evaluated: (readonly [Permission, unknown, Decision])[] = [];
+      const result = run((permission, data) => {
+        const decision = evaluate(
+          policy,
+          subject,
+          permission,
+          data,
+          { call: "simulate", trusted: true },
+          envFor(false),
+        );
+        evaluated.push([permission, data, decision]);
+        return decision;
+      });
+      simulateEvent(policy, subject, envFor(false), evaluated);
+      return result;
+    },
+  });
   return Object.freeze(instance);
 }

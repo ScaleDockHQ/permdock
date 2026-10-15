@@ -11,6 +11,7 @@ import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
+import { activate, simulateArazzo, whoCan } from "../../src/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {
   adminUser,
@@ -273,7 +274,7 @@ describe("fromSnapshot instance surface", () => {
       "granted",
       "approval-required",
     ]);
-    const plan = client.simulate({ arazzo: {}, openapi: {} });
+    const plan = simulateArazzo(client, { arazzo: {}, openapi: {} });
     expect(plan.outcome).toBe("denied");
 
     const asOwner = client.simulate({ roles: [vocabulary.owner, "contact"] });
@@ -343,7 +344,7 @@ describe("fromSnapshot instance surface", () => {
     await expect(client.loadRelations(docs.doc.read, [row])).resolves.toBe(
       undefined,
     );
-    await expect(client.whoCan(docs.doc.read, row)).resolves.toEqual({
+    await expect(whoCan(client, docs.doc.read, row)).resolves.toEqual({
       permission: "doc.read",
       holders: [],
       complete: false,
@@ -366,7 +367,7 @@ describe("fromSnapshot instance surface", () => {
       },
       denials: [{ role: null, reason: "unsupported" }],
     });
-    const activation = client.activate({
+    const activation = activate(client, {
       role: "owner",
       scope: "tenant",
       id: "t1",

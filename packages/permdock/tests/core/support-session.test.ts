@@ -8,6 +8,7 @@ import {
   type SupportSession,
   parseSupportSession,
 } from "../../src/core/support-session.ts";
+import { decideSupportSession } from "../../src/index.ts";
 import {
   permdockFor,
   permissions,
@@ -66,7 +67,7 @@ describe("decideSupportSession", () => {
   const staff = permdockFor(userSubject("u_staff", ["billing"]));
 
   it("asks for approval by default and defaults to the actor's read-only permissions", async () => {
-    const decision = await staff.decideSupportSession(request, { now: NOW });
+    const decision = await decideSupportSession(staff, request, { now: NOW });
     expect(decision).toMatchObject({
       outcome: "approval-required",
       session,
@@ -75,13 +76,13 @@ describe("decideSupportSession", () => {
   });
 
   it("grants once approved by someone other than the actor", async () => {
-    const pending = await staff.decideSupportSession(request, { now: NOW });
+    const pending = await decideSupportSession(staff, request, { now: NOW });
     if (pending.outcome !== "approval-required") {
       throw new Error("expected approval-required");
     }
     const later = NOW.add({ minutes: 5 });
     expect(
-      await staff.decideSupportSession(request, {
+      await decideSupportSession(staff, request, {
         now: later,
         approved: pending.token,
         approvedBy: "u_lead",
@@ -98,13 +99,13 @@ describe("decideSupportSession", () => {
   });
 
   it("refuses the actor as their own approver, or no approver", async () => {
-    const pending = await staff.decideSupportSession(request, { now: NOW });
+    const pending = await decideSupportSession(staff, request, { now: NOW });
     if (pending.outcome !== "approval-required") {
       throw new Error("expected approval-required");
     }
     for (const approvedBy of ["u_staff", undefined]) {
       expect(
-        await staff.decideSupportSession(request, {
+        await decideSupportSession(staff, request, {
           approved: pending.token,
           ...(approvedBy === undefined ? {} : { approvedBy }),
         }),
@@ -116,11 +117,12 @@ describe("decideSupportSession", () => {
   });
 
   it("binds the token to the request: a wider session asks again", async () => {
-    const pending = await staff.decideSupportSession(request, { now: NOW });
+    const pending = await decideSupportSession(staff, request, { now: NOW });
     if (pending.outcome !== "approval-required") {
       throw new Error("expected approval-required");
     }
-    const wider = await staff.decideSupportSession(
+    const wider = await decideSupportSession(
+      staff,
       {
         ...request,
         permissions: [permissions.invoice.read, permissions.invoice.send],
@@ -132,21 +134,22 @@ describe("decideSupportSession", () => {
 
   it("grants without approval only when the server turns it off", async () => {
     expect(
-      (await staff.decideSupportSession(request, { approval: false })).outcome,
+      (await decideSupportSession(staff, request, { approval: false })).outcome,
     ).toBe("granted");
   });
 
   it("requires a reason", async () => {
     for (const reason of ["", "  ", "x".repeat(1001)]) {
       expect(
-        await staff.decideSupportSession({ ...request, reason }),
+        await decideSupportSession(staff, { ...request, reason }),
       ).toMatchObject({ denials: [{ reason: "reason-required" }] });
     }
   });
 
   it("refuses anonymous, non-person, credential, run and delegated actors", async () => {
     expect(
-      await permdockFor({ principal: null, context: {} }).decideSupportSession(
+      await decideSupportSession(
+        permdockFor({ principal: null, context: {} }),
         request,
       ),
     ).toMatchObject({ denials: [{ reason: "anonymous" }] });
@@ -155,7 +158,7 @@ describe("decideSupportSession", () => {
         principal: { ...person("u_staff", ["billing"]), kind },
         context: {},
       });
-      expect(await instance.decideSupportSession(request)).toMatchObject({
+      expect(await decideSupportSession(instance, request)).toMatchObject({
         denials: [{ reason: "exceeds-creator", detail: { creator: kind } }],
       });
     }
@@ -163,14 +166,14 @@ describe("decideSupportSession", () => {
       principal: { ...person("u_staff", ["billing"]), credential: { id: "k" } },
       context: {},
     });
-    expect(await viaKey.decideSupportSession(request)).toMatchObject({
+    expect(await decideSupportSession(viaKey, request)).toMatchObject({
       denials: [{ detail: { creator: "credential" } }],
     });
     const viaRun = permdockFor({
       principal: { ...person("u_staff", ["billing"]), runTicket: { jti: "r" } },
       context: {},
     });
-    expect(await viaRun.decideSupportSession(request)).toMatchObject({
+    expect(await decideSupportSession(viaRun, request)).toMatchObject({
       denials: [{ detail: { creator: "run" } }],
     });
     const viaAgent = permdockFor(
@@ -178,7 +181,7 @@ describe("decideSupportSession", () => {
         actor: { id: "agent_1", kind: "agent" },
       }),
     );
-    expect(await viaAgent.decideSupportSession(request)).toMatchObject({
+    expect(await decideSupportSession(viaAgent, request)).toMatchObject({
       denials: [{ detail: { creator: "actor" } }],
     });
   });
@@ -196,25 +199,25 @@ describe("decideSupportSession", () => {
       },
     ];
     for (const row of rows) {
-      expect(await staff.decideSupportSession(row)).toMatchObject({
+      expect(await decideSupportSession(staff, row)).toMatchObject({
         denials: [{ reason: "validation" }],
       });
     }
     expect(
-      await staff.decideSupportSession({ ...request, tenant: "o_2" }),
+      await decideSupportSession(staff, { ...request, tenant: "o_2" }),
     ).toMatchObject({ denials: [{ reason: "tenant-mismatch" }] });
     const noTenant = permdockFor({
       principal: { id: "u_staff", kind: "user" },
       context: {},
     });
-    expect(await noTenant.decideSupportSession(request)).toMatchObject({
+    expect(await decideSupportSession(noTenant, request)).toMatchObject({
       denials: [{ reason: "validation" }],
     });
   });
 
   it("caps the session at the actor's reach and needs at least one permission", async () => {
     expect(
-      await staff.decideSupportSession({
+      await decideSupportSession(staff, {
         ...request,
         permissions: [permissions.invoice.delete],
       }),
@@ -233,10 +236,12 @@ describe("decideSupportSession", () => {
       },
       context: {},
     });
-    expect(await member.decideSupportSession(request)).toMatchObject({
+    expect(await decideSupportSession(member, request)).toMatchObject({
       denials: [{ reason: "no-grant" }],
     });
-    expect((await nobody.decideSupportSession(request)).outcome).toBe("denied");
+    expect((await decideSupportSession(nobody, request)).outcome).toBe(
+      "denied",
+    );
   });
 
   it("applies the tenant's supportSessions policy, which only tightens", async () => {
@@ -244,12 +249,13 @@ describe("decideSupportSession", () => {
       o_1: { supportSessions: { maxTtl: 600, readOnly: true } },
     });
     expect(
-      await staff.decideSupportSession(request, { settings }),
+      await decideSupportSession(staff, request, { settings }),
     ).toMatchObject({
       denials: [{ reason: "validation", detail: { rule: "ttl" } }],
     });
     expect(
-      await staff.decideSupportSession(
+      await decideSupportSession(
+        staff,
         {
           ...request,
           expiresIn: 600,
@@ -269,7 +275,7 @@ describe("decideSupportSession", () => {
       o_1: { supportSessions: { disabled: true } },
     });
     expect(
-      await staff.decideSupportSession(request, { settings: disabled }),
+      await decideSupportSession(staff, request, { settings: disabled }),
     ).toMatchObject({
       denials: [{ reason: "unsupported", detail: { rule: "disabled" } }],
     });
@@ -279,7 +285,7 @@ describe("decideSupportSession", () => {
       },
     };
     expect(
-      await staff.decideSupportSession(request, { settings: broken }),
+      await decideSupportSession(staff, request, { settings: broken }),
     ).toMatchObject({
       denials: [{ reason: "unsupported", detail: { rule: "unavailable" } }],
     });
@@ -295,7 +301,7 @@ describe("decideSupportSession", () => {
         }),
       },
     );
-    expect(await instance.decideSupportSession(request)).toMatchObject({
+    expect(await decideSupportSession(instance, request)).toMatchObject({
       denials: [{ reason: "unsupported" }],
     });
   });
@@ -306,7 +312,7 @@ describe("decideSupportSession", () => {
       throw new TypeError("expected a JSON snapshot");
     }
     expect(
-      await fromSnapshot(snapshot).decideSupportSession(request),
+      await decideSupportSession(fromSnapshot(snapshot), request),
     ).toMatchObject({ denials: [{ reason: "unsupported" }] });
   });
 });

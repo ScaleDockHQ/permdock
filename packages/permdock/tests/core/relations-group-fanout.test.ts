@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
+import { whoCan } from "../../src/index.ts";
 import { permissions, policy, rows } from "../fixtures/graph.ts";
 
 const WIDTH = 3;
@@ -65,9 +66,9 @@ async function stringifyCalls(layers: number): Promise<number> {
 
 async function whoCanCalls(layers: number): Promise<number> {
   const permdock = await loaded(layers);
-  await permdock.whoCan(permissions.doc.read, rootDoc);
+  await whoCan(permdock, permissions.doc.read, rootDoc);
   const spy = vi.spyOn(JSON, "stringify");
-  const result = await permdock.whoCan(permissions.doc.read, rootDoc);
+  const result = await whoCan(permdock, permissions.doc.read, rootDoc);
   const calls = spy.mock.calls.length;
   spy.mockRestore();
   expect(

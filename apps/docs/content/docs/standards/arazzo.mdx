@@ -29,7 +29,7 @@ The result is a pre-flight for a whole workflow, not a single call: before an ag
 
 ```ts
 import { readFile } from "node:fs/promises";
-import { PermDockDeniedError } from "permdock";
+import { PermDockDeniedError, simulateArazzo } from "permdock";
 import { createPermDock } from "permdock/node";
 import { policy } from "./policy";
 
@@ -40,7 +40,11 @@ const openapi = JSON.parse(await readFile("./openapi.json", "utf8")); // after t
 
 const permdock = await createPermDock(policy, user);
 
-const plan = permdock.simulate({ arazzo, openapi, workflowId: "publishPost" });
+const plan = simulateArazzo(permdock, {
+  arazzo,
+  openapi,
+  workflowId: "publishPost",
+});
 // {
 //   workflowId: 'publishPost',
 //   outcome: 'approval-required',            // worst outcome across steps: denied > approval-required > granted
@@ -57,7 +61,7 @@ if (blocked.some((s) => s.decision.outcome === "denied"))
 for (const step of blocked) await requestApproval(step); // approval-required steps, before step one runs
 ```
 
-What `simulate({ arazzo, openapi })` does, step by step (subject is the instance's, [Arazzo](/docs/standards/arazzo)):
+What `simulateArazzo(permdock, { arazzo, openapi })` does, step by step (subject is the instance's, [Arazzo](/docs/standards/arazzo)):
 
 1. Validates the Arazzo document against the fields the 1.0 and 1.1 schemas require: an `arazzo` version of `1.0.x` or `1.1.x`, `info`, at least one source description with a `name` and `url`, at least one workflow, and at least one step per workflow. Each step needs a `stepId` that is unique in its workflow and exactly one of `operationId`, `operationPath` or `workflowId`, and each parameter needs a `name` and a `value` or a resolvable `$components.parameters` reference. A document that fails any of these produces one `document` step denied with reason `validation`. The `openapi` argument supplies the resolved description for the `type: openapi` sources: one description, or a map keyed by source `name` for a workflow with several.
 2. For each step of the selected workflow, resolves `operationId` (or `operationPath`) to an operation in the description and reads its `x-permdock-permissions`. A qualified `$sourceDescriptions.<name>.<operationId>` and an `operationPath` of the form `{$sourceDescriptions.<name>.url}#/paths/...` select their source by name. A plain `operationId` must match exactly one source; one that matches several is `undocumented`, as the spec requires the qualified form there. Steps that reference a local `workflowId` are expanded recursively, with the calling step's `parameters` as the nested workflow's `inputs`; cycles and unknown workflows are a `validation` error, and a `workflowId` in another Arazzo document is `unsupported`. A nested step's result carries the `workflowId` that owns it, so equal `stepId`s in different workflows stay separate.
@@ -100,7 +104,7 @@ It fails (exit `1`) when a step's `operationId` does not exist in the referenced
 
 | Arazzo concept                                        | PermDock concept                                                                        |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Workflow                                              | A plan passed to `simulate({ arazzo, openapi })` on the instance                        |
+| Workflow                                              | A plan passed to `simulateArazzo(permdock, { arazzo, openapi })` on the instance        |
 | Step with `operationId` / `operationPath`             | One `[permission, data]` entry per key in the operation's `x-permdock-permissions`      |
 | Step with `workflowId`                                | Expanded into that workflow's steps, its `parameters` becoming that workflow's `inputs` |
 | `sourceDescriptions[type=openapi]`                    | The `openapi` argument (one description or a map by source `name`)                      |

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Decision } from "../../src/core/decision.ts";
 
-import { arazzoFindings, simulateArazzo } from "../../src/core/arazzo.ts";
+import { arazzoFindings, planArazzo } from "../../src/core/arazzo.ts";
 import { permissions } from "../fixtures/quick-start.ts";
 
 const openapi = {
@@ -98,18 +98,14 @@ describe("Arazzo document validation", () => {
       ],
     });
     const seen: unknown[] = [];
-    const plan = simulateArazzo(
-      { arazzo, openapi },
-      permissions,
-      (_leaf, data) => {
-        seen.push(data);
-        return {
-          outcome: "denied",
-          denials: [{ role: null, reason: "no-grant" }],
-          alternatives: [],
-        };
-      },
-    );
+    const plan = planArazzo({ arazzo, openapi }, permissions, (_leaf, data) => {
+      seen.push(data);
+      return {
+        outcome: "denied",
+        denials: [{ role: null, reason: "no-grant" }],
+        alternatives: [],
+      };
+    });
     expect({
       findings: arazzoFindings({ arazzo, openapi }, permissions),
       outcome: plan.outcome,
@@ -127,11 +123,7 @@ describe("simulateArazzo without a permission tree", () => {
   });
 
   it("finds no permissions and denies the step", () => {
-    const plan = simulateArazzo(
-      { arazzo: document(), openapi },
-      undefined,
-      decide,
-    );
+    const plan = planArazzo({ arazzo: document(), openapi }, undefined, decide);
     expect({
       outcome: plan.outcome,
       permissions: plan.steps[0]?.permissions,
@@ -139,7 +131,7 @@ describe("simulateArazzo without a permission tree", () => {
   });
 
   it("names the requested workflow of an invalid document", () => {
-    const plan = simulateArazzo(
+    const plan = planArazzo(
       { arazzo: document({ workflows: [] }), openapi, workflowId: "read" },
       permissions,
       decide,

@@ -74,7 +74,11 @@ export type {
   PrincipalIdentityLink,
   PrincipalSource,
 } from "./core/principal-source.ts";
-export { memoryAutomationSource, parseAutomation } from "./core/automation.ts";
+export {
+  decideAutomation,
+  memoryAutomationSource,
+  parseAutomation,
+} from "./core/automation.ts";
 export type {
   Automation,
   AutomationDecision,
@@ -84,7 +88,10 @@ export type {
   DecideAutomationOptions,
   MemoryAutomationSource,
 } from "./core/automation.ts";
-export { parseSupportSession } from "./core/support-session.ts";
+export {
+  decideSupportSession,
+  parseSupportSession,
+} from "./core/support-session.ts";
 export type {
   DecideSupportSessionOptions,
   SupportSession,
@@ -117,6 +124,7 @@ export type {
   MemoryEdge,
   MemoryRelationSourceData,
 } from "./core/memory-relations.ts";
+export { whoCan } from "./core/who-can.ts";
 export type { Holder, HoldingVia, WhoCan } from "./core/who-can.ts";
 export {
   isPortableCondition,
@@ -338,7 +346,7 @@ export type {
   SupportConsent,
   ValidateMode,
 } from "./core/policy-types.ts";
-export { breakGlass, supportAccess } from "./core/elevated.ts";
+export { activate, breakGlass, supportAccess } from "./core/elevated.ts";
 export type { ActivateInput } from "./core/elevated.ts";
 export {
   actor,
@@ -459,6 +467,7 @@ export type {
 export {
   credentialDelegation,
   credentialPolicyViolation,
+  decideCredential,
   isFeedId,
   parseCredential,
 } from "./core/credential.ts";

@@ -1,6 +1,6 @@
 import type { EmailTransport, Recipient } from "permdock/delivery";
 
-import { createPermDock, memoryDecisionSink } from "permdock";
+import { createPermDock, memoryDecisionSink, whoCan } from "permdock";
 import { memoryApprovalStore, requestApproval } from "permdock/approvals";
 import {
   approvalPrompt,
@@ -72,7 +72,7 @@ const request = await requestApproval(store, decision, {
   subject: sender.subject,
   detail: `Pay invoice ${invoice.id}`,
 });
-const holders = await sender.whoCan(permissions.invoice.pay, invoice);
+const holders = await whoCan(sender, permissions.invoice.pay, invoice);
 const approvers = await audience(sender, permissions.invoice.read, invoice, {
   candidates: holders.holders
     .map((holder) => holder.principal.id)

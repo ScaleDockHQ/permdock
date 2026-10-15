@@ -8,6 +8,7 @@ import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
+import { whoCan } from "../../src/index.ts";
 import { testRelationSource } from "../../src/testing/conformance/relations.ts";
 import {
   engAdmin,
@@ -205,7 +206,7 @@ describe("relationship graph: match, includes, groups, links", () => {
 
   it("whoCan expands groups and names the concrete relation", async () => {
     const owner = await permdock("vera");
-    const result = await owner.whoCan(permissions.doc.read, docs["deep-doc"]);
+    const result = await whoCan(owner, permissions.doc.read, docs["deep-doc"]);
     // Folder-role holders need a MembershipSource that lists folder memberships.
     expect(result.complete).toBe(false);
     const ids = result.holders.map((holder) => holder.principal.id);

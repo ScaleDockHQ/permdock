@@ -1,17 +1,5 @@
 import type { Condition } from "../conditions/ast.ts";
-import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
-import type {
-  AutomationDecision,
-  AutomationRequest,
-  DecideAutomationOptions,
-} from "./automation.ts";
-import type {
-  CredentialDecision,
-  CredentialRequest,
-  DecideCredentialOptions,
-} from "./credential.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
-import type { ActivateInput } from "./elevated.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
 import type { InstanceEnv } from "./instance-env.ts";
 import type {
@@ -44,15 +32,9 @@ import type {
   Principal,
   Subject,
 } from "./subject.ts";
-import type {
-  DecideSupportSessionOptions,
-  SupportSessionDecision,
-  SupportSessionRequest,
-} from "./support-session.ts";
 import type { Instant } from "./time.ts";
 import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
-import type { WhoCan } from "./who-can.ts";
 
 import {
   type ApprovalPolicySource,
@@ -287,7 +269,6 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       readonly memberships?: readonly Membership[];
       readonly tenant?: string;
     }): PermDock<V>;
-    (plan: ArazzoSimulateInput): ArazzoPlan;
   };
   readonly snapshot: {
     (options?: SnapshotOptions & { readonly signer?: undefined }): Snapshot;
@@ -357,39 +338,6 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     options?: RoleChangeOptions,
   ) => RoleChangeDecision;
   /**
-   * Decides whether the subject may create the credential in `request`: the
-   * creator's own reach, the `credentials` policy of the key's tenant, and
-   * `approval`. PermDock never stores the credential; the application does,
-   * after a `granted` result. An instance built from a snapshot denies with
-   * `unsupported`.
-   */
-  readonly decideCredential: (
-    request: CredentialRequest,
-    options?: DecideCredentialOptions,
-  ) => Promise<CredentialDecision>;
-  /**
-   * Decides whether the subject may publish the automation in `request` and
-   * returns the record to store: the publisher's own reach over every
-   * operation's permission and, for a `service` automation, their assignable
-   * ceiling. Each run re-checks the publisher live. An instance built from a
-   * snapshot denies with `unsupported`.
-   */
-  readonly decideAutomation: (
-    request: AutomationRequest,
-    options?: DecideAutomationOptions,
-  ) => Promise<AutomationDecision>;
-  /**
-   * Decides whether the subject may start the support session in `request`
-   * and returns the record to sign: a stated reason, membership of the
-   * tenant, the actor's own reach, the tenant's `supportSessions` policy and
-   * approval by someone else. An instance built from a snapshot denies with
-   * `unsupported`.
-   */
-  readonly decideSupportSession: (
-    request: SupportSessionRequest,
-    options?: DecideSupportSessionOptions,
-  ) => Promise<SupportSessionDecision>;
-  /**
    * Whether `permission` could be granted to the subject for some row, within
    * its delegation. A listing hint for tools and skills, never a decision.
    */
@@ -414,22 +362,6 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     permission: Permission,
     rows: readonly unknown[],
   ) => Promise<void>;
-  /**
-   * Who holds `permission` on `resource` and how (role, relation or share),
-   * from `MembershipSource.list` and `RelationSource.related`. It lists and
-   * never grants; `complete: false` means some holders could not be listed.
-   */
-  readonly whoCan: (
-    permission: Permission<string, unknown, "instance">,
-    resource: unknown,
-  ) => Promise<WhoCan>;
-  /**
-   * Requests a just-in-time activation of an eligible role. It never writes:
-   * a granted decision carries the elevated membership under `elevation` for
-   * the app to write, and `approval-required` comes back first when the
-   * role's `activation` sets `approval`.
-   */
-  readonly activate: (input: ActivateInput) => Decision;
   readonly roles: V["roles"] extends RoleTree ? V["roles"] : RoleTree;
   readonly plans: V["plans"] extends PlanTree ? V["plans"] : PlanTree;
   readonly permissions: V["permissions"] extends Policy["permissions"]

@@ -1,4 +1,3 @@
-import type { ArazzoPlan, ArazzoSimulateInput } from "../core/arazzo.ts";
 import type { Decision, ExplainedDecision } from "../core/decision.ts";
 import type {
   PermDockOptions,
@@ -168,7 +167,6 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
       checks: readonly (readonly [Permission, unknown?])[],
       options?: SimulateOptions,
     ): Promise<readonly Decision[]>;
-    (plan: ArazzoSimulateInput): ArazzoPlan;
     (preview: {
       readonly roles?: readonly (string | { readonly key: string })[];
       readonly memberships?: readonly Membership[];

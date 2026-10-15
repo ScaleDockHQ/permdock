@@ -9,7 +9,6 @@ import type { Permission } from "./permission-types.ts";
 import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
 import type { Membership } from "./subject.ts";
 
-import { isArazzoSimulateInput, simulateArazzo } from "./arazzo.ts";
 import { compact } from "./compact.ts";
 import { deniedFor } from "./decide-for.ts";
 import {
@@ -213,12 +212,7 @@ export function fromSnapshot(
             ),
         );
       }
-      if (isArazzoSimulateInput(input)) {
-        return simulateArazzo(input, input.permissions, (permission, data) =>
-          run(permission, data),
-        );
-      }
-      // SAFETY: arrays and Arazzo input returned above; the last overload takes this preview.
+      // SAFETY: arrays returned above; the last overload takes this preview.
       const preview = input as {
         readonly roles?: readonly (string | Role)[];
         readonly memberships?: readonly Membership[];
@@ -316,15 +310,6 @@ export function fromSnapshot(
       // A snapshot carries no graph: graph grants go to the decision endpoint.
       return Promise.resolve();
     },
-    whoCan(permission) {
-      return Promise.resolve(
-        freezeDeep({
-          permission: permission.key,
-          holders: [],
-          complete: false,
-        }),
-      );
-    },
     decideRoleChange(change) {
       // Role changes are server decisions: the snapshot carries no holder counts or rules.
       return freezeDeep({
@@ -332,33 +317,6 @@ export function fromSnapshot(
         change,
         denials: [{ role: null, reason: "unsupported" as const }],
       });
-    },
-    decideCredential() {
-      // Credential creation is a server decision: a snapshot carries no settings or assignable ceilings to check.
-      return Promise.resolve(
-        freezeDeep({
-          outcome: "denied" as const,
-          denials: [{ role: null, reason: "unsupported" as const }],
-        }),
-      );
-    },
-    decideAutomation() {
-      // Publishing is a server decision: a snapshot carries no assignable ceilings to check.
-      return Promise.resolve(
-        freezeDeep({
-          outcome: "denied" as const,
-          denials: [{ role: null, reason: "unsupported" as const }],
-        }),
-      );
-    },
-    decideSupportSession() {
-      // Starting a support session is a server decision: a snapshot carries no tenant settings.
-      return Promise.resolve(
-        freezeDeep({
-          outcome: "denied" as const,
-          denials: [{ role: null, reason: "unsupported" as const }],
-        }),
-      );
     },
     mayUse(permission) {
       return mayUse(instance, permission);
@@ -369,14 +327,6 @@ export function fromSnapshot(
     derive() {
       // A snapshot carries its grants already resolved: no source applies to it.
       return instance;
-    },
-    activate() {
-      // Activation is a server decision: a snapshot carries no activation rules.
-      return freezeDeep({
-        outcome: "denied" as const,
-        denials: [{ role: null, reason: "unsupported" as const }],
-        alternatives: [],
-      });
     },
     assignableRoles(query?: {
       readonly tenant?: string;

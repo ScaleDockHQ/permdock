@@ -15,6 +15,7 @@ import type {
 import { canonicalJson } from "../core/canonical-json.ts";
 import { createPermDock } from "../core/permdock.ts";
 import { sha256Digest } from "../core/sha256.ts";
+import { decideSupportSession } from "../core/support-session.ts";
 import {
   type BetterSupabaseSubjectOptions,
   subjectFromBetterSupabase,
@@ -114,7 +115,7 @@ export function supportPolicy(
         readonly token: string;
         readonly approvedBy: string;
       }): Promise<SupportSessionDecision> =>
-        permdock.decideSupportSession(request, {
+        decideSupportSession(permdock, request, {
           ...(settings === undefined ? {} : { settings }),
           ...(options.approval === false ? { approval: false } : {}),
           ...(approved === undefined

@@ -22,6 +22,7 @@ import {
   authenticated,
 } from "./grantee.ts";
 import { sameId } from "./ids.ts";
+import { type InstanceHandle, internalsOf } from "./internals.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { normalizeAssurance, role } from "./role-builder.ts";
 import { type Scope, resolveScope, scopeList } from "./scopes.ts";
@@ -314,7 +315,34 @@ function activationDenied(
  * sets `approval`. Fail-closed: an unknown role, an ineligible subject, a
  * missing justification or stale authentication all deny.
  */
+/**
+ * Requests a just-in-time activation of an eligible role for the subject of
+ * `permdock`. It never writes: a granted decision carries the elevated
+ * membership under `elevation` for the app to write, and
+ * `approval-required` comes back first when the role's `activation` sets
+ * `approval`. An instance built from a snapshot denies with `unsupported`.
+ */
 export function activate(
+  permdock: InstanceHandle,
+  input: ActivateInput,
+): Decision {
+  const internals = internalsOf(permdock);
+  if (internals === undefined) {
+    return freezeDeep({
+      outcome: "denied",
+      denials: [{ role: null, reason: "unsupported" }],
+      alternatives: [],
+    });
+  }
+  return activateFor(
+    internals.policy,
+    internals.subject,
+    input,
+    internals.now(),
+  );
+}
+
+export function activateFor(
   policy: Policy,
   subject: Subject,
   input: ActivateInput,

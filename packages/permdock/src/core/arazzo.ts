@@ -1,8 +1,10 @@
 import type { Decision } from "./decision.ts";
+import type { PermDock } from "./permdock.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
 
 import { compact, isRecord } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
+import { internalsOf } from "./internals.ts";
 import { findPermission } from "./permission-registry.ts";
 
 export type ArazzoSimulateInput = {
@@ -630,7 +632,38 @@ function combine(decisions: readonly Decision[]): Decision {
   );
 }
 
+/**
+ * Walks an Arazzo workflow against `permdock`: each step's operation is
+ * decided as `permdock.simulate` would, and a server instance emits one
+ * simulate event for the whole plan. Works on an instance built from a
+ * snapshot too.
+ */
 export function simulateArazzo(
+  permdock: PermDock,
+  input: ArazzoSimulateInput,
+): ArazzoPlan {
+  const tree = input.permissions ?? permdock.permissions;
+  const internals = internalsOf(permdock);
+  if (internals !== undefined) {
+    return internals.simulateWith((decide) => planArazzo(input, tree, decide));
+  }
+  return planArazzo(
+    input,
+    tree,
+    (permission, data) =>
+      permdock.simulate([[permission, data]])[0] ?? unknownStep(permission),
+  );
+}
+
+function unknownStep(permission: Permission): Decision {
+  return {
+    outcome: "denied",
+    denials: [{ role: null, reason: "no-grant", detail: permission.key }],
+    alternatives: [],
+  };
+}
+
+export function planArazzo(
   input: ArazzoSimulateInput,
   tree: PermissionTree | undefined,
   decide: (permission: Permission, data: unknown) => Decision,

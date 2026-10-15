@@ -12,6 +12,7 @@ import {
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import {
+  activate,
   allow,
   assurance,
   breakGlass,
@@ -314,7 +315,7 @@ describe("step-up challenges", () => {
     expect(wwwAuthenticate(glass, permissions.report.read)).toBe(
       'Bearer error="insufficient_user_authentication", max_age="120"',
     );
-    const elevated = permdock.activate({
+    const elevated = activate(permdock, {
       role: "admin",
       scope: "tenant",
       id: "t1",
