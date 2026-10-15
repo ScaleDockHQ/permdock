@@ -28,19 +28,13 @@ import { type InstanceEnv, deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
 import { attachInternals } from "./internals.ts";
 import { mayUse, permittedIds } from "./may-use.ts";
-import {
-  type RoleChange,
-  type RoleChangeDecision,
-  type RoleChangeOptions,
-  audiencesOf,
-  decideRoleChange,
-} from "./ownership.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
 import {
   type RelationCache,
   pendingRelations,
   relationReader,
 } from "./relations.ts";
+import { audiencesOf } from "./role-rank.ts";
 import { scopeList } from "./scopes.ts";
 import {
   type SimulatePreview,
@@ -555,29 +549,6 @@ export function buildInstance(
       const tenant = options?.tenant ?? subject.principal?.tenant;
       return tenant === undefined ? [] : of(assignableAt(tenant));
     },
-    decideRoleChange(
-      change: RoleChange,
-      options?: RoleChangeOptions,
-    ): RoleChangeDecision {
-      return decideRoleChange(
-        policy,
-        subject.principal,
-        scopeList(policy.scopes),
-        change,
-        envBase.customRoles,
-        (tenant) => {
-          const found =
-            tenant === undefined ? assignableGlobal() : assignableAt(tenant);
-          return {
-            assignable: new Set(found.roles.map((leaf) => leaf.key)),
-            manage: found.manage,
-            inert: new Set(found.inert),
-          };
-        },
-        nowSeconds(),
-        options,
-      );
-    },
     mayUse(permission) {
       return mayUse(instance, permission);
     },
@@ -609,6 +580,8 @@ export function buildInstance(
     customGrants,
     relations,
     relationCache,
+    assignable: (tenant) =>
+      tenant === undefined ? assignableGlobal() : assignableAt(tenant),
     now: () => nowSeconds(),
     simulateWith: (run) => {
       const evaluated: (readonly [Permission, unknown, Decision])[] = [];

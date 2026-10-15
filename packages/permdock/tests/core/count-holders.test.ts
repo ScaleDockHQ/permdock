@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { MembershipSource } from "../../src/core/interfaces.ts";
 
-import { countHolders, createPermDock } from "../../src/index.ts";
+import {
+  countHolders,
+  createPermDock,
+  decideRoleChange,
+} from "../../src/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 
 const source: MembershipSource = {
@@ -61,7 +65,7 @@ describe("countHolders", () => {
       context: {},
     });
     expect(
-      permdock.decideRoleChange({
+      decideRoleChange(permdock, {
         kind: "revoke",
         role: "owner",
         scope: "organization",

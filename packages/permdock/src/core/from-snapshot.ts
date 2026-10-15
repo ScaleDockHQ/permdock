@@ -310,14 +310,6 @@ export function fromSnapshot(
       // A snapshot carries no graph: graph grants go to the decision endpoint.
       return Promise.resolve();
     },
-    decideRoleChange(change) {
-      // Role changes are server decisions: the snapshot carries no holder counts or rules.
-      return freezeDeep({
-        outcome: "denied" as const,
-        change,
-        denials: [{ role: null, reason: "unsupported" as const }],
-      });
-    },
     mayUse(permission) {
       return mayUse(instance, permission);
     },

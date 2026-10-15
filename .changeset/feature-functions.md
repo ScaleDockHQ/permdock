@@ -13,4 +13,10 @@ Feature requests are free functions that take the instance first, so `createPerm
 | `permdock.whoCan(permission, row)`                | `whoCan(permdock, permission, row)`                |
 | `permdock.simulate({ arazzo, openapi })`          | `simulateArazzo(permdock, { arazzo, openapi })`    |
 
-All six are exported from `permdock`. On an instance built from a snapshot they deny with `unsupported` (`whoCan` lists nothing), as the methods did; on a `PdpPermDock` they use its local instance. `simulateArazzo` emits one `simulate` event per plan on a server instance.
+All seven are exported from `permdock`. On an instance built from a snapshot they deny with `unsupported` (`whoCan` lists nothing), as the methods did; on a `PdpPermDock` they use its local instance. `simulateArazzo` emits one `simulate` event per plan on a server instance.
+
+Hosted grants are an opt-in feature too: `policies` takes `hostedPolicies(source)` instead of a bare `PolicySource`, so the merge code ships only with apps that import it.
+
+| Before                                               | After                                                                |
+| ---------------------------------------------------- | -------------------------------------------------------------------- |
+| `createPermDock(policy, user, { policies: source })` | `createPermDock(policy, user, { policies: hostedPolicies(source) })` |

@@ -7,7 +7,7 @@ import type { Role } from "./vocabulary.ts";
 import { compact } from "./compact.ts";
 import { type EvalEnv, finish } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
-import { applyRoleKinds } from "./ownership.ts";
+import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
 
 /** The roles, memberships and tenant `simulate()` previews in place of the subject's. */

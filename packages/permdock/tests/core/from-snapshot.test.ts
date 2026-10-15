@@ -11,7 +11,12 @@ import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
-import { activate, simulateArazzo, whoCan } from "../../src/index.ts";
+import {
+  activate,
+  decideRoleChange,
+  simulateArazzo,
+  whoCan,
+} from "../../src/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {
   adminUser,
@@ -349,7 +354,7 @@ describe("fromSnapshot instance surface", () => {
       holders: [],
       complete: false,
     });
-    const change = client.decideRoleChange({
+    const change = decideRoleChange(client, {
       kind: "assign",
       role: "member",
       scope: "tenant",

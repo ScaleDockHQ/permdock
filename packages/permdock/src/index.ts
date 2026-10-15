@@ -129,6 +129,7 @@ export type { Holder, HoldingVia, WhoCan } from "./core/who-can.ts";
 export {
   isPortableCondition,
   memoryPolicySource,
+  hostedPolicies,
   mergeHostedGrants,
   parsePolicyDocument,
   policyDocumentFromClaims,
@@ -387,6 +388,7 @@ export type {
   Vocabulary,
   VocabularyOptions,
 } from "./core/vocabulary.ts";
+export { decideRoleChange } from "./core/ownership.ts";
 export type {
   RoleChange,
   RoleChangeDecision,

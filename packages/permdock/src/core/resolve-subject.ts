@@ -10,8 +10,8 @@ import { sanitizeContext } from "./fields.ts";
 import { freezeCopy } from "./freeze.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { expandOAuthScopes } from "./oauth-scopes.ts";
-import { applyRoleKinds } from "./ownership.ts";
 import { policyX } from "./policy-fingerprint.ts";
+import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
 import {
   type Actor,

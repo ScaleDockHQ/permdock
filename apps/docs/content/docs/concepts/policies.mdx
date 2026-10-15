@@ -376,13 +376,14 @@ Every permission must have a row, so a new permission cannot ship untested, and 
 An application can opt specific permissions into grants authored in PermDock Cloud without a deploy. `hostable` lists the subtrees or leaves hosted grants may touch; the default is none, so a policy without `hostable` ignores every hosted grant.
 
 ```ts
+import { hostedPolicies } from "permdock";
 export const policy = definePolicy(vocabulary, {
   roles: [member, admin],
   hostable: [permissions.invoice, permissions.auditLog.read],
 });
 
 const permdock = await createPermDock(policy, user, {
-  policies: permdockCloud.policies,
+  policies: hostedPolicies(permdockCloud.policies),
 });
 ```
 

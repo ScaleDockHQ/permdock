@@ -82,11 +82,12 @@ Two modes exist because two kinds of team ask for opposite things. Teams without
 A Cloud admin can write grants such as "the `pro` plan may read audit logs" without a deploy, bounded by the code policy:
 
 - The Cloud publishes portable grants as a `PolicyDocument` (`v: 1`, [wire formats](/docs/concepts/wire-formats)) under the `policy` claim of a compact JWS with `typ: vnd.permdock.policy+jwt`, signed by the environment key. `cloud().policies.refresh()` fetches it, verifies it with the `verifier` you pass to `cloud()` (checking `typ`, `exp`, and `iss` and `aud` against the environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>`), and keeps it. The Cloud sets `exp` to 24 hours after issue, so an instance that stops refreshing falls back to its code policy. An unsigned, wrongly typed or unverifiable document is absent, never partially applied, and the last verified document stays; without a `verifier` the source never holds a document.
-- `cloud().policies` is a `PolicySource`. `createPermDock` reads its `current()` document once per instance; the application calls `refresh()` on its own schedule (an interval, a cron, or the `catalog` webhook), so no check waits on the Cloud.
+- `cloud().policies` is a `PolicySource`; pass it as `policies: hostedPolicies(permdockCloud.policies)`. `createPermDock` reads its `current()` document once per instance; the application calls `refresh()` on its own schedule (an interval, a cron, or the `catalog` webhook), so no check waits on the Cloud.
 - Hosted grants apply only to permissions the policy marks `hostable`, target only declared roles, plans and relations, never override a code deny and never remove an `approval` a code grant requires. The merge rules are on [policies](/docs/concepts/policies) and the interface on [extension interfaces](/docs/concepts/extension-interfaces).
 - A decision matched by a hosted grant records the document fingerprint and grant id in `matched.hosted`, so the decision log can answer which hosted grant allowed it.
 
 ```ts
+import { hostedPolicies } from "permdock";
 import { cloud, cloudEndpoints } from "permdock/cloud";
 import { joseTokenVerifier } from "permdock/jwt";
 
@@ -100,7 +101,7 @@ await permdockCloud.policies.refresh();
 setInterval(() => void permdockCloud.policies.refresh(), 60_000);
 
 const permdock = await createPermDock(policy, user, {
-  policies: permdockCloud.policies,
+  policies: hostedPolicies(permdockCloud.policies),
 });
 ```
 
@@ -125,6 +126,7 @@ Four things are worth paying for around an embedded decision engine, in the orde
 ## API
 
 ```ts
+import { hostedPolicies } from "permdock";
 import { cloud } from "permdock/cloud";
 
 const permdockCloud = cloud({
@@ -139,7 +141,7 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
     subject,
     store: permdockCloud.approvals, // ApprovalStore: persistent, inbox UI, delivery
     sink: permdockCloud.sink, // DecisionSink: batched, retried, queryable
-    policies: permdockCloud.policies, // PolicySource: hosted grants on hostable permissions (optional)
+    policies: hostedPolicies(permdockCloud.policies), // hosted grants on hostable permissions (optional)
   });
 ```
 

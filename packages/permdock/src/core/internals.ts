@@ -1,3 +1,4 @@
+import type { Assignable } from "./assignable.ts";
 import type { CustomGrant } from "./custom-roles.ts";
 import type { Decision } from "./decision.ts";
 import type { InstanceEnv } from "./instance-env.ts";
@@ -24,6 +25,8 @@ export type InstanceInternals = {
   readonly customGrants: readonly CustomGrant[];
   readonly relations: RelationReader;
   readonly relationCache: RelationCache;
+  /** What the subject may hand out in a tenant, or globally for `undefined`. */
+  readonly assignable: (tenant: string | undefined) => Assignable;
   /** The decision clock in epoch seconds. */
   readonly now: () => number;
   /**

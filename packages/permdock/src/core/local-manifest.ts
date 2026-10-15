@@ -12,9 +12,9 @@ import { freezeDeep } from "./freeze.ts";
 import { flattenGrantee } from "./grantee.ts";
 import { snapshotScopes } from "./instance-snapshot.ts";
 import { LOCAL_CUSTOM_ROLE } from "./local-role.ts";
-import { rankRoles, usesAssigns } from "./ownership.ts";
 import { findPermission } from "./permission-registry.ts";
 import { declaredRoleNames, grantList, levelNames } from "./policy.ts";
+import { rankRoles, usesAssigns } from "./role-rank.ts";
 import { scopeList } from "./scopes.ts";
 import { buildSnapshot, snapshotGrant } from "./snapshot.ts";
 

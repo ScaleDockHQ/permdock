@@ -418,7 +418,6 @@ function wrap<V extends PolicyVocabulary>(
     assignableRoles: permdock.assignableRoles.bind(permdock),
     assignablePermissions: permdock.assignablePermissions.bind(permdock),
     assignableLevels: permdock.assignableLevels.bind(permdock),
-    decideRoleChange: permdock.decideRoleChange.bind(permdock),
     mayUse: permdock.mayUse.bind(permdock),
     permittedIds: permdock.permittedIds.bind(permdock),
     loadRelations: permdock.loadRelations.bind(permdock),

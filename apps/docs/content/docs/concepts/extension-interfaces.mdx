@@ -405,7 +405,7 @@ interface PolicySource {
 }
 ```
 
-- `createPermDock(policy, user, { policies: source })` calls `current()` once, when the instance is created, and merges the document into that frozen instance. No check calls `refresh()` or the network, and there is no module-level policy the source swaps in the background. Every server and agent adapter forwards the `policies` option.
+- `createPermDock(policy, user, { policies: hostedPolicies(source) })` calls `current()` once, when the instance is created, and merges the document into that frozen instance. No check calls `refresh()` or the network, and there is no module-level policy the source swaps in the background. Every server and agent adapter forwards the `policies` option.
 - The source is only read when the policy lists `hostable` permissions. A `current()` that throws is reported through `on('error')` and treated as no document.
 - The application calls `refresh()` on an interval, a cron or a webhook. A refresh that fails, or a document whose signature does not verify with the application's `TokenVerifier`, keeps the previous document; `refresh()` never rejects. With no document, only code grants apply.
 - Hosted grants apply only to permissions the policy marks `hostable`, never override a code deny, and never weaken an `approval` a code grant requires; a grant outside those bounds is dropped and reported through `on('error')` as `hosted-grant-dropped`.

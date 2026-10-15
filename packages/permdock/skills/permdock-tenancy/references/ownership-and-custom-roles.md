@@ -42,7 +42,8 @@ roles: [
 ## Checking a role change
 
 ```ts
-const result = permdock.decideRoleChange({
+import { decideRoleChange } from "permdock";
+const result = decideRoleChange(permdock, {
   kind: "assign", // 'assign' | 'revoke' | 'transfer'
   role: roles.admin,
   scope: "organization",

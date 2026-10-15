@@ -9,8 +9,8 @@ import { type CustomGrant, customGrantsFor } from "./custom-roles.ts";
 import { delegatedPermissions } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames } from "./held-roles.ts";
-import { audiencesOf } from "./ownership.ts";
 import { getResource } from "./permission-registry.ts";
+import { audiencesOf } from "./role-rank.ts";
 import {
   collectSnapshotGrants,
   includePrefixes,

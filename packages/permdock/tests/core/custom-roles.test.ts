@@ -20,6 +20,7 @@ import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
+import { decideRoleChange } from "../../src/index.ts";
 import { decideLeaf } from "../fixtures/decisions.ts";
 
 const permissions = definePermissions({
@@ -607,11 +608,11 @@ describe("assigning custom roles", () => {
       on: "tenant",
       assignable: true,
     });
-    expect(editor.decideRoleChange(assign("post-reader"))).toMatchObject({
+    expect(decideRoleChange(editor, assign("post-reader"))).toMatchObject({
       outcome: "granted",
       role: null,
     });
-    expect(editor.decideRoleChange(assign("auditor"))).toMatchObject({
+    expect(decideRoleChange(editor, assign("auditor"))).toMatchObject({
       outcome: "denied",
       denials: [{ role: "auditor", reason: "not-assignable-by" }],
     });
@@ -630,7 +631,7 @@ describe("assigning custom roles", () => {
     ).toEqual(["auditor", "board-editor", "post-reader"]);
     for (const kind of ["assign", "revoke"] as const) {
       expect(
-        steward.decideRoleChange({
+        decideRoleChange(steward, {
           ...assign("auditor"),
           kind,
           target: { id: "u2", roles: kind === "revoke" ? ["auditor"] : [] },
@@ -649,12 +650,12 @@ describe("assigning custom roles", () => {
       within: { tenant: "acme" },
     });
     expect(
-      steward.decideRoleChange(onTeam("t1"), { trusted: true }).outcome,
+      decideRoleChange(steward, onTeam("t1"), { trusted: true }).outcome,
     ).toBe("granted");
     expect(
-      steward.decideRoleChange(onTeam("t2"), { trusted: true }),
+      decideRoleChange(steward, onTeam("t2"), { trusted: true }),
     ).toMatchObject({ denials: [{ reason: "unknown-role" }] });
-    expect(steward.decideRoleChange(assign("board-editor"))).toMatchObject({
+    expect(decideRoleChange(steward, assign("board-editor"))).toMatchObject({
       denials: [{ reason: "scope", detail: { expected: "team" } }],
     });
   });
@@ -667,14 +668,14 @@ describe("assigning custom roles", () => {
       ],
       all,
     );
-    expect(steward.decideRoleChange(assign("globex-only"))).toMatchObject({
+    expect(decideRoleChange(steward, assign("globex-only"))).toMatchObject({
       denials: [{ reason: "unknown-role" }],
     });
     expect(
-      steward.decideRoleChange(assign("globex-only", "tenant", "globex"))
+      decideRoleChange(steward, assign("globex-only", "tenant", "globex"))
         .outcome,
     ).toBe("granted");
-    expect(steward.decideRoleChange(assign("nobody"))).toMatchObject({
+    expect(decideRoleChange(steward, assign("nobody"))).toMatchObject({
       denials: [{ reason: "unknown-role" }],
     });
   });
@@ -718,12 +719,12 @@ describe("assigning custom roles", () => {
       const offered = actor.assignableRoles().map((leaf) => leaf.key);
       for (const stored of inert) {
         expect(offered).not.toContain(stored.name);
-        expect(actor.decideRoleChange(assign(stored.name))).toMatchObject({
+        expect(decideRoleChange(actor, assign(stored.name))).toMatchObject({
           outcome: "denied",
           denials: [{ role: stored.name, reason: "not-assignable-by" }],
         });
         expect(
-          actor.decideRoleChange({
+          decideRoleChange(actor, {
             ...assign(stored.name),
             kind: "revoke",
             target: { id: "u2", roles: [stored.name] },
@@ -737,7 +738,7 @@ describe("assigning custom roles", () => {
       inert,
     );
     expect(
-      outsider.decideRoleChange({
+      decideRoleChange(outsider, {
         ...assign("voider"),
         kind: "revoke",
         target: { id: "u2", roles: ["voider"] },

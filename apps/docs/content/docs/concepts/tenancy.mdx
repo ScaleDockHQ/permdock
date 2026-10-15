@@ -283,6 +283,7 @@ The [authentication](/docs/concepts/authentication) page carries the full provid
 The instance stays frozen and request-scoped; tenancy adds derived instances and read-only introspection:
 
 ```ts
+import { decideRoleChange } from "permdock";
 await permdock.tenant("o_globex").assert(permissions.post.update, post); // a derived instance with another active tenant
 permdock.team("t_design").can(permissions.post.publish); // scope a team for collection actions and checks without a row
 
@@ -293,7 +294,7 @@ permdock.heldRoles({ scope: "customer", id: "c_7" }); // Role[]  roles on one sc
 permdock.audiences(); // string[]              meta.audience of the roles held in the active tenant
 permdock.assignableRoles(); // Role[]                roles the subject may hand out in the active tenant
 permdock.assignablePermissions(); // Permission[]          the custom-role ceiling the subject may hand out there
-permdock.decideRoleChange(change); // RoleChangeDecision    may the subject assign, revoke or transfer this role
+decideRoleChange(permdock, change); // RoleChangeDecision    may the subject assign, revoke or transfer this role
 ```
 
 `heldRoles` and `assignableRoles` are ranked by the policy's `assigns` graph, so a role chip list shows rank without hard-coded names. `decideRoleChange` and the ownership rules behind it are on [ownership](/docs/concepts/ownership).

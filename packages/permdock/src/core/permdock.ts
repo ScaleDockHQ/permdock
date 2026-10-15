@@ -1,6 +1,7 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
+import type { HostedPolicies } from "./hosted.ts";
 import type { InstanceEnv } from "./instance-env.ts";
 import type {
   DecisionSink,
@@ -15,11 +16,6 @@ import type {
 } from "./interfaces.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
 import type { Operation } from "./operations.ts";
-import type {
-  RoleChange,
-  RoleChangeDecision,
-  RoleChangeOptions,
-} from "./ownership.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { PrincipalSource } from "./principal-source.ts";
@@ -42,11 +38,6 @@ import {
   approvalPoliciesFor,
 } from "./approval-policies.ts";
 import { compact } from "./compact.ts";
-import {
-  type PolicyDocument,
-  type PolicySource,
-  mergeHostedGrants,
-} from "./hosted.ts";
 import { buildInstance } from "./instance.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { resolveSubject } from "./resolve-subject.ts";
@@ -326,18 +317,6 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     options?: { readonly tenant?: string; readonly scope?: "global" },
   ) => readonly string[];
   /**
-   * Whether the subject may assign, revoke or transfer a role in one scope
-   * instance: `assigns`, the ceiling, `for`, `exclusiveWith`, `min`, `max`
-   * and `transferOnly`. It never writes; the application does, and generated
-   * RLS triggers re-check the holder counts at commit. A nested instance's
-   * tenant comes from a live membership the subject holds on it, or from
-   * `change.within` only with `{ trusted: true }`; otherwise `no-membership`.
-   */
-  readonly decideRoleChange: (
-    change: RoleChange,
-    options?: RoleChangeOptions,
-  ) => RoleChangeDecision;
-  /**
    * Whether `permission` could be granted to the subject for some row, within
    * its delegation. A listing hint for tools and skills, never a decision.
    */
@@ -399,8 +378,8 @@ export type PermDockOptions = {
   readonly limits?: LimitStore;
   readonly session?: string;
   readonly expiresAt?: number;
-  /** Hosted grants; `current()` is read once, when the instance is created. */
-  readonly policies?: PolicySource;
+  /** Hosted grants, `hostedPolicies(source)`; `current()` is read once, when the instance is created. */
+  readonly policies?: HostedPolicies;
   /** The object graph for `through` and edge-table relations; without it they deny with `relation-unavailable`. */
   readonly relations?: RelationSource;
   /** Approval requirements kept as data; they add to the code's and never remove one. A throw denies. */
@@ -416,30 +395,16 @@ export type PermDockOptions = {
   readonly context?: Readonly<Record<string, unknown>>;
 };
 
-function hostedPolicy(
-  policy: Policy,
-  source: PolicySource | undefined,
-): { readonly policy: Policy; readonly errors: readonly unknown[] } {
-  if (source === undefined || policy.hostable.length === 0) {
-    return { policy, errors: [] };
-  }
-  let document: PolicyDocument | null;
-  try {
-    document = source.current();
-  } catch (error) {
-    return { policy, errors: [error] };
-  }
-  const merged = mergeHostedGrants(policy, document);
-  return { policy: merged.policy, errors: merged.dropped };
-}
-
 function instantiate(
   codePolicy: Policy,
   subject: Subject,
   options: PermDockOptions,
   auth: AuthEvent[],
 ): PermDock | Promise<PermDock> {
-  const { policy, errors } = hostedPolicy(codePolicy, options.policies);
+  const { policy, errors } = options.policies?.apply(codePolicy) ?? {
+    policy: codePolicy,
+    errors: [],
+  };
   const scopes = scopeList(policy.scopes);
   const tenants = tenantsOf(subject.principal, scopes);
   const roleSource = roleSourceFor(options.customRoles, subject, auth);
