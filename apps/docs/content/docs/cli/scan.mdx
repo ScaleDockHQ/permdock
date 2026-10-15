@@ -1,0 +1,31 @@
+---
+title: scan
+description: List the authorization checks in an existing app that do not go through PermDock - role comparisons, hasRole and hasPermission helpers, CASL abilities, Clerk has() and role claims - as the work left before PermDock decides on its own.
+---
+
+`permdock scan --legacy` reads the source files and lists each line that looks like an authorization check written without PermDock. It runs nothing and changes nothing; a finding is a place to look, not a verdict. Lines that mention `permdock` are skipped.
+
+```bash
+permdock scan --legacy
+permdock scan --legacy --src app,lib
+permdock scan --legacy --pattern "featureFlag\(" --pattern "isBeta"
+permdock scan --legacy --json
+```
+
+| Flag                | Meaning                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `--legacy`          | List checks written without PermDock; the only scan so far                         |
+| `--src <dirs>`      | Directories to read, comma-separated; default `collect.srcPath`, else `src`        |
+| `--pattern <regex>` | An extra regular expression, matched per line and reported as `custom`, repeatable |
+
+| Kind                    | Matches                                                |
+| ----------------------- | ------------------------------------------------------ |
+| role comparison         | `user.role === "admin"`, `role !== 'owner'`            |
+| roles.includes          | `roles.includes(…)`, `role.has(…)`                     |
+| isAdmin flag            | `isAdmin`, `isOwner`, `isSuperUser`, `isStaff`         |
+| hasRole / hasPermission | `hasRole(…)`, `checkPermission(…)`, `requireAccess(…)` |
+| CASL ability            | `ability.can(…)`, `ability.cannot(…)`                  |
+| Clerk has()             | `has({ role: … })`, `has({ permission: … })`           |
+| JWT role claim          | `claims["role"]`, `token["user_role"]`                 |
+
+`--json` prints `[{ file, line, kind, text }]`. Move each check to a permission, then run both side by side with [`shadowMode`](/docs/getting-started/existing-apps#run-permdock-beside-the-old-checks) before enforcing.

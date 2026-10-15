@@ -208,6 +208,12 @@ export { createPermDock, parseSnapshot } from "./core/permdock.ts";
 export { defineApp } from "./core/app.ts";
 export type { AppOptions, AppProfile } from "./core/app.ts";
 export { wrapPermDock } from "./core/wrap.ts";
+export { shadowMode } from "./core/shadow.ts";
+export type {
+  LegacyCheck,
+  ShadowMismatch,
+  ShadowOptions,
+} from "./core/shadow.ts";
 export type { PermDockOverrides, PermDockWrap } from "./core/wrap.ts";
 export type { RequestContext } from "./core/request-context.ts";
 export { mayAccess } from "./core/may-access.ts";

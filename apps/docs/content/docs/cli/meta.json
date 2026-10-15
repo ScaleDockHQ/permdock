@@ -4,6 +4,7 @@
     "index",
     "init",
     "preset",
+    "scan",
     "collect",
     "catalog",
     "diff",

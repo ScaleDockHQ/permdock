@@ -10,6 +10,8 @@ export type {
   OrmParityScenario,
 } from "./orm-parity.ts";
 export { testClientParity } from "./client-parity.ts";
+export { testLegacyParity } from "./legacy-parity.ts";
+export type { LegacyParityCase } from "./legacy-parity.ts";
 export type { ClientParityCase, ClientParityOptions } from "./client-parity.ts";
 export { testClientStore } from "./client-store.ts";
 export type {

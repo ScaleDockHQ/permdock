@@ -14,6 +14,38 @@ An app with its own authorization adopts PermDock in steps. Each step leaves the
 | 5. Custom-role data     | `rls generate --backfill-out` copies the app's role tables      | Roles stored under old keys; the app's own tables     |
 | 6. Rename keys          | `renamed` aliases, then a deprecation window measured by doctor | Old keys in SQL, tokens and stored roles              |
 
+## Find the checks you have
+
+`permdock scan --legacy` lists the authorization checks in the application code that do not go through PermDock: role comparisons (`user.role === "admin"`), `roles.includes`, `isAdmin` flags, `hasRole` and `hasPermission` helpers, CASL `ability.can`, Clerk `has({ role })` and role claims read from a token. Add your own shapes with `--pattern`.
+
+```bash
+permdock scan --legacy
+permdock scan --legacy --src app,lib --pattern "featureFlag\("
+```
+
+Each finding is a place where a permission belongs. The count at the end is the work left before PermDock can decide on its own.
+
+## Run PermDock beside the old checks
+
+`shadowMode` asks both systems on every `can`, `decide`, `decideEach`, `filter` and `assert`, returns the legacy answer, and reports every disagreement. Enforce a permission once its mismatches are resolved; PermDock then answers it. A legacy check that throws denies.
+
+```ts
+import { shadowMode } from "permdock";
+import { createPermDock } from "permdock/next";
+
+export const { getPermDock } = createPermDock(app, {
+  subject: currentUser,
+  wrap: shadowMode({
+    legacy: ({ permission, data, subject }) =>
+      legacyCan(subject.principal?.id, permission.key, data),
+    enforce: [permissions.post.read, permissions.post.list],
+    onMismatch: (mismatch) => logger.warn("authorization mismatch", mismatch),
+  }),
+});
+```
+
+Before you enforce, pin the intended answers in a test with `testLegacyParity(policy, legacyCheck, cases)` from `permdock/testing`: a case without `expect` asserts that the two agree, and a case with `expect` records a difference you chose. Remove the wrap when `enforce` is `"all"` and the mismatch log is empty.
+
 ## Model the existing vocabulary
 
 Keep the keys the app already uses. A key renamed on day one is a migration for every stored role and every SQL call; step 6 does it later, with aliases.
