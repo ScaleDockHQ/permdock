@@ -76,6 +76,11 @@ export function evaluateGrantCondition(
       return { matched: false, reason: "closure-error", cause: error };
     }
   }
+  // An allow needs `where` on the current row and `check` on the next one; a
+  // deny applies when either does, so neither moving a row out of a deny nor
+  // into one gets past it (the RESTRICTIVE policy's USING and WITH CHECK).
+  const deny = grant.effect === "deny";
+  let whereMatched: boolean | undefined;
   if (grant.where !== undefined) {
     if (permission.kind === "collection") {
       return { matched: false, reason: "condition" };
@@ -86,7 +91,7 @@ export function evaluateGrantCondition(
     if (grant.where.op === "opaque" || grant.check?.op === "opaque") {
       return { matched: false, reason: "opaque-condition" };
     }
-    const matched = evaluateCondition(
+    whereMatched = evaluateCondition(
       grant.where,
       current,
       subject,
@@ -98,12 +103,18 @@ export function evaluateGrantCondition(
     if (unknown !== undefined) {
       return { matched: false, reason: unknown };
     }
-    if (!matched) {
+    if (whereMatched && deny) {
+      return { matched: true };
+    }
+    if (!whereMatched && !deny) {
       return { matched: false, reason: "condition" };
     }
   }
   const checkCondition =
     grant.check ?? (permission.action === "update" ? grant.where : undefined);
+  if (checkCondition === undefined && whereMatched === false) {
+    return { matched: false, reason: "condition" };
+  }
   if (checkCondition !== undefined) {
     if (checkCondition.op === "opaque") {
       return { matched: false, reason: "opaque-condition" };

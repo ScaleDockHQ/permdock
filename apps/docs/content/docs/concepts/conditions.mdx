@@ -124,6 +124,8 @@ The classic hole this closes: a user who may update their own posts must not be 
 
 In memory, `update` and `create` checks receive the next row as `data`; `decide(permissions.post.update, { current, next })` is the two-row form used by adapters that have both.
 
+A `deny` reads the same two conditions the other way round. An allow needs `where` on the current row **and** `check` on the next one; a deny applies when `where` matches the current row **or** `check` matches the next one, which is what a `RESTRICTIVE` policy's `USING NOT (where) WITH CHECK NOT (check)` does. `deny(permissions.invoice.update, { where: { locked: true } })` refuses both unlocking a locked invoice and locking an open one in the same write. A scoped deny follows the same rule: an update that moves a row into or out of the deny's scope instance is refused. `fromSnapshot` evaluates pairs the same way.
+
 ## JSON format
 
 Conditions are plain JSON. No superjson, no class instances, no functions. The literal form you write is normalised into a tagged tree so consumers do not need to re-parse object shorthand:
@@ -229,3 +231,7 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 - An opaque node anywhere in a condition, including under `not` and `or`, fails the whole grant with `opaque-condition`, so `not(opaque)` never matches.
 - A deny that cannot be evaluated denies the decision: a closure that throws or returns a thenable (`closure-error`), an opaque condition (`opaque-condition`) or a relation read that cannot be answered (`relation-depth`, `relation-unavailable`). An allow that cannot be evaluated only fails that grant. A snapshot applies the same rule to an opaque deny.
 - `memberOf` is evaluated against the frozen subject's memberships, so an expired membership or an active tenant with no membership makes it `false`, the same way a missing field does. It is generated from role declarations only; there is no hand-written `memberOf` in a `where`.
+
+## Why
+
+- **A deny on an update pair applies when either row matches.** Reading `where` and `check` with an allow's AND made `deny(invoice.update, { where: { locked: true } })` apply only when the invoice was locked before and after the write, so unlocking it, or locking it with other edits in the same write, got past the deny. Postgres has always checked a `RESTRICTIVE` policy's `USING` on the old row and its `WITH CHECK` on the new one, so the generated RLS refused both; the in-process and snapshot evaluators now agree with it. Allows keep AND: a grant to edit your own post must hold before and after, or the write could reassign it.

@@ -36,9 +36,7 @@ const authInfo: AuthInfo = {
   scopes: [permissions.refund.create.scope],
 };
 
-async function connect(
-  load: boolean,
-): Promise<{
+async function connect(load: boolean): Promise<{
   readonly client: Client;
   readonly ran: unknown[];
   readonly store: ReturnType<typeof memoryApprovalStore>;
