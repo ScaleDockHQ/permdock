@@ -20,7 +20,7 @@ const JSON_SCHEMA: Readonly<Record<string, unknown>> = Object.freeze({
     title: { type: "string" },
     status: { type: "integer", minimum: 400, maximum: 599 },
     detail: { type: "string" },
-    instance: { type: "string" },
+    instance: { type: "string", format: "uri-reference" },
     permission: { type: "string" },
     scope: { type: "string" },
     reason: { type: "string" },
