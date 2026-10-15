@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
+import {
+  approvalPolicies,
+  memoryApprovalPolicySource,
+} from "../../src/core/approval-policies.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -31,14 +34,14 @@ describe("permdock/pdp derive", () => {
     }
     expect(await same.can(permissions.post.read, { id: "p" })).toBe(true);
     const gated = await permdock.derive({
-      approvalPolicies: {
+      approvalPolicies: approvalPolicies({
         approvalPoliciesFor: () =>
           Promise.resolve(
             memoryApprovalPolicySource([
               { permission: "post.read", approval: "human" },
             ]).approvalPoliciesFor({ tenants: [] }),
           ),
-      },
+      }),
     });
     expect(
       (await gated.decide(permissions.post.read, { id: "p" })).outcome,

@@ -1,4 +1,8 @@
 import type { Condition } from "../conditions/ast.ts";
+import type {
+  ApprovalPolicies,
+  LoadedApprovalPolicies,
+} from "./approval-policies.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
 import type { HostedPolicies } from "./hosted.ts";
@@ -32,11 +36,6 @@ import type { Instant } from "./time.ts";
 import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 
-import {
-  type ApprovalPolicySource,
-  type LoadedApprovalPolicies,
-  approvalPoliciesFor,
-} from "./approval-policies.ts";
 import { compact } from "./compact.ts";
 import { buildInstance } from "./instance.ts";
 import { asMembershipSource } from "./memberships.ts";
@@ -383,7 +382,7 @@ export type PermDockOptions = {
   /** The object graph for `through` and edge-table relations; without it they deny with `relation-unavailable`. */
   readonly relations?: RelationSource;
   /** Approval requirements kept as data; they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
+  readonly approvalPolicies?: ApprovalPolicies;
   /** Other principals by id, for `decideFor`; asked with the active tenant. */
   readonly principals?: PrincipalSource;
   /** Tenant settings, read by `decideCredential` for the key's tenant; a call's own `settings` wins. */
@@ -416,12 +415,7 @@ function instantiate(
     (tenant) => heldRoleNamesIn(subject.principal, scopes, tenant),
   );
   const assignable = assignableNamesFor(roleSource, tenants, auth);
-  const approvals = approvalPoliciesFor(
-    policy,
-    options.approvalPolicies,
-    tenants,
-    auth,
-  );
+  const approvals = options.approvalPolicies?.load(policy, tenants, auth);
   const build = (
     roles: readonly CustomRole[],
     names: ReadonlyMap<string, readonly string[]> | undefined,

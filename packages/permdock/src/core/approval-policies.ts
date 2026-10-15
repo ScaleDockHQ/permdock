@@ -9,6 +9,7 @@ import type {
   Grant,
   Policy,
 } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/evaluate.ts";
@@ -23,7 +24,6 @@ import { isPortableCondition } from "./hosted.ts";
 import { isOperationRisk } from "./operation-risks.ts";
 import { isOperationEffect } from "./operations.ts";
 import { findPermission } from "./permission-registry.ts";
-import { type Scope, rootMembershipId } from "./scopes.ts";
 import { isThenable } from "./thenable.ts";
 import { durationOf } from "./time.ts";
 
@@ -69,13 +69,16 @@ export type ApprovalPolicySource = {
 };
 
 /** The denial detail when an `ApprovalPolicySource` fails: every call an allow would grant denies with reason `approval`. */
-export const APPROVAL_POLICY_UNAVAILABLE = "approval-policy-unavailable";
 
+/**
+ * The in-process `ApprovalPolicySource`, usable directly as the
+ * `approvalPolicies` option: it is the source and its feature at once.
+ */
 export function memoryApprovalPolicySource(
   policies: readonly ApprovalPolicy[],
-): ApprovalPolicySource {
+): ApprovalPolicySource & ApprovalPolicies {
   const entries = [...policies];
-  return Object.freeze({
+  const source: ApprovalPolicySource = {
     approvalPoliciesFor(query: {
       readonly tenants: readonly string[];
     }): readonly ApprovalPolicy[] {
@@ -84,7 +87,8 @@ export function memoryApprovalPolicySource(
           entry.tenant === undefined || query.tenants.includes(entry.tenant),
       );
     },
-  });
+  };
+  return Object.freeze({ ...source, ...approvalPolicies(source) });
 }
 
 /** An entry checked against the policy and ready to match. */
@@ -100,7 +104,46 @@ export type LoadedApprovalPolicy = {
 };
 
 /** `"failed"`: the source threw or returned something that cannot be applied. */
-export type LoadedApprovalPolicies = readonly LoadedApprovalPolicy[] | "failed";
+/** What `tightenApproval` reads besides the code's approval. */
+export type TightenInput = Parameters<typeof tightenApproval>[2];
+
+/**
+ * Approval policies loaded for an instance: the tightening the evaluator
+ * applies to each allow, or `"failed"` when the source threw or returned an
+ * invalid entry (every allow then denies).
+ */
+export type LoadedApprovalPolicies =
+  | {
+      readonly tighten: (
+        code: Grant["approval"],
+        input: TightenInput,
+      ) => Grant["approval"];
+    }
+  | "failed";
+
+/**
+ * Approval policies kept as data, as an instance option:
+ * `approvalPolicies: approvalPolicies(source)`. The loading and tightening
+ * code ships only with an app that imports this function.
+ */
+export type ApprovalPolicies = {
+  readonly feature: "approval-policies";
+  readonly load: (
+    policy: Policy,
+    tenants: readonly string[],
+    auth: AuthEvent[],
+  ) => LoadedApprovalPolicies | Promise<LoadedApprovalPolicies>;
+};
+
+export function approvalPolicies(
+  source: ApprovalPolicySource,
+): ApprovalPolicies {
+  return Object.freeze({
+    feature: "approval-policies" as const,
+    load: (policy: Policy, tenants: readonly string[], auth: AuthEvent[]) =>
+      approvalPoliciesFor(policy, source, tenants, auth),
+  });
+}
 
 function isStringList(value: unknown): value is readonly string[] {
   return (
@@ -305,19 +348,19 @@ function loadAll(policy: Policy, raw: unknown): LoadedApprovalPolicies {
       out.push(loaded);
     }
   }
-  return out;
+  return Object.freeze({
+    tighten: (code: Grant["approval"], input: TightenInput) =>
+      tightenApproval(code, out, input),
+  });
 }
 
 /** Reads the source once for `tenants`; a throw or an invalid entry loads as `"failed"`. */
 export function approvalPoliciesFor(
   policy: Policy,
-  source: ApprovalPolicySource | undefined,
+  source: ApprovalPolicySource,
   tenants: readonly string[],
   auth: AuthEvent[],
-): LoadedApprovalPolicies | Promise<LoadedApprovalPolicies> | undefined {
-  if (source === undefined) {
-    return undefined;
-  }
+): LoadedApprovalPolicies | Promise<LoadedApprovalPolicies> {
   const threw = (): "failed" => {
     auth.push({ reason: "source-threw", source: "approvalPolicies" });
     return "failed";
@@ -513,15 +556,4 @@ export function tightenApproval(
     escalation:
       code === undefined || code === "human" ? undefined : code.escalation,
   });
-}
-
-/** The tenant a matched allow applies in: its membership's root scope, else the active tenant. */
-export function decisionTenant(
-  subject: Subject,
-  membership: Parameters<typeof rootMembershipId>[0] | undefined,
-): string | undefined {
-  return (
-    (membership === undefined ? undefined : rootMembershipId(membership)) ??
-    subject.principal?.tenant
-  );
 }

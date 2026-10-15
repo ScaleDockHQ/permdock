@@ -100,11 +100,13 @@ export type {
   SupportSessionRequest,
 } from "./core/support-session.ts";
 export {
-  APPROVAL_POLICY_UNAVAILABLE,
+  approvalPolicies,
   memoryApprovalPolicySource,
   validateApprovalPolicy,
 } from "./core/approval-policies.ts";
+export { APPROVAL_POLICY_UNAVAILABLE } from "./core/approval-state.ts";
 export type {
+  ApprovalPolicies,
   ApprovalPolicy,
   ApprovalPolicyProblem,
   ApprovalPolicySource,

@@ -20,3 +20,9 @@ Hosted grants are an opt-in feature too: `policies` takes `hostedPolicies(source
 | Before                                               | After                                                                |
 | ---------------------------------------------------- | -------------------------------------------------------------------- |
 | `createPermDock(policy, user, { policies: source })` | `createPermDock(policy, user, { policies: hostedPolicies(source) })` |
+
+Approval policies follow the same pattern: `approvalPolicies` takes `approvalPolicies(source)`. `memoryApprovalPolicySource([...])` already is that feature, so it needs no wrapper.
+
+| Before                           | After                                              |
+| -------------------------------- | -------------------------------------------------- |
+| `{ approvalPolicies: mySource }` | `{ approvalPolicies: approvalPolicies(mySource) }` |
