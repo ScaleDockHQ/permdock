@@ -6,7 +6,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type { OpenApiHooks } from "../server/server-types.ts";
 
-import { adapterOptions } from "../approvals/app.ts";
+import { withApp } from "../core/app.ts";
 import { compact } from "../core/compact.ts";
 import { type Credential, credentialSubject } from "../core/credential.ts";
 import {
@@ -200,7 +200,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   given: SupabaseMiddlewarePermDockOptions<TUser>,
 ): SupabaseMiddlewarePermDock<V> {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   const contexts = new WeakMap<Request, SupabaseMiddlewareContext>();
   const tenantOption = options.tenant;
 

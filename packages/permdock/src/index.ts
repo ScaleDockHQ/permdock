@@ -206,7 +206,7 @@ export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";
 export { createPermDock, parseSnapshot } from "./core/permdock.ts";
-export { defineApp } from "./core/app.ts";
+export { defineApp } from "./app/define-app.ts";
 export type { AppOptions, AppProfile } from "./core/app.ts";
 export { wrapPermDock } from "./core/wrap.ts";
 export { shadowMode } from "./core/shadow.ts";

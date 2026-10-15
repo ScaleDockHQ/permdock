@@ -76,22 +76,12 @@ describe("defineApp", () => {
     ).not.toThrow();
   });
 
-  it("leaves limits opt-in and fills in an adapter memory store under dev", async () => {
+  it("fills in memory limits and one shared memory store under dev", async () => {
     const limited = defineApp(withLimit, { profile: "dev" });
     const permdock = await createPermDock(limited, member);
-    expect(permdock.decide(permissions.post.create)).toMatchObject({
-      outcome: "denied",
-      denials: [{ reason: "limit-unavailable" }],
-    });
-    const counted = await createPermDock(
-      defineApp(withLimit, {
-        profile: "dev",
-        limits: limits(memoryLimitStore()),
-      }),
-      member,
-    );
-    expect(counted.decide(permissions.post.create).outcome).toBe("granted");
-    expect(counted.decide(permissions.post.create).outcome).toBe("denied");
+    expect(permdock.decide(permissions.post.create).outcome).toBe("granted");
+    expect(permdock.decide(permissions.post.create).outcome).toBe("denied");
+    expect(appOf(limited)?.store).toBeDefined();
 
     const approvals = defineApp(withApproval, { profile: "dev" });
     const agent = createAgentPermDock(approvals, {

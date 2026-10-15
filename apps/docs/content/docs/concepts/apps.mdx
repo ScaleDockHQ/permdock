@@ -54,7 +54,7 @@ export const { protect, middleware } = createPermDock(app, { subject });
 
 ## Profiles
 
-- `dev` fills in in-process defaults: in each adapter, a memory `ApprovalStore` when none is set. Limits stay opt-in, because filling them in would ship the counting code with every app: pass `limits: limits(memoryLimitStore())` while developing. A new app runs before any infrastructure exists. Memory stores are per process: their state is lost on restart and is not shared between instances.
+- `dev` fills in in-process defaults: one memory `ApprovalStore` that every adapter of the app shares, so a request opened through one adapter resumes through another, and `limits(memoryLimitStore())` when a grant has a `limit`. The defaults come from `defineApp`, never from an adapter, so an adapter bundle carries no store. A new app runs before any infrastructure exists. Memory stores are per process: their state is lost on restart and is not shared between instances.
 - `prod` fills in nothing. `defineApp` throws at startup when a grant requires approval and there is no `store`, or a grant has a `limit` and there are no `limits`. The alternative is an app that starts and then denies every such call at run time.
 
 No adapter falls back to a memory store on its own. An approval store exists because the app or the adapter call named one, or because the profile is `dev`.

@@ -11,7 +11,7 @@ import type {
   ToolVerdict,
 } from "./types.ts";
 
-import { adapterOptions } from "../approvals/app.ts";
+import { withApp } from "../core/app.ts";
 import { compact } from "../core/compact.ts";
 import { deniedFor } from "../core/decide-for.ts";
 import { freezeDeep } from "../core/freeze.ts";
@@ -277,6 +277,6 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   given: AgentPermDockOptions<TContext, TUser>,
 ): AgentPermDock<TContext, V> {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   return agentRuntime(policy, options, "agent").agent;
 }

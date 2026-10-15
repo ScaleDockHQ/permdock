@@ -13,9 +13,9 @@ import type {
   ToolVerdict,
 } from "./types.ts";
 
-import { adapterOptions } from "../approvals/app.ts";
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
 import { actorFrom, tenantScope } from "../core/adapter-context.ts";
+import { withApp } from "../core/app.ts";
 import { resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
 import {
@@ -106,7 +106,7 @@ export function createAgentKernel<
   /** Sends `error` to the `on('error')` handlers of an instance this kernel built. */
   readonly report: (permdock: PermDock<V> | undefined, error: unknown) => void;
 } {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   const cache = new WeakMap<object, Promise<PermDock<V>>>();
   const reporters = new WeakMap<PermDock<V>, Report>();
 

@@ -20,8 +20,8 @@ import type {
   TypedConfirm,
 } from "./types.ts";
 
-import { adapterOptions } from "../approvals/app.ts";
 import { resumeDecision, storedApprovalToken } from "../approvals/helpers.ts";
+import { withApp } from "../core/app.ts";
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
 import { resourceRef } from "../core/resource-ref.ts";
@@ -197,7 +197,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   given: TerminalPermDockOptions<TUser>,
 ): TerminalPermDock<V> {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   const write = writeOf(options);
   const exit = options.runtime?.exit ?? defaultExit;
   const runtime: TerminalRuntime = compact({

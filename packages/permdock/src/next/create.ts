@@ -20,7 +20,7 @@ import type {
   NextPermDockProviderProps,
 } from "./types.ts";
 
-import { adapterOptions } from "../approvals/app.ts";
+import { withApp } from "../core/app.ts";
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
 import { type Decision, NO_GRANT } from "../core/decision.ts";
@@ -133,7 +133,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   given: NextPermDockOptions<TUser>,
 ): NextPermDock<V> {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   assertServerOnly();
 
   const sink =

@@ -12,9 +12,9 @@ import type { Principal } from "../core/subject.ts";
 
 import { agentRuntime } from "../agent/create.ts";
 import { boundedMap } from "../agent/lru.ts";
-import { adapterOptions } from "../approvals/app.ts";
 import { isApprovalError } from "../approvals/errors.ts";
 import { resolveApproval } from "../approvals/helpers.ts";
+import { withApp } from "../core/app.ts";
 import { compact } from "../core/compact.ts";
 
 /** Structural `SessionAuthContext` from `eve`. */
@@ -175,7 +175,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   given: EvePermDockOptions<TUser>,
 ): EvePermDock<V> {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   const store = options.store;
   const tokensByCall = boundedMap<string, string>(TOKENS_PER_PROCESS);
   // SAFETY: without options.subject, TUser is the { id, roles } user subjectFromEve builds, or null.

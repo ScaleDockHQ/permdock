@@ -277,11 +277,8 @@ function appFile(ctx: Context): string {
     );
   }
   if (ctx.has("limits")) {
-    valueImports.add("limits");
-    valueImports.add("memoryLimitStore");
     lines.push(
-      "  // A memory LimitStore counts per process; set a shared one (Redis, Postgres) for prod.",
-      "  limits: limits(memoryLimitStore()),",
+      "  // profile dev uses a memory LimitStore; set limits(store) with a shared one (Redis, Postgres) for prod.",
     );
   }
   if (services.includes("cloud-hosted-grants")) {

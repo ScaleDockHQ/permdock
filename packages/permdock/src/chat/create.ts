@@ -20,13 +20,13 @@ import type { Principal, Subject } from "../core/subject.ts";
 import type { ApprovalPrompt } from "../delivery/approval-prompt.ts";
 import type { ChatAuthor } from "./subject.ts";
 
-import { adapterOptions } from "../approvals/app.ts";
 import { isApprovalError } from "../approvals/errors.ts";
 import {
   requestApproval,
   resolveApproval,
   resumeDecision,
 } from "../approvals/helpers.ts";
+import { withApp } from "../core/app.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { createPermDock as createCorePermDock } from "../core/permdock.ts";
@@ -175,7 +175,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   given: ChatPermDockOptions,
 ): ChatPermDock<V> {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   const { store: approvals, ...permdockOptions } = options;
 
   const instanceFor = (subject: Subject): Promise<PermDock<V>> =>
