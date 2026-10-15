@@ -17,6 +17,8 @@ export type {
   ClientPermDock,
   ClientStatus,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
   SubjectView,

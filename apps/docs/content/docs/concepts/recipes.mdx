@@ -1,0 +1,32 @@
+---
+title: Recipes
+description: The @permdock shadcn registry - permission-gated UI built from your own shadcn/ui or React Native Reusables components on useGate, installed as code you own with npx shadcn add, while every decision stays in the permdock package.
+---
+
+PermDock ships no visible components. It ships the decision (`useGate`, `useApproval`, `useTenant`, `useAssignableRoles`, `useAssignablePermissions`) and a registry of recipes that render it with the components your app already has. A recipe is a file you own: `npx shadcn add` writes it into your project with your aliases and style, and you change it like any other component.
+
+```bash
+npx shadcn@latest add https://permdock.com/r/gated-button.json
+npx shadcn@latest add https://permdock.com/r/approval-request-dialog.json
+```
+
+| Recipe                    | Built on                                | Renders                                                                                                             |
+| ------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `gated-button`            | `button`                                | Runs the action, is disabled with the reason as its title, hidden with `mode="hide"`, or offers to request approval |
+| `approval-request-dialog` | `button`, `dialog`, `textarea`          | A note and a request for an `approval-required` action                                                              |
+| `tenant-switcher`         | `select`                                | The organisations the user is a member of; switching refreshes the snapshot                                         |
+| `role-picker`             | `select`                                | Only the roles the user may hand out in the active tenant                                                           |
+| `custom-role-editor`      | `checkbox`, `label`                     | Only the permissions the editor holds, for a custom role                                                            |
+| `upgrade-prompt`          | `alert`, `button`                       | The plans that would grant the action                                                                               |
+| `gated-button-native`     | React Native Reusables `button`, `text` | The gated button on React Native, with the reason as the accessibility hint                                         |
+| `upgrade-prompt-native`   | React Native Reusables `button`, `text` | The upgrade prompt on React Native                                                                                  |
+
+Each recipe declares `permdock` as a dependency and its shadcn primitives as `registryDependencies`, so `shadcn add` installs them too. A [preset](/docs/concepts/presets) installs its recipes and its generated files in one command: `npx shadcn@latest add https://permdock.com/r/preset-<code>.json`.
+
+## React and React Native
+
+The web and native recipes call the same hooks from `permdock/react` and `permdock/react-native`, which share one implementation and one client store. Only the markup differs, so a fix to a decision reaches both platforms through `npm update`, and neither recipe needs to change.
+
+## Why
+
+A recipe holds markup, not rules. `useGate` decides what the control shows; the recipe renders `hidden`, `disabled`, `needsApproval` and `reason`, and the server checks the action again. That split keeps the part that must stay correct in the package, where updates reach it, and the part every product styles differently in the application, where shadcn already puts it. Recipes avoid the props that differ between Radix and Base UI (`asChild`, `render`) and keep their own open state, so they install on either.

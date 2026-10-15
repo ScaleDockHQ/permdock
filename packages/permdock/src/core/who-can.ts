@@ -498,7 +498,7 @@ export function whoCan(
   });
 }
 
-export async function whoCanWith(input: {
+async function whoCanWith(input: {
   readonly policy: Policy;
   readonly permission: Permission;
   readonly row: unknown;

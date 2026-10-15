@@ -610,8 +610,9 @@ export default defineConfig({
   ];
 }
 
+/** The `@permdock` registry recipes for the preset's UI; native has the gate and the upgrade prompt. */
 function recipesFor(ctx: Context): string[] {
-  const web = ["gated-button", "disabled-reason-tooltip"];
+  const web = ["gated-button"];
   if (ctx.has("approvals")) {
     web.push("approval-request-dialog");
   }
@@ -624,14 +625,18 @@ function recipesFor(ctx: Context): string[] {
   if (ctx.has("plans")) {
     web.push("upgrade-prompt");
   }
-  const out: string[] = [];
-  if (ctx.preset.ui.includes("shadcn")) {
-    out.push(...web.map((name) => `@permdock/${name}`));
-  }
-  if (ctx.preset.ui.includes("react-native")) {
-    out.push(...web.map((name) => `@permdock/${name}-native`));
-  }
-  return out;
+  const native = [
+    "gated-button",
+    ...(ctx.has("plans") ? ["upgrade-prompt"] : []),
+  ];
+  return [
+    ...(ctx.preset.ui.includes("shadcn")
+      ? web.map((name) => `@permdock/${name}`)
+      : []),
+    ...(ctx.preset.ui.includes("react-native")
+      ? native.map((name) => `@permdock/${name}-native`)
+      : []),
+  ];
 }
 
 function dependenciesFor(ctx: Context): string[] {

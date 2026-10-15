@@ -323,7 +323,7 @@ export function decideRoleChange(
   );
 }
 
-export function decideRoleChangeWith(
+function decideRoleChangeWith(
   policy: Policy,
   principal: Principal | null,
   scopes: readonly Scope[],

@@ -11,6 +11,8 @@ import type {
   ApprovalHandle,
   ClientPermDock,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
   SubjectView,
@@ -23,6 +25,7 @@ import {
   type DescribeMessages,
   type DescribeOptions,
   describe,
+  requiredPlans,
 } from "../core/describe.ts";
 
 export function permissionSet(
@@ -260,4 +263,25 @@ export function describeWith(
         ? options
         : { ...options, messages },
     );
+}
+
+/** The `GateView` of a permission state; `describeDecision` localises the reason. */
+export function gateView(
+  state: PermissionState,
+  describeDecision: (decision: Decision) => DecisionDescription,
+  mode: GateMode = "disable",
+): GateView {
+  const pending = state.status === "pending";
+  const needsApproval = state.decision.outcome === "approval-required";
+  const allowed = state.allowed && !pending;
+  return {
+    allowed,
+    pending,
+    hidden: mode === "hide" && !allowed && !pending && !needsApproval,
+    disabled: !allowed,
+    needsApproval,
+    upgrade: requiredPlans(state.decision),
+    reason: describeDecision(state.decision),
+    decision: state.decision,
+  };
 }

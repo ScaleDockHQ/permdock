@@ -1,4 +1,5 @@
 import type { Decision } from "../core/decision.ts";
+import type { DecisionDescription } from "../core/describe.ts";
 import type { DescribeMessages } from "../core/describe.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
@@ -85,4 +86,30 @@ export type ProviderOptionsBase = {
   readonly onClear?: () => void;
   /** Milliseconds between approval status polls. Defaults to 2000. */
   readonly approvalInterval?: number;
+};
+
+/** How a control shows a permission it cannot use: hidden, or disabled with a reason. */
+export type GateMode = "hide" | "disable";
+
+/**
+ * Everything a permission-gated control renders from, in one value: a
+ * button, a menu item or a link reads these fields and decides nothing
+ * itself. The client is a hint; the server checks again.
+ */
+export type GateView = {
+  /** The decision granted the action. */
+  readonly allowed: boolean;
+  /** The snapshot is loading; render the control disabled, not hidden. */
+  readonly pending: boolean;
+  /** `mode: "hide"` and the action is not available: render nothing. */
+  readonly hidden: boolean;
+  /** The control cannot run the action now (denied, pending or awaiting approval). */
+  readonly disabled: boolean;
+  /** The decision needs a person's approval first; offer to request it. */
+  readonly needsApproval: boolean;
+  /** The plans that would grant the action, for an upgrade prompt; empty otherwise. */
+  readonly upgrade: readonly string[];
+  /** Title and detail for a tooltip or an accessible description. */
+  readonly reason: DecisionDescription;
+  readonly decision: Decision;
 };

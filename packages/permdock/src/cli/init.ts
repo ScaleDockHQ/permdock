@@ -14,7 +14,7 @@ import {
 } from "../preset/index.ts";
 
 /** The page a preset code opens in the builder. */
-export const CREATE_URL = "https://permdock.com/create";
+const CREATE_URL = "https://permdock.com/create";
 
 export type InitOptions = {
   readonly cwd: string;

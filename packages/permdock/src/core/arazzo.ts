@@ -719,9 +719,3 @@ export function planArazzo(
     steps,
   });
 }
-
-export function isArazzoSimulateInput(
-  value: unknown,
-): value is ArazzoSimulateInput {
-  return isRecord(value) && "arazzo" in value;
-}

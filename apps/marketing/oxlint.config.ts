@@ -40,6 +40,13 @@ export default defineConfig({
   },
   overrides: [
     {
+      files: ["registry/types/*.d.ts"],
+      rules: {
+        // Ambient module declarations stub React Native Reusables for the -native recipes.
+        "import/unambiguous": "off",
+      },
+    },
+    {
       files: ["app/icon.tsx", "lib/og.tsx"],
       rules: {
         // `ImageResponse` renders with Satori, which reads inline styles only (26 findings).
