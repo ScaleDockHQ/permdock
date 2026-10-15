@@ -232,13 +232,14 @@ async function signCard(
 }
 
 function missingScope(permission: Permission, scope: string): A2aTaskOutcome {
-  const problem = statusProblem(401, `insufficient_scope: ${scope}`, {
+  // RFC 6750 section 3.1: insufficient_scope is 403; 401 is for a missing or invalid token.
+  const problem = statusProblem(403, `insufficient_scope: ${scope}`, {
     permission: permission.key,
     scope,
   });
   return {
     ok: false,
-    status: 401,
+    status: 403,
     state: "failed",
     problem,
     wwwAuthenticate: bearerChallenge({

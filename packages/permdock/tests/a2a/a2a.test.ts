@@ -125,7 +125,7 @@ describe("permdock/a2a", () => {
     if (result.ok) {
       return;
     }
-    expect(result.status).toBe(401);
+    expect(result.status).toBe(403);
     expect(result.wwwAuthenticate).toContain("insufficient_scope");
     expect(result.wwwAuthenticate).toContain(permissions.post.publish.scope);
   });
