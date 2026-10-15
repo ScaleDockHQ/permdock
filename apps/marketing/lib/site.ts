@@ -42,6 +42,11 @@ export type NavLink = {
 
 const productLinks: readonly NavLink[] = [
   {
+    href: "/create",
+    label: "Create",
+    description: "Pick features and a stack; get the code as one command.",
+  },
+  {
     href: "/cloud",
     label: "Cloud",
     description: "Optional decision log, hosted ADS, approval inbox.",

@@ -30,7 +30,9 @@ export type AppOptions = InstanceOptions &
 /** The app definition `defineApp` attached to a policy, as read back by core and adapters. */
 export type AppDefinition = AppOptions & { readonly profile: AppProfile };
 
-const APP = Symbol("permdock.app");
+// Symbol.for: one key across copies of this module (two bundler chunks, or a
+// dist and a source import), so an adapter always sees the app definition.
+const APP = Symbol.for("permdock.app");
 
 function grantsOf(policy: Policy): readonly Grant[] {
   return [...policy.index.grantsByKey.values()].flat();

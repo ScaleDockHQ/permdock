@@ -13,6 +13,7 @@ import {
   decodePreset,
   encodePreset,
   generatePreset,
+  presetMatrix,
   resolvePreset,
 } from "../../src/preset/index.ts";
 
@@ -181,5 +182,62 @@ describe("generated presets", () => {
       expect(appModule.app).toBeDefined();
     }
     vi.unstubAllEnvs();
+  }, 120_000);
+});
+
+describe("presetMatrix", () => {
+  it("agrees with the generated policy on the demo user's collection actions", async () => {
+    writeCases();
+    for (const input of CASES) {
+      const preset = resolvePreset(input);
+      const domain = DOMAINS[preset.archetype];
+      const dir = path.join(OUT, name(preset), "src");
+      const policyModule: {
+        readonly policy: Parameters<typeof createPermDock>[0];
+        readonly demoUser: unknown;
+      } = await import(path.join(dir, "policy.ts"));
+      // The generated app: profile dev, so limits have a memory store.
+      const appModule: {
+        readonly app: Parameters<typeof createPermDock>[0];
+      } = await import(path.join(dir, "permdock.ts"));
+      const permdock = await createPermDock(
+        appModule.app,
+        policyModule.demoUser,
+      );
+      // SAFETY: a permission tree maps each resource name to its permission leaves.
+      const tree = permdock.permissions as Record<
+        string,
+        Record<string, Parameters<typeof permdock.decide>[0]>
+      >;
+      const collection = new Set(["create", "list"]);
+      for (const row of presetMatrix(preset).rows) {
+        const spec = domain.resources.find(
+          (item) => item.name === row.resource,
+        );
+        if (
+          !collection.has(row.action) &&
+          !(spec?.collection ?? []).includes(row.action)
+        ) {
+          continue;
+        }
+        const cell = row.cells[domain.demoRole];
+        const leaf = tree[row.resource]?.[row.action];
+        if (cell === undefined || leaf === undefined) {
+          continue;
+        }
+        const outcome = permdock.decide(leaf, undefined).outcome;
+        const expected =
+          cell.access === "allow"
+            ? cell.approval
+              ? "approval-required"
+              : "granted"
+            : "denied";
+        expect({ preset: preset.archetype, key: leaf.key, outcome }).toEqual({
+          preset: preset.archetype,
+          key: leaf.key,
+          outcome: expected,
+        });
+      }
+    }
   }, 120_000);
 });

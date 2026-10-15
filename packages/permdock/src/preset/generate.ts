@@ -97,30 +97,44 @@ ${entries.join("\n")}
 `;
 }
 
-function grantLine(
-  ctx: Context,
+/** What a role's grant becomes under the preset's features; the matrix and the code read the same answer. */
+export function grantShape(
+  preset: Preset,
   role: RoleSpec,
   grant: GrantSpec,
-  demoRole: boolean,
-): string {
-  const resource = ctx.domain.resources.find(
+): {
+  readonly owner: string | undefined;
+  readonly approval: boolean;
+  readonly limit: boolean;
+} {
+  const has = (feature: FeatureId): boolean =>
+    preset.features.includes(feature);
+  const resource = DOMAINS[preset.archetype].resources.find(
     (item) => item.name === grant.resource,
   );
-  const options: string[] = [];
-  if (
-    grant.own === true &&
-    ctx.has("ownership") &&
-    resource?.owner !== undefined
-  ) {
-    options.push(`where: { ${resource.owner}: principal.id }`);
-  }
   const risky =
     grant.action === "delete" ||
     (resource?.sensitive ?? []).includes(grant.action);
-  if (ctx.has("approvals") && risky && role.top !== true) {
+  return {
+    owner: grant.own === true && has("ownership") ? resource?.owner : undefined,
+    approval: has("approvals") && risky && role.top !== true,
+    limit:
+      has("limits") &&
+      role.name === DOMAINS[preset.archetype].demoRole &&
+      grant.action === "create",
+  };
+}
+
+function grantLine(ctx: Context, role: RoleSpec, grant: GrantSpec): string {
+  const shape = grantShape(ctx.preset, role, grant);
+  const options: string[] = [];
+  if (shape.owner !== undefined) {
+    options.push(`where: { ${shape.owner}: principal.id }`);
+  }
+  if (shape.approval) {
     options.push(`approval: "human"`);
   }
-  if (ctx.has("limits") && demoRole && grant.action === "create") {
+  if (shape.limit) {
     options.push(`limit: ${LIMIT}`);
   }
   const target = `permissions.${grant.resource}.${grant.action}`;
@@ -144,10 +158,7 @@ function policyFile(ctx: Context): string {
   const roles = ctx.domain.roles.map((role) => {
     const grants = role.grants
       .filter((grant) => role.top === true || !isPro(ctx, grant))
-      .map(
-        (grant) =>
-          `    ${grantLine(ctx, role, grant, role.name === ctx.domain.demoRole)},`,
-      )
+      .map((grant) => `    ${grantLine(ctx, role, grant)},`)
       .join("\n");
     const options: string[] = [];
     if (tenancy) {

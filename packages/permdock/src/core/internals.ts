@@ -44,7 +44,9 @@ export type InstanceInternals = {
  */
 export type InstanceHandle = { readonly subject: Subject };
 
-const INTERNALS = Symbol("permdock.internals");
+// Symbol.for: one key across copies of this module, so a free function
+// imported from one entry reads an instance built by another.
+const INTERNALS = Symbol.for("permdock.internals");
 
 /** Attaches `internals` to `instance` as a non-enumerable member; call before freezing. */
 export function attachInternals(
