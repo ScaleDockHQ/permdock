@@ -576,7 +576,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
   const receiver: SsfReceiver = {
     async push(request: Request): Promise<Response> {
       if (request.method !== "POST") {
-        return rfc8935(400, "invalid_request", "POST required");
+        return new Response(null, { status: 405, headers: { allow: "POST" } });
       }
       if (contentType(request) !== SET_CONTENT) {
         return rfc8935(

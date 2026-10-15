@@ -162,12 +162,14 @@ describe("createPermDock options", () => {
 });
 
 describe("receiver.push transport", () => {
+  it("answers a GET with 405 and Allow: POST", async () => {
+    const { receiver } = receiverOf({});
+    const response = await receiver.push(push("", { method: "GET" }));
+    expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("POST");
+  });
+
   it.each<[string, Request, unknown]>([
-    [
-      "a GET",
-      push("", { method: "GET" }),
-      { err: "invalid_request", description: "POST required" },
-    ],
     [
       "a JSON body",
       push("x", { type: "application/json" }),
