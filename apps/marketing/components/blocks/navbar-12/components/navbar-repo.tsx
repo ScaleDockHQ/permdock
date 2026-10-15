@@ -115,6 +115,15 @@ export function NavbarRepo() {
 
           <NavigationMenuItem>
             <NavigationMenuLink
+              render={<a href="/create" />}
+              className={navigationMenuTriggerStyle()}
+            >
+              Create
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+
+          <NavigationMenuItem>
+            <NavigationMenuLink
               render={<a href="/pricing" />}
               className={navigationMenuTriggerStyle()}
             >
