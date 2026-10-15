@@ -60,7 +60,11 @@ type ReceiverConfig = {
   readonly approvals?: ApprovalStore;
   readonly revocations?: RevocationFeed;
   readonly clockTolerance?: number;
+  readonly maxTokenAge?: number;
 };
+
+/** Seconds a SET without `exp` stays acceptable after its `iat`. */
+export const DEFAULT_SET_MAX_AGE = 86_400;
 
 const CHANGED_EVENTS: ReadonlySet<string> = new Set([
   "credential-change",
@@ -68,16 +72,21 @@ const CHANGED_EVENTS: ReadonlySet<string> = new Set([
   "token-claims-change",
 ]);
 
+/**
+ * When the replay record of a SET may be dropped: its `exp`, or for a SET
+ * without one (RFC 8417 section 2.2) the end of its acceptance window, so
+ * the same `jti` cannot pass verification again once the record is gone.
+ */
 function replayExpiresAt(
   claims: Readonly<Record<string, unknown>>,
   clockTolerance = 0,
+  maxTokenAge = DEFAULT_SET_MAX_AGE,
 ): number | undefined {
   if (typeof claims["exp"] === "number") {
-    return claims["exp"];
+    return claims["exp"] + clockTolerance;
   }
   if (typeof claims["iat"] === "number") {
-    const until = claims["iat"] + clockTolerance;
-    return until > Date.now() / 1000 ? until : undefined;
+    return claims["iat"] + maxTokenAge + clockTolerance;
   }
   return undefined;
 }
@@ -149,6 +158,20 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
         err: "invalid_request",
         description: "missing iat",
         cause: "invalid-claims",
+      };
+    }
+    if (
+      typeof result.claims.exp !== "number" &&
+      result.claims.iat +
+        (config.maxTokenAge ?? DEFAULT_SET_MAX_AGE) +
+        (config.clockTolerance ?? 0) <=
+        Date.now() / 1000
+    ) {
+      return {
+        ok: false,
+        err: errForCause("expired"),
+        description: "expired",
+        cause: "expired",
       };
     }
     return result;
@@ -408,7 +431,11 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       };
     }
     const key = replayKey(issuer, jti);
-    const expiresAt = replayExpiresAt(verified.claims, config.clockTolerance);
+    const expiresAt = replayExpiresAt(
+      verified.claims,
+      config.clockTolerance,
+      config.maxTokenAge,
+    );
     if (!(await claimDelivery(key, expiresAt))) {
       emit({ type: "replay", transmitter: issuer, jti, replayed: true });
       return { ok: true };
@@ -482,7 +509,11 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     const issuer =
       typeof verified.claims.iss === "string" ? verified.claims.iss : undefined;
     const key = replayKey(issuer, jti);
-    const expiresAt = replayExpiresAt(verified.claims, config.clockTolerance);
+    const expiresAt = replayExpiresAt(
+      verified.claims,
+      config.clockTolerance,
+      config.maxTokenAge,
+    );
     if (!(await claimDelivery(key, expiresAt))) {
       emit({ type: "replay", transmitter: issuer, jti, replayed: true });
       return { ok: true };

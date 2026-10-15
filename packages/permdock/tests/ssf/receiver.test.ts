@@ -35,6 +35,7 @@ import {
   revokesAccount,
 } from "../../src/ssf/events.ts";
 import { createPermDock, memoryReplayStore } from "../../src/ssf/index.ts";
+import { DEFAULT_SET_MAX_AGE } from "../../src/ssf/receiver.ts";
 import { contentType, errForCause, parseEvery } from "../../src/ssf/wire.ts";
 
 const permissions = definePermissions({
@@ -374,7 +375,29 @@ describe("receiver.push events", () => {
     expect(response.status).toBe(202);
   });
 
-  it("keeps a SET without exp replay-protected until iat plus the tolerance", async () => {
+  it("refuses a SET without exp once its iat is older than maxTokenAge", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW * 1000);
+    const dispatched: string[] = [];
+    const { receiver } = receiverOf({
+      maxTokenAge: 300,
+      onEvent: { "*": () => void dispatched.push("event") },
+    });
+    const stale = await receiver.push(
+      push(
+        set({
+          jti: "old",
+          iat: NOW - 301,
+          sub: "u",
+          events: { [`${CAEP}credential-change`]: {} },
+        }),
+      ),
+    );
+    expect(stale.status).toBe(400);
+    expect(dispatched).toEqual([]);
+  });
+
+  it("keeps a SET replay-protected until it would no longer verify", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW * 1000);
     const remembered: (number | undefined)[] = [];
@@ -410,7 +433,11 @@ describe("receiver.push events", () => {
         }),
       ),
     );
-    expect(remembered).toEqual([NOW + 60, undefined, NOW + 5]);
+    expect(remembered).toEqual([
+      NOW + DEFAULT_SET_MAX_AGE + 60,
+      NOW - 120 + DEFAULT_SET_MAX_AGE + 60,
+      NOW + 5 + 60,
+    ]);
   });
 });
 
