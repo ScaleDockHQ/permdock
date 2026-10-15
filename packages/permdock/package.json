@@ -287,6 +287,10 @@
       "types": "./dist/catalog/index.d.ts",
       "default": "./dist/catalog/index.js"
     },
+    "./preset": {
+      "types": "./dist/preset/index.d.ts",
+      "default": "./dist/preset/index.js"
+    },
     "./cli": {
       "types": "./dist/cli/index.d.ts",
       "default": "./dist/cli/index.js"

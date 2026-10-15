@@ -1,0 +1,51 @@
+---
+title: Presets
+description: A preset is an archetype plus the features, auth, backend, framework, agent runtimes, UI and PermDock Cloud services an app needs, encoded as a short versioned code; permdock/preset generates the application's own files from it, the same in permdock init, the @permdock registry and the /create page.
+---
+
+A preset describes a starting point: a SaaS archetype and the features and stack it runs on. [/create](https://permdock.com/create) builds one in the browser, `permdock init` writes it into a project, and the code that names it can be shared, opened and changed again.
+
+| Part      | Choices                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------ |
+| Archetype | `b2b`, `agent`, `marketplace`, `api`, `internal`, `consumer`                                                 |
+| Features  | `tenancy`, `custom-roles`, `approvals`, `agents`, `audit`, `limits`, `plans`, `ownership`, `api-keys`, `rls` |
+| Auth      | `custom`, `supabase`, `better-auth`, `clerk`, `jwt`                                                          |
+| Backend   | `memory`, `supabase`, `drizzle`, `prisma`                                                                    |
+| Framework | `next`, `hono`, `express`, `none`                                                                            |
+| Agents    | `ai-sdk`, `mcp`                                                                                              |
+| UI        | `shadcn`, `react-native`                                                                                     |
+| Services  | `cloud-decision-log`, `cloud-approvals`, `cloud-snapshots`, `cloud-hosted-grants`                            |
+
+An archetype turns on the features it needs (`b2b` adds `tenancy`, `custom-roles` and `audit`); an agent runtime adds `agents`; `custom-roles` adds `tenancy`. Features are only ever added.
+
+## Codes
+
+A code is `p1` and base64url bytes: the archetype, auth, backend and framework, then a bitset per multi-select list. Each list only grows at the end, so a code keeps its meaning as choices are added; a new layout gets a new prefix, and a version that cannot read it says so.
+
+## Generating
+
+`permdock/preset` is pure: no file system, no network, the same in Node and the browser.
+
+```ts
+import { encodePreset, generatePreset, resolvePreset } from "permdock/preset";
+
+const preset = resolvePreset({ archetype: "b2b", framework: "hono" });
+const { code, files, dependencies, recipes, docs } = generatePreset(preset);
+```
+
+| File                                              | What                                                                                                                                                                                                                                    |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/permissions.ts`                              | The archetype's resources with `crud()` or `readable()` and Zod schemas                                                                                                                                                                 |
+| `src/policy.ts`                                   | Roles and grants as data: `on`, `min` and `assigns` with `tenancy`; `where` on the owner field with `ownership`; `approval: "human"` on destructive actions with `approvals`; `limit` with `limits`; a `plan("pro")` grant with `plans` |
+| `src/permdock.ts`                                 | `defineApp` with the features and services the preset picked and `profile` from `NODE_ENV` ([apps and profiles](/docs/concepts/apps))                                                                                                   |
+| `src/data.ts`, `src/session.ts`                   | Row loaders and the signed-in user, to replace with your database and auth; the session returns `null` until wired, so every check fails closed                                                                                         |
+| Framework file                                    | `src/permdock/server.ts` (Next.js) or `src/server.ts` (Hono, Express, core)                                                                                                                                                             |
+| `src/operations.ts`, `src/agent.ts`, `src/mcp.ts` | With agent runtimes                                                                                                                                                                                                                     |
+| `src/keys.ts`                                     | With `api-keys`: a `decideCredential` call                                                                                                                                                                                              |
+| `permdock.config.ts`                              | With `rls`                                                                                                                                                                                                                              |
+
+Every generated file is the application's own code. The rules (role ceilings, holder counts, approval binding, limits, verification) are in the `permdock` package that these files call, so updating the package updates them.
+
+## Why
+
+A preset generates declarations and wiring, never rules. A starter that copied authorization logic into the application could not receive a security fix; one that generates `definePolicy` data and `defineApp` wiring can, because `npm update` replaces everything the generated code calls. The code format is versioned and append-only for the same reason as the wire formats: a link shared today opens the same preset after the catalogue grows.

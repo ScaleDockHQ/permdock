@@ -5,6 +5,7 @@
     "permissions",
     "policies",
     "apps",
+    "presets",
     "conditions",
     "subject",
     "scopes",

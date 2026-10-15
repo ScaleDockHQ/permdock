@@ -154,6 +154,7 @@ export default defineConfig({
     "src/pdp/index.ts",
     "src/compile/index.ts",
     "src/catalog/index.ts",
+    "src/preset/index.ts",
     "src/cli/index.ts",
     "src/cli/bin.ts",
     "src/unplugin/index.ts",

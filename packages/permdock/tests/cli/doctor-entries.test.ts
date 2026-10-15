@@ -13,6 +13,7 @@ const CLIENT_SAFE = new Set([
   "permdock/catalog",
   "permdock/compile",
   "permdock/next/client",
+  "permdock/preset",
   "permdock/react",
   "permdock/react-native",
   "permdock/solid",

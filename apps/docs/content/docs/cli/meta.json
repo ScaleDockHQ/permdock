@@ -2,6 +2,8 @@
   "title": "CLI",
   "pages": [
     "index",
+    "init",
+    "preset",
     "collect",
     "catalog",
     "diff",
