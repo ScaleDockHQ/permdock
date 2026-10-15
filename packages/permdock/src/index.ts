@@ -501,6 +501,7 @@ export type {
   DecideCredentialOptions,
 } from "./core/credential.ts";
 export type { OcsfAuthorizeSession, OcsfUserManagement } from "./core/ocsf.ts";
+export type { ActorKind, AdapterId, MembershipVia } from "./core/open-union.ts";
 export type {
   Actor,
   Assurance,

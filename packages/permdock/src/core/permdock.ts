@@ -19,6 +19,7 @@ import type {
 } from "./interfaces.ts";
 import type { Limits } from "./limits.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
+import type { AdapterId } from "./open-union.ts";
 import type { Operation } from "./operations.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
@@ -61,7 +62,7 @@ export type DecideOptions = {
   /** The call that produced the decision, reported on the decision event. Defaults to `'decide'`. */
   readonly call?: DecisionEvent["call"];
   /** The adapter that made the call, reported on the decision event. */
-  readonly adapter?: string;
+  readonly adapter?: AdapterId;
   /** The model id the decision is about or that drove the call (`'openai/gpt-5'`), reported on the decision event. Never read when deciding. */
   readonly model?: string;
   /** Per-call unauthorized handler for `assert`; runs before instance and policy handlers. */

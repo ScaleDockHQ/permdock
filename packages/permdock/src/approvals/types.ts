@@ -1,4 +1,5 @@
 import type { RelationGrantee } from "../core/grantee.ts";
+import type { AdapterId } from "../core/open-union.ts";
 import type { ApprovalMode, ApprovalStage } from "../core/policy-types.ts";
 import type { Approver } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
@@ -96,7 +97,7 @@ export type ApprovalRequest = {
   readonly membership?: Membership;
   readonly approvers?: ApprovalApprovers;
   readonly detail: string;
-  readonly adapter?: string;
+  readonly adapter?: AdapterId;
   readonly createdAt: string;
   readonly expiresAt: string;
   readonly status: ApprovalStatus;

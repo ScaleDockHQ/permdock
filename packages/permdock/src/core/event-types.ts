@@ -1,6 +1,7 @@
 import type { CredentialKind } from "./credential.ts";
 import type { Obligation } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
+import type { AdapterId, MembershipVia, OpenUnion } from "./open-union.ts";
 import type { GrantMeta, HostedGrantRef } from "./policy-types.ts";
 import type { Membership } from "./subject.ts";
 import type { WireDelegation } from "./wire-delegation.ts";
@@ -9,7 +10,8 @@ import type { WireDenial } from "./wire-denial.ts";
 export type DirectoryEvent = {
   readonly type: "directory";
   readonly at: string;
-  readonly source: "scim";
+  /** `scim`, or an integrator's own directory sync. */
+  readonly source: OpenUnion<"scim">;
   readonly operation: "create" | "replace" | "patch" | "delete";
   readonly tenant: string;
   readonly resource: {
@@ -34,7 +36,7 @@ export type MembershipEvent = {
   readonly id?: string;
   /** The id of every ancestor scope, keyed by scope name. */
   readonly within?: Readonly<Record<string, string>>;
-  readonly via?: string;
+  readonly via?: MembershipVia;
   /** When the membership lapses, an RFC 3339 instant. */
   readonly expiresAt?: string;
   readonly roles: {
@@ -181,7 +183,7 @@ export type AccessEvent = {
   readonly tenant: string;
   readonly principal: { readonly id: string };
   /** The membership kind the session runs under (`support`). */
-  readonly via: string;
+  readonly via: MembershipVia;
   readonly roles: readonly string[];
   readonly member?: { readonly group: string };
   /** When the session lapses, an RFC 3339 instant. */
@@ -259,7 +261,7 @@ export type DecisionEvent = {
     | "approval"
     | "simulate"
     | "explain";
-  readonly adapter?: string;
+  readonly adapter?: AdapterId;
   /** The model id the agent model gate decided, or the model that drove the call. */
   readonly model?: string;
   /** Set on an approval lifecycle event (`com.permdock.approval.<phase>`). */

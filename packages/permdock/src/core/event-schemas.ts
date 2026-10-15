@@ -237,7 +237,7 @@ export const DIRECTORY_EVENT_SCHEMA: JsonSchemaNode = family(
     properties: {
       type: { const: "directory" },
       at: instant,
-      source: { const: "scim" },
+      source: text,
       operation: { enum: ["create", "replace", "patch", "delete"] },
       tenant: id,
       resource: {

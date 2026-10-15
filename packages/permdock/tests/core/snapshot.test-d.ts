@@ -18,20 +18,26 @@ type NotSerializable =
   | symbol
   | bigint;
 
-/** `true` when no property, at any depth, is a function, Map, Set, Date, symbol or bigint. */
+/**
+ * `true` when no property, at any depth, is a function, Map, Set, Date,
+ * symbol or bigint. Primitives are checked first: an open union
+ * (`'a' | (string & {})`) is a string, not an object with string's methods.
+ */
 type Serializable<T, Depth extends unknown[] = []> = Depth["length"] extends 12
   ? true
   : [T] extends [NotSerializable]
     ? false
-    : T extends readonly (infer Item)[]
-      ? Serializable<Item, [...Depth, unknown]>
-      : T extends object
-        ? false extends {
-            [K in keyof T]-?: Serializable<T[K], [...Depth, unknown]>;
-          }[keyof T]
-          ? false
-          : true
-        : true;
+    : [T] extends [string | number | boolean | null | undefined]
+      ? true
+      : T extends readonly (infer Item)[]
+        ? Serializable<Item, [...Depth, unknown]>
+        : T extends object
+          ? false extends {
+              [K in keyof T]-?: Serializable<T[K], [...Depth, unknown]>;
+            }[keyof T]
+            ? false
+            : true
+          : true;
 
 describe("Snapshot", () => {
   it("holds only plain, serializable data", () => {
