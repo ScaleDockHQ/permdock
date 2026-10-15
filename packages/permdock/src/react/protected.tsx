@@ -32,8 +32,8 @@ function Guard(props: ProtectedProps): ReactNode {
   switch (view.slot) {
     case "pending":
       return slotContent("pending", props, defaults) ?? null;
-    case "fallback":
-      return render(slotContent("fallback", props, defaults), view.decision);
+    case "denied":
+      return render(slotContent("denied", props, defaults), view.decision);
     case "approval":
       return render<ApprovalRequiredDecision>(
         slotContent("approval", props, defaults),

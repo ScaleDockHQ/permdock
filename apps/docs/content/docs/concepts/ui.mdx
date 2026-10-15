@@ -13,7 +13,7 @@ Two honest ways to show a denied action:
 
 | Pattern                | Use when                                                                                    | Build with                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Hidden                 | The user should not know the action exists (admin menus, other tenants' data)               | `<Protected>` with no `fallback`                                |
+| Hidden                 | The user should not know the action exists (admin menus, other tenants' data)               | `<Protected>` with no `denied`                                  |
 | Disabled with a reason | The user may learn what would unlock it (upgrade the plan, ask an admin, wait for approval) | `usePermission` plus `describe(decision)` on a disabled control |
 
 `<Protected>` hides. It does not grow a `disabled` mode: a disabled control needs a reason, a tooltip and an accessible name, and those are the component library's job. PermDock gives the reason:
@@ -80,7 +80,7 @@ Set what every `<Protected>` renders for a slot it leaves out, and the localised
   snapshot={snapshot}
   defaults={{
     pending: <Skeleton />,
-    fallback: null,
+    denied: null,
     approval: (decision) => <RequestAccess token={decision.token} />,
   }}
   messages={{ titles: { denied: "Geweigerd" } }}
@@ -90,15 +90,15 @@ Set what every `<Protected>` renders for a slot it leaves out, and the localised
 </PermDockProvider>
 ```
 
-| Prop               | Effect                                                                                                            |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `defaults`         | `PermDockDefaults`: `pending`, `fallback` and `approval` content for every `<Protected>` below that omits its own |
-| `messages`         | `DescribeMessages` for `useDescribe()` (`getDescribe()` in Svelte); a call's own `messages` win                   |
-| `onSnapshot`       | Called with each snapshot the store accepts, including the initial one                                            |
-| `onClear`          | Called when the store drops its snapshot                                                                          |
-| `approvalInterval` | Milliseconds between `useApproval` status polls; default 2000                                                     |
+| Prop               | Effect                                                                                                          |
+| ------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `defaults`         | `PermDockDefaults`: `pending`, `denied` and `approval` content for every `<Protected>` below that omits its own |
+| `messages`         | `DescribeMessages` for `useDescribe()` (`getDescribe()` in Svelte); a call's own `messages` win                 |
+| `onSnapshot`       | Called with each snapshot the store accepts, including the initial one                                          |
+| `onClear`          | Called when the store drops its snapshot                                                                        |
+| `approvalInterval` | Milliseconds between `useApproval` status polls; default 2000                                                   |
 
-`<Protected approval>` renders for an `approval-required` decision and receives it, so the slot can offer a request-access button with the token. Resolution runs from the component's own prop to the provider default: `approval` falls back to the component's `fallback`, then the provider's `approval`, then the provider's `fallback`. A component that sets `fallback={null}` therefore stays hidden whatever the provider sets. In Svelte the props are snippets, and the `children` snippet receives a `GrantedDecision`. In Vue the defaults are render functions that get the slot props. The [Next.js](/docs/adapters/next) server provider takes nodes and message records only, because a function cannot cross from a Server Component to the client.
+`<Protected approval>` renders for an `approval-required` decision and receives it, so the slot can offer a request-access button with the token. Resolution runs from the component's own prop to the provider default: `approval` falls back to the component's `denied`, then the provider's `approval`, then the provider's `denied`. A component that sets `fallback={null}` therefore stays hidden whatever the provider sets. In Svelte the props are snippets, and the `children` snippet receives a `GrantedDecision`. In Vue the defaults are render functions that get the slot props. The [Next.js](/docs/adapters/next) server provider takes nodes and message records only, because a function cannot cross from a Server Component to the client.
 
 ```tsx
 const explain = useDescribe();
@@ -145,7 +145,7 @@ const { tenant, tenants, switchTo } = useTenant();
 <Protected
   permission={permissions.billing.plan.change}
   tenant="o_globex"
-  fallback={null}
+  denied={null}
 >
   ...
 </Protected>

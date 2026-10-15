@@ -132,7 +132,7 @@ import { PermDockProvider, Protected, usePermission } from "permdock/react";
   <Protected
     permission={permissions.post.update}
     data={post}
-    fallback={<Locked />}
+    denied={<Locked />}
   >
     <EditButton />
   </Protected>

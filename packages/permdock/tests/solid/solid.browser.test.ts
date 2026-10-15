@@ -61,7 +61,7 @@ function mountProtected(
               return data();
             },
             pending: "pending",
-            fallback: "denied",
+            denied: "denied",
             children: strong,
           });
         },

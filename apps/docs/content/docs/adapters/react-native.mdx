@@ -11,7 +11,7 @@ Expo Router's `Stack.Protected` and `Tabs.Protected` (SDK 53 and later) take a p
 
 The guard has no promise, loading state or pending value: when it flips to `false` the protected screens stop existing and Expo Router moves the user off them. A library that answers `usePermission()` by calling a server or waiting for a session can only drive it with a splash screen on every cold start or a guard that briefly lies. A snapshot (roles, grants and portable conditions as JSON) persisted on the device answers every guard on the first frame, and because it carries the `where` conditions, ownership checks such as `usePermission(permissions.post.update, post)` also work offline without a second copy of the policy in the app. That rules out hooks that suspend or return `undefined`, boolean-only client state, and a splash screen on every launch; the splash is needed once per install, before the first snapshot arrives.
 
-`Stack.Protected` and `Tabs.Protected` decide which screens exist; `Protected` decides which sections of a screen render, with `pending` and `fallback` render props. Both read the same snapshot.
+`Stack.Protected` and `Tabs.Protected` decide which screens exist; `Protected` decides which sections of a screen render, with `pending` and `denied` render props. Both read the same snapshot.
 
 | Concern                               | `permdock/next` (web)                   | `permdock/react-native` (Expo)                            |
 | ------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
@@ -259,7 +259,7 @@ The snapshot is stored as the `storage` implementation stores it. The entry ship
 ## How denials surface
 
 - Guards receive `false`, including while `status` is `pending` on a cold start with empty storage, so a `Tabs.Protected` tab is hidden until the first snapshot arrives; Expo Router redirects to the nearest allowed route. Because the answer comes from storage there is no denied-then-allowed flash after launch.
-- `Protected` renders `fallback`, and the `decision` is available for an "approval required" screen.
+- `Protected` renders `denied`, and the `decision` is available for an "approval required" screen.
 - Persisted grants are stale by design until revalidation finishes. A role downgrade takes effect on the next successful fetch; for immediate revocation the API should reject the mutation and the app can call `refresh()`, or a [Shared Signals receiver](/docs/adapters/ssf) on the server can rotate the snapshot.
 
 ## Example app

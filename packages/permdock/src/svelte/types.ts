@@ -44,7 +44,7 @@ export type SveltePermDockOptions = ProviderOptionsBase & {
 /** Snippets for the `<Protected>` slots a component leaves out. */
 export type PermDockDefaults = {
   readonly pending?: Snippet;
-  readonly fallback?: Snippet<[Decision]>;
+  readonly denied?: Snippet<[Decision]>;
   readonly approval?: Snippet<[ApprovalRequiredDecision]>;
 };
 

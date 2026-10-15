@@ -90,14 +90,14 @@ describe("permdock/react", () => {
         <Protected
           permission={permissions.post.update}
           data={ownPost}
-          fallback={<span>locked</span>}
+          denied={<span>locked</span>}
         >
           <span>edit</span>
         </Protected>
         <Protected
           permission={permissions.post.update}
           data={otherPost}
-          fallback={<span>locked</span>}
+          denied={<span>locked</span>}
         >
           <span>edit</span>
         </Protected>
@@ -117,7 +117,7 @@ describe("permdock/react", () => {
           data={ownPost}
           tenant="globex"
           pending={<span>wait</span>}
-          fallback={<span>locked</span>}
+          denied={<span>locked</span>}
         >
           <span>edit</span>
         </Protected>
@@ -335,7 +335,7 @@ describe("permdock/react", () => {
           permission={permissions.post.update}
           data={ownPost}
           pending={<span>loading</span>}
-          fallback={<span>locked</span>}
+          denied={<span>locked</span>}
         >
           <span>edit</span>
         </Protected>
@@ -382,7 +382,7 @@ describe("permdock/react", () => {
           permission={permissions.post.update}
           data={ownPost}
           pending={<span>loading</span>}
-          fallback={<span>locked</span>}
+          denied={<span>locked</span>}
         >
           <span>edit</span>
         </Protected>
@@ -390,7 +390,7 @@ describe("permdock/react", () => {
           permission={permissions.post.update}
           data={otherPost}
           pending={<span>loading</span>}
-          fallback={<span>locked</span>}
+          denied={<span>locked</span>}
         >
           <span>edit</span>
         </Protected>
@@ -409,7 +409,7 @@ describe("permdock/react", () => {
           <Protected
             permission={permissions.post.read}
             data={ownPost}
-            fallback={<span>locked</span>}
+            denied={<span>locked</span>}
           >
             <span>read</span>
           </Protected>

@@ -39,7 +39,7 @@ describe("permdock/react provider defaults", () => {
         <Protected
           permission={permissions.post.delete}
           data={ownPost}
-          fallback={<i>locked</i>}
+          denied={<i>locked</i>}
           approval={(decision) => <b>ask {decision.grant.permission}</b>}
         >
           <span>delete</span>
@@ -48,7 +48,7 @@ describe("permdock/react provider defaults", () => {
         <Protected
           permission={permissions.post.delete}
           data={ownPost}
-          fallback={<i>locked</i>}
+          denied={<i>locked</i>}
         >
           <span>delete</span>
         </Protected>
@@ -63,7 +63,7 @@ describe("permdock/react provider defaults", () => {
       <PermDockProvider
         snapshot={snapshot}
         defaults={{
-          fallback: <i>no</i>,
+          denied: <i>no</i>,
           approval: (decision) => <b>{decision.reason}</b>,
         }}
       >
@@ -78,7 +78,7 @@ describe("permdock/react provider defaults", () => {
         <Protected
           permission={permissions.post.delete}
           data={ownPost}
-          fallback={<i>own</i>}
+          denied={<i>own</i>}
         >
           <span>delete</span>
         </Protected>

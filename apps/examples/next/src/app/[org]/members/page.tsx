@@ -42,7 +42,7 @@ export default function Members(props: {
       <Protected
         permission={permissions.member.list}
         pending={<MembersSkeleton />}
-        fallback={<Hidden />}
+        denied={<Hidden />}
       >
         <Suspense fallback={<MembersSkeleton />}>
           <Staff params={props.params} />

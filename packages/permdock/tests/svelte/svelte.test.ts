@@ -50,7 +50,7 @@ describe("permdock/svelte", () => {
       "default",
     );
     expect(viewFor(store, defs.post.update, otherPost, undefined).slot).toBe(
-      "fallback",
+      "denied",
     );
     expect(
       get(permissionFor(store, defs.post.update, () => ownPost)).allowed,
@@ -111,7 +111,7 @@ describe("permdock/svelte", () => {
     ].map((view) => [view.slot, view.status, view.allowed]);
     expect(slots).toEqual([
       ["default", "ready", true],
-      ["fallback", "ready", false],
+      ["denied", "ready", false],
     ]);
   });
 

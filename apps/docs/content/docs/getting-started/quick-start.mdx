@@ -135,7 +135,7 @@ export function DeleteButton({ post }) {
       permission={permissions.post.delete}
       data={post}
       pending={<Skeleton />}
-      fallback={null}
+      denied={null}
     >
       <button>Delete</button>
     </Protected>

@@ -11,7 +11,7 @@
   // svelte-ignore state_referenced_locally
   setPermDock({
     snapshot,
-    defaults: { fallback: no },
+    defaults: { denied: no },
     messages: { reasons: { 'no-grant': 'Geen toegang' } },
   });
   const describe = getDescribe();
@@ -25,7 +25,7 @@
   {#snippet children()}delete{/snippet}
 </Protected>|<Protected permission={permissions.post.delete} data={ownPost}>
   {#snippet children()}delete{/snippet}
-  {#snippet fallback()}own{/snippet}
+  {#snippet denied()}own{/snippet}
 </Protected>|<Protected permission={permissions.post.update} data={otherPost}>
   {#snippet children()}edit{/snippet}
 </Protected>|{describe($publish.decision).detail}

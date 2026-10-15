@@ -57,7 +57,7 @@ export type PermDockProviderProps = ProviderOptionsBase & {
 /** Provider-wide content for the `<Protected>` slots a component leaves out. */
 export type PermDockDefaults = {
   readonly pending?: SolidChild;
-  readonly fallback?: SolidChild | ((decision: Decision) => SolidChild);
+  readonly denied?: SolidChild | ((decision: Decision) => SolidChild);
   readonly approval?:
     | SolidChild
     | ((decision: ApprovalRequiredDecision) => SolidChild);
@@ -80,8 +80,8 @@ export type ProtectedProps = {
   readonly data?: unknown;
   readonly tenant?: string;
   readonly pending?: SolidChild;
-  readonly fallback?: SolidChild | ((decision: Decision) => SolidChild);
-  /** Rendered for an approval-required decision; defaults to `fallback`. */
+  readonly denied?: SolidChild | ((decision: Decision) => SolidChild);
+  /** Rendered for an approval-required decision; defaults to `denied`. */
   readonly approval?:
     | SolidChild
     | ((decision: ApprovalRequiredDecision) => SolidChild);

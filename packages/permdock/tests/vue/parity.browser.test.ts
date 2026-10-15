@@ -200,7 +200,7 @@ describe("permdock/vue parity", () => {
         h(
           Protected,
           { permission: permissions.post.read, data: "p1" },
-          { default: () => h("b", "granted"), fallback: () => h("i", "no") },
+          { default: () => h("b", "granted"), denied: () => h("i", "no") },
         ),
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);

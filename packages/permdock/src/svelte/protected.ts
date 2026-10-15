@@ -23,8 +23,8 @@ export type ProtectedProps = {
   readonly tenant?: string;
   readonly children?: Snippet<[GrantedDecision]>;
   readonly pending?: Snippet;
-  readonly fallback?: Snippet<[Decision]>;
-  /** Rendered for an approval-required decision; defaults to `fallback`. */
+  readonly denied?: Snippet<[Decision]>;
+  /** Rendered for an approval-required decision; defaults to `denied`. */
   readonly approval?: Snippet<[ApprovalRequiredDecision]>;
 };
 

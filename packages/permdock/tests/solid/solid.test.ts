@@ -65,13 +65,13 @@ describe("permdock/solid", () => {
             createComponent(Protected, {
               permission: permissions.post.update,
               data: ownPost,
-              fallback: "locked",
+              denied: "locked",
               children: "edit",
             }),
             createComponent(Protected, {
               permission: permissions.post.update,
               data: otherPost,
-              fallback: "locked",
+              denied: "locked",
               children: "edit",
             }),
           ];

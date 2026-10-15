@@ -23,9 +23,9 @@ export function Protected(props: ProtectedProps): JSX.Element {
     switch (current.slot) {
       case "pending":
         return slotContent("pending", props, ui.defaults) ?? null;
-      case "fallback":
+      case "denied":
         return content(
-          slotContent("fallback", props, ui.defaults),
+          slotContent("denied", props, ui.defaults),
           current.decision,
         );
       case "approval":

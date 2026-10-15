@@ -47,7 +47,7 @@ permdock.assert(permissions.post.update, post)
     code: `import { PermDockProvider, Protected } from 'permdock/react'
 
 <PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
-  <Protected permission={permissions.post.update} data={post} fallback={<Locked />}>
+  <Protected permission={permissions.post.update} data={post} denied={<Locked />}>
     <EditButton />
   </Protected>
 </PermDockProvider>

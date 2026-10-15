@@ -236,7 +236,7 @@ describe("permdock/vue <Protected>", () => {
               Protected,
               { permission: permissions.post.update, data: otherPost },
               {
-                fallback: ({ decision }: { decision: Decision }) =>
+                denied: ({ decision }: { decision: Decision }) =>
                   `no-${decision.outcome}`,
               },
             ),
@@ -270,7 +270,7 @@ describe("permdock/vue <Protected>", () => {
                 data: ownProject,
                 tenant: "acme",
               },
-              { default: () => "acme-edit", fallback: () => "acme-locked" },
+              { default: () => "acme-edit", denied: () => "acme-locked" },
             ),
             h(
               Protected,
@@ -279,7 +279,7 @@ describe("permdock/vue <Protected>", () => {
                 data: globexProject,
                 tenant: "globex",
               },
-              { default: () => "globex-edit", fallback: () => "globex-locked" },
+              { default: () => "globex-edit", denied: () => "globex-locked" },
             ),
           ];
         },

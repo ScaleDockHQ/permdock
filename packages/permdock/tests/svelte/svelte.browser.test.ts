@@ -159,7 +159,7 @@ describe("permdock/svelte (browser build)", () => {
     await unmount(app);
   });
 
-  it("<Protected> renders approval, fallback and setPermDock defaults", async () => {
+  it("<Protected> renders approval, denied and setPermDock defaults", async () => {
     const target = document.createElement("div");
     const app = mount(DefaultsHarness, {
       target,

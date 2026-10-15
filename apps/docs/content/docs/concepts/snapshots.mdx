@@ -132,9 +132,9 @@ The client instance has the same `can`, `decide`, `filter`, `tenant`, `team`, `m
 | `'ready'`       | Answered from the snapshot, or the endpoint has replied                                            | Render on `allowed`                               |
 | `'pending'`     | Not in the snapshot; an endpoint request is in flight                                              | Render the `pending` slot; never block navigation |
 | `'stale'`       | Answered from a snapshot or cache that has been invalidated; a refresh is in flight                | Render on `allowed`, expect a change              |
-| `'server-only'` | Not in the snapshot and no endpoint configured, or the permission is outside `include` and offline | Render `fallback`; treat as denied                |
+| `'server-only'` | Not in the snapshot and no endpoint configured, or the permission is outside `include` and offline | Render `denied`; treat as denied                  |
 
-`allowed` is always a boolean so guards never see `undefined`. During `'pending'` it is `false`. `<Protected>` maps the statuses to its `pending` and `fallback` props.
+`allowed` is always a boolean so guards never see `undefined`. During `'pending'` it is `false`. `<Protected>` maps the statuses to its `pending` and `denied` props.
 
 ### The decision endpoint
 
@@ -194,7 +194,7 @@ render(
 )
 ```
 
-Without an `endpoint`, closure grants resolve to `status: 'server-only'`, which is the correct thing to assert against in a component test: the component should render its `fallback`, not hang on `pending`. Storybook stories use the same fixtures. See the [testing adapter](/docs/adapters/testing).
+Without an `endpoint`, closure grants resolve to `status: 'server-only'`, which is the correct thing to assert against in a component test: the component should render its `denied`, not hang on `pending`. Storybook stories use the same fixtures. See the [testing adapter](/docs/adapters/testing).
 
 ## Size
 

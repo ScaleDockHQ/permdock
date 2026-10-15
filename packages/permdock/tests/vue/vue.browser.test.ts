@@ -44,7 +44,7 @@ function guarded(
           { permission: permission(), data: data() },
           {
             default: () => h("b", "granted"),
-            fallback: () => h("i", "denied"),
+            denied: () => h("i", "denied"),
             pending: () => h("u", "pending"),
           },
         );

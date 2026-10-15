@@ -84,7 +84,7 @@ export type NextPermDockProviderProps = {
    */
   readonly defaults?: {
     readonly pending?: ReactNode;
-    readonly fallback?: ReactNode;
+    readonly denied?: ReactNode;
     readonly approval?: ReactNode;
   };
   /** Localised text for `useDescribe()`; records only, for the same reason. */

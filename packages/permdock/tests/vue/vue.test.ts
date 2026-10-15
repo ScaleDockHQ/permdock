@@ -62,12 +62,12 @@ describe("permdock/vue", () => {
             h(
               Protected,
               { permission: permissions.post.update, data: ownPost },
-              { default: () => "edit", fallback: () => "locked" },
+              { default: () => "edit", denied: () => "locked" },
             ),
             h(
               Protected,
               { permission: permissions.post.update, data: otherPost },
-              { default: () => "edit", fallback: () => "locked" },
+              { default: () => "edit", denied: () => "locked" },
             ),
           ]);
       },
@@ -102,7 +102,7 @@ describe("permdock/vue", () => {
           h(
             Protected,
             { permission: permissions.post.update, data: ownPost },
-            { default: () => "edit", fallback: () => "locked" },
+            { default: () => "edit", denied: () => "locked" },
           );
       },
     });
