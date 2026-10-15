@@ -118,7 +118,7 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 
 ## Agent workflow
 
-One branch and one PR per chat or plan, small conventional commits (lower-case subject, at most 72 characters), and never merge unless asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end as an update to the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question rather than carry it forward.
+One branch and one PR per chat or plan, small conventional commits (lower-case subject, at most 150 characters), and never merge unless asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end as an update to the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question rather than carry it forward.
 
 ## Deviations
 
