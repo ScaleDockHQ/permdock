@@ -19,7 +19,7 @@ import { type Assignable, assignableIn } from "./assignable.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { customGrantsFor } from "./custom-roles.ts";
 import { decideForTarget } from "./decide-for.ts";
-import { evaluate } from "./evaluate.ts";
+import { evaluate } from "./evaluate/index.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";

@@ -12,7 +12,7 @@ import type { Membership, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { byCodePoint } from "./compare.ts";
-import { evaluate } from "./evaluate.ts";
+import { evaluate } from "./evaluate/index.ts";
 import { type EvalEnv, emptyListeners } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
 import { relationCondition } from "./grantee-conditions.ts";

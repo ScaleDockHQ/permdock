@@ -12,7 +12,7 @@ import {
   roleAllowKeys,
   tenantCustomRoles,
 } from "./custom-roles.ts";
-import { evaluate } from "./evaluate.ts";
+import { evaluate } from "./evaluate/index.ts";
 import { type EvalEnv, emptyListeners } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
