@@ -39,7 +39,7 @@ const approvals = memoryApprovalStore();
 const permdock = createPermDock(policy, {
   principals,
   memberships,
-  approvals,
+  store: approvals,
 });
 const delivery = createDelivery(policy, {
   transports: {
