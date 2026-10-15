@@ -86,6 +86,8 @@ describe.each(fixture.transmitters)(
         issuer: transmitter.claims.iss,
         audience: fixture.audience,
         jwks: { keys: [jwk] },
+        // Recorded SETs carry the iat of their capture, long past the default window.
+        maxTokenAge: Math.ceil(Date.now() / 1000),
         subject: userOf,
         onEvent: {
           "*": ({ type, subject }) => {

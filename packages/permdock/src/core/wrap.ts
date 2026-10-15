@@ -1,6 +1,8 @@
 import type { PermDock } from "./permdock.ts";
 import type { PolicyVocabulary } from "./policy-types.ts";
 
+import { attachInternals, internalsOf } from "./internals.ts";
+
 /** A wrapper an adapter applies to each instance it builds, as `withOtel` does. */
 export type PermDockWrap = <V extends PolicyVocabulary>(
   permdock: PermDock<V>,
@@ -21,7 +23,7 @@ export function wrapPermDock<V extends PolicyVocabulary = PolicyVocabulary>(
 ): PermDock<V> {
   const wrap = (next: PermDock<V>): PermDock<V> =>
     wrapPermDock(next, overrides);
-  return Object.freeze({
+  const wrapped: PermDock<V> = {
     ...permdock,
     ...overrides(permdock),
     tenant: (id: string): PermDock<V> => wrap(permdock.tenant(id)),
@@ -32,7 +34,14 @@ export function wrapPermDock<V extends PolicyVocabulary = PolicyVocabulary>(
       const derived = permdock.derive(options);
       return derived instanceof Promise ? derived.then(wrap) : wrap(derived);
     },
-  });
+  };
+  // The spread skips the non-enumerable internals: carry them over so
+  // feature functions (whoCan, decideCredential) work on a wrapped instance.
+  const internals = internalsOf(permdock);
+  if (internals !== undefined) {
+    attachInternals(wrapped, internals);
+  }
+  return Object.freeze(wrapped);
 }
 
 /** `otel`, then `wrap`. */

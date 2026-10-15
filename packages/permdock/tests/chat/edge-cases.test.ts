@@ -132,7 +132,7 @@ function chat(approvals?: ApprovalStore) {
   return createPermDock(policy, {
     principals,
     memberships,
-    ...(approvals === undefined ? {} : { approvals }),
+    ...(approvals === undefined ? {} : { store: approvals }),
   });
 }
 

@@ -339,6 +339,48 @@ describe("accessReviewApplier", () => {
     });
   });
 
+  it("keeps an item unapplied while the permission is still reachable through an approval", async () => {
+    const reviews = await reviewWith([
+      { principal: "u1", via: ["admin"], status: "revoked" },
+    ]);
+    const { client } = fakeClient();
+    const behindApproval = definePolicy(permissions, {
+      scopes: { tenant: { key: "orgId" } },
+      roles: [
+        role(
+          "member",
+          [allow(permissions.billing.manage, { approval: "human" })],
+          { on: "tenant" },
+        ),
+      ],
+      subject: (person: { readonly id: string } | null) =>
+        person === null ? null : { id: person.id },
+    });
+    const result = await accessReviewApplier({
+      client,
+      reviews,
+      policy,
+      permdockFor: (id, tenant) =>
+        createPermDock(behindApproval, {
+          principal: {
+            id,
+            tenant,
+            memberships: [{ scope: "tenant", id: tenant, roles: ["member"] }],
+          },
+          context: {},
+        }),
+    })("r1");
+    expect(result).toEqual({
+      applied: [],
+      failed: [
+        {
+          item: "r1:u1:billing.manage",
+          cause: "u1 still holds billing.manage after the change",
+        },
+      ],
+    });
+  });
+
   it("refuses to re-check a permission the policy lacks", async () => {
     const reviews = memoryAccessReviewStore();
     await reviews.create(

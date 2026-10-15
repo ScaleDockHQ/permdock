@@ -27,6 +27,7 @@ const policy = definePolicy(permissions, {
   subject: () => ({ id: "u1", roles: ["member"] }),
 });
 
+const NOW = Math.floor(Date.now() / 1000);
 const ISSUER = "https://login.example.com";
 const AUDIENCE = "https://app.example.com/ssf";
 const SESSION_REVOKED =
@@ -167,7 +168,7 @@ describe("receiver.push", () => {
       verifier: verifier(() => ({
         iss: ISSUER,
         aud: AUDIENCE,
-        iat: 1_700_000_000,
+        iat: NOW,
         jti: "set-1",
         sub_id: { format: "iss_sub", iss: ISSUER, sub: "user-1" },
         events: {
@@ -195,7 +196,7 @@ describe("receiver.push", () => {
       verifier: verifier(() => ({
         iss: "https://other.example.com",
         aud: AUDIENCE,
-        iat: 1_700_000_000,
+        iat: NOW,
         jti: "set-foreign",
         sub_id: { format: "iss_sub", iss: ISSUER, sub: "user-1" },
         events: { [SESSION_REVOKED]: {} },
@@ -237,7 +238,7 @@ describe("receiver.push", () => {
       verifier: verifier(() => ({
         iss: ISSUER,
         aud: AUDIENCE,
-        iat: 1_700_000_000,
+        iat: NOW,
         jti: "set-cancel",
         sub_id: { format: "iss_sub", iss: ISSUER, sub: "user-1" },
         events: {
@@ -266,7 +267,7 @@ describe("receiver.push", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "replay-1",
         sub_id: { format: "opaque", id: "user-1" },
         events: { [SESSION_REVOKED]: {} },
@@ -290,7 +291,7 @@ describe("receiver.push", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "unk-1",
         sub_id: { format: "email", email: "a@example.com" },
         events: { [UNKNOWN_EVENT]: { reason: "custom" } },
@@ -311,7 +312,7 @@ describe("receiver.push", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "unk-2",
         sub_id: { format: "email", email: "a@example.com" },
         events: { [UNKNOWN_EVENT]: { reason: "custom" } },
@@ -334,7 +335,7 @@ describe("receiver.push", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "proto-1",
         sub_id: { format: "email", email: "a@example.com" },
         events: { toString: {}, constructor: {} },
@@ -357,7 +358,7 @@ describe("receiver.push", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "nosub-1",
         sub_id: { format: "iss_sub", iss: ISSUER, sub: "other" },
         events: { [CREDENTIAL_CHANGE]: {} },
@@ -395,7 +396,7 @@ describe("receiver.push", () => {
       replay: memoryReplayStore(),
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "throw-1",
         sub: "user-1",
         events: { [SESSION_REVOKED]: {} },
@@ -420,7 +421,7 @@ describe("receiver.logout", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "logout-1",
         sub: "user-9",
         sid: "sess-9",
@@ -452,7 +453,7 @@ describe("receiver.logout", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "logout-nonce",
         sub: "user-9",
         nonce: "abc",
@@ -471,7 +472,7 @@ describe("receiver.logout", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "set-as-logout",
         events: { [BACKCHANNEL_LOGOUT_EVENT]: {} },
       })),
@@ -504,7 +505,7 @@ describe("receiver.poll", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "poll-1",
         sub_id: { format: "opaque", id: "user-2" },
         events: { [SESSION_REVOKED]: {} },
@@ -541,7 +542,7 @@ describe("receiver.poll", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "poll-fail",
         sub_id: { format: "opaque", id: "user-2" },
         events: { [SESSION_REVOKED]: {} },
@@ -576,7 +577,7 @@ describe("receiver.on", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "audit-1",
         sub_id: { format: "opaque", id: "user-3" },
         events: { [SESSION_REVOKED]: {} },
@@ -611,7 +612,7 @@ describe("replay claim", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "race-1",
         sub_id: { format: "opaque", id: "user-1" },
         events: { [SESSION_REVOKED]: {} },
@@ -644,7 +645,7 @@ describe("replay claim", () => {
         replay,
         verifier: verifier(() => ({
           iss: issuer,
-          iat: 1,
+          iat: NOW,
           jti: "shared-jti",
           sub_id: { format: "opaque", id: "user-1" },
           events: { [SESSION_REVOKED]: {} },
@@ -675,7 +676,7 @@ describe("replay claim", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "multi-1",
         sub_id: { format: "opaque", id: "user-1" },
         events: { [SESSION_REVOKED]: {}, [CREDENTIAL_CHANGE]: {} },
@@ -718,7 +719,7 @@ describe("replay claim", () => {
       },
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "legacy-1",
         sub_id: { format: "opaque", id: "user-1" },
         events: { [SESSION_REVOKED]: {} },
@@ -741,7 +742,7 @@ describe("revocations", () => {
     return (): Record<string, unknown> => ({
       iss: ISSUER,
       aud: AUDIENCE,
-      iat: 1_700_000_000,
+      iat: NOW,
       jti,
       sub_id: { format: "iss_sub", iss: ISSUER, sub: "user-1" },
       events: { [event]: { event_timestamp: 1_700_000_100, sid: "sess-1" } },
@@ -857,7 +858,7 @@ describe("stream verification", () => {
       verifier: verifier(() => ({
         iss: ISSUER,
         aud: AUDIENCE,
-        iat: 1,
+        iat: NOW,
         jti: "verify-1",
         sub_id: { format: "opaque", id: "stream-1" },
         events: { [VERIFICATION]: { state: "abc" } },
@@ -883,7 +884,7 @@ describe("stream verification", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "verify-2",
         events: { [VERIFICATION]: {} },
       })),
@@ -898,7 +899,7 @@ describe("stream verification", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "verify-3",
         events: { [VERIFICATION]: { state: "x" } },
       })),
@@ -918,7 +919,7 @@ describe("stream verification", () => {
       audience: AUDIENCE,
       verifier: verifier(() => ({
         iss: ISSUER,
-        iat: 1,
+        iat: NOW,
         jti: "logout-fail",
         sub: "user-9",
         sid: "sess-9",

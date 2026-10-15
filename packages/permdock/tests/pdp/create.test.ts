@@ -371,12 +371,6 @@ describe("permdock/pdp createPermDock", () => {
         ]),
       ).toEqual([["post.read", "granted"]]);
     });
-
-    it("delegates an Arazzo plan to the local instance", async () => {
-      const permdock = await createPermDock(policyWith([]), member);
-      const plan = permdock.simulate({ arazzo: {}, openapi: {} });
-      expect(plan instanceof Promise).toBe(false);
-    });
   });
 
   describe("filter", () => {

@@ -1,5 +1,6 @@
 import { use, useMemo, useSyncExternalStore } from "react";
 
+import type { GateMode, GateView } from "../client/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
 import type { Permission } from "../core/permission-types.ts";
@@ -22,6 +23,7 @@ import {
   approvalHandle,
   describeWith,
   filterResult,
+  gateView,
   permissionSet,
   rolesView,
   subjectView,
@@ -151,4 +153,29 @@ export function useDescribe(): (
 
 export function useApproval(decision: Decision): ApprovalHandle {
   return approvalHandle(storeOf(usePermDock()), decision);
+}
+
+/**
+ * What a permission-gated control renders: `hidden`, `disabled`,
+ * `needsApproval`, `upgrade` and a localised `reason`, from the same
+ * snapshot as `usePermission`. React and React Native share it; a recipe
+ * renders the fields and decides nothing.
+ */
+export function useGate(
+  permission: Permission,
+  data?: unknown,
+  options: { readonly mode?: GateMode } = {},
+): GateView {
+  const state = usePermission(permission, data);
+  const describeDecision = useDescribe();
+  const mode = options.mode ?? "disable";
+  return useMemo(
+    () =>
+      gateView(
+        state,
+        (decision) => describeDecision(decision, { permission }),
+        mode,
+      ),
+    [state, describeDecision, permission, mode],
+  );
 }

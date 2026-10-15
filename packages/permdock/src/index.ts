@@ -74,7 +74,11 @@ export type {
   PrincipalIdentityLink,
   PrincipalSource,
 } from "./core/principal-source.ts";
-export { memoryAutomationSource, parseAutomation } from "./core/automation.ts";
+export {
+  decideAutomation,
+  memoryAutomationSource,
+  parseAutomation,
+} from "./core/automation.ts";
 export type {
   Automation,
   AutomationDecision,
@@ -84,7 +88,10 @@ export type {
   DecideAutomationOptions,
   MemoryAutomationSource,
 } from "./core/automation.ts";
-export { parseSupportSession } from "./core/support-session.ts";
+export {
+  decideSupportSession,
+  parseSupportSession,
+} from "./core/support-session.ts";
 export type {
   DecideSupportSessionOptions,
   SupportSession,
@@ -93,11 +100,13 @@ export type {
   SupportSessionRequest,
 } from "./core/support-session.ts";
 export {
-  APPROVAL_POLICY_UNAVAILABLE,
+  approvalPolicies,
   memoryApprovalPolicySource,
   validateApprovalPolicy,
 } from "./core/approval-policies.ts";
+export { APPROVAL_POLICY_UNAVAILABLE } from "./core/approval-state.ts";
 export type {
+  ApprovalPolicies,
   ApprovalPolicy,
   ApprovalPolicyProblem,
   ApprovalPolicySource,
@@ -117,10 +126,12 @@ export type {
   MemoryEdge,
   MemoryRelationSourceData,
 } from "./core/memory-relations.ts";
+export { whoCan } from "./core/who-can.ts";
 export type { Holder, HoldingVia, WhoCan } from "./core/who-can.ts";
 export {
   isPortableCondition,
   memoryPolicySource,
+  hostedPolicies,
   mergeHostedGrants,
   parsePolicyDocument,
   policyDocumentFromClaims,
@@ -194,7 +205,15 @@ export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";
 export { createPermDock, parseSnapshot } from "./core/permdock.ts";
+export { defineApp } from "./core/app.ts";
+export type { AppOptions, AppProfile } from "./core/app.ts";
 export { wrapPermDock } from "./core/wrap.ts";
+export { shadowMode } from "./core/shadow.ts";
+export type {
+  LegacyCheck,
+  ShadowMismatch,
+  ShadowOptions,
+} from "./core/shadow.ts";
 export type { PermDockOverrides, PermDockWrap } from "./core/wrap.ts";
 export type { RequestContext } from "./core/request-context.ts";
 export { mayAccess } from "./core/may-access.ts";
@@ -338,7 +357,7 @@ export type {
   SupportConsent,
   ValidateMode,
 } from "./core/policy-types.ts";
-export { breakGlass, supportAccess } from "./core/elevated.ts";
+export { activate, breakGlass, supportAccess } from "./core/elevated.ts";
 export type { ActivateInput } from "./core/elevated.ts";
 export {
   actor,
@@ -379,6 +398,7 @@ export type {
   Vocabulary,
   VocabularyOptions,
 } from "./core/vocabulary.ts";
+export { decideRoleChange } from "./core/ownership.ts";
 export type {
   RoleChange,
   RoleChangeDecision,
@@ -459,6 +479,7 @@ export type {
 export {
   credentialDelegation,
   credentialPolicyViolation,
+  decideCredential,
   isFeedId,
   parseCredential,
 } from "./core/credential.ts";

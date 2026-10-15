@@ -31,8 +31,7 @@ const policy = definePolicy(
         allow(permissions.post.delete, { approval: "human" }),
       ]),
     ],
-    principal: (user: User | null) =>
-      user && { id: user.id, roles: user.roles },
+    subject: (user: User | null) => user && { id: user.id, roles: user.roles },
   },
 );
 

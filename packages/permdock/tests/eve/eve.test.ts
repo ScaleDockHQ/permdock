@@ -97,6 +97,7 @@ const deleteOwn = { toolName: "delete_post", toolInput: { id: "p1" } };
 describe("permdock/eve", () => {
   it("maps granted to not-applicable and denied to a typed denial", async () => {
     const { approval, getPermDock } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       operations: tools(),
       delegation: () => delegated,
     });
@@ -181,6 +182,7 @@ describe("permdock/eve", () => {
 
   it("denies the re-check of a call nobody approved", async () => {
     const { approval } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       operations: tools(),
       delegation: () => delegated,
     });
@@ -225,6 +227,7 @@ describe("permdock/eve", () => {
 
   it("rejects a response for a call that never asked", async () => {
     const { approval } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       operations: tools(),
       delegation: () => delegated,
     });
@@ -237,6 +240,7 @@ describe("permdock/eve", () => {
 
   it("builds a single-tool pair with approvalFor and ignores tool-input subjects", async () => {
     const { approvalFor } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       operations: tools(),
       delegation: () => delegated,
     });
@@ -249,6 +253,7 @@ describe("permdock/eve", () => {
 
   it("treats missing session auth as anonymous", async () => {
     const { approval } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       operations: tools(),
       delegation: () => delegated,
     });

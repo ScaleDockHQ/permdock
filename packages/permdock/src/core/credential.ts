@@ -9,6 +9,7 @@ import { coveredByDelegation } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { type Grantee, flattenGrantee } from "./grantee.ts";
 import { idList, isId } from "./ids.ts";
+import { type InstanceHandle, internalsOf } from "./internals.ts";
 import { ownRecord } from "./paths.ts";
 import { formerKeys } from "./permission-leaf.ts";
 import { listPermissions } from "./permission-registry.ts";
@@ -778,10 +779,40 @@ export function credentialTenant(
  * its token. PermDock never stores the credential; the application does,
  * after a `granted` result.
  */
-export async function decideCredential(
-  permdock: PermDock,
+/**
+ * Decides whether the subject of `permdock` may create the credential in
+ * `request`: the creator's own reach, the `credentials` policy of the key's
+ * tenant (the call's `settings`, else the instance's), and `approval`.
+ * PermDock never stores the credential; the application does, after a
+ * `granted` result. An instance built from a snapshot denies with
+ * `unsupported`.
+ */
+export function decideCredential(
+  permdock: InstanceHandle,
   request: CredentialRequest,
   options: DecideCredentialOptions = {},
+): Promise<CredentialDecision> {
+  const internals = internalsOf(permdock);
+  if (internals === undefined) {
+    return Promise.resolve(
+      freezeDeep({
+        outcome: "denied" as const,
+        denials: [{ role: null, reason: "unsupported" as const }],
+      }),
+    );
+  }
+  const settings = options.settings ?? internals.env.settings;
+  return decideCredentialWith(
+    internals.instance,
+    request,
+    settings === undefined ? options : { ...options, settings },
+  );
+}
+
+async function decideCredentialWith(
+  permdock: PermDock,
+  request: CredentialRequest,
+  options: DecideCredentialOptions,
 ): Promise<CredentialDecision> {
   const checked = checkRequest(permdock, request, nowSeconds(options.now));
   if (!checked.ok) {

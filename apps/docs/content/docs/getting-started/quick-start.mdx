@@ -71,7 +71,7 @@ export const policy = definePolicy(
   { permissions, roles },
   {
     roles: [member, admin],
-    principal: (user: User | null) =>
+    subject: (user: User | null) =>
       user && { id: user.id, orgId: user.orgId, roles: user.roles },
     validate: "boundary",
   },

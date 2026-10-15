@@ -146,7 +146,7 @@ describe("resendWebhook", () => {
     expect(sink.events()).toEqual([]);
   });
 
-  it("refuses a bad signature with 401 Problem Details and writes nothing", async () => {
+  it("refuses a bad signature with 403 Problem Details and writes nothing", async () => {
     const { sink, handler } = setup();
     const request = await signed(emailEvent("email.delivered"));
     const tampered = new Request(request.url, {
@@ -155,7 +155,7 @@ describe("resendWebhook", () => {
       body: JSON.stringify(emailEvent("email.bounced")),
     });
     const response = await handler(tampered);
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(403);
     expect(response.headers.get("content-type")).toBe(
       "application/problem+json",
     );
@@ -165,7 +165,7 @@ describe("resendWebhook", () => {
         body: "{}",
       }),
     );
-    expect(unsigned.status).toBe(401);
+    expect(unsigned.status).toBe(400);
     expect(sink.events()).toEqual([]);
   });
 

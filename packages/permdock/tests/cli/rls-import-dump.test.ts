@@ -238,10 +238,10 @@ create policy "posts_read" on post for select to authenticated using ((select au
     writeFileSync(
       join(cwd, "members.sql"),
       `create policy "posts_read" on post for select to authenticated using (
-  exists (select 1 from organization_members m where m.organization_id = "orgId")
+  exists (select 1 from organization_members m where m."orgId" = post."orgId" and m.user_id = auth.uid() and m.role = 'owner')
 );
 create policy "posts_list" on post for select to authenticated using (
-  "orgId" in (select organization_id from organization_members)
+  "orgId" in (select "orgId" from organization_members where user_id = auth.uid())
 );
 `,
     );
@@ -281,5 +281,6 @@ create policy "posts_list" on post for select to authenticated using (
     );
     expect(generated).toContain('"op": "memberOf"');
     expect(generated).toContain('"scope": "tenant"');
+    expect(generated).toContain('"owner"');
   });
 });

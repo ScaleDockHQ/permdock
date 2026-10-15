@@ -1,0 +1,14 @@
+---
+title: preset
+description: Decode a preset code into its archetype, features, stack and services, or print the permdock.com/create link that opens it.
+---
+
+`permdock preset decode <code>` prints what a [preset](/docs/concepts/presets) code holds. `permdock preset url <code>` prints the [/create](https://permdock.com/create) link that opens it in the builder.
+
+```bash
+permdock preset decode p1AQIDBAc
+permdock preset decode p1AQIDBAc --json
+permdock preset url p1AQIDBAc
+```
+
+A code this version does not read, including one with a newer version prefix, exits `2`.

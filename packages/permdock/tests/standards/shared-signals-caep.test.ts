@@ -34,7 +34,7 @@ const permissions = definePermissions({
   }),
 });
 const policy = definePolicy(permissions, {
-  principal: () => null,
+  subject: () => null,
   grants: [allow(permissions.post.read, { to: { kind: "authenticated" } })],
 });
 
@@ -231,7 +231,7 @@ describe("RFC 8935 push delivery", () => {
     expect(json.status).toBe(400);
     expect(await json.json()).toMatchObject({ err: "invalid_request" });
     const get = await handle.push(new Request(AUDIENCE));
-    expect(get.status).toBe(400);
+    expect(get.status).toBe(405);
   });
 
   it("section 2.2: a redelivered jti is acknowledged and acted on once", async () => {

@@ -38,5 +38,5 @@ export const policy = definePolicy(permissions, {
       where: { archived: { eq: true } },
     }),
   ],
-  principal: (user: { readonly id: string } | null) => user,
+  subject: (user: { readonly id: string } | null) => user,
 });

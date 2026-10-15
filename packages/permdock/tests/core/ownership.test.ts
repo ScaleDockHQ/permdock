@@ -11,6 +11,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { decideRoleChange } from "../../src/index.ts";
 import {
   customRoles,
   documents,
@@ -33,7 +34,7 @@ type NamedChange = Extract<RoleChange, { readonly id: string }>;
 
 const staffTarget = { id: "u_new", via: "staff", roles: [] };
 
-function reasons(decision: ReturnType<PermDock["decideRoleChange"]>) {
+function reasons(decision: ReturnType<typeof decideRoleChange>) {
   return decision.outcome === "denied"
     ? decision.denials.map((denial) => denial.reason)
     : [];
@@ -201,14 +202,14 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
     const owner = await permdockFor(personas.owner);
     const admin = await permdockFor(personas.admin);
     const change = inT({ role: "owner" });
-    expect(owner.decideRoleChange(change)).toMatchObject({
+    expect(decideRoleChange(owner, change)).toMatchObject({
       outcome: "granted",
       role: "owner",
     });
-    expect(reasons(admin.decideRoleChange(change))).toEqual([
+    expect(reasons(decideRoleChange(admin, change))).toEqual([
       "not-assignable-by",
     ]);
-    expect(admin.decideRoleChange(inT({ role: "viewer" }))).toMatchObject({
+    expect(decideRoleChange(admin, inT({ role: "viewer" }))).toMatchObject({
       outcome: "granted",
       role: "admin",
     });
@@ -238,13 +239,15 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
     const other = { id: "u_other", via: "staff", roles: ["owner"] };
     expect(
       reasons(
-        owner.decideRoleChange(
+        decideRoleChange(
+          owner,
           inT({ kind: "revoke", role: "owner", target: other, holders: 1 }),
         ),
       ),
     ).toEqual(["last-holder"]);
     expect(
-      owner.decideRoleChange(
+      decideRoleChange(
+        owner,
         inT({ kind: "revoke", role: "owner", target: other, holders: 2 }),
       ).outcome,
     ).toBe("granted");
@@ -252,7 +255,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
 
   it("denies a count rule when the holder count is unknown", async () => {
     const owner = await permdockFor(personas.owner);
-    const decision = owner.decideRoleChange({
+    const decision = decideRoleChange(owner, {
       kind: "revoke",
       role: "owner",
       scope: "organization",
@@ -271,7 +274,8 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
     const self = { id: "u_owner", via: "staff", roles: ["owner"] };
     expect(
       reasons(
-        owner.decideRoleChange(
+        decideRoleChange(
+          owner,
           inT({ kind: "revoke", role: "owner", target: self, holders: 2 }),
         ),
       ),
@@ -281,12 +285,12 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       role: "owner",
       target: { id: "u_admin", via: "staff", roles: ["admin"] },
     });
-    expect(owner.decideRoleChange(transfer)).toMatchObject({
+    expect(decideRoleChange(owner, transfer)).toMatchObject({
       outcome: "granted",
       role: "owner",
     });
     expect(
-      reasons(admin.decideRoleChange({ ...transfer, target: staffTarget })),
+      reasons(decideRoleChange(admin, { ...transfer, target: staffTarget })),
     ).toEqual(["not-assignable-by"]);
   });
 
@@ -299,7 +303,8 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       managedBy: "idp",
     } as const;
     expect(
-      owner.decideRoleChange(
+      decideRoleChange(
+        owner,
         inT({ kind: "assign", role: "admin", target: managed }),
       ),
     ).toMatchObject({
@@ -308,7 +313,8 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
     });
     expect(
       reasons(
-        owner.decideRoleChange(
+        decideRoleChange(
+          owner,
           inT({ kind: "revoke", role: "member", target: managed, holders: 3 }),
         ),
       ),
@@ -317,7 +323,8 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
 
   it("keeps the contact role off staff memberships and admin off contacts", async () => {
     const owner = await permdockFor(personas.owner);
-    const contact = owner.decideRoleChange(
+    const contact = decideRoleChange(
+      owner,
       {
         kind: "assign",
         role: "contact",
@@ -329,7 +336,8 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       { trusted: true },
     );
     expect(reasons(contact)).toEqual(["not-allowed-for-membership"]);
-    const admin = owner.decideRoleChange(
+    const admin = decideRoleChange(
+      owner,
       inT({ role: "admin", target: { id: "u_c", via: "contact", roles: [] } }),
     );
     expect(reasons(admin)).toEqual(["not-allowed-for-membership"]);
@@ -337,10 +345,11 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
 
   it("keeps a custom role off the membership kinds its included roles exclude", async () => {
     const owner = await permdockFor(personas.owner);
-    expect(owner.decideRoleChange(inT({ role: "mechanic" }))).toMatchObject({
+    expect(decideRoleChange(owner, inT({ role: "mechanic" }))).toMatchObject({
       outcome: "granted",
     });
-    const contact = owner.decideRoleChange(
+    const contact = decideRoleChange(
+      owner,
       inT({
         role: "mechanic",
         target: { id: "u_c", via: "contact", roles: [] },
@@ -366,12 +375,12 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       within: { organization: "T" },
       target: { id: "u_c", via: "contact", roles: [] },
     };
-    expect(admin.decideRoleChange(change, { trusted: true })).toMatchObject({
+    expect(decideRoleChange(admin, change, { trusted: true })).toMatchObject({
       outcome: "granted",
       role: "admin",
     });
     const { within: _, ...bare } = change;
-    expect(reasons(admin.decideRoleChange(bare, { trusted: true }))).toEqual([
+    expect(reasons(decideRoleChange(admin, bare, { trusted: true }))).toEqual([
       "no-membership",
     ]);
   });
@@ -386,10 +395,10 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       within: { organization: "T" },
       target: { id: "u_c", via: "contact", roles: [] },
     };
-    expect(reasons(admin.decideRoleChange(assign))).toEqual(["no-membership"]);
+    expect(reasons(decideRoleChange(admin, assign))).toEqual(["no-membership"]);
     expect(
       reasons(
-        admin.decideRoleChange({
+        decideRoleChange(admin, {
           ...assign,
           kind: "revoke",
           target: { id: "u_staff_contact", via: "contact", roles: ["contact"] },
@@ -401,15 +410,17 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
   it("denies anonymous callers, unknown roles and the wrong scope", async () => {
     const anonymous = await createPermDock(policy, null);
     const owner = await permdockFor(personas.owner);
-    expect(reasons(anonymous.decideRoleChange(inT({})))).toEqual(["anonymous"]);
-    expect(reasons(owner.decideRoleChange(inT({ role: "ghost" })))).toEqual([
+    expect(reasons(decideRoleChange(anonymous, inT({})))).toEqual([
+      "anonymous",
+    ]);
+    expect(reasons(decideRoleChange(owner, inT({ role: "ghost" })))).toEqual([
       "unknown-role",
     ]);
-    expect(reasons(owner.decideRoleChange(inT({ role: "contact" })))).toEqual([
+    expect(reasons(decideRoleChange(owner, inT({ role: "contact" })))).toEqual([
       "scope",
     ]);
     expect(
-      reasons(owner.decideRoleChange({ ...inT({}), target: { id: "" } })),
+      reasons(decideRoleChange(owner, { ...inT({}), target: { id: "" } })),
     ).toEqual(["validation"]);
   });
 
@@ -419,7 +430,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
-    expect(reasons(fromSnapshot(snapshot).decideRoleChange(inT({})))).toEqual([
+    expect(reasons(decideRoleChange(fromSnapshot(snapshot), inT({})))).toEqual([
       "unsupported",
     ]);
   });
@@ -471,15 +482,15 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
 
   it("caps holders and only moves a transfer-only role by transfer", async () => {
     const permdock = await createPermDock(strict, primary);
-    expect(reasons(permdock.decideRoleChange(change({})))).toEqual([
+    expect(reasons(decideRoleChange(permdock, change({})))).toEqual([
       "max-holders",
       "transfer-only",
     ]);
-    expect(permdock.decideRoleChange(change({ holders: 0 })).outcome).toBe(
+    expect(decideRoleChange(permdock, change({ holders: 0 })).outcome).toBe(
       "granted",
     );
     expect(
-      permdock.decideRoleChange(change({ kind: "transfer" })).outcome,
+      decideRoleChange(permdock, change({ kind: "transfer" })).outcome,
     ).toBe("granted");
   });
 
@@ -498,7 +509,8 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
     "fails closed on $name with an unknown holder count",
     async ({ extra, reason }) => {
       const permdock = await createPermDock(strict, primary);
-      const decision = permdock.decideRoleChange(
+      const decision = decideRoleChange(
+        permdock,
         change({ ...extra, holders: Number.NaN }),
       );
       expect(reasons(decision)).toEqual([reason]);
@@ -509,11 +521,13 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
     const permdock = await createPermDock(strict, primary);
     expect({
       transfer: reasons(
-        permdock.decideRoleChange(
+        decideRoleChange(
+          permdock,
           change({ kind: "transfer", target: { id: "u_primary", roles: [] } }),
         ),
       ),
-      revoke: permdock.decideRoleChange(
+      revoke: decideRoleChange(
+        permdock,
         change({
           kind: "revoke",
           target: { id: "u_next", roles: ["creator"] },
@@ -525,7 +539,8 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
 
   it("refuses a role the target cannot hold alongside one it has", async () => {
     const permdock = await createPermDock(strict, primary);
-    const decision = permdock.decideRoleChange(
+    const decision = decideRoleChange(
+      permdock,
       change({ role: "approver", target: { id: "u_c", roles: ["creator"] } }),
     );
     expect(decision).toMatchObject({
@@ -630,7 +645,7 @@ describe("ownership: authority comes from live, held memberships", () => {
       "admin",
     );
     expect(
-      permdock.decideRoleChange({
+      decideRoleChange(permdock, {
         kind: "assign",
         role: "admin",
         scope: "org",
@@ -667,7 +682,7 @@ describe("ownership: authority comes from live, held memberships", () => {
     });
     expect(
       reasons(
-        permdock.decideRoleChange({
+        decideRoleChange(permdock, {
           kind: "assign",
           role: "lead",
           scope: "team",
@@ -693,15 +708,15 @@ describe("ownership: authority comes from live, held memberships", () => {
       id: "X",
       target: { id: "u_c", roles: [] },
     };
-    expect(permdock.decideRoleChange(change)).toMatchObject({
+    expect(decideRoleChange(permdock, change)).toMatchObject({
       outcome: "granted",
       role: "lead",
     });
     expect(
-      permdock.decideRoleChange({ ...change, within: { org: "A" } }).outcome,
+      decideRoleChange(permdock, { ...change, within: { org: "A" } }).outcome,
     ).toBe("granted");
     expect(
-      reasons(permdock.decideRoleChange({ ...change, within: { org: "B" } })),
+      reasons(decideRoleChange(permdock, { ...change, within: { org: "B" } })),
     ).toEqual(["no-membership"]);
   });
 });

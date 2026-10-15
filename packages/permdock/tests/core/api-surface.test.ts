@@ -92,7 +92,7 @@ describe("typed vocabulary", () => {
       { permissions, roles, plans },
       {
         scopes: { tenant: { key: "orgId" } },
-        principal: () => ({
+        subject: () => ({
           id: "u1",
           roles: ["owner"],
           memberships: [{ tenant: "acme", roles: ["owner"] }],
@@ -114,14 +114,14 @@ describe("typed vocabulary", () => {
 describe("grantee selectors", () => {
   it("grants anyone including anonymous", async () => {
     const policy = definePolicy(permissions, {
-      principal: () => null,
+      subject: () => null,
       grants: [allow(permissions.post.read, { to: anyone() })],
     });
     const permdock = await createPermDock(policy, null);
     expect(permdock.can(permissions.post.read, row)).toBe(true);
     const denied = await createPermDock(
       definePolicy(permissions, {
-        principal: () => null,
+        subject: () => null,
         grants: [allow(permissions.post.read, { to: authenticated() })],
       }),
       null,
@@ -134,7 +134,7 @@ describe("grantee selectors", () => {
       { permissions, roles, plans },
       {
         scopes: { tenant: { key: "orgId" } },
-        principal: (user: {
+        subject: (user: {
           readonly id: string;
           readonly plans?: readonly string[];
         }) => ({
@@ -191,7 +191,7 @@ describe("grantee selectors", () => {
       { permissions, roles },
       {
         scopes: { tenant: { key: "orgId" } },
-        principal: () => ({
+        subject: () => ({
           id: "u1",
           tenant: "acme",
           memberships: [{ tenant: "acme", roles: ["member"] }],
@@ -206,7 +206,7 @@ describe("grantee selectors", () => {
   it("throws when a top-level grant is missing to", () => {
     expect(() =>
       definePolicy(permissions, {
-        principal: () => ({ id: "u1" }),
+        subject: () => ({ id: "u1" }),
         grants: [allow(permissions.post.read)],
       }),
     ).toThrow("missing to");
@@ -216,7 +216,7 @@ describe("grantee selectors", () => {
 describe("principal refs and snapshots", () => {
   it("evaluates principal.id in where", async () => {
     const policy = definePolicy(permissions, {
-      principal: () => ({ id: "u1", roles: ["member"] }),
+      subject: () => ({ id: "u1", roles: ["member"] }),
       roles: [
         role("member", [
           allow(permissions.post.update, {
@@ -234,7 +234,7 @@ describe("principal refs and snapshots", () => {
       { permissions, roles, plans },
       {
         scopes: { tenant: { key: "orgId" } },
-        principal: () => ({
+        subject: () => ({
           id: "u1",
           memberships: [{ tenant: "acme", roles: ["owner"] }],
         }),

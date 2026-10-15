@@ -33,6 +33,7 @@ import {
   permittedIdsHelper,
   scopeTable,
 } from "../../src/cli/sql/names.ts";
+import { textArrayLiteral } from "../../src/cli/sql/quote.ts";
 import {
   subjectClaimJsonSql,
   subjectClaimSql,
@@ -332,7 +333,7 @@ describe("compileConditionSql values and refs", () => {
   it.each([
     [
       { op: "eq", field: "at", value: { date: "2026-01-01" } },
-      `"at" = '2026-01-01'`,
+      `"at" = '2026-01-01T00:00:00.000Z'`,
     ],
     [{ op: "eq", field: "n", value: Number.POSITIVE_INFINITY }, `"n" = null`],
     [{ op: "ne", field: "b", value: false }, `"b" <> false`],
@@ -582,6 +583,16 @@ describe("compileConditionSql memberOf", () => {
     );
     expect(out).toBe(
       `("id" in (select m."doc_id" from "doc_members" m where m."user_id" = (select "permdock".permdock_user_id())) or "parent_id" in (select m."doc_id" from "doc_members" m where m."user_id" = (select "permdock".permdock_user_id())) or "folder_id" in (select m."folder_id" from "folder_members" m where m."user_id" = (select "permdock".permdock_user_id())))`,
+    );
+  });
+
+  it("quotes role names that would split an array literal, and compiles an empty in", () => {
+    expect(textArrayLiteral(["admin", "a,b", 'x"y', "null", "o'k"])).toBe(
+      `'{admin,"a,b","x\\"y","null",o''k}'`,
+    );
+    expect(sql({ op: "in", field: "id", value: [] })).toBe("false");
+    expect(sql({ op: "notIn", field: "id", value: [] })).toBe(
+      `"id" is not null`,
     );
   });
 

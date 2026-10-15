@@ -51,12 +51,64 @@ function notFound(detail: string): Response {
 }
 
 async function readJson(request: Request): Promise<unknown> {
+  const type = request.headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (type !== "application/json") {
+    return validationProblem(
+      "AuthZEN requests must use Content-Type: application/json",
+    );
+  }
   try {
     return await request.json();
   } catch {
     return validationProblem("AuthZEN body was not valid JSON");
   }
 }
+
+type Required = {
+  readonly subject?: "type" | "type-id";
+  readonly action?: true;
+  readonly resource?: "type" | "type-id";
+};
+
+/**
+ * The 400 for a request missing a required entity or one of its required
+ * fields (AuthZEN 1.0 sections 5, 6.1 and 10.1.1), or `undefined`.
+ */
+function missingProblem(
+  body: Readonly<Record<string, unknown>>,
+  required: Required,
+): Response | undefined {
+  for (const name of ["subject", "resource"] as const) {
+    const needs = required[name];
+    if (needs === undefined) {
+      continue;
+    }
+    const entity = body[name];
+    if (!isRecord(entity) || typeof entity["type"] !== "string") {
+      return validationProblem(`${name}.type is required`);
+    }
+    if (needs === "type-id" && typeof entity["id"] !== "string") {
+      return validationProblem(`${name}.id is required`);
+    }
+  }
+  if (required.action === true) {
+    const action = body["action"];
+    if (!isRecord(action) || typeof action["name"] !== "string") {
+      return validationProblem("action.name is required");
+    }
+  }
+  return undefined;
+}
+
+const EVALUATION: Required = {
+  subject: "type-id",
+  action: true,
+  resource: "type-id",
+};
 
 const WELL_KNOWN = "/.well-known/authzen-configuration";
 
@@ -204,6 +256,10 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     if (!isRecord(body)) {
       return validationProblem("evaluation body must be an object");
     }
+    const missing = missingProblem(body, EVALUATION);
+    if (missing !== undefined) {
+      return missing;
+    }
     return Response.json(await rowOf(request, pep, body));
   }
 
@@ -223,7 +279,10 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
       return validationProblem("evaluations must be an array");
     }
     if (items.length === 0) {
-      return Response.json(await rowOf(request, pep, body));
+      return (
+        missingProblem(body, EVALUATION) ??
+        Response.json(await rowOf(request, pep, body))
+      );
     }
     if (items.length > maxEvaluations) {
       return batchTooLarge(maxEvaluations);
@@ -255,6 +314,13 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     }
     if (!isRecord(body)) {
       return validationProblem("search/action body must be an object");
+    }
+    const missingAction = missingProblem(body, {
+      subject: "type-id",
+      resource: "type-id",
+    });
+    if (missingAction !== undefined) {
+      return missingAction;
     }
     const item: AuthzenItem = body;
     const type =
@@ -319,6 +385,14 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     if (!isRecord(body)) {
       return validationProblem("search/resource body must be an object");
     }
+    const missingResource = missingProblem(body, {
+      subject: "type-id",
+      action: true,
+      resource: "type",
+    });
+    if (missingResource !== undefined) {
+      return missingResource;
+    }
     const item: AuthzenItem = body;
     const type =
       typeof item.resource?.type === "string" ? item.resource.type : undefined;
@@ -371,6 +445,14 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     }
     if (!isRecord(body)) {
       return validationProblem("search/subject body must be an object");
+    }
+    const missingSubject = missingProblem(body, {
+      subject: "type",
+      action: true,
+      resource: "type-id",
+    });
+    if (missingSubject !== undefined) {
+      return missingSubject;
     }
     let records: readonly {
       readonly id: string;

@@ -205,9 +205,9 @@ export function definePolicy<
       : { permissions: permissions as PermissionTree }
   ) as VocabularyFromInput<Input>;
   const tree = vocabulary.permissions;
-  const mapper = options.principal ?? options.subject;
-  if (mapper === undefined) {
-    throw new Error("PermDock: definePolicy requires principal or subject");
+  const mapper = options.subject;
+  if (typeof mapper !== "function") {
+    throw new TypeError("PermDock: definePolicy requires a subject function");
   }
   const resources = getRegistry(tree);
   assertParentGraph(resources);
@@ -272,7 +272,7 @@ export function definePolicy<
       ),
     ),
   ].toSorted();
-  // SAFETY: TUser and TPrincipal only type options.principal, the mapper stored here as is.
+  // SAFETY: TUser and TPrincipal only type options.subject, the mapper stored here as is.
   return freezeDeep({
     permissions: tree,
     roles,

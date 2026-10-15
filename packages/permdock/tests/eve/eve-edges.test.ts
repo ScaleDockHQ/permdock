@@ -91,6 +91,7 @@ describe("permdock/eve responses", () => {
   it("asks an approvers function and rejects a responder it refuses", async () => {
     const seen: string[] = [];
     const { approval } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       operations: tools,
       delegation: () => delegated,
       approvers: (responder) => {
@@ -113,6 +114,7 @@ describe("permdock/eve responses", () => {
 
   it("rejects when the responder maps to no principal", async () => {
     const { approval } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       operations: tools,
       delegation: () => delegated,
       subject: (context) => {
@@ -129,6 +131,7 @@ describe("permdock/eve responses", () => {
 
   it("recomputes the token for an unknown call and rejects an unmapped tool", async () => {
     const { approval } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       operations: tools,
       delegation: () => delegated,
     });

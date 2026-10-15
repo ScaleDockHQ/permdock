@@ -20,6 +20,7 @@ import type { Principal, Subject } from "../core/subject.ts";
 import type { ApprovalPrompt } from "../delivery/approval-prompt.ts";
 import type { ChatAuthor } from "./subject.ts";
 
+import { adapterOptions } from "../approvals/app.ts";
 import { isApprovalError } from "../approvals/errors.ts";
 import {
   requestApproval,
@@ -38,7 +39,7 @@ export type ChatPermDockOptions = PermDockOptions & {
   /** Resolves chat authors through `principalByIdentity`; also the instance's principal source. */
   readonly principals: PrincipalSource;
   /** Where approval requests open and resolve. Without it an approval-required command only reports the decision. */
-  readonly approvals?: ApprovalStore;
+  readonly store?: ApprovalStore;
 };
 
 /** What a protected command's handler receives once the author is granted. */
@@ -172,9 +173,10 @@ export function createPermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: ChatPermDockOptions,
+  given: ChatPermDockOptions,
 ): ChatPermDock<V> {
-  const { approvals, ...permdockOptions } = options;
+  const options = adapterOptions(policy, given);
+  const { store: approvals, ...permdockOptions } = options;
 
   const instanceFor = (subject: Subject): Promise<PermDock<V>> =>
     Promise.resolve(createCorePermDock(policy, subject, permdockOptions));

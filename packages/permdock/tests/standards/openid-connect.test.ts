@@ -403,7 +403,7 @@ describe("RFC 9470 OAuth 2.0 Step Up Authentication Challenge", () => {
     }),
   });
   const policy = definePolicy(permissions, {
-    principal: () => null,
+    subject: () => null,
     grants: [
       allow(permissions.payout.create, {
         to: assurance({ acr: ["urn:example:loa:3"], maxAge: 300 }),
@@ -465,7 +465,7 @@ describe("OpenID Connect Back-Channel Logout 1.0", () => {
     }),
   });
   const policy = definePolicy(permissions, {
-    principal: () => null,
+    subject: () => null,
     grants: [],
   });
 

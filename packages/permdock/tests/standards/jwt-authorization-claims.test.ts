@@ -217,7 +217,7 @@ describe("Claims meet the policy", () => {
     }),
   });
   const policy = definePolicy(permissions, {
-    principal: () => null,
+    subject: () => null,
     scopes: { tenant: { key: "orgId" } },
     roles: [
       role("admin", [allow(permissions.project.delete)]),

@@ -20,6 +20,7 @@ import { PermDockStoreContext } from "../../src/react/context.ts";
 import {
   useApproval,
   useAssignableRoles,
+  useGate,
   usePermDock,
   usePermission,
   usePermissions,
@@ -93,6 +94,33 @@ const required: Decision = {
   grant: { permission: "post.delete", role: "member", approval: "human" },
   token: "pd1.token",
 } as unknown as Decision;
+
+describe("useGate", () => {
+  it("reads a granted, an approval-required and a denied action from one snapshot", async () => {
+    const store = createClientStore({
+      snapshot: await memberSnapshot(),
+      server: false,
+    });
+    function Probe(): string {
+      const update = useGate(permissions.post.update, ownPost);
+      const remove = useGate(permissions.post.delete, ownPost, {
+        mode: "hide",
+      });
+      const publish = useGate(permissions.post.publish, ownPost, {
+        mode: "hide",
+      });
+      return [
+        update.disabled,
+        remove.needsApproval,
+        remove.hidden,
+        publish.hidden,
+        publish.reason.kind,
+      ].join(":");
+    }
+    const view = mount(withStore(store, createElement(Probe)));
+    expect(view.textContent).toBe("false:true:false:true:denied");
+  });
+});
 
 describe("permdock/react hooks on the client", () => {
   it("throw outside a provider", () => {

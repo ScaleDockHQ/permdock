@@ -32,6 +32,7 @@ export const operations = defineOperations(permissions, {
 `permdock/delivery` sends a message only to recipients the policy grants, and `approvalPrompt` turns a pending request into what an approver sees ([delivery](https://permdock.com/docs/concepts/delivery)).
 
 ```ts
+import { whoCan } from "permdock";
 import { requestApproval } from "permdock/approvals";
 import { approvalPrompt, audience, createPermDock } from "permdock/delivery";
 import { approvalEmail, resendTransport } from "permdock/resend";
@@ -50,7 +51,7 @@ const request = await requestApproval(store, decision, {
   subject: permdock.subject,
   detail: `Pay invoice ${invoice.id}`,
 });
-const holders = await permdock.whoCan(permissions.invoice.pay, invoice);
+const holders = await whoCan(permdock, permissions.invoice.pay, invoice);
 const approvers = await audience(permdock, permissions.invoice.read, invoice, {
   candidates: holders.holders
     .map((holder) => holder.principal.id)
@@ -97,7 +98,7 @@ import { approvalActions, chatSdkTransport } from "permdock/chat-sdk";
 const chatPermDock = createPermDock(policy, {
   principals,
   memberships,
-  approvals: store,
+  store: store,
 });
 const actions = approvalActions(chatPermDock, { workspace: "T0ACME" });
 chat.onAction([...actions.actionIds], actions.onAction);
@@ -138,7 +139,7 @@ const workflow = createPermDock(policy, {
   verifier,
   principals,
   automations,
-  approvals: store,
+  store: store,
   waiter: pollingApprovalWaiter({ store, interval: 5_000 }),
   sink,
 });

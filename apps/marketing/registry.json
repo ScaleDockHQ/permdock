@@ -1,0 +1,130 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "permdock",
+  "homepage": "https://permdock.com",
+  "items": [
+    {
+      "name": "gated-button",
+      "type": "registry:component",
+      "title": "Gated button",
+      "description": "A button that runs only an action the signed-in user may take: disabled with the reason, hidden, or offering to request approval.",
+      "dependencies": ["permdock"],
+      "registryDependencies": ["button"],
+      "files": [
+        {
+          "path": "registry/permdock/gated-button.tsx",
+          "type": "registry:component"
+        }
+      ],
+      "docs": "Wrap your app in PermDockProvider from permdock/react (https://permdock.com/docs/concepts/ui)."
+    },
+    {
+      "name": "approval-request-dialog",
+      "type": "registry:component",
+      "title": "Approval request dialog",
+      "description": "For an action that returns approval-required: a dialog where the user adds a note and sends the request.",
+      "dependencies": ["permdock"],
+      "registryDependencies": ["button", "dialog", "textarea"],
+      "files": [
+        {
+          "path": "registry/permdock/approval-request-dialog.tsx",
+          "type": "registry:component"
+        }
+      ],
+      "docs": "Pass approvals to PermDockProvider so the request reaches your ApprovalStore (https://permdock.com/docs/adapters/approvals)."
+    },
+    {
+      "name": "tenant-switcher",
+      "type": "registry:component",
+      "title": "Tenant switcher",
+      "description": "The organisations the user is a member of; picking one refreshes the snapshot for that tenant.",
+      "dependencies": ["permdock"],
+      "registryDependencies": ["select"],
+      "files": [
+        {
+          "path": "registry/permdock/tenant-switcher.tsx",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "role-picker",
+      "type": "registry:component",
+      "title": "Role picker",
+      "description": "Only the roles the signed-in user may hand out in the active tenant.",
+      "dependencies": ["permdock"],
+      "registryDependencies": ["select"],
+      "files": [
+        {
+          "path": "registry/permdock/role-picker.tsx",
+          "type": "registry:component"
+        }
+      ],
+      "docs": "Save the change through a server action that calls decideRoleChange (https://permdock.com/docs/concepts/ownership)."
+    },
+    {
+      "name": "custom-role-editor",
+      "type": "registry:component",
+      "title": "Custom role editor",
+      "description": "The permissions a custom role may include: only those the editor holds.",
+      "dependencies": ["permdock"],
+      "registryDependencies": ["checkbox", "label"],
+      "files": [
+        {
+          "path": "registry/permdock/custom-role-editor.tsx",
+          "type": "registry:component"
+        }
+      ],
+      "docs": "Validate and store the role on the server (https://permdock.com/docs/concepts/custom-roles)."
+    },
+    {
+      "name": "upgrade-prompt",
+      "type": "registry:component",
+      "title": "Upgrade prompt",
+      "description": "Shown when a plan would grant the action: names the plans and offers the upgrade.",
+      "dependencies": ["permdock"],
+      "registryDependencies": ["alert", "button"],
+      "files": [
+        {
+          "path": "registry/permdock/upgrade-prompt.tsx",
+          "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "gated-button-native",
+      "type": "registry:component",
+      "title": "Gated button (React Native)",
+      "description": "The gated button on React Native Reusables, with the reason as the accessibility hint.",
+      "dependencies": ["permdock"],
+      "registryDependencies": [
+        "https://reactnativereusables.com/r/nativewind/button.json",
+        "https://reactnativereusables.com/r/nativewind/text.json"
+      ],
+      "files": [
+        {
+          "path": "registry/permdock-native/gated-button.tsx",
+          "type": "registry:component"
+        }
+      ],
+      "docs": "Wrap your app in PermDockProvider from permdock/react-native (https://permdock.com/docs/adapters/react-native)."
+    },
+    {
+      "name": "upgrade-prompt-native",
+      "type": "registry:component",
+      "title": "Upgrade prompt (React Native)",
+      "description": "The upgrade prompt on React Native Reusables.",
+      "dependencies": ["permdock"],
+      "registryDependencies": [
+        "https://reactnativereusables.com/r/nativewind/button.json",
+        "https://reactnativereusables.com/r/nativewind/text.json"
+      ],
+      "files": [
+        {
+          "path": "registry/permdock-native/upgrade-prompt.tsx",
+          "type": "registry:component"
+        }
+      ]
+    }
+  ]
+}

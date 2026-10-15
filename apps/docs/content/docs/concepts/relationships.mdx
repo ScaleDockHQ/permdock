@@ -296,10 +296,12 @@ Snapshots carry no graph. A grant whose condition needs the graph, or whose rela
 
 ## whoCan
 
-`await permdock.whoCan(permission, row)` lists who holds a permission on one object and how, for share dialogs and access reviews:
+`await whoCan(permdock, permission, row)` lists who holds a permission on one object and how, for share dialogs and access reviews:
 
 ```ts
-const { holders, complete } = await permdock.whoCan(
+import { whoCan } from "permdock";
+const { holders, complete } = await whoCan(
+  permdock,
   permissions.folder.read,
   folder,
 );

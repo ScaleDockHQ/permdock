@@ -72,7 +72,9 @@ A support session lets a staff member view the app as one person, inside that pe
 ### Start
 
 ```ts
-const decision = await staff.decideSupportSession(
+import { decideSupportSession } from "permdock";
+const decision = await decideSupportSession(
+  staff,
   {
     id: crypto.randomUUID(),
     principal: "u_customer",

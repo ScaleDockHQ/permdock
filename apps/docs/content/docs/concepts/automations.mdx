@@ -17,10 +17,11 @@ The trigger only needs the automation's `run` permission to start a run. It is r
 
 ## Publishing
 
-`permdock.decideAutomation(request)` checks that the publisher may hand out what the automation asks for and returns an `Automation` record to store. Each operation's permission must be one the publisher may use, the tenant must be one of the publisher's tenants, and a link, feed, contact, API key or run-ticket subject cannot publish.
+`decideAutomation(permdock, request)` checks that the publisher may hand out what the automation asks for and returns an `Automation` record to store. Each operation's permission must be one the publisher may use, the tenant must be one of the publisher's tenants, and a link, feed, contact, API key or run-ticket subject cannot publish.
 
 ```ts
-const decision = await permdock.decideAutomation({
+import { decideAutomation } from "permdock";
+const decision = await decideAutomation(permdock, {
   id: "weekly-overdue",
   version: 1,
   operations: [operations.read_invoice, operations.send_invoice],
@@ -52,7 +53,7 @@ const workflow = createPermDock(policy, {
   verifier,
   principals,
   automations,
-  approvals: store,
+  store,
   waiter: pollingApprovalWaiter({ store }),
   sink,
 });

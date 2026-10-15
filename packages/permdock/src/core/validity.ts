@@ -71,15 +71,20 @@ export function wireValidity(
 }
 
 /**
- * The validity of a wire grant. A bound that is not RFC 3339 makes the
- * grant never apply (`{ from: +∞ }`), so a malformed window fails closed.
+ * The validity of a wire grant. A malformed window fails closed for the
+ * grant's effect: an allow never applies (`{ from: +∞ }`), a deny always
+ * does (no window), so a corrupt bound can never lift a deny.
  */
-export function readWireValidity(value: unknown): GrantValidity | undefined {
+export function readWireValidity(
+  value: unknown,
+  effect: "allow" | "deny" = "allow",
+): GrantValidity | undefined {
   if (value === undefined) {
     return undefined;
   }
+  const malformed = effect === "deny" ? undefined : NEVER;
   if (typeof value !== "object" || value === null) {
-    return NEVER;
+    return malformed;
   }
   const from = "from" in value ? value.from : undefined;
   const until = "until" in value ? value.until : undefined;
@@ -89,7 +94,7 @@ export function readWireValidity(value: unknown): GrantValidity | undefined {
     (from !== undefined && start === undefined) ||
     (until !== undefined && end === undefined)
   ) {
-    return NEVER;
+    return malformed;
   }
   return Object.freeze({
     ...(start === undefined ? {} : { from: start }),

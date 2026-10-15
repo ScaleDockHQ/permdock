@@ -12,7 +12,7 @@ export type User = {
 
 export const policy = definePolicy(permissions, {
   roles: [...postRoles, ...billingRoles],
-  principal: (user: User | null) =>
+  subject: (user: User | null) =>
     user === null
       ? null
       : { id: user.id, orgId: user.orgId, roles: user.roles },

@@ -131,6 +131,12 @@ export type SsfPermDockOptions = {
    */
   readonly revocations?: RevocationFeed;
   readonly clockTolerance?: number;
+  /**
+   * Seconds a SET without `exp` is accepted after its `iat`; default one
+   * day. The replay record is kept at least that long, so a replayed SET
+   * is refused for as long as its signature would verify.
+   */
+  readonly maxTokenAge?: number;
 };
 
 export type SsfReceiver = {

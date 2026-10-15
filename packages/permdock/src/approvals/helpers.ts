@@ -397,7 +397,8 @@ export async function resumeDecision(input: {
       if (
         request.permission !== input.permission.key ||
         (request.resource.id !== undefined &&
-          request.resource.id !== input.resource.id)
+          request.resource.id !== input.resource.id) ||
+        request.subject.principal?.id !== input.subject.principal?.id
       ) {
         return approvalDenied("approval-mismatch");
       }

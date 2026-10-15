@@ -8,6 +8,7 @@ import type { Principal } from "../core/subject.ts";
 
 import { agentRuntime } from "../agent/create.ts";
 import { approvalTokenOf } from "../agent/kernel.ts";
+import { adapterOptions } from "../approvals/app.ts";
 import { compact } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
@@ -249,8 +250,9 @@ export function createPermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: AiSdkPermDockOptions<TUser>,
+  given: AiSdkPermDockOptions<TUser>,
 ): AiSdkPermDock<V> {
+  const options = adapterOptions(policy, given);
   const { agent, kernel } = agentRuntime(policy, options, "ai-sdk");
 
   const byPermission = new Map<string, string>();

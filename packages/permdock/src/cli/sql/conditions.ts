@@ -3,6 +3,7 @@ import type { RlsMembershipTable } from "../types.ts";
 
 import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
 import { relatedSql } from "../../conditions/graph-sql.ts";
+import { isoInstant } from "../../conditions/instant.ts";
 import { isReadonlyArray, isRecord, sole } from "../../core/compact.ts";
 import { isForbiddenKey } from "../../core/paths.ts";
 import { resolveScope, rootScope } from "../../core/scopes.ts";
@@ -37,6 +38,7 @@ import {
   quoteIdent,
   quoteLiteral,
   quoteTable,
+  textArrayLiteral,
 } from "./quote.ts";
 import {
   keyTenantSql,
@@ -190,7 +192,12 @@ function sqlValue(
     return compileRef(value.ref, ctx, field);
   }
   if (value !== null && typeof value === "object" && "date" in value) {
-    return quoteLiteral(value.date);
+    // An explicit UTC instant, so the session TimeZone cannot shift it
+    // away from what can() compares in memory.
+    const instant = isoInstant(value.date);
+    return instant === undefined
+      ? "null"
+      : quoteLiteral(new Date(instant).toISOString());
   }
   if (isReadonlyArray(value)) {
     return `array[${value.map((item) => sqlValue(item, ctx)).join(", ")}]`;
@@ -291,12 +298,11 @@ function membershipSql(
   const parts = [`m.${quoteIdent(table.user)} = ${subjectIdSql(ctx)}`];
   const role = memberRoleOf(table);
   if (roles.length > 0) {
-    const roleList = roles.map((name) => name.replaceAll("'", "''")).join(",");
     const held =
       role.through === undefined && !role.lateral
         ? `m.${quoteIdent(role.column)}`
         : role.lookup;
-    parts.push(`${held} = any('{${roleList}}')`);
+    parts.push(`${held} = any(${textArrayLiteral(roles)})`);
     const via = memberVia(table);
     const single = sole(roles);
     const kind =
@@ -506,6 +512,12 @@ export function compileConditionSql(
       const values = (condition.value as readonly ConditionValue[]).map(
         (item) => sqlValue(item, ctx),
       );
+      if (values.length === 0) {
+        // The same answer as can(): nothing is in an empty list.
+        return condition.op === "in"
+          ? "false"
+          : `${quoteIdent(condition.field)} is not null`;
+      }
       return `${quoteIdent(condition.field)} ${keyword} (${values.join(", ")})`;
     }
     case "isNull":

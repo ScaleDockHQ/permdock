@@ -33,6 +33,7 @@ import { InvalidSignatureError } from "./web-bot-auth.ts";
 export { tenantScope };
 export type { TenantOption, TenantScope };
 
+import { adapterOptions } from "../approvals/app.ts";
 import { compact } from "../core/compact.ts";
 import {
   buildReportingInstance,
@@ -70,8 +71,9 @@ export function createPermDock<
   V extends PolicyVocabulary = PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: ServerPermDockOptions<TUser>,
+  given: ServerPermDockOptions<TUser>,
 ): ServerPermDock<V> {
+  const options = adapterOptions(policy, given);
   const adapter = options.adapter ?? "server";
   const subjects = new WeakMap<Request, Promise<Resolved<TUser>>>();
   const instances = new WeakMap<Request, Map<string, Promise<Built<V>>>>();

@@ -21,6 +21,7 @@ import { definePolicy } from "../../src/core/policy.ts";
 import { memoryPrincipalSource } from "../../src/core/principal-source.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { isPrincipal } from "../../src/core/subject.ts";
+import { decideCredential } from "../../src/index.ts";
 import { describePolicy } from "../../src/testing/describe-policy.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 
@@ -251,7 +252,7 @@ describe("contact principals", () => {
     ).toBe(true);
     const permdock = await createPermDock(policy, contact);
     expect(
-      await permdock.decideCredential({
+      await decideCredential(permdock, {
         kind: "user",
         id: "k",
         permissions: [permissions.invoice.read],

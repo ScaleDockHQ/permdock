@@ -43,6 +43,34 @@ describe(decision, {
 
 There is no `useDecision` alias; `usePermission` already returns the `decision`.
 
+## One value per control
+
+`useGate(permission, data?, { mode })` returns everything a gated control renders, so a button, a menu item or a link reads fields and decides nothing:
+
+```tsx
+const gate = useGate(permissions.post.publish, post, { mode: "hide" });
+if (gate.hidden) return null;
+
+<Button
+  disabled={gate.disabled}
+  title={gate.disabled ? gate.reason.detail : undefined}
+>
+  {gate.needsApproval ? "Request approval" : "Publish"}
+</Button>;
+```
+
+| Field           | Meaning                                                           |
+| --------------- | ----------------------------------------------------------------- |
+| `allowed`       | The decision granted the action and the snapshot is loaded        |
+| `pending`       | The snapshot is loading: render disabled, never hidden            |
+| `hidden`        | `mode: "hide"` and the action is denied: render nothing           |
+| `disabled`      | Denied, pending or awaiting approval                              |
+| `needsApproval` | `approval-required`: offer `useApproval(gate.decision).request()` |
+| `upgrade`       | The plans that would grant it, for an upgrade prompt              |
+| `reason`        | `describe(decision)`, localised by the provider's `messages`      |
+
+`gateView(state, describe, mode)` in `permdock/client` is the same computation without React, for Vue, Svelte, Solid or your own binding. The [`@permdock` recipes](/docs/concepts/recipes) build their controls on `useGate`; React and React Native share it.
+
 ## Provider defaults
 
 Set what every `<Protected>` renders for a slot it leaves out, and the localised `describe` text, once on the provider:

@@ -4,6 +4,8 @@
   "pages": [
     "permissions",
     "policies",
+    "apps",
+    "presets",
     "conditions",
     "subject",
     "scopes",
@@ -29,6 +31,7 @@
     "access-reviews",
     "extension-interfaces",
     "ui",
+    "recipes",
     "errors",
     "wire-formats"
   ]

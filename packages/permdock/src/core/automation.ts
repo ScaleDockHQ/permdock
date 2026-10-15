@@ -7,6 +7,7 @@ import type { Instant } from "./time.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { idList, isId } from "./ids.ts";
+import { type InstanceHandle, internalsOf } from "./internals.ts";
 import { ownRecord } from "./paths.ts";
 import { findPermission } from "./permission-registry.ts";
 import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
@@ -234,10 +235,36 @@ function operationList(
  * `assignablePermissions`. PermDock never stores the record; the
  * application does, after a `granted` result.
  */
+/**
+ * Decides whether the subject of `permdock` may publish the automation in
+ * `request` and returns the record to store: the publisher's own reach over
+ * every operation's permission and, for a `service` automation, their
+ * assignable ceiling. Each run re-checks the publisher live. An instance
+ * built from a snapshot denies with `unsupported`.
+ */
 export function decideAutomation(
-  permdock: PermDock,
+  permdock: InstanceHandle,
   request: AutomationRequest,
   options: DecideAutomationOptions = {},
+): Promise<AutomationDecision> {
+  const internals = internalsOf(permdock);
+  if (internals === undefined) {
+    return Promise.resolve(
+      freezeDeep({
+        outcome: "denied" as const,
+        denials: [{ role: null, reason: "unsupported" as const }],
+      }),
+    );
+  }
+  return Promise.resolve().then(() =>
+    decideAutomationWith(internals.instance, request, options),
+  );
+}
+
+function decideAutomationWith(
+  permdock: PermDock,
+  request: AutomationRequest,
+  options: DecideAutomationOptions,
 ): AutomationDecision {
   const publisher = permdock.subject.principal;
   if (publisher === null) {

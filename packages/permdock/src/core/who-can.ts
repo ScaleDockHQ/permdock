@@ -22,6 +22,7 @@ import {
   type RoleGrantee,
   flattenGrantee,
 } from "./grantee.ts";
+import { type InstanceHandle, internalsOf } from "./internals.ts";
 import { ownGet } from "./paths.ts";
 import { getResource } from "./permission-registry.ts";
 import { relationWalk } from "./relation-walk.ts";
@@ -467,7 +468,37 @@ function memberLister(
   };
 }
 
-export async function whoCan(input: {
+/**
+ * Who holds `permission` on `resource` for the instance's policy and how
+ * (role, relation or share), from `MembershipSource.list` and
+ * `RelationSource.related`. It lists and never grants; `complete: false`
+ * means some holders could not be listed. An instance built from a
+ * snapshot answers an empty, incomplete list.
+ */
+export function whoCan(
+  permdock: InstanceHandle,
+  permission: Permission<string, unknown, "instance">,
+  resource: unknown,
+): Promise<WhoCan> {
+  const internals = internalsOf(permdock);
+  if (internals === undefined) {
+    return Promise.resolve(
+      freezeDeep({ permission: permission.key, holders: [], complete: false }),
+    );
+  }
+  return whoCanWith({
+    policy: internals.policy,
+    permission,
+    row: resource,
+    memberships: internals.env.memberships,
+    reader: internals.relations,
+    cache: internals.relationCache,
+    customGrants: internals.customGrants,
+    team: internals.team,
+  });
+}
+
+async function whoCanWith(input: {
   readonly policy: Policy;
   readonly permission: Permission;
   readonly row: unknown;

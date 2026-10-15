@@ -73,7 +73,9 @@ The filter runs when the subject is resolved, so `decide`, `where()`, snapshots,
 ## Checking a role change
 
 ```ts
-permdock.decideRoleChange(
+import { decideRoleChange } from "permdock";
+decideRoleChange(
+  permdock,
   {
     kind: "assign", // 'assign' | 'revoke' | 'transfer'
     role: roles.admin, // a Role leaf or a declared name
@@ -95,7 +97,8 @@ The actor is always the instance's own subject; nothing in the change can stand 
 A role declared without `on` is a global role, held by the principal's `roles` and not through a membership. Change one with `scope: 'global'` and no `id`; `id` is required for every named scope and a global change that carries one is denied with `validation`.
 
 ```ts
-permdock.decideRoleChange({
+import { decideRoleChange } from "permdock";
+decideRoleChange(permdock, {
   kind: "assign",
   role: roles["platform-support"],
   scope: "global",
@@ -120,7 +123,8 @@ Authority comes from memberships the subject holds now. An expired membership gi
 `countHolders(memberships, { scope, id, role })` reads the number from the same `MembershipSource` (its `list`), counting each principal with a live membership of that instance and role once, so the count comes from the source the subject resolves from instead of a second query; it answers `undefined` when the source cannot list or the read fails. An unknown or malformed `holders` fails closed: a role with `min`, `max` or `transferOnly` is denied with `holders: null` in the detail. Assigning a role the target already holds leaves the count alone; transferring to someone who already holds it counts as a removal. `granted` names the role that authorised the change (the transferred role for a transfer, the assigning role with an `assigns` graph, `null` otherwise). Pair it with a permission check for the action itself:
 
 ```ts
-"use server";
+import { decideRoleChange } from "permdock";
+("use server");
 export async function changeRole(input: unknown) {
   const permdock = await getPermDock();
   permdock.assert(permissions.member.assignRole);
@@ -136,7 +140,8 @@ export async function changeRole(input: unknown) {
     change.id,
     change.role,
   );
-  const decision = permdock.decideRoleChange(
+  const decision = decideRoleChange(
+    permdock,
     { ...change, within, target, holders },
     { trusted: true },
   );

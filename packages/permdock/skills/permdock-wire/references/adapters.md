@@ -415,7 +415,7 @@ export const { getPermDock } = createPermDock(policy, {
 });
 ```
 
-Hosted grants are opt-in per permission. List the permissions a Cloud admin may grant in `definePolicy(..., { hostable: [permissions.auditLog.read] })`, pass `verifier: joseTokenVerifier({ jwks: cloudEndpoints({ url, environment }).jwks })` to `cloud()` (the policy document's issuer and audience are both the environment URL), forward `policies: permdockCloud.policies`, and call `permdockCloud.policies.refresh()` on a timer. Never mark a permission `hostable` when `permdock rls` compiles its table (`permdock doctor` PD020).
+Hosted grants are opt-in per permission. List the permissions a Cloud admin may grant in `definePolicy(..., { hostable: [permissions.auditLog.read] })`, pass `verifier: joseTokenVerifier({ jwks: cloudEndpoints({ url, environment }).jwks })` to `cloud()` (the policy document's issuer and audience are both the environment URL), forward `policies: hostedPolicies(permdockCloud.policies)`, and call `permdockCloud.policies.refresh()` on a timer. Never mark a permission `hostable` when `permdock rls` compiles its table (`permdock doctor` PD020).
 
 An app that calls `permdockCloud.approvals.resolve` also passes `approver: { signer }`, a `TokenSigner` over the app's own key whose JWK Set the Cloud environment trusts. Each resolve then carries a `PermDock-Approver` RFC 9068 `at+jwt` for `verdict.by.principal.id`. Without it, `resolve` throws `approver-unauthenticated`, and a verdict with an actor throws `approver-not-eligible`. Never pass `cloudSigner` here: it refuses `at+jwt` ([approver token](https://permdock.com/docs/adapters/cloud#approver-token)).
 

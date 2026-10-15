@@ -732,6 +732,25 @@ describe("createClientStore invalidate and refresh", () => {
     expect(store.get().subject.principal?.id).toBe("u5");
   });
 
+  it("refuses an unsigned refresh body when a verifier is configured", async () => {
+    const store = createClientStore({
+      snapshot: signedIn("u1"),
+      snapshotUrl: "/api/snapshot",
+      server: false,
+      verifier: {
+        verify: async () => ({
+          ok: true,
+          claims: { snapshot: signedIn("u5") },
+          header: { alg: "ES256" },
+        }),
+      },
+      fetch: async () => json(signedIn("forged")),
+    });
+    await store.get().refresh();
+    expect(store.get().subject.principal?.id).toBe("u1");
+    expect(store.get().status()).toBe("stale");
+  });
+
   it("keeps only the latest of two overlapping refreshes", async () => {
     const pending: ((response: Response) => void)[] = [];
     const store = createClientStore({

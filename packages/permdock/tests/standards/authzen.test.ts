@@ -409,6 +409,7 @@ describe("AuthZEN 1.0 section 10: transport", () => {
     const response = await untrusted(
       new Request(`${ORIGIN}/access/v1/evaluation`, {
         method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           subject: { type: "user", id: adminUser.id, properties: adminUser },
           action: { name: "update" },

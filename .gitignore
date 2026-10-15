@@ -85,3 +85,5 @@ signing_key.json
 # Playwright
 test-results/
 playwright-report/
+.preset-check/
+apps/marketing/public/r/

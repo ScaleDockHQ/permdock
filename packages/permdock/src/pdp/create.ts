@@ -6,7 +6,6 @@ import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership, Principal, Subject } from "../core/subject.ts";
 import type { PdpPermDock } from "./types.ts";
 
-import { isArazzoSimulateInput } from "../core/arazzo.ts";
 import { compact, isReadonlyArray } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
@@ -16,6 +15,7 @@ import {
   deniedMessage,
 } from "../core/errors.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { attachInternals, internalsOf } from "../core/internals.ts";
 import {
   type PermDockOptions,
   type DecideOptions,
@@ -311,10 +311,7 @@ function wrap<V extends PolicyVocabulary>(
         ),
       );
     }
-    if (isArazzoSimulateInput(input)) {
-      return permdock.simulate(input);
-    }
-    // SAFETY: pairs and Arazzo inputs returned above; what remains is the role override input.
+    // SAFETY: pairs returned above; what remains is the role override input.
     return wrap(
       permdock.simulate(
         input as {
@@ -329,7 +326,7 @@ function wrap<V extends PolicyVocabulary>(
     );
   }) as PdpPermDock<V>["simulate"];
 
-  return {
+  const wrapped: PdpPermDock<V> = {
     can,
     decide,
     async decideEach(permission, rows, options) {
@@ -421,20 +418,20 @@ function wrap<V extends PolicyVocabulary>(
     assignableRoles: permdock.assignableRoles.bind(permdock),
     assignablePermissions: permdock.assignablePermissions.bind(permdock),
     assignableLevels: permdock.assignableLevels.bind(permdock),
-    decideRoleChange: permdock.decideRoleChange.bind(permdock),
-    decideCredential: permdock.decideCredential.bind(permdock),
-    decideAutomation: permdock.decideAutomation.bind(permdock),
-    decideSupportSession: permdock.decideSupportSession.bind(permdock),
     mayUse: permdock.mayUse.bind(permdock),
     permittedIds: permdock.permittedIds.bind(permdock),
     loadRelations: permdock.loadRelations.bind(permdock),
-    whoCan: permdock.whoCan.bind(permdock),
-    activate: permdock.activate.bind(permdock),
     permissions: permdock.permissions,
     roles: permdock.roles,
     plans: permdock.plans,
     subject,
   };
+  // Feature functions (`whoCan(permdock, …)`) read the local instance's internals.
+  const internals = internalsOf(permdock);
+  if (internals !== undefined) {
+    attachInternals(wrapped, internals);
+  }
+  return wrapped;
 }
 
 export async function createPermDock<

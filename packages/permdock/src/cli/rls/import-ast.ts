@@ -2,12 +2,17 @@ import { createHash } from "node:crypto";
 import { parse } from "pgsql-parser";
 
 import type { Condition, SqlFunctionArg } from "../../index.ts";
-import type { RlsFunctionMapping, RlsMemberships } from "../types.ts";
+import type {
+  RlsFunctionMapping,
+  RlsMembershipTable,
+  RlsMemberships,
+} from "../types.ts";
 import type { HelperScope, RolePermission } from "./helpers.ts";
 
 import { quoteSqlLiteral } from "../../core/sql.ts";
 import { HELPERS } from "../sql/shared.ts";
 import { SESSION_LIVE_HELPER } from "../sql/subject.ts";
+import { membershipRoles } from "./import-membership.ts";
 import {
   argFromNode,
   asNode,
@@ -21,7 +26,7 @@ import {
   isAuthUid,
   isCurrentSettingUserId,
   jwtClaim,
-  membershipTable,
+  membershipSubquery,
   nodeStmt,
   operatorName,
   scalarSubselect,
@@ -363,29 +368,35 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
     }
     return { op: compound, conditions: children };
   }
-  const table = membershipTable(node);
-  if (table !== undefined) {
-    for (const [scope, mapped] of Object.entries(memberships?.scopes ?? {})) {
-      const column = mapped.columns?.[scope];
-      if (mapped.table === table && column !== undefined) {
-        return { op: "memberOf", scope, field: column, roles: [] };
+  const subquery = membershipSubquery(node);
+  if (subquery !== undefined) {
+    const { table } = subquery;
+    const mappedScopes: [string, RlsMembershipTable][] = Object.entries(
+      memberships?.scopes ?? {},
+    );
+    if (memberships?.tenant !== undefined) {
+      mappedScopes.push(["tenant", memberships.tenant]);
+    }
+    if (memberships?.team !== undefined) {
+      mappedScopes.push(["team", memberships.team]);
+    }
+    const matches = mappedScopes.filter(([, mapped]) => mapped.table === table);
+    if (matches.length > 0) {
+      // A mapped membership table imports as memberOf only when its where
+      // binds the user and the row and filters roles by literal: anything
+      // else stays opaque instead of widening to "any member".
+      for (const [scope, mapped] of matches) {
+        const read = membershipRoles(subquery, mapped);
+        if (read !== undefined) {
+          return {
+            op: "memberOf",
+            scope,
+            field: read.field,
+            roles: read.roles,
+          };
+        }
       }
-    }
-    if (memberships?.tenant?.table === table) {
-      return {
-        op: "memberOf",
-        scope: "tenant",
-        field: memberships.tenant.tenant ?? "tenant_id",
-        roles: [],
-      };
-    }
-    if (memberships?.team?.table === table) {
-      return {
-        op: "memberOf",
-        scope: "team",
-        field: memberships.team.team ?? "team_id",
-        roles: [],
-      };
+      return undefined;
     }
     joins.push(table);
     return undefined;

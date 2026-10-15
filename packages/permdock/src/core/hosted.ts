@@ -584,3 +584,36 @@ export function mergeHostedGrants(
     dropped,
   };
 }
+
+/**
+ * Hosted grants as an instance option: `policies: hostedPolicies(source)`.
+ * The merge code ships only with an app that imports this function.
+ * `source.current()` is read once per instance; a throw keeps the code
+ * policy and is reported as an error event.
+ */
+export type HostedPolicies = {
+  readonly feature: "hosted-policies";
+  readonly apply: (policy: Policy) => {
+    readonly policy: Policy;
+    readonly errors: readonly unknown[];
+  };
+};
+
+export function hostedPolicies(source: PolicySource): HostedPolicies {
+  return Object.freeze({
+    feature: "hosted-policies" as const,
+    apply(policy: Policy) {
+      if (policy.hostable.length === 0) {
+        return { policy, errors: [] };
+      }
+      let document: PolicyDocument | null;
+      try {
+        document = source.current();
+      } catch (error) {
+        return { policy, errors: [error] };
+      }
+      const merged = mergeHostedGrants(policy, document);
+      return { policy: merged.policy, errors: merged.dropped };
+    },
+  });
+}

@@ -331,7 +331,7 @@ Default PD017 verbs are `approve`, `pay`, `settle`, `submit`, `transfer`, `refun
 
 `defineOperations(permissions, definitions)` binds each action an application exposes to one leaf, for agent tools, automations and chat commands: [operations](/docs/concepts/operations).
 
-## Design rationale
+## Why
 
 **References, not string keys.** A string key has no go-to-definition and no safe rename, and a typo is at best a compile error and at worst a silent deny. Template-literal unions over every resource and action slow the type checker on large catalogs, a string has nowhere to carry a scope or a title, and the union does not exist at runtime, so a catalog would have to be extracted from source. A reference fixes all four: the runtime definition is the catalog, an unknown permission is a type error, and types flow from the reference argument, so hooks and server helpers are direct exports with no per-app generic factory. Runtime subject detection in the CASL style is unnecessary because the reference already names the resource, and a Proxy tree was rejected because it cannot be serialised or enumerated.
 

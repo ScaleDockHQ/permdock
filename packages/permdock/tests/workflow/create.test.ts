@@ -292,7 +292,7 @@ describe("permdock/workflow: awaitApproval", () => {
     const waiter = pollingApprovalWaiter({ store, interval: 5 });
     const { workflow, ticketFor } = setup(undefined, {
       approvalPolicies,
-      approvals: store,
+      store: store,
       waiter,
     });
     const ticket = await ticketFor();
@@ -320,7 +320,7 @@ describe("permdock/workflow: awaitApproval", () => {
     const waiter = pollingApprovalWaiter({ store, interval: 5 });
     const { workflow, directory, ticketFor } = setup(undefined, {
       approvalPolicies,
-      approvals: store,
+      store: store,
       waiter,
     });
     const ticket = await ticketFor();
@@ -343,7 +343,7 @@ describe("permdock/workflow: awaitApproval", () => {
     const waiter = pollingApprovalWaiter({ store, interval: 5 });
     const { workflow, ticketFor } = setup(undefined, {
       approvalPolicies,
-      approvals: store,
+      store: store,
       waiter,
     });
     const ticket = await ticketFor();

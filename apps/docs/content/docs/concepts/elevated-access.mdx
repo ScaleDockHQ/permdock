@@ -31,10 +31,11 @@ role("admin", ADMIN, {
 });
 ```
 
-`permdock.activate({ role, scope, id, within, duration, reason })` returns a `Decision`. It is `approval-required` when `activation.approval` is set. Once granted it carries the membership to write under `elevation`:
+`activate(permdock, { role, scope, id, within, duration, reason })` returns a `Decision`. It is `approval-required` when `activation.approval` is set. Once granted it carries the membership to write under `elevation`:
 
 ```ts
-const decision = permdock.activate({
+import { activate } from "permdock";
+const decision = activate(permdock, {
   role: "admin",
   scope: "organization",
   id: orgId,

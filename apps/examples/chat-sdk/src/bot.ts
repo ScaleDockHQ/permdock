@@ -5,6 +5,7 @@ import type { Recipient } from "permdock/delivery";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { createMemoryState } from "@chat-adapter/state-memory";
 import { Chat } from "chat";
+import { whoCan } from "permdock";
 import { memoryApprovalStore } from "permdock/approvals";
 import { createPermDock } from "permdock/chat";
 import {
@@ -38,7 +39,7 @@ const approvals = memoryApprovalStore();
 const permdock = createPermDock(policy, {
   principals,
   memberships,
-  approvals,
+  store: approvals,
 });
 const delivery = createDelivery(policy, {
   transports: {
@@ -90,7 +91,7 @@ chat.onNewMention(async (thread, message) => {
   const result = await run(author, { id });
   if (result.outcome === "approval-required" && result.prompt !== null) {
     const requester = await permdock.getPermDock(author);
-    const holders = await requester.whoCan(permissions.invoice.pay, {
+    const holders = await whoCan(requester, permissions.invoice.pay, {
       id,
       orgId: "acme",
     });

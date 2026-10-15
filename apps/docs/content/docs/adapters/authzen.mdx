@@ -89,7 +89,7 @@ const rows = await evaluateBatch(body.evaluations, semantic, (item) =>
 
 ## What it validates
 
-- Request bodies against the AuthZEN schemas; malformed requests get `400` with Problem Details.
+- Request bodies against the AuthZEN schemas; malformed requests get `400` with Problem Details. A request without `Content-Type: application/json` gets `400` (section 10.1). So does a missing required entity or field (section 10.1.1): `subject.type`, `subject.id`, `action.name`, `resource.type` and `resource.id` on an evaluation; `subject` and `resource` with both fields on an action search; `subject`, `action` and `resource.type` on a resource search; and `subject.type`, `action` and `resource` on a subject search. The body `subject` is still only trusted from a trusted PEP; it is required because the specification requires it.
 - `resource.properties` against the resource's Standard Schema when they are used as the instance (boundary validation): a PEP is a trust boundary. When the handler loads the row itself, no validation runs.
 - Unknown `resource.type` or `action.name`: `decision: false` with a `context.permdock.reason` of `unknown-permission`; never an exception.
 - Decision-endpoint authentication must be real authentication (bearer tokens, mTLS, session), not a shared static secret; Kilpi's public-secret obfuscation is an explicit anti-pattern ([threat model](/docs/security/threat-model)). In-app, `subject` reads the application's session or a `subjectFromJwt` result; on the hosted ADS, callers present a Vercel OIDC token or an OAuth client-credentials token verified with `permdock/jwt`.

@@ -62,12 +62,13 @@ const fn = (name: string, args?: readonly unknown[]) => ({
 const op = (name: string, lexpr: unknown, rexpr: unknown) => ({
   A_Expr: { name: [str(name)], lexpr, rexpr },
 });
-const select = (val: unknown, from?: string) => ({
+const select = (val: unknown, from?: string, whereClause?: unknown) => ({
   SelectStmt: {
     targetList: [{ ResTarget: { val } }],
     ...(from === undefined
       ? {}
       : { fromClause: [{ RangeVar: { relname: from } }] }),
+    ...(whereClause === undefined ? {} : { whereClause }),
   },
 });
 
@@ -211,22 +212,45 @@ describe("conditionFromAst memberships and helpers", () => {
       },
       unmappedScope: { table: "project_members", user: "u", role: "r" },
     },
-    tenant: { table: "org_members", user: "user_id", role: "role" },
-    team: { table: "team_members", user: "user_id", role: "role" },
+    tenant: {
+      table: "org_members",
+      user: "user_id",
+      role: "role",
+      tenant: "tenant_id",
+    },
+    team: {
+      table: "team_members",
+      user: "user_id",
+      role: "role",
+      team: "team_id",
+    },
   };
 
   it.each([
     [
-      "exists (select 1 from project_members)",
-      { op: "memberOf", scope: "project", field: "project_id", roles: [] },
+      'exists (select 1 from project_members m where m.project_id = "projectId" and m.user_id = auth.uid())',
+      { op: "memberOf", scope: "project", field: "projectId", roles: [] },
     ],
     [
-      '"org_id" in (select org_id from org_members)',
-      { op: "memberOf", scope: "tenant", field: "tenant_id", roles: [] },
+      '"org_id" in (select tenant_id from org_members where user_id = (select auth.uid()))',
+      { op: "memberOf", scope: "tenant", field: "org_id", roles: [] },
     ],
     [
-      "true = exists (select 1 from team_members)",
+      "true = exists (select 1 from team_members t where t.team_id = tasks.team_id and t.user_id = auth.uid())",
       { op: "memberOf", scope: "team", field: "team_id", roles: [] },
+    ],
+    [
+      "exists (select 1 from org_members m where m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.role = 'owner')",
+      { op: "memberOf", scope: "tenant", field: "org_id", roles: ["owner"] },
+    ],
+    [
+      "exists (select 1 from org_members m where m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.role in ('owner', 'admin'))",
+      {
+        op: "memberOf",
+        scope: "tenant",
+        field: "org_id",
+        roles: ["owner", "admin"],
+      },
     ],
     [
       '"team_id" in (select member_team_ids())',
@@ -236,6 +260,34 @@ describe("conditionFromAst memberships and helpers", () => {
     expect((await condition(sql, { memberships: scoped })).mapped).toEqual(
       expected,
     );
+  });
+
+  it.each([
+    ["no user binding", "exists (select 1 from project_members)"],
+    [
+      "no row correlation",
+      "exists (select 1 from org_members m where m.user_id = auth.uid())",
+    ],
+    [
+      "a role compared with a non-literal",
+      "exists (select 1 from org_members m where m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.role = docs.level)",
+    ],
+    [
+      "an unread predicate",
+      "exists (select 1 from org_members m where m.tenant_id = docs.org_id and m.user_id = auth.uid() and m.seats > 3)",
+    ],
+    [
+      "an or inside the subquery",
+      "exists (select 1 from org_members m where m.tenant_id = docs.org_id and (m.user_id = auth.uid() or m.role = 'owner'))",
+    ],
+    [
+      "an in-subquery returning a non-scope column",
+      '"org_id" in (select user_id from org_members where user_id = auth.uid())',
+    ],
+  ])("keeps a membership subquery with %s opaque", async (_label, sql) => {
+    expect(
+      (await condition(sql, { memberships: scoped })).mapped,
+    ).toMatchObject({ op: "opaque" });
   });
 
   it("records the table of an unknown membership subquery as a join", async () => {
@@ -503,6 +555,53 @@ describe("legacy parser shapes", () => {
     });
   });
 
+  it("reads a role list given as an array and refuses an empty and", async () => {
+    const memberships: RlsMemberships = {
+      tenant: { table: "org_members", user: "u", role: "r", tenant: "org" },
+    };
+    const exists = (where: unknown) => ({
+      SubLink: {
+        subLinkType: 0,
+        subselect: select({ A_Const: { ival: 1 } }, "org_members", where),
+      },
+    });
+    nextParse(
+      legacyWhere(
+        exists({
+          BoolExpr: {
+            boolop: 0,
+            args: [
+              op("=", col("org"), col("org_id")),
+              op("=", col("u"), fn("auth.uid")),
+              {
+                A_Expr: {
+                  kind: 7,
+                  name: [str("=")],
+                  lexpr: col("r"),
+                  rexpr: [{ A_Const: { sval: { sval: "owner" } } }],
+                },
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    expect((await condition("legacy", { memberships })).mapped).toEqual({
+      op: "memberOf",
+      scope: "tenant",
+      field: "org_id",
+      roles: ["owner"],
+    });
+    nextParse(legacyWhere(exists({ BoolExpr: { boolop: 0 } })));
+    expect((await condition("legacy", { memberships })).mapped).toMatchObject({
+      op: "opaque",
+    });
+    nextParse(legacyWhere(op("=", col("org"), [select(fn("ids"))])));
+    expect((await condition("legacy", { memberships })).mapped).toMatchObject({
+      op: "opaque",
+    });
+  });
+
   it("reads numeric sublink kinds and IN lists given as arrays", async () => {
     const memberships: RlsMemberships = {
       tenant: { table: "org_members", user: "u", role: "r", tenant: "org" },
@@ -515,10 +614,24 @@ describe("legacy parser shapes", () => {
             {
               SubLink: {
                 subLinkType: 0,
-                subselect: select({ A_Const: { ival: 1 } }, "org_members"),
+                subselect: select({ A_Const: { ival: 1 } }, "org_members", {
+                  BoolExpr: {
+                    boolop: 0,
+                    args: [
+                      op("=", col("org"), col("org")),
+                      op("=", col("u"), fn("auth.uid")),
+                    ],
+                  },
+                }),
               },
             },
-            op("=", col("org"), [select(col("org"), "org_members")]),
+            op("=", col("org"), [
+              select(
+                col("org"),
+                "org_members",
+                op("=", col("u"), fn("auth.uid")),
+              ),
+            ]),
             {
               SubLink: {
                 subLinkType: 2,

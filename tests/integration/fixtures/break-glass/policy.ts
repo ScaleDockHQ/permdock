@@ -17,5 +17,5 @@ export const policy = definePolicy(permissions, {
       obligations: ["notify", "review"],
     }),
   ],
-  principal: (user: { readonly id: string } | null) => user,
+  subject: (user: { readonly id: string } | null) => user,
 });

@@ -3,7 +3,7 @@ import type { Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { sameId } from "./ids.ts";
-import { rankRoles } from "./ownership.ts";
+import { rankRoles } from "./role-rank.ts";
 import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
 import { isMembershipExpired } from "./tenancy.ts";
 import { type Role, findRole, synthesiseRole } from "./vocabulary.ts";

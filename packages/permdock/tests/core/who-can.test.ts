@@ -17,6 +17,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { whoCan } from "../../src/index.ts";
 import {
   permissions as graph,
   policy as graphPolicy,
@@ -45,7 +46,7 @@ describe("whoCan over the relationship graph", () => {
       { id: "nobody" },
       { relations: asynchronous(relations) },
     );
-    const result = await permdock.whoCan(graph.doc.read, deepDoc);
+    const result = await whoCan(permdock, graph.doc.read, deepDoc);
     expect(ids(result)).toEqual(["carl", "eddie", "tina", "vera"]);
     expect(result.complete).toBe(false);
     const carl = result.holders.find(
@@ -76,7 +77,7 @@ describe("whoCan over the relationship graph", () => {
       { id: "nobody" },
       { relations: failing },
     );
-    const result = await permdock.whoCan(graph.doc.read, rootDoc);
+    const result = await whoCan(permdock, graph.doc.read, rootDoc);
     expect(result).toEqual({
       permission: "doc.read",
       holders: [],
@@ -99,7 +100,7 @@ describe("whoCan over the relationship graph", () => {
       { id: "nobody" },
       { relations: source },
     );
-    const result = await permdock.whoCan(graph.doc.read, deepDoc);
+    const result = await whoCan(permdock, graph.doc.read, deepDoc);
     expect(ids(result)).toEqual(["eddie", "vera"]);
     expect(result.complete).toBe(false);
   });
@@ -132,7 +133,7 @@ describe("whoCan over the relationship graph", () => {
       { id: "nobody" },
       { relations: source },
     );
-    const result = await permdock.whoCan(graph.doc.read, rootDoc);
+    const result = await whoCan(permdock, graph.doc.read, rootDoc);
     expect(ids(result)).toEqual(["bea", "near"]);
   });
 
@@ -151,7 +152,8 @@ describe("whoCan over the relationship graph", () => {
       { id: "nobody" },
       { relations },
     );
-    const review = await permdock.whoCan(
+    const review = await whoCan(
+      permdock,
       graph.doc.review,
       rows.doc.find((row) => row.id === "eng-doc"),
     );
@@ -168,10 +170,10 @@ describe("whoCan over the relationship graph", () => {
         ],
       },
     ]);
-    const members = await permdock.whoCan(graph.team.read, rows.team[0]);
+    const members = await whoCan(permdock, graph.team.read, rows.team[0]);
     expect(ids(members)).toEqual(["carl", "tina"]);
     expect(members.complete).toBe(true);
-    const orphan = await permdock.whoCan(graph.doc.review, {
+    const orphan = await whoCan(permdock, graph.doc.review, {
       id: "loose",
       folderId: null,
     });
@@ -195,7 +197,7 @@ describe("whoCan over the relationship graph", () => {
       { id: "nobody" },
       { relations },
     );
-    const result = await permdock.whoCan(graph.doc.read, deepDoc);
+    const result = await whoCan(permdock, graph.doc.read, deepDoc);
     expect(ids(result)).toEqual(["carl", "tina", "vera"]);
   });
 
@@ -206,12 +208,12 @@ describe("whoCan over the relationship graph", () => {
     });
     // SAFETY: a collection permission, which whoCan's types refuse, from an untyped caller.
     const create = collection.doc.create as never;
-    expect(await permdock.whoCan(create, {})).toEqual({
+    expect(await whoCan(permdock, create, {})).toEqual({
       permission: "doc.create",
       holders: [],
       complete: false,
     });
-    expect(await permdock.whoCan(graph.doc.read, null)).toEqual({
+    expect(await whoCan(permdock, graph.doc.read, null)).toEqual({
       permission: "doc.read",
       holders: [],
       complete: false,
@@ -283,7 +285,7 @@ describe("whoCan over field, principal and scope relations", () => {
       { id: "viewer" },
       { memberships: members },
     );
-    const read = await permdock.whoCan(tree.task.read, task);
+    const read = await whoCan(permdock, tree.task.read, task);
     expect(ids(read)).toEqual(["ann", "olive", "oscar", "rex"]);
     expect(read.complete).toBe(true);
     expect(read.holders[0]?.via).toEqual([
@@ -297,12 +299,12 @@ describe("whoCan over field, principal and scope relations", () => {
       { id: "viewer" },
       { memberships: members },
     );
-    const update = await permdock.whoCan(tree.task.update, {
+    const update = await whoCan(permdock, tree.task.update, {
       ...task,
       reporterId: "ann",
     });
     expect(update.holders).toEqual([]);
-    const close = await permdock.whoCan(tree.task.close, task);
+    const close = await whoCan(permdock, tree.task.close, task);
     expect(ids(close)).toEqual(["olive"]);
     expect(close.holders[0]?.via[0]).toMatchObject({
       kind: "role",
@@ -316,7 +318,7 @@ describe("whoCan over field, principal and scope relations", () => {
       { id: "viewer" },
       { memberships: { membershipsFor: () => [] } },
     );
-    const read = await unlisted.whoCan(tree.task.read, task);
+    const read = await whoCan(unlisted, tree.task.read, task);
     expect(ids(read)).toEqual(["ann", "rex"]);
     expect(read.complete).toBe(false);
     const throwing = await createPermDock(
@@ -331,19 +333,21 @@ describe("whoCan over field, principal and scope relations", () => {
         },
       },
     );
-    expect((await throwing.whoCan(tree.task.close, task)).complete).toBe(false);
+    expect((await whoCan(throwing, tree.task.close, task)).complete).toBe(
+      false,
+    );
     const permdock = await createPermDock(
       scoped,
       { id: "viewer" },
       { memberships: members },
     );
-    const orphan = await permdock.whoCan(tree.task.close, { id: "t2" });
+    const orphan = await whoCan(permdock, tree.task.close, { id: "t2" });
     expect(orphan).toEqual({
       permission: "task.close",
       holders: [],
       complete: true,
     });
-    const noField = await permdock.whoCan(tree.task.read, { id: "t3" });
+    const noField = await whoCan(permdock, tree.task.read, { id: "t3" });
     expect(noField.holders).toEqual([]);
   });
 
@@ -363,7 +367,7 @@ describe("whoCan over field, principal and scope relations", () => {
         subject: (user: { readonly id: string }) => ({ id: user.id }),
       });
       const permdock = await createPermDock(open, { id: "viewer" });
-      const result = await permdock.whoCan(tree.task.read, task);
+      const result = await whoCan(permdock, tree.task.read, task);
       expect({ to, result }).toEqual({
         to,
         result: { permission: "task.read", holders: [], complete: false },

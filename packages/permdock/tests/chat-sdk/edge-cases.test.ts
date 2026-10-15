@@ -107,7 +107,7 @@ describe("approvalActions without a thread", () => {
     const chat = createPermDock(chatPolicy, {
       principals: chatPrincipals,
       memberships: chatMemberships,
-      approvals: store,
+      store: store,
     });
     const pay = chat.protect(chatOperations["invoice.pay"], () => "paid");
     const first = await pay(billing, { id: "i1" });

@@ -580,6 +580,19 @@ describe("configuration and remaining causes", () => {
       }),
     ).toThrow(/issuer is required/);
     expect(() =>
+      createJwtSubjectResolver({
+        jwks: PUBLIC_JWKS,
+        issuer: ISSUER,
+      }),
+    ).toThrow(/audience is required/);
+    expect(() =>
+      createJwtSubjectResolver({
+        jwks: PUBLIC_JWKS,
+        issuer: ISSUER,
+        audience: false,
+      }),
+    ).not.toThrow();
+    expect(() =>
       joseTokenSigner({
         key: { ...PRIVATE_JWK },
         alg: "HS256",
@@ -755,6 +768,31 @@ describe("configuration and remaining causes", () => {
     expect(
       await verifier().verify(`${encoded}.${p}.${s}`, { audience: AUDIENCE }),
     ).toMatchObject({ cause: "malformed" });
+
+    const dpopBound = await accessToken({ cnf: { jkt: "thumb" } });
+    const bearerEvents: string[] = [];
+    const asBearer = await subjectFromJwt(dpopBound, {
+      jwks: PUBLIC_JWKS,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      onAuth: (event) => {
+        bearerEvents.push(String(event.cause));
+      },
+    });
+    expect(asBearer.principal).toBeNull();
+    expect(bearerEvents).toContain("dpop-proof-invalid");
+    const certBound = await accessToken({ cnf: { "x5t#S256": "aa" } });
+    const certEvents: string[] = [];
+    const certAsBearer = await subjectFromJwt(certBound, {
+      jwks: PUBLIC_JWKS,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      onAuth: (event) => {
+        certEvents.push(String(event.cause));
+      },
+    });
+    expect(certAsBearer.principal).toBeNull();
+    expect(certEvents).toContain("mtls-binding-mismatch");
 
     const bound = await accessToken({ cnf: { "x5t#S256": "aa" } });
     const events: string[] = [];

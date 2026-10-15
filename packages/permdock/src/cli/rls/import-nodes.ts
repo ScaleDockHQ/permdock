@@ -159,10 +159,10 @@ function selectFromTable(selectNode: unknown): string | undefined {
   return typeof relname === "string" ? relname : undefined;
 }
 
-function sublinkTable(
+function sublinkSelect(
   value: unknown,
   kinds: ReadonlySet<string | number>,
-): string | undefined {
+): unknown {
   const node = asNode(unwrap(value));
   const sub = asNode(node?.["SubLink"]);
   if (sub === undefined) {
@@ -173,38 +173,72 @@ function sublinkTable(
   if (kind === undefined || !kinds.has(kind as string | number)) {
     return undefined;
   }
-  return selectFromTable(sub["subselect"]);
+  return selectFromTable(sub["subselect"]) === undefined
+    ? undefined
+    : sub["subselect"];
 }
 
-export function membershipTable(value: unknown): string | undefined {
-  const exists = sublinkTable(value, new Set(["EXISTS_SUBLINK", 0]));
-  if (exists !== undefined) {
-    return exists;
+/**
+ * A membership subquery: `exists (select … from t …)`, where the row
+ * correlation sits inside the `where`, or `col in (select … from t …)` and
+ * `col = any (select … from t …)`, where `col` is the row field.
+ */
+export type MembershipSubquery = {
+  readonly select: unknown;
+  readonly table: string;
+  /** The policy row's column on the outer side of `in` / `any`; absent for `exists`. */
+  readonly field?: string;
+};
+
+const EXISTS = new Set<string | number>(["EXISTS_SUBLINK", 0]);
+const IN_OR_ANY = new Set<string | number>(["ANY_SUBLINK", "IN_SUBLINK", 2]);
+
+function subquery(
+  select: unknown,
+  field: string | undefined,
+): MembershipSubquery | undefined {
+  const table = selectFromTable(select);
+  if (table === undefined) {
+    return undefined;
   }
-  const anyDirect = sublinkTable(
-    value,
-    new Set(["ANY_SUBLINK", "IN_SUBLINK", 2]),
-  );
-  if (anyDirect !== undefined) {
-    return anyDirect;
-  }
+  return field === undefined ? { select, table } : { select, table, field };
+}
+
+export function membershipSubquery(
+  value: unknown,
+): MembershipSubquery | undefined {
   const node = asNode(unwrap(value));
+  const exists = sublinkSelect(value, EXISTS);
+  if (exists !== undefined) {
+    return subquery(exists, undefined);
+  }
+  const sub = asNode(node?.["SubLink"]);
+  const anyDirect = sublinkSelect(value, IN_OR_ANY);
+  if (anyDirect !== undefined) {
+    return subquery(anyDirect, columnName(sub?.["testexpr"]));
+  }
   const expr = asNode(node?.["A_Expr"]);
   if (expr === undefined) {
     return undefined;
   }
   const right = unwrap(expr["rexpr"]);
-  const fromRight = sublinkTable(
-    right,
-    new Set(["ANY_SUBLINK", "IN_SUBLINK", "EXISTS_SUBLINK", 0, 2]),
-  );
-  if (fromRight !== undefined) {
-    return fromRight;
+  const existsRight = sublinkSelect(right, EXISTS);
+  if (existsRight !== undefined) {
+    return subquery(existsRight, undefined);
+  }
+  const anyRight = sublinkSelect(right, IN_OR_ANY);
+  if (anyRight !== undefined) {
+    return subquery(anyRight, columnName(expr["lexpr"]));
   }
   if (Array.isArray(expr["rexpr"]) && expr["rexpr"][0] !== undefined) {
-    return selectFromTable(expr["rexpr"][0]);
+    return subquery(expr["rexpr"][0], columnName(expr["lexpr"]));
   }
   return undefined;
+}
+
+/** The `where` clause of a `select` node. */
+export function selectWhere(selectNode: unknown): unknown {
+  return asNode(asNode(selectNode)?.["SelectStmt"])?.["whereClause"];
 }
 
 export function operatorName(value: unknown): string | undefined {

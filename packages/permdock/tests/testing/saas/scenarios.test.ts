@@ -6,9 +6,10 @@ import type { SaasScenario } from "../../../src/testing/saas/index.ts";
 import {
   createPermDock,
   fromSnapshot,
-  memoryLimitStore,
   memoryCustomRoleSource,
+  memoryLimitStore,
   parseSnapshot,
+  whoCan,
 } from "../../../src/index.ts";
 import {
   saasCustomRoles,
@@ -143,7 +144,8 @@ describe("saas folder tree", () => {
 
   it("lists who reads a folder and how", async () => {
     const permdock = await instanceFor("carol", "acme");
-    const result = await permdock.whoCan(
+    const result = await whoCan(
+      permdock,
       saasPermissions.folder.read,
       saasSeed.folders.find((folder) => folder.id === "platform"),
     );

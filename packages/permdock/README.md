@@ -93,7 +93,7 @@ export const policy = definePolicy(
   {
     roles: [member, admin],
     scopes: { tenant: { key: "orgId" } },
-    principal: (user: User | null) =>
+    subject: (user: User | null) =>
       user && {
         id: user.id,
         roles: user.roles,

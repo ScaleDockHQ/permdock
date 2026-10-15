@@ -523,8 +523,8 @@ export type DefinePolicyOptions<
    * the first and second scope.
    */
   readonly scopes?: S;
-  readonly principal?: (user: TUser) => TPrincipal | null;
-  readonly subject?: (user: TUser) => TPrincipal | null;
+  /** Maps the application's user to the principal PermDock decides for; `null` is anonymous. */
+  readonly subject: (user: TUser) => TPrincipal | null;
   readonly context?: (
     user: TUser,
   ) =>

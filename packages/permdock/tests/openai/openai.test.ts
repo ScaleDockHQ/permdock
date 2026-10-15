@@ -258,6 +258,7 @@ describe("permdock/openai", () => {
 
   it("hides tools with no grant and ignores a subject in arguments", async () => {
     const { guardTools, needsApproval } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       subject: (context) => context.user,
       operations: postTools(),
     });

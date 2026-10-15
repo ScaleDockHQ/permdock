@@ -16,9 +16,9 @@ import { evaluate } from "./evaluate.ts";
 import { type EvalEnv, emptyListeners } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
-import { rankRoles, roleMeta, usesAssigns } from "./ownership.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { levelCondition, levelNames } from "./policy.ts";
+import { rankRoles, roleMeta, usesAssigns } from "./role-rank.ts";
 import { resolveScope, rootScope, scopeList, tenantOf } from "./scopes.ts";
 import { collectSnapshotGrants } from "./snapshot-grants.ts";
 import {

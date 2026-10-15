@@ -15,8 +15,7 @@ import type { CustomRole, Membership, Subject } from "./subject.ts";
 import {
   APPROVAL_POLICY_UNAVAILABLE,
   decisionTenant,
-  tightenApproval,
-} from "./approval-policies.ts";
+} from "./approval-state.ts";
 import { compact } from "./compact.ts";
 import { contactAllows } from "./contact.ts";
 import {
@@ -757,7 +756,7 @@ function approvalOf(
   const approvalPolicies = state.env.approvalPolicies;
   return approvalPolicies === undefined || approvalPolicies === "failed"
     ? candidate.grant.approval
-    : tightenApproval(candidate.grant.approval, approvalPolicies, {
+    : approvalPolicies.tighten(candidate.grant.approval, {
         permission: state.permission.key,
         tenant: decisionTenant(state.subject, candidate.membership),
         subject: state.subject,

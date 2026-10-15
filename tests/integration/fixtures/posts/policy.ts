@@ -41,6 +41,6 @@ export const policy = definePolicy(
         }),
       ]),
     ],
-    principal: (user: User | null) => user,
+    subject: (user: User | null) => user,
   },
 );

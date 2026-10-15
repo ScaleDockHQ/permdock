@@ -196,7 +196,7 @@ function collect(
     if (
       grant.effect !== "deny" ||
       grant.portable === false ||
-      !isActive(readWireValidity(grant.validity), scope.now)
+      !isActive(readWireValidity(grant.validity, "deny"), scope.now)
     ) {
       continue;
     }

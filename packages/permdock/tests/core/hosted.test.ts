@@ -5,6 +5,7 @@ import { allow, deny } from "../../src/core/grant-builders.ts";
 import {
   type PolicyDocument,
   type PolicySource,
+  hostedPolicies,
   isPortableCondition,
   memoryPolicySource,
   mergeHostedGrants,
@@ -56,7 +57,7 @@ const policy = definePolicy(
       ]),
       role("auditor", []),
     ],
-    principal: (user: User) => user,
+    subject: (user: User) => user,
     hostable: [permissions.invoice, permissions.auditLog.read],
   },
 );
@@ -85,7 +86,7 @@ async function withDocument(
   readonly errors: unknown[];
 }> {
   const permdock = await createPermDock(policy, user, {
-    policies: memoryPolicySource(document(grants)),
+    policies: hostedPolicies(memoryPolicySource(document(grants))),
   });
   const errors: unknown[] = [];
   permdock.on("error", (error) => {
@@ -248,7 +249,7 @@ describe("hosted grants", () => {
           ]),
           role("auditor", []),
         ],
-        principal: (user: User) => user,
+        subject: (user: User) => user,
         hostable: [permissions.invoice],
       },
     );
@@ -342,7 +343,7 @@ describe("hosted grants", () => {
           ]),
           role("auditor", []),
         ],
-        principal: (user: User) => user,
+        subject: (user: User) => user,
         hostable: [permissions.invoice],
       },
     );
@@ -372,7 +373,7 @@ describe("hosted grants", () => {
   it("drops a grant on a permission the policy does not mark hostable", () => {
     const narrow = definePolicy(permissions, {
       roles: [role("member", [])],
-      principal: (user: User) => ({ id: user.id, roles: user.roles }),
+      subject: (user: User) => ({ id: user.id, roles: user.roles }),
       hostable: [permissions.auditLog.read],
     });
     const merged = mergeHostedGrants(
@@ -437,7 +438,7 @@ describe("hosted grants", () => {
       refresh: () => Promise.resolve(),
     };
     const permdock = await createPermDock(policy, proUser, {
-      policies: counting,
+      policies: hostedPolicies(counting),
     });
     permdock.can(permissions.auditLog.read, { id: "a" });
     permdock.can(permissions.auditLog.read, { id: "b" });
@@ -449,7 +450,7 @@ describe("hosted grants", () => {
       refresh: () => Promise.resolve(),
     };
     const fallback = await createPermDock(policy, proUser, {
-      policies: throwing,
+      policies: hostedPolicies(throwing),
     });
     const errors: unknown[] = [];
     fallback.on("error", (error) => {
@@ -463,14 +464,16 @@ describe("hosted grants", () => {
     const sink = memoryDecisionSink();
     const permdock = await createPermDock(policy, proUser, {
       sink,
-      policies: memoryPolicySource(
-        document([
-          {
-            id: "g",
-            permission: "auditLog.read",
-            to: { kind: "plan", plan: "pro" },
-          },
-        ]),
+      policies: hostedPolicies(
+        memoryPolicySource(
+          document([
+            {
+              id: "g",
+              permission: "auditLog.read",
+              to: { kind: "plan", plan: "pro" },
+            },
+          ]),
+        ),
       ),
     });
     permdock.decide(permissions.auditLog.read, { id: "a" });
@@ -538,13 +541,13 @@ describe("hosted approvals that go stale on a resource change", () => {
       ]),
       role("auditor", []),
     ],
-    principal: (user: User) => user,
+    subject: (user: User) => user,
     hostable: [tree.filing, tree.note],
   });
 
   async function reasons(grants: readonly unknown[]): Promise<unknown[]> {
     const permdock = await createPermDock(versioned, member, {
-      policies: memoryPolicySource(document(grants)),
+      policies: hostedPolicies(memoryPolicySource(document(grants))),
     });
     const errors: unknown[] = [];
     permdock.on("error", (error) => {
@@ -850,7 +853,7 @@ describe("hosted grant validation", () => {
           ]),
           role("auditor", []),
         ],
-        principal: (user: User) => user,
+        subject: (user: User) => user,
         hostable: [permissions.invoice],
       },
     );

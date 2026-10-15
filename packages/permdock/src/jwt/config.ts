@@ -167,7 +167,7 @@ export function assertVerifierConfig(options: JoseTokenVerifierOptions): void {
 
 export function assertSubjectConfig(options: JwtSubjectOptions): void {
   if (options.verifier === undefined) {
-    assertVerifierConfig(options);
+    assertVerifierConfig(verifierOptions(options));
     if (
       options.jwks !== undefined &&
       !isSecretJwks(options.jwks) &&
@@ -179,6 +179,11 @@ export function assertSubjectConfig(options: JwtSubjectOptions): void {
   assertSafeClaimPaths(options.claims);
   if (options.profile === "fapi2" && options.sender === "none") {
     throw new Error("PermDock: profile 'fapi2' requires a sender constraint.");
+  }
+  if (options.verifier === undefined && options.audience === undefined) {
+    throw new Error(
+      "PermDock: audience is required; pass audience: false to accept a token minted for any audience.",
+    );
   }
 }
 
@@ -194,4 +199,14 @@ export function secretBytes(secret: Uint8Array | string): Uint8Array {
     return new TextEncoder().encode(secret);
   }
   return secret;
+}
+
+/** The verifier options of a subject config: `audience: false` means none is checked. */
+export function verifierOptions(
+  options: JwtSubjectOptions,
+): JoseTokenVerifierOptions {
+  const { audience, ...rest } = options;
+  return audience === false || audience === undefined
+    ? rest
+    : { ...rest, audience };
 }

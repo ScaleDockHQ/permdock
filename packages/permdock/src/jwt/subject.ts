@@ -13,7 +13,12 @@ import {
   type Subject,
   anonymousSubject,
 } from "../core/subject.ts";
-import { assertSubjectConfig, fail, issuerFromDiscovery } from "./config.ts";
+import {
+  assertSubjectConfig,
+  fail,
+  issuerFromDiscovery,
+  verifierOptions,
+} from "./config.ts";
 import { verifyDpopProof } from "./dpop.ts";
 import { decodeHeader } from "./header.ts";
 import { acceptMismatch, mapClaimsToSubject } from "./map-claims.ts";
@@ -58,6 +63,32 @@ function mtlsThumbprint(claims: JwtClaims): string | undefined {
   // SAFETY: cnf was checked to be a non-array object above; the value stays unknown.
   const value = (cnf as { readonly "x5t#S256"?: unknown })["x5t#S256"];
   return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * The sender constraint to enforce. Without a configured `sender`, a token
+ * whose `cnf` binds it to a key or a certificate is held to that binding,
+ * never accepted as a bearer token (RFC 9449 section 7.1, RFC 8705
+ * section 3). An explicit `sender: "none"` is the opt-out for a gateway
+ * that verified the binding upstream.
+ */
+function senderFor(
+  options: JwtSubjectOptions,
+  cnf: unknown,
+): "none" | "dpop" | "mtls" {
+  if (options.sender !== undefined) {
+    return options.sender;
+  }
+  if (options.profile === "fapi2") {
+    return "dpop";
+  }
+  if (cnf === null || typeof cnf !== "object" || Array.isArray(cnf)) {
+    return "none";
+  }
+  if (Object.hasOwn(cnf, "jkt")) {
+    return "dpop";
+  }
+  return Object.hasOwn(cnf, "x5t#S256") ? "mtls" : "none";
 }
 
 async function extraMemberships(
@@ -112,7 +143,8 @@ export function createJwtSubjectResolver(
   request?: Request,
 ) => Promise<MappedSubject> {
   assertSubjectConfig(options);
-  const verifier = options.verifier ?? joseTokenVerifier(options);
+  const verifier =
+    options.verifier ?? joseTokenVerifier(verifierOptions(options));
   return (token, request) =>
     resolveSubject(token, { ...options, verifier }, request);
 }
@@ -132,7 +164,9 @@ async function resolveSubject(
     emitAuth(options, "token-in-query", token);
     return anonymousSubject();
   }
-  const verifier = options.verifier ?? joseTokenVerifier(options);
+  const verifier =
+    options.verifier ?? joseTokenVerifier(verifierOptions(options));
+  const audience = options.audience === false ? undefined : options.audience;
   const issuer =
     options.issuer ??
     (options.discovery === undefined
@@ -143,7 +177,7 @@ async function resolveSubject(
     verified = await verifier.verify(
       token,
       compact({
-        audience: options.audience,
+        audience,
         issuer,
         clockTolerance: options.clockTolerance,
         typ:
@@ -161,21 +195,13 @@ async function resolveSubject(
     emitAuth(options, verified.cause, token);
     return anonymousSubject();
   }
-  if (
-    acceptMismatch(
-      verified.claims,
-      verified.header.typ,
-      options,
-      options.audience,
-    )
-  ) {
+  if (acceptMismatch(verified.claims, verified.header.typ, options, audience)) {
     emitAuth(options, "wrong-token-type", token);
     return anonymousSubject();
   }
-  const sender =
-    options.sender ?? (options.profile === "fapi2" ? "dpop" : "none");
   const cnf = verified.claims["cnf"];
   const hasCnf = cnf !== null && typeof cnf === "object";
+  const sender = senderFor(options, cnf);
   if (options.profile === "fapi2" && !hasCnf) {
     emitAuth(options, "sender-constraint-required", token);
     return anonymousSubject();

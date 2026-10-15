@@ -90,7 +90,7 @@ describe("conditionFromAst", () => {
     const unmapped: string[] = [];
     expect(
       await conditionFromAst(
-        'exists (select 1 from organization_members m where m.organization_id = "orgId")',
+        'exists (select 1 from organization_members m where m."orgId" = posts."orgId" and m.user_id = auth.uid())',
         memberships,
         undefined,
         unmapped,
@@ -98,7 +98,7 @@ describe("conditionFromAst", () => {
     ).toMatchObject({ op: "memberOf", scope: "tenant", field: "orgId" });
     expect(
       await conditionFromAst(
-        '"teamId" in (select team_id from team_users)',
+        '"teamId" in (select "teamId" from team_users where user_id = auth.uid())',
         memberships,
         undefined,
         unmapped,

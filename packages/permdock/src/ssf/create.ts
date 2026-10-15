@@ -61,6 +61,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         approvals: options.approvals,
         revocations: options.revocations,
         clockTolerance: options.clockTolerance,
+        maxTokenAge: options.maxTokenAge,
       }),
     ),
   };

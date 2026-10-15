@@ -20,6 +20,7 @@ import {
   type RelatedCondition,
   parentHop,
 } from "./ast.ts";
+import { isoInstant } from "./instant.ts";
 import { resolveConditionRef } from "./refs.ts";
 
 function resolveRef(ref: string, subject: Subject): unknown {
@@ -37,29 +38,6 @@ function unwrap(value: ConditionValue, subject: Subject): unknown {
     return value.map((item) => unwrap(item, subject));
   }
   return value;
-}
-
-// ISO 8601 date or date-time, including the Postgres text form
-// (`2020-01-02 10:00:00+00`). Anything else is never an instant.
-const ISO_INSTANT =
-  /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?)(Z|[+-]\d{2}(?::?\d{2})?)?)?$/u;
-
-function isoInstant(value: string): number | undefined {
-  const match = ISO_INSTANT.exec(value);
-  if (match === null) {
-    return undefined;
-  }
-  const [, day, time, zone] = match;
-  let offset = zone ?? (time === undefined ? "" : "Z");
-  if (/^[+-]\d{2}$/u.test(offset)) {
-    offset = `${offset}:00`;
-  } else if (/^[+-]\d{4}$/u.test(offset)) {
-    offset = `${offset.slice(0, 3)}:${offset.slice(3)}`;
-  }
-  const parsed = Date.parse(
-    time === undefined ? `${day}` : `${day}T${time}${offset}`,
-  );
-  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 function instantOf(value: unknown): number | undefined {

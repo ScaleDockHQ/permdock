@@ -1,5 +1,8 @@
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { WhoCan } from "../core/who-can.ts";
+
+import { whoCan } from "../core/who-can.ts";
 
 export type Audience = {
   /** Principal ids `decideFor` grants, in discovery or candidate order, each once. */
@@ -60,10 +63,11 @@ export async function audience(
       complete: permdock.subject.principal === null,
     });
   }
-  let listed: Awaited<ReturnType<PermDock["whoCan"]>>;
+  let listed: WhoCan;
   try {
     // SAFETY: `kind` is "instance", checked above.
-    listed = await permdock.whoCan(
+    listed = await whoCan(
+      permdock,
       permission as Permission<string, unknown, "instance">,
       row,
     );

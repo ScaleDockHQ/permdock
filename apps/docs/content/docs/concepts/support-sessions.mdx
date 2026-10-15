@@ -25,7 +25,8 @@ A customer reports that their invoice totals look wrong, and a support engineer 
 The staff member's own PermDock decides the request:
 
 ```ts
-const decision = await staff.decideSupportSession({
+import { decideSupportSession } from "permdock";
+const decision = await decideSupportSession(staff, {
   id: crypto.randomUUID(),
   principal: "u_customer",
   reason: "Ticket 4411: invoice totals look wrong",

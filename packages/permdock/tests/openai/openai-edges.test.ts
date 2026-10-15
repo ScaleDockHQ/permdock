@@ -5,6 +5,7 @@ import type {
   OpenAiRunState,
 } from "../../src/openai/index.ts";
 
+import { memoryApprovalStore } from "../../src/approvals/index.ts";
 import { createPermDock } from "../../src/openai/index.ts";
 import {
   memberUser,
@@ -47,6 +48,7 @@ describe("permdock/openai edge cases", () => {
 
   it("reads the call from rawItem and accepts object arguments", async () => {
     const { resolveInterruptions } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       subject: () => memberUser,
       operations: tools,
     });
@@ -94,6 +96,7 @@ describe("permdock/openai edge cases", () => {
 
   it("accepts parsed object arguments on the item", async () => {
     const { resolveInterruptions } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       subject: () => memberUser,
       operations: tools,
     });
@@ -111,6 +114,7 @@ describe("permdock/openai edge cases", () => {
 
   it("pauses for an unbound permission, a missing row and a throwing loader", async () => {
     const { needsApproval } = createPermDock(policy, {
+      store: memoryApprovalStore(),
       subject: () => memberUser,
       operations: tools,
     });

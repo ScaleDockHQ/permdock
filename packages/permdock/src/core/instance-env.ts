@@ -1,3 +1,4 @@
+import type { LoadedApprovalPolicies } from "./approval-policies.ts";
 import type { TargetFactory } from "./decide-for.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
@@ -14,10 +15,6 @@ import type { PrincipalSource } from "./principal-source.ts";
 import type { RelationCache } from "./relations.ts";
 import type { CustomRole, Subject } from "./subject.ts";
 
-import {
-  type LoadedApprovalPolicies,
-  approvalPoliciesFor,
-} from "./approval-policies.ts";
 import { compact } from "./compact.ts";
 import {
   assignableNamesFor,
@@ -92,7 +89,7 @@ export function deriveEnv(
   const approvals =
     options.approvalPolicies === undefined
       ? base.approvalPolicies
-      : approvalPoliciesFor(policy, options.approvalPolicies, tenants, auth);
+      : options.approvalPolicies.load(policy, tenants, auth);
   const envWith = (
     loadedRoles: readonly CustomRole[],
     loadedNames: ReadonlyMap<string, readonly string[]> | undefined,

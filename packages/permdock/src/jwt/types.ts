@@ -101,7 +101,12 @@ export type JwtDelegationPaths = {
   readonly access?: string;
 };
 
-export type JwtSubjectOptions = JoseTokenVerifierOptions & {
+export type JwtSubjectOptions = Omit<JoseTokenVerifierOptions, "audience"> & {
+  /**
+   * The `aud` this resource server accepts. Required unless a `verifier` is
+   * passed: `false` accepts any audience and must be a deliberate choice.
+   */
+  readonly audience?: string | readonly string[] | false;
   readonly accept?: "access-token" | "id-token";
   readonly claims?: JwtClaimPaths;
   readonly groupRoles?: Readonly<Record<string, readonly string[]>>;

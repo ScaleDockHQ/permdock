@@ -46,7 +46,7 @@ const verifier = webhookVerifier({
   replay: memoryReplayStore(),
 });
 const delivery = await verifier.verify(request);
-if (!delivery.ok) return new Response(null, { status: 401 });
+if (!delivery.ok) return new Response(null, { status: 403 });
 ```
 
 Behaviour:

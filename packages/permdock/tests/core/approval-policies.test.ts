@@ -6,6 +6,7 @@ import type { Subject } from "../../src/core/subject.ts";
 import {
   type ApprovalPolicy,
   type ApprovalPolicySource,
+  approvalPolicies,
   memoryApprovalPolicySource,
   validateApprovalPolicy,
 } from "../../src/core/approval-policies.ts";
@@ -45,7 +46,7 @@ async function decide(
   actor?: string,
 ): Promise<Decision> {
   const permdock = await createPermDock(policy, alice(actor), {
-    approvalPolicies: source,
+    approvalPolicies: approvalPolicies(source),
   });
   return permdock.decide(permission, row);
 }

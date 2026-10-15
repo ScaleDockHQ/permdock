@@ -1,6 +1,6 @@
 ---
 title: Policies
-description: Grants name a grantee with to selectors; definePolicy binds typed vocabulary, a principal mapper, and portable conditions.
+description: Grants name a grantee with to selectors; definePolicy binds typed vocabulary, a subject mapper, and portable conditions.
 ---
 
 A policy answers "who may do what, under which conditions". In PermDock it is data: typed roles and plans sit next to permissions, grants are `allow` or `deny` of a permission reference with a `to:` selector, and `definePolicy` binds the vocabulary to the function that turns your user into a principal. Because the policy is data, it can be snapshotted to the client, compiled to SQL, printed as a matrix in tests, and diffed in review.
@@ -45,7 +45,7 @@ export const policy = definePolicy(
   { permissions, roles },
   {
     roles: [member, admin],
-    principal: (user: User | null) =>
+    subject: (user: User | null) =>
       user && { id: user.id, orgId: user.orgId, roles: user.roles },
     context: async (user) => ({ teamIds: await loadTeamIds(user.id) }),
     validate: "boundary",
@@ -199,7 +199,7 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 - `roles: user.roles` where `roles` contains a name no `role()` declared is a runtime deny for that role plus a `permdock doctor` warning, not a throw. On a membership, such a name is first resolved as a tenant-defined custom role through the `CustomRoleSource` and dropped if that fails ([tenancy](/docs/concepts/tenancy)).
 - `role('viewer', [...], { on: 'customers' })` fails to compile when the policy declares `customer`, and `definePolicy` throws when a resource a scoped grant touches has no `memberOf` relation on the scope's key.
 - A permission held as plain `Permission` at run time (from `listPermissions`, a catalog or `findPermission`) does not say whether it is an instance or a collection action, so `can`, `decide`, `assert` and `explain` take it with an explicit `data` argument: `permdock.can(permission, row)`, or `permdock.can(permission, undefined)` for a check without a row. A literal reference keeps its narrower overload, so `permdock.can(permissions.post.update)` without a row still fails to compile.
-- `definePolicy` returns `Policy<TUser, TPrincipal>`, typed from the `principal` mapper. `createPermDock` in core and in every adapter is generic over both, so a typed policy passes to any adapter without a cast, and the adapter's `subject` option is checked against `TUser`. `Policy.subject` and `Policy.context` are declared as methods so a typed policy stays assignable to helpers that only read roles and grants. `TUser` never defaults to `any`, which would hide real mismatches.
+- `definePolicy` returns `Policy<TUser, TPrincipal>`, typed from the `subject` mapper. `createPermDock` in core and in every adapter is generic over both, so a typed policy passes to any adapter without a cast, and the adapter's `subject` option is checked against `TUser`. `Policy.subject` and `Policy.context` are declared as methods so a typed policy stays assignable to helpers that only read roles and grants. `TUser` never defaults to `any`, which would hide real mismatches.
 
 ### Derived instances
 
@@ -335,7 +335,7 @@ A denial's `alternatives` peek rather than consume because they are advice, not 
 | `delegations` | `{ from, to, permissions, validFrom?, validUntil? }[]` | Optional. Standing delegations: holders of `from` (a role, `authenticated()`, a plan, `assurance()`) let actors matching `to` (`actor('eve')`, a kind, or `{ kind, id }`) use `permissions` for them without a token saying so. A ceiling, never a grant: the principal's grants still decide, and a token delegation on the call must also cover ([delegation](/docs/security/delegation#policy-delegations)). Part of the fingerprint and the catalog. |
 | `x`           | `{ grant?, membership? }`                              | Optional Standard Schemas for app data. `grant` checks every grant's `meta.x` at `definePolicy` and throws on invalid data. `membership` checks `Membership.x` as each subject resolves; an invalid `x` is dropped, never the membership, with an `on('auth')` event of reason `schema` ([extend PermDock](/docs/guides/extending)).                                                                                                                     |
 
-The `principal` function is the only place PermDock touches your user object. It is called once per `createPermDock` and its return value is frozen. Anything not returned from it is invisible to conditions, which is deliberate: conditions can only reference values that also exist in the snapshot and in the SQL session.
+The `subject` function is the only place PermDock touches your user object. It is called once per `createPermDock` and its return value is frozen. Anything not returned from it is invisible to conditions, which is deliberate: conditions can only reference values that also exist in the snapshot and in the SQL session.
 
 ## Closures
 
@@ -376,13 +376,14 @@ Every permission must have a row, so a new permission cannot ship untested, and 
 An application can opt specific permissions into grants authored in PermDock Cloud without a deploy. `hostable` lists the subtrees or leaves hosted grants may touch; the default is none, so a policy without `hostable` ignores every hosted grant.
 
 ```ts
+import { hostedPolicies } from "permdock";
 export const policy = definePolicy(vocabulary, {
   roles: [member, admin],
   hostable: [permissions.invoice, permissions.auditLog.read],
 });
 
 const permdock = await createPermDock(policy, user, {
-  policies: permdockCloud.policies,
+  policies: hostedPolicies(permdockCloud.policies),
 });
 ```
 
@@ -460,7 +461,7 @@ app.patch(
 
 `pick` returns only own keys the grant lists, so a column added to the table later stays out of the response until a grant names it. The write check runs against the stored row, not the body, so the grant's `where` sees the real owner. `permdock rls generate --fields views` gives a direct database read the same answer as `pick` ([field security](/docs/adapters/rls#field-security)).
 
-## Design rationale
+## Why
 
 **No protected-query helper.** A `protect(queryFn, { before, after })` wrapper, as Kilpi's `$query` offers, was considered and rejected. `where` already runs before the fetch and reaches the database, which a post-fetch hook cannot; `filter` and `pick` already cover the after step. A wrapper would add a fourth way to say the same thing and hide which of the three steps ran, so it is the recipe under Protected queries instead.
 

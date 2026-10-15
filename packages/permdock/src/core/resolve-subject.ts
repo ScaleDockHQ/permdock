@@ -10,8 +10,8 @@ import { sanitizeContext } from "./fields.ts";
 import { freezeCopy } from "./freeze.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { expandOAuthScopes } from "./oauth-scopes.ts";
-import { applyRoleKinds } from "./ownership.ts";
 import { policyX } from "./policy-fingerprint.ts";
+import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
 import {
   type Actor,
@@ -20,7 +20,6 @@ import {
   type Principal,
   type Subject,
   anonymousSubject,
-  isPrincipal,
   isSubject,
 } from "./subject.ts";
 import { resolveActiveTenant } from "./tenancy.ts";
@@ -103,8 +102,6 @@ function assemblePrincipal(
       session = user.session ?? session;
       expiresAt = user.expiresAt ?? expiresAt;
       liveSession = user.liveSession === true ? true : undefined;
-    } else if (isPrincipal(user)) {
-      principal = user;
     } else {
       // SAFETY: TUser is erased at the policy boundary; createPermDock types user as TUser.
       principal = policy.subject(user as never);

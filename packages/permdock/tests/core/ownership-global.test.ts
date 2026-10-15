@@ -10,6 +10,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { decideRoleChange } from "../../src/index.ts";
 
 const permissions = definePermissions({
   ticket: resource({ actions: ["read", "write"] }),
@@ -50,7 +51,7 @@ const target: { id: string; roles: string[] } = {
   roles: [],
 };
 
-function reasons(decision: ReturnType<PermDock["decideRoleChange"]>) {
+function reasons(decision: ReturnType<typeof decideRoleChange>) {
   return decision.outcome === "denied"
     ? decision.denials.map((denial) => denial.reason)
     : [];
@@ -65,9 +66,9 @@ describe("decideRoleChange: global roles", () => {
       scope: "global",
       target,
     };
-    expect(admin.decideRoleChange(assign).outcome).toBe("granted");
+    expect(decideRoleChange(admin, assign).outcome).toBe("granted");
     expect(
-      admin.decideRoleChange({
+      decideRoleChange(admin, {
         kind: "revoke",
         role: "support",
         scope: "global",
@@ -91,7 +92,7 @@ describe("decideRoleChange: global roles", () => {
   it("refuses a lower global role that assigns or revokes a higher one", async () => {
     const support = await actor(["support"]);
     for (const kind of ["assign", "revoke"] as const) {
-      const decision = support.decideRoleChange({
+      const decision = decideRoleChange(support, {
         kind,
         role: "platform-admin",
         scope: "global",
@@ -108,7 +109,7 @@ describe("decideRoleChange: global roles", () => {
     const admin = await actor(["platform-admin"]);
     expect(
       reasons(
-        admin.decideRoleChange({
+        decideRoleChange(admin, {
           kind: "revoke",
           role: "platform-admin",
           scope: "global",
@@ -118,7 +119,7 @@ describe("decideRoleChange: global roles", () => {
     ).toContain("self-demotion");
     expect(
       reasons(
-        admin.decideRoleChange({
+        decideRoleChange(admin, {
           kind: "assign",
           role: "support",
           scope: "global",
@@ -132,7 +133,7 @@ describe("decideRoleChange: global roles", () => {
     const admin = await actor(["platform-admin"]);
     expect(
       reasons(
-        admin.decideRoleChange({
+        decideRoleChange(admin, {
           kind: "assign",
           role: "exclusive",
           scope: "global",
@@ -142,7 +143,7 @@ describe("decideRoleChange: global roles", () => {
     ).toEqual(["conflicting-role"]);
     expect(
       reasons(
-        admin.decideRoleChange({
+        decideRoleChange(admin, {
           kind: "assign",
           role: "support",
           scope: "global",
@@ -156,7 +157,7 @@ describe("decideRoleChange: global roles", () => {
     const admin = await actor(["platform-admin"]);
     expect(
       reasons(
-        admin.decideRoleChange({
+        decideRoleChange(admin, {
           kind: "assign",
           role: "superuser",
           scope: "global",
@@ -166,7 +167,7 @@ describe("decideRoleChange: global roles", () => {
     ).toEqual(["not-assignable-by"]);
     expect(
       reasons(
-        admin.decideRoleChange({
+        decideRoleChange(admin, {
           kind: "assign",
           role: "member",
           scope: "global",
@@ -176,7 +177,7 @@ describe("decideRoleChange: global roles", () => {
     ).toEqual(["scope"]);
     expect(
       reasons(
-        admin.decideRoleChange({
+        decideRoleChange(admin, {
           kind: "assign",
           role: "ghost",
           scope: "global",
@@ -190,7 +191,7 @@ describe("decideRoleChange: global roles", () => {
     const admin = await actor(["platform-admin"]);
     expect(
       reasons(
-        admin.decideRoleChange({
+        decideRoleChange(admin, {
           kind: "assign",
           role: "support",
           scope: "organization",
@@ -208,7 +209,7 @@ describe("decideRoleChange: global roles", () => {
     };
     expect(
       // @ts-expect-error a global change carries no id
-      reasons(admin.decideRoleChange(withId)),
+      reasons(decideRoleChange(admin, withId)),
     ).toEqual(["validation"]);
   });
 
@@ -216,7 +217,7 @@ describe("decideRoleChange: global roles", () => {
     const anonymous = await createPermDock(policy, null, {});
     expect(
       reasons(
-        anonymous.decideRoleChange({
+        decideRoleChange(anonymous, {
           kind: "assign",
           role: "support",
           scope: "global",
@@ -229,7 +230,7 @@ describe("decideRoleChange: global roles", () => {
   it("transfers only a role the actor holds globally", async () => {
     const support = await actor(["support"]);
     expect(
-      support.decideRoleChange({
+      decideRoleChange(support, {
         kind: "transfer",
         role: "support",
         scope: "global",
@@ -238,7 +239,7 @@ describe("decideRoleChange: global roles", () => {
     ).toBe("granted");
     expect(
       reasons(
-        support.decideRoleChange({
+        decideRoleChange(support, {
           kind: "transfer",
           role: "auditor",
           scope: "global",
@@ -276,11 +277,11 @@ describe("decideRoleChange: global roles with an assigns graph", () => {
       { id: "u_actor", roles: ["root"] },
       {},
     );
-    expect(root.decideRoleChange(change("assign", "agent"))).toMatchObject({
+    expect(decideRoleChange(root, change("assign", "agent"))).toMatchObject({
       outcome: "granted",
       role: "root",
     });
-    expect(reasons(root.decideRoleChange(change("revoke", "other")))).toEqual([
+    expect(reasons(decideRoleChange(root, change("revoke", "other")))).toEqual([
       "not-assignable-by",
     ]);
     expect(root.assignableRoles({ scope: "global" }).map((r) => r.key)).toEqual(

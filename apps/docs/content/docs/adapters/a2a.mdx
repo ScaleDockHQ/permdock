@@ -67,7 +67,7 @@ app.post(
 
 - The row a `data` loader returns, against the resource schema (`validate: 'boundary'`); the task body is untrusted and is never the row itself.
 - A skill whose permission is instance-level must declare `data`; `createPermDock` throws a `TypeError` at startup otherwise.
-- Scope presence: the caller's token must carry the skill's `scope`; a missing scope is reported as a `401`/`403` with `WWW-Authenticate` naming the required scope, matching the security requirement in the card.
+- Scope presence: the caller's token must carry the skill's `scope`; a missing scope is reported as a `403` with `WWW-Authenticate: Bearer error="insufficient_scope"` naming the required scope (RFC 6750 section 3.1), matching the security requirement in the card.
 - Card consistency: in development, the adapter asserts that every skill declares exactly one permission and that the `securitySchemes` referenced by `securityRequirements` exist.
 - Caller identity is never taken from the task body; it comes from the transport authentication only.
 

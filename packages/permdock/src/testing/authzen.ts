@@ -254,7 +254,7 @@ export const authzenTodoPolicy: Policy = definePolicy(authzenTodoPermissions, {
     role("evil_genius", [...everyone, allow(todo.can_update_todo)]),
     role("pep", []),
   ],
-  principal: (user: unknown) => {
+  subject: (user: unknown) => {
     const id =
       user !== null && typeof user === "object" && "id" in user
         ? user.id

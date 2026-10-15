@@ -1,0 +1,34 @@
+---
+title: init
+description: Write a preset's permissions, policy, app definition and framework wiring into a project from a permdock.com/create code or from flags, keep every file that already exists, and print the install and shadcn commands to run.
+---
+
+`permdock init` writes the files a [preset](/docs/concepts/presets) generates into the current project. It never overwrites a file that exists unless `--force` is set, installs nothing and calls no network: it prints the package manager and `shadcn` commands for you to run.
+
+## Usage
+
+```bash
+permdock init --preset p1AQIDBAc                  # a code from permdock.com/create
+permdock init --archetype b2b --framework hono     # or pick with flags
+permdock init --archetype agent --agent ai-sdk --agent mcp --ui shadcn
+permdock init --archetype consumer --dry-run       # print the plan, write nothing
+permdock init --preset p1AQIDBAc --src app --force
+```
+
+| Flag                 | Meaning                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `--preset <code>`    | A preset code from [/create](https://permdock.com/create); the other selection flags are ignored |
+| `--archetype <name>` | `b2b` (default), `agent`, `marketplace`, `api`, `internal` or `consumer`                         |
+| `--framework <name>` | `next` (default), `hono`, `express` or `none`                                                    |
+| `--feature <name>`   | A feature to add beyond the archetype's, repeatable                                              |
+| `--agent <name>`     | `ai-sdk` or `mcp`, repeatable                                                                    |
+| `--ui <name>`        | `shadcn` or `react-native`, repeatable: prints the `@permdock` recipes to add                    |
+| `--src <dir>`        | The directory the files go in; default `src`                                                     |
+| `--dry-run`          | List the files it would write; write nothing                                                     |
+| `--force`            | Overwrite files that already exist                                                               |
+
+The output ends with the preset's code and its [/create](https://permdock.com/create) link, so the same preset can be opened, changed and applied again. `--json` prints `{ preset, written, kept, dryRun, install, shadcn, docs }`.
+
+## Why
+
+`init` writes only the application's own files: declarations and wiring that call into the `permdock` package. Every rule, check and verification stays in the package, so `npm update` fixes them in a project `init` created long ago. Keeping existing files makes running it again safe; it adds what is missing and leaves your changes alone.

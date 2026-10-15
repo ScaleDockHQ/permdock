@@ -18,6 +18,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { whoCan } from "../../src/index.ts";
 import { testRelationSource } from "../../src/testing/conformance/relations.ts";
 
 const at = (seconds: number): Instant => ({
@@ -481,7 +482,7 @@ describe("relationship graph", () => {
       { relations: source, memberships },
     );
     const platform = { ...folders[2], orgId: "acme" };
-    const result = await owner.whoCan(permissions.folder.read, platform);
+    const result = await whoCan(owner, permissions.folder.read, platform);
     expect(result.complete).toBe(true);
     expect(result.holders.map((item) => item.principal.id)).toEqual([
       "rita",
@@ -494,7 +495,7 @@ describe("relationship graph", () => {
       kind: "role",
       role: "reader",
     });
-    const hr = await owner.whoCan(permissions.folder.read, {
+    const hr = await whoCan(owner, permissions.folder.read, {
       ...folders[5],
       orgId: "acme",
     });
@@ -502,9 +503,11 @@ describe("relationship graph", () => {
       "hana",
       "rita",
     ]);
-    const global = await (
-      await permdock("olga")
-    ).whoCan(permissions.folder.read, folders[2]);
+    const global = await whoCan(
+      await permdock("olga"),
+      permissions.folder.read,
+      folders[2],
+    );
     expect(global.complete).toBe(false);
     const unlisted = await createPermDock(
       scoped,
@@ -512,11 +515,13 @@ describe("relationship graph", () => {
       { relations: source, memberships: { membershipsFor: () => [] } },
     );
     expect(
-      (await unlisted.whoCan(permissions.folder.read, platform)).complete,
+      (await whoCan(unlisted, permissions.folder.read, platform)).complete,
     ).toBe(false);
-    const owners = await (
-      await permdock("olga")
-    ).whoCan(permissions.doc.read, doc("d1", "eng", "owen"));
+    const owners = await whoCan(
+      await permdock("olga"),
+      permissions.doc.read,
+      doc("d1", "eng", "owen"),
+    );
     expect(owners.holders.map((item) => item.principal.id)).toEqual([
       "owen",
       "vera",

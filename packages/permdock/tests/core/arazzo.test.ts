@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Decision } from "../../src/core/decision.ts";
 
-import { arazzoFindings } from "../../src/core/arazzo.ts";
+import { arazzoFindings, simulateArazzo } from "../../src/core/arazzo.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { adminUser, permissions, policy } from "../fixtures/quick-start.ts";
 
@@ -69,7 +69,7 @@ const reasonOf = (decision: Decision | undefined) =>
 describe("simulate Arazzo", () => {
   it("pre-flights a workflow and fails closed on holes", async () => {
     const permdock = await createPermDock(policy, adminUser);
-    const plan = permdock.simulate({
+    const plan = simulateArazzo(permdock, {
       arazzo,
       openapi,
       workflowId: "publishPost",
@@ -92,7 +92,7 @@ describe("simulate Arazzo", () => {
         },
       ],
     };
-    const denied = permdock.simulate({ arazzo: hole, openapi });
+    const denied = simulateArazzo(permdock, { arazzo: hole, openapi });
     expect(denied.outcome).toBe("denied");
     expect(reasonOf(denied.steps[0]?.decision)).toBe("undocumented");
   });
@@ -116,7 +116,7 @@ describe("simulate Arazzo", () => {
 
   it("marks expression parameters provisional", async () => {
     const permdock = await createPermDock(policy, adminUser);
-    const plan = permdock.simulate({
+    const plan = simulateArazzo(permdock, {
       arazzo: {
         ...arazzo,
         workflows: [
@@ -139,7 +139,7 @@ describe("simulate Arazzo", () => {
 
   it("denies parameters that are not objects instead of throwing", async () => {
     const permdock = await createPermDock(policy, adminUser);
-    const plan = permdock.simulate({
+    const plan = simulateArazzo(permdock, {
       arazzo: {
         ...arazzo,
         workflows: [
@@ -162,7 +162,7 @@ describe("simulate Arazzo", () => {
 
   it("denies AsyncAPI sources as unsupported", async () => {
     const permdock = await createPermDock(policy, adminUser);
-    const plan = permdock.simulate({
+    const plan = simulateArazzo(permdock, {
       arazzo: {
         ...arazzo,
         sourceDescriptions: [

@@ -1,18 +1,11 @@
 import type { Condition } from "../conditions/ast.ts";
-import type { ArazzoPlan, ArazzoSimulateInput } from "./arazzo.ts";
 import type {
-  AutomationDecision,
-  AutomationRequest,
-  DecideAutomationOptions,
-} from "./automation.ts";
-import type {
-  CredentialDecision,
-  CredentialRequest,
-  DecideCredentialOptions,
-} from "./credential.ts";
+  ApprovalPolicies,
+  LoadedApprovalPolicies,
+} from "./approval-policies.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
-import type { ActivateInput } from "./elevated.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
+import type { HostedPolicies } from "./hosted.ts";
 import type { InstanceEnv } from "./instance-env.ts";
 import type {
   DecisionSink,
@@ -27,11 +20,6 @@ import type {
 } from "./interfaces.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
 import type { Operation } from "./operations.ts";
-import type {
-  RoleChange,
-  RoleChangeDecision,
-  RoleChangeOptions,
-} from "./ownership.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { PrincipalSource } from "./principal-source.ts";
@@ -44,27 +32,12 @@ import type {
   Principal,
   Subject,
 } from "./subject.ts";
-import type {
-  DecideSupportSessionOptions,
-  SupportSessionDecision,
-  SupportSessionRequest,
-} from "./support-session.ts";
 import type { Instant } from "./time.ts";
 import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
-import type { WhoCan } from "./who-can.ts";
 
-import {
-  type ApprovalPolicySource,
-  type LoadedApprovalPolicies,
-  approvalPoliciesFor,
-} from "./approval-policies.ts";
+import { withApp } from "./app.ts";
 import { compact } from "./compact.ts";
-import {
-  type PolicyDocument,
-  type PolicySource,
-  mergeHostedGrants,
-} from "./hosted.ts";
 import { buildInstance } from "./instance.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { resolveSubject } from "./resolve-subject.ts";
@@ -287,7 +260,6 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       readonly memberships?: readonly Membership[];
       readonly tenant?: string;
     }): PermDock<V>;
-    (plan: ArazzoSimulateInput): ArazzoPlan;
   };
   readonly snapshot: {
     (options?: SnapshotOptions & { readonly signer?: undefined }): Snapshot;
@@ -345,51 +317,6 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     options?: { readonly tenant?: string; readonly scope?: "global" },
   ) => readonly string[];
   /**
-   * Whether the subject may assign, revoke or transfer a role in one scope
-   * instance: `assigns`, the ceiling, `for`, `exclusiveWith`, `min`, `max`
-   * and `transferOnly`. It never writes; the application does, and generated
-   * RLS triggers re-check the holder counts at commit. A nested instance's
-   * tenant comes from a live membership the subject holds on it, or from
-   * `change.within` only with `{ trusted: true }`; otherwise `no-membership`.
-   */
-  readonly decideRoleChange: (
-    change: RoleChange,
-    options?: RoleChangeOptions,
-  ) => RoleChangeDecision;
-  /**
-   * Decides whether the subject may create the credential in `request`: the
-   * creator's own reach, the `credentials` policy of the key's tenant, and
-   * `approval`. PermDock never stores the credential; the application does,
-   * after a `granted` result. An instance built from a snapshot denies with
-   * `unsupported`.
-   */
-  readonly decideCredential: (
-    request: CredentialRequest,
-    options?: DecideCredentialOptions,
-  ) => Promise<CredentialDecision>;
-  /**
-   * Decides whether the subject may publish the automation in `request` and
-   * returns the record to store: the publisher's own reach over every
-   * operation's permission and, for a `service` automation, their assignable
-   * ceiling. Each run re-checks the publisher live. An instance built from a
-   * snapshot denies with `unsupported`.
-   */
-  readonly decideAutomation: (
-    request: AutomationRequest,
-    options?: DecideAutomationOptions,
-  ) => Promise<AutomationDecision>;
-  /**
-   * Decides whether the subject may start the support session in `request`
-   * and returns the record to sign: a stated reason, membership of the
-   * tenant, the actor's own reach, the tenant's `supportSessions` policy and
-   * approval by someone else. An instance built from a snapshot denies with
-   * `unsupported`.
-   */
-  readonly decideSupportSession: (
-    request: SupportSessionRequest,
-    options?: DecideSupportSessionOptions,
-  ) => Promise<SupportSessionDecision>;
-  /**
    * Whether `permission` could be granted to the subject for some row, within
    * its delegation. A listing hint for tools and skills, never a decision.
    */
@@ -414,22 +341,6 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     permission: Permission,
     rows: readonly unknown[],
   ) => Promise<void>;
-  /**
-   * Who holds `permission` on `resource` and how (role, relation or share),
-   * from `MembershipSource.list` and `RelationSource.related`. It lists and
-   * never grants; `complete: false` means some holders could not be listed.
-   */
-  readonly whoCan: (
-    permission: Permission<string, unknown, "instance">,
-    resource: unknown,
-  ) => Promise<WhoCan>;
-  /**
-   * Requests a just-in-time activation of an eligible role. It never writes:
-   * a granted decision carries the elevated membership under `elevation` for
-   * the app to write, and `approval-required` comes back first when the
-   * role's `activation` sets `approval`.
-   */
-  readonly activate: (input: ActivateInput) => Decision;
   readonly roles: V["roles"] extends RoleTree ? V["roles"] : RoleTree;
   readonly plans: V["plans"] extends PlanTree ? V["plans"] : PlanTree;
   readonly permissions: V["permissions"] extends Policy["permissions"]
@@ -467,12 +378,12 @@ export type PermDockOptions = {
   readonly limits?: LimitStore;
   readonly session?: string;
   readonly expiresAt?: number;
-  /** Hosted grants; `current()` is read once, when the instance is created. */
-  readonly policies?: PolicySource;
+  /** Hosted grants, `hostedPolicies(source)`; `current()` is read once, when the instance is created. */
+  readonly policies?: HostedPolicies;
   /** The object graph for `through` and edge-table relations; without it they deny with `relation-unavailable`. */
   readonly relations?: RelationSource;
   /** Approval requirements kept as data; they add to the code's and never remove one. A throw denies. */
-  readonly approvalPolicies?: ApprovalPolicySource;
+  readonly approvalPolicies?: ApprovalPolicies;
   /** Other principals by id, for `decideFor`; asked with the active tenant. */
   readonly principals?: PrincipalSource;
   /** Tenant settings, read by `decideCredential` for the key's tenant; a call's own `settings` wins. */
@@ -484,30 +395,16 @@ export type PermDockOptions = {
   readonly context?: Readonly<Record<string, unknown>>;
 };
 
-function hostedPolicy(
-  policy: Policy,
-  source: PolicySource | undefined,
-): { readonly policy: Policy; readonly errors: readonly unknown[] } {
-  if (source === undefined || policy.hostable.length === 0) {
-    return { policy, errors: [] };
-  }
-  let document: PolicyDocument | null;
-  try {
-    document = source.current();
-  } catch (error) {
-    return { policy, errors: [error] };
-  }
-  const merged = mergeHostedGrants(policy, document);
-  return { policy: merged.policy, errors: merged.dropped };
-}
-
 function instantiate(
   codePolicy: Policy,
   subject: Subject,
   options: PermDockOptions,
   auth: AuthEvent[],
 ): PermDock | Promise<PermDock> {
-  const { policy, errors } = hostedPolicy(codePolicy, options.policies);
+  const { policy, errors } = options.policies?.apply(codePolicy) ?? {
+    policy: codePolicy,
+    errors: [],
+  };
   const scopes = scopeList(policy.scopes);
   const tenants = tenantsOf(subject.principal, scopes);
   const roleSource = roleSourceFor(options.customRoles, subject, auth);
@@ -519,12 +416,7 @@ function instantiate(
     (tenant) => heldRoleNamesIn(subject.principal, scopes, tenant),
   );
   const assignable = assignableNamesFor(roleSource, tenants, auth);
-  const approvals = approvalPoliciesFor(
-    policy,
-    options.approvalPolicies,
-    tenants,
-    auth,
-  );
+  const approvals = options.approvalPolicies?.load(policy, tenants, auth);
   const build = (
     roles: readonly CustomRole[],
     names: ReadonlyMap<string, readonly string[]> | undefined,
@@ -587,8 +479,9 @@ export function createPermDock<
 >(
   policy: Policy<TUser, TPrincipal, V>,
   user: TUser | Subject | null,
-  options: PermDockOptions = {},
+  given: PermDockOptions = {},
 ): PermDock<V> | Promise<PermDock<V>> {
+  const options = withApp(policy, given);
   const auth: AuthEvent[] = [];
   const subject = resolveSubject(policy, user, options, auth);
   if (isThenable(subject)) {

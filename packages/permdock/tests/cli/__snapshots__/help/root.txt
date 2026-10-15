@@ -1,6 +1,6 @@
 Collect, export, diff and check the permissions a PermDock policy declares (permdock)
 
-USAGE permdock [OPTIONS] collect|catalog|diff|usage|doctor|config|skills|openapi|rls|arazzo|cloud|supabase|powersync|codemod
+USAGE permdock [OPTIONS] collect|catalog|diff|usage|doctor|config|skills|openapi|rls|arazzo|cloud|supabase|powersync|codemod|init|preset|scan
 
 OPTIONS
 
@@ -28,5 +28,8 @@ COMMANDS
    supabase    Generate the Supabase Custom Access Token Hook, or inspect its manifest                         
   powersync    Generate PowerSync Sync Streams from the policy, or verify them against the fixtures            
     codemod    Apply a release's renames to files that import permdock; list call sites to edit by hand        
+       init    Write a preset's permissions, policy, app and wiring into the project                           
+     preset    Decode a preset code, or print its permdock.com/create link                                     
+       scan    List authorization checks written without PermDock, to adopt it in an existing app              
 
 Use permdock <command> --help for more information about a command.
