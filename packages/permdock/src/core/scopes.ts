@@ -2,6 +2,7 @@ import type { Membership, Subject } from "./subject.ts";
 
 import { type AppData, readAppData } from "./app-data.ts";
 import { isRecord } from "./compact.ts";
+import { expirySeconds } from "./expiry.ts";
 import { freezeCopy } from "./freeze.ts";
 import { idText } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
@@ -254,8 +255,14 @@ export function normalizeMembership(
   if (typeof raw["via"] === "string") {
     extra.via = raw["via"];
   }
-  if (typeof raw["expiresAt"] === "number") {
-    extra.expiresAt = raw["expiresAt"];
+  // Null or absent never expires; a value PermDock cannot read as an instant
+  // drops the membership rather than let it live forever.
+  if (raw["expiresAt"] !== undefined && raw["expiresAt"] !== null) {
+    const expiresAt = expirySeconds(raw["expiresAt"]);
+    if (expiresAt === undefined) {
+      return undefined;
+    }
+    extra.expiresAt = expiresAt;
   }
   if (typeof raw["grantedBy"] === "string" && raw["grantedBy"] !== "") {
     extra.grantedBy = raw["grantedBy"];

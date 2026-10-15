@@ -36,36 +36,47 @@ const authInfo: AuthInfo = {
   scopes: [permissions.refund.create.scope],
 };
 
-describe("an MCP approval covers the arguments it was given", () => {
-  it("does not run the handler for a retried call with other arguments", async () => {
-    const store = memoryApprovalStore();
-    const server = new McpServer({ name: "refunds", version: "1.0.0" });
-    const ran: unknown[] = [];
-    createPermDock(policy, {
-      subject: () => ({ id: "u1", roles: ["clerk"] }),
-      store,
-    })
-      .protectServer(server)
-      .registerTool(
-        "create_refund",
-        {
-          permission: permissions.refund.create,
-          inputSchema: Refund,
-          data: (args: z.infer<typeof Refund>) => args,
-        },
-        (args) => {
-          ran.push(args);
-          return { content: [{ type: "text", text: "refunded" }] };
-        },
-      );
-    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-    const send = clientSide.send.bind(clientSide);
-    clientSide.send = (message, options) =>
-      send(message, { ...options, authInfo });
-    await server.connect(serverSide);
-    const client = new Client({ name: "tester", version: "1.0.0" });
-    await client.connect(clientSide);
+async function connect(load: boolean): Promise<{
+  readonly client: Client;
+  readonly ran: unknown[];
+  readonly store: ReturnType<typeof memoryApprovalStore>;
+}> {
+  const store = memoryApprovalStore();
+  const server = new McpServer({ name: "refunds", version: "1.0.0" });
+  const ran: unknown[] = [];
+  createPermDock(policy, {
+    subject: () => ({ id: "u1", roles: ["clerk"] }),
+    store,
+  })
+    .protectServer(server)
+    .registerTool(
+      "create_refund",
+      {
+        permission: permissions.refund.create,
+        inputSchema: Refund,
+        ...(load ? { data: (args: z.infer<typeof Refund>) => args } : {}),
+      },
+      (args) => {
+        ran.push(args);
+        return { content: [{ type: "text", text: "refunded" }] };
+      },
+    );
+  const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+  const send = clientSide.send.bind(clientSide);
+  clientSide.send = (message, options) =>
+    send(message, { ...options, authInfo });
+  await server.connect(serverSide);
+  const client = new Client({ name: "tester", version: "1.0.0" });
+  await client.connect(clientSide);
+  return { client, ran, store };
+}
 
+describe("an MCP approval covers the arguments it was given", () => {
+  it.each([
+    ["with a data loader", true],
+    ["without a data loader", false],
+  ])("binds the arguments %s", async (_name, load) => {
+    const { client, ran, store } = await connect(load);
     const parked = await client.callTool({
       name: "create_refund",
       arguments: { amount: 5, to: "c_1" },

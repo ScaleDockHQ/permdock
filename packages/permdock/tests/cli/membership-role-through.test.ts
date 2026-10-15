@@ -216,7 +216,7 @@ describe("membership sources through a roles table", () => {
     });
     const canAssign = fn(sql, "permdock_can_assign");
     expect(canAssign).toContain(
-      "(r.role, p_role) in (values ('owner', 'admin'))\n        and exists",
+      "(r.role, p_role) in (values ('owner', 'admin'))\n        and coalesce",
     );
     expect(canAssign).not.toContain("case r.role");
   });

@@ -129,11 +129,12 @@ function credentialRefusal(
 async function recheck(
   checks: McpChecks,
   binding: ToolBinding,
+  args: readonly unknown[],
   call: McpCall,
   permission: Permission,
   approved: string | undefined,
 ): Promise<Checked> {
-  const rechecked = await checks.kernel.check(binding, undefined, call, {
+  const rechecked = await checks.kernel.check(binding, args, call, {
     simulate: true,
   });
   if (!rechecked.ok) {
@@ -163,6 +164,7 @@ async function decideCall(
   checks: McpChecks,
   permission: Permission,
   reach: Reach,
+  args: readonly unknown[],
   load: (() => unknown) | undefined,
   context: Context,
   handlerContext: unknown,
@@ -180,11 +182,18 @@ async function decideCall(
   });
   const call: McpCall = compact({ authInfo });
   if (completion !== undefined) {
-    return recheck(checks, binding, call, permission, completion.approved);
+    return recheck(
+      checks,
+      binding,
+      args,
+      call,
+      permission,
+      completion.approved,
+    );
   }
   const checked = await checks.kernel.check(
     binding,
-    undefined,
+    args,
     call,
     compact({ resumeToken: approvalTokenOf(context) }),
   );
@@ -249,6 +258,7 @@ async function checkCall(
   checks: McpChecks,
   permission: Permission,
   reach: Reach,
+  args: readonly unknown[],
   load: (() => unknown) | undefined,
   context: Context,
   handlerContext: unknown,
@@ -259,6 +269,7 @@ async function checkCall(
     checks,
     permission,
     reach,
+    args,
     load,
     context,
     handlerContext,
@@ -357,13 +368,16 @@ export function guard(
   return async (...params: unknown[]): Promise<unknown> => {
     const raw = params.at(-1);
     const context = contextOf(raw);
+    // The call's arguments: the loader reads them, and an approval binds them.
+    const args = dataArgs(params);
     const loader =
-      load === undefined ? undefined : (): unknown => load(...dataArgs(params));
+      load === undefined ? undefined : (): unknown => load(...args);
     const reach = extra.reach ?? reachOf(checks.policy, permission, undefined);
     const checked = await checkCall(
       checks,
       permission,
       reach,
+      args,
       loader,
       context,
       raw,
@@ -377,6 +391,7 @@ export function guard(
           checks,
           permission,
           reach,
+          args,
           loader,
           context,
           raw,

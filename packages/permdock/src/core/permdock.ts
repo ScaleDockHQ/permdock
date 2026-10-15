@@ -110,6 +110,13 @@ export type DecideOptions = {
    * operation (agent tools, workflow steps, `protect(operation)`) pass it.
    */
   readonly operation?: Pick<Operation, "name" | "meta">;
+  /**
+   * The arguments of the call being decided, such as a tool call's input. An
+   * `approval-required` token binds their digest, so an approval covers this
+   * call and no call with other arguments. Agent and MCP adapters pass the
+   * tool arguments. Never read when deciding.
+   */
+  readonly args?: unknown;
 };
 
 export type SimulateOptions = {

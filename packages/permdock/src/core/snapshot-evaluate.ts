@@ -30,7 +30,7 @@ import {
   rowInScope,
 } from "./tenancy.ts";
 import { epochSeconds, INVALID_NOW } from "./time.ts";
-import { decisionToken, payloadDigest } from "./token.ts";
+import { decisionToken, tokenPayload } from "./token.ts";
 import { isActive, readWireValidity } from "./validity.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
@@ -150,6 +150,10 @@ function conditionOk(
   if (grant.portable === false) {
     return { matched: false, reason: "opaque-condition" };
   }
+  // As in process: an allow needs `where` on the current row and `check` (or
+  // an update's `where`) on the next; a deny applies when either matches.
+  const deny = grant.effect === "deny";
+  let whereMatched: boolean | undefined;
   if (grant.where !== undefined) {
     if (permission.kind === "collection" || current === undefined) {
       return { matched: false, reason: "condition" };
@@ -157,7 +161,7 @@ function conditionOk(
     if (grant.where.op === "opaque" || grant.check?.op === "opaque") {
       return { matched: false, reason: "opaque-condition" };
     }
-    const matched = evaluateCondition(
+    whereMatched = evaluateCondition(
       grant.where,
       current,
       subject,
@@ -169,11 +173,18 @@ function conditionOk(
     if (opaqueReached) {
       return { matched: false, reason: "opaque-condition" };
     }
-    if (!matched) {
+    if (whereMatched && deny) {
+      return { matched: true };
+    }
+    if (!whereMatched && !deny) {
       return { matched: false, reason: "condition" };
     }
   }
-  const check = grant.check;
+  const check =
+    grant.check ?? (permission.action === "update" ? grant.where : undefined);
+  if (check === undefined && whereMatched === false) {
+    return { matched: false, reason: "condition" };
+  }
   if (check !== undefined) {
     if (check.op === "opaque") {
       return { matched: false, reason: "opaque-condition" };
@@ -318,7 +329,12 @@ export function evaluateSnapshot(
       now(),
       options.scope,
     );
-    if (scoped.ok && permission.kind === "instance" && next !== current) {
+    // An allow needs both rows of an update pair in scope; a deny either.
+    if (
+      scoped.ok !== (grant.effect === "deny") &&
+      permission.kind === "instance" &&
+      next !== current
+    ) {
       scoped = scopeOk(
         snapshot,
         grant,
@@ -464,10 +480,7 @@ export function evaluateSnapshot(
         principal: subject.principal,
         actor: subject.actor,
         fingerprint: `snapshot:${snapshot.issuedAt}`,
-        payload:
-          resourceId === "*" && (next ?? current) !== undefined
-            ? payloadDigest(next ?? current)
-            : undefined,
+        payload: tokenPayload(resourceId, next ?? current, options.args),
       });
   const grant = matchedOf(matched);
   if (requiresApproval(matched.approval)) {

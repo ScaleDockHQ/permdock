@@ -75,7 +75,7 @@ import {
   type ResourceRoleWalk,
 } from "./tenancy.ts";
 import { epochSeconds, INVALID_NOW } from "./time.ts";
-import { decisionToken, payloadDigest, versionOf } from "./token.ts";
+import { decisionToken, tokenPayload, versionOf } from "./token.ts";
 import { PermDockValidationError } from "./validation-error.ts";
 import { validateBoundary } from "./validation.ts";
 import { isActive, wireValidity } from "./validity.ts";
@@ -84,16 +84,24 @@ type ScopeMatch = ReturnType<typeof matchScopedMembership>;
 
 /**
  * A collection write proposes `next`; an update pair may move `next` out of
- * the scope `current` is in. Both must stay in scope.
+ * the scope `current` is in. An allow needs both in scope; a deny applies
+ * when either is, so a move into or out of its scope stays denied.
  */
 function matchWriteScope(
   match: (row: unknown) => ScopeMatch,
   instance: boolean,
   current: unknown,
   next: unknown,
+  deny: boolean,
 ): ScopeMatch {
   const first = match(instance ? current : next);
-  if (!first.ok || !instance || next === current) {
+  if (!instance || next === current) {
+    return first;
+  }
+  if (deny) {
+    return first.ok ? first : match(next);
+  }
+  if (!first.ok) {
     return first;
   }
   const moved = match(next);
@@ -473,6 +481,7 @@ function roleScope(
       permission.kind === "instance",
       state.current,
       state.next,
+      grant.effect === "deny",
     );
     if (!scopeMatch.ok) {
       state.denials.push({ role: roleItem.role, reason: scopeMatch.reason });
@@ -832,10 +841,11 @@ function allowedDecision(
           actor: subject.actor,
           fingerprint: policy.fingerprint,
           version,
-          payload:
-            resourceId === "*" && (next ?? current) !== undefined
-              ? payloadDigest(next ?? current)
-              : undefined,
+          payload: tokenPayload(
+            resourceId,
+            next ?? current,
+            state.options.args,
+          ),
         });
   const matched = compact<MatchedGrant>({
     ...matchedOf(allow.grant, permission.key, allow.breakGlass),

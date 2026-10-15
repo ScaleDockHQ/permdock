@@ -95,17 +95,17 @@ A failed check denies with reason `condition`. Only the `supabase` dialect compi
 
 ### Common patterns
 
-| Intent                          | Condition                                                                  | Supabase RLS output                                                                                                      |
-| ------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Ownership                       | `{ where: { authorId: principal.id } }`                                    | `(select auth.uid()) = author_id`                                                                                        |
-| Tenancy                         | `{ where: { orgId: principal.orgId } }`                                    | `org_id = ((select auth.jwt()) ->> 'orgId')::uuid`                                                                       |
-| Public rows                     | `{ where: { published: true } }`                                           | `published = true`                                                                                                       |
-| Owner or public                 | `{ where: { or: [{ published: true }, { authorId: principal.id }] } }`     | `(published = true OR (select auth.uid()) = author_id)`                                                                  |
-| Membership (array in `context`) | `{ where: { teamId: { in: context.teamIds } } }`                           | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))`                                         |
-| Tenancy (scoped role)           | `role('viewer', [allow(permissions.post.read)], { on: 'tenant' })`         | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid`                                                                   |
-| Team role (scoped role)         | `role('lead', [allow(permissions.post.publish)], { on: 'team' })`          | `exists (select 1 from team_member m where m.team_id = team_id and m.user_id = (select auth.uid()) and m.role = 'lead')` |
-| Not archived                    | `{ where: { archivedAt: { isNull: true } } }`                              | `archived_at IS NULL`                                                                                                    |
-| Cannot reassign owner           | `{ where: { authorId: principal.id }, check: { authorId: principal.id } }` | `USING (...) WITH CHECK (...)`                                                                                           |
+| Intent                          | Condition                                                                  | Supabase RLS output                                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Ownership                       | `{ where: { authorId: principal.id } }`                                    | `(select auth.uid()) = author_id`                                                                            |
+| Tenancy                         | `{ where: { orgId: principal.orgId } }`                                    | `org_id = ((select auth.jwt()) ->> 'orgId')::uuid`                                                           |
+| Public rows                     | `{ where: { published: true } }`                                           | `published = true`                                                                                           |
+| Owner or public                 | `{ where: { or: [{ published: true }, { authorId: principal.id }] } }`     | `(published = true OR (select auth.uid()) = author_id)`                                                      |
+| Membership (array in `context`) | `{ where: { teamId: { in: context.teamIds } } }`                           | `team_id IN (select team_id from team_user where user_id = (select auth.uid()))`                             |
+| Tenancy (scoped role)           | `role('viewer', [allow(permissions.post.read)], { on: 'tenant' })`         | `org_id = ((select auth.jwt()) ->> 'tenant_id')::uuid`                                                       |
+| Team role (scoped role)         | `role('lead', [allow(permissions.post.publish)], { on: 'team' })`          | `team_id in (select m.team_id from team_member m where m.user_id = (select auth.uid()) and m.role = 'lead')` |
+| Not archived                    | `{ where: { archivedAt: { isNull: true } } }`                              | `archived_at IS NULL`                                                                                        |
+| Cannot reassign owner           | `{ where: { authorId: principal.id }, check: { authorId: principal.id } }` | `USING (...) WITH CHECK (...)`                                                                               |
 
 The right-hand column assumes the Supabase dialect; Neon and generic Postgres substitute `auth.user_id()` or a GUC. Column naming follows the mapping the RLS adapter derives from your schema or Drizzle table.
 
@@ -123,6 +123,8 @@ The right-hand column assumes the Supabase dialect; Neon and generic Postgres su
 The classic hole this closes: a user who may update their own posts must not be able to reassign `authorId` to someone else. `allow(permissions.post.update, { where: { authorId: principal.id } })` alone lets Postgres reuse the `USING` clause as `WITH CHECK`, and PermDock does the same in memory: when `check` is omitted for `update`, the `where` condition is evaluated against the proposed row too. Pass `check` explicitly when the two differ.
 
 In memory, `update` and `create` checks receive the next row as `data`; `decide(permissions.post.update, { current, next })` is the two-row form used by adapters that have both.
+
+A `deny` reads the same two conditions the other way round. An allow needs `where` on the current row **and** `check` on the next one; a deny applies when `where` matches the current row **or** `check` matches the next one, which is what a `RESTRICTIVE` policy's `USING NOT (where) WITH CHECK NOT (check)` does. `deny(permissions.invoice.update, { where: { locked: true } })` refuses both unlocking a locked invoice and locking an open one in the same write. A scoped deny follows the same rule: an update that moves a row into or out of the deny's scope instance is refused. `fromSnapshot` evaluates pairs the same way.
 
 ## JSON format
 
@@ -229,3 +231,7 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 - An opaque node anywhere in a condition, including under `not` and `or`, fails the whole grant with `opaque-condition`, so `not(opaque)` never matches.
 - A deny that cannot be evaluated denies the decision: a closure that throws or returns a thenable (`closure-error`), an opaque condition (`opaque-condition`) or a relation read that cannot be answered (`relation-depth`, `relation-unavailable`). An allow that cannot be evaluated only fails that grant. A snapshot applies the same rule to an opaque deny.
 - `memberOf` is evaluated against the frozen subject's memberships, so an expired membership or an active tenant with no membership makes it `false`, the same way a missing field does. It is generated from role declarations only; there is no hand-written `memberOf` in a `where`.
+
+## Why
+
+- **A deny on an update pair applies when either row matches.** Reading `where` and `check` with an allow's AND made `deny(invoice.update, { where: { locked: true } })` apply only when the invoice was locked before and after the write, so unlocking it, or locking it with other edits in the same write, got past the deny. Postgres has always checked a `RESTRICTIVE` policy's `USING` on the old row and its `WITH CHECK` on the new one, so the generated RLS refused both; the in-process and snapshot evaluators now agree with it. Allows keep AND: a grant to edit your own post must hold before and after, or the write could reassign it.

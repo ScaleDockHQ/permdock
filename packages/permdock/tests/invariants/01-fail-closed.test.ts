@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { Principal } from "../../src/index.ts";
+
 import {
   allow,
   createPermDock,
@@ -185,5 +187,65 @@ describe("invariant 1: fail-closed", () => {
         }
       }
     }
+  });
+
+  describe("a membership's expiresAt", () => {
+    const docs = definePermissions({
+      doc: resource(z.object({ id: z.string(), org_id: z.string() }), {
+        id: "id",
+        actions: ["read"],
+        relations: { org: { field: "org_id", memberOf: "organization" } },
+      }),
+    });
+    const scoped = definePolicy(docs, {
+      scopes: { organization: { key: "org_id" } },
+      roles: [role("member", [allow(docs.doc.read)], { on: "organization" })],
+      subject: (user: Principal) => user,
+    });
+    const NOW = { epochMilliseconds: Date.parse("2026-06-01T00:00:00Z") };
+    const read = async (expiresAt: unknown): Promise<boolean> => {
+      const permdock = await createPermDock(scoped, {
+        id: "u1",
+        roles: [],
+        tenant: "T",
+        memberships: [
+          {
+            scope: "organization",
+            id: "T",
+            roles: ["member"],
+            // SAFETY: a row or claim can hold what a typed caller cannot; that is the case under test.
+            expiresAt: expiresAt as number,
+          },
+        ],
+      });
+      return permdock.can(
+        docs.doc.read,
+        { id: "d1", org_id: "T" },
+        { now: NOW },
+      );
+    };
+
+    it.each([
+      ["Unix seconds in the past", 1],
+      ["an RFC 3339 string in the past", "2001-01-01T00:00:00Z"],
+      ["a Date in the past", new Date("2001-01-01T00:00:00Z")],
+      ["NaN", Number.NaN],
+      ["Infinity", Number.POSITIVE_INFINITY],
+      ["an invalid Date", new Date("not a date")],
+      ["a string that is not RFC 3339", "next tuesday"],
+      ["a boolean", true],
+    ])("denies with %s", async (_name, expiresAt) => {
+      expect(await read(expiresAt)).toBe(false);
+    });
+
+    it.each([
+      ["absent", undefined],
+      ["null", null],
+      ["Unix seconds in the future", 4_102_444_800],
+      ["an RFC 3339 string in the future", "2100-01-01T00:00:00+01:00"],
+      ["a Date in the future", new Date("2100-01-01T00:00:00Z")],
+    ])("grants with %s", async (_name, expiresAt) => {
+      expect(await read(expiresAt)).toBe(true);
+    });
   });
 });

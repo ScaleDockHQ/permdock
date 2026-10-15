@@ -46,6 +46,7 @@ function runDecide(
     readonly boundary: Boundary;
     readonly call: "adapter" | "simulate";
     readonly operation?: NonNullable<DecideOptions["operation"]>;
+    readonly args?: unknown;
   },
 ): Decision {
   // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
@@ -200,6 +201,7 @@ export function createAgentKernel<
           adapter: options.adapter,
           boundary,
           call: how.call,
+          args,
           operation:
             binding.meta === undefined
               ? undefined

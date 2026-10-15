@@ -20,6 +20,7 @@ import type {
 
 import { clientNameOf } from "../core/clients.ts";
 import { compact, isRecord } from "../core/compact.ts";
+import { expirySeconds } from "../core/expiry.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { isForbiddenKey, readPath } from "../core/paths.ts";
 import { anonymousSubject } from "../core/subject.ts";
@@ -246,8 +247,11 @@ function claimExtras(record: Record<string, unknown>): {
 } {
   return compact({
     via: typeof record["via"] === "string" ? record["via"] : undefined,
+    // An expiry PermDock cannot read is the epoch, already past: fail closed.
     expiresAt:
-      typeof record["expiresAt"] === "number" ? record["expiresAt"] : undefined,
+      record["expiresAt"] === undefined || record["expiresAt"] === null
+        ? undefined
+        : (expirySeconds(record["expiresAt"]) ?? 0),
     keep: keptKeys(record["keep"]),
   });
 }

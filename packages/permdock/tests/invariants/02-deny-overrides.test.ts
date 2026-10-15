@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { Principal } from "../../src/index.ts";
+
+import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import {
   allow,
   anyone,
@@ -144,6 +147,98 @@ describe("invariant 2: deny overrides allow", () => {
     expect(where.condition).toEqual({
       op: "not",
       condition: { op: "eq", field: "locked", value: true },
+    });
+  });
+
+  describe("an update pair", () => {
+    const pair = (from: typeof open, to: typeof open) => ({
+      current: from,
+      next: { ...to, id: from.id },
+    });
+    const pairs = [
+      ["locked to unlocked", pair(locked, open), false],
+      ["unlocked to locked", pair(open, locked), false],
+      ["locked to locked", pair(locked, locked), false],
+      ["unlocked to unlocked", pair(open, open), true],
+    ] as const;
+
+    async function editor() {
+      const policy = definePolicy(permissions, {
+        roles: [
+          role("editor", [
+            allow(permissions.doc.update),
+            deny(permissions.doc.update, { where: { locked: true } }),
+          ]),
+        ],
+        subject,
+      });
+      return createPermDock(policy, { id: "u1", roles: ["editor"] });
+    }
+
+    it.each(pairs)(
+      "is denied when either row matches the deny (%s)",
+      async (_name, rows, allowed) => {
+        const permdock = await editor();
+        expect(permdock.can(permissions.doc.update, rows)).toBe(allowed);
+        const client = fromSnapshot(permdock.snapshot());
+        expect(client.can(permissions.doc.update, rows)).toBe(allowed);
+      },
+    );
+
+    it("still needs both rows to match an allow", async () => {
+      const policy = definePolicy(permissions, {
+        roles: [
+          role("editor", [
+            allow(permissions.doc.update, { where: { locked: false } }),
+          ]),
+        ],
+        subject,
+      });
+      const permdock = await createPermDock(policy, {
+        id: "u1",
+        roles: ["editor"],
+      });
+      const client = fromSnapshot(permdock.snapshot());
+      for (const [_name, rows, allowed] of pairs) {
+        expect(permdock.can(permissions.doc.update, rows)).toBe(allowed);
+        expect(client.can(permissions.doc.update, rows)).toBe(allowed);
+      }
+    });
+
+    it("applies a scoped deny when the row moves into or out of its scope", async () => {
+      const Item = z.object({ id: z.string(), org: z.string() });
+      const items = definePermissions({
+        item: resource(Item, {
+          id: "id",
+          actions: ["update"],
+          relations: { org: { field: "org", memberOf: "org" } },
+        }),
+      });
+      const policy = definePolicy(items, {
+        scopes: { org: { key: "org" } },
+        roles: [
+          role("editor", [allow(items.item.update)]),
+          role("frozen", [deny(items.item.update)], { on: "org" }),
+        ],
+        subject: (user: Principal) => user,
+      });
+      const permdock = await createPermDock(policy, {
+        id: "u1",
+        roles: ["editor"],
+        tenant: "A",
+        memberships: [{ scope: "org", id: "A", roles: ["frozen"] }],
+      });
+      const inA = { id: "i1", org: "A" };
+      const inB = { id: "i1", org: "B" };
+      expect(permdock.can(items.item.update, { current: inB, next: inB })).toBe(
+        true,
+      );
+      expect(permdock.can(items.item.update, { current: inA, next: inB })).toBe(
+        false,
+      );
+      expect(permdock.can(items.item.update, { current: inB, next: inA })).toBe(
+        false,
+      );
     });
   });
 });

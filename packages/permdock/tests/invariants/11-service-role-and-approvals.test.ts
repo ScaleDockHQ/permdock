@@ -77,13 +77,15 @@ async function tokenFor(
   leaf: typeof permissions.post.delete | typeof permissions.post.archive,
   row: typeof p1,
   actor?: typeof agent,
+  args?: unknown,
 ): Promise<string> {
   const permdock = await createPermDock(
     policy,
     user,
     actor === undefined ? {} : { actor, delegation },
   );
-  return pending(permdock.decide(leaf, row)).token;
+  return pending(permdock.decide(leaf, row, args === undefined ? {} : { args }))
+    .token;
 }
 
 let cwd = "";
@@ -169,16 +171,13 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
         },
       },
     });
-    const result = await kernel.decideTool(
-      "delete_post",
-      {
-        ...p1,
-        subject: { principal: { id: "alice", roles: ["admin"] } },
-        actor: { id: "root", kind: "user" },
-        user: alice,
-      },
-      {},
-    );
+    const args = {
+      ...p1,
+      subject: { principal: { id: "alice", roles: ["admin"] } },
+      actor: { id: "root", kind: "user" },
+      user: alice,
+    };
+    const result = await kernel.decideTool("delete_post", args, {});
     const permdock = await kernel.instance({});
     expect(permdock.subject.principal?.id).toBe("bob");
     expect(permdock.subject.actor).toBeUndefined();
@@ -187,7 +186,7 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
       result.decision?.outcome === "approval-required"
         ? result.decision.token
         : undefined,
-    ).toBe(await tokenFor(bob, permissions.post.delete, p1));
+    ).toBe(await tokenFor(bob, permissions.post.delete, p1, undefined, args));
   });
 
   it("binds the approval token to permission, resource id, subject and actor", async () => {

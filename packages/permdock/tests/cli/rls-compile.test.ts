@@ -116,10 +116,10 @@ describe("compileGrant resource scope", () => {
     };
     const sql = usingOf(chainedPolicy, "doc.read", withProject);
     expect(sql).toContain(
-      '"folder_members" m where m."folder_id" = "folderId"',
+      '"folderId" in (select m."folder_id" from "folder_members" m where',
     );
     expect(sql).toContain(
-      '"project_members" m where m."project_id" = "projectId"',
+      '"projectId" in (select m."project_id" from "project_members" m where',
     );
     expect(usingOf(chainedPolicy, "doc.read", ctx)).not.toContain(
       "project_members",
@@ -127,10 +127,12 @@ describe("compileGrant resource scope", () => {
   });
 
   it("keys the role resource by its id and a child row by its parent field", () => {
-    expect(usingFor("folder.read")).toContain('m."folder_id" = "id"');
+    expect(usingFor("folder.read")).toContain(
+      '"id" in (select m."folder_id" from',
+    );
     const child = usingFor("file.read");
-    expect(child).toContain('m."folder_id" = "folderId"');
-    expect(child).not.toContain('m."folder_id" = "id"');
+    expect(child).toContain('"folderId" in (select m."folder_id" from');
+    expect(child).not.toContain('"id" in (select m."folder_id" from');
   });
 
   it("compiles a keyed parent hop through that resource mapping only", () => {
@@ -162,7 +164,7 @@ describe("compileGrant resource scope", () => {
       },
     );
     expect(sql).toContain(
-      '"project_members" m where m."project_id" = "projectId"',
+      '"projectId" in (select m."project_id" from "project_members" m where',
     );
     expect(sql).not.toContain('"orgId"');
   });
@@ -265,7 +267,7 @@ describe("memberOf and suspension", () => {
       },
     }).scopes,
   );
-  const user = `exists (select 1 from "public"."profiles" s where s."id" = (select "permdock".permdock_user_id()) and s."disabled_at" is null)`;
+  const user = `coalesce((select "permdock".permdock_user_id()) in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)`;
   const suspended = {
     dialect: "supabase",
     tenantClaim: "tenant_id",
@@ -301,10 +303,10 @@ describe("memberOf and suspension", () => {
     expect(sql).toContain('"team_members" m where');
     expect(sql).toContain(user);
     expect(sql).toContain(
-      `exists (select 1 from "public"."teams" s where s."id" = (m."team_id")::text and s."state"::text = any(array['open']::text[]))`,
+      `coalesce((m."team_id")::text in (select s."id" from "public"."teams" s where s."state"::text = any(array['open']::text[])), false)`,
     );
     expect(sql).toContain(
-      `exists (select 1 from "public"."orgs" s where s."id" = (m."organization_id")::text and s."disabled_at" is null)`,
+      `coalesce((m."organization_id")::text in (select s."id" from "public"."orgs" s where s."disabled_at" is null), false)`,
     );
   });
 
@@ -323,7 +325,7 @@ describe("memberOf and suspension", () => {
     );
     expect(sql).toContain(user);
     expect(sql).toContain(
-      `exists (select 1 from "public"."orgs" s where s."id" = ("organization_id")::text and s."disabled_at" is null)`,
+      `coalesce(("organization_id")::text in (select s."id" from "public"."orgs" s where s."disabled_at" is null), false)`,
     );
   });
 
