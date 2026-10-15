@@ -139,7 +139,12 @@ function parseRemoteDecision(
       ? body["context"]["permdock"]
       : {};
   if (context["outcome"] === "approval-required") {
-    const token = typeof context["token"] === "string" ? context["token"] : "";
+    const token = context["token"];
+    if (typeof token !== "string" || token === "") {
+      // A token is what binds the approval to this subject and call; one
+      // the remote left out would be shared by every caller.
+      return denied("pdp-invalid-response");
+    }
     return {
       outcome: "approval-required",
       grant: {

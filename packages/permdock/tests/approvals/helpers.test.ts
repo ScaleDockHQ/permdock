@@ -219,6 +219,10 @@ describe("resumeDecision edges", () => {
   it.each<[string, Partial<ApprovalRequest>]>([
     ["another permission", { permission: "post.update" }],
     ["another row", { resource: { type: "post", id: "7" } }],
+    [
+      "another principal",
+      { subject: { principal: { id: "someone-else", kind: "user" } } },
+    ],
   ])("denies a token issued for %s", async (_label, overrides) => {
     const store = approved("t1", overrides);
     expect(

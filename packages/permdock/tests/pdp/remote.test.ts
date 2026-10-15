@@ -335,7 +335,7 @@ describe("remotePdp decide", () => {
           decision: false,
           context: { permdock: { outcome: "approval-required" } },
         },
-        expected: { outcome: "approval-required", token: "" },
+        expected: { outcome: "denied", reason: "pdp-invalid-response" },
       },
       {
         label: "copied denials",
