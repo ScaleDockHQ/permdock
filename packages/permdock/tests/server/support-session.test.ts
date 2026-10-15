@@ -111,7 +111,7 @@ describe("support session tokens", () => {
     const token = await signSupportSession(sessionFrom(), signer);
     const subject = await subjectFromSupportSession(token, options);
     const sink = memoryDecisionSink();
-    const viewing = await createPermDock(policy, subject, { sink });
+    const viewing = createPermDock(policy, subject, { sink });
     viewing.can(permissions.invoice.read, invoice);
     viewing.can(permissions.invoice.delete, invoice);
     const events = sink.events();
@@ -126,7 +126,7 @@ describe("support session tokens", () => {
 
   it("leave decisions without a support actor unstamped", async () => {
     const sink = memoryDecisionSink();
-    const forged = await createPermDock(
+    const forged = createPermDock(
       policy,
       userSubject("u_customer", ["owner"], {
         context: { supportSession: { id: "ss_1" } },

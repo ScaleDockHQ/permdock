@@ -141,7 +141,7 @@ function nonPlain(value: unknown, path: string, out: string[]): string[] {
 
 describe("snapshots are plain data", () => {
   it("carries only plain, JSON and structured-clone safe values in every shape", async () => {
-    const permdock = await createPermDock(policy, ana, {
+    const permdock = createPermDock(policy, ana, {
       relations,
       customRoles,
     });

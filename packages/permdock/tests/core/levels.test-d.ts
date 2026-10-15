@@ -33,7 +33,7 @@ describe("resource levels", () => {
   });
 
   it("assignableLevels returns level names", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     expectTypeOf(permdock.assignableLevels).returns.toEqualTypeOf<
       readonly string[]
     >();

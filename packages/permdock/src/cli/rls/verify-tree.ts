@@ -9,11 +9,11 @@ import {
   isPrincipalRelation,
 } from "../../core/resource-relations.ts";
 import {
+  listPermissions,
+  loadPermDock,
+  memoryRelationSource,
   type Policy,
   type ResourceNode,
-  createPermDock,
-  listPermissions,
-  memoryRelationSource,
 } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { columnTypesOf } from "../sql/columns.ts";
@@ -478,7 +478,7 @@ export async function verifyTree(input: {
       rows[leaf.resource] !== undefined,
   );
   for (const subject of subjects) {
-    const permdock = await createPermDock(
+    const permdock = await loadPermDock(
       policy,
       { principal: { id: subject, roles: [] }, context: {} },
       { relations },

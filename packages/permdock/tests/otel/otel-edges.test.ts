@@ -60,7 +60,7 @@ function spanApi(recording: boolean): {
 describe("permdock/otel registry fallbacks", () => {
   it("uses a no-op tracer and meter when the registry has no providers", async () => {
     const results = await withRegistry({}, async () => {
-      const permdock = withOtel(await createPermDock(policy, memberUser));
+      const permdock = withOtel(createPermDock(policy, memberUser));
       return [
         permdock.can(permissions.post.read, ownPost),
         permdock.decide(permissions.post.update, ownPost).outcome,
@@ -71,7 +71,7 @@ describe("permdock/otel registry fallbacks", () => {
 
   it("ignores a non-object registry value", async () => {
     const result = await withRegistry("not-a-registry", async () => {
-      const permdock = withOtel(await createPermDock(policy, memberUser));
+      const permdock = withOtel(createPermDock(policy, memberUser));
       return permdock.can(permissions.post.read, ownPost);
     });
     expect(result).toBe(true);
@@ -81,7 +81,7 @@ describe("permdock/otel registry fallbacks", () => {
 describe("permdock/otel logging and spans", () => {
   it("reports a failing logger to logger.error and survives a failing error", async () => {
     const errors: unknown[] = [];
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     instrument(permdock, {
       logger: {
         info() {
@@ -95,7 +95,7 @@ describe("permdock/otel logging and spans", () => {
         },
       },
     });
-    const loud = await createPermDock(policy, memberUser);
+    const loud = createPermDock(policy, memberUser);
     instrument(loud, {
       logger: {
         info() {
@@ -121,7 +121,7 @@ describe("permdock/otel logging and spans", () => {
   it("warns once per span when no provider records it", async () => {
     const warns: string[] = [];
     const { api } = spanApi(false);
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     instrument(permdock, {
       api,
       logger: {
@@ -141,7 +141,7 @@ describe("permdock/otel logging and spans", () => {
 
   it("records an exception for a validation denial", async () => {
     const { api, exceptions } = spanApi(true);
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     instrument(permdock, { api });
     permdock.decide(permissions.post.update, { id: 5 });
     expect(exceptions.length).toBe(1);
@@ -150,7 +150,7 @@ describe("permdock/otel logging and spans", () => {
   it("redacts nested paths and reports the ones that do not match", async () => {
     const warns: string[] = [];
     const { api, attributes } = spanApi(true);
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     instrument(permdock, {
       api,
       attributes: () => ({ app: { secret: "s", keep: 1 } }),

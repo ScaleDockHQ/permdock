@@ -15,7 +15,7 @@ export default function PortalQuotes(props: {
       <Protected
         permission={permissions.quotes.list}
         pending={<QuotesSkeleton />}
-        fallback={<p>Sign in as a customer contact to see quotes.</p>}
+        denied={<p>Sign in as a customer contact to see quotes.</p>}
       >
         <Suspense fallback={<QuotesSkeleton />}>
           <Quotes params={props.params} />

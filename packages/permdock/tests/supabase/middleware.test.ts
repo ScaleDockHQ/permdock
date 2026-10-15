@@ -56,8 +56,7 @@ const adminClaims: SupabaseJwtClaims = {
 };
 
 const subjectOptions = {
-  roles: "user_role",
-  tenant: "tenant_id",
+  claims: { roles: "user_role", tenant: "tenant_id" },
   declared: ["member", "admin"],
 } as const;
 
@@ -192,7 +191,7 @@ describe("permdock/supabase/middleware", () => {
       subject: (ctx) =>
         subjectFromSupabase(ctx.jwtClaims, {
           ...subjectOptions,
-          memberships: "memberships",
+          claims: { ...subjectOptions.claims, memberships: "memberships" },
         }),
       tenant: (ctx, req) => {
         seen.push(ctx.jwtClaims?.sub ?? "anon");

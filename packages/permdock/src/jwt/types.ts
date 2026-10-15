@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { ClaimsMap } from "../core/claims-map.ts";
 import type { ClientNames } from "../core/clients.ts";
 import type { AuthEvent } from "../core/event-types.ts";
 import type {
@@ -74,27 +75,6 @@ export type JoseTokenSignerOptions = {
   readonly audience?: string | readonly string[];
 };
 
-export type JwtClaimPaths = {
-  readonly id?: string;
-  readonly roles?: string;
-  readonly groups?: string;
-  readonly entitlements?: string;
-  readonly plans?: string;
-  readonly tenant?: string;
-  readonly memberships?: string;
-  readonly kind?: string;
-  readonly assurance?:
-    | string
-    | {
-        readonly acr?: string;
-        readonly amr?: string;
-        readonly authTime?: string;
-        /** OpenID Connect for Identity Assurance; default `verified_claims`. */
-        readonly verified?: string;
-      };
-  readonly session?: string;
-};
-
 export type JwtDelegationPaths = {
   readonly scopes?: string;
   readonly authorizationDetails?: string;
@@ -108,7 +88,7 @@ export type JwtSubjectOptions = Omit<JoseTokenVerifierOptions, "audience"> & {
    */
   readonly audience?: string | readonly string[] | false;
   readonly accept?: "access-token" | "id-token";
-  readonly claims?: JwtClaimPaths;
+  readonly claims?: ClaimsMap;
   readonly groupRoles?: Readonly<Record<string, readonly string[]>>;
   readonly schema?: StandardSchemaV1;
   readonly delegation?: JwtDelegationPaths;

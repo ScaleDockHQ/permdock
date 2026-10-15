@@ -1,3 +1,5 @@
+import type { AppData } from "../core/app-data.ts";
+import type { ClaimsMap } from "../core/claims-map.ts";
 import type { DecisionSink, TokenVerifier } from "../core/interfaces.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 
@@ -10,6 +12,9 @@ export const PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
 /** The RFC 7643 section 3.3 Group extension that carries PermDock roles. */
 export const ROLES_EXTENSION =
   "urn:ietf:params:scim:schemas:extension:permdock:2.0:Group";
+/** The extension that carries the application's own data (`x`) on a User or a Group. */
+export const APP_DATA_EXTENSION =
+  "urn:ietf:params:scim:schemas:extension:permdock:2.0:AppData";
 
 export type DirectoryMeta = {
   readonly created: string;
@@ -30,6 +35,8 @@ export type DirectoryUser = {
   readonly userName: string;
   readonly active: boolean;
   readonly emails?: readonly DirectoryEmail[];
+  /** The application's own data, from the `AppData` extension; plain JSON, never read by a decision. */
+  readonly x?: AppData;
   readonly meta: DirectoryMeta;
 };
 
@@ -43,6 +50,8 @@ export type DirectoryGroup = {
   readonly displayName: string;
   readonly members: readonly DirectoryGroupMember[];
   readonly roles?: readonly string[];
+  /** The application's own data, from the `AppData` extension; plain JSON, never read by a decision. */
+  readonly x?: AppData;
   readonly meta: DirectoryMeta;
 };
 
@@ -78,33 +87,50 @@ export type ScimPatchOp = {
 };
 
 export type DirectoryStore = {
-  getUser(tenant: string, id: string): Promise<DirectoryUser | null>;
+  /** Shown in errors and events; optional, as on every extension interface. */
+  readonly name?: string;
+  getUser(
+    tenant: string,
+    id: string,
+  ): DirectoryUser | null | Promise<DirectoryUser | null>;
   findUsers(
     tenant: string,
     filter: ScimFilter | undefined,
     page: ScimPage,
-  ): Promise<ScimPageResult<DirectoryUser>>;
-  putUser(tenant: string, user: DirectoryUser): Promise<DirectoryUser>;
+  ): ScimPageResult<DirectoryUser> | Promise<ScimPageResult<DirectoryUser>>;
+  putUser(
+    tenant: string,
+    user: DirectoryUser,
+  ): DirectoryUser | Promise<DirectoryUser>;
   patchUser(
     tenant: string,
     id: string,
     ops: readonly ScimPatchOp[],
-  ): Promise<DirectoryUser>;
-  deleteUser(tenant: string, id: string): Promise<void>;
-  getGroup(tenant: string, id: string): Promise<DirectoryGroup | null>;
+  ): DirectoryUser | Promise<DirectoryUser>;
+  deleteUser(tenant: string, id: string): void | Promise<void>;
+  getGroup(
+    tenant: string,
+    id: string,
+  ): DirectoryGroup | null | Promise<DirectoryGroup | null>;
   findGroups(
     tenant: string,
     filter: ScimFilter | undefined,
     page: ScimPage,
-  ): Promise<ScimPageResult<DirectoryGroup>>;
-  putGroup(tenant: string, group: DirectoryGroup): Promise<DirectoryGroup>;
+  ): ScimPageResult<DirectoryGroup> | Promise<ScimPageResult<DirectoryGroup>>;
+  putGroup(
+    tenant: string,
+    group: DirectoryGroup,
+  ): DirectoryGroup | Promise<DirectoryGroup>;
   patchGroup(
     tenant: string,
     id: string,
     ops: readonly ScimPatchOp[],
-  ): Promise<DirectoryGroup>;
-  deleteGroup(tenant: string, id: string): Promise<void>;
-  groupsFor(tenant: string, userId: string): Promise<readonly DirectoryGroup[]>;
+  ): DirectoryGroup | Promise<DirectoryGroup>;
+  deleteGroup(tenant: string, id: string): void | Promise<void>;
+  groupsFor(
+    tenant: string,
+    userId: string,
+  ): readonly DirectoryGroup[] | Promise<readonly DirectoryGroup[]>;
 };
 
 export type ScimTokenOptions = {
@@ -127,6 +153,8 @@ export type ScimHandlerOptions = {
   readonly token?: ScimTokenOptions;
   readonly verifier?: TokenVerifier;
   readonly audience?: string;
+  /** With `verifier`: where the JWT names its tenant (`claims.tenant`); default `tenant`, then `tid`. */
+  readonly claims?: Pick<ClaimsMap, "tenant">;
   readonly groupRoles?: Readonly<Record<string, readonly string[]>>;
   readonly assignable?: readonly string[];
   readonly sink?: DecisionSink;

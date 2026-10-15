@@ -6,10 +6,12 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 
-import { agentRuntime } from "../agent/create.ts";
-import { approvalTokenOf } from "../agent/kernel.ts";
-import { adapterOptions } from "../approvals/app.ts";
-import { compact } from "../core/compact.ts";
+import {
+  agentRuntime,
+  approvalTokenOf,
+  withApp,
+  compact,
+} from "../agent/kit.ts";
 
 /** The app context passed to `run(agent, input, { context })`. */
 export type OpenAiContext = {
@@ -116,7 +118,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   given: OpenAiPermDockOptions<TUser>,
 ): OpenAiPermDock<V> {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   const store = options.store;
   const { agent, kernel } = agentRuntime(policy, options, "openai");
 

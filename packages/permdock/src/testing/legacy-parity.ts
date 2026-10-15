@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 
 import type { LegacyCheck, Permission, Policy } from "../index.ts";
 
-import { createPermDock } from "../index.ts";
+import { loadPermDock } from "../index.ts";
 
 export type LegacyParityCase = {
   readonly name: string;
@@ -29,7 +29,7 @@ export function testLegacyParity(
 ): void {
   for (const entry of cases) {
     it(`legacy parity: ${entry.name}`, async () => {
-      const permdock = await createPermDock(policy, entry.user);
+      const permdock = await loadPermDock(policy, entry.user);
       // SAFETY: the case's permission and row are erased to fit the can() overloads alike.
       const ours = permdock.can(entry.permission as never, entry.row as never);
       const theirs = legacy({

@@ -21,6 +21,6 @@
 
 <Protected {permission} {data}>
   {#snippet children()}<b>granted</b>{/snippet}
-  {#snippet fallback()}<i>denied</i>{/snippet}
+  {#snippet denied()}<i>denied</i>{/snippet}
   {#snippet pending()}<u>pending</u>{/snippet}
 </Protected>

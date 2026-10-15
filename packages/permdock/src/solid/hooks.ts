@@ -33,7 +33,7 @@ import {
   rolesView,
   subjectView,
   tenantView,
-} from "../client/views.ts";
+} from "../client/kit.ts";
 import { PermDockUiContext, useStore } from "./context.ts";
 
 function useVersion(store: ClientStore): Accessor<number> {

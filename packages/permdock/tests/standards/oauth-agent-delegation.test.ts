@@ -62,7 +62,7 @@ describe("two-principal subject: decision = principal grants intersected with de
   });
 
   it("a subject with no actor is a human call and is not narrowed", async () => {
-    const human = await createPermDock(policy, memberUser);
+    const human = createPermDock(policy, memberUser);
     expect(human.can(permissions.post.read, ownPost)).toBe(true);
   });
 });

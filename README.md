@@ -35,7 +35,7 @@ const policy = definePolicy(
   },
 );
 
-const permdock = await createPermDock(policy, user);
+const permdock = createPermDock(policy, user);
 permdock.decide(permissions.post.delete, post); // { outcome: 'approval-required', token, ... }
 ```
 

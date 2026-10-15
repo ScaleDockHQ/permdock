@@ -43,7 +43,7 @@ export function App(props: { readonly snapshot: Snapshot }) {
         createComponent(Protected, {
           permission: permissions.post.update,
           data: ownPost,
-          fallback: "locked",
+          denied: "locked",
           children: "edit",
         }),
         " ",

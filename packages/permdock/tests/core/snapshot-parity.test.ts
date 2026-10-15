@@ -16,7 +16,7 @@ async function both(
   policy: Parameters<typeof createPermDock<Principal>>[0],
   user: Principal,
 ): Promise<readonly [PermDock, PermDock]> {
-  const server = await createPermDock(policy, user);
+  const server = createPermDock(policy, user);
   const client = fromSnapshot(parseSnapshot(JSON.stringify(server.snapshot())));
   return [server, client];
 }

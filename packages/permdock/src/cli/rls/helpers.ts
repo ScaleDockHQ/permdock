@@ -33,7 +33,11 @@ import {
   scopedBody,
   sqlBody,
 } from "./helper-bodies.ts";
-import { memberForFunction, memberFunction } from "./helper-members.ts";
+import {
+  memberForFunction,
+  memberFunction,
+  memberRolesFunction,
+} from "./helper-members.ts";
 
 /** `'global'` or a scope name. */
 export type HelperScope = string;
@@ -285,6 +289,9 @@ revoke all on table ${ur} from anon, authenticated, public;`);
       ),
     );
     chunks.push(memberFunction(ctx, scope.name, type, anon));
+    if (ctx.roleMemberScopes?.includes(scope.name) === true) {
+      chunks.push(memberRolesFunction(ctx, scope.name, type, anon));
+    }
     if (hasMemberFor(ctx, scope.name)) {
       chunks.push(memberForFunction(ctx, scope.name, type));
     }

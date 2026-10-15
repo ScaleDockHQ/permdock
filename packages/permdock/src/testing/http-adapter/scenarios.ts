@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { resolveApproval } from "../../approvals/index.ts";
-import { createPermDock } from "../../index.ts";
+import { loadPermDock } from "../../index.ts";
 import { problemFromDecision } from "../../server/index.ts";
 import { saasPolicy } from "../saas/policy.ts";
 import { saasPrincipal } from "../saas/seed.ts";
@@ -290,7 +290,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         expect(field(denied.body, "type")).toBe(
           "https://permdock.com/problems/denied",
         );
-        const bob = await createPermDock(
+        const bob = await loadPermDock(
           saasPolicy,
           saasPrincipal("bob", "acme"),
           { tenant: "acme" },

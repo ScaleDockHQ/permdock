@@ -2,13 +2,13 @@ import type { CommandResult } from "../shared/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import {
+  findPermission,
+  hasConditionOp,
+  loadPermDock,
+  memoryCustomRoleSource,
   type PermDock,
   type Permission,
   type Policy,
-  createPermDock,
-  findPermission,
-  hasConditionOp,
-  memoryCustomRoleSource,
 } from "../../index.ts";
 import { usageResult } from "../errors.ts";
 import { fixtureRow, fixtureSubject, loadFixtures } from "../fixtures.ts";
@@ -126,7 +126,7 @@ export async function runRlsVerify(input: {
       continue;
     }
     const kind = grantKind(policy, fixture.action);
-    const permdock = await createPermDock(
+    const permdock = await loadPermDock(
       policy,
       fixtureSubject(fixture.subject),
       {

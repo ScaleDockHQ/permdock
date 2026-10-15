@@ -7,6 +7,7 @@ import {
   createPermDock,
   fromSnapshot,
   memoryCustomRoleSource,
+  limits,
   memoryLimitStore,
   parseSnapshot,
   whoCan,
@@ -34,7 +35,7 @@ async function instanceFor(user: string, tenant: string | undefined) {
   return createPermDock(saasPolicy, saasPrincipal(user, tenant), {
     ...(tenant === undefined ? {} : { tenant }),
     customRoles: memoryCustomRoleSource(saasCustomRoles),
-    limits: memoryLimitStore(),
+    limits: limits(memoryLimitStore()),
     relations: saasRelations(),
   });
 }

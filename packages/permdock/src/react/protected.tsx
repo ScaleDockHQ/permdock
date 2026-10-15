@@ -3,7 +3,7 @@ import { type ReactNode, Suspense, use, useMemo } from "react";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { ProtectedProps } from "./types.ts";
 
-import { protectedView, scopedTenant, slotContent } from "../client/views.ts";
+import { protectedView, scopedTenant, slotContent } from "../client/kit.ts";
 import { PermDockUiContext } from "./context.ts";
 import { usePermission, usePermDock } from "./hooks.ts";
 
@@ -32,8 +32,8 @@ function Guard(props: ProtectedProps): ReactNode {
   switch (view.slot) {
     case "pending":
       return slotContent("pending", props, defaults) ?? null;
-    case "fallback":
-      return render(slotContent("fallback", props, defaults), view.decision);
+    case "denied":
+      return render(slotContent("denied", props, defaults), view.decision);
     case "approval":
       return render<ApprovalRequiredDecision>(
         slotContent("approval", props, defaults),

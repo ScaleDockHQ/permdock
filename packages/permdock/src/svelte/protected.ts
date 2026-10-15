@@ -1,6 +1,7 @@
 import type { Snippet } from "svelte";
 
 import type { ClientStore } from "../client/store.ts";
+import type { ProtectedView } from "../client/views.ts";
 import type {
   ApprovalRequiredDecision,
   Decision,
@@ -9,13 +10,8 @@ import type {
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 
-import {
-  type ProtectedView,
-  protectedView,
-  scopedTenant,
-} from "../client/views.ts";
-
-export { slotContent } from "../client/views.ts";
+import { protectedView, scopedTenant } from "../client/kit.ts";
+export { slotContent } from "../client/kit.ts";
 
 export type ProtectedProps = {
   readonly permission: Permission;
@@ -23,8 +19,8 @@ export type ProtectedProps = {
   readonly tenant?: string;
   readonly children?: Snippet<[GrantedDecision]>;
   readonly pending?: Snippet;
-  readonly fallback?: Snippet<[Decision]>;
-  /** Rendered for an approval-required decision; defaults to `fallback`. */
+  readonly denied?: Snippet<[Decision]>;
+  /** Rendered for an approval-required decision; defaults to `denied`. */
   readonly approval?: Snippet<[ApprovalRequiredDecision]>;
 };
 

@@ -31,7 +31,7 @@ import {
   roleNameOf,
   roleScopeOf,
 } from "./grantee.ts";
-import { assertLimit, normalizeLimit } from "./limits.ts";
+import { assertLimit, normalizeLimit } from "./limit-grants.ts";
 import { isPermission, listPermissions } from "./permission-registry.ts";
 import { normalizeValidity } from "./validity.ts";
 

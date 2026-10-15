@@ -16,6 +16,8 @@ export type IdempotentResponse = {
  * instance replays the first response.
  */
 export type IdempotencyStore = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   get(
     key: string,
   ): IdempotentResponse | undefined | Promise<IdempotentResponse | undefined>;

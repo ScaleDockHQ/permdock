@@ -1,4 +1,6 @@
+import type { AppData } from "../core/app-data.ts";
 import type { RelationGrantee } from "../core/grantee.ts";
+import type { AdapterId } from "../core/open-union.ts";
 import type { ApprovalMode, ApprovalStage } from "../core/policy-types.ts";
 import type { Approver } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
@@ -64,6 +66,8 @@ export type ApprovalDelegation = {
  * nobody. One hop: the handler never reads the delegator's own delegations.
  */
 export type ApprovalDelegationSource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   delegationsFor(query: {
     readonly delegate: string;
     readonly tenant?: string;
@@ -96,7 +100,7 @@ export type ApprovalRequest = {
   readonly membership?: Membership;
   readonly approvers?: ApprovalApprovers;
   readonly detail: string;
-  readonly adapter?: string;
+  readonly adapter?: AdapterId;
   readonly createdAt: string;
   readonly expiresAt: string;
   readonly status: ApprovalStatus;
@@ -108,6 +112,8 @@ export type ApprovalRequest = {
   readonly vouched?: string;
   readonly note?: string;
   readonly consumedAt?: string;
+  /** The application's own data, set when the request opens; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type ApprovalVerdict = {
@@ -173,6 +179,8 @@ export type ApprovalCancelMeta = {
 };
 
 export type ApprovalStore = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   /**
    * Seconds a request opened against this store stays open when the
    * caller sets no `ttl`; absent means `DEFAULT_APPROVAL_TTL`. A grant's

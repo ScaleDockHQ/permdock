@@ -1,16 +1,11 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "./instance-options.ts";
 import type { PermDockOptions } from "./permdock.ts";
-import type { Grant, Policy, PolicyVocabulary } from "./policy-types.ts";
-import type { Principal } from "./subject.ts";
-
-import { memoryLimitStore } from "./limits.ts";
 
 /**
  * How strict `defineApp` is about the services the policy needs. `dev`
- * fills in in-process defaults (a memory limit store here, a memory
- * approval store in each adapter) so a new app runs before any
- * infrastructure exists. `prod` throws at startup when a grant needs a
+ * fills in in-process defaults (a memory approval store and a memory limit
+ * store) so a new app runs before any infrastructure exists. `prod` throws at startup when a grant needs a
  * service the app does not configure, instead of denying at run time.
  */
 export type AppProfile = "dev" | "prod";
@@ -32,70 +27,7 @@ export type AppDefinition = AppOptions & { readonly profile: AppProfile };
 
 // Symbol.for: one key across copies of this module (two bundler chunks, or a
 // dist and a source import), so an adapter always sees the app definition.
-const APP = Symbol.for("permdock.app");
-
-function grantsOf(policy: Policy): readonly Grant[] {
-  return [...policy.index.grantsByKey.values()].flat();
-}
-
-function assertProduction(policy: Policy, options: AppOptions): void {
-  const grants = grantsOf(policy);
-  if (
-    options.store === undefined &&
-    grants.some((grant) => grant.approval !== undefined)
-  ) {
-    throw new Error(
-      "PermDock: profile 'prod' needs a store: a grant requires approval and approvals cannot complete without an ApprovalStore",
-    );
-  }
-  if (
-    options.limits === undefined &&
-    grants.some((grant) => grant.limit !== undefined)
-  ) {
-    throw new Error(
-      "PermDock: profile 'prod' needs limits: a grant has a limit and every call would deny with limit-unavailable",
-    );
-  }
-}
-
-/**
- * Binds the app's sources, features and services to `policy`. The result
- * is a policy: pass it wherever a policy goes (`createPermDock`, every
- * adapter, the CLI) and each picks up the app definition, with its own
- * options taking precedence. The profile defaults to `prod`.
- */
-export function defineApp<
-  TUser,
-  TPrincipal extends Principal,
-  V extends PolicyVocabulary,
->(
-  policy: Policy<TUser, TPrincipal, V>,
-  options: AppOptions = {},
-): Policy<TUser, TPrincipal, V> {
-  const profile = options.profile ?? "prod";
-  const grants = grantsOf(policy);
-  const definition: AppDefinition = {
-    ...options,
-    profile,
-    ...(profile === "dev" &&
-    options.limits === undefined &&
-    grants.some((grant) => grant.limit !== undefined)
-      ? { limits: memoryLimitStore() }
-      : {}),
-  };
-  if (profile === "prod") {
-    assertProduction(policy, definition);
-  }
-  // SAFETY: a policy is a plain object (or null-prototype); the copy keeps its prototype and every own property, symbol-keyed ones included.
-  const prototype = Object.getPrototypeOf(policy) as object | null;
-  // SAFETY: the copy has the policy's own property descriptors, so it is the same Policy shape.
-  const app = Object.create(
-    prototype,
-    Object.getOwnPropertyDescriptors(policy),
-  ) as Policy<TUser, TPrincipal, V>;
-  Object.defineProperty(app, APP, { value: Object.freeze(definition) });
-  return Object.freeze(app);
-}
+export const APP: symbol = Symbol.for("permdock.app");
 
 /** The app definition bound to `policy` by `defineApp`, or `undefined` for a plain policy. */
 export function appOf(policy: object): AppDefinition | undefined {

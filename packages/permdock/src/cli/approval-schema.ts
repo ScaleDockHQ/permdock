@@ -57,6 +57,11 @@ export const APPROVAL_REQUEST_SCHEMA: Readonly<Record<string, unknown>> = {
     vouched: { type: "string" },
     note: { type: "string" },
     consumedAt: { $ref: "#/$defs/instant" },
+    x: {
+      type: "object",
+      description:
+        "The application's own data, set when the request opens: plain JSON, never read by a decision.",
+    },
   },
   $defs: {
     instant: { type: "string", format: "date-time", pattern: INSTANT },

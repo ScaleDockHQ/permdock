@@ -39,7 +39,7 @@ const subject = await subjectFromJwt(token, {
   algorithms: ["ES256", "PS256", "Ed25519"], // default allow-list (+ 'RS256' outside fapi2); 'none' never
   clockTolerance: 5, // seconds
   claims: {
-    id: "sub", // dot paths, own-property lookups only
+    id: "sub", // a ClaimsMap: dot paths (own-property lookups only) or functions over the claims
     roles: "roles", // default; RFC 9068, global roles
     groups: "groups", // default; RFC 9068, team memberships keyed on SCIM `value`
     entitlements: "entitlements", // default; RFC 9068, maps to principal.plans

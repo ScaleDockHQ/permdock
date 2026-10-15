@@ -3,7 +3,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
 
-import { createPermDock } from "../core/permdock.ts";
+import { loadPermDock } from "../core/permdock.ts";
 import { loadPrincipal } from "../core/principal-source.ts";
 import { subscribersFor } from "../delivery/audience.ts";
 
@@ -85,7 +85,7 @@ export function subscriberPolicy<
       }
       const sender = await loadPrincipal(options.principals, senderId, tenant);
       if (sender === null) return [];
-      const permdock = await createPermDock(
+      const permdock = await loadPermDock(
         options.policy,
         { principal: sender, context: {} },
         { ...options.options, principals: options.principals, tenant },

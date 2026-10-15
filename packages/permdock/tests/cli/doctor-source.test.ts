@@ -260,11 +260,27 @@ describe("PD038 tenant claim", () => {
     expect(run(`subjectFromSupabase(claims)`)).toEqual([
       "s.ts:1 reads the tenant from 'tenant_id', but rls.tenantClaim is 'org_id'",
     ]);
-    expect(run(`subjectFromSupabase(claims, { roles: 'r' })`)).toHaveLength(1);
-    expect(run(`subjectFromSupabase(claims, { tenant: 'org_id' })`)).toEqual(
-      [],
-    );
-    expect(run(`subjectFromSupabase(claims, { tenant: claim })`)).toEqual([]);
+    expect(
+      run(`subjectFromSupabase(claims, {
+claims: {
+roles: 'r',
+},
+})`),
+    ).toHaveLength(1);
+    expect(
+      run(`subjectFromSupabase(claims, {
+claims: {
+tenant: 'org_id',
+},
+})`),
+    ).toEqual([]);
+    expect(
+      run(`subjectFromSupabase(claims, {
+claims: {
+tenant: claim,
+},
+})`),
+    ).toEqual([]);
     expect(run(`subjectFromSupabase(claims, options)`)).toEqual([]);
     expect(run(`subjectFromSupabase(claims, { tenant: 'x'`)).toEqual([]);
     expect(
@@ -284,7 +300,11 @@ describe("PD057 anonymous sign-ins", () => {
       "s.ts:1 maps anonymous sign-ins as users, but rls.anonymousSignIns is 'deny'",
     ]);
     expect(
-      run(`subjectFromSupabaseSession(session, { tenant: 'org_id' })`),
+      run(`subjectFromSupabaseSession(session, {
+claims: {
+tenant: 'org_id',
+},
+})`),
     ).toHaveLength(1);
     expect(
       run(`subjectFromSupabaseSession(session, { anonymousSignIns: "deny" })`),

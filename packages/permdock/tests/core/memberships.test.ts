@@ -13,7 +13,7 @@ import {
   mergeMemberships,
 } from "../../src/core/memberships.ts";
 import { memoryEntitlementSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { createPermDock, loadPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -132,7 +132,7 @@ describe("composeMemberships", () => {
   });
 
   it("accepts an array as memberships and fails closed when one source throws", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       { id: "u", roles: [], tenant: "T" },
       {
@@ -146,7 +146,7 @@ describe("composeMemberships", () => {
       "member",
       "owner",
     ]);
-    const broken = await createPermDock(
+    const broken = await loadPermDock(
       policy,
       { id: "u", roles: [], tenant: "T" },
       {
@@ -218,12 +218,12 @@ describe("claimsFirst", () => {
       calls += 1;
       return [{ scope: "organization", id: "T", roles: ["owner"] }];
     });
-    const fromToken = await createPermDock(policy, token, {
+    const fromToken = createPermDock(policy, token, {
       memberships: claimsFirst(live),
     });
     expect(calls).toBe(0);
     expect(fromToken.can(permissions.doc.read, row)).toBe(true);
-    const truncated = await createPermDock(
+    const truncated = createPermDock(
       policy,
       { ...token, membershipsTruncated: true },
       { memberships: claimsFirst([live]) },
@@ -247,7 +247,7 @@ describe("claimsFirst", () => {
         version === undefined ? owner : { ...owner, authzVersion: version },
         { memberships: claimsFirst(live, { version: () => current }) },
       );
-    const stale = await at(2, 3);
+    const stale = at(2, 3);
     expect(stale.subject.stale).toBe(true);
     expect(stale.decide(permissions.doc.delete, row)).toMatchObject({
       outcome: "denied",
@@ -261,15 +261,13 @@ describe("claimsFirst", () => {
       snapshot.grants.some((grant) => grant.permission === "doc.delete"),
     ).toBe(false);
     expect(fromSnapshot(snapshot).can(permissions.doc.delete, row)).toBe(false);
-    expect((await at(3, 3)).can(permissions.doc.delete, row)).toBe(true);
-    expect((await at(undefined, 3)).can(permissions.doc.delete, row)).toBe(
-      false,
-    );
-    const noVersion = await createPermDock(policy, owner, {
+    expect(at(3, 3).can(permissions.doc.delete, row)).toBe(true);
+    expect(at(undefined, 3).can(permissions.doc.delete, row)).toBe(false);
+    const noVersion = createPermDock(policy, owner, {
       memberships: claimsFirst(live),
     });
     expect(noVersion.can(permissions.doc.delete, row)).toBe(false);
-    const liveOnly = await createPermDock(
+    const liveOnly = createPermDock(
       policy,
       { id: "u", roles: [], tenant: "T" },
       { memberships: live },
@@ -288,7 +286,7 @@ describe("claimsFirst", () => {
       version: number | undefined,
       current: MembershipSource["version"],
     ) =>
-      createPermDock(
+      loadPermDock(
         policy,
         version === undefined ? token : { ...token, authzVersion: version },
         {
@@ -321,7 +319,7 @@ describe("claimsFirst", () => {
     const rejecting = await at(2, () => Promise.reject(new Error("down")));
     expect(calls).toBe(2);
     expect(rejecting.subject.stale).toBe(true);
-    const denyMode = await createPermDock(
+    const denyMode = createPermDock(
       policy,
       { ...token, authzVersion: 2 },
       { memberships: claimsFirst(live, { version: () => 3 }) },
@@ -356,11 +354,11 @@ describe("entitlements and seats", () => {
       tenant: "T",
       memberships: [{ scope: "organization", id: "T", roles: ["member"] }],
     };
-    const permdock = await createPermDock(policy, member, { entitlements });
+    const permdock = createPermDock(policy, member, { entitlements });
     expect(permdock.subject.principal?.plans).toEqual(["dev-mode"]);
     expect(permdock.can(permissions.doc.export, undefined)).toBe(true);
     const { tenant: _tenant, ...untenanted } = member;
-    const outsider = await createPermDock(
+    const outsider = createPermDock(
       policy,
       { ...untenanted, memberships: [] },
       { entitlements, tenant: "T" },
@@ -384,13 +382,10 @@ describe("entitlements and seats", () => {
       ],
     };
     expect(
-      (await createPermDock(policy, seated)).can(
-        permissions.doc.export,
-        undefined,
-      ),
+      createPermDock(policy, seated).can(permissions.doc.export, undefined),
     ).toBe(true);
     expect(
-      (await createPermDock(policy, seated, { tenant: "B" })).can(
+      createPermDock(policy, seated, { tenant: "B" }).can(
         permissions.doc.export,
         undefined,
       ),

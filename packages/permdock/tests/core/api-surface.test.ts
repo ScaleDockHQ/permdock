@@ -100,7 +100,7 @@ describe("typed vocabulary", () => {
         grants: [allow(permissions.post.read, { to: roles.owner })],
       },
     );
-    const permdock = await createPermDock(policy, { id: "u1" });
+    const permdock = createPermDock(policy, { id: "u1" });
     expect(permdock.roles.owner.key).toBe("owner");
     expect(permdock.plans.pro.key).toBe("pro");
     expect(permdock.permissions.post.read.key).toBe("post.read");
@@ -117,9 +117,9 @@ describe("grantee selectors", () => {
       subject: () => null,
       grants: [allow(permissions.post.read, { to: anyone() })],
     });
-    const permdock = await createPermDock(policy, null);
+    const permdock = createPermDock(policy, null);
     expect(permdock.can(permissions.post.read, row)).toBe(true);
-    const denied = await createPermDock(
+    const denied = createPermDock(
       definePolicy(permissions, {
         subject: () => null,
         grants: [allow(permissions.post.read, { to: authenticated() })],
@@ -162,7 +162,7 @@ describe("grantee selectors", () => {
         ],
       },
     );
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       { id: "u1", plans: ["pro"] },
       {
@@ -199,7 +199,7 @@ describe("grantee selectors", () => {
         roles: [role(roles.member, [allow(permissions.post.read)])],
       },
     );
-    const permdock = await createPermDock(policy, { id: "u1" });
+    const permdock = createPermDock(policy, { id: "u1" });
     expect(permdock.can(permissions.post.read, row)).toBe(true);
   });
 
@@ -225,7 +225,7 @@ describe("principal refs and snapshots", () => {
         ]),
       ],
     });
-    const permdock = await createPermDock(policy, { id: "u1" });
+    const permdock = createPermDock(policy, { id: "u1" });
     expect(permdock.can(permissions.post.update, row)).toBe(true);
   });
 
@@ -241,7 +241,7 @@ describe("principal refs and snapshots", () => {
         grants: [allow(permissions.post.read, { to: roles.owner })],
       },
     );
-    const permdock = await createPermDock(policy, { id: "u1" });
+    const permdock = createPermDock(policy, { id: "u1" });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected json snapshot");

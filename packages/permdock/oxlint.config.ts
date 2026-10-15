@@ -4,8 +4,34 @@ import {
   core,
   ignorePatterns,
   library,
+  neverImport,
   test,
 } from "@permdock/ox-config/oxlint";
+
+/**
+ * An adapter family's runtime imports go through its kit and nothing else
+ * outside its own folder: not core internals, not another adapter. Type
+ * imports stay free, because they are erased.
+ */
+function kitBoundary(
+  family: string,
+  allowed: readonly string[],
+): ["error", Record<string, unknown>] {
+  return [
+    "error",
+    {
+      paths: neverImport.paths,
+      patterns: [
+        ...neverImport.patterns,
+        {
+          group: ["../**", ...allowed.map((path) => `!${path}`)],
+          allowTypeImports: true,
+          message: `${family} adapters import runtime code from ${allowed.join(" or ")} only (AGENTS.md, architecture.mdc).`,
+        },
+      ],
+    },
+  ];
+}
 
 export default defineConfig({
   extends: [core, library],
@@ -15,6 +41,31 @@ export default defineConfig({
       files: ["src/**/*.{ts,tsx}"],
       rules: {
         "typescript/no-generated-empty-object-type": "error",
+      },
+    },
+    {
+      files: [
+        "src/{hono,express,fastify,elysia,nest,node,h3,sveltekit,astro,solid-start,tanstack-start,trpc,orpc}/**/*.{ts,tsx}",
+      ],
+      rules: {
+        "eslint/no-restricted-imports": kitBoundary("HTTP", [
+          "../server/kit.ts",
+          "../node/http.ts",
+        ]),
+      },
+    },
+    {
+      files: ["src/{ai-sdk,claude-agent,openai,eve}/**/*.{ts,tsx}"],
+      rules: {
+        "eslint/no-restricted-imports": kitBoundary("Agent", [
+          "../agent/kit.ts",
+        ]),
+      },
+    },
+    {
+      files: ["src/{react,vue,svelte,solid}/**/*.{ts,tsx}"],
+      rules: {
+        "eslint/no-restricted-imports": kitBoundary("UI", ["../client/kit.ts"]),
       },
     },
     {

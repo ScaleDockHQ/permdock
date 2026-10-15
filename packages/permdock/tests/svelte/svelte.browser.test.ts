@@ -26,7 +26,7 @@ import Harness from "./Harness.test.svelte";
 
 async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
   // SAFETY: user is a quick-start user fixture; only the policy generic is erased.
-  const server = await createPermDock(policy as never, user);
+  const server = createPermDock(policy as never, user);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
   return server.snapshot() as Snapshot;
 }
@@ -159,7 +159,7 @@ describe("permdock/svelte (browser build)", () => {
     await unmount(app);
   });
 
-  it("<Protected> renders approval, fallback and setPermDock defaults", async () => {
+  it("<Protected> renders approval, denied and setPermDock defaults", async () => {
     const target = document.createElement("div");
     const app = mount(DefaultsHarness, {
       target,

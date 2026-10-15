@@ -9,7 +9,7 @@ import {
 
 import type { Permission } from "../core/permission-types.ts";
 
-import { protectedView, scopedTenant, slotContent } from "../client/views.ts";
+import { protectedView, scopedTenant, slotContent } from "../client/kit.ts";
 import { usePermission, usePermDock } from "./composables.ts";
 import { permDockUiKey } from "./context.ts";
 
@@ -59,16 +59,16 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
       );
       const own = {
         pending: slots["pending"],
-        fallback: slots["fallback"],
+        denied: slots["denied"],
         approval: slots["approval"],
       };
       switch (view.slot) {
         case "pending":
           return slotContent("pending", own, defaults)?.() ?? null;
-        case "fallback":
+        case "denied":
           return (
             slotContent(
-              "fallback",
+              "denied",
               own,
               defaults,
             )?.({

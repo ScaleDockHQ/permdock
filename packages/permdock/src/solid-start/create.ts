@@ -8,20 +8,18 @@ import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
+  ContextReader,
+  FetchAdapterOptions,
+  ProtectTarget,
+  RouteEvent,
+} from "../server/fetch-adapter.ts";
+import type {
   OpenApiHooks,
   ProtectOptions,
   SnapshotQuery,
 } from "../server/server-types.ts";
 
-import { decorate } from "../server/bind.ts";
-import {
-  type ContextReader,
-  type FetchAdapterOptions,
-  type ProtectTarget,
-  type RouteEvent,
-  fetchAdapter,
-  guardedRoute,
-} from "../server/fetch-adapter.ts";
+import { decorate, fetchAdapter, guardedRoute } from "../server/kit.ts";
 
 /** The h3 event under every SolidStart request; `subject` and `scope` read it. */
 export type SolidStartNativeEvent = FetchEvent["nativeEvent"];

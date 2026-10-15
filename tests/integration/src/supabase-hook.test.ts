@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock } from "permdock";
+import { loadPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -191,7 +191,11 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
     expect(claims["memberships"]).toEqual([]);
     const subject = subjectFromSupabase(
       { ...claims, app_metadata: { user_role: "platform-support" } },
-      { memberships: "memberships" },
+      {
+        claims: {
+          memberships: "memberships",
+        },
+      },
     );
     expect(subject.principal?.roles ?? []).toEqual([]);
   });
@@ -200,9 +204,11 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
     for (const user of USERS) {
       const claims = { ...(await mint(user)), tenant_id: "T" };
       const principal = subjectFromSupabase(claims, {
-        memberships: "memberships",
+        claims: {
+          memberships: "memberships",
+        },
       }).principal;
-      const permdock = await createPermDock(policy, principal);
+      const permdock = await loadPermDock(policy, principal);
       for (const [permission, table] of [
         [permissions.quote.read, "quote"],
         [permissions.invoice.read, "invoice"],

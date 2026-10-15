@@ -86,10 +86,12 @@
     "isPortableCondition",
     "isRole",
     "isSqlFunctionField",
+    "limits",
     "linkPolicyViolation",
     "listPermissions",
     "listPlans",
     "listRoles",
+    "loadPermDock",
     "localSnapshotManifest",
     "mayAccess",
     "membershipEvent",
@@ -510,6 +512,7 @@
     "withOtel"
   ],
   "./scim": [
+    "APP_DATA_EXTENSION",
     "DirectoryNotFoundError",
     "DirectoryUniquenessError",
     "ERROR_SCHEMA",
@@ -630,7 +633,13 @@
   ],
   "./clerk": ["createClerkSubjectResolver", "subjectFromClerk"],
   "./convex": ["ConvexError", "createPermDock"],
-  "./pdp": ["createPermDock", "openfga", "remotePdp", "spicedb"],
+  "./pdp": [
+    "createPermDock",
+    "loadPermDock",
+    "openfga",
+    "remotePdp",
+    "spicedb"
+  ],
   "./compile": ["compileWhere", "escapeLike"],
   "./catalog": ["operationFindings", "parseCatalog", "rowConditionKeys"],
   "./preset": [

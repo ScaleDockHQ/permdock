@@ -71,25 +71,25 @@ const anonymous = () => createPermDock(policy, subjectFromBetterSupabase(null));
 
 describe("hookCan", () => {
   it("grants a member who holds the permission in the hook's tenant", async () => {
-    const can = hookCan(await member());
+    const can = hookCan(member());
     expect(await can(ORG, run.approve.key)).toBe(true);
   });
 
   it("refuses another tenant, an unknown key and an anonymous caller", async () => {
-    const can = hookCan(await member());
+    const can = hookCan(member());
     expect(await can(OTHER, run.approve.key)).toBe(false);
     expect(await can(ORG, "run.delete")).toBe(false);
     expect(await can(ORG, "__proto__")).toBe(false);
-    expect(await hookCan(await anonymous())(ORG, run.approve.key)).toBe(false);
+    expect(await hookCan(anonymous())(ORG, run.approve.key)).toBe(false);
   });
 
   it("refuses a permission that needs approval", async () => {
-    const can = hookCan(await member());
+    const can = hookCan(member());
     expect(await can(ORG, run.cancel.key)).toBe(false);
   });
 
   it("accepts a permission's scope as well as its key", async () => {
-    const can = hookCan(await member());
+    const can = hookCan(member());
     expect(await can(ORG, run.approve.scope)).toBe(true);
   });
 });

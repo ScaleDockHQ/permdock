@@ -76,7 +76,7 @@ async function pending(): Promise<{
   readonly request: ApprovalRequest;
 }> {
   const store = memoryApprovalStore();
-  const permdock = await createPermDock(policy, inTenant("cara", ["clerk"]));
+  const permdock = createPermDock(policy, inTenant("cara", ["clerk"]));
   const decision = permdock.decide(permissions.payment.send, {
     id: "p1",
     orgId: "o1",
@@ -107,10 +107,7 @@ describe("approver kinds", () => {
     const { request } = await pending();
     const dana = inTenant("dana", ["controller"]);
     expect(() => assertApprover(request, dana, false)).toThrow(/eligible/u);
-    const held = approverPermissions(
-      request,
-      await createPermDock(policy, dana),
-    );
+    const held = approverPermissions(request, createPermDock(policy, dana));
     expect(held).toEqual(["payment.approve"]);
     expect(() =>
       assertApprover(
@@ -127,7 +124,7 @@ describe("approver kinds", () => {
   it("a custom role that grants the permission makes its holder an approver", async () => {
     const { request } = await pending();
     const erin = inTenant("erin", ["treasury"]);
-    const instance = await createPermDock(policy, erin, {
+    const instance = createPermDock(policy, erin, {
       customRoles: memoryCustomRoleSource([
         {
           name: "treasury",
@@ -152,7 +149,7 @@ describe("approver kinds", () => {
       context: {},
     };
     expect(
-      approverPermissions(request, await createPermDock(policy, elsewhere)),
+      approverPermissions(request, createPermDock(policy, elsewhere)),
     ).toEqual([]);
   });
 
@@ -197,7 +194,7 @@ describe("approver kinds", () => {
   });
 
   it("describe names holders and any-of groups", async () => {
-    const permdock = await createPermDock(policy, inTenant("cara", ["clerk"]));
+    const permdock = createPermDock(policy, inTenant("cara", ["clerk"]));
     expect(
       describeDecision(
         permdock.decide(permissions.payment.send, { id: "p1", orgId: "o1" }),
@@ -292,7 +289,7 @@ describe("escalation in data and per stage", () => {
         person === null ? null : { id: person.id },
     });
     const store = memoryApprovalStore();
-    const permdock = await createPermDock(staged, inTenant("cara", ["clerk"]));
+    const permdock = createPermDock(staged, inTenant("cara", ["clerk"]));
     const decision = permdock.decide(permissions.payment.send, {
       id: "p1",
       orgId: "o1",

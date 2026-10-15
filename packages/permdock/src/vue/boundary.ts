@@ -12,7 +12,7 @@ import {
 
 import type { PermissionBoundaryState } from "../client/boundary.ts";
 
-import { boundaryDigest, boundaryFallback } from "../client/boundary.ts";
+import { boundaryDigest, boundaryFallback } from "../client/kit.ts";
 
 const boundaryKey: InjectionKey<ShallowRef<PermissionBoundaryState | null>> =
   Symbol("permdock-boundary");

@@ -56,6 +56,7 @@ function target(overrides: Partial<MigrateTarget> = {}): MigrateTarget {
       ["global", new Set(["doc.read"])],
     ]),
     renamed: {},
+    roles: new Set(["owner", "member"]),
     ...overrides,
   };
 }
@@ -106,6 +107,7 @@ describe("migrateTarget", () => {
       rowConditions: new Set(),
       granted: new Map(),
       renamed: {},
+      roles: new Set(),
     });
   });
 });
@@ -237,6 +239,66 @@ do $$ begin perform org_ids('doc.read'); end $$;`;
       [1, "function-body", "is_admin"],
       [2, "function-body", "org_ids"],
     ]);
+  });
+});
+
+describe("runRlsMigrate role helpers", () => {
+  const roleConfig: RlsMigrateConfig = {
+    helpers: { has_org_role: { form: "role", scope: "org" } },
+  };
+  const withRoles = (overrides: Partial<MigrateTarget> = {}) =>
+    target({
+      sql: [
+        'create or replace function "public".member_org_ids(',
+        'create or replace function "public".member_org_ids(p_roles text[])',
+      ].join("\n"),
+      roleValues: { org_admin: "owner" },
+      ...overrides,
+    });
+
+  it("filters the member helper by the mapped roles", async () => {
+    const { code, report, text } = await migrate(
+      `create policy p on t using (has_org_role(org_id, 'org_admin', 'member'));`,
+      { config: roleConfig, target: withRoles() },
+    );
+    expect({ code, text }).toEqual({
+      code: 0,
+      text: `create policy p on t using ((org_id in (select public.member_org_ids(array['owner', 'member']))));`,
+    });
+    expect(report.skipped).toEqual([]);
+  });
+
+  it.each([
+    [
+      "a role that is not a literal",
+      `create policy p on t using (has_org_role(org_id, role_col));`,
+      withRoles(),
+      ["dynamic-role", "a role is not a string literal; map it by hand"],
+    ],
+    [
+      "a role no grant names",
+      `create policy p on t using (has_org_role(org_id, 'auditor'));`,
+      withRoles(),
+      [
+        "unknown-role",
+        "auditor maps to auditor, which no role grants; add it to rls.roleValues or declare the role",
+      ],
+    ],
+    [
+      "a policy without the role-filtered helper",
+      `create policy p on t using (has_org_role(org_id, 'member'));`,
+      target(),
+      [
+        "missing-helper",
+        "rls generate writes no member_org_ids(p_roles text[]): run it with this rls.migrate config, which asks for it",
+      ],
+    ],
+  ])("skips %s", async (_label, sql, roleTarget, expected) => {
+    const { report } = await migrate(sql, {
+      config: roleConfig,
+      target: roleTarget,
+    });
+    expect(reasons(report)).toEqual([expected]);
   });
 });
 

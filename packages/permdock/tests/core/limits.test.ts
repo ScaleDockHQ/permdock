@@ -6,7 +6,7 @@ import type { RoleBinding } from "../../src/core/policy-types.ts";
 import type { Instant } from "../../src/core/time.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { memoryLimitStore } from "../../src/core/limits.ts";
+import { limits, memoryLimitStore } from "../../src/core/limits.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -86,8 +86,10 @@ describe("quota grants", () => {
   });
 
   it("lets can peek without consuming", async () => {
-    const limits = memoryLimitStore();
-    const permdock = await permdockFor([limited], "member", { limits });
+    const counter = memoryLimitStore();
+    const permdock = await permdockFor([limited], "member", {
+      limits: limits(counter),
+    });
     expect(permdock.can(permissions.report.export, report)).toBe(true);
     expect(permdock.can(permissions.report.export, report)).toBe(true);
     expect(permdock.can(permissions.report.export, report)).toBe(true);
@@ -107,7 +109,7 @@ describe("quota grants", () => {
 
   it("keeps can and decide synchronous", async () => {
     const permdock = await permdockFor([limited], "member", {
-      limits: memoryLimitStore(),
+      limits: limits(memoryLimitStore()),
     });
     expect(permdock.can(permissions.report.export, report)).not.toBeInstanceOf(
       Promise,
@@ -118,11 +120,13 @@ describe("quota grants", () => {
   });
 
   it("fails closed when consume returns a thenable", async () => {
-    const limits: LimitStore = {
+    const counter: LimitStore = {
       consume: () => Promise.resolve({ remaining: 99 }),
       remaining: () => ({ remaining: 99 }),
     };
-    const permdock = await permdockFor([limited], "member", { limits });
+    const permdock = await permdockFor([limited], "member", {
+      limits: limits(counter),
+    });
     expect(permdock.can(permissions.report.export, report)).toBe(true);
     const decision = permdock.decide(permissions.report.export, report);
     expect(decision.outcome).toBe("denied");
@@ -132,7 +136,7 @@ describe("quota grants", () => {
   });
 
   it("fails closed when the store throws", async () => {
-    const limits: LimitStore = {
+    const counter: LimitStore = {
       consume(): never {
         throw new Error("redis down");
       },
@@ -140,7 +144,9 @@ describe("quota grants", () => {
         throw new Error("redis down");
       },
     };
-    const permdock = await permdockFor([limited], "member", { limits });
+    const permdock = await permdockFor([limited], "member", {
+      limits: limits(counter),
+    });
     expect(permdock.can(permissions.report.export, report)).toBe(false);
     const decision = permdock.decide(permissions.report.export, report);
     expect(decision.outcome).toBe("denied");
@@ -150,21 +156,25 @@ describe("quota grants", () => {
   });
 
   it("fails closed when remaining is a thenable", async () => {
-    const limits: LimitStore = {
+    const counter: LimitStore = {
       consume: () => ({ remaining: 1 }),
       // SAFETY: a deliberately thenable answer, to exercise the fail-closed deny.
       remaining: () => Promise.resolve({ remaining: 1 }) as never,
     };
-    const permdock = await permdockFor([limited], "member", { limits });
+    const permdock = await permdockFor([limited], "member", {
+      limits: limits(counter),
+    });
     expect(permdock.can(permissions.report.export, report)).toBe(false);
   });
 
   it("does not consume on filter or simulate", async () => {
-    const limits = memoryLimitStore();
+    const counter = memoryLimitStore();
     const once = role("member", [
       allow(permissions.report.export, { limit: { count: 1, per: 3600 } }),
     ]);
-    const permdock = await permdockFor([once], "member", { limits });
+    const permdock = await permdockFor([once], "member", {
+      limits: limits(counter),
+    });
     expect(permdock.filter(permissions.report.export, [report])).toEqual([
       report,
     ]);
@@ -182,8 +192,10 @@ describe("quota grants", () => {
   });
 
   it("does not consume an approval-required quota grant", async () => {
-    const limits = memoryLimitStore();
-    const permdock = await permdockFor([approved], "reviewer", { limits });
+    const counter = memoryLimitStore();
+    const permdock = await permdockFor([approved], "reviewer", {
+      limits: limits(counter),
+    });
     expect(permdock.decide(permissions.report.export, report).outcome).toBe(
       "approval-required",
     );
@@ -193,8 +205,10 @@ describe("quota grants", () => {
   });
 
   it("ORs a later unlimited allow after a quota miss", async () => {
-    const limits = memoryLimitStore();
-    const permdock = await permdockFor([fallback], "staff", { limits });
+    const counter = memoryLimitStore();
+    const permdock = await permdockFor([fallback], "staff", {
+      limits: limits(counter),
+    });
     expect(permdock.decide(permissions.report.export, report).outcome).toBe(
       "granted",
     );
@@ -204,11 +218,13 @@ describe("quota grants", () => {
   });
 
   it("resets the memory window when per elapses", async () => {
-    const limits = memoryLimitStore();
+    const counter = memoryLimitStore();
     const once = role("member", [
       allow(permissions.report.export, { limit: { count: 1, per: 3600 } }),
     ]);
-    const permdock = await permdockFor([once], "member", { limits });
+    const permdock = await permdockFor([once], "member", {
+      limits: limits(counter),
+    });
     const now = 1_700_000_000;
     expect(
       permdock.decide(permissions.report.export, report, { now: at(now) })
@@ -227,7 +243,7 @@ describe("quota grants", () => {
 
   it("keeps quota grants out of the portable snapshot", async () => {
     const permdock = await permdockFor([limited], "member", {
-      limits: memoryLimitStore(),
+      limits: limits(memoryLimitStore()),
     });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
@@ -249,7 +265,7 @@ describe("soft and hard quotas", () => {
 
   it("carries the remaining quota and the window end on a granted decision", async () => {
     const permdock = await permdockFor([limited], "member", {
-      limits: memoryLimitStore(),
+      limits: limits(memoryLimitStore()),
     });
     const first = permdock.decide(permissions.report.export, report, {
       now: at(now),
@@ -274,7 +290,7 @@ describe("soft and hard quotas", () => {
 
   it("reports the quota a call would leave when only peeking", async () => {
     const permdock = await permdockFor([limited], "member", {
-      limits: memoryLimitStore(),
+      limits: limits(memoryLimitStore()),
     });
     const batch = permdock.simulate([[permissions.report.export, report]]);
     const [peeked] = Array.isArray(batch) ? batch : [];
@@ -291,7 +307,7 @@ describe("soft and hard quotas", () => {
       }),
     ]);
     const permdock = await permdockFor([hard], "member", {
-      limits: memoryLimitStore(),
+      limits: limits(memoryLimitStore()),
     });
     expect(
       permdock.decide(permissions.report.export, report, { now: at(now) })
@@ -310,7 +326,7 @@ describe("soft and hard quotas", () => {
       }),
     ]);
     const permdock = await permdockFor([soft], "member", {
-      limits: memoryLimitStore(),
+      limits: limits(memoryLimitStore()),
     });
     const within = permdock.decide(permissions.report.export, report, {
       now: at(now),
@@ -336,7 +352,7 @@ describe("soft and hard quotas", () => {
       }),
     ]);
     const permdock = await permdockFor([alerting], "member", {
-      limits: memoryLimitStore(),
+      limits: limits(memoryLimitStore()),
     });
     const kinds: (string | undefined)[] = [];
     for (let call = 0; call < 10; call += 1) {
@@ -378,7 +394,9 @@ describe("soft and hard quotas", () => {
       },
     };
     const noStore = await permdockFor([soft], "member");
-    const unavailable = await permdockFor([soft], "member", { limits: down });
+    const unavailable = await permdockFor([soft], "member", {
+      limits: limits(down),
+    });
     for (const permdock of [noStore, unavailable]) {
       const decision = permdock.decide(permissions.report.export, report);
       expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
@@ -449,7 +467,7 @@ describe("quota windows and keys", () => {
   });
 
   it("keeps separate counters per tenant", () => {
-    const limits = memoryLimitStore();
+    const counter = memoryLimitStore();
     const base = {
       key: "report.export",
       subjectId: "u1",
@@ -457,31 +475,33 @@ describe("quota windows and keys", () => {
       per: 3600,
       now: { epochMilliseconds: 0 },
     };
-    expect(limits.consume({ ...base, tenant: "acme" })).toEqual({
+    expect(counter.consume({ ...base, tenant: "acme" })).toEqual({
       remaining: 0,
     });
-    expect(limits.consume({ ...base, tenant: "globex" })).toEqual({
+    expect(counter.consume({ ...base, tenant: "globex" })).toEqual({
       remaining: 0,
     });
-    expect(limits.consume({ ...base, tenant: "acme" })).toEqual({
+    expect(counter.consume({ ...base, tenant: "acme" })).toEqual({
       remaining: -1,
     });
   });
 
   it("forgets windows that have ended", () => {
-    const limits = memoryLimitStore();
+    const counter = memoryLimitStore();
     const base = {
       key: "report.export",
       subjectId: "u1",
       count: 1,
       per: 1,
     };
-    expect(limits.consume({ ...base, now: { epochMilliseconds: 0 } })).toEqual({
-      remaining: 0,
-    });
+    expect(counter.consume({ ...base, now: { epochMilliseconds: 0 } })).toEqual(
+      {
+        remaining: 0,
+      },
+    );
     expect(
-      limits.consume({ ...base, now: { epochMilliseconds: 5000 } }),
+      counter.consume({ ...base, now: { epochMilliseconds: 5000 } }),
     ).toEqual({ remaining: 0 });
-    expect(limits.size()).toBe(1);
+    expect(counter.size()).toBe(1);
   });
 });

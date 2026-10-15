@@ -36,13 +36,13 @@ import {
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = await createPermDock(policy as never, memberUser);
+  const server = createPermDock(policy as never, memberUser);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
   return server.snapshot() as Snapshot;
 }
 
 async function aliceSnapshot(): Promise<Snapshot> {
-  const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+  const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
   // SAFETY: snapshot() returns a Snapshot without a signer.
   return server.snapshot({ tenants: "all" }) as Snapshot;
 }
@@ -191,7 +191,7 @@ describe("permdock/solid hooks", () => {
 });
 
 describe("permdock/solid <Protected>", () => {
-  it("passes the decision to children and fallback functions", async () => {
+  it("passes the decision to children and denied functions", async () => {
     const view = mount({ snapshot: await memberSnapshot() }, () => [
       createComponent(Protected, {
         permission: permissions.post.update,
@@ -201,7 +201,7 @@ describe("permdock/solid <Protected>", () => {
       createComponent(Protected, {
         permission: permissions.post.update,
         data: otherPost,
-        fallback: (decision: Decision) => `no-${decision.outcome}`,
+        denied: (decision: Decision) => `no-${decision.outcome}`,
         children: "other",
       }),
       createComponent(Protected, {
@@ -223,14 +223,14 @@ describe("permdock/solid <Protected>", () => {
           permission: saas.project.update,
           data: ownProject,
           tenant: "acme",
-          fallback: "acme-locked",
+          denied: "acme-locked",
           children: "acme-edit",
         }),
         createComponent(Protected, {
           permission: saas.project.update,
           data: globexProject,
           tenant: "globex",
-          fallback: "globex-locked",
+          denied: "globex-locked",
           children: "globex-edit",
         }),
       ],

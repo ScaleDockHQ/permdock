@@ -49,6 +49,11 @@ const actor: JsonSchemaNode = {
 };
 const risk: JsonSchemaNode = { enum: ["low", "medium", "high", "critical"] };
 const credentialKind: JsonSchemaNode = { enum: ["user", "service", "feed"] };
+const appData: JsonSchemaNode = {
+  type: "object",
+  description:
+    "The application's own data, set where the event is built: plain JSON, never read by a decision.",
+};
 const within: JsonSchemaNode = {
   type: "object",
   additionalProperties: text,
@@ -87,6 +92,7 @@ export const DECISION_EVENT_SCHEMA: JsonSchemaNode = family(
       "call",
     ],
     properties: {
+      x: appData,
       type: { const: "decision" },
       at: instant,
       outcome: { enum: ["granted", "denied", "approval-required"] },
@@ -235,9 +241,10 @@ export const DIRECTORY_EVENT_SCHEMA: JsonSchemaNode = family(
       "credential",
     ],
     properties: {
+      x: appData,
       type: { const: "directory" },
       at: instant,
-      source: { const: "scim" },
+      source: text,
       operation: { enum: ["create", "replace", "patch", "delete"] },
       tenant: id,
       resource: {
@@ -276,6 +283,7 @@ export const MEMBERSHIP_EVENT_SCHEMA: JsonSchemaNode = family(
     type: "object",
     required: ["type", "at", "source", "operation", "principal", "roles"],
     properties: {
+      x: appData,
       type: { const: "membership" },
       at: instant,
       source: text,
@@ -306,6 +314,7 @@ export const CREDENTIAL_EVENT_SCHEMA: JsonSchemaNode = family(
     type: "object",
     required: ["type", "at", "source", "operation", "credential", "principal"],
     properties: {
+      x: appData,
       type: { const: "credential" },
       at: instant,
       source: text,
@@ -343,6 +352,7 @@ export const ACCESS_EVENT_SCHEMA: JsonSchemaNode = family(
       "roles",
     ],
     properties: {
+      x: appData,
       type: { const: "access" },
       at: instant,
       source: text,
@@ -390,6 +400,7 @@ export const AUTOMATION_EVENT_SCHEMA: JsonSchemaNode = family(
       "permissions",
     ],
     properties: {
+      x: appData,
       type: { const: "automation" },
       at: instant,
       source: text,
@@ -487,6 +498,7 @@ export const DELIVERY_EVENT_SCHEMA: JsonSchemaNode = family(
     type: "object",
     required: ["type", "at", "source", "operation", "channel", "delivery"],
     properties: {
+      x: appData,
       type: { const: "delivery" },
       at: instant,
       source: text,

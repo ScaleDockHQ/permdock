@@ -15,6 +15,7 @@ export {
   isDirectoryUniquenessError,
   LIST_SCHEMA,
   PATCH_SCHEMA,
+  APP_DATA_EXTENSION,
   ROLES_EXTENSION,
   SCIM_CONTENT_TYPE,
   USER_SCHEMA,

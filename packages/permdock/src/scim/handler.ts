@@ -104,6 +104,7 @@ export function scimHandler(
         audience: options.audience,
         token: options.token,
         verifier: options.verifier,
+        claims: options.claims,
       }),
     );
     if (!auth.ok) {

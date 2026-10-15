@@ -1,7 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock } from "permdock";
+import { loadPermDock } from "permdock";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -71,7 +71,7 @@ describe("a resource memberships table with the row's column names", () => {
   });
 
   it("matches the in-process decision", async () => {
-    const alice = await createPermDock(policy, {
+    const alice = await loadPermDock(policy, {
       id: "alice",
       memberships: [
         { on: { resource: "project", id: "pa" }, roles: ["viewer"] },

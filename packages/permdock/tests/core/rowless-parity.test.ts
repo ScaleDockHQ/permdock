@@ -96,7 +96,7 @@ async function both(
   if (subject === undefined) {
     throw new Error(`unknown subject ${name}`);
   }
-  const live = await createPermDock(
+  const live = createPermDock(
     policy,
     {
       principal: {

@@ -23,7 +23,7 @@ type Guarded = typeof read | typeof update;
 function reactGuard(permission: Guarded) {
   return createElement(ReactProtected, {
     permission,
-    fallback: createElement("i", null, "denied"),
+    denied: createElement("i", null, "denied"),
     children: createElement("b", null, "granted"),
   });
 }
@@ -34,7 +34,7 @@ function vueGuard(permission: Guarded) {
     { permission },
     {
       default: () => h("b", "granted"),
-      fallback: () => h("i", "denied"),
+      denied: () => h("i", "denied"),
     },
   );
 }
@@ -42,7 +42,7 @@ function vueGuard(permission: Guarded) {
 function solidGuard(permission: Guarded) {
   return createComponent(SolidProtected, {
     permission,
-    fallback: "<i>denied</i>",
+    denied: "<i>denied</i>",
     children: "<b>granted</b>",
   });
 }

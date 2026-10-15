@@ -15,7 +15,7 @@ export default function QuotesPage(props: {
       <Protected
         permission={permissions.quotes.list}
         pending={<QuotesSkeleton />}
-        fallback={<p>Only owners can see every quote.</p>}
+        denied={<p>Only owners can see every quote.</p>}
       >
         <Suspense fallback={<QuotesSkeleton />}>
           <Quotes params={props.params} />

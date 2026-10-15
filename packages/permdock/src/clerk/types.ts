@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { ClaimsMap } from "../core/claims-map.ts";
 import type { CustomRoleSource } from "../core/interfaces.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Principal } from "../core/subject.ts";
@@ -34,17 +35,14 @@ export type ClerkBackend = {
   };
 };
 
-export type ClerkGlobalRoles =
-  | string
-  | ((claims: Readonly<Record<string, unknown>>) => readonly string[]);
-
 export type ClerkSubjectOptions = {
   readonly memberships?: "active" | "all";
   readonly backend?: ClerkBackend;
   readonly customRoles?: CustomRoleSource;
   readonly permissions?: Readonly<Record<string, Permission>>;
   readonly schema?: StandardSchemaV1;
-  readonly globalRoles?: ClerkGlobalRoles;
+  /** Where the session token carries platform roles (`claims.roles`): a path such as `publicMetadata.staff`, or a function. Organization roles come from the `o` claim. */
+  readonly claims?: Pick<ClaimsMap, "roles">;
   readonly features?: Readonly<Record<string, string>>;
   readonly declared?: readonly string[];
 };

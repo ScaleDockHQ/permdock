@@ -5,7 +5,7 @@ import { pgTable, text } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock } from "permdock";
+import { loadPermDock } from "permdock";
 import { toWhere } from "permdock/drizzle";
 import {
   type SqlQuery,
@@ -264,7 +264,7 @@ describe.each([
   });
 
   it("reads a disabled membership as kept or absent in process", async () => {
-    const permdock = await createPermDock(
+    const permdock = await loadPermDock(
       policy,
       { id: OWNER, kind: "user" },
       {
@@ -306,17 +306,20 @@ describe.each([
           tenant,
           memberships: live(keep === undefined ? {} : { suspension: keep }),
         };
-        const permdock = await createPermDock(
+        const permdock = await loadPermDock(
           policy,
           { id: user, kind: "user" },
           options,
         );
         const claims = await claimsFor(user, tenant);
         if (mode === "jwt") {
-          const fromClaims = await createPermDock(
+          const fromClaims = await loadPermDock(
             policy,
-            subjectFromSupabase(claims, { memberships: "memberships" })
-              .principal,
+            subjectFromSupabase(claims, {
+              claims: {
+                memberships: "memberships",
+              },
+            }).principal,
           );
           expect(
             fromClaims.subject.principal?.memberships?.toSorted((a, b) =>

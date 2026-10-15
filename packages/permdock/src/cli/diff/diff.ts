@@ -17,10 +17,10 @@ import { parseCatalog } from "../../catalog/parse.ts";
 import { canonicalJson } from "../../core/canonical-json.ts";
 import { secondsOf } from "../../core/time.ts";
 import {
-  type Policy,
-  createPermDock,
   findPermission,
+  loadPermDock,
   memoryCustomRoleSource,
+  type Policy,
 } from "../../index.ts";
 import { buildCatalog } from "../catalog-doc.ts";
 import { usageResult } from "../errors.ts";
@@ -667,7 +667,7 @@ async function impactOf(input: {
     if (permission === undefined) {
       return "unknown";
     }
-    const permdock = await createPermDock(
+    const permdock = await loadPermDock(
       policy,
       fixtureSubject(fixture.subject),
       {

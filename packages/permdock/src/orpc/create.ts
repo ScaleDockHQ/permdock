@@ -6,26 +6,25 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { TenantScope } from "../server/create.ts";
 import type { OpenApiHooks } from "../server/server-types.ts";
+import type { StreamProtectOptions } from "../server/stream.ts";
 
-import { compact } from "../core/compact.ts";
-import { isPermission } from "../core/permission-registry.ts";
-import { type ServerAdapterOptions, attached } from "../server/bind.ts";
-import { problemMessage } from "../server/http.ts";
-import { problemFromError } from "../server/map-error.ts";
 import {
+  compact,
+  isPermission,
+  attached,
+  problemMessage,
+  problemFromError,
   bindRpcKernel,
   guardStream,
   problemBody,
   rpcCode,
-} from "../server/rpc.ts";
-import {
-  type StreamProtectOptions,
   isAsyncIterable,
   reloadAfter,
-} from "../server/stream.ts";
+} from "../server/kit.ts";
 
 export type OrpcMiddlewareOpts<
   TCtx extends object = object,

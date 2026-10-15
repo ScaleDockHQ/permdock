@@ -5,15 +5,16 @@ import {
   memoryApprovalStore,
 } from "../../approvals/index.ts";
 import {
-  type LimitStore,
-  type Principal,
-  type RevocationFeed,
   type CustomRoleSource,
-  type Subject,
-  createPermDock,
+  type Limits,
+  limits,
+  loadPermDock,
+  memoryCustomRoleSource,
   memoryLimitStore,
   memoryRevocationFeed,
-  memoryCustomRoleSource,
+  type Principal,
+  type RevocationFeed,
+  type Subject,
 } from "../../index.ts";
 import { saasPolicy } from "../saas/policy.ts";
 import {
@@ -59,7 +60,7 @@ export type HttpScenarioDomain = {
   readonly org: (path: string) => string | undefined;
   readonly customRoles: CustomRoleSource;
   readonly store: ApprovalStore;
-  readonly limits: LimitStore;
+  readonly limits: Limits;
   /** A project row by id, whatever its org: tenant checks belong to the policy. */
   readonly project: (id: string | undefined) => SaasProject | null;
 };
@@ -265,7 +266,7 @@ export function createDomain(): HttpScenarioDomain & Demotions {
     org: orgOf,
     customRoles: memoryCustomRoleSource(saasCustomRoles),
     store: memoryApprovalStore(),
-    limits: memoryLimitStore(),
+    limits: limits(memoryLimitStore()),
     project: (id) =>
       id === undefined
         ? null
@@ -277,12 +278,8 @@ export async function approverSubject(
   user: string,
   tenant: string,
 ): Promise<Subject> {
-  const permdock = await createPermDock(
-    saasPolicy,
-    saasPrincipal(user, tenant),
-    {
-      tenant,
-    },
-  );
+  const permdock = await loadPermDock(saasPolicy, saasPrincipal(user, tenant), {
+    tenant,
+  });
   return permdock.subject;
 }

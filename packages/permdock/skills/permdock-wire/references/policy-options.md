@@ -4,7 +4,7 @@ Owning pages: [policies](https://permdock.com/docs/concepts/policies), [decision
 
 ## Usage limits
 
-A `limit: { count, per }` grant needs `limits: memoryLimitStore()` (or the app's `LimitStore`) on `createPermDock`; without it the grant denies with `limit-unavailable`. `can` never consumes a unit: a mutation that spends one calls `decide` or `assert`.
+A `limit: { count, per }` grant needs `limits: limits(memoryLimitStore())` (or `limits(store)` over the app's `LimitStore`) on `createPermDock`; without it the grant denies with `limit-unavailable`. `can` never consumes a unit: a mutation that spends one calls `decide` or `assert`.
 
 - `mode: 'soft'` keeps granting past the count with an `over-limit` obligation; `alertAt: 0.8` adds a `near-limit` warning.
 - A granted decision carries `quota: { remaining, resetsAt }`. An exhausted hard limit answers `429` with `Retry-After` and `RateLimit` headers; for the header format, defer to the `ratelimit-headers` spec skill (`npx skills add ScaleDockHQ/scaledock-skills --skill ratelimit-headers`).

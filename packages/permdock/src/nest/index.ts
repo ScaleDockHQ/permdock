@@ -1,3 +1,8 @@
+export {
+  discoverViaSignatureAgent,
+  InvalidSignatureError,
+  webBotAuthVerifier,
+} from "../server/kit.ts";
 export { createPermDock } from "./create.ts";
 export { decorateMethod } from "./decorate.ts";
 export type {
@@ -10,8 +15,3 @@ export type {
   NestSocket,
 } from "./create.ts";
 export { sendResponse, toRequest } from "./http.ts";
-export {
-  discoverViaSignatureAgent,
-  InvalidSignatureError,
-  webBotAuthVerifier,
-} from "../server/web-bot-auth.ts";

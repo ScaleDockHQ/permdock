@@ -19,7 +19,7 @@ import { type Assignable, assignableIn } from "./assignable.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { customGrantsFor } from "./custom-roles.ts";
 import { decideForTarget } from "./decide-for.ts";
-import { evaluate } from "./evaluate.ts";
+import { evaluate } from "./evaluate/index.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -51,7 +51,6 @@ import {
   resolveActiveTenant,
   tenantsOf,
 } from "./tenancy.ts";
-import { isThenable } from "./thenable.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
 /** Each round reads one more layer: link hops, then the chain, then nested groups. */
@@ -555,19 +554,15 @@ export function buildInstance(
     permittedIds(permission, scope, options) {
       return permittedIds(instance, permission, scope, options);
     },
-    derive(options: DeriveOptions): PermDock | Promise<PermDock> {
-      const derived = deriveEnv(
+    async derive(options: DeriveOptions): Promise<PermDock> {
+      const env = await deriveEnv(
         policy,
         subject,
         envBase,
         relationCache,
         options,
       );
-      return isThenable(derived)
-        ? Promise.resolve(derived).then((env) =>
-            buildInstance(policy, subject, env, team),
-          )
-        : buildInstance(policy, subject, derived, team);
+      return buildInstance(policy, subject, env, team);
     },
     subject,
   };

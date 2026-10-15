@@ -49,7 +49,7 @@ export default function StaffPage(props: {
       <Protected
         permission={permissions.staff.list}
         pending={<StaffSkeleton />}
-        fallback={<p>Only staff can see the staff list.</p>}
+        denied={<p>Only staff can see the staff list.</p>}
       >
         <Suspense fallback={<StaffSkeleton />}>
           <StaffList params={props.params} />

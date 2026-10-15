@@ -227,7 +227,7 @@ describe("decideSupportSession", () => {
       ],
     });
     const nobody = permdockFor(userSubject("u_staff", []));
-    const member = await createPermDock(policy, {
+    const member = createPermDock(policy, {
       principal: {
         id: "u_staff",
         kind: "user",
@@ -292,7 +292,7 @@ describe("decideSupportSession", () => {
   });
 
   it("reads the instance's settings option", async () => {
-    const instance = await createPermDock(
+    const instance = createPermDock(
       policy,
       userSubject("u_staff", ["billing"]),
       {

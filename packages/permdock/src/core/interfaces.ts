@@ -35,6 +35,8 @@ export type DecisionProvider = {
 };
 
 export type CustomRoleSource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   /**
    * The custom roles of one tenant. `createPermDock` passes `held`, the role
    * names the subject's live memberships hold there, declared or not, so a
@@ -72,6 +74,8 @@ export type MemberEntry = {
 };
 
 export type MembershipSource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   membershipsFor(
     principal: { readonly id: string; readonly kind?: string },
     options: { readonly tenant?: string },
@@ -145,6 +149,8 @@ export type RelationHolder = HolderPeriod &
  * `relation-unavailable`.
  */
 export type RelationSource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   /**
    * With `through: 'parent'`, the parent chain; with a link name, the one
    * instance that link points to (`depth` is then 1).
@@ -172,6 +178,8 @@ export type RelationSource = {
 
 /** Plan and seat names a principal holds in a tenant, from billing (Stripe Entitlements, a table). */
 export type EntitlementSource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   entitlementsFor(
     principal: { readonly id: string },
     options: { readonly tenant?: string },
@@ -227,6 +235,8 @@ export type VerificationFailure = {
 };
 
 export type TokenVerifier<TClaims extends JwtClaims = JwtClaims> = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   verify(
     token: string,
     expectations: {
@@ -239,6 +249,8 @@ export type TokenVerifier<TClaims extends JwtClaims = JwtClaims> = {
 };
 
 export type TokenSigner = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   sign(
     payload: Readonly<Record<string, unknown>>,
     options: {
@@ -275,6 +287,8 @@ export type SubjectResolver<
 ) => Subject<TPrincipal> | Promise<Subject<TPrincipal>>;
 
 export type SnapshotSource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   get(): Promise<Snapshot | string> | Snapshot | string;
   subscribe?(listener: () => void): () => void;
 };
@@ -302,11 +316,15 @@ export type LimitRemaining = {
 };
 
 export type LimitStore = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   consume(input: LimitConsumeInput): Promise<LimitRemaining> | LimitRemaining;
   remaining(input: LimitConsumeInput): LimitRemaining | undefined;
 };
 
 export type DecisionSink = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   write(events: readonly SinkEvent[]): Promise<void> | void;
   flush?(): Promise<void>;
 };
@@ -318,6 +336,8 @@ export type DecisionSink = {
  * never core's.
  */
 export type CredentialVerifier = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   verify(secret: string): Credential | null | Promise<Credential | null>;
   /**
    * Records a successful use at `at`, for a `lastUsedAt` column. Called
@@ -340,6 +360,8 @@ export type TenantSettings = {
  * a key may be and never grant. A throw denies.
  */
 export type SettingsSource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   settingsFor(
     tenant: string,
   ): TenantSettings | undefined | Promise<TenantSettings | undefined>;

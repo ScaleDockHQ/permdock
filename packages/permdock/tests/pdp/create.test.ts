@@ -94,7 +94,7 @@ describe("permdock/pdp createPermDock", () => {
     const decide = vi.fn<DecisionProvider["decide"]>(async () =>
       grantedBy("fake"),
     );
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policyWith([provider({ handles: () => false, decide })]),
       member,
     );
@@ -106,7 +106,7 @@ describe("permdock/pdp createPermDock", () => {
   });
 
   it("keeps a policy with an empty provider list fully local", async () => {
-    const permdock = await createPermDock(policyWith([]), member);
+    const permdock = createPermDock(policyWith([]), member);
     expect(await permdock.can(permissions.post.read, post)).toBe(true);
     expect(await permdock.can(permissions.post.delete, post)).toBe(false);
   });
@@ -115,10 +115,7 @@ describe("permdock/pdp createPermDock", () => {
     const decide = vi.fn<DecisionProvider["decide"]>(async () =>
       grantedBy("fake"),
     );
-    const permdock = await createPermDock(
-      policyWith([provider({ decide })]),
-      null,
-    );
+    const permdock = createPermDock(policyWith([provider({ decide })]), null);
     const decision = await permdock.decide(permissions.post.read, post);
     expect({
       reason: reasonOf(decision),
@@ -130,10 +127,7 @@ describe("permdock/pdp createPermDock", () => {
     const decide = vi.fn<DecisionProvider["decide"]>(async () =>
       grantedBy("fake"),
     );
-    const permdock = await createPermDock(
-      policyWith([provider({ decide })]),
-      member,
-    );
+    const permdock = createPermDock(policyWith([provider({ decide })]), member);
     const decision = await permdock.decide(permissions.post.read, { id: 1 });
     expect({
       reason: reasonOf(decision),
@@ -145,10 +139,7 @@ describe("permdock/pdp createPermDock", () => {
     const decide = vi.fn<DecisionProvider["decide"]>(async () =>
       grantedBy("fake"),
     );
-    const permdock = await createPermDock(
-      policyWith([provider({ decide })]),
-      member,
-    );
+    const permdock = createPermDock(policyWith([provider({ decide })]), member);
     await permdock.decide(permissions.post.read, post);
     const request = decide.mock.calls[0]?.[0];
     expect({
@@ -165,7 +156,7 @@ describe("permdock/pdp createPermDock", () => {
   });
 
   it("denies with pdp-unavailable when a provider throws", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policyWith([
         provider({
           decide: () => {
@@ -182,7 +173,7 @@ describe("permdock/pdp createPermDock", () => {
   });
 
   it("denies with pdp-unavailable when a provider rejects", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policyWith([
         provider({ decide: () => Promise.reject(new Error("boom")) }),
       ]),
@@ -195,7 +186,7 @@ describe("permdock/pdp createPermDock", () => {
 
   describe("assert", () => {
     it("returns a granted decision", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([provider({ decide: async () => grantedBy("fake") })]),
         member,
       );
@@ -205,7 +196,7 @@ describe("permdock/pdp createPermDock", () => {
 
     it("throws PermDockDeniedError with the resource id and calls policy onDenied", async () => {
       const onDenied = vi.fn<(decision: unknown) => void>();
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith(
           [provider({ decide: async () => deniedBy("pdp-denied") })],
           onDenied,
@@ -230,7 +221,7 @@ describe("permdock/pdp createPermDock", () => {
     it("prefers the per-call onDenied over the policy one", async () => {
       const fromPolicy = vi.fn<(decision: unknown) => void>();
       const fromCall = vi.fn<(decision: unknown) => void>();
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith(
           [provider({ decide: async () => deniedBy("pdp-denied") })],
           fromPolicy,
@@ -247,7 +238,7 @@ describe("permdock/pdp createPermDock", () => {
     });
 
     it("omits the resource id when the data is not an object", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([provider({ decide: async () => deniedBy("pdp-denied") })]),
         member,
       );
@@ -260,7 +251,7 @@ describe("permdock/pdp createPermDock", () => {
     });
 
     it("reads the resource id from the declared id field", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([provider({ decide: async () => deniedBy("pdp-denied") })]),
         member,
       );
@@ -273,7 +264,7 @@ describe("permdock/pdp createPermDock", () => {
     });
 
     it("throws PermDockApprovalRequiredError for approval-required", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([
           provider({
             decide: async () => ({
@@ -297,7 +288,7 @@ describe("permdock/pdp createPermDock", () => {
     });
 
     it("rethrows the validation error for invalid data", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([provider({ decide: async () => grantedBy("fake") })]),
         member,
       );
@@ -307,7 +298,7 @@ describe("permdock/pdp createPermDock", () => {
     });
 
     it("throws PermDockDeniedError for a validation denial without an error detail", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([
           provider({
             decide: async () => ({
@@ -327,7 +318,7 @@ describe("permdock/pdp createPermDock", () => {
 
   describe("simulate", () => {
     it("decides each pair through the provider", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([
           provider({
             decide: async (request) =>
@@ -354,13 +345,10 @@ describe("permdock/pdp createPermDock", () => {
       const decide = vi.fn<DecisionProvider["decide"]>(async () =>
         grantedBy("fake"),
       );
-      const permdock = await createPermDock(
-        policyWith([provider({ decide })]),
-        {
-          id: "u1",
-          roles: [],
-        },
-      );
+      const permdock = createPermDock(policyWith([provider({ decide })]), {
+        id: "u1",
+        roles: [],
+      });
       const preview = permdock.simulate({ roles: ["member"] });
       expect(await preview.can(permissions.post.read, post)).toBe(true);
       expect(await preview.can(permissions.post.delete, post)).toBe(false);
@@ -381,7 +369,7 @@ describe("permdock/pdp createPermDock", () => {
     ];
 
     it("decides row by row when the provider cannot list", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([
           provider({
             decide: async (request) =>
@@ -404,7 +392,7 @@ describe("permdock/pdp createPermDock", () => {
       const permitted = vi.fn<NonNullable<DecisionProvider["permitted"]>>(
         async () => ["p1"],
       );
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([
           provider({ decide: async () => grantedBy("fake"), permitted }),
         ]),
@@ -421,7 +409,7 @@ describe("permdock/pdp createPermDock", () => {
           throw new Error("boom");
         },
       ]) {
-        const permdock = await createPermDock(
+        const permdock = createPermDock(
           policyWith([
             provider({ decide: async () => grantedBy("fake"), permitted }),
           ]),
@@ -432,7 +420,7 @@ describe("permdock/pdp createPermDock", () => {
     });
 
     it("keeps listed rows unless local evaluation short-circuits them", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([
           provider({
             decide: async () => grantedBy("fake"),
@@ -452,7 +440,7 @@ describe("permdock/pdp createPermDock", () => {
 
   describe("where", () => {
     it("returns the local where for a permission no provider handles", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([
           provider({
             handles: () => false,
@@ -472,7 +460,7 @@ describe("permdock/pdp createPermDock", () => {
           throw new Error("boom");
         },
       ]) {
-        const permdock = await createPermDock(
+        const permdock = createPermDock(
           policyWith([
             provider({ decide: async () => grantedBy("fake"), permitted }),
           ]),
@@ -486,7 +474,7 @@ describe("permdock/pdp createPermDock", () => {
     });
 
     it("returns an always-false partial result for an anonymous subject", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([
           provider({
             decide: async () => grantedBy("fake"),
@@ -502,7 +490,7 @@ describe("permdock/pdp createPermDock", () => {
     });
 
     it("is the remote id list alone and partial when no local grant exists", async () => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyWith([
           provider({
             decide: async () => grantedBy("fake"),
@@ -523,14 +511,11 @@ describe("permdock/pdp createPermDock", () => {
       const decide = vi.fn<DecisionProvider["decide"]>(async () =>
         deniedBy("pdp-denied"),
       );
-      const permdock = await createPermDock(
-        policyWith([provider({ decide })]),
-        {
-          id: "u1",
-          roles: [],
-          memberships: [{ tenant: "acme", roles: ["member"] }],
-        },
-      );
+      const permdock = createPermDock(policyWith([provider({ decide })]), {
+        id: "u1",
+        roles: [],
+        memberships: [{ tenant: "acme", roles: ["member"] }],
+      });
       const tenant = permdock.tenant("acme");
       expect(reasonOf(await tenant.decide(permissions.post.read, post))).toBe(
         "pdp-denied",

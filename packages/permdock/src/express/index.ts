@@ -1,3 +1,8 @@
+export {
+  discoverViaSignatureAgent,
+  InvalidSignatureError,
+  webBotAuthVerifier,
+} from "../server/kit.ts";
 export { createPermDock } from "./create.ts";
 export type {
   ExpressPermDock,
@@ -5,8 +10,3 @@ export type {
   ExpressPermDockRequest,
 } from "./create.ts";
 export { sendResponse, toRequest } from "./http.ts";
-export {
-  discoverViaSignatureAgent,
-  InvalidSignatureError,
-  webBotAuthVerifier,
-} from "../server/web-bot-auth.ts";

@@ -16,7 +16,7 @@
     tenant,
     children,
     pending,
-    fallback,
+    denied,
     approval,
   }: ProtectedProps = $props();
 
@@ -33,15 +33,15 @@
     const generation = tick;
     return viewFor(store, permission, data, scoped, generation);
   });
-  const own = $derived({ pending, fallback, approval });
+  const own = $derived({ pending, denied, approval });
 </script>
 
 {#if view.slot === 'pending'}
   {@render slotContent('pending', own, defaults)?.()}
 {:else if view.slot === 'approval'}
   {@render slotContent('approval', own, defaults)?.(view.decision)}
-{:else if view.slot === 'fallback'}
-  {@render slotContent('fallback', own, defaults)?.(view.decision)}
+{:else if view.slot === 'denied'}
+  {@render slotContent('denied', own, defaults)?.(view.decision)}
 {:else}
   {@render children?.(view.decision)}
 {/if}

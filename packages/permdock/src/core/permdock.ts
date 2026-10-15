@@ -1,4 +1,5 @@
 import type { Condition } from "../conditions/ast.ts";
+import type { AppData } from "./app-data.ts";
 import type {
   ApprovalPolicies,
   LoadedApprovalPolicies,
@@ -9,7 +10,6 @@ import type { HostedPolicies } from "./hosted.ts";
 import type { InstanceEnv } from "./instance-env.ts";
 import type {
   DecisionSink,
-  LimitStore,
   EntitlementSource,
   MembershipSource,
   RelationSource,
@@ -18,7 +18,9 @@ import type {
   SettingsSource,
   TokenSigner,
 } from "./interfaces.ts";
+import type { Limits } from "./limits.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
+import type { AdapterId } from "./open-union.ts";
 import type { Operation } from "./operations.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
@@ -61,7 +63,7 @@ export type DecideOptions = {
   /** The call that produced the decision, reported on the decision event. Defaults to `'decide'`. */
   readonly call?: DecisionEvent["call"];
   /** The adapter that made the call, reported on the decision event. */
-  readonly adapter?: string;
+  readonly adapter?: AdapterId;
   /** The model id the decision is about or that drove the call (`'openai/gpt-5'`), reported on the decision event. Never read when deciding. */
   readonly model?: string;
   /** Per-call unauthorized handler for `assert`; runs before instance and policy handlers. */
@@ -90,6 +92,12 @@ export type DecideOptions = {
    * tool arguments. Never read when deciding.
    */
   readonly args?: unknown;
+  /**
+   * The application's own data for the decision event (a request id, a
+   * route). Plain JSON; a value that is not is dropped. Never read when
+   * deciding.
+   */
+  readonly x?: AppData;
 };
 
 export type SimulateOptions = {
@@ -351,12 +359,10 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * The same subject, tenant, team, actor, delegation, sink and limits with
    * other sources: `customRoles`, `approvalPolicies` or `relations`. The
    * sources it names are read again for the subject's tenants; the others
-   * keep what this instance loaded. Returns a promise when a source it names
-   * answers asynchronously.
+   * keep what this instance loaded. Always a promise, since the sources it
+   * names may answer asynchronously.
    */
-  readonly derive: (
-    options: DeriveOptions,
-  ) => PermDock<V> | Promise<PermDock<V>>;
+  readonly derive: (options: DeriveOptions) => Promise<PermDock<V>>;
 };
 
 /** What `permdock.derive` may replace: the sources read after the subject is resolved. */
@@ -375,7 +381,8 @@ export type PermDockOptions = {
   readonly actor?: Actor;
   readonly delegation?: Delegation;
   readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
+  /** Grant limits, `limits(store)`; without it a grant with a `limit` denies with `limit-unavailable`. */
+  readonly limits?: Limits;
   readonly session?: string;
   readonly expiresAt?: number;
   /** Hosted grants, `hostedPolicies(source)`; `current()` is read once, when the instance is created. */
@@ -444,7 +451,7 @@ function instantiate(
         principals: options.principals,
         settings: options.settings,
         targets: (principal: Principal, tenant: string | undefined) =>
-          createPermDock(
+          loadPermDock(
             codePolicy,
             { principal, context: {} },
             compact<PermDockOptions>({
@@ -472,14 +479,14 @@ function instantiate(
   return build(customRoles, assignable, approvals);
 }
 
-export function createPermDock<
+function create<
   TUser,
-  TPrincipal extends Principal = Principal,
-  V extends PolicyVocabulary = PolicyVocabulary,
+  TPrincipal extends Principal,
+  V extends PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
   user: TUser | Subject | null,
-  given: PermDockOptions = {},
+  given: PermDockOptions,
 ): PermDock<V> | Promise<PermDock<V>> {
   const options = withApp(policy, given);
   const auth: AuthEvent[] = [];
@@ -492,6 +499,46 @@ export function createPermDock<
   }
   // SAFETY: instantiate builds the instance from this policy, whose vocabulary type is V.
   return instantiate(policy, subject, options, auth) as PermDock<V>;
+}
+
+/**
+ * The instance for `user`, built synchronously. Every input must answer
+ * synchronously: the subject mapper, `memberships`, `customRoles`,
+ * `entitlements`, `approvalPolicies` and the freshness check. One that
+ * answers with a Promise throws here; use `loadPermDock` for those.
+ */
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  user: TUser | Subject | null,
+  options: PermDockOptions = {},
+): PermDock<V> {
+  const created = create(policy, user, options);
+  if (isThenable(created)) {
+    // The sources already ran; keep their failure from surfacing as an unhandled rejection.
+    created.then(undefined, () => undefined);
+    throw new Error(
+      "PermDock: createPermDock got a Promise from the subject mapper or a source (memberships, customRoles, entitlements, approvalPolicies); use loadPermDock for asynchronous inputs",
+    );
+  }
+  return created;
+}
+
+/** `createPermDock` for inputs that answer asynchronously: waits for every source, then builds the instance. */
+export function loadPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  user: TUser | Subject | null,
+  options: PermDockOptions = {},
+): Promise<PermDock<V>> {
+  // Through `then`, so a mapper or source that throws rejects instead of throwing.
+  return Promise.resolve().then(() => create(policy, user, options));
 }
 
 export { fromSnapshot } from "./from-snapshot.ts";

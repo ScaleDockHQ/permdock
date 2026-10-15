@@ -631,7 +631,7 @@ export function pd038(
         code: "PD038",
         severity: "warning",
         message: `${source.file}:${line} reads the tenant from '${read}', but rls.tenantClaim is '${tenantClaim}'`,
-        fix: `pass tenant: '${tenantClaim}' or set rls.tenantClaim to '${read}'`,
+        fix: `pass claims: { tenant: '${tenantClaim}' } or set rls.tenantClaim to '${read}'`,
       });
     }
   }

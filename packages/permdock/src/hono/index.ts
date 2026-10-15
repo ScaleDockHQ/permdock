@@ -1,3 +1,8 @@
+export {
+  discoverViaSignatureAgent,
+  InvalidSignatureError,
+  webBotAuthVerifier,
+} from "../server/kit.ts";
 export { createPermDock } from "./create.ts";
 export type {
   HonoPermDock,
@@ -5,8 +10,3 @@ export type {
   HonoPermDockEnv,
   SseOptions,
 } from "./create.ts";
-export {
-  discoverViaSignatureAgent,
-  InvalidSignatureError,
-  webBotAuthVerifier,
-} from "../server/web-bot-auth.ts";

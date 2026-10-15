@@ -11,6 +11,7 @@ import {
   approvalPolicies,
   defineApp,
   hostedPolicies,
+  limits,
   memoryLimitStore,
 } from "permdock";
 import { memoryApprovalStore } from "permdock/approvals";
@@ -22,7 +23,7 @@ export const app = defineApp(policy, {
   relations, // RelationSource
   approvalPolicies: approvalPolicies(approvalPolicySource),
   policies: hostedPolicies(policySource),
-  limits: memoryLimitStore(),
+  limits: limits(memoryLimitStore()),
   sink,
   store: memoryApprovalStore(),
   profile: process.env.NODE_ENV === "production" ? "prod" : "dev",
@@ -44,16 +45,16 @@ export const { protect, middleware } = createPermDock(app, { subject });
 | `memberships`, `customRoles`, `entitlements`, `relations`, `principals`, `settings` | The [extension interfaces](/docs/concepts/extension-interfaces) that read the application's own data | Memberships come from the principal; no custom roles, entitlements or relations |
 | `policies`                                                                          | `hostedPolicies(source)`: hosted grants on `hostable` permissions                                    | The code policy only                                                            |
 | `approvalPolicies`                                                                  | `approvalPolicies(source)`, or a `memoryApprovalPolicySource([...])` as is                           | Approval requirements from code only                                            |
-| `limits`                                                                            | A `LimitStore`                                                                                       | A grant with `limit` denies with `limit-unavailable`                            |
+| `limits`                                                                            | `limits(store)`: counts `limit` grants in a `LimitStore`                                             | A grant with `limit` denies with `limit-unavailable`                            |
 | `sink`                                                                              | A `DecisionSink`                                                                                     | No decision log                                                                 |
 | `store`                                                                             | The `ApprovalStore` every adapter opens and resumes approvals in                                     | `approval-required` cannot be resumed                                           |
 | `profile`                                                                           | `"prod"` (default) or `"dev"`                                                                        | `"prod"`                                                                        |
 
-`hostedPolicies` and `approvalPolicies` are features, not bare sources. The code that merges hosted grants and tightens approvals ships only with an app that imports them, so a plain RBAC app does not carry it.
+`hostedPolicies`, `approvalPolicies` and `limits` are features, not bare sources. The code that merges hosted grants, tightens approvals and counts quotas ships only with an app that imports them, so a plain RBAC app does not carry it.
 
 ## Profiles
 
-- `dev` fills in in-process defaults: a memory `LimitStore` when a grant has a `limit`, and in each adapter a memory `ApprovalStore` when none is set. A new app runs before any infrastructure exists. Memory stores are per process: their state is lost on restart and is not shared between instances.
+- `dev` fills in in-process defaults: one memory `ApprovalStore` that every adapter of the app shares, so a request opened through one adapter resumes through another, and `limits(memoryLimitStore())` when a grant has a `limit`. The defaults come from `defineApp`, never from an adapter, so an adapter bundle carries no store. A new app runs before any infrastructure exists. Memory stores are per process: their state is lost on restart and is not shared between instances.
 - `prod` fills in nothing. `defineApp` throws at startup when a grant requires approval and there is no `store`, or a grant has a `limit` and there are no `limits`. The alternative is an app that starts and then denies every such call at run time.
 
 No adapter falls back to a memory store on its own. An approval store exists because the app or the adapter call named one, or because the profile is `dev`.

@@ -21,7 +21,7 @@ import {
 } from "../fixtures/quick-start.ts";
 
 async function clientOf(user: User) {
-  const server = await createPermDock(policy, user);
+  const server = createPermDock(policy, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise || typeof snapshot === "string") {
     throw new Error("expected JSON snapshot");
@@ -77,7 +77,7 @@ describe("registerTools", () => {
   });
 
   it("registers nothing for a simulated snapshot", async () => {
-    const server = await createPermDock(policy, memberUser);
+    const server = createPermDock(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise || typeof snapshot === "string") {
       throw new Error("expected JSON snapshot");

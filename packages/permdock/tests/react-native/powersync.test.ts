@@ -105,7 +105,7 @@ describe("powerSyncSource", () => {
 
   it("answers like the server for the same rows", async () => {
     // SAFETY: the quick-start user fixture; only the policy generic is erased.
-    const server = await createPermDock(policy as never, {
+    const server = createPermDock(policy as never, {
       id: "u1",
       orgId: "o1",
       roles: ["member"],

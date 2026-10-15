@@ -282,8 +282,8 @@ describe("memoryDirectoryStore groups", () => {
     const store = memoryDirectoryStore();
     await store.putGroup(A, group({ id: "g_1" }));
     await store.deleteGroup(A, "g_1");
-    const error: unknown = await store
-      .deleteGroup(A, "g_1")
+    const error: unknown = await Promise.resolve()
+      .then(() => store.deleteGroup(A, "g_1"))
       .catch((caught: unknown) => caught);
     expect(isDirectoryNotFoundError(error)).toBe(true);
     expect(error).toMatchObject({

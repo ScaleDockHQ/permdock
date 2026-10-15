@@ -23,10 +23,10 @@
 <PermissionBoundary>
 <Protected permission={granted}>
   {#snippet children()}<b>granted</b>{/snippet}
-  {#snippet fallback()}<i>denied</i>{/snippet}
+  {#snippet denied()}<i>denied</i>{/snippet}
 </Protected>
 <Protected permission={denied}>
   {#snippet children()}<b>granted</b>{/snippet}
-  {#snippet fallback()}<i>denied</i>{/snippet}
+  {#snippet denied()}<i>denied</i>{/snippet}
 </Protected>
 </PermissionBoundary>

@@ -23,7 +23,7 @@ type User = Parameters<typeof policy.subject>[0];
 const docs = Object.fromEntries(rows.doc.map((row) => [row.id, row]));
 
 async function permdock(user: User | string) {
-  const instance = await createPermDock(
+  const instance = createPermDock(
     policy,
     typeof user === "string" ? { id: user } : user,
     { relations },
@@ -117,7 +117,7 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const vera = await createPermDock(
+    const vera = createPermDock(
       policy,
       { id: "vera" },
       {
@@ -142,7 +142,7 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const vera = await createPermDock(
+    const vera = createPermDock(
       policy,
       { id: "vera" },
       {
@@ -171,7 +171,7 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const sam = await createPermDock(
+    const sam = createPermDock(
       policy,
       { id: "sam" },
       {
@@ -189,7 +189,7 @@ describe("relationship graph: match, includes, groups, links", () => {
   });
 
   it("keeps a folder role to its own folder without a relation source", async () => {
-    const ada = await createPermDock(policy, engAdmin);
+    const ada = createPermDock(policy, engAdmin);
     expect(ada.can(permissions.doc.read, docs["eng-doc"])).toBe(true);
     expect(ada.can(permissions.doc.read, docs["deep-doc"])).toBe(false);
     expect(

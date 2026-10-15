@@ -24,14 +24,11 @@ const policy = definePolicy(permissions, {
 
 describe("permdock/pdp derive", () => {
   it("keeps the PDP wrapper on a derived instance, sync and async", async () => {
-    const permdock = await createPermDock(policy, {
+    const permdock = createPermDock(policy, {
       id: "u1",
       roles: ["member"],
     });
-    const same = permdock.derive({});
-    if (same instanceof Promise) {
-      throw new TypeError("expected a synchronous instance");
-    }
+    const same = await permdock.derive({});
     expect(await same.can(permissions.post.read, { id: "p" })).toBe(true);
     const gated = await permdock.derive({
       approvalPolicies: approvalPolicies({

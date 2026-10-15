@@ -13,6 +13,7 @@ import { expandOAuthScopes } from "./oauth-scopes.ts";
 import { policyX } from "./policy-fingerprint.ts";
 import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
+import { sourceName } from "./source-name.ts";
 import {
   type Actor,
   type Delegation,
@@ -134,7 +135,11 @@ function assemblePrincipal(
         compact({ tenant: options.tenant }),
       );
     } catch {
-      auth.push({ reason: "source-threw", source: "memberships" });
+      auth.push({
+        reason: "source-threw",
+        source: "memberships",
+        ...sourceName(source),
+      });
       return [];
     }
   };
@@ -202,7 +207,11 @@ function rereadStale(
       ? "fresh"
       : "reread";
   const unknown = (): Freshness => {
-    auth.push({ reason: "source-threw", source: "memberships" });
+    auth.push({
+      reason: "source-threw",
+      source: "memberships",
+      ...sourceName(source),
+    });
     return "unknown";
   };
   let freshness: Freshness | Promise<Freshness>;
@@ -404,11 +413,19 @@ function staleness(
     const current = source.version(versionQuery(principal));
     return isThenable(current)
       ? settle(Promise.resolve(current).then(compare), true, () => {
-          auth.push({ reason: "source-threw", source: "memberships" });
+          auth.push({
+            reason: "source-threw",
+            source: "memberships",
+            ...sourceName(source),
+          });
         })
       : compare(current);
   } catch {
-    auth.push({ reason: "source-threw", source: "memberships" });
+    auth.push({
+      reason: "source-threw",
+      source: "memberships",
+      ...sourceName(source),
+    });
     return true;
   }
 }

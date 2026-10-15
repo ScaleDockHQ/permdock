@@ -4,7 +4,7 @@ import type { SupabaseHookManifest } from "../supabase/manifest.ts";
  * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
  * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
  * multi-org apps). `tenantPlans` has scoped memberships, `tenant_id` and per-tenant plans in
- * `features`, read with `plans: 'features'`. `full` sets every field of the
+ * `features`, read with `claims: { plans: 'features' }`. `full` sets every field of the
  * claim contract plus a `hook.claims` extra claim; `portalContact`, `oauthClient` and
  * `actChain` cover a customer contact, a Supabase OAuth server token and an RFC 8693 chain.
  * `supportSession`, `supportSessionReadOnly` and `impersonation` are the `act.kind` tokens
@@ -16,7 +16,7 @@ export type SupabaseClaimFixture = {
   readonly claims: Readonly<Record<string, unknown>>;
   /** `subjectFromSupabase` options the case needs. */
   readonly options?: {
-    readonly plans?: string;
+    readonly claims?: { readonly plans?: string };
     readonly anonymousSignIns?: "deny";
   };
   readonly expect: {
@@ -225,7 +225,7 @@ export const supabaseClaimFixtures: Readonly<
       },
       authz_ver: 3,
     },
-    options: { plans: "features" },
+    options: { claims: { plans: "features" } },
     expect: {
       id,
       roles: [],

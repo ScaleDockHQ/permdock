@@ -435,9 +435,9 @@ export const subtree = [permissions.post];
       `import { subjectFromSupabase, subjectFromSupabaseSession } from 'permdock/supabase';
 
 export const a = (claims: unknown) => subjectFromSupabase(claims);
-export const b = (claims: unknown) => subjectFromSupabase(claims, { tenant: 'org_id' });
+export const b = (claims: unknown) => subjectFromSupabase(claims, { claims: { tenant: 'org_id' } });
 export const c = (session: never) =>
-  subjectFromSupabaseSession(session, { roles: 'user_role', tenant: "tenant_id" });
+  subjectFromSupabaseSession(session, { claims: { roles: 'user_role', tenant: "tenant_id" } });
 export const d = (claims: unknown, options: never) => subjectFromSupabase(claims, options);
 `,
     );

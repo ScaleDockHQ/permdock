@@ -191,7 +191,7 @@ describe("rateLimitHeaders", () => {
 
 describe("problemFromDecision", () => {
   it("answers 204 for a granted decision", async () => {
-    const permdock = await createCorePermDock(policy, memberUser);
+    const permdock = createCorePermDock(policy, memberUser);
     const decision = permdock.decide(permissions.post.read, ownPost);
     expect(
       problemFromDecision(decision, permissions.post.read, SUBJECT).status,
@@ -199,7 +199,7 @@ describe("problemFromDecision", () => {
   });
 
   it("carries the approval hint only when it names something", async () => {
-    const permdock = await createCorePermDock(policy, memberUser);
+    const permdock = createCorePermDock(policy, memberUser);
     const decision = permdock.decide(permissions.post.delete, ownPost);
     const hinted = await body(
       problemFromDecision(decision, permissions.post.delete, SUBJECT, {

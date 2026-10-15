@@ -34,7 +34,7 @@ import {
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = await createPermDock(policy as never, memberUser);
+  const server = createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");
@@ -50,7 +50,7 @@ describe("permdock/svelte", () => {
       "default",
     );
     expect(viewFor(store, defs.post.update, otherPost, undefined).slot).toBe(
-      "fallback",
+      "denied",
     );
     expect(
       get(permissionFor(store, defs.post.update, () => ownPost)).allowed,
@@ -93,7 +93,7 @@ describe("permdock/svelte", () => {
   });
 
   it("decides <Protected> for another tenant through viewFor", async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -111,7 +111,7 @@ describe("permdock/svelte", () => {
     ].map((view) => [view.slot, view.status, view.allowed]);
     expect(slots).toEqual([
       ["default", "ready", true],
-      ["fallback", "ready", false],
+      ["denied", "ready", false],
     ]);
   });
 

@@ -1,6 +1,8 @@
+import type { AppData } from "./app-data.ts";
 import type { CredentialKind } from "./credential.ts";
 import type { Obligation } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
+import type { AdapterId, MembershipVia, OpenUnion } from "./open-union.ts";
 import type { GrantMeta, HostedGrantRef } from "./policy-types.ts";
 import type { Membership } from "./subject.ts";
 import type { WireDelegation } from "./wire-delegation.ts";
@@ -9,7 +11,8 @@ import type { WireDenial } from "./wire-denial.ts";
 export type DirectoryEvent = {
   readonly type: "directory";
   readonly at: string;
-  readonly source: "scim";
+  /** `scim`, or an integrator's own directory sync. */
+  readonly source: OpenUnion<"scim">;
   readonly operation: "create" | "replace" | "patch" | "delete";
   readonly tenant: string;
   readonly resource: {
@@ -20,6 +23,8 @@ export type DirectoryEvent = {
     | { readonly kind: "token" }
     | { readonly kind: "jwt"; readonly iss?: string };
   readonly active?: boolean;
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type MembershipEvent = {
@@ -34,7 +39,7 @@ export type MembershipEvent = {
   readonly id?: string;
   /** The id of every ancestor scope, keyed by scope name. */
   readonly within?: Readonly<Record<string, string>>;
-  readonly via?: string;
+  readonly via?: MembershipVia;
   /** When the membership lapses, an RFC 3339 instant. */
   readonly expiresAt?: string;
   readonly roles: {
@@ -42,6 +47,8 @@ export type MembershipEvent = {
     readonly removed: readonly string[];
   };
   readonly by?: { readonly id: string; readonly kind: string };
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 /**
@@ -61,6 +68,8 @@ export type CredentialEvent = {
   readonly expiresAt?: string;
   readonly by?: { readonly id: string; readonly kind: string };
   readonly sample?: number;
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 /**
@@ -89,6 +98,8 @@ export type AutomationEvent = {
   /** Set on `run` events only. */
   readonly run?: { readonly id: string };
   readonly by?: { readonly id: string; readonly kind: string };
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type SinkEvent =
@@ -165,6 +176,8 @@ export type DeliveryEvent = {
   readonly retryable?: boolean;
   /** The denial reason when `cause` is `denied`. */
   readonly reason?: string;
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 /**
@@ -181,7 +194,7 @@ export type AccessEvent = {
   readonly tenant: string;
   readonly principal: { readonly id: string };
   /** The membership kind the session runs under (`support`). */
-  readonly via: string;
+  readonly via: MembershipVia;
   readonly roles: readonly string[];
   readonly member?: { readonly group: string };
   /** When the session lapses, an RFC 3339 instant. */
@@ -194,6 +207,8 @@ export type AccessEvent = {
   readonly session?: { readonly id: string; readonly principal: string };
   /** A `SupportSession`'s permission keys. */
   readonly permissions?: readonly string[];
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type DecisionEvent = {
@@ -259,7 +274,7 @@ export type DecisionEvent = {
     | "approval"
     | "simulate"
     | "explain";
-  readonly adapter?: string;
+  readonly adapter?: AdapterId;
   /** The model id the agent model gate decided, or the model that drove the call. */
   readonly model?: string;
   /** Set on an approval lifecycle event (`com.permdock.approval.<phase>`). */
@@ -269,6 +284,8 @@ export type DecisionEvent = {
     readonly denied: number;
     readonly approvalRequired: number;
   };
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type AuthEvent = {
@@ -280,6 +297,8 @@ export type AuthEvent = {
     | "source-threw";
   readonly cause?: string;
   readonly source: string;
+  /** The `name` of the source that threw, when it has one. */
+  readonly name?: string;
   readonly kid?: string;
   readonly alg?: string;
   readonly typ?: string;

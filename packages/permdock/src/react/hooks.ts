@@ -1,5 +1,6 @@
 import { use, useMemo, useSyncExternalStore } from "react";
 
+import type { ClientStore } from "../client/store.ts";
 import type { GateMode, GateView } from "../client/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
@@ -18,8 +19,8 @@ import type {
   UseRolesOptions,
 } from "./types.ts";
 
-import { type ClientStore, storeOf } from "../client/store.ts";
 import {
+  storeOf,
   approvalHandle,
   describeWith,
   filterResult,
@@ -28,7 +29,7 @@ import {
   rolesView,
   subjectView,
   tenantView,
-} from "../client/views.ts";
+} from "../client/kit.ts";
 import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,

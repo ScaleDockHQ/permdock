@@ -14,7 +14,7 @@ export const heroSnippet: CodeSnippet = {
   code: `import { createPermDock } from 'permdock'
 import { permissions, policy } from './policy'
 
-const permdock = await createPermDock(policy, user)
+const permdock = createPermDock(policy, user)
 
 permdock.can(permissions.post.update, post)
 permdock.decide(permissions.post.delete, post)
@@ -47,7 +47,7 @@ permdock.assert(permissions.post.update, post)
     code: `import { PermDockProvider, Protected } from 'permdock/react'
 
 <PermDockProvider snapshot={snapshot} endpoint="/api/permdock">
-  <Protected permission={permissions.post.update} data={post} fallback={<Locked />}>
+  <Protected permission={permissions.post.update} data={post} denied={<Locked />}>
     <EditButton />
   </Protected>
 </PermDockProvider>

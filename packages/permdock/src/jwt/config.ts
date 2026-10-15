@@ -1,9 +1,9 @@
+import type { ClaimsMap } from "../core/claims-map.ts";
 import type { TokenFailureCause } from "../core/interfaces.ts";
 import type {
   DiscoveryInput,
   JoseTokenVerifierOptions,
   JwtAlgorithm,
-  JwtClaimPaths,
   JwtJwks,
   JwtSubjectOptions,
 } from "./types.ts";
@@ -78,7 +78,7 @@ export function resolveClockTolerance(
   return configured;
 }
 
-function assertSafeClaimPaths(claims: JwtClaimPaths | undefined): void {
+function assertSafeClaimPaths(claims: ClaimsMap | undefined): void {
   if (claims === undefined) {
     return;
   }
@@ -87,10 +87,11 @@ function assertSafeClaimPaths(claims: JwtClaimPaths | undefined): void {
     claims.roles,
     claims.groups,
     claims.entitlements,
+    claims.plans,
     claims.tenant,
     claims.memberships,
     claims.session,
-  ].filter((path): path is string => path !== undefined);
+  ].filter((path): path is string => typeof path === "string");
   if (typeof claims.assurance === "string") {
     paths.push(claims.assurance);
   } else if (claims.assurance !== undefined) {

@@ -12,7 +12,7 @@ Better Auth's access control (`createAccessControl(statement)`, `ac.newRole(...)
 ## API
 
 ```ts
-import { createPermDock, definePolicy, role, allow } from "permdock";
+import { allow, definePolicy, loadPermDock, role } from "permdock";
 import {
   subjectFromBetterAuth,
   betterAuthCustomRoleSource,
@@ -23,7 +23,7 @@ import { ac, owner, admin, member } from "./permissions.better-auth";
 
 // 1. Subject: session + active organization + memberships (organization roles, team roles, dynamic roles)
 const session = await auth.api.getSession({ headers });
-const permdock = await createPermDock(
+const permdock = await loadPermDock(
   policy,
   await subjectFromBetterAuth(session, { auth }),
   {
@@ -85,7 +85,7 @@ export const policy = definePolicy(permissions, {
 
 1. Better Auth authenticates the request and yields a session with `activeOrganizationId`.
 2. The provider loads the user's own `member` and `teamMember` rows (never another member's), producing the subject with `tenant` and `memberships`.
-3. `createPermDock(policy, subject, { customRoles })` builds the request-scoped instance; declared roles resolve to grants, dynamic role names resolve through the `CustomRoleSource` for the active organization.
+3. `loadPermDock(policy, subject, { customRoles })` builds the request-scoped instance; declared roles resolve to grants, dynamic role names resolve through the `CustomRoleSource` for the active organization.
 4. Checks run through whichever adapter the app uses; `snapshot()` carries roles and grants to the client so `usePermission` answers ownership checks offline.
 5. Role changes in Better Auth (`updateMemberRole`, dynamic role edits) should trigger `updateTag` for the affected users; the provider exposes an `onRoleChange` helper that wraps Better Auth's hooks for this. Pass `{ sink }` to write a `membership` event (`source: 'better-auth'`) with `role`, `previousRole`, `teamId` and `by`.
 

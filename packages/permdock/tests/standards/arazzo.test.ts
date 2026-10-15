@@ -176,7 +176,7 @@ describe("Arazzo 1.1 document validation", () => {
           (finding) => [finding.stepId, finding.reason],
         ),
       ).toEqual([["document", "validation"]]);
-      const permdock = await createPermDock(policy, memberUser);
+      const permdock = createPermDock(policy, memberUser);
       const plan = simulateArazzo(permdock, {
         arazzo: document,
         openapi: posts,
@@ -231,7 +231,7 @@ describe("Arazzo 1.1 document validation", () => {
 
 describe("simulate over an Arazzo workflow", () => {
   it("reports one decision per step in order and the worst outcome", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const outcome = (steps: readonly Step[]) =>
       simulateArazzo(permdock, { arazzo: doc(steps), openapi: posts });
 
@@ -268,7 +268,7 @@ describe("simulate over an Arazzo workflow", () => {
   });
 
   it("fails closed on holes in the description", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const plan = simulateArazzo(permdock, {
       arazzo: doc([
         step("load", "getPost"),
@@ -313,7 +313,7 @@ describe("simulate over an Arazzo workflow", () => {
   });
 
   it("resolves operations across several sources by name", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const sources = {
       sourceDescriptions: [
         { name: "posts", url: "./posts.json", type: "openapi" },
@@ -357,7 +357,7 @@ describe("simulate over an Arazzo workflow", () => {
   });
 
   it("reports AsyncAPI steps as unsupported", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const plan = simulateArazzo(permdock, {
       arazzo: doc(
         [
@@ -389,7 +389,7 @@ describe("simulate over an Arazzo workflow", () => {
   });
 
   it("binds $inputs and marks unknown runtime values provisional", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const plan = simulateArazzo(permdock, {
       arazzo: doc([
         step("edit", "updatePost", [
@@ -417,7 +417,7 @@ describe("simulate over an Arazzo workflow", () => {
   });
 
   it("expands nested workflows with their own inputs and keeps duplicate stepIds apart", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const plan = simulateArazzo(permdock, {
       arazzo: {
         ...doc([]),
@@ -510,7 +510,7 @@ describe("simulate over an Arazzo workflow", () => {
   });
 
   it("emits one simulate event for the plan and no per-step events", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const events: unknown[] = [];
     permdock.on("decision", (event) => {
       events.push(event);

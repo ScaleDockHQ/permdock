@@ -108,7 +108,7 @@ describe("decide with args", () => {
       subject: (user: { readonly id: string } | null) =>
         user === null ? null : { id: user.id, roles: ["member"] },
     });
-    const permdock = await createPermDock(policy, { id: "u1" });
+    const permdock = createPermDock(policy, { id: "u1" });
     const tokenOf = (args: unknown): string | undefined => {
       const decision = permdock.decide(
         permissions.email.send,

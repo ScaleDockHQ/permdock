@@ -302,7 +302,7 @@ describe("transformSource", () => {
     const result = apply(
       [
         'import { createPermDock } from "permdock/hono";',
-        "export const kit = await createPermDock(policy);",
+        "export const kit = createPermDock(policy);",
         "app.use(kit.permdock());",
         "app.use(kit.protect(p));",
         "function inner(kit) { kit.permdock(); }",
@@ -343,7 +343,7 @@ describe("transformSource", () => {
   it("leaves a member alone on a factory result from another entry", () => {
     const source = [
       'import { createPermDock } from "permdock";',
-      "const instance = await createPermDock(policy, user);",
+      "const instance = createPermDock(policy, user);",
       "instance.permdock;",
     ].join("\n");
     expect(apply(source)).toEqual({ source, changes: [], followUps: [] });

@@ -122,7 +122,7 @@ The profile is an implementer's draft; its row on the [standards watch list](/do
 This adapter does not make permission decisions, so there are no denials in the PermDock sense. Its effect is indirect and visible in three places:
 
 - Server: after `updateTag`, `getPermDock()` and `getPermission()` compute from a fresh snapshot on the next request; a revoked session resolves to an anonymous subject and every check is denied.
-- Client: `usePermission` reports `status: 'stale'` until the new snapshot arrives, then `allowed` flips; `Protected` shows `fallback` for permissions that were removed.
+- Client: `usePermission` reports `status: 'stale'` until the new snapshot arrives, then `allowed` flips; `Protected` shows `denied` for permissions that were removed.
 - Audit: `on('event')` records event type, subject id, transmitter and the tags invalidated, so a revocation and the subsequent denials can be correlated.
 
 Delivery failures return the RFC 8935 error object (`err`, `description`) so the transmitter retries.

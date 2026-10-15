@@ -1,4 +1,5 @@
 import type { AppData } from "./app-data.ts";
+import type { ActorKind, MembershipVia } from "./open-union.ts";
 import type { RoleMeta } from "./vocabulary.ts";
 
 export type JsonWebKeyLike = {
@@ -45,7 +46,7 @@ export type Membership = {
   readonly roles: readonly string[];
   /** Roles the holder may activate here but does not hold; `permdock.activate` writes an elevated membership. */
   readonly eligible?: readonly string[];
-  readonly via?: string;
+  readonly via?: MembershipVia;
   readonly expiresAt?: number;
   /** The principal id that wrote this membership: who elevated, consented to or granted the access. */
   readonly grantedBy?: string;
@@ -150,7 +151,7 @@ export type Principal = {
 
 export type Actor = {
   readonly id: string;
-  readonly kind: string;
+  readonly kind: ActorKind;
   readonly binding?: Binding;
   /** `true` narrows every policy delegation to this actor to its read-only permissions (`readOnlyHint`). */
   readonly readOnly?: boolean;

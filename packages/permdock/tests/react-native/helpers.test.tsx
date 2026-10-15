@@ -224,7 +224,7 @@ function render(storage: SnapshotStorage, guard: ReactElement): string {
 describe("useSnapshotReady and usePermissionGuard", () => {
   it("allow only when every permission is allowed for the row", async () => {
     // SAFETY: memberUser is a quick-start user fixture; only the policy generic is erased.
-    const server = await createPermDock(policy as never, memberUser);
+    const server = createPermDock(policy as never, memberUser);
     const storage = memorySnapshotStorage({
       [SNAPSHOT_KEY]: JSON.stringify(server.snapshot()),
     });

@@ -13,6 +13,8 @@ export type RevocationListener = (event: RevocationEvent) => void;
  * revalidate a connection, never grant; a lost event falls back to expiry.
  */
 export type RevocationFeed = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   subscribe(listener: RevocationListener): () => void;
   revoke(event: RevocationEvent): void | Promise<void>;
 };

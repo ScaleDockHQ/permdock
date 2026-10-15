@@ -8,9 +8,11 @@ import { policy } from "./policy.ts";
 export const { withPermDock, permdockHandler } = createPermDock(policy, {
   subject: (ctx) =>
     subjectFromSupabase(ctx.jwtClaims, {
-      roles: "user_role",
-      tenant: "tenant_id",
-      memberships: "memberships",
+      claims: {
+        roles: "user_role",
+        tenant: "tenant_id",
+        memberships: "memberships",
+      },
       declared: ["member", "admin"],
     }),
 });

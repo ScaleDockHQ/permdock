@@ -28,7 +28,7 @@ import { alice, policy as saasPolicy } from "../fixtures/saas.ts";
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is a quick-start user fixture; only the policy generic is erased.
-  const server = await createPermDock(policy as never, memberUser);
+  const server = createPermDock(policy as never, memberUser);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
   return server.snapshot() as Snapshot;
 }
@@ -111,7 +111,7 @@ describe("permdock/vue parity", () => {
   });
 
   it("switches tenant when the tenant ref changes", async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
     // SAFETY: snapshot() returns a Snapshot without a signer.
     const snapshot = server.snapshot({ tenants: "all" }) as Snapshot;
     const tenant = shallowRef<string | undefined>("acme");
@@ -200,7 +200,7 @@ describe("permdock/vue parity", () => {
         h(
           Protected,
           { permission: permissions.post.read, data: "p1" },
-          { default: () => h("b", "granted"), fallback: () => h("i", "no") },
+          { default: () => h("b", "granted"), denied: () => h("i", "no") },
         ),
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);

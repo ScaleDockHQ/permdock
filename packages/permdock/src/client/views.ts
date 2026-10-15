@@ -114,11 +114,11 @@ type DecidePermDock = {
 
 /**
  * What `Protected` renders: `pending` while an endpoint answer is in flight,
- * `approval` for an approval-required decision, `fallback` for any other
+ * `approval` for an approval-required decision, `denied` for any other
  * denial.
  */
 export type ProtectedView =
-  | (PermissionState & { readonly slot: "pending" | "fallback" })
+  | (PermissionState & { readonly slot: "pending" | "denied" })
   | {
       readonly allowed: false;
       readonly status: PermissionState["status"];
@@ -171,7 +171,7 @@ export function protectedView(
     return { allowed: false, status: state.status, decision, slot: "approval" };
   }
   if (!state.allowed || decision.outcome !== "granted") {
-    return { ...state, slot: "fallback" };
+    return { ...state, slot: "denied" };
   }
   return { allowed: true, status: state.status, decision, slot: "default" };
 }
@@ -207,13 +207,13 @@ export function approvalHandle(
 /** Provider-wide content for the `Protected` slots a component leaves out. */
 export type SlotDefaults<P, F, A = F> = {
   readonly pending?: P;
-  readonly fallback?: F;
+  readonly denied?: F;
   readonly approval?: A;
 };
 
 /**
  * The content `Protected` renders for a non-default slot. Its own prop wins
- * over the provider default; `approval` falls back to `fallback`, first the
+ * over the provider default; `approval` falls back to `denied`, first the
  * component's, then the provider's.
  */
 export function slotContent<P, F, A>(
@@ -222,7 +222,7 @@ export function slotContent<P, F, A>(
   defaults: SlotDefaults<P, F, A> | undefined,
 ): P | undefined;
 export function slotContent<P, F, A>(
-  slot: "fallback",
+  slot: "denied",
   own: SlotDefaults<P, F, A>,
   defaults: SlotDefaults<P, F, A> | undefined,
 ): F | undefined;
@@ -232,18 +232,18 @@ export function slotContent<P, F, A>(
   defaults: SlotDefaults<P, F, A> | undefined,
 ): F | A | undefined;
 export function slotContent<P, F, A>(
-  slot: "pending" | "fallback" | "approval",
+  slot: "pending" | "denied" | "approval",
   own: SlotDefaults<P, F, A>,
   defaults: SlotDefaults<P, F, A> | undefined,
 ): P | F | A | undefined {
   switch (slot) {
     case "pending":
       return own.pending ?? defaults?.pending;
-    case "fallback":
-      return own.fallback ?? defaults?.fallback;
+    case "denied":
+      return own.denied ?? defaults?.denied;
     case "approval":
       return (
-        own.approval ?? own.fallback ?? defaults?.approval ?? defaults?.fallback
+        own.approval ?? own.denied ?? defaults?.approval ?? defaults?.denied
       );
     default: {
       const exhausted: never = slot;

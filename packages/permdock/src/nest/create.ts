@@ -23,26 +23,26 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { TenantScope } from "../server/create.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/server-types.ts";
 
-import { compact } from "../core/compact.ts";
 import {
+  compact,
   PermDockApprovalRequiredError,
   PermDockDeniedError,
   PermDockRevokedError,
   PermDockValidationError,
-} from "../core/errors.ts";
-import {
-  type ServerAdapterOptions,
   bindKernel,
   socketConnection,
-} from "../server/bind.ts";
-import { hasCredentials } from "../server/http.ts";
-import { problemFromError } from "../server/map-error.ts";
-import { POLICY_VIOLATION, closeReason, onRevoked } from "../server/stream.ts";
-import { InvalidSignatureError } from "../server/web-bot-auth.ts";
+  hasCredentials,
+  problemFromError,
+  POLICY_VIOLATION,
+  closeReason,
+  onRevoked,
+  InvalidSignatureError,
+} from "../server/kit.ts";
 import { decorateMethod } from "./decorate.ts";
 import { sendNestResponse, toRequest, type NestHttpRequest } from "./http.ts";
 

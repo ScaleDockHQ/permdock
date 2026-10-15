@@ -38,8 +38,13 @@ export type FeatureClaim = EntitlementClaimOptions;
 
 export type BetterSupabaseSubjectOptions = Omit<
   SupabaseSubjectOptions,
-  "plans"
+  "claims"
 > & {
+  /** Where the token carries roles, the active tenant and memberships; plans come from `plans`. */
+  readonly claims?: Omit<
+    NonNullable<SupabaseSubjectOptions["claims"]>,
+    "plans"
+  >;
   /** How `kind: 'apiKey'` sessions map. Without it they are anonymous. */
   readonly apiKeys?: ApiKeySessionOptions;
   /**
@@ -139,7 +144,7 @@ export function subjectFromBetterSupabase(
   session: SupabaseSessionLike | ApiKeySession | null | undefined,
   options: BetterSupabaseSubjectOptions = {},
 ): Subject<SupabasePrincipal> | Subject<ApiKeyPrincipal> | Subject {
-  const { apiKeys, plans = "features", ...rest } = options;
+  const { apiKeys, plans = "features", claims, ...rest } = options;
   if (isApiKeySession(session)) {
     return apiKeys === undefined
       ? anonymousSubject()
@@ -149,6 +154,9 @@ export function subjectFromBetterSupabase(
   const keys = typeof plans === "string" ? undefined : plans.keys;
   return subjectFromSupabaseSession(
     keys === undefined ? session : decodedFeatures(session, claim, keys),
-    { memberships: "memberships", ...rest, plans: claim },
+    {
+      ...rest,
+      claims: { memberships: "memberships", ...claims, plans: claim },
+    },
   );
 }

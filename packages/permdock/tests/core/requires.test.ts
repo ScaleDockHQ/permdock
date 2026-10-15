@@ -90,7 +90,7 @@ const customRoles = {
 };
 
 async function readable(user: User): Promise<readonly string[]> {
-  const permdock = await createPermDock(policy, user, {
+  const permdock = createPermDock(policy, user, {
     relations,
     customRoles,
   });
@@ -162,7 +162,7 @@ describe("requires: a grant that counts only where a permission is also held", (
   });
 
   it("puts the requirement into where() and the snapshot", async () => {
-    const ana = await createPermDock(
+    const ana = createPermDock(
       policy,
       { id: "ana", memberships: [member("acme", "member")] },
       { relations },
@@ -172,7 +172,7 @@ describe("requires: a grant that counts only where a permission is also held", (
     );
     const client = fromSnapshot(parseSnapshot(JSON.stringify(ana.snapshot())));
     expect(client.can(drive.read, drives[0])).toBe(false);
-    const aud = await createPermDock(
+    const aud = createPermDock(
       policy,
       { id: "aud", roles: ["auditor"] },
       { relations },
@@ -249,7 +249,7 @@ describe("requires with a list of permissions", () => {
     },
   });
   const readableBy = async (user: User): Promise<readonly string[]> => {
-    const permdock = await createPermDock(listPolicy, user, {
+    const permdock = createPermDock(listPolicy, user, {
       relations: shares,
     });
     await permdock.loadRelations(listed.drive.read, drives);
@@ -344,7 +344,7 @@ describe("requires and a delegated key's scopes", () => {
     roles: readonly string[],
     scopes: readonly string[],
   ): Promise<readonly string[]> => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       scoped,
       {
         principal: {
@@ -373,7 +373,7 @@ describe("requires and a delegated key's scopes", () => {
 
   it("counts a grant with requires only when the key also covers the required permission, as RLS does", async () => {
     expect(await keyed("ana", ["member"], ["drive:read"])).toEqual([]);
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       scoped,
       {
         principal: {
@@ -395,7 +395,7 @@ describe("requires and a delegated key's scopes", () => {
     expect(JSON.stringify(permdock.where(drive.read).condition)).not.toContain(
       "related",
     );
-    const covered = await createPermDock(
+    const covered = createPermDock(
       scoped,
       {
         principal: {
@@ -438,7 +438,7 @@ describe("requires and a delegated key's scopes", () => {
       subject: () => null,
     });
     const read = async (scopes: readonly string[]) => {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         both,
         {
           principal: {
@@ -551,7 +551,7 @@ describe("requires and a key's scopes on a write", () => {
     },
   });
   const keyed = async (roles: readonly string[], scopes: readonly string[]) => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       nodePolicy,
       {
         principal: {

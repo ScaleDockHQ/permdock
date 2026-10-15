@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock } from "permdock";
+import { loadPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -115,7 +115,7 @@ describe("a constant via on an rls.memberships table", () => {
           )
         ).rows.map((row) => row.id);
         await client.query("rollback");
-        const permdock = await createPermDock(policy, {
+        const permdock = await loadPermDock(policy, {
           id: "u1",
           tenant: "o1",
           memberships: [

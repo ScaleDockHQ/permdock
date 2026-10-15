@@ -99,7 +99,7 @@ describe("Standard Schema", () => {
 
       it("hands the rule the validated value", async () => {
         const { permissions, policy } = setup(schema);
-        const permdock = await createPermDock(policy, { id: "u1" });
+        const permdock = createPermDock(policy, { id: "u1" });
         const post = { id: "p1", title: "  Hello  " };
         expect(
           permdock.can(permissions.post.update, post, { trusted: false }),
@@ -111,7 +111,7 @@ describe("Standard Schema", () => {
 
       it("turns issues into a validation denial that carries them", async () => {
         const { permissions, policy } = setup(schema);
-        const permdock = await createPermDock(policy, { id: "u1" });
+        const permdock = createPermDock(policy, { id: "u1" });
         const decision = permdock.decide(
           permissions.post.read,
           { id: "p1", title: 7 },
@@ -139,11 +139,11 @@ describe("Standard Schema", () => {
     const boundary = setup(handWritten());
     const always = setup(handWritten(), "always");
     const never = setup(handWritten(), "never");
-    const [b, a, n] = await Promise.all([
+    const [b, a, n] = [
       createPermDock(boundary.policy, { id: "u1" }),
       createPermDock(always.policy, { id: "u1" }),
       createPermDock(never.policy, { id: "u1" }),
-    ]);
+    ];
     expect(b.can(boundary.permissions.post.read, bad, { trusted: true })).toBe(
       true,
     );
@@ -168,7 +168,7 @@ describe("Standard Schema", () => {
       },
     };
     const { permissions, policy } = setup(asyncSchema);
-    const permdock = await createPermDock(policy, { id: "u1" });
+    const permdock = createPermDock(policy, { id: "u1" });
     const post = { id: "p1", title: "Hello" };
     expect(() =>
       permdock.decide(permissions.post.read, post, { trusted: false }),

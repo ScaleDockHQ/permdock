@@ -278,7 +278,7 @@ function appFile(ctx: Context): string {
   }
   if (ctx.has("limits")) {
     lines.push(
-      "  // profile dev uses a memory LimitStore; set a shared one (Redis, Postgres) for prod.",
+      "  // profile dev uses a memory LimitStore; set limits(store) with a shared one (Redis, Postgres) for prod.",
     );
   }
   if (services.includes("cloud-hosted-grants")) {

@@ -52,7 +52,7 @@ describe("invariant 10: prototype-safe, no eval", () => {
   });
 
   it("ignores an own __proto__ key on a parsed row", async () => {
-    const permdock = await createPermDock(policy, adminUser);
+    const permdock = createPermDock(policy, adminUser);
     // SAFETY: a JSON body with a __proto__ key, the shape a hostile client sends.
     const row = JSON.parse(
       '{"id":"p9","authorId":"u9","orgId":"o1","__proto__":{"published":false}}',

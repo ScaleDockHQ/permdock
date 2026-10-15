@@ -81,7 +81,10 @@ const UNKNOWN = `create policy "unknown" on public.asset for select to authentic
   using (organization_id in (select public.org_ids_with_permission('organization.nope.read')));
 `;
 
-function project(files: Readonly<Record<string, string>>): string {
+function project(
+  files: Readonly<Record<string, string>>,
+  extra: { readonly migrate?: object; readonly roleValues?: object } = {},
+): string {
   mkdirSync(TMP, { recursive: true });
   const cwd = mkdtempSync(join(TMP, "migrate-"));
   temps.push(cwd);
@@ -94,7 +97,7 @@ export default {
   rls: {
     dialect: 'supabase',
     membershipSources: [tableMembershipSource({ table: 'memberships' })],
-    migrate: ${JSON.stringify(MIGRATE)},
+    migrate: ${JSON.stringify({ ...MIGRATE, ...extra.migrate })},${extra.roleValues === undefined ? "" : `\n    roleValues: ${JSON.stringify(extra.roleValues)},`}
   },
 };
 `,
@@ -128,6 +131,32 @@ describe("mapKey", () => {
     expect(mapKey(config, "organization.billing.read")).toBe("billing.read");
     expect(mapKey(config, "organization.asset.read")).toBe("asset.read");
     expect(mapKey(config, "asset.read")).toBe("asset.read");
+  });
+});
+
+describe("rls migrate role helpers", () => {
+  it("maps the legacy role through rls.roleValues and writes the role-filtered helper", async () => {
+    const cwd = project(
+      {
+        "supabase/schemas/070_quotes.sql": `create policy "quotes_admin" on public.quote for select to authenticated
+  using (public.has_org_role(quote.organization_id, 'org_admin'));
+`,
+      },
+      {
+        migrate: {
+          helpers: {
+            ...MIGRATE.helpers,
+            has_org_role: { form: "role", scope: "organization" },
+          },
+        },
+        roleValues: { org_admin: "admin" },
+      },
+    );
+    const migrated = await report(cwd);
+    expect(migrated.skipped).toEqual([]);
+    expect(migrated.rewrites.map((item) => item.to)).toEqual([
+      "(quote.organization_id in (select permdock.member_organization_ids(array['admin'])))",
+    ]);
   });
 });
 

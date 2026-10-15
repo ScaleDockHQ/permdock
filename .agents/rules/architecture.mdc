@@ -19,6 +19,7 @@ PermDock is a library repository: one published package, two deployed apps, and 
   - `app`: `apps/docs`, `apps/marketing`. Never import each other or an example.
   - `example`: `apps/examples/*`. Import `library` and `tooling`; nothing depends on them.
   - `test`: `tests/*`.
+- Adapter kits. Inside `packages/permdock/src`, each adapter family takes its runtime imports from one kit and its own folder: HTTP adapters (`hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `h3`, `sveltekit`, `astro`, `solid-start`, `tanstack-start`, `trpc`, `orpc`) from `server/kit.ts` and `node/http.ts`; agent adapters (`ai-sdk`, `claude-agent`, `openai`, `eve`) from `agent/kit.ts`; UI adapters (`react`, `vue`, `svelte`, `solid`) from `client/kit.ts`. Never core internals or another adapter. Type imports are free. An adapter that needs more adds the export to its kit. `oxlint.config.ts` (`kitBoundary`) and `tests/package/adapter-kits.test.ts` enforce it.
 - Files are kebab-case. Tests live in each workspace's `tests/` folder, never beside the source.
 - A library source file stays under 1,000 code lines, blank lines and comments excluded; `eslint/max-lines` in the `library` preset enforces it.
 - Repo scripts are TypeScript in `scripts/`, run directly by Node.
@@ -31,5 +32,6 @@ PermDock is a library repository: one published package, two deployed apps, and 
 - A dynamic `import()` is allowed only for a measured startup cost (a CLI command, a client panel) or an optional peer, with a comment naming the reason. An optional peer's import fails with a message that names the package to install.
 - Dates are `Temporal`; `date-fns`, `dayjs`, `luxon` and `moment` are banned by the lint config.
 - No hand-written `useMemo`, `useCallback` or `memo` in the apps; the React Compiler memoizes.
+- Extension interfaces (`concepts/extension-interfaces.mdx`) are objects with methods and an optional `name`; every method may return `T | Promise<T>`; a lookup answers the value or `null`, a check of a signed artifact `{ ok: true, … } | { ok: false, cause }`; `flush?()` is the only lifecycle method. Only a compiler is a bare function.
 - Errors that cross a boundary are RFC 9457 Problem Details: the HTTP adapters through `src/server/problem.ts`, the CLI through `--json`.
 - The runtime invariants in `invariants.mdc` and the names in `naming.mdc` override anything here.

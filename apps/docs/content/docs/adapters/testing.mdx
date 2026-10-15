@@ -91,7 +91,7 @@ import {
 } from "permdock/testing/saas";
 
 for (const scenario of saasScenarios) {
-  const permdock = await createPermDock(
+  const permdock = createPermDock(
     saasPolicy,
     saasUser(scenario),
     saasScenarioOptions(scenario),

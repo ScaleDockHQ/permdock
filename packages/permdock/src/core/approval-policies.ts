@@ -63,6 +63,8 @@ export type ApprovalPolicy = {
  * denies every call an allow would otherwise permit.
  */
 export type ApprovalPolicySource = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   approvalPoliciesFor(query: {
     readonly tenants: readonly string[];
   }): readonly ApprovalPolicy[] | Promise<readonly ApprovalPolicy[]>;

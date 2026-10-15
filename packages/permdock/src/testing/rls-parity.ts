@@ -6,12 +6,12 @@ import {
   quoteSqlTable as quoteTable,
 } from "../core/sql.ts";
 import {
-  createPermDock,
+  type CustomRole,
   fromSnapshot,
+  loadPermDock,
+  type Membership,
   memoryCustomRoleSource,
   parseSnapshot,
-  type CustomRole,
-  type Membership,
   type Permission,
   type Policy,
   type Subject,
@@ -261,7 +261,7 @@ export async function testRlsParity<TUser>(
 
   async function runCase(fixture: RlsParityFixture): Promise<RlsParityCase> {
     // SAFETY: TUser is erased at the policy boundary; toSubject builds the Subject createPermDock reads.
-    const permdock = await createPermDock(
+    const permdock = await loadPermDock(
       policy,
       toSubject(fixture.subject) as TUser,
       { customRoles: memoryCustomRoleSource(customRoles) },

@@ -10,7 +10,7 @@ import {
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { createPermDock, loadPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -94,15 +94,15 @@ describe("global custom roles", () => {
 
   it("grant through principal.roles and nothing else", async () => {
     const customRoles = memoryCustomRoleSource([platformRole]);
-    const holder = await createPermDock(policy, subject(["tier2"]), {
+    const holder = createPermDock(policy, subject(["tier2"]), {
       customRoles,
     });
     expect(holder.can(permissions.tenant.suspend)).toBe(true);
     expect(holder.can(permissions.tenant.read)).toBe(true);
     expect(holder.can(permissions.tenant.delete)).toBe(false);
-    const other = await createPermDock(policy, subject([]), { customRoles });
+    const other = createPermDock(policy, subject([]), { customRoles });
     expect(other.can(permissions.tenant.suspend)).toBe(false);
-    const viaMembership = await createPermDock(
+    const viaMembership = createPermDock(
       policy,
       {
         principal: {
@@ -122,7 +122,7 @@ describe("global custom roles", () => {
       ...platformRole,
       tenant: "o1",
     } as unknown as CustomRole;
-    const permdock = await createPermDock(policy, subject(["tier2"]), {
+    const permdock = createPermDock(policy, subject(["tier2"]), {
       customRoles: { rolesFor: () => [], globalRoles: () => [forged] },
     });
     expect(permdock.can(permissions.tenant.suspend)).toBe(false);
@@ -134,11 +134,11 @@ describe("global custom roles", () => {
       name: "tier2",
       grants: [{ permission: "invoice.read" }],
     };
-    const mixed = await createPermDock(policy, subject(["tier2"]), {
+    const mixed = createPermDock(policy, subject(["tier2"]), {
       customRoles: { rolesFor: () => [], globalRoles: () => [tenantRole] },
     });
     expect(mixed.can(permissions.tenant.suspend)).toBe(false);
-    const throwing = await createPermDock(policy, subject(["tier2"]), {
+    const throwing = createPermDock(policy, subject(["tier2"]), {
       customRoles: {
         rolesFor: () => [],
         globalRoles: () => {
@@ -147,7 +147,7 @@ describe("global custom roles", () => {
       },
     });
     expect(throwing.can(permissions.tenant.suspend)).toBe(false);
-    const async = await createPermDock(policy, subject(["tier2"]), {
+    const async = await loadPermDock(policy, subject(["tier2"]), {
       customRoles: {
         rolesFor: () => [],
         globalRoles: () => Promise.resolve([platformRole]),
@@ -158,7 +158,7 @@ describe("global custom roles", () => {
 
   it("is not loaded for an anonymous subject", async () => {
     let calls = 0;
-    await createPermDock(
+    createPermDock(
       policy,
       { principal: null, context: {} },
       {
@@ -185,17 +185,17 @@ describe("global custom roles", () => {
   });
 
   it("lists the global ceiling the subject may hand out", async () => {
-    const ops = await createPermDock(policy, subject(["billingOps"]));
+    const ops = createPermDock(policy, subject(["billingOps"]));
     expect(
       ops.assignablePermissions({ scope: "global" }).map((leaf) => leaf.key),
     ).toEqual(["tenant.read", "tenant.suspend"]);
-    const support = await createPermDock(policy, subject(["support"]));
+    const support = createPermDock(policy, subject(["support"]));
     expect(
       support
         .assignablePermissions({ scope: "global" })
         .map((leaf) => leaf.key),
     ).toEqual(["tenant.read"]);
-    const nobody = await createPermDock(policy, subject(["superadmin"]));
+    const nobody = createPermDock(policy, subject(["superadmin"]));
     expect(nobody.assignablePermissions({ scope: "global" })).toEqual([]);
   });
 

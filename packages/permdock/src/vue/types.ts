@@ -43,7 +43,7 @@ type SlotOutput = VNode | VNode[] | string | null;
 /** Render functions for the `<Protected>` slots a component leaves out; they get the slot props. */
 export type PermDockDefaults = {
   readonly pending?: () => SlotOutput;
-  readonly fallback?: (props: { readonly decision: Decision }) => SlotOutput;
+  readonly denied?: (props: { readonly decision: Decision }) => SlotOutput;
   readonly approval?: (props: {
     readonly decision: ApprovalRequiredDecision;
   }) => SlotOutput;

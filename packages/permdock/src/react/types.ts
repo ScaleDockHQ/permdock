@@ -72,7 +72,7 @@ export type PermDockProviderProps = (
 /** Provider-wide content for the `<Protected>` slots a component leaves out. */
 export type PermDockDefaults = {
   readonly pending?: ReactNode;
-  readonly fallback?: ReactNode | ((decision: Decision) => ReactNode);
+  readonly denied?: ReactNode | ((decision: Decision) => ReactNode);
   readonly approval?:
     | ReactNode
     | ((decision: ApprovalRequiredDecision) => ReactNode);
@@ -83,8 +83,8 @@ export type ProtectedProps = {
   readonly data?: unknown;
   readonly tenant?: string;
   readonly pending?: ReactNode;
-  readonly fallback?: ReactNode | ((decision: Decision) => ReactNode);
-  /** Rendered for an approval-required decision; defaults to `fallback`. */
+  readonly denied?: ReactNode | ((decision: Decision) => ReactNode);
+  /** Rendered for an approval-required decision; defaults to `denied`. */
   readonly approval?:
     | ReactNode
     | ((decision: ApprovalRequiredDecision) => ReactNode);

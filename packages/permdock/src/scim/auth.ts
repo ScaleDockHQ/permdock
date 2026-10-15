@@ -1,6 +1,8 @@
+import type { ClaimPath, ClaimsMap } from "../core/claims-map.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { ScimTokenOptions } from "./types.ts";
 
+import { readClaim } from "../core/claims-map.ts";
 import { compact } from "../core/compact.ts";
 import { sha256 } from "../core/sha256.ts";
 
@@ -58,12 +60,16 @@ async function matchStaticToken(
   return timingSafeEqual(actual, expected);
 }
 
-function tenantClaim(claims: Record<string, unknown>): string | undefined {
-  if (typeof claims["tenant"] === "string" && claims["tenant"] !== "") {
-    return claims["tenant"];
-  }
-  if (typeof claims["tid"] === "string" && claims["tid"] !== "") {
-    return claims["tid"];
+/** The tenant a JWT names: `claims.tenant` when set, else `tenant`, then `tid`. */
+function tenantClaim(
+  claims: Record<string, unknown>,
+  path: ClaimPath | undefined,
+): string | undefined {
+  for (const candidate of path === undefined ? ["tenant", "tid"] : [path]) {
+    const value = readClaim(claims, candidate);
+    if (typeof value === "string" && value !== "") {
+      return value;
+    }
   }
   return undefined;
 }
@@ -78,6 +84,7 @@ export async function authenticateScim(input: {
   readonly audience?: string;
   readonly token?: ScimTokenOptions;
   readonly verifier?: TokenVerifier;
+  readonly claims?: Pick<ClaimsMap, "tenant">;
 }): Promise<ScimAuthResult> {
   const bearer = bearerToken(input.request);
   if (bearer === undefined) {
@@ -99,7 +106,7 @@ export async function authenticateScim(input: {
   if (!verified.ok) {
     return { ok: false, status: 401 };
   }
-  const claimed = tenantClaim(verified.claims);
+  const claimed = tenantClaim(verified.claims, input.claims?.tenant);
   if (claimed !== input.tenant) {
     return { ok: false, status: 403 };
   }

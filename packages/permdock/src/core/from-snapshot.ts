@@ -318,7 +318,7 @@ export function fromSnapshot(
     },
     derive() {
       // A snapshot carries its grants already resolved: no source applies to it.
-      return instance;
+      return Promise.resolve(instance);
     },
     assignableRoles(query?: {
       readonly tenant?: string;

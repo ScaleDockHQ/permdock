@@ -139,7 +139,11 @@ describe("runDoctor", () => {
 
   it("PD038 under a supabase.hook config compares with the default tenant claim", async () => {
     const cwd = project({
-      "src/subject.ts": `export const s = (c: unknown) => subjectFromSupabase(c, { tenant: 'org_id' });\n`,
+      "src/subject.ts": `export const s = (c: unknown) => subjectFromSupabase(c, {
+claims: {
+tenant: 'org_id',
+},
+});\n`,
     });
     const hook: PermDockConfig = { supabase: { hook: { memberships: [] } } };
     const result = await doctor(cwd, hook, { only: ["PD038"], json: true });

@@ -1,5 +1,7 @@
+import type { AppData } from "./app-data.ts";
 import type { DeliveryEvent } from "./event-types.ts";
 
+import { assertAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
 import { requireEventInstant } from "./event-time.ts";
 
@@ -8,6 +10,11 @@ import { requireEventInstant } from "./event-time.ts";
  * is set on an operation other than `failed`, and a `RangeError` for a
  * malformed `at`.
  */
+function checkedX(x: AppData): AppData {
+  assertAppData(x, "x of a delivery event");
+  return x;
+}
+
 export function deliveryEvent(
   input: Omit<DeliveryEvent, "type" | "at"> & {
     /** An RFC 3339 instant; defaults to now. */
@@ -38,5 +45,6 @@ export function deliveryEvent(
     cause: input.cause,
     retryable: input.retryable,
     reason: input.reason,
+    x: input.x === undefined ? undefined : checkedX(input.x),
   });
 }

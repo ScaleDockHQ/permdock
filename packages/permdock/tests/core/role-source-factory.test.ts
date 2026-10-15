@@ -38,7 +38,7 @@ const perUser: CustomRoleSourceFactory = (subject) => {
 describe("customRoles as a factory of the subject", () => {
   it("builds the source for the resolved subject", async () => {
     const seen: (string | undefined)[] = [];
-    const permdock = await createPermDock(policy, staff("u1"), {
+    const permdock = createPermDock(policy, staff("u1"), {
       customRoles: (subject) => {
         seen.push(subject.principal?.id);
         return perUser(subject);
@@ -46,7 +46,7 @@ describe("customRoles as a factory of the subject", () => {
     });
     expect(seen).toEqual(["u1"]);
     expect(permdock.can(permissions.asset.read, asset)).toBe(true);
-    const other = await createPermDock(policy, staff("u2"), {
+    const other = createPermDock(policy, staff("u2"), {
       customRoles: perUser,
     });
     expect(other.can(permissions.asset.read, asset)).toBe(false);
@@ -54,7 +54,7 @@ describe("customRoles as a factory of the subject", () => {
 
   it("reads no custom roles when the factory throws, and says so", async () => {
     const events: unknown[] = [];
-    const permdock = await createPermDock(policy, staff("u1"), {
+    const permdock = createPermDock(policy, staff("u1"), {
       customRoles: () => {
         throw new Error("no store");
       },
@@ -88,7 +88,7 @@ describe("customRoles as a factory of the subject", () => {
   });
 
   it("derives with a factory too", async () => {
-    const permdock = await createPermDock(policy, staff("u1"));
+    const permdock = createPermDock(policy, staff("u1"));
     const derived = await permdock.derive({ customRoles: perUser });
     expect(derived.can(permissions.asset.read, asset)).toBe(true);
   });

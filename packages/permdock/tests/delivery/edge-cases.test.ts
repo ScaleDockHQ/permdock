@@ -114,7 +114,7 @@ describe("createPermDock (delivery) edge cases", () => {
       ],
       subject: (user: Principal | null) => user,
     });
-    const permdock = await createCorePermDock(
+    const permdock = createCorePermDock(
       policy,
       { id: "u_1", kind: "user", tenant: "o1" },
       {
@@ -275,7 +275,7 @@ describe("audience edge cases", () => {
   });
 
   it("is empty and complete for an anonymous sender without candidates", async () => {
-    const anonymous = await createCorePermDock(deliveryPolicy, null, {
+    const anonymous = createCorePermDock(deliveryPolicy, null, {
       principals: deliveryPrincipals,
     });
     expect(await audience(anonymous, p.invoice.read, invoice)).toEqual({

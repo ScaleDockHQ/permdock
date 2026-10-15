@@ -55,7 +55,7 @@ describe("countHolders", () => {
       id: "T",
       role: "owner",
     });
-    const permdock = await createPermDock(policy, {
+    const permdock = createPermDock(policy, {
       principal: {
         id: "u1",
         memberships: [

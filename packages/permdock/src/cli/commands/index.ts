@@ -19,7 +19,9 @@ export type CommandName =
   | "codemod"
   | "init"
   | "preset"
-  | "scan";
+  | "scan"
+  | "casl"
+  | "casbin";
 
 /** What `permdock --help` lists, without loading any command module. */
 export const COMMAND_DESCRIPTIONS: Readonly<Record<CommandName, string>> = {
@@ -48,6 +50,9 @@ export const COMMAND_DESCRIPTIONS: Readonly<Record<CommandName, string>> = {
   init: "Write a preset's permissions, policy, app and wiring into the project",
   preset: "Decode a preset code, or print its permdock.com/create link",
   scan: "List authorization checks written without PermDock, to adopt it in an existing app",
+  casl: "Import CASL rules per role into a generated permissions and policy module",
+  casbin:
+    "Import a Casbin RBAC model and policy into a generated permissions and policy module",
 };
 
 /** Every top-level command, loaded only when it runs or its own `--help` is asked for. */
@@ -71,6 +76,8 @@ export const commands: Readonly<
   init: async () => (await import("./init.ts")).init,
   preset: async () => (await import("./preset.ts")).preset,
   scan: async () => (await import("./scan.ts")).scan,
+  casl: async () => (await import("./casl.ts")).casl,
+  casbin: async () => (await import("./casbin.ts")).casbin,
 };
 
 export function isCommand(name: string): name is CommandName {

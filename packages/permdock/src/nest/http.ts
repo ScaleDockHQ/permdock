@@ -8,7 +8,7 @@ import {
   sendResponse,
   toRequest as nodeToRequest,
 } from "../node/http.ts";
-import { writeReply } from "../server/http.ts";
+import { writeReply } from "../server/kit.ts";
 
 export type { NodeRequest as NestHttpRequest } from "../node/http.ts";
 export { sendResponse };

@@ -20,7 +20,7 @@
 
 <Protected permission={permissions.post.update} data={ownPost}>
   <span>edit</span>
-  {#snippet fallback()}<span>locked</span>{/snippet}
+  {#snippet denied()}<span>locked</span>{/snippet}
 </Protected>
 {#if $canDelete.allowed}
   <button type="button">delete</button>

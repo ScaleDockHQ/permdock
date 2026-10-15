@@ -16,7 +16,7 @@ import type {
 } from "./types.ts";
 
 import { createAgentKernel } from "../agent/kernel.ts";
-import { adapterOptions } from "../approvals/app.ts";
+import { withApp } from "../core/app.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
 import { delegationFrom } from "../core/delegation-input.ts";
@@ -254,7 +254,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   given: A2aPermDockOptions<TUser>,
 ): A2aPermDock {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   for (const [id, config] of Object.entries(options.skills)) {
     if (config.permission.kind === "instance" && config.data === undefined) {
       throw new TypeError(

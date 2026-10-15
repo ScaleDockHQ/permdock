@@ -9,9 +9,12 @@ import {
 import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
-import { providerStore, switchTenant } from "../client/provider-store.ts";
-import { isPromiseLike } from "../client/source.ts";
-import { compact } from "../core/compact.ts";
+import {
+  providerStore,
+  switchTenant,
+  isPromiseLike,
+  compact,
+} from "../client/kit.ts";
 import {
   PermDockContext,
   PermDockUiContext,

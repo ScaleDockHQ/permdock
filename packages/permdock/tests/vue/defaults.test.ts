@@ -16,7 +16,7 @@ import {
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = await createPermDock(policy as never, memberUser);
+  const server = createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");
@@ -33,7 +33,7 @@ const DescribeProbe = defineComponent({
 });
 
 describe("permdock/vue plugin defaults", () => {
-  it("renders the approval slot, then fallback, then plugin defaults", async () => {
+  it("renders the approval slot, then denied, then plugin defaults", async () => {
     const snapshot = await memberSnapshot();
     const app = createSSRApp({
       setup() {
@@ -52,7 +52,7 @@ describe("permdock/vue plugin defaults", () => {
             h(
               Protected,
               { permission: permissions.post.delete, data: ownPost },
-              { default: () => "delete", fallback: () => "own" },
+              { default: () => "delete", denied: () => "own" },
             ),
             "|",
             h(
@@ -67,7 +67,7 @@ describe("permdock/vue plugin defaults", () => {
     });
     app.use(permdockPlugin, {
       snapshot,
-      defaults: { fallback: () => "no" },
+      defaults: { denied: () => "no" },
       messages: { reasons: { "no-grant": "Geen toegang" } },
     });
     const html = await renderToString(app);

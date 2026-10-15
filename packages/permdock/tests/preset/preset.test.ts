@@ -154,7 +154,7 @@ describe("generated presets", () => {
         readonly policy: Parameters<typeof createPermDock>[0];
         readonly demoUser: unknown;
       } = await import(path.join(dir, "policy.ts"));
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policyModule.policy,
         policyModule.demoUser,
       );
@@ -200,10 +200,7 @@ describe("presetMatrix", () => {
       const appModule: {
         readonly app: Parameters<typeof createPermDock>[0];
       } = await import(path.join(dir, "permdock.ts"));
-      const permdock = await createPermDock(
-        appModule.app,
-        policyModule.demoUser,
-      );
+      const permdock = createPermDock(appModule.app, policyModule.demoUser);
       // SAFETY: a permission tree maps each resource name to its permission leaves.
       const tree = permdock.permissions as Record<
         string,

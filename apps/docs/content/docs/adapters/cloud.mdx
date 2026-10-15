@@ -100,7 +100,7 @@ const permdockCloud = cloud({
 await permdockCloud.policies.refresh();
 setInterval(() => void permdockCloud.policies.refresh(), 60_000);
 
-const permdock = await createPermDock(policy, user, {
+const permdock = createPermDock(policy, user, {
   policies: hostedPolicies(permdockCloud.policies),
 });
 ```

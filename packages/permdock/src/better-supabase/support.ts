@@ -13,7 +13,7 @@ import type {
 } from "../core/support-session.ts";
 
 import { canonicalJson } from "../core/canonical-json.ts";
-import { createPermDock } from "../core/permdock.ts";
+import { loadPermDock } from "../core/permdock.ts";
 import { sha256Digest } from "../core/sha256.ts";
 import { decideSupportSession } from "../core/support-session.ts";
 import {
@@ -88,7 +88,7 @@ export function supportPolicy(
 ): NonNullable<SupportOptions["authorize"]> {
   return async (input) => {
     try {
-      const base = await createPermDock(
+      const base = await loadPermDock(
         options.policy,
         subjectFromBetterSupabase(
           { kind: "user", claims: input.admin.claims },

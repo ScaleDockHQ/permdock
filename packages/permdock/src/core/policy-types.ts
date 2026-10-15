@@ -4,6 +4,7 @@ import type { Approver, ApproverInput } from "./approvers.ts";
 import type { AppObligation } from "./decision.ts";
 import type { GranteeInput, Grantee, ActorGrantee } from "./grantee.ts";
 import type { DecisionProvider } from "./interfaces.ts";
+import type { ActorKind, MembershipVia } from "./open-union.ts";
 import type {
   Permission,
   PermissionKind,
@@ -284,7 +285,7 @@ export type WireValidity = {
  * the subject resolver gives a verified client id through `clients`).
  */
 export type DelegationTarget = {
-  readonly kind: string;
+  readonly kind: ActorKind;
   readonly id?: string;
   readonly client?: string;
 };
@@ -375,7 +376,7 @@ export type Grant = {
   /** Set on a break-glass allow: it overrides named denies and carries obligations. */
   readonly breakGlass?: BreakGlassSpec;
   /** The membership kind (`via`) this grant applies under; others never match it. */
-  readonly viaOnly?: string;
+  readonly viaOnly?: MembershipVia;
   /** Set only on a grant merged from a hosted policy document. */
   readonly hosted?: HostedGrantRef;
   /** When the grant applies; absent means always. */

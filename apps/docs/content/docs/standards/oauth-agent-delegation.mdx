@@ -37,10 +37,10 @@ A decision is **principal grants intersected with delegated authority**. The int
 import { createPermDock } from "permdock";
 
 // Human case
-const permdock = await createPermDock(policy, user);
+const permdock = createPermDock(policy, user);
 
 // Agent case: actor + delegation
-const asAgent = await createPermDock(policy, user, {
+const asAgent = createPermDock(policy, user, {
   actor: { id: authInfo.clientId, kind: "mcp-client" },
   delegation: {
     scopes: authInfo.scopes, // OAuth scopes

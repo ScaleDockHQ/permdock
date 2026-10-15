@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { LimitStore } from "../../src/core/interfaces.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { memoryLimitStore } from "../../src/core/limits.ts";
+import { limits, memoryLimitStore } from "../../src/core/limits.ts";
 import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -32,13 +32,17 @@ const policy = definePolicy(permissions, {
     user,
 });
 
-function member(limits: LimitStore) {
-  return createPermDock(policy, { id: "u1", roles: ["member"] }, { limits });
+function member(counter: LimitStore) {
+  return createPermDock(
+    policy,
+    { id: "u1", roles: ["member"] },
+    { limits: limits(counter) },
+  );
 }
 
 describe("alternatives on a denial", () => {
   it("lists a quota grant as an alternative without spending its quota", async () => {
-    const permdock = await member(memoryLimitStore());
+    const permdock = member(memoryLimitStore());
     const denied = permdock.decide(permissions.report.delete, report);
     expect(denied).toMatchObject({
       outcome: "denied",
@@ -66,7 +70,7 @@ describe("alternatives on a denial", () => {
         return store.remaining(input);
       },
     };
-    const permdock = await member(counting);
+    const permdock = member(counting);
     expect(permdock.can(permissions.report.delete, report)).toBe(false);
     expect(reads).toBe(0);
   });

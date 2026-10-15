@@ -3,7 +3,7 @@ import type { Client } from "pg";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock } from "permdock";
+import { loadPermDock } from "permdock";
 import { subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -169,7 +169,7 @@ describe("the attrs claim against Postgres", () => {
       const claims = await mint(user);
       // SAFETY: minted claims always carry a subject, so the principal is set
       const principal = subjectFromSupabase(claims).principal as Principal;
-      const permdock = await createPermDock(policy, principal);
+      const permdock = await loadPermDock(policy, principal);
       for (const [permission, table, rows] of [
         [permissions.report.read, "report", REPORTS],
         [permissions.ticket.read, "ticket", TICKETS],

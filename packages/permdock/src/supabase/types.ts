@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { ClaimsMap } from "../core/claims-map.ts";
 import type { ClientNames } from "../core/clients.ts";
 import type { AuthEvent } from "../core/event-types.ts";
 import type { Principal } from "../core/subject.ts";
@@ -181,14 +182,20 @@ export type SupabaseSessionLike = {
 };
 
 export type SupabaseSubjectOptions = {
-  readonly roles?: string;
-  readonly tenant?: string;
-  readonly memberships?: string;
+  /**
+   * Where the token carries roles (default `user_role`), the active tenant
+   * (default `tenant_id`), memberships (default `memberships`) and plan names
+   * per tenant id (no default; the active tenant's entry becomes
+   * `principal.plans`). A name is read at the top level, then in
+   * `app_metadata`.
+   */
+  readonly claims?: Pick<
+    ClaimsMap,
+    "roles" | "tenant" | "memberships" | "plans"
+  >;
   readonly schema?: StandardSchemaV1;
   readonly include?: readonly SupabaseInclude[];
   readonly declared?: readonly string[];
-  /** Claim holding plan names per tenant id; the active tenant's entry becomes `principal.plans`. */
-  readonly plans?: string;
   /** Names for OAuth client ids: an `oauth-client` actor gets `client` set to the name of its id, which a policy delegation matches with `to: { kind: 'oauth-client', client }`. */
   readonly clients?: ClientNames;
   /** `'deny'` maps a token with `is_anonymous: true` (`signInAnonymously()`) to the anonymous subject, as `rls.anonymousSignIns: 'deny'` does in RLS. */

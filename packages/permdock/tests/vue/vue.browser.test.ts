@@ -27,7 +27,7 @@ import {
 
 async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
   // SAFETY: user is a quick-start user fixture; only the policy generic is erased.
-  const server = await createPermDock(policy as never, user);
+  const server = createPermDock(policy as never, user);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
   return server.snapshot() as Snapshot;
 }
@@ -44,7 +44,7 @@ function guarded(
           { permission: permission(), data: data() },
           {
             default: () => h("b", "granted"),
-            fallback: () => h("i", "denied"),
+            denied: () => h("i", "denied"),
             pending: () => h("u", "pending"),
           },
         );

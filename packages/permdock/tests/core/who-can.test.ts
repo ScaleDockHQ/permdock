@@ -41,7 +41,7 @@ const ids = (result: {
 
 describe("whoCan over the relationship graph", () => {
   it("loads an asynchronous source before listing, and lists only holders a decision grants", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       graphPolicy,
       { id: "nobody" },
       { relations: asynchronous(relations) },
@@ -72,7 +72,7 @@ describe("whoCan over the relationship graph", () => {
         throw new Error("down");
       },
     };
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       graphPolicy,
       { id: "nobody" },
       { relations: failing },
@@ -95,7 +95,7 @@ describe("whoCan over the relationship graph", () => {
         return relations.related(query);
       },
     };
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       graphPolicy,
       { id: "nobody" },
       { relations: source },
@@ -128,7 +128,7 @@ describe("whoCan over the relationship graph", () => {
         ],
       },
     });
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       graphPolicy,
       { id: "nobody" },
       { relations: source },
@@ -147,11 +147,7 @@ describe("whoCan over the relationship graph", () => {
       ],
       subject: (user: { readonly id: string }) => ({ id: user.id }),
     });
-    const permdock = await createPermDock(
-      teams,
-      { id: "nobody" },
-      { relations },
-    );
+    const permdock = createPermDock(teams, { id: "nobody" }, { relations });
     const review = await whoCan(
       permdock,
       graph.doc.review,
@@ -192,17 +188,13 @@ describe("whoCan over the relationship graph", () => {
       ],
       subject: (user: { readonly id: string }) => ({ id: user.id }),
     });
-    const permdock = await createPermDock(
-      denied,
-      { id: "nobody" },
-      { relations },
-    );
+    const permdock = createPermDock(denied, { id: "nobody" }, { relations });
     const result = await whoCan(permdock, graph.doc.read, deepDoc);
     expect(ids(result)).toEqual(["carl", "tina", "vera"]);
   });
 
   it("lists nothing for a collection permission or a missing row", async () => {
-    const permdock = await createPermDock(graphPolicy, { id: "nobody" });
+    const permdock = createPermDock(graphPolicy, { id: "nobody" });
     const collection = definePermissions({
       doc: resource({ collection: ["create"] }),
     });
@@ -280,7 +272,7 @@ describe("whoCan over field, principal and scope relations", () => {
   });
 
   it("expands included relations and lists the scope members of a memberOf relation", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       scoped,
       { id: "viewer" },
       { memberships: members },
@@ -294,7 +286,7 @@ describe("whoCan over field, principal and scope relations", () => {
   });
 
   it("drops a holder a deny grant removes and records no via for the deny", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       scoped,
       { id: "viewer" },
       { memberships: members },
@@ -313,7 +305,7 @@ describe("whoCan over field, principal and scope relations", () => {
   });
 
   it("is incomplete without a member list, and lists nobody for a row outside every scope", async () => {
-    const unlisted = await createPermDock(
+    const unlisted = createPermDock(
       scoped,
       { id: "viewer" },
       { memberships: { membershipsFor: () => [] } },
@@ -321,7 +313,7 @@ describe("whoCan over field, principal and scope relations", () => {
     const read = await whoCan(unlisted, tree.task.read, task);
     expect(ids(read)).toEqual(["ann", "rex"]);
     expect(read.complete).toBe(false);
-    const throwing = await createPermDock(
+    const throwing = createPermDock(
       scoped,
       { id: "viewer" },
       {
@@ -336,7 +328,7 @@ describe("whoCan over field, principal and scope relations", () => {
     expect((await whoCan(throwing, tree.task.close, task)).complete).toBe(
       false,
     );
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       scoped,
       { id: "viewer" },
       { memberships: members },
@@ -366,7 +358,7 @@ describe("whoCan over field, principal and scope relations", () => {
         grants: [allow(tree.task.read, { to })],
         subject: (user: { readonly id: string }) => ({ id: user.id }),
       });
-      const permdock = await createPermDock(open, { id: "viewer" });
+      const permdock = createPermDock(open, { id: "viewer" });
       const result = await whoCan(permdock, tree.task.read, task);
       expect({ to, result }).toEqual({
         to,

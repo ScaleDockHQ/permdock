@@ -9,7 +9,11 @@ import type {
 } from "../../index.ts";
 import type { SaasDoc, SaasFolder, SaasProject } from "./permissions.ts";
 
-import { memoryLimitStore, memoryCustomRoleSource } from "../../index.ts";
+import {
+  limits,
+  memoryLimitStore,
+  memoryCustomRoleSource,
+} from "../../index.ts";
 import { saasPermissions as p } from "./permissions.ts";
 import { SAAS_API_KEY_LIMIT } from "./policy.ts";
 import {
@@ -97,7 +101,7 @@ export function saasScenarioOptions(scenario: SaasScenario): PermDockOptions {
   return {
     ...(scenario.tenant === undefined ? {} : { tenant: scenario.tenant }),
     customRoles: memoryCustomRoleSource(saasCustomRoles),
-    limits: saasLimitStore(scenario.quotaUsed),
+    limits: limits(saasLimitStore(scenario.quotaUsed)),
     relations: saasRelations(),
   };
 }

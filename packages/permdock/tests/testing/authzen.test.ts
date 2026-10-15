@@ -70,7 +70,7 @@ describe("authzenTodoPolicy principal", () => {
       anonymous: true,
     },
   ])("resolves $name", async ({ user, read, anonymous }) => {
-    const permdock = await createInstance(authzenTodoPolicy, user);
+    const permdock = createInstance(authzenTodoPolicy, user);
     expect({
       anonymous: permdock.subject.principal === null,
       read: permdock.can(authzenTodoPermissions.todo.can_read_todos, {

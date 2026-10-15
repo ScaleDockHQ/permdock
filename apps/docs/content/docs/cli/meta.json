@@ -5,6 +5,8 @@
     "init",
     "preset",
     "scan",
+    "casl",
+    "casbin",
     "collect",
     "catalog",
     "diff",

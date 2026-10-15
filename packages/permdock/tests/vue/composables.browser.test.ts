@@ -43,13 +43,13 @@ import {
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = await createPermDock(policy as never, memberUser);
+  const server = createPermDock(policy as never, memberUser);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
   return server.snapshot() as Snapshot;
 }
 
 async function aliceSnapshot(): Promise<Snapshot> {
-  const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+  const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
   // SAFETY: snapshot() returns a Snapshot without a signer.
   return server.snapshot({ tenants: "all" }) as Snapshot;
 }
@@ -236,7 +236,7 @@ describe("permdock/vue <Protected>", () => {
               Protected,
               { permission: permissions.post.update, data: otherPost },
               {
-                fallback: ({ decision }: { decision: Decision }) =>
+                denied: ({ decision }: { decision: Decision }) =>
                   `no-${decision.outcome}`,
               },
             ),
@@ -270,7 +270,7 @@ describe("permdock/vue <Protected>", () => {
                 data: ownProject,
                 tenant: "acme",
               },
-              { default: () => "acme-edit", fallback: () => "acme-locked" },
+              { default: () => "acme-edit", denied: () => "acme-locked" },
             ),
             h(
               Protected,
@@ -279,7 +279,7 @@ describe("permdock/vue <Protected>", () => {
                 data: globexProject,
                 tenant: "globex",
               },
-              { default: () => "globex-edit", fallback: () => "globex-locked" },
+              { default: () => "globex-edit", denied: () => "globex-locked" },
             ),
           ];
         },

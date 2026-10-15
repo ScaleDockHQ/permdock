@@ -283,7 +283,7 @@ describe("grant validity", () => {
       ],
       subject,
     });
-    const permdock = await createPermDock(expired, {
+    const permdock = createPermDock(expired, {
       id: "u1",
       roles: ["contractor"],
     });

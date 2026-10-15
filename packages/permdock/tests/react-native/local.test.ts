@@ -248,7 +248,7 @@ async function serverSnapshot(
   user: Principal,
   tenant: string | undefined,
 ): Promise<Snapshot> {
-  const server = await createPermDock(
+  const server = createPermDock(
     policy,
     { ...user, claims },
     {
@@ -302,9 +302,7 @@ describe("localSnapshot", () => {
 
   it("answers an anonymous user like the server", async () => {
     const server = fromSnapshot(
-      parseSnapshot(
-        JSON.stringify((await createPermDock(policy, null)).snapshot()),
-      ),
+      parseSnapshot(JSON.stringify(createPermDock(policy, null).snapshot())),
     );
     const device = fromSnapshot(
       buildLocalSnapshot(manifest, { principal: null }),

@@ -24,12 +24,12 @@ import type {
 } from "../server/run-ticket.ts";
 import type { ApprovalWaiter } from "./waiter.ts";
 
-import { adapterOptions } from "../approvals/app.ts";
 import { requestApproval, resumeDecision } from "../approvals/helpers.ts";
+import { withApp } from "../core/app.ts";
 import { parseAutomation } from "../core/automation.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { createPermDock as createCorePermDock } from "../core/permdock.ts";
+import { loadPermDock as loadCorePermDock } from "../core/permdock.ts";
 import { findPermission } from "../core/permission-registry.ts";
 import { automationEvent } from "../core/sink.ts";
 import { isThenable } from "../core/thenable.ts";
@@ -212,7 +212,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   given: WorkflowPermDockOptions,
 ): WorkflowPermDock<V> {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   const {
     signer,
     verifier,
@@ -228,7 +228,7 @@ export function createPermDock<
   } = options;
 
   const instanceFor = (subject: Subject): Promise<PermDock<V>> =>
-    Promise.resolve(createCorePermDock(policy, subject, permdockOptions));
+    loadCorePermDock(policy, subject, permdockOptions);
 
   const publisherCanAssign = async (
     automation: Automation,

@@ -1,5 +1,9 @@
+import type { AppData } from "../core/app-data.ts";
+
+import { readAppData } from "../core/app-data.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import {
+  APP_DATA_EXTENSION,
   PATCH_SCHEMA,
   ROLES_EXTENSION,
   type DirectoryGroup,
@@ -36,6 +40,14 @@ function readRoles(
   return extension["roles"].filter(
     (item): item is string => typeof item === "string",
   );
+}
+
+/** `x` from the `AppData` extension; a value that is not a plain JSON object is dropped. */
+function readX(body: Record<string, unknown>): AppData | undefined {
+  const extension = body[APP_DATA_EXTENSION];
+  return isRecord(extension) && extension["x"] !== undefined
+    ? readAppData(undefined, extension["x"])
+    : undefined;
 }
 
 export function userFromBody(
@@ -79,6 +91,7 @@ export function userFromBody(
       typeof body["externalId"] === "string" ? body["externalId"] : undefined,
     active,
     emails,
+    x: readX(body),
     meta: { created: "", lastModified: "" },
   });
 }
@@ -106,6 +119,7 @@ export function groupFromBody(
       typeof body["externalId"] === "string" ? body["externalId"] : undefined,
     members,
     roles: readRoles(body) ?? fallbackRoles,
+    x: readX(body),
     meta: { created: "", lastModified: "" },
   });
 }

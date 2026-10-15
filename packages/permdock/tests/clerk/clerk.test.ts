@@ -111,7 +111,11 @@ describe("subjectFromClerk", () => {
         org_role: "org:member",
         publicMetadata: { staff: "reviewer" },
       },
-      { globalRoles: "publicMetadata.staff" },
+      {
+        claims: {
+          roles: "publicMetadata.staff",
+        },
+      },
     );
     expect(subject.principal?.id).toBe("user_2");
     expect(subject.principal?.tenant).toBe("org_9");
@@ -267,9 +271,9 @@ describe("subjectFromClerk", () => {
       roles: ["org:member", "reporting"],
       entitlements: ["pro"],
     });
-    const inA = await createPermDock(policy, subject);
+    const inA = createPermDock(policy, subject);
     expect(inA.can(tree.report.export, { id: "r1" })).toBe(true);
-    const inB = await createPermDock(policy, subject, { tenant: "org_2" });
+    const inB = createPermDock(policy, subject, { tenant: "org_2" });
     expect(inB.can(tree.report.export, { id: "r1" })).toBe(false);
   });
 });

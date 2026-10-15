@@ -61,7 +61,7 @@ const otherOrg = { id: "j3", orgId: "globex", teamId: "t1" };
 
 describe("organisation role with team reach", () => {
   it("reaches the rows of the principal's teams inside the active tenant", async () => {
-    const permdock = await createPermDock(policy, subject, { tenant: "acme" });
+    const permdock = createPermDock(policy, subject, { tenant: "acme" });
     const outcomes = [inTeam, otherTeam, otherOrg].map((row) => [
       permdock.decide(permissions.job.read, row).outcome,
       permdock.decide(permissions.job.update, row).outcome,
@@ -74,7 +74,7 @@ describe("organisation role with team reach", () => {
   });
 
   it("needs the organisation role as well as the team", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       {
         principal: {
@@ -93,7 +93,7 @@ describe("organisation role with team reach", () => {
   });
 
   it("carries teamIds into the snapshot, so the client agrees", async () => {
-    const permdock = await createPermDock(policy, subject, { tenant: "acme" });
+    const permdock = createPermDock(policy, subject, { tenant: "acme" });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");

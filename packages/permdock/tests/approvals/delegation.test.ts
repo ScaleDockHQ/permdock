@@ -105,7 +105,7 @@ async function pending(
   readonly request: ApprovalRequest;
 }> {
   const store = memoryApprovalStore();
-  const permdock = await createPermDock(policy, inTenant("cara", ["clerk"]));
+  const permdock = createPermDock(policy, inTenant("cara", ["clerk"]));
   const decision = permdock.decide(leaf, { id: "p1", orgId: "o1" });
   if (decision.outcome !== "approval-required") {
     throw new Error(`expected approval-required, got ${decision.outcome}`);
@@ -265,7 +265,7 @@ describe("approver delegation", () => {
 
   it("uses the delegator's holder and relation facts", async () => {
     const store = memoryApprovalStore();
-    const payer = await createPermDock(policy, inTenant("cara", ["payer"]));
+    const payer = createPermDock(policy, inTenant("cara", ["payer"]));
     const held = payer.decide(permissions.payment.send, {
       id: "p1",
       orgId: "o1",

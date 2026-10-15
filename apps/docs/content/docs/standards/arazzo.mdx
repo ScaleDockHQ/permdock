@@ -38,7 +38,7 @@ const arazzo = JSON.parse(
 );
 const openapi = JSON.parse(await readFile("./openapi.json", "utf8")); // after the Overlay is applied
 
-const permdock = await createPermDock(policy, user);
+const permdock = createPermDock(policy, user);
 
 const plan = simulateArazzo(permdock, {
   arazzo,

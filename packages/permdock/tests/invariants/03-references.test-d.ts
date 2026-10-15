@@ -10,7 +10,7 @@ import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
 
 describe("invariant 3: permissions are references, not strings", () => {
   it("refuses a string key where a permission is expected", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     // @ts-expect-error a string key is not a permission
     permdock.can("post.read");
     // @ts-expect-error a string key is not a permission

@@ -6,14 +6,14 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 
-import { agentRuntime } from "../agent/create.ts";
-import { approvalTokenOf } from "../agent/kernel.ts";
-import { adapterOptions } from "../approvals/app.ts";
-import { compact } from "../core/compact.ts";
 import {
+  agentRuntime,
+  approvalTokenOf,
+  withApp,
+  compact,
   PermDockApprovalRequiredError,
   PermDockDeniedError,
-} from "../core/errors.ts";
+} from "../agent/kit.ts";
 
 export type AiSdkContext = {
   readonly runtimeContext?: unknown;
@@ -252,7 +252,7 @@ export function createPermDock<
   policy: Policy<TUser, TPrincipal, V>,
   given: AiSdkPermDockOptions<TUser>,
 ): AiSdkPermDock<V> {
-  const options = adapterOptions(policy, given);
+  const options = withApp(policy, given);
   const { agent, kernel } = agentRuntime(policy, options, "ai-sdk");
 
   const byPermission = new Map<string, string>();

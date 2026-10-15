@@ -6,7 +6,7 @@ import type { PrincipalSource } from "../../src/core/principal-source.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { memoryLimitStore } from "../../src/core/limits.ts";
+import { limits, memoryLimitStore } from "../../src/core/limits.ts";
 import { memoryMembershipSource } from "../../src/core/memory-sources.ts";
 import { createPermDock, fromSnapshot } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
@@ -77,7 +77,7 @@ const subjectOf = (principal: Principal): Subject => ({
 
 describe("decideEach", () => {
   it("returns one decision per row, in row order, as decide would", async () => {
-    const permdock = await createPermDock(policy, subjectOf(alice));
+    const permdock = createPermDock(policy, subjectOf(alice));
     const decisions = permdock.decideEach(permissions.invoice.read, [
       inO1,
       inO2,
@@ -93,9 +93,9 @@ describe("decideEach", () => {
   });
 
   it("consumes a limit once per granted row, in row order", async () => {
-    const limits = memoryLimitStore();
-    const permdock = await createPermDock(policy, subjectOf(alice), {
-      limits,
+    const counter = memoryLimitStore();
+    const permdock = createPermDock(policy, subjectOf(alice), {
+      limits: limits(counter),
     });
     const decisions = permdock.decideEach(permissions.invoice.send, [
       inO1,
@@ -111,7 +111,7 @@ describe("decideEach", () => {
   });
 
   it("gives each approval-required row its own token", async () => {
-    const permdock = await createPermDock(policy, subjectOf(alice));
+    const permdock = createPermDock(policy, subjectOf(alice));
     const [first, second] = permdock.decideEach(permissions.invoice.void, [
       inO1,
       alsoO1,
@@ -127,7 +127,7 @@ describe("decideEach", () => {
   });
 
   it("validates each row like decide", async () => {
-    const permdock = await createPermDock(policy, subjectOf(alice));
+    const permdock = createPermDock(policy, subjectOf(alice));
     const [bad] = permdock.decideEach(permissions.invoice.read, [
       { id: 1, orgId: "o1" },
     ]);
@@ -139,7 +139,7 @@ describe("decideEach", () => {
 
 describe("decideFor", () => {
   it("decides for another principal in the caller's tenant without widening the caller", async () => {
-    const permdock = await createPermDock(policy, subjectOf(alice), {
+    const permdock = createPermDock(policy, subjectOf(alice), {
       principals,
     });
     const forBob = await permdock.decideFor(
@@ -163,7 +163,7 @@ describe("decideFor", () => {
       },
     };
     const both = member("alice", ["o1", "member"], ["o2", "member"]);
-    const permdock = await createPermDock(policy, subjectOf(both), {
+    const permdock = createPermDock(policy, subjectOf(both), {
       principals: source,
     });
     expect(
@@ -181,7 +181,7 @@ describe("decideFor", () => {
   });
 
   it("denies a target outside the caller's tenant with tenant-mismatch", async () => {
-    const permdock = await createPermDock(policy, subjectOf(alice), {
+    const permdock = createPermDock(policy, subjectOf(alice), {
       principals,
     });
     const decision = await permdock.decideFor(
@@ -199,10 +199,10 @@ describe("decideFor", () => {
   });
 
   it("never consumes a limit", async () => {
-    const limits = memoryLimitStore();
-    const permdock = await createPermDock(policy, subjectOf(alice), {
+    const counter = memoryLimitStore();
+    const permdock = createPermDock(policy, subjectOf(alice), {
       principals,
-      limits,
+      limits: limits(counter),
     });
     for (let index = 0; index < 3; index += 1) {
       expect(
@@ -210,7 +210,9 @@ describe("decideFor", () => {
           .outcome,
       ).toBe("granted");
     }
-    const asBob = await createPermDock(policy, subjectOf(bob), { limits });
+    const asBob = createPermDock(policy, subjectOf(bob), {
+      limits: limits(counter),
+    });
     expect(asBob.decide(permissions.invoice.send, inO1).outcome).toBe(
       "granted",
     );
@@ -220,7 +222,7 @@ describe("decideFor", () => {
   });
 
   it("evaluates the target with no actor and no delegation", async () => {
-    const permdock = await createPermDock(policy, subjectOf(alice), {
+    const permdock = createPermDock(policy, subjectOf(alice), {
       principals,
       actor: { id: "agent_1", kind: "agent" },
       delegation: { scopes: [permissions.invoice.read.scope] },
@@ -239,7 +241,7 @@ describe("decideFor", () => {
       alice: [{ scope: "tenant", id: "o1", roles: ["member"] }],
       dave: [{ scope: "tenant", id: "o1", roles: ["billing"] }],
     });
-    const permdock = await createPermDock(policy, subjectOf(alice), {
+    const permdock = createPermDock(policy, subjectOf(alice), {
       memberships,
       principals: memoryPrincipalSource({
         principals: [{ id: "dave", kind: "user" }],
@@ -258,7 +260,7 @@ describe("decideFor", () => {
         written.push(...events);
       },
     };
-    const permdock = await createPermDock(policy, subjectOf(alice), {
+    const permdock = createPermDock(policy, subjectOf(alice), {
       principals,
       sink,
     });
@@ -271,7 +273,7 @@ describe("decideFor", () => {
       options: Parameters<typeof createPermDock>[2],
       id = "bob",
     ) => {
-      const permdock = await createPermDock(policy, subjectOf(alice), options);
+      const permdock = createPermDock(policy, subjectOf(alice), options);
       const decision = await permdock.decideFor(
         id,
         permissions.invoice.read,
@@ -310,7 +312,7 @@ describe("decideFor", () => {
   });
 
   it("denies an anonymous caller", async () => {
-    const permdock = await createPermDock(policy, null, { principals });
+    const permdock = createPermDock(policy, null, { principals });
     const decision = await permdock.decideFor(
       "bob",
       permissions.invoice.read,
@@ -322,7 +324,7 @@ describe("decideFor", () => {
   });
 
   it("derive replaces principals", async () => {
-    const permdock = await createPermDock(policy, subjectOf(alice));
+    const permdock = createPermDock(policy, subjectOf(alice));
     const derived = await permdock.derive({ principals });
     expect(
       (await derived.decideFor("bob", permissions.invoice.refund, inO1))
@@ -335,7 +337,7 @@ describe("decideFor", () => {
   });
 
   it("is unsupported on a snapshot instance; decideEach works there", async () => {
-    const permdock = await createPermDock(policy, subjectOf(alice), {
+    const permdock = createPermDock(policy, subjectOf(alice), {
       principals,
     });
     const offline = fromSnapshot(

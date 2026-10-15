@@ -121,9 +121,7 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
   | "derive"
 > & {
   /** `permdock.derive` with the same providers: the result asks the PDP too. */
-  readonly derive: (
-    options: DeriveOptions,
-  ) => PdpPermDock<V> | Promise<PdpPermDock<V>>;
+  readonly derive: (options: DeriveOptions) => Promise<PdpPermDock<V>>;
   /**
    * For a delegated permission whose provider lists ids, an `in` over them
    * (AND the local condition when local grants exist); otherwise the local

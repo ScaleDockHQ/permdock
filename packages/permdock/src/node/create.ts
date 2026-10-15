@@ -4,6 +4,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { TenantScope } from "../server/create.ts";
 import type {
   Guard,
@@ -12,7 +13,7 @@ import type {
   ScopeGuard,
 } from "../server/server-types.ts";
 
-import { type ServerAdapterOptions, bindKernel } from "../server/bind.ts";
+import { bindKernel } from "../server/kit.ts";
 import {
   fromResponse,
   sendResponse,

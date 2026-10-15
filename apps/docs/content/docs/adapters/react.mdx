@@ -43,7 +43,7 @@ const ceiling = useAssignablePermissions()              // permissions a custom 
 const approval = useApproval(decision)                  // { state, request, token } for approval-required
 const { principal, actor, simulated } = useSubject()
 
-<Protected permission={permissions.post.update} data={post} pending={<Skeleton />} fallback={<Locked />}>
+<Protected permission={permissions.post.update} data={post} pending={<Skeleton />} denied={<Locked />}>
   <EditButton />
 </Protected>
 <Button disabled={!allowed} title={allowed ? undefined : describe(decision).detail}>Publish</Button>

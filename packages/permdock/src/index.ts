@@ -120,7 +120,8 @@ export {
 } from "./core/memberships.ts";
 export { stripeEntitlementSource } from "./core/stripe-entitlements.ts";
 export type { StripeEntitlementsClient } from "./core/stripe-entitlements.ts";
-export { memoryLimitStore } from "./core/limits.ts";
+export { limits, memoryLimitStore } from "./core/limits.ts";
+export type { Limits } from "./core/limits.ts";
 export { memoryRelationSource } from "./core/memory-relations.ts";
 export type {
   MemoryEdge,
@@ -204,8 +205,12 @@ export type {
 export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";
-export { createPermDock, parseSnapshot } from "./core/permdock.ts";
-export { defineApp } from "./core/app.ts";
+export {
+  createPermDock,
+  loadPermDock,
+  parseSnapshot,
+} from "./core/permdock.ts";
+export { defineApp } from "./app/define-app.ts";
 export type { AppOptions, AppProfile } from "./core/app.ts";
 export { wrapPermDock } from "./core/wrap.ts";
 export { shadowMode } from "./core/shadow.ts";
@@ -496,6 +501,7 @@ export type {
   DecideCredentialOptions,
 } from "./core/credential.ts";
 export type { OcsfAuthorizeSession, OcsfUserManagement } from "./core/ocsf.ts";
+export type { ActorKind, AdapterId, MembershipVia } from "./core/open-union.ts";
 export type {
   Actor,
   Assurance,

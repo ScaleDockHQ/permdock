@@ -20,14 +20,14 @@ export default function Home() {
       <Protected
         permission={permissions.post.update}
         data={ownPost}
-        fallback={<span>locked</span>}
+        denied={<span>locked</span>}
       >
         <span>edit</span>
       </Protected>{" "}
       <Protected
         permission={permissions.post.publish}
         data={ownPost}
-        fallback={<span>locked</span>}
+        denied={<span>locked</span>}
       >
         <span>publish</span>
       </Protected>{" "}

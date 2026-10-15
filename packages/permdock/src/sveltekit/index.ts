@@ -1,3 +1,8 @@
+export {
+  discoverViaSignatureAgent,
+  InvalidSignatureError,
+  webBotAuthVerifier,
+} from "../server/kit.ts";
 export { createPermDock } from "./create.ts";
 export type {
   SvelteKitGuarded,
@@ -13,8 +18,3 @@ export type {
   PermDockHandlers,
   ProtectTarget,
 } from "../server/fetch-adapter.ts";
-export {
-  discoverViaSignatureAgent,
-  InvalidSignatureError,
-  webBotAuthVerifier,
-} from "../server/web-bot-auth.ts";

@@ -429,7 +429,7 @@ describe("permdock/next", () => {
         permission={permissions.post.update}
         data={ownPost}
         pending={<span>loading</span>}
-        fallback={<span>locked</span>}
+        denied={<span>locked</span>}
       >
         <span>edit</span>
       </Protected>
@@ -461,7 +461,7 @@ describe("permdock/next", () => {
             permission={permissions.post.update}
             data={ownPost}
             pending={<span>loading</span>}
-            fallback={<span>locked</span>}
+            denied={<span>locked</span>}
           >
             <span>edit</span>
           </Protected>
@@ -611,7 +611,7 @@ describe("permdock/next", () => {
             permission={permissions.post.update}
             data={ownPost}
             pending={<span>loading</span>}
-            fallback={<span>locked</span>}
+            denied={<span>locked</span>}
           >
             <span>edit</span>
           </Protected>
@@ -636,7 +636,7 @@ describe("permdock/next", () => {
         permission={permissions.post.update}
         data={ownPost}
         pending={<span>loading</span>}
-        fallback={<span>locked</span>}
+        denied={<span>locked</span>}
       >
         <span>edit</span>
       </Protected>

@@ -99,7 +99,7 @@ describe("createPermDock", () => {
 
   it("answers problem() without a permission with a generic 403", async () => {
     const { problem } = createPermDock(policy, { subject: () => memberUser });
-    const permdock = await createCorePermDock(policy, memberUser);
+    const permdock = createCorePermDock(policy, memberUser);
     const response = problem(
       permdock.decide(permissions.post.publish, ownPost),
     );
@@ -125,7 +125,7 @@ describe("createPermDock", () => {
 
   it("denies with pdp-unavailable when the remote decision rejects", async () => {
     const pdp: PdpFactory = async (p, user, options) => {
-      const permdock = await createCorePermDock(p, user, options);
+      const permdock = createCorePermDock(p, user, options);
       // SAFETY: the kernel only calls decide on the remote instance in protect.
       return {
         ...permdock,

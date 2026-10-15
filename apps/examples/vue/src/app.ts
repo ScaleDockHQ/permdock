@@ -50,7 +50,7 @@ export const App = defineComponent({
         { permission: permissions.post.update, data: ownPost },
         {
           default: () => h("span", "edit"),
-          fallback: () => h("span", "locked"),
+          denied: () => h("span", "locked"),
         },
       ),
       h(DeleteButton),

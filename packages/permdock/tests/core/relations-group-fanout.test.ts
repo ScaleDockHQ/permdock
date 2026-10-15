@@ -46,7 +46,7 @@ function lattice(layers: number) {
 const rootDoc = rows.doc.find((row) => row.id === "root-doc");
 
 async function loaded(layers: number) {
-  const permdock = await createPermDock(
+  const permdock = createPermDock(
     policy,
     { id: "nobody" },
     { relations: lattice(layers) },

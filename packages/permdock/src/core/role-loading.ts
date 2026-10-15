@@ -6,6 +6,7 @@ import type {
 import type { CustomRole, Subject } from "./subject.ts";
 
 import { isCustomRoleName } from "./custom-roles.ts";
+import { sourceName } from "./source-name.ts";
 import { isThenable } from "./thenable.ts";
 
 function isGlobalRole(value: unknown): value is CustomRole {
@@ -52,7 +53,11 @@ export function customRolesFor(
     try {
       loaded.push(source.rolesFor(tenant, { held: heldIn(tenant) }));
     } catch {
-      auth.push({ reason: "source-threw", source: "customRoles" });
+      auth.push({
+        reason: "source-threw",
+        source: "customRoles",
+        ...sourceName(source),
+      });
       loaded.push([]);
     }
   }
@@ -63,7 +68,11 @@ export function customRolesFor(
         isThenable(roles) ? roles.then(onlyGlobal) : onlyGlobal(roles),
       );
     } catch {
-      auth.push({ reason: "source-threw", source: "customRoles" });
+      auth.push({
+        reason: "source-threw",
+        source: "customRoles",
+        ...sourceName(source),
+      });
       loaded.push([]);
     }
   }
@@ -71,7 +80,11 @@ export function customRolesFor(
     return Promise.all(
       loaded.map((item) =>
         Promise.resolve(item).catch((): CustomRole[] => {
-          auth.push({ reason: "source-threw", source: "customRoles" });
+          auth.push({
+            reason: "source-threw",
+            source: "customRoles",
+            ...sourceName(source),
+          });
           return [];
         }),
       ),
@@ -103,7 +116,11 @@ export function assignableNamesFor(
     return undefined;
   }
   const failed = (): string[] => {
-    auth.push({ reason: "source-threw", source: "customRoles" });
+    auth.push({
+      reason: "source-threw",
+      source: "customRoles",
+      ...sourceName(source),
+    });
     return [];
   };
   const loaded = tenants.map((tenant) => {

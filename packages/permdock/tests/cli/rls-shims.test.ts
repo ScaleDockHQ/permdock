@@ -298,6 +298,34 @@ describe("shimsSql", () => {
     );
   });
 
+  it("maps a role helper's legacy value before filtering the members", () => {
+    const roleShim = shimsSql(
+      { ...base, roleValues: { org_admin: "owner" } },
+      { helpers: { has_org_role: { form: "role", scope: "tenant" } } },
+      {},
+      {},
+      grants,
+    );
+    expect(roleShim).toContain(
+      `create or replace function "public".has_org_role(p_id uuid, p_role text)`,
+    );
+    expect(roleShim).toContain(
+      `select coalesce(p_id in (select "permdock".member_tenant_ids(array[case p_role when 'org_admin' then 'owner' else p_role end])), false)`,
+    );
+  });
+
+  it("passes the role through as written without rls.roleValues", () => {
+    expect(
+      shimsSql(
+        base,
+        { helpers: { has_org_role: { form: "role", scope: "tenant" } } },
+        {},
+        {},
+        grants,
+      ),
+    ).toContain(`member_tenant_ids(array[p_role])`);
+  });
+
   it("answers a scoped helper from the declared scope names alone", () => {
     const scoped = shimsSql(
       base,

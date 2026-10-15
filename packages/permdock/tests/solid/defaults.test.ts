@@ -16,7 +16,7 @@ import {
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = await createPermDock(policy as never, memberUser);
+  const server = createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");
@@ -31,12 +31,12 @@ function DescribeProbe(): string {
 }
 
 describe("permdock/solid provider defaults", () => {
-  it("renders the approval slot, then fallback, then provider defaults", async () => {
+  it("renders the approval slot, then denied, then provider defaults", async () => {
     const snapshot = await memberSnapshot();
     const html = renderToString(() =>
       createComponent(PermDockProvider, {
         snapshot,
-        defaults: { fallback: "no" },
+        defaults: { denied: "no" },
         messages: { reasons: { "no-grant": "Geen toegang" } },
         get children() {
           return [
@@ -50,7 +50,7 @@ describe("permdock/solid provider defaults", () => {
             createComponent(Protected, {
               permission: permissions.post.delete,
               data: ownPost,
-              fallback: "own",
+              denied: "own",
               children: "delete",
             }),
             "|",

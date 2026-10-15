@@ -376,7 +376,7 @@ describe("subjectFromApiKey", () => {
       verifier: store,
       permissions,
     });
-    const permdock = await createPermDock(policy, subject, {
+    const permdock = createPermDock(policy, subject, {
       tenant: "o_1",
       memberships: {
         membershipsFor: (principal) =>

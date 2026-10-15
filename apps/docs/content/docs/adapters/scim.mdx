@@ -145,7 +145,9 @@ Group-to-role mapping is application data, carried in a SCIM extension:
 }
 ```
 
-`roles` is a multi-valued string attribute. The Cloud relay's mapping UI writes it, an IdP with custom group attributes may write it, and `groupRoles` is the fallback. The URN follows the `urn:ietf:params:scim:schemas:extension:<name>:2.0:<resource>` form that RFC 7643 section 3.3 uses for extensions and IdP attribute mappers expect; PermDock has not registered it with IANA. The relay's RFC 7523 bearer is a plain assertion (`typ: JWT`) with no new JWS `typ` value, and `permdock/jwt`'s default `accept: 'access-token'` check applies to it.
+`roles` is a multi-valued string attribute. The Cloud relay's mapping UI writes it, an IdP with custom group attributes may write it, and `groupRoles` is the fallback. The URN follows the `urn:ietf:params:scim:schemas:extension:<name>:2.0:<resource>` form that RFC 7643 section 3.3 uses for extensions and IdP attribute mappers expect; PermDock has not registered it with IANA.
+
+The application's own data for a User or a Group (a cost center, an HR id) rides in a second optional extension, `urn:ietf:params:scim:schemas:extension:permdock:2.0:AppData`, as `{ "x": { … } }`. It is stored as `DirectoryUser.x` / `DirectoryGroup.x` and rendered back with the extension URN in `schemas`; a value that is not a plain JSON object is dropped. Set it with `POST` or `PUT`; PermDock never reads it to decide. Both extensions are listed under `/Schemas` and `/ResourceTypes`. The relay's RFC 7523 bearer is a plain assertion (`typ: JWT`) with no new JWS `typ` value, and `permdock/jwt`'s default `accept: 'access-token'` check applies to it.
 
 ### IdP dialects
 

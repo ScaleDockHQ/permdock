@@ -74,6 +74,8 @@ export type SsfOnEvent = {
  * one with only `seen` and `remember` is checked and recorded non-atomically.
  */
 export type ReplayStore = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
   seen(key: string): boolean | Promise<boolean>;
   remember(key: string, expiresAt?: number): void | Promise<void>;
   /** Records `key` and returns `true` only if it was not already recorded. */

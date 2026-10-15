@@ -126,7 +126,7 @@ To steer on a denial, read `decision.permission`: the key that was checked, whic
 
 ## UI defaults
 
-`PermDockProvider` (and the Vue plugin, Svelte context setter and Solid provider) takes `defaults` for the `pending`, `fallback` and `approval` slots every `<Protected>` leaves out, and `messages` for `useDescribe()`. `<Protected approval>` renders an approval-required decision separately from a denial. [Provider defaults](/docs/concepts/ui#provider-defaults) has the props and the order a slot resolves in.
+`PermDockProvider` (and the Vue plugin, Svelte context setter and Solid provider) takes `defaults` for the `pending`, `denied` and `approval` slots every `<Protected>` leaves out, and `messages` for `useDescribe()`. `<Protected approval>` renders an approval-required decision separately from a denial. [Provider defaults](/docs/concepts/ui#provider-defaults) has the props and the order a slot resolves in.
 
 ## Adapter responses
 

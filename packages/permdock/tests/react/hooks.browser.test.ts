@@ -80,7 +80,7 @@ function withStore(store: ClientStore, node: ReactNode): ReactElement {
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = await createPermDock(policy as never, memberUser);
+  const server = createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");
@@ -174,7 +174,7 @@ describe("permdock/react hooks on the client", () => {
   });
 
   it("read tenants, scoped roles and assignable roles", async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -266,7 +266,7 @@ describe("permdock/react <Protected> on the client", () => {
             key: "other",
             permission: permissions.post.update,
             data: otherPost,
-            fallback: (decision: Decision) => `no-${decision.outcome}`,
+            denied: (decision: Decision) => `no-${decision.outcome}`,
             children: "other",
           }),
           createElement(Protected, {
@@ -282,7 +282,7 @@ describe("permdock/react <Protected> on the client", () => {
   });
 
   it("decides for another tenant with the tenant prop", async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -298,7 +298,7 @@ describe("permdock/react <Protected> on the client", () => {
             permission: saas.project.update,
             data: ownProject,
             tenant: "acme",
-            fallback: "acme-locked",
+            denied: "acme-locked",
             children: "acme-edit",
           }),
           createElement(Protected, {
@@ -306,7 +306,7 @@ describe("permdock/react <Protected> on the client", () => {
             permission: saas.project.update,
             data: globexProject,
             tenant: "globex",
-            fallback: "globex-locked",
+            denied: "globex-locked",
             children: "globex-edit",
           }),
         ],
@@ -403,7 +403,7 @@ describe("permdock/react provider with snapshotPromise", () => {
             permission: permissions.post.update,
             data: ownPost,
             pending: "|checking",
-            fallback: "|locked",
+            denied: "|locked",
             children: "|edit",
           }),
         ),
@@ -524,14 +524,14 @@ describe("permdock/react provider", () => {
               key: "a",
               permission: permissions.post.update,
               data: ownPost,
-              fallback: "a",
+              denied: "a",
               children: "A",
             }),
             createElement(Protected, {
               key: "b",
               permission: permissions.post.read,
               data: ownPost,
-              fallback: "b",
+              denied: "b",
               children: "B",
             }),
           ],
@@ -549,7 +549,7 @@ describe("permdock/react provider", () => {
       children: createElement(Protected, {
         permission: permissions.post.read,
         data: ownPost,
-        fallback: "anonymous",
+        denied: "anonymous",
         children: "reader",
       }),
     };

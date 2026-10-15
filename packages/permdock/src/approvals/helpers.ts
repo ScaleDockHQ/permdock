@@ -1,9 +1,11 @@
+import type { AppData } from "../core/app-data.ts";
 import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { ApprovalRequirement } from "../core/policy-types.ts";
 import type { Delegation, Membership, Subject } from "../core/subject.ts";
 import type { ApprovalsHandlerOptions } from "./handler.ts";
 
+import { assertAppData } from "../core/app-data.ts";
 import { parseApprovalHeader } from "../core/approval-header.ts";
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
@@ -117,8 +119,13 @@ export async function requestApproval(
     readonly ttl?: number;
     readonly now?: Instant;
     readonly detail?: string;
+    /** The application's own data for the request; plain JSON, checked here. */
+    readonly x?: AppData;
   },
 ): Promise<ApprovalRequest> {
+  if (meta.x !== undefined) {
+    assertAppData(meta.x, "x of an approval request");
+  }
   const now = dateAt(meta.now);
   const leaf = permissionMeta(meta.permission);
   const approval = decision.grant.approval;
@@ -153,6 +160,7 @@ export async function requestApproval(
       createdAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + ttl * 1000).toISOString(),
       status: "pending",
+      x: meta.x,
     }),
   );
   await store.create(request);

@@ -63,9 +63,9 @@ type Binding = {
 Field names follow one rule: where a specification names the concept, PermDock uses that name or maps to it exactly once, in the "Spec names" table on [naming](/docs/getting-started/naming). `id`, `issuer`, `expiresAt`, `actor`, `delegation.scopes` and `authorizationDetails` are the camelCase spellings of `sub`, `iss`, `exp`, `act`, `scope` and `authorization_details`; `assurance` and `binding` carry the claims' own member names inside.
 
 ```ts
-const permdock = await createPermDock(policy, user); // human or service: principal only
-const permdock = await createPermDock(policy, user, { actor, delegation }); // agent on behalf of user
-const permdock = await createPermDock(policy, user, {
+const permdock = createPermDock(policy, user); // human or service: principal only
+const permdock = createPermDock(policy, user, { actor, delegation }); // agent on behalf of user
+const permdock = await loadPermDock(policy, user, {
   tenant,
   memberships,
   customRoles,
@@ -136,7 +136,7 @@ The actor identifies the agent. It has an `id` and a `kind` plus whatever the ad
 | `subjectFromRunTicket` in `permdock/server`      | `act.kind`, else `'automation'`, `'job'` or `'caller'` | `act.sub`                                              | a verified `vnd.permdock.run+jwt`; the nesting is `delegation.chain` ([run tickets](/docs/adapters/server-kernel#run-tickets)) |
 | none                                             | absent                                                 | absent                                                 | a plain human or service request                                                                                               |
 
-This table is the closed list of `actor.kind` values; the transaction-token and SPIFFE recipes below add `'workload'`, and the agent-runtime adapters add their own name (`'eve'`, `'openai-agent'`, `'claude-agent'`, `'terminal'`) on their pages. An adapter adds its row here before using a new value.
+This table lists the `actor.kind` values PermDock sets; the transaction-token and SPIFFE recipes below add `'workload'`, and the agent-runtime adapters add their own name (`'eve'`, `'openai-agent'`, `'claude-agent'`, `'terminal'`) on their pages. An adapter adds its row here before using a new value. The type is `ActorKind`, an open union: the listed values autocomplete, and an application's own kind (`'acme-agent'`) type-checks too. Core only compares `kind` for equality, so an unknown kind reaches nothing until a policy delegation names it.
 
 The actor appears on every decision and audit event so you can answer "which agent did this, for whom". The actor never has grants of its own; only the principal has roles. An actor with `readOnly: true` gets only the read-only permissions of the policy delegations that name it ([policy delegations](/docs/security/delegation#policy-delegations)).
 

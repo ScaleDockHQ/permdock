@@ -12,6 +12,7 @@ import {
   crud,
   definePermissions,
   definePolicy,
+  limits,
   memoryLimitStore,
   resource,
   role,
@@ -685,7 +686,7 @@ describe("permdock/terminal destructive and dry-run", () => {
   });
 
   it("does not ask for a non-destructive action", async () => {
-    const { protect, ran } = terminal({ limits: memoryLimitStore() });
+    const { protect, ran } = terminal({ limits: limits(memoryLimitStore()) });
     await protect(deploys.environment.deploy)(async () => {
       ran.push("deploy");
     })();
@@ -693,9 +694,9 @@ describe("permdock/terminal destructive and dry-run", () => {
   });
 
   it("prints the decision on --dry-run without running or consuming", async () => {
-    const limits = memoryLimitStore();
+    const counter = memoryLimitStore();
     const dry = terminal({
-      limits,
+      limits: limits(counter),
       output: { json: true },
       runtime: { argv: ["node", "ops", "deploy", "--dry-run"] },
     });
@@ -711,12 +712,12 @@ describe("permdock/terminal destructive and dry-run", () => {
       dryRun: true,
     });
 
-    const real = terminal({ limits });
+    const real = terminal({ limits: limits(counter) });
     await real.protect(deploys.environment.deploy)(async () => {
       real.ran.push("deploy");
     })();
     expect(real.ran).toEqual(["deploy"]);
-    const exhausted = terminal({ limits, dryRun: true });
+    const exhausted = terminal({ limits: limits(counter), dryRun: true });
     await expect(
       exhausted.protect(deploys.environment.deploy)(async () => {
         exhausted.ran.push("deploy");
