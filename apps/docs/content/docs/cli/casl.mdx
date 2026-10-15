@@ -1,0 +1,45 @@
+---
+title: casl
+description: Import CASL rules per role into a generated permissions and policy module - allows, inverted rules as denies, manage and all expanded, fields, and the Mongo-query condition subset as portable where - with every rule it cannot translate reported.
+---
+
+`permdock casl import` reads the rules a CASL ability holds for each role and writes one module with the `permissions` they name and a `policy` with one role per entry. It evaluates no code: the input is the JSON the rules already are.
+
+```bash
+permdock casl import --rules casl-rules.json --out src/policy.generated.ts
+permdock casl import --rules casl-rules.json --out src/policy.generated.ts --json
+```
+
+| Flag             | Meaning                                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| `--rules <file>` | JSON of `{ [role]: rules }`: each role's `ability.rules`, or the arrays `packRules` writes         |
+| `--out <file>`   | The module to write: `permissions`, then `policy` with `definePolicy` and one `role` per input key |
+
+## What it translates
+
+| CASL                                                                                        | PermDock                                                                                                         |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `{ action: 'read', subject: 'Post' }`                                                       | `allow(permissions.post.read)`; the subject `BlogPost` becomes the resource `blogPost`                           |
+| `inverted: true`                                                                            | `deny(…)`; a deny always wins, as `cannot` does                                                                  |
+| `manage`, `all`                                                                             | Every action, and every subject, the rules name (`create`, `read`, `update`, `delete` when a subject names none) |
+| `fields: ['title']`                                                                         | `fields: ['title']` on the grant                                                                                 |
+| `conditions: { authorId: '${user.id}' }`                                                    | `where: { authorId: principal.id }`                                                                              |
+| `$eq`, `$ne`, `$in`, `$nin`, `$lt`, `$lte`, `$gt`, `$gte`, `$exists`, `$and`, `$or`, `$nor` | `eq`, `ne`, `in`, `notIn`, `lt`, `lte`, `gt`, `gte`, `isNull`, `and`, `or`, `not`                                |
+
+A `create` or `list` action is a collection action in the generated resource; every other action is an instance action. The generated policy maps `{ id, roles }` as its subject; replace the `subject` mapper with the application's own.
+
+## What it reports
+
+| Reason                  | When                                                                                                                        |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `not-a-rule`            | An entry is not a CASL raw rule                                                                                             |
+| `no-subject`            | A claim-only rule has no subject to grant on                                                                                |
+| `not-an-identifier`     | A subject or action cannot be a permission key                                                                              |
+| `unsupported-condition` | An allow's condition uses `$regex`, `$elemMatch`, `$all`, `$size`, a nested field or a nested object; the allow is left out |
+| `deny-widened`          | The same for an inverted rule: the deny is kept without its condition, so the import denies more, never less                |
+
+`--json` prints `{ out, skipped: [{ role, rule, reason, detail }] }`. Run [`testLegacyParity`](/docs/getting-started/existing-apps) against the old ability before switching over.
+
+## Why
+
+CASL keeps rules as data at run time (`ability.rules`), so an import can read them without running the application's code. Translating rules, not copying CASL's API, keeps PermDock's own model: references instead of strings, roles instead of per-call `can` definitions, and deny-overrides with three outcomes. A condition PermDock cannot express portably is reported instead of turned into a closure, because a closure would not reach a snapshot, RLS or an ORM filter. An inverted rule is widened rather than dropped because dropping a deny is the one translation error that grants access.

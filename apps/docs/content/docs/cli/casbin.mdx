@@ -1,0 +1,49 @@
+---
+title: casbin
+description: Import a Casbin RBAC model and policy CSV into a generated permissions and policy module - role grants, deny rows, role inheritance flattened, user assignments as data - and refuse a matcher or effect it cannot translate.
+---
+
+`permdock casbin import` reads a Casbin RBAC model and its policy lines and writes one module with the `permissions` the policy names, a `policy` with one role per Casbin role, and the user-to-role lines as an `assignments` export.
+
+```bash
+permdock casbin import --model model.conf --policy policy.csv --out src/policy.generated.ts
+```
+
+| Flag              | Meaning                                                          |
+| ----------------- | ---------------------------------------------------------------- |
+| `--model <file>`  | The `model.conf`: RBAC, optionally with domains                  |
+| `--policy <file>` | The `policy.csv`: `p` and `g` lines                              |
+| `--out <file>`    | The module to write: `assignments`, `permissions`, then `policy` |
+
+## Models it reads
+
+| Section              | Accepted                                                                                            |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| `request_definition` | `r = sub, obj, act`, or `r = sub, dom, obj, act`                                                    |
+| `policy_definition`  | The same fields, optionally followed by `eft`                                                       |
+| `policy_effect`      | Allow-only, or deny-override (`some(where (p.eft == allow)) && !some(where (p.eft == deny))`)       |
+| `matchers`           | `g(r.sub, p.sub[, r.dom])`, `r.dom == p.dom`, `r.obj == p.obj` and `r.act == p.act`, joined by `&&` |
+
+Any other matcher term (`keyMatch`, `regexMatch`, an ABAC attribute, a superuser check) or effect (priority, deny-only) is refused with exit code `2` and the terms listed, because a partial translation of a matcher would change what it admits.
+
+## What it translates
+
+- `p, editor, report, write` becomes `allow(permissions.report.write)` on the role `editor`; `p, …, deny` with a deny-override effect becomes `deny(…)`.
+- `g, editor, viewer`, where both sides are roles, makes `editor` hold `viewer`'s grants too. Code roles do not nest, so the grants are flattened into each role.
+- `g, alice, editor`, where `alice` is not a role, becomes `{ user: 'alice', role: 'editor' }` in `assignments` (with `domain` from a domains model). PermDock reads users' roles from a [`MembershipSource`](/docs/concepts/extension-interfaces), never from the policy, so load these into your membership table.
+
+## What it reports
+
+| Reason                | When                                                                                          |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| `user-grant`          | A `p` line grants a user, not a role; PermDock grants roles                                   |
+| `domain-grant`        | A `p` line holds in one domain only; a per-tenant grant is a custom role (`CustomRoleSource`) |
+| `not-an-identifier`   | The object or action is a path or a pattern, not a permission key                             |
+| `deny-without-effect` | A deny line under an allow-only effect, which Casbin itself never applies                     |
+| `malformed`           | A line has too few fields                                                                     |
+
+The command exits `1` when a deny line did not import, because the generated policy then allows what the model denied. `--json` prints `{ out, assignments, skipped: [{ line, text, reason, detail, deny? }] }`.
+
+## Why
+
+Casbin's model is a small language, and its RBAC form maps onto PermDock's roles: subjects, objects and actions become roles, resources and actions. Its matchers can also express arbitrary predicates, which have no portable equivalent; refusing those outright is safer than importing the RBAC half of a matcher and silently dropping the rest.

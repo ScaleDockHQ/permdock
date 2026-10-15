@@ -99,6 +99,11 @@ export function runLegacyScan(options: LegacyScanOptions): CommandResult {
       .map(([kind, count]) => `${count} ${kind}`)
       .join(", ")}.`,
     "Run them beside PermDock with shadowMode before enforcing (https://permdock.com/docs/getting-started/existing-apps).",
+    ...(byKind.has("CASL ability")
+      ? [
+          "CASL rules import as roles: permdock casl import --rules <file> --out <file> (https://permdock.com/docs/cli/casl).",
+        ]
+      : []),
   ];
   return { code: 0, output: `${lines.join("\n")}\n` };
 }

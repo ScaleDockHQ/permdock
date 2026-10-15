@@ -45,6 +45,9 @@ describe("permdock scan --legacy", () => {
     );
     expect(result.stdout).not.toContain("src/actions.ts:5");
     expect(result.stdout).toContain("3 checks to move to PermDock");
+    expect(result.stdout).toContain(
+      "CASL rules import as roles: permdock casl import",
+    );
   });
 
   it("reports a custom pattern, prints JSON and says when nothing is found", async () => {

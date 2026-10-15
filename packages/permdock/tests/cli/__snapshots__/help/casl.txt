@@ -1,0 +1,18 @@
+Import CASL rules per role into a generated permissions and policy module (permdock casl)
+
+USAGE permdock casl [OPTIONS] <ACTION>
+
+ARGUMENTS
+
+  ACTION    import (Required)
+
+OPTIONS
+
+      --cwd=<dir>    Run as if started in this directory                                     
+  --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})                   
+           --json    Machine-readable output                                                 
+        -y, --yes    Never prompt; take the answer the flags give                            
+          --color    Styled output on a colour terminal (Default: true)                      
+       --no-color    Plain output                                                            
+   --rules=<file>    JSON of { [role]: rules }, each role's ability.rules or packRules output
+     --out=<file>    File to write                                                           

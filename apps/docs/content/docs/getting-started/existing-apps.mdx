@@ -16,7 +16,7 @@ An app with its own authorization adopts PermDock in steps. Each step leaves the
 
 ## Find the checks you have
 
-`permdock scan --legacy` lists the authorization checks in the application code that do not go through PermDock: role comparisons (`user.role === "admin"`), `roles.includes`, `isAdmin` flags, `hasRole` and `hasPermission` helpers, CASL `ability.can`, Clerk `has({ role })` and role claims read from a token. Add your own shapes with `--pattern`.
+`permdock scan --legacy` lists the authorization checks in the application code that do not go through PermDock: role comparisons (`user.role === "admin"`), `roles.includes`, `isAdmin` flags, `hasRole` and `hasPermission` helpers, CASL `ability.can`, Clerk `has({ role })` and role claims read from a token. Add your own shapes with `--pattern`. Rules that already live in CASL or Casbin import as roles and grants: [`permdock casl import`](/docs/cli/casl) and [`permdock casbin import`](/docs/cli/casbin).
 
 ```bash
 permdock scan --legacy
