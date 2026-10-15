@@ -16,9 +16,11 @@ function permdockForMember() {
   const permdock = createPermDock(
     policy,
     subjectFromSupabase(claims, {
-      roles: "user_role",
-      tenant: "tenant_id",
-      memberships: "memberships",
+      claims: {
+        roles: "user_role",
+        tenant: "tenant_id",
+        memberships: "memberships",
+      },
       declared: ["member", "admin"],
     }),
   );

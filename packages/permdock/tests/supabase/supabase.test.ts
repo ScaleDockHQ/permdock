@@ -219,12 +219,20 @@ describe("subjectFromSupabase", () => {
       features: { "org-1": ["pro", "sso"], "org-2": ["enterprise"] },
     };
     expect(
-      subjectFromSupabase(claims, { plans: "features" }).principal?.plans,
+      subjectFromSupabase(claims, {
+        claims: {
+          plans: "features",
+        },
+      }).principal?.plans,
     ).toEqual(["pro", "sso"]);
     expect(subjectFromSupabase(claims).principal?.plans).toBeUndefined();
     const { tenant_id: _, ...noTenant } = claims;
     expect(
-      subjectFromSupabase(noTenant, { plans: "features" }).principal?.plans,
+      subjectFromSupabase(noTenant, {
+        claims: {
+          plans: "features",
+        },
+      }).principal?.plans,
     ).toBeUndefined();
   });
 

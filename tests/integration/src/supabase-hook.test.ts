@@ -191,7 +191,11 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
     expect(claims["memberships"]).toEqual([]);
     const subject = subjectFromSupabase(
       { ...claims, app_metadata: { user_role: "platform-support" } },
-      { memberships: "memberships" },
+      {
+        claims: {
+          memberships: "memberships",
+        },
+      },
     );
     expect(subject.principal?.roles ?? []).toEqual([]);
   });
@@ -200,7 +204,9 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
     for (const user of USERS) {
       const claims = { ...(await mint(user)), tenant_id: "T" };
       const principal = subjectFromSupabase(claims, {
-        memberships: "memberships",
+        claims: {
+          memberships: "memberships",
+        },
       }).principal;
       const permdock = await loadPermDock(policy, principal);
       for (const [permission, table] of [

@@ -25,8 +25,7 @@ const withClaims = defineMiddleware<
 });
 
 const subjectOptions = {
-  roles: "user_role",
-  tenant: "tenant_id",
+  claims: { roles: "user_role", tenant: "tenant_id" },
   declared: ["member", "admin"],
 } as const;
 

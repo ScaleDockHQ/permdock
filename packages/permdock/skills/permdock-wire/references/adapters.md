@@ -481,9 +481,11 @@ Pass `auth()` or a verified session payload only. A plain `{ userId }` object is
 import { subjectFromSupabase, authorizeSql } from "permdock/supabase";
 
 const subject = subjectFromSupabase(claims, {
-  roles: "user_role",
-  tenant: "tenant_id",
-  memberships: "memberships",
+  claims: {
+    roles: "user_role",
+    tenant: "tenant_id",
+    memberships: "memberships",
+  },
   declared: ["member", "admin"],
 });
 ```
@@ -523,7 +525,9 @@ import { createPermDock } from "permdock/supabase/middleware";
 const { withPermDock, permdockHandler } = createPermDock(policy, {
   subject: (ctx) =>
     subjectFromSupabase(ctx.jwtClaims, {
-      roles: "user_role",
+      claims: {
+        roles: "user_role",
+      },
       declared: ["member", "admin"],
     }),
 });

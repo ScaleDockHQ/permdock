@@ -1,16 +1,16 @@
+import type { ClaimPath } from "../core/claims-map.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 import type {
   ClerkAuthObject,
   ClerkBackend,
-  ClerkGlobalRoles,
   ClerkPrincipal,
   ClerkSubjectResolverOptions,
   ClerkSubjectOptions,
 } from "./types.ts";
 
+import { readClaim } from "../core/claims-map.ts";
 import { compact, isRecord, omitKeys } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { readPath } from "../core/paths.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { validateRecord } from "../core/thenable.ts";
 import { ttlCache, ttlMs } from "../pdp/shared.ts";
@@ -115,19 +115,9 @@ function featureRoles(
 
 function globalRolesFrom(
   claims: Record<string, unknown>,
-  option: ClerkGlobalRoles | undefined,
+  path: ClaimPath | undefined,
 ): readonly string[] {
-  if (option === undefined) {
-    return [];
-  }
-  if (typeof option === "function") {
-    try {
-      return asRoles(option(claims));
-    } catch {
-      return [];
-    }
-  }
-  return asRoles(readPath(claims, option));
+  return path === undefined ? [] : asRoles(readClaim(claims, path));
 }
 
 type OrgClaims = {
@@ -441,7 +431,7 @@ async function fromClerk(
       claims = validateRecord(options.schema, claims) ?? {};
     }
     const global = [
-      ...globalRolesFrom(mapped.claims, options.globalRoles),
+      ...globalRolesFrom(mapped.claims, options.claims?.roles),
       ...features.user,
     ];
     const exp = mapped.claims["exp"];

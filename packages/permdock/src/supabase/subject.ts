@@ -1,3 +1,4 @@
+import type { ClaimPath } from "../core/claims-map.ts";
 import type { AuthEvent } from "../core/event-types.ts";
 import type { SupabaseActClaim } from "./claims.ts";
 import type {
@@ -9,6 +10,7 @@ import type {
   SupabaseSubjectOptions,
 } from "./types.ts";
 
+import { readClaim } from "../core/claims-map.ts";
 import { clientNameOf } from "../core/clients.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
@@ -45,7 +47,7 @@ const REGISTERED = new Set([
 ]);
 
 /** Top-level first, then `app_metadata`. `null` counts as absent: the RBAC hook writes `null` for a user with no role row. */
-function readClaim(claims: Record<string, unknown>, name: string): unknown {
+function claimNamed(claims: Record<string, unknown>, name: string): unknown {
   const top = Object.hasOwn(claims, name) ? claims[name] : undefined;
   if (top !== undefined && top !== null) {
     return top;
@@ -55,6 +57,13 @@ function readClaim(claims: Record<string, unknown>, name: string): unknown {
     return meta[name] ?? undefined;
   }
   return undefined;
+}
+
+/** A `ClaimPath`: a name read at the top level, then in `app_metadata`; or a function over the claims. */
+function claimAt(claims: Record<string, unknown>, path: ClaimPath): unknown {
+  return typeof path === "string"
+    ? claimNamed(claims, path)
+    : readClaim(claims, path);
 }
 
 function asRoles(
@@ -192,13 +201,13 @@ function asStrings(value: unknown): readonly string[] {
 /** `claims[plans][tenant]`: only the active tenant's entry, never another tenant's. */
 function plansFor(
   claims: Record<string, unknown>,
-  name: string | undefined,
+  name: ClaimPath | undefined,
   tenant: string | undefined,
 ): readonly string[] {
   if (name === undefined || tenant === undefined) {
     return [];
   }
-  const byTenant = readClaim(claims, name);
+  const byTenant = claimAt(claims, name);
   if (!isRecord(byTenant) || !Object.hasOwn(byTenant, tenant)) {
     return [];
   }
@@ -441,33 +450,33 @@ function mapClaims(
                 ? clientNameOf(options.clients, act.actor.id)
                 : undefined,
           });
-  const roleClaim = options.roles ?? "user_role";
-  const tenantClaim = options.tenant ?? supabaseTenantClaim;
-  const membershipsClaim = options.memberships ?? "memberships";
+  const roleClaim = options.claims?.roles ?? "user_role";
+  const tenantClaim = options.claims?.tenant ?? supabaseTenantClaim;
+  const membershipsClaim = options.claims?.memberships ?? "memberships";
   let extra = extraClaims(claims);
   if (options.schema !== undefined) {
     extra = validateRecord(options.schema, extra) ?? {};
   }
   const include = new Set(options.include ?? []);
-  const tenantValue = readClaim(claims, tenantClaim);
-  const version = readClaim(claims, "authz_ver");
+  const tenantValue = claimAt(claims, tenantClaim);
+  const version = claimAt(claims, "authz_ver");
   const tenant = typeof tenantValue === "string" ? tenantValue : undefined;
   const { memberships, dropped } = readMemberships(
-    readClaim(claims, membershipsClaim),
+    claimAt(claims, membershipsClaim),
   );
   if (dropped.length > 0) {
     emit(options, "schema", "membership-dropped");
   }
-  const plans = plansFor(claims, options.plans, tenant);
+  const plans = plansFor(claims, options.claims?.plans, tenant);
   const principal = compact<SupabasePrincipal>({
     id,
     kind: "user",
-    roles: asRoles(readClaim(claims, roleClaim), options.declared),
+    roles: asRoles(claimAt(claims, roleClaim), options.declared),
     tenant,
     plans: plans.length > 0 ? plans : undefined,
     memberships,
     membershipsTruncated:
-      readClaim(claims, "memberships_truncated") === true ? true : undefined,
+      claimAt(claims, "memberships_truncated") === true ? true : undefined,
     authzVersion:
       typeof version === "number" && Number.isInteger(version)
         ? version

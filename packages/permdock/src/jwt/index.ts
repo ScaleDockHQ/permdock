@@ -24,7 +24,6 @@ export type {
   JoseTokenVerifierOptions,
   JsonWebKeySet,
   JwtAlgorithm,
-  JwtClaimPaths,
   JwtJwks,
   JwtPrincipal,
   JwtSubjectOptions,

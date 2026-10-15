@@ -208,6 +208,25 @@ describe("scimHandler with a verifier", () => {
     );
   });
 
+  it("reads the tenant from claims.tenant, and only there", async () => {
+    const statusFor = async (claims: Record<string, unknown>) => {
+      const { handle } = setup(
+        {
+          verifier: verifierFor(claims),
+          audience: BASE,
+          claims: { tenant: "org.id" },
+        },
+        undefined,
+        false,
+      );
+      return (await handle(call("/Users", { token: "jwt" }))).status;
+    };
+    expect([
+      await statusFor({ org: { id: TENANT } }),
+      await statusFor({ tenant: TENANT }),
+    ]).toEqual([200, 403]);
+  });
+
   it("falls back to the verifier when the static token does not match", async () => {
     const changes: DirectoryChange[] = [];
     const sink = {

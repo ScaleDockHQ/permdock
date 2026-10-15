@@ -1,3 +1,4 @@
+import type { ClaimsMap } from "../core/claims-map.ts";
 import type { DecisionSink, TokenVerifier } from "../core/interfaces.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 
@@ -127,6 +128,8 @@ export type ScimHandlerOptions = {
   readonly token?: ScimTokenOptions;
   readonly verifier?: TokenVerifier;
   readonly audience?: string;
+  /** With `verifier`: where the JWT names its tenant (`claims.tenant`); default `tenant`, then `tid`. */
+  readonly claims?: Pick<ClaimsMap, "tenant">;
   readonly groupRoles?: Readonly<Record<string, readonly string[]>>;
   readonly assignable?: readonly string[];
   readonly sink?: DecisionSink;

@@ -24,7 +24,7 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 // subject.principal = {
 //   id: userId,
 //   tenant: orgId,                                              // the active organization
-//   roles: [],                                                  // global roles only through options.globalRoles
+//   roles: [],                                                  // global roles only through options.claims.roles
 //   memberships: [{ tenant: orgId, roles: ['org:admin'] }],     // the active organization's membership
 //   clerkPermissions: ['org:invoices:create'],
 //   claims: { ...sessionClaims },
@@ -66,7 +66,7 @@ Field mapping:
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `userId`                                                            | `principal.id`                                                                                                                                                            |
 | `orgId`                                                             | `principal.tenant` (active tenant) and the `tenant` of the session membership                                                                                             |
-| `orgRole`                                                           | `memberships[0].roles`, a tenant-scoped role in the policy; global roles only through `options.globalRoles` (a claim path or a function over the verified claims)         |
+| `orgRole`                                                           | `memberships[0].roles`, a tenant-scoped role in the policy; global roles only through `options.claims.roles` (a claim path or a function over the verified claims)        |
 | `orgPermissions`                                                    | `clerkPermissions`, turned into tenant-scoped grants through `options.permissions`                                                                                        |
 | Backend API organization memberships (`options.memberships: 'all'`) | One `{ tenant, roles }` membership per organization                                                                                                                       |
 | `sessionClaims.*`                                                   | `claims.*` (custom claims configured in the Clerk session token template; typed through `options.schema`)                                                                 |

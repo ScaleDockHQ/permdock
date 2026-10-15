@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { ClaimsMap } from "../core/claims-map.ts";
 import type { JwtClaims } from "../core/interfaces.ts";
 import type {
   Actor,
@@ -12,12 +13,9 @@ import type {
   Principal,
   VerifiedClaims,
 } from "../core/subject.ts";
-import type {
-  JwtClaimPaths,
-  JwtPrincipal,
-  JwtSubjectOptions,
-} from "./types.ts";
+import type { JwtPrincipal, JwtSubjectOptions } from "./types.ts";
 
+import { readClaim } from "../core/claims-map.ts";
 import { clientNameOf } from "../core/clients.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { expirySeconds } from "../core/expiry.ts";
@@ -86,7 +84,7 @@ function asStringArray(value: unknown): string[] {
 
 function kindOf(
   claims: JwtClaims,
-  paths: JwtClaimPaths | undefined,
+  paths: ClaimsMap | undefined,
 ): Principal["kind"] {
   const kind = paths?.kind;
   if (kind === "workload" || kind === "user" || kind === "service") {
@@ -103,7 +101,7 @@ function kindOf(
 
 function assuranceOf(
   claims: JwtClaims,
-  paths: JwtClaimPaths | undefined,
+  paths: ClaimsMap | undefined,
 ): Assurance | undefined {
   const configured = paths?.assurance;
   const acrPath =
@@ -462,7 +460,7 @@ export function mapClaimsToSubject(
 } {
   const paths = options.claims;
   const idPath = paths?.id ?? DEFAULT_CLAIMS.id;
-  const id = readPath(claims, idPath);
+  const id = readClaim(claims, idPath);
   if (typeof id !== "string" || id.length === 0) {
     return {
       subject: anonymousSubject(),
@@ -472,24 +470,24 @@ export function mapClaimsToSubject(
   }
   const tenantPath = paths?.tenant;
   const tenant =
-    tenantPath === undefined ? undefined : readPath(claims, tenantPath);
+    tenantPath === undefined ? undefined : readClaim(claims, tenantPath);
   const activeTenant = typeof tenant === "string" ? tenant : undefined;
   const roles = asStringArray(
-    readPath(claims, paths?.roles ?? DEFAULT_CLAIMS.roles),
+    readClaim(claims, paths?.roles ?? DEFAULT_CLAIMS.roles),
   );
   const plans = asStringArray(
-    readPath(
+    readClaim(
       claims,
       paths?.plans ?? paths?.entitlements ?? DEFAULT_CLAIMS.entitlements,
     ),
   );
   const groups = asStringArray(
-    readPath(claims, paths?.groups ?? DEFAULT_CLAIMS.groups),
+    readClaim(claims, paths?.groups ?? DEFAULT_CLAIMS.groups),
   );
   const claimedMemberships = membershipsFromClaim(
     paths?.memberships === undefined
       ? undefined
-      : readPath(claims, paths.memberships),
+      : readClaim(claims, paths.memberships),
   );
   const memberships = [
     ...claimedMemberships,
@@ -559,7 +557,7 @@ export function mapClaimsToSubject(
       ? undefined
       : freezeDeep(compact<Actor>({ ...act.actor, binding }));
   const sessionPath = paths?.session ?? DEFAULT_CLAIMS.session;
-  const sessionValue = readPath(claims, sessionPath);
+  const sessionValue = readClaim(claims, sessionPath);
   const sessionExpiry = claims["session_expiry"];
   const exp = typeof claims.exp === "number" ? claims.exp : undefined;
   const expiresAt =

@@ -120,18 +120,34 @@ describe("subjectFromClerk claim parsing", () => {
       metadata: { role: "staff" },
     };
     const results = await Promise.all([
-      subjectFromClerk(payload, { globalRoles: () => ["ops"] }),
       subjectFromClerk(payload, {
-        globalRoles: () => {
-          throw new Error("mapper failed");
+        claims: {
+          roles: () => ["ops"],
         },
       }),
-      subjectFromClerk(payload, { globalRoles: "metadata.role" }),
-      subjectFromClerk(payload, { globalRoles: "metadata.missing.deep" }),
+      subjectFromClerk(payload, {
+        claims: {
+          roles: () => {
+            throw new Error("mapper failed");
+          },
+        },
+      }),
+      subjectFromClerk(payload, {
+        claims: {
+          roles: "metadata.role",
+        },
+      }),
+      subjectFromClerk(payload, {
+        claims: {
+          roles: "metadata.missing.deep",
+        },
+      }),
       subjectFromClerk(
         { ...payload, metadata: { role: "" } },
         {
-          globalRoles: "metadata.role",
+          claims: {
+            roles: "metadata.role",
+          },
         },
       ),
     ]);
@@ -149,7 +165,9 @@ describe("subjectFromClerk claim parsing", () => {
       '{"sub":"u1","sid":"s1","__proto__":{"role":"admin"}}',
     );
     const subject = await subjectFromClerk(payload, {
-      globalRoles: "__proto__.role",
+      claims: {
+        roles: "__proto__.role",
+      },
     });
     expect(subject.principal?.roles).toEqual([]);
   });

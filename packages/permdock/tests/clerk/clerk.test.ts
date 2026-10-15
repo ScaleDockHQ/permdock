@@ -111,7 +111,11 @@ describe("subjectFromClerk", () => {
         org_role: "org:member",
         publicMetadata: { staff: "reviewer" },
       },
-      { globalRoles: "publicMetadata.staff" },
+      {
+        claims: {
+          roles: "publicMetadata.staff",
+        },
+      },
     );
     expect(subject.principal?.id).toBe("user_2");
     expect(subject.principal?.tenant).toBe("org_9");

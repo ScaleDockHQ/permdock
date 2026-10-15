@@ -269,8 +269,16 @@ import {
   subjectFromSupabaseSession,
 } from "permdock/supabase";
 
-subjectFromSupabase(claims, { memberships: "memberships" }); // verified claims
-subjectFromSupabaseSession(session, { memberships: "memberships" }); // any { kind, claims } session
+subjectFromSupabase(claims, {
+  claims: {
+    memberships: "memberships",
+  },
+}); // verified claims
+subjectFromSupabaseSession(session, {
+  claims: {
+    memberships: "memberships",
+  },
+}); // any { kind, claims } session
 ```
 
 `subjectFromSupabaseSession` maps only `kind: 'user'`. `anon`, `service`, `invalid` or an unknown `kind` become the anonymous subject whatever `claims` holds. A top-level `user_role: null` (what the RBAC hook writes for a user without a role row) falls back to `app_metadata.user_role`.
@@ -291,7 +299,9 @@ export async function loadSnapshot(orgId: string) {
   const { session } = await bs.cached({ tags: [`org:${orgId}`] });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
   const subject = subjectFromSupabaseSession(session, {
-    memberships: "memberships",
+    claims: {
+      memberships: "memberships",
+    },
   });
   const snapshot = snapshotFor(policy, subject, { tenant: orgId });
   cacheLife({ stale: cacheLifeFor(snapshot).stale });

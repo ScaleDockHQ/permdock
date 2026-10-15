@@ -315,8 +315,11 @@ describe.each([
         if (mode === "jwt") {
           const fromClaims = await loadPermDock(
             policy,
-            subjectFromSupabase(claims, { memberships: "memberships" })
-              .principal,
+            subjectFromSupabase(claims, {
+              claims: {
+                memberships: "memberships",
+              },
+            }).principal,
           );
           expect(
             fromClaims.subject.principal?.memberships?.toSorted((a, b) =>

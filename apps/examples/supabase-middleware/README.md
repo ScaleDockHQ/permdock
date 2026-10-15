@@ -9,7 +9,12 @@ import { subjectFromSupabase } from "permdock/supabase";
 import { createPermDock } from "permdock/supabase/middleware";
 
 const { withPermDock } = createPermDock(policy, {
-  subject: (ctx) => subjectFromSupabase(ctx.jwtClaims, { roles: "user_role" }),
+  subject: (ctx) =>
+    subjectFromSupabase(ctx.jwtClaims, {
+      claims: {
+        roles: "user_role",
+      },
+    }),
 });
 
 export default {
