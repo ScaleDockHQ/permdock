@@ -1,0 +1,2971 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`evaluate golden decisions > keeps every SaaS scenario decision and trace 1`] = `
+{
+  "a team role held on the tenant membership grants nothing": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "doc.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "doc",
+        "scope": "doc:read",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "no-membership",
+        "role": "lead",
+      },
+      {
+        "reason": "no-membership",
+        "role": "lead",
+      },
+      {
+        "reason": "condition",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "doc.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [],
+    },
+  },
+  "a tenant-1 member does not list org-1 projects": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "no-membership",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.list",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "viewer",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "a tenant-1 member updates its own tenant-1 row only through tenant-1": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "no-membership",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "a viewer of the restricted folder reads inside it": {
+    "matched": {
+      "permission": "folder.read",
+      "role": null,
+      "to": {
+        "depth": 8,
+        "kind": "relation",
+        "relation": "viewer",
+        "resource": "folder",
+        "through": "parent",
+      },
+      "where": {
+        "depth": 8,
+        "field": "id",
+        "op": "related",
+        "relation": "viewer",
+        "resource": "folder",
+        "restricted": "restricted",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "hank",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "on": {
+              "id": "p3",
+              "resource": "project",
+            },
+            "roles": [
+              "collaborator",
+            ],
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "folder.read",
+          "role": null,
+          "to": {
+            "depth": 8,
+            "kind": "relation",
+            "relation": "viewer",
+            "resource": "folder",
+            "through": "parent",
+          },
+          "where": {
+            "depth": 8,
+            "field": "id",
+            "op": "related",
+            "relation": "viewer",
+            "resource": "folder",
+            "restricted": "restricted",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "folder.read",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "folder.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "a viewer of the root does not reach a restricted branch": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "condition",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "folder.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "folder.read",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "folder.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "a viewer of the root reads a folder three levels down": {
+    "matched": {
+      "permission": "folder.read",
+      "role": null,
+      "to": {
+        "depth": 8,
+        "kind": "relation",
+        "relation": "viewer",
+        "resource": "folder",
+        "through": "parent",
+      },
+      "where": {
+        "depth": 8,
+        "field": "id",
+        "op": "related",
+        "relation": "viewer",
+        "resource": "folder",
+        "restricted": "restricted",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "bob",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "member",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "folder.read",
+          "role": null,
+          "to": {
+            "depth": 8,
+            "kind": "relation",
+            "relation": "viewer",
+            "resource": "folder",
+            "through": "parent",
+          },
+          "where": {
+            "depth": 8,
+            "field": "id",
+            "op": "related",
+            "relation": "viewer",
+            "resource": "folder",
+            "restricted": "restricted",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "folder.read",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "folder.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "admin cannot read billing": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "no-grant",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "billing.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 1,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "billing.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "admin creates an api key within the quota": {
+    "matched": {
+      "permission": "apiKey.create",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "quota": {
+      "remaining": 4,
+      "resetsAt": "2026-01-16T00:00:00.000Z",
+    },
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "alice",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "globex",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "apiKey.create",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "apiKey.create",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "admin in acme cannot read a globex row while acting in acme": {
+    "alternatives": [
+      {
+        "action": "update",
+        "key": "project.update",
+        "meta": {},
+        "resource": "project",
+        "scope": "project:update",
+      },
+      {
+        "action": "delete",
+        "key": "project.delete",
+        "meta": {
+          "destructive": true,
+        },
+        "resource": "project",
+        "scope": "project:delete",
+      },
+      {
+        "action": "create",
+        "key": "project.create",
+        "meta": {},
+        "resource": "project",
+        "scope": "project:create",
+      },
+      {
+        "action": "list",
+        "key": "project.list",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:list",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "no-membership",
+        "role": "viewer",
+      },
+      {
+        "reason": "tenant-mismatch",
+        "role": "admin",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "admin of the second org lists its members": {
+    "matched": {
+      "permission": "member.list",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "erin",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "globex",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "pro",
+        ],
+        "tenant": "globex",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "member.list",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "member.list",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "admin revoking every key needs an owner approval": {
+    "grant": {
+      "approval": {
+        "by": {
+          "kind": "role",
+          "role": "owner",
+          "scope": "tenant",
+        },
+        "distinct": true,
+      },
+      "permission": "apiKey.revokeAll",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "approval-required",
+    "reason": "human",
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "approval": {
+            "by": {
+              "kind": "role",
+              "role": "owner",
+              "scope": "tenant",
+            },
+            "distinct": true,
+          },
+          "permission": "apiKey.revokeAll",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "apiKey.revokeAll",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "admin updates any project in their org": {
+    "matched": {
+      "permission": "project.update",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "alice",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "globex",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.update",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "an admin past the daily api-key quota is refused": {
+    "alternatives": [
+      {
+        "action": "manage",
+        "key": "apiKey.manage",
+        "meta": {},
+        "resource": "apiKey",
+        "scope": "apiKey:manage",
+      },
+    ],
+    "denials": [
+      {
+        "detail": {
+          "count": 5,
+          "per": 86400,
+          "resetsAt": "2026-01-16T00:00:00.000Z",
+        },
+        "reason": "limit",
+        "role": "admin",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "apiKey.create",
+    "trace": {
+      "allows": [
+        {
+          "permission": "apiKey.create",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "apiKey.create",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "an admin reads every folder in the org, restricted or not": {
+    "matched": {
+      "permission": "folder.read",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "alice",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "globex",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "folder.read",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "folder.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "an agent acting for an admin without a delegation reaches nothing": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "no-delegation",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.read",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.read",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "an agent delegated read only cannot update what the admin can": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "project.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:read",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "not-delegated",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.update",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.update",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "an agent delegated read only reads": {
+    "matched": {
+      "permission": "project.read",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "actor": {
+        "id": "agent-1",
+        "kind": "agent",
+      },
+      "context": {},
+      "delegation": {
+        "scopes": [
+          "project:read",
+        ],
+      },
+      "principal": {
+        "id": "alice",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "globex",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.read",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "an editor does not update above the shared folder": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "condition",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "folder.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 1,
+      "skipped": [],
+    },
+  },
+  "an editor of a folder updates its descendants but not its parent": {
+    "matched": {
+      "permission": "folder.update",
+      "role": null,
+      "to": {
+        "depth": 8,
+        "kind": "relation",
+        "relation": "editor",
+        "resource": "folder",
+        "through": "parent",
+      },
+      "where": {
+        "depth": 8,
+        "field": "id",
+        "op": "related",
+        "relation": "editor",
+        "resource": "folder",
+        "restricted": "restricted",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "gina",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "team-a",
+            "roles": [
+              "lead",
+            ],
+            "scope": "team",
+            "within": {
+              "tenant": "acme",
+            },
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "folder.update",
+          "role": null,
+          "to": {
+            "depth": 8,
+            "kind": "relation",
+            "relation": "editor",
+            "resource": "folder",
+            "through": "parent",
+          },
+          "where": {
+            "depth": 8,
+            "field": "id",
+            "op": "related",
+            "relation": "editor",
+            "resource": "folder",
+            "restricted": "restricted",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 1,
+      "skipped": [],
+    },
+  },
+  "an expired share reaches nothing": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "condition",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "folder.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "folder.read",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "folder.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "an org-1 member cannot create in tenant-1": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "no-membership",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.create",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.create",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.create",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "archived project cannot be deleted by its owner": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "project.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:read",
+      },
+      {
+        "action": "create",
+        "key": "project.create",
+        "meta": {},
+        "resource": "project",
+        "scope": "project:create",
+      },
+      {
+        "action": "list",
+        "key": "project.list",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:list",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "deny",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.delete",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.delete",
+          "role": "member",
+          "to": {
+            "kind": "role",
+            "role": "member",
+            "scope": "tenant",
+          },
+          "where": {
+            "field": "ownerId",
+            "op": "eq",
+            "value": {
+              "ref": "principal.id",
+            },
+          },
+        },
+      ],
+      "denies": [
+        {
+          "permission": "project.delete",
+          "role": null,
+          "to": {
+            "kind": "anyone",
+          },
+          "where": {
+            "field": "archived",
+            "op": "eq",
+            "value": true,
+          },
+        },
+      ],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.delete",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.delete",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "archived project cannot be deleted by the org owner": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "project.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:read",
+      },
+      {
+        "action": "update",
+        "key": "project.update",
+        "meta": {},
+        "resource": "project",
+        "scope": "project:update",
+      },
+      {
+        "action": "create",
+        "key": "project.create",
+        "meta": {},
+        "resource": "project",
+        "scope": "project:create",
+      },
+      {
+        "action": "list",
+        "key": "project.list",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:list",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "deny",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.delete",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.delete",
+          "role": "owner",
+          "to": {
+            "kind": "role",
+            "role": "owner",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [
+        {
+          "permission": "project.delete",
+          "role": null,
+          "to": {
+            "kind": "anyone",
+          },
+          "where": {
+            "field": "archived",
+            "op": "eq",
+            "value": true,
+          },
+        },
+      ],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.delete",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.delete",
+          "role": "admin",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "custom contractor role cannot update a project it does not own": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "project.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:read",
+      },
+      {
+        "action": "create",
+        "key": "project.create",
+        "meta": {},
+        "resource": "project",
+        "scope": "project:create",
+      },
+      {
+        "action": "list",
+        "key": "project.list",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:list",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "condition",
+        "role": "contractor",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "custom contractor role inherits member create": {
+    "matched": {
+      "permission": "project.create",
+      "role": "contractor",
+      "to": {
+        "kind": "role",
+        "role": "contractor",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "dave",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "contractor",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.create",
+          "role": "contractor",
+          "to": {
+            "kind": "role",
+            "role": "contractor",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.create",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.create",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.create",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "expired membership creates nothing": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "expired-membership",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.create",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.create",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.create",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "expired membership lists nothing": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "expired-membership",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.list",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "viewer",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "expired membership reads no doc": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "expired-membership",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "doc.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "doc.read",
+          "role": "viewer",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "doc.read",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "doc.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "expired membership reads nothing": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "expired-membership",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "viewer",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "expired membership updates nothing": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "expired-membership",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "free plan hides analytics from admins": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "not-entitled",
+        "role": "admin",
+        "to": [
+          {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+          {
+            "kind": "plan",
+            "plan": "pro",
+          },
+        ],
+      },
+    ],
+    "outcome": "denied",
+    "permission": "analytics.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "analytics.read",
+          "role": "owner",
+          "why": "grantee",
+        },
+      ],
+    },
+  },
+  "id 2 is not id user-2": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "project.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:read",
+      },
+      {
+        "action": "create",
+        "key": "project.create",
+        "meta": {},
+        "resource": "project",
+        "scope": "project:create",
+      },
+      {
+        "action": "list",
+        "key": "project.list",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:list",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "condition",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "member cannot list members": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "no-grant",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "member.list",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "member.list",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "member.list",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "member cannot revoke keys": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "no-grant",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "apiKey.revokeAll",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "apiKey.revokeAll",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "apiKey.revokeAll",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "member cannot update a colleague project": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "project.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:read",
+      },
+      {
+        "action": "create",
+        "key": "project.create",
+        "meta": {},
+        "resource": "project",
+        "scope": "project:create",
+      },
+      {
+        "action": "list",
+        "key": "project.list",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:list",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "condition",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "member updates their own project": {
+    "matched": {
+      "permission": "project.update",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "tenant",
+      },
+      "where": {
+        "field": "ownerId",
+        "op": "eq",
+        "value": {
+          "ref": "principal.id",
+        },
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "bob",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "member",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.update",
+          "role": "member",
+          "to": {
+            "kind": "role",
+            "role": "member",
+            "scope": "tenant",
+          },
+          "where": {
+            "field": "ownerId",
+            "op": "eq",
+            "value": {
+              "ref": "principal.id",
+            },
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "owner id user-2 updates its own row": {
+    "matched": {
+      "permission": "project.update",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "tenant",
+      },
+      "where": {
+        "field": "ownerId",
+        "op": "eq",
+        "value": {
+          "ref": "principal.id",
+        },
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "user-2",
+        "memberships": [
+          {
+            "id": "org-1",
+            "roles": [
+              "member",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "pro",
+        ],
+        "tenant": "org-1",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.update",
+          "role": "member",
+          "to": {
+            "kind": "role",
+            "role": "member",
+            "scope": "tenant",
+          },
+          "where": {
+            "field": "ownerId",
+            "op": "eq",
+            "value": {
+              "ref": "principal.id",
+            },
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "owner manages billing": {
+    "matched": {
+      "permission": "billing.manage",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "carol",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "owner",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "billing.manage",
+          "role": "owner",
+          "to": {
+            "kind": "role",
+            "role": "owner",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 1,
+      "skipped": [],
+    },
+  },
+  "owner revokes every key directly": {
+    "matched": {
+      "permission": "apiKey.revokeAll",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "carol",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "owner",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "apiKey.revokeAll",
+          "role": "owner",
+          "to": {
+            "kind": "role",
+            "role": "owner",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "apiKey.revokeAll",
+          "role": "admin",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "pro plan shows analytics to admins": {
+    "matched": {
+      "permission": "analytics.read",
+      "role": "admin",
+      "to": [
+        {
+          "kind": "role",
+          "role": "admin",
+          "scope": "tenant",
+        },
+        {
+          "kind": "plan",
+          "plan": "pro",
+        },
+      ],
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "erin",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "globex",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "pro",
+        ],
+        "tenant": "globex",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "analytics.read",
+          "role": "admin",
+          "to": [
+            {
+              "kind": "role",
+              "role": "admin",
+              "scope": "tenant",
+            },
+            {
+              "kind": "plan",
+              "plan": "pro",
+            },
+          ],
+        },
+      ],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "analytics.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "project collaborator cannot update another project": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "project.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:read",
+      },
+      {
+        "action": "list",
+        "key": "project.list",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:list",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "scope",
+        "role": "collaborator",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "project collaborator updates that project": {
+    "matched": {
+      "permission": "project.update",
+      "role": "collaborator",
+      "to": {
+        "kind": "role",
+        "role": "collaborator",
+        "scope": {
+          "resource": "project",
+        },
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "hank",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "on": {
+              "id": "p3",
+              "resource": "project",
+            },
+            "roles": [
+              "collaborator",
+            ],
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.update",
+          "role": "collaborator",
+          "to": {
+            "kind": "role",
+            "role": "collaborator",
+            "scope": {
+              "resource": "project",
+            },
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "same admin, free org: no analytics": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "not-entitled",
+        "role": "admin",
+        "to": [
+          {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+          {
+            "kind": "plan",
+            "plan": "pro",
+          },
+        ],
+      },
+    ],
+    "outcome": "denied",
+    "permission": "analytics.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "analytics.read",
+          "role": "owner",
+          "why": "grantee",
+        },
+      ],
+    },
+  },
+  "team lead cannot update a locked doc": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "doc.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "doc",
+        "scope": "doc:read",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "deny",
+        "role": "lead",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "doc.update",
+    "trace": {
+      "allows": [
+        {
+          "permission": "doc.update",
+          "role": "lead",
+          "to": {
+            "kind": "role",
+            "role": "lead",
+            "scope": "team",
+          },
+        },
+      ],
+      "denies": [
+        {
+          "permission": "doc.update",
+          "role": "lead",
+          "to": {
+            "kind": "role",
+            "role": "lead",
+            "scope": "team",
+          },
+        },
+      ],
+      "evaluated": 2,
+      "skipped": [],
+    },
+  },
+  "team lead cannot update another team doc": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "doc.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "doc",
+        "scope": "doc:read",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "scope",
+        "role": "lead",
+      },
+      {
+        "reason": "scope",
+        "role": "lead",
+      },
+      {
+        "reason": "condition",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "doc.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [],
+    },
+  },
+  "team lead does not pass a tenant-level doc check without a row": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "doc.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "doc",
+        "scope": "doc:read",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "scope",
+        "role": "lead",
+      },
+      {
+        "reason": "scope",
+        "role": "lead",
+      },
+      {
+        "reason": "condition",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "doc.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [],
+    },
+  },
+  "team lead updates a team doc": {
+    "matched": {
+      "permission": "doc.update",
+      "role": "lead",
+      "to": {
+        "kind": "role",
+        "role": "lead",
+        "scope": "team",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "gina",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "team-a",
+            "roles": [
+              "lead",
+            ],
+            "scope": "team",
+            "within": {
+              "tenant": "acme",
+            },
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "doc.update",
+          "role": "lead",
+          "to": {
+            "kind": "role",
+            "role": "lead",
+            "scope": "team",
+          },
+        },
+        {
+          "permission": "doc.update",
+          "role": null,
+          "to": {
+            "kind": "relation",
+            "relation": "team",
+            "resource": "doc",
+          },
+          "where": {
+            "field": "teamId",
+            "op": "memberOf",
+            "roles": [],
+            "scope": "team",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 3,
+      "skipped": [],
+    },
+  },
+  "tenant-1 member cannot read an org-1 row": {
+    "alternatives": [
+      {
+        "action": "create",
+        "key": "project.create",
+        "meta": {},
+        "resource": "project",
+        "scope": "project:create",
+      },
+      {
+        "action": "list",
+        "key": "project.list",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:list",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "tenant-mismatch",
+        "role": "member",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "viewer",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "the quota of one org does not spill into the other": {
+    "matched": {
+      "permission": "apiKey.create",
+      "role": "admin",
+      "to": {
+        "kind": "role",
+        "role": "admin",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "quota": {
+      "remaining": 0,
+      "resetsAt": "2026-01-16T00:00:00.000Z",
+    },
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "erin",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "globex",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "pro",
+        ],
+        "tenant": "globex",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "apiKey.create",
+          "role": "admin",
+          "to": {
+            "kind": "role",
+            "role": "admin",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 2,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "apiKey.create",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "user without memberships and no tenant lists nothing": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "no-grant",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.list",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "viewer",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.list",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "user without memberships reads nothing": {
+    "alternatives": [],
+    "denials": [
+      {
+        "reason": "no-grant",
+        "role": null,
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.read",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 4,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "viewer",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "owner",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "viewer in the second org cannot update there": {
+    "alternatives": [
+      {
+        "action": "read",
+        "key": "project.read",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:read",
+      },
+      {
+        "action": "list",
+        "key": "project.list",
+        "meta": {
+          "readOnly": true,
+        },
+        "resource": "project",
+        "scope": "project:list",
+      },
+    ],
+    "denials": [
+      {
+        "reason": "no-membership",
+        "role": "admin",
+      },
+    ],
+    "outcome": "denied",
+    "permission": "project.update",
+    "trace": {
+      "allows": [],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "collaborator",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.update",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "viewer in the second org reads there": {
+    "matched": {
+      "permission": "project.read",
+      "role": "viewer",
+      "to": {
+        "kind": "role",
+        "role": "viewer",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "alice",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "admin",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "globex",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+        ],
+        "plans": [
+          "pro",
+        ],
+        "tenant": "globex",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "project.read",
+          "role": "viewer",
+          "to": {
+            "kind": "role",
+            "role": "viewer",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "project.read",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+  "viewer reads any doc in the org": {
+    "matched": {
+      "permission": "doc.read",
+      "role": "viewer",
+      "to": {
+        "kind": "role",
+        "role": "viewer",
+        "scope": "tenant",
+      },
+    },
+    "outcome": "granted",
+    "subject": {
+      "context": {},
+      "principal": {
+        "id": "gina",
+        "memberships": [
+          {
+            "id": "acme",
+            "roles": [
+              "viewer",
+            ],
+            "scope": "tenant",
+          },
+          {
+            "id": "team-a",
+            "roles": [
+              "lead",
+            ],
+            "scope": "team",
+            "within": {
+              "tenant": "acme",
+            },
+          },
+        ],
+        "plans": [
+          "free",
+        ],
+        "tenant": "acme",
+      },
+    },
+    "token": "<token>",
+    "trace": {
+      "allows": [
+        {
+          "permission": "doc.read",
+          "role": "viewer",
+          "to": {
+            "kind": "role",
+            "role": "viewer",
+            "scope": "tenant",
+          },
+        },
+      ],
+      "denies": [],
+      "evaluated": 5,
+      "skipped": [
+        {
+          "effect": "allow",
+          "permission": "doc.read",
+          "role": "member",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "doc.read",
+          "role": "admin",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "doc.read",
+          "role": "owner",
+          "why": "role",
+        },
+        {
+          "effect": "allow",
+          "permission": "doc.read",
+          "role": "contractor",
+          "why": "role",
+        },
+      ],
+    },
+  },
+}
+`;

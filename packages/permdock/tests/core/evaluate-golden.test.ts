@@ -49,8 +49,6 @@ describe("evaluate golden decisions", () => {
     for (const scenario of all) {
       decisions[scenario.name] = await explained(scenario);
     }
-    await expect(JSON.stringify(decisions, null, 2)).toMatchFileSnapshot(
-      "./__snapshots__/evaluate-golden.json",
-    );
+    expect(decisions).toMatchSnapshot();
   });
 });
