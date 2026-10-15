@@ -38,6 +38,7 @@ import {
   quoteIdent,
   quoteLiteral,
   quoteTable,
+  textArrayLiteral,
 } from "./quote.ts";
 import {
   keyTenantSql,
@@ -297,12 +298,11 @@ function membershipSql(
   const parts = [`m.${quoteIdent(table.user)} = ${subjectIdSql(ctx)}`];
   const role = memberRoleOf(table);
   if (roles.length > 0) {
-    const roleList = roles.map((name) => name.replaceAll("'", "''")).join(",");
     const held =
       role.through === undefined && !role.lateral
         ? `m.${quoteIdent(role.column)}`
         : role.lookup;
-    parts.push(`${held} = any('{${roleList}}')`);
+    parts.push(`${held} = any(${textArrayLiteral(roles)})`);
     const via = memberVia(table);
     const single = sole(roles);
     const kind =
@@ -512,6 +512,12 @@ export function compileConditionSql(
       const values = (condition.value as readonly ConditionValue[]).map(
         (item) => sqlValue(item, ctx),
       );
+      if (values.length === 0) {
+        // The same answer as can(): nothing is in an empty list.
+        return condition.op === "in"
+          ? "false"
+          : `${quoteIdent(condition.field)} is not null`;
+      }
       return `${quoteIdent(condition.field)} ${keyword} (${values.join(", ")})`;
     }
     case "isNull":
