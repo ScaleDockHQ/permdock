@@ -218,7 +218,7 @@ create view jobs_visible with (security_invoker) as select id, case when (select
 
   it("reads --memberships before the config mapping", async () => {
     const cwd = project({
-      "dump.sql": `create policy p on posts for select using ("orgId" in (select org_id from org_members));`,
+      "dump.sql": `create policy p on posts for select using ("orgId" in (select "orgId" from org_members where user_id = auth.uid()));`,
     });
     await runRlsImport({
       cwd,
