@@ -247,6 +247,28 @@ describe("grant validity", () => {
     );
   });
 
+  it("keeps a deny with a malformed wire window in force on the client", async () => {
+    const permdock = await contractor();
+    const snapshot = permdock.snapshot();
+    if (snapshot instanceof Promise) {
+      throw new Error("unsigned snapshot expected");
+    }
+    const grants = snapshot.grants.filter((grant) => grant.effect !== "deny");
+    for (const grant of snapshot.grants) {
+      if (grant.effect === "deny") {
+        grants.push(Object.assign({}, grant, { validity: { until: "x" } }));
+      }
+    }
+    const corrupted = { ...snapshot, grants };
+    const client = fromSnapshot(corrupted);
+    expect(client.can(permissions.doc.delete, doc, { now: at(during) })).toBe(
+      false,
+    );
+    expect(client.can(permissions.doc.delete, doc, { now: at(after) })).toBe(
+      false,
+    );
+  });
+
   it("drops inactive grants from where()", async () => {
     const expired = definePolicy(permissions, {
       roles: [

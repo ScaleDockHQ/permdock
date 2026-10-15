@@ -352,7 +352,7 @@ export function evaluateSnapshot(
       );
       continue;
     }
-    if (!isActive(readWireValidity(grant.validity), now())) {
+    if (!isActive(readWireValidity(grant.validity, grant.effect), now())) {
       if (grant.effect === "allow") {
         denials.push({
           role: grant.role,
