@@ -1,3 +1,4 @@
+import type { AppData } from "../core/app-data.ts";
 import type { RelationGrantee } from "../core/grantee.ts";
 import type { AdapterId } from "../core/open-union.ts";
 import type { ApprovalMode, ApprovalStage } from "../core/policy-types.ts";
@@ -111,6 +112,8 @@ export type ApprovalRequest = {
   readonly vouched?: string;
   readonly note?: string;
   readonly consumedAt?: string;
+  /** The application's own data, set when the request opens; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type ApprovalVerdict = {

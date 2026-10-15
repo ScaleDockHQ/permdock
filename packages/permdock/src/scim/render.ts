@@ -1,3 +1,5 @@
+import type { AppData } from "../core/app-data.ts";
+
 import { canonicalJson } from "../core/canonical-json.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { sha256Digest } from "../core/sha256.ts";
@@ -5,6 +7,7 @@ import {
   ERROR_SCHEMA,
   GROUP_SCHEMA,
   LIST_SCHEMA,
+  APP_DATA_EXTENSION,
   ROLES_EXTENSION,
   SCIM_CONTENT_TYPE,
   USER_SCHEMA,
@@ -138,18 +141,33 @@ export function listBody<T>(
   });
 }
 
+/** The `AppData` extension for `x`, and the schema URN it adds. */
+function appData(x: AppData | undefined): {
+  readonly schemas: readonly string[];
+  readonly body: Record<string, unknown>;
+} {
+  return x === undefined
+    ? { schemas: [], body: {} }
+    : {
+        schemas: [APP_DATA_EXTENSION],
+        body: { [APP_DATA_EXTENSION]: { x } },
+      };
+}
+
 export function renderUser(
   user: DirectoryUser,
   location: string,
 ): Record<string, unknown> {
+  const data = appData(user.x);
   return withVersion(
     compact({
-      schemas: [USER_SCHEMA],
+      schemas: [USER_SCHEMA, ...data.schemas],
       id: user.id,
       externalId: user.externalId,
       userName: user.userName,
       active: user.active,
       emails: user.emails,
+      ...data.body,
     }),
     {
       resourceType: "User",
@@ -168,17 +186,20 @@ export function renderGroup(
     group.roles === undefined
       ? undefined
       : { [ROLES_EXTENSION]: { roles: group.roles } };
+  const data = appData(group.x);
   return withVersion(
     compact({
-      schemas:
-        group.roles === undefined
-          ? [GROUP_SCHEMA]
-          : [GROUP_SCHEMA, ROLES_EXTENSION],
+      schemas: [
+        GROUP_SCHEMA,
+        ...(group.roles === undefined ? [] : [ROLES_EXTENSION]),
+        ...data.schemas,
+      ],
       id: group.id,
       externalId: group.externalId,
       displayName: group.displayName,
       members: group.members,
       ...extension,
+      ...data.body,
     }),
     {
       resourceType: "Group",

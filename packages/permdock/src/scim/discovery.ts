@@ -1,4 +1,9 @@
-import { GROUP_SCHEMA, ROLES_EXTENSION, USER_SCHEMA } from "./types.ts";
+import {
+  APP_DATA_EXTENSION,
+  GROUP_SCHEMA,
+  ROLES_EXTENSION,
+  USER_SCHEMA,
+} from "./types.ts";
 
 const SCHEMA_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Schema";
 
@@ -33,7 +38,7 @@ export function resourceTypes(): readonly Record<string, unknown>[] {
       name: "User",
       endpoint: "/Users",
       schema: USER_SCHEMA,
-      schemaExtensions: [],
+      schemaExtensions: [{ schema: APP_DATA_EXTENSION, required: false }],
     },
     {
       schemas: ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"],
@@ -41,7 +46,10 @@ export function resourceTypes(): readonly Record<string, unknown>[] {
       name: "Group",
       endpoint: "/Groups",
       schema: GROUP_SCHEMA,
-      schemaExtensions: [{ schema: ROLES_EXTENSION, required: false }],
+      schemaExtensions: [
+        { schema: ROLES_EXTENSION, required: false },
+        { schema: APP_DATA_EXTENSION, required: false },
+      ],
     },
   ];
 }
@@ -114,6 +122,12 @@ export function schemas(): readonly Record<string, unknown>[] {
       id: ROLES_EXTENSION,
       name: "PermDockRoles",
       attributes: [attribute("roles", "string", { multiValued: true })],
+    },
+    {
+      schemas: [SCHEMA_SCHEMA],
+      id: APP_DATA_EXTENSION,
+      name: "PermDockAppData",
+      attributes: [attribute("x", "complex")],
     },
   ];
 }

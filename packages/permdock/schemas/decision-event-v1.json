@@ -16,6 +16,10 @@
     "call"
   ],
   "properties": {
+    "x": {
+      "type": "object",
+      "description": "The application's own data, set where the event is built: plain JSON, never read by a decision."
+    },
     "type": {
       "const": "decision"
     },

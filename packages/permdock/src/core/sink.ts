@@ -1,3 +1,4 @@
+import type { AppData } from "./app-data.ts";
 import type { Automation } from "./automation.ts";
 import type { Credential } from "./credential.ts";
 import type {
@@ -14,6 +15,7 @@ import type { DecisionSink, TokenSigner } from "./interfaces.ts";
 import type { OperationRisk } from "./operation-risks.ts";
 import type { SupportSession } from "./support-session.ts";
 
+import { assertAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
 import { EVENT_SCHEMA_IDS } from "./event-schemas.ts";
 import { requireEventInstant } from "./event-time.ts";
@@ -369,6 +371,14 @@ function cloudEventSubject(event: SinkEvent): string {
   return event.permission;
 }
 
+/** `x` as given, after checking it is a plain JSON object; a builder throws on bad input. */
+function checkedX(x: AppData | undefined): AppData | undefined {
+  if (x !== undefined) {
+    assertAppData(x, "x of a sink event");
+  }
+  return x;
+}
+
 /**
  * An `automation` sink event for `automation`. `run` carries the run id and
  * belongs on `run` events only.
@@ -381,6 +391,8 @@ export function automationEvent(input: {
   readonly by?: AutomationEvent["by"];
   /** An RFC 3339 instant; defaults to now. */
   readonly at?: string;
+  /** The application's own data; plain JSON, checked here. */
+  readonly x?: AppData;
 }): AutomationEvent {
   if ((input.run === undefined) !== (input.operation !== "run")) {
     throw new TypeError(
@@ -406,6 +418,7 @@ export function automationEvent(input: {
     permissions: automation.permissions,
     run: input.run === undefined ? undefined : { id: input.run },
     by: input.by,
+    x: checkedX(input.x),
   });
 }
 
@@ -420,6 +433,8 @@ export function supportSessionEvent(input: {
   readonly source?: string;
   /** An RFC 3339 instant; defaults to now. */
   readonly at?: string;
+  /** The application's own data; plain JSON, checked here. */
+  readonly x?: AppData;
 }): AccessEvent {
   const { session } = input;
   return compact<AccessEvent>({
@@ -436,6 +451,7 @@ export function supportSessionEvent(input: {
     reason: session.reason,
     session: { id: session.id, principal: session.principal },
     permissions: session.permissions,
+    x: checkedX(input.x),
   });
 }
 
@@ -451,6 +467,8 @@ export function credentialEvent(input: {
   readonly sample?: number;
   /** An RFC 3339 instant; defaults to now. */
   readonly at?: string;
+  /** The application's own data; plain JSON, checked here. */
+  readonly x?: AppData;
 }): CredentialEvent {
   const sample = input.sample;
   if (
@@ -476,6 +494,7 @@ export function credentialEvent(input: {
     expiresAt: requireEventInstant(credential.expiresAt, "expiresAt"),
     by: input.by,
     sample,
+    x: checkedX(input.x),
   });
 }
 
@@ -493,6 +512,8 @@ export function membershipEvent(input: {
   readonly by?: MembershipEvent["by"];
   /** An RFC 3339 instant; defaults to now. */
   readonly at?: string;
+  /** The application's own data; plain JSON, checked here. */
+  readonly x?: AppData;
 }): MembershipEvent {
   if ((input.scope === undefined) !== (input.id === undefined)) {
     throw new TypeError(
@@ -515,6 +536,7 @@ export function membershipEvent(input: {
     expiresAt: requireEventInstant(input.expiresAt, "expiresAt"),
     roles: input.roles,
     by: input.by,
+    x: checkedX(input.x),
   });
 }
 
@@ -538,6 +560,8 @@ export function accessEvent(input: {
   readonly actor?: AccessEvent["actor"];
   /** An RFC 3339 instant; defaults to now. */
   readonly at?: string;
+  /** The application's own data; plain JSON, checked here. */
+  readonly x?: AppData;
 }): AccessEvent {
   return compact<AccessEvent>({
     type: "access",
@@ -553,6 +577,7 @@ export function accessEvent(input: {
     grantedBy: input.grantedBy,
     reason: input.reason,
     actor: input.actor,
+    x: checkedX(input.x),
   });
 }
 

@@ -512,6 +512,7 @@
     "withOtel"
   ],
   "./scim": [
+    "APP_DATA_EXTENSION",
     "DirectoryNotFoundError",
     "DirectoryUniquenessError",
     "ERROR_SCHEMA",

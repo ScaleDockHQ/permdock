@@ -15,6 +15,7 @@ import {
   ERROR_SCHEMA,
   GROUP_SCHEMA,
   LIST_SCHEMA,
+  APP_DATA_EXTENSION,
   ROLES_EXTENSION,
   USER_SCHEMA,
 } from "../../src/scim/types.ts";
@@ -222,6 +223,17 @@ describe("RFC 7643 SCIM Core Schema (September 2015)", () => {
     const group = resourceTypes().find((type) => type["id"] === "Group");
     expect(group?.["schemaExtensions"]).toEqual([
       { schema: ROLES_EXTENSION, required: false },
+      { schema: APP_DATA_EXTENSION, required: false },
+    ]);
+  });
+
+  it("section 3.3: application data rides in its own optional extension on User and Group", () => {
+    expect(schemas().map((schema) => schema["id"])).toContain(
+      APP_DATA_EXTENSION,
+    );
+    const user = resourceTypes().find((type) => type["id"] === "User");
+    expect(user?.["schemaExtensions"]).toEqual([
+      { schema: APP_DATA_EXTENSION, required: false },
     ]);
   });
 });
@@ -243,7 +255,7 @@ describe("RFC 7644 SCIM Protocol (September 2015)", () => {
   it("section 4: /Schemas and /ResourceTypes return a ListResponse", async () => {
     const handle = handler();
     for (const [path, resourceType, count] of [
-      ["/Schemas", "Schema", 3],
+      ["/Schemas", "Schema", 4],
       ["/ResourceTypes", "ResourceType", 2],
     ] as const) {
       const list = await body(await handle(request(path)));

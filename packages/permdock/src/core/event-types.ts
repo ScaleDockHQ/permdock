@@ -1,3 +1,4 @@
+import type { AppData } from "./app-data.ts";
 import type { CredentialKind } from "./credential.ts";
 import type { Obligation } from "./decision.ts";
 import type { Grantee } from "./grantee.ts";
@@ -22,6 +23,8 @@ export type DirectoryEvent = {
     | { readonly kind: "token" }
     | { readonly kind: "jwt"; readonly iss?: string };
   readonly active?: boolean;
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type MembershipEvent = {
@@ -44,6 +47,8 @@ export type MembershipEvent = {
     readonly removed: readonly string[];
   };
   readonly by?: { readonly id: string; readonly kind: string };
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 /**
@@ -63,6 +68,8 @@ export type CredentialEvent = {
   readonly expiresAt?: string;
   readonly by?: { readonly id: string; readonly kind: string };
   readonly sample?: number;
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 /**
@@ -91,6 +98,8 @@ export type AutomationEvent = {
   /** Set on `run` events only. */
   readonly run?: { readonly id: string };
   readonly by?: { readonly id: string; readonly kind: string };
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type SinkEvent =
@@ -167,6 +176,8 @@ export type DeliveryEvent = {
   readonly retryable?: boolean;
   /** The denial reason when `cause` is `denied`. */
   readonly reason?: string;
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 /**
@@ -196,6 +207,8 @@ export type AccessEvent = {
   readonly session?: { readonly id: string; readonly principal: string };
   /** A `SupportSession`'s permission keys. */
   readonly permissions?: readonly string[];
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type DecisionEvent = {
@@ -271,6 +284,8 @@ export type DecisionEvent = {
     readonly denied: number;
     readonly approvalRequired: number;
   };
+  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  readonly x?: AppData;
 };
 
 export type AuthEvent = {

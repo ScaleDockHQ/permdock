@@ -1,4 +1,5 @@
 import type { Condition } from "../conditions/ast.ts";
+import type { AppData } from "./app-data.ts";
 import type {
   ApprovalPolicies,
   LoadedApprovalPolicies,
@@ -91,6 +92,12 @@ export type DecideOptions = {
    * tool arguments. Never read when deciding.
    */
   readonly args?: unknown;
+  /**
+   * The application's own data for the decision event (a request id, a
+   * route). Plain JSON; a value that is not is dropped. Never read when
+   * deciding.
+   */
+  readonly x?: AppData;
 };
 
 export type SimulateOptions = {

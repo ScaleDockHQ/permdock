@@ -149,6 +149,24 @@ describe("requestApproval", () => {
     expect(() => store.expire(at)).toThrow(RangeError);
   });
 
+  it("stores the application's x on the request and refuses one that is not plain JSON", async () => {
+    const store = memoryApprovalStore();
+    const request = await requestApproval(store, pendingOf("t-x"), {
+      permission: deletePost,
+      subject: requester,
+      x: { ticket: "OPS-12" },
+    });
+    expect((await store.get(request.token))?.x).toEqual({ ticket: "OPS-12" });
+    await expect(
+      requestApproval(store, pendingOf("t-bad-x"), {
+        permission: deletePost,
+        subject: requester,
+        // SAFETY: the value tests what a caller without types can pass.
+        x: new Map() as never,
+      }),
+    ).rejects.toThrow("plain JSON");
+  });
+
   it("copies quorum and escalation onto the request and caps the ttl by the grant", async () => {
     const store = memoryApprovalStore();
     const now = new Date("2026-03-01T10:00:00.000Z");

@@ -1,3 +1,4 @@
+import type { AppData } from "../core/app-data.ts";
 import type { ClaimsMap } from "../core/claims-map.ts";
 import type { DecisionSink, TokenVerifier } from "../core/interfaces.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
@@ -11,6 +12,9 @@ export const PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
 /** The RFC 7643 section 3.3 Group extension that carries PermDock roles. */
 export const ROLES_EXTENSION =
   "urn:ietf:params:scim:schemas:extension:permdock:2.0:Group";
+/** The extension that carries the application's own data (`x`) on a User or a Group. */
+export const APP_DATA_EXTENSION =
+  "urn:ietf:params:scim:schemas:extension:permdock:2.0:AppData";
 
 export type DirectoryMeta = {
   readonly created: string;
@@ -31,6 +35,8 @@ export type DirectoryUser = {
   readonly userName: string;
   readonly active: boolean;
   readonly emails?: readonly DirectoryEmail[];
+  /** The application's own data, from the `AppData` extension; plain JSON, never read by a decision. */
+  readonly x?: AppData;
   readonly meta: DirectoryMeta;
 };
 
@@ -44,6 +50,8 @@ export type DirectoryGroup = {
   readonly displayName: string;
   readonly members: readonly DirectoryGroupMember[];
   readonly roles?: readonly string[];
+  /** The application's own data, from the `AppData` extension; plain JSON, never read by a decision. */
+  readonly x?: AppData;
   readonly meta: DirectoryMeta;
 };
 

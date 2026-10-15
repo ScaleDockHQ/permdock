@@ -10,6 +10,7 @@ import type { Policy } from "./policy-types.ts";
 import type { RelationReader } from "./relations.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
+import { readAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
 import { eventInstant } from "./event-time.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -237,6 +238,8 @@ export function finish(
       adapter: options.adapter,
       model: options.model === "" ? undefined : options.model,
       counts,
+      x:
+        options.x === undefined ? undefined : readAppData(undefined, options.x),
     }),
   );
   // SAFETY: emitSafe passes these listeners only the DecisionEvent built above.

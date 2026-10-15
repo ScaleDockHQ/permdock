@@ -11,6 +11,7 @@ import { memoryDirectoryStore } from "../../src/scim/store.ts";
 import {
   ERROR_SCHEMA,
   GROUP_SCHEMA,
+  APP_DATA_EXTENSION,
   PATCH_SCHEMA,
   ROLES_EXTENSION,
   USER_SCHEMA,
@@ -138,6 +139,42 @@ describe("scimHandler routing and tenancy", () => {
   ])("refuses the token when the tenant has %s", async (_label, lookup) => {
     const { handle } = setup({ token: { hash: "sha256", lookup } });
     expect((await handle(call("/Users"))).status).toBe(401);
+  });
+
+  it("keeps a user's and a group's app data and drops what is not plain JSON", async () => {
+    const { handle, store } = setup();
+    const user = await json(
+      await handle(
+        call("/Users", {
+          method: "POST",
+          body: userBody({
+            schemas: [USER_SCHEMA, APP_DATA_EXTENSION],
+            [APP_DATA_EXTENSION]: { x: { costCenter: "cc-7" } },
+          }),
+        }),
+      ),
+    );
+    const group = await json(
+      await handle(
+        call("/Groups", {
+          method: "POST",
+          body: groupBody({
+            [APP_DATA_EXTENSION]: { x: ["not", "an object"] },
+          }),
+        }),
+      ),
+    );
+    expect({
+      rendered: user[APP_DATA_EXTENSION],
+      schemas: user["schemas"],
+      stored: (await store.getUser(TENANT, String(user["id"])))?.x,
+      group: group[APP_DATA_EXTENSION],
+    }).toEqual({
+      rendered: { x: { costCenter: "cc-7" } },
+      schemas: [USER_SCHEMA, APP_DATA_EXTENSION],
+      stored: { costCenter: "cc-7" },
+      group: undefined,
+    });
   });
 
   it("never answers another tenant from the same store", async () => {

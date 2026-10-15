@@ -101,6 +101,10 @@
     },
     "consumedAt": {
       "$ref": "#/$defs/instant"
+    },
+    "x": {
+      "type": "object",
+      "description": "The application's own data, set when the request opens: plain JSON, never read by a decision."
     }
   },
   "$defs": {
