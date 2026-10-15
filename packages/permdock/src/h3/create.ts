@@ -6,19 +6,18 @@ import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
+  ContextReader,
+  FetchAdapterOptions,
+  FetchProtect,
+  ProtectTarget,
+} from "../server/fetch-adapter.ts";
+import type {
   OpenApiHooks,
   ProtectOptions,
   SnapshotQuery,
 } from "../server/server-types.ts";
 
-import { decorate } from "../server/bind.ts";
-import {
-  type ContextReader,
-  type FetchAdapterOptions,
-  type FetchProtect,
-  type ProtectTarget,
-  fetchAdapter,
-} from "../server/fetch-adapter.ts";
+import { decorate, fetchAdapter } from "../server/kit.ts";
 
 export type H3PermDockOptions<TUser = unknown> = FetchAdapterOptions<
   H3Event,

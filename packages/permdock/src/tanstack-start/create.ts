@@ -12,17 +12,17 @@ import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
+  ContextReader,
+  FetchAdapterOptions,
+  ProtectTarget,
+} from "../server/fetch-adapter.ts";
+import type {
   OpenApiHooks,
   ProtectOptions,
   SnapshotQuery,
 } from "../server/server-types.ts";
 
-import {
-  type ContextReader,
-  type FetchAdapterOptions,
-  type ProtectTarget,
-  fetchAdapter,
-} from "../server/fetch-adapter.ts";
+import { fetchAdapter } from "../server/kit.ts";
 
 export type TanStackStartPermDockOptions<TUser = unknown> = FetchAdapterOptions<
   Request,

@@ -10,12 +10,14 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 
-import { agentRuntime } from "../agent/create.ts";
-import { boundedMap } from "../agent/lru.ts";
-import { isApprovalError } from "../approvals/errors.ts";
-import { resolveApproval } from "../approvals/helpers.ts";
-import { withApp } from "../core/app.ts";
-import { compact } from "../core/compact.ts";
+import {
+  agentRuntime,
+  boundedMap,
+  isApprovalError,
+  resolveApproval,
+  withApp,
+  compact,
+} from "../agent/kit.ts";
 
 /** Structural `SessionAuthContext` from `eve`. */
 export type EvePrincipal = {

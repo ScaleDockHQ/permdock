@@ -6,9 +6,8 @@ import type { ProtectedProps } from "./protected.ts";
 // Kept as source: the app's Svelte compiler builds it for SSR or the client.
 import PermissionBoundaryComponent from "./PermissionBoundary.svelte";
 import ProtectedComponent from "./Protected.svelte";
+export { describe, requiredPlans, approvalHeaders } from "../client/kit.ts";
 
-export { describe, requiredPlans } from "../core/describe.ts";
-export { approvalHeaders } from "../client/headers.ts";
 export { setPermDock } from "./stores.ts";
 export {
   approval,

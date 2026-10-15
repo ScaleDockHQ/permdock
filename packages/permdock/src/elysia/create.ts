@@ -5,18 +5,21 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/server-types.ts";
 
 import {
-  type ServerAdapterOptions,
   bindKernel,
   decorate,
   socketConnection,
-} from "../server/bind.ts";
-import { hasCredentials, parsedBody } from "../server/http.ts";
-import { problemFromError } from "../server/map-error.ts";
-import { POLICY_VIOLATION, closeReason, onRevoked } from "../server/stream.ts";
+  hasCredentials,
+  parsedBody,
+  problemFromError,
+  POLICY_VIOLATION,
+  closeReason,
+  onRevoked,
+} from "../server/kit.ts";
 
 export type ElysiaRequestContext = {
   readonly request: Request;

@@ -35,7 +35,7 @@ import {
   rolesView,
   subjectView,
   tenantView,
-} from "../client/views.ts";
+} from "../client/kit.ts";
 import { permDockKey, permDockUiKey } from "./context.ts";
 
 function useStore(): ClientStore {

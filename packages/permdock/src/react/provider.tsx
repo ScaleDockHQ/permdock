@@ -2,9 +2,7 @@ import { type ReactElement, useLayoutEffect, useMemo } from "react";
 
 import type { PermDockProviderProps } from "./types.ts";
 
-import { adapterStore } from "../client/store-options.ts";
-import { compact } from "../core/compact.ts";
-import { emptySnapshot } from "../core/from-snapshot.ts";
+import { adapterStore, compact, emptySnapshot } from "../client/kit.ts";
 import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,

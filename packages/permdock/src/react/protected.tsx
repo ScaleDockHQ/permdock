@@ -3,7 +3,7 @@ import { type ReactNode, Suspense, use, useMemo } from "react";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { ProtectedProps } from "./types.ts";
 
-import { protectedView, scopedTenant, slotContent } from "../client/views.ts";
+import { protectedView, scopedTenant, slotContent } from "../client/kit.ts";
 import { PermDockUiContext } from "./context.ts";
 import { usePermission, usePermDock } from "./hooks.ts";
 

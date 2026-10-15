@@ -1,5 +1,4 @@
-export { describe, requiredPlans } from "../core/describe.ts";
-export { approvalHeaders } from "../client/headers.ts";
+export { describe, requiredPlans, approvalHeaders } from "../client/kit.ts";
 export {
   useApproval,
   useAssignablePermissions,

@@ -5,7 +5,7 @@ import {
   firstHeader,
   headersFrom,
   writeReply,
-} from "../server/http.ts";
+} from "../server/kit.ts";
 
 export function toRequest(request: FastifyRequest): Request {
   const host = firstHeader(request.headers.host) ?? "localhost";

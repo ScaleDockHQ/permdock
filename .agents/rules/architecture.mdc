@@ -19,6 +19,7 @@ PermDock is a library repository: one published package, two deployed apps, and 
   - `app`: `apps/docs`, `apps/marketing`. Never import each other or an example.
   - `example`: `apps/examples/*`. Import `library` and `tooling`; nothing depends on them.
   - `test`: `tests/*`.
+- Adapter kits. Inside `packages/permdock/src`, each adapter family takes its runtime imports from one kit and its own folder: HTTP adapters (`hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `h3`, `sveltekit`, `astro`, `solid-start`, `tanstack-start`, `trpc`, `orpc`) from `server/kit.ts` and `node/http.ts`; agent adapters (`ai-sdk`, `claude-agent`, `openai`, `eve`) from `agent/kit.ts`; UI adapters (`react`, `vue`, `svelte`, `solid`) from `client/kit.ts`. Never core internals or another adapter. Type imports are free. An adapter that needs more adds the export to its kit. `oxlint.config.ts` (`kitBoundary`) and `tests/package/adapter-kits.test.ts` enforce it.
 - Files are kebab-case. Tests live in each workspace's `tests/` folder, never beside the source.
 - A library source file stays under 1,000 code lines, blank lines and comments excluded; `eslint/max-lines` in the `library` preset enforces it.
 - Repo scripts are TypeScript in `scripts/`, run directly by Node.

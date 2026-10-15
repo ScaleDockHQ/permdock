@@ -9,7 +9,7 @@ import {
 import type { PermissionBoundaryState } from "../client/boundary.ts";
 import type { PermissionBoundaryProps, SolidChild } from "./types.ts";
 
-import { boundaryDigest, boundaryFallback } from "../client/boundary.ts";
+import { boundaryDigest, boundaryFallback } from "../client/kit.ts";
 
 const BoundaryContext = createContext<PermissionBoundaryState | null>(null);
 

@@ -1,3 +1,8 @@
+export {
+  discoverViaSignatureAgent,
+  InvalidSignatureError,
+  webBotAuthVerifier,
+} from "../server/kit.ts";
 export { createPermDock } from "./create.ts";
 export type {
   ElysiaPermDockContext,
@@ -7,8 +12,3 @@ export type {
   ElysiaProtect,
   ElysiaSocket,
 } from "./create.ts";
-export {
-  discoverViaSignatureAgent,
-  InvalidSignatureError,
-  webBotAuthVerifier,
-} from "../server/web-bot-auth.ts";

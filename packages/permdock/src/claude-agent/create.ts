@@ -4,9 +4,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 
-import { agentRuntime } from "../agent/create.ts";
-import { withApp } from "../core/app.ts";
-import { compact, isRecord } from "../core/compact.ts";
+import { agentRuntime, withApp, compact, isRecord } from "../agent/kit.ts";
 
 /** Structural `McpServerProvenance` from `@anthropic-ai/claude-agent-sdk`. */
 export type ClaudeMcpServer = {

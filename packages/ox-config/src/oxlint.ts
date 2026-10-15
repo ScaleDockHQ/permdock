@@ -60,7 +60,16 @@ const dateMessage = "Dates use `Temporal`.";
  * Imports the repository never takes, anywhere: Base UI replaces Radix, the
  * shadcn Drawer replaces vaul, and dates use `Temporal`.
  */
-const neverImport = {
+export const neverImport: {
+  readonly paths: readonly {
+    readonly name: string;
+    readonly message: string;
+  }[];
+  readonly patterns: readonly {
+    readonly group: readonly string[];
+    readonly message: string;
+  }[];
+} = {
   paths: [
     { name: "vaul", message: "Use the shadcn Drawer from `@permdock/ui`." },
     ...banned(["date-fns", "dayjs", "luxon", "moment"], dateMessage),

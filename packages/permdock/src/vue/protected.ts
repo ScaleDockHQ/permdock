@@ -9,7 +9,7 @@ import {
 
 import type { Permission } from "../core/permission-types.ts";
 
-import { protectedView, scopedTenant, slotContent } from "../client/views.ts";
+import { protectedView, scopedTenant, slotContent } from "../client/kit.ts";
 import { usePermission, usePermDock } from "./composables.ts";
 import { permDockUiKey } from "./context.ts";
 

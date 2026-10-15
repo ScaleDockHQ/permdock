@@ -12,15 +12,15 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/server-types.ts";
 
 import {
-  type ServerAdapterOptions,
   bindKernel,
   decorate,
-} from "../server/bind.ts";
-import { hasCredentials } from "../server/http.ts";
-import { problemFromError } from "../server/map-error.ts";
+  hasCredentials,
+  problemFromError,
+} from "../server/kit.ts";
 import { sendResponse, toRequest } from "./http.ts";
 
 export type ExpressPermDockOptions<TUser = unknown> = ServerAdapterOptions<

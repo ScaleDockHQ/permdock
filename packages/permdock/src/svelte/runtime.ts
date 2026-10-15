@@ -1,4 +1,4 @@
-export { boundaryDigest, boundaryFallback } from "../client/boundary.ts";
+export { boundaryDigest, boundaryFallback } from "../client/kit.ts";
 export type { PermissionBoundaryState } from "../client/boundary.ts";
 export type { PermissionBoundaryProps } from "./boundary.ts";
 export { getStore, getUi } from "./context.ts";

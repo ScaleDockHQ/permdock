@@ -3,8 +3,7 @@ import { effectScope, isRef, toValue, watch, type App, type Plugin } from "vue";
 import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockPluginOptions } from "./types.ts";
 
-import { providerStore, switchTenant } from "../client/provider-store.ts";
-import { isPromiseLike } from "../client/source.ts";
+import { providerStore, switchTenant, isPromiseLike } from "../client/kit.ts";
 import { permDockKey, permDockUiKey } from "./context.ts";
 
 export const permdockPlugin: Plugin<PermDockPluginOptions> = {

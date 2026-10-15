@@ -27,7 +27,7 @@ import {
   rolesView,
   subjectView,
   tenantView,
-} from "../client/views.ts";
+} from "../client/kit.ts";
 import { getStore, getUi, providePermDock } from "./context.ts";
 
 // Recomputes on a store change and, in the browser build, when a rune read

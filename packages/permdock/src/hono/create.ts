@@ -8,19 +8,20 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
+import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/server-types.ts";
 
-import { compact } from "../core/compact.ts";
-import { PermDockRevokedError } from "../core/errors.ts";
-import { type ServerAdapterOptions, bindKernel } from "../server/bind.ts";
-import { problemFromError } from "../server/map-error.ts";
 import {
+  compact,
+  PermDockRevokedError,
+  bindKernel,
+  problemFromError,
   POLICY_VIOLATION,
   closeReason,
   guardIterable,
   onRevoked,
-} from "../server/stream.ts";
+} from "../server/kit.ts";
 
 export type HonoPermDockOptions<TUser = unknown> = ServerAdapterOptions<
   Context,

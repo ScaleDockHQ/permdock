@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { fetchRequest, firstHeader, headersFrom } from "../server/http.ts";
+import { fetchRequest, firstHeader, headersFrom } from "../server/kit.ts";
 
 export type NodeRequest = IncomingMessage & {
   readonly originalUrl?: string;

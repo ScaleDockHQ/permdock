@@ -3,7 +3,7 @@ import { createMemo, useContext, type JSX } from "solid-js";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { ProtectedProps, SolidChild } from "./types.ts";
 
-import { protectedView, scopedTenant, slotContent } from "../client/views.ts";
+import { protectedView, scopedTenant, slotContent } from "../client/kit.ts";
 import { PermDockUiContext } from "./context.ts";
 import { usePermission, usePermDock } from "./hooks.ts";
 
