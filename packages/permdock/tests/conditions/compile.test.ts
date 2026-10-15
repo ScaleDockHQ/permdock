@@ -100,6 +100,20 @@ describe("compileWhere", () => {
       field: "due",
       value: new Date("2026-01-01"),
     });
+    expect(
+      compileWhere({
+        op: "gt",
+        field: "due",
+        value: { date: "2020-01-02T10:00:00" },
+      }),
+    ).toMatchObject({ value: new Date("2020-01-02T10:00:00Z") });
+    expect(
+      compileWhere({
+        op: "gt",
+        field: "due",
+        value: { date: "January 2, 2020" },
+      }),
+    ).toEqual({ kind: "never" });
     expect(compileWhere({ op: "in", field: "id", value: [] })).toEqual({
       kind: "never",
     });

@@ -29,6 +29,7 @@ import {
   type RelationsMapping,
   relatedSql,
 } from "./graph-sql.ts";
+import { isoInstant } from "./instant.ts";
 import { resolveConditionRef } from "./refs.ts";
 
 export type MembershipTable = {
@@ -201,8 +202,8 @@ function unwrap(value: ConditionValue, subject: Subject | undefined): unknown {
     return isScalar(resolved) ? resolved : null;
   }
   if (isConditionDate(value)) {
-    const date = new Date(value.date);
-    return Number.isNaN(date.getTime()) ? null : date;
+    const instant = isoInstant(value.date);
+    return instant === undefined ? null : new Date(instant);
   }
   if (isReadonlyArray(value)) {
     return value.map((item) => unwrap(item, subject));

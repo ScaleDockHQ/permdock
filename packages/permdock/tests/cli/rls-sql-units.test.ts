@@ -332,7 +332,7 @@ describe("compileConditionSql values and refs", () => {
   it.each([
     [
       { op: "eq", field: "at", value: { date: "2026-01-01" } },
-      `"at" = '2026-01-01'`,
+      `"at" = '2026-01-01T00:00:00.000Z'`,
     ],
     [{ op: "eq", field: "n", value: Number.POSITIVE_INFINITY }, `"n" = null`],
     [{ op: "ne", field: "b", value: false }, `"b" <> false`],
