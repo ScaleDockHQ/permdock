@@ -8,7 +8,7 @@ import {
   resource,
   role,
 } from "permdock";
-import { createPermDock, openfga, spicedb } from "permdock/pdp";
+import { loadPermDock, openfga, spicedb } from "permdock/pdp";
 import { GenericContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -83,7 +83,7 @@ function scenarios(
 ) {
   describe(name, () => {
     it("decides one row with check", async () => {
-      const anne = await createPermDock(policyFor(provider()), { id: "anne" });
+      const anne = await loadPermDock(policyFor(provider()), { id: "anne" });
       expect((await anne.decide(permissions.doc.read, docs[0])).outcome).toBe(
         "granted",
       );
@@ -93,7 +93,7 @@ function scenarios(
     });
 
     it("filters and compiles where from the listed ids, including a userset", async () => {
-      const anne = await createPermDock(policyFor(provider()), { id: "anne" });
+      const anne = await loadPermDock(policyFor(provider()), { id: "anne" });
       expect(
         (await anne.filter(permissions.doc.read, docs)).map((row) => row.id),
       ).toEqual(["d1", "d2", "d3"]);
@@ -103,7 +103,7 @@ function scenarios(
     });
 
     it("intersects the remote answer with local grants and denies", async () => {
-      const bob = await createPermDock(policyFor(provider()), { id: "bob" });
+      const bob = await loadPermDock(policyFor(provider()), { id: "bob" });
       expect(
         (await bob.filter(permissions.doc.delete, docs)).map((row) => row.id),
       ).toEqual(["d4"]);
@@ -114,13 +114,13 @@ function scenarios(
       const [local, remote] = where.condition.conditions;
       expect(local).toBeDefined();
       expect(sortedIds(remote)).toEqual(["d3", "d4"]);
-      const anne = await createPermDock(policyFor(provider()), { id: "anne" });
+      const anne = await loadPermDock(policyFor(provider()), { id: "anne" });
       expect(await anne.filter(permissions.doc.delete, docs)).toEqual([]);
     });
 
     it("denies after the relation is removed", async () => {
       await revoke();
-      const anne = await createPermDock(policyFor(provider()), { id: "anne" });
+      const anne = await loadPermDock(policyFor(provider()), { id: "anne" });
       expect((await anne.decide(permissions.doc.read, docs[0])).outcome).toBe(
         "denied",
       );
@@ -130,7 +130,7 @@ function scenarios(
     });
 
     it("fails closed when the server is unreachable", async () => {
-      const anne = await createPermDock(
+      const anne = await loadPermDock(
         policyFor(provider("http://127.0.0.1:9")),
         { id: "anne" },
       );

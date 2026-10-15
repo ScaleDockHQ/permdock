@@ -11,7 +11,7 @@ import { loadPrincipal } from "./principal-source.ts";
 export type TargetFactory = (
   principal: Principal,
   tenant: string | undefined,
-) => PermDock | Promise<PermDock>;
+) => Promise<PermDock>;
 
 export function deniedFor(
   permission: Permission,

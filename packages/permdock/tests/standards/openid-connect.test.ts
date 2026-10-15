@@ -416,7 +416,7 @@ describe("RFC 9470 OAuth 2.0 Step Up Authentication Challenge", () => {
       await token({ acr: "urn:example:loa:2", auth_time: NOW - 600 }),
       local(),
     );
-    const permdock = await createPermDock(policy, subject);
+    const permdock = createPermDock(policy, subject);
     const decision = permdock.decide(
       permissions.payout.create,
       { id: "p1" },
@@ -449,7 +449,7 @@ describe("RFC 9470 OAuth 2.0 Step Up Authentication Challenge", () => {
       await token({ acr: "urn:example:loa:3", auth_time: NOW - 10 }),
       local(),
     );
-    const permdock = await createPermDock(policy, subject);
+    const permdock = createPermDock(policy, subject);
     expect(
       permdock.decide(permissions.payout.create, { id: "p1" }, { now: at(NOW) })
         .outcome,

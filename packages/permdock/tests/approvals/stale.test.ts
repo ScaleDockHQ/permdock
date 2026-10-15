@@ -56,7 +56,7 @@ async function run(
     | typeof permissions.invoice.pay
     | typeof permissions.invoice.void = permissions.invoice.pay,
 ): Promise<{ readonly decision: Decision; readonly resumed: Decision }> {
-  const permdock = await createPermDock(policy, clerk);
+  const permdock = createPermDock(policy, clerk);
   const decision = permdock.decide(permission, row);
   const resumed = await resumeDecision({
     decision,
@@ -74,13 +74,13 @@ async function approve(
   store: ReturnType<typeof memoryApprovalStore>,
   token: string,
 ): Promise<void> {
-  const by = await createPermDock(policy, manager);
+  const by = createPermDock(policy, manager);
   await resolveApproval(store, token, { status: "approved", by: by.subject });
 }
 
 describe("approvals that go stale on a resource change", () => {
   it("binds the token to the version field", async () => {
-    const permdock = await createPermDock(policy, clerk);
+    const permdock = createPermDock(policy, clerk);
     const first = permdock.decide(permissions.invoice.pay, v1);
     const same = permdock.decide(permissions.invoice.pay, { ...v1 });
     const changed = permdock.decide(permissions.invoice.pay, v2);
@@ -92,7 +92,7 @@ describe("approvals that go stale on a resource change", () => {
   });
 
   it("leaves the token of an approval without staleOn unchanged by the row", async () => {
-    const permdock = await createPermDock(policy, clerk);
+    const permdock = createPermDock(policy, clerk);
     const before = permdock.decide(permissions.invoice.void, v1);
     const after = permdock.decide(permissions.invoice.void, v2);
     expect(before.outcome === "approval-required" && before.token).toBe(

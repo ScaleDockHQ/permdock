@@ -69,13 +69,9 @@ PermDock keeps no support-session state. A session ends when its token stops ver
 ## Test it
 
 ```ts
-const permdock = await createPermDock(
-  policy,
-  subjectFromSupabase(supportClaims),
-  {
-    tenant: organization,
-  },
-);
+const permdock = createPermDock(policy, subjectFromSupabase(supportClaims), {
+  tenant: organization,
+});
 expect(permdock.decide(permissions.quotes.update, quote)).toMatchObject({
   outcome: "denied",
   denials: [{ reason: "not-delegated" }],

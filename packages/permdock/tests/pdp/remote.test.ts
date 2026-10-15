@@ -631,7 +631,7 @@ describe("remotePdp through createPermDock", () => {
         }),
       ],
     });
-    const permdock = await createPermDock(policy, { id: "u1" });
+    const permdock = createPermDock(policy, { id: "u1" });
     expect(
       reasonOf(await permdock.decide(permissions.post.read, { id: "p1" })),
     ).toBe("pdp-unavailable");

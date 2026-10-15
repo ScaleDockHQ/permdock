@@ -450,7 +450,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   };
 
   it("refuses a within that differs from the eligible membership", async () => {
-    const permdock = await createPermDock(nested(false), {
+    const permdock = createPermDock(nested(false), {
       principal,
       context: {},
     });
@@ -467,7 +467,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   });
 
   it("mints the eligible membership ancestors when within is omitted", async () => {
-    const permdock = await createPermDock(nested(false), {
+    const permdock = createPermDock(nested(false), {
       principal,
       context: {},
     });
@@ -483,11 +483,11 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   });
 
   it("binds the approval token to the ancestors", async () => {
-    const root = await createPermDock(nested(true), {
+    const root = createPermDock(nested(true), {
       principal,
       context: {},
     });
-    const other = await createPermDock(nested(true), {
+    const other = createPermDock(nested(true), {
       principal: {
         ...principal,
         memberships: [

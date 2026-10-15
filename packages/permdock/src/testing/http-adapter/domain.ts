@@ -5,16 +5,16 @@ import {
   memoryApprovalStore,
 } from "../../approvals/index.ts";
 import {
-  type Limits,
-  type Principal,
-  type RevocationFeed,
   type CustomRoleSource,
-  type Subject,
-  createPermDock,
+  type Limits,
   limits,
+  loadPermDock,
+  memoryCustomRoleSource,
   memoryLimitStore,
   memoryRevocationFeed,
-  memoryCustomRoleSource,
+  type Principal,
+  type RevocationFeed,
+  type Subject,
 } from "../../index.ts";
 import { saasPolicy } from "../saas/policy.ts";
 import {
@@ -278,12 +278,8 @@ export async function approverSubject(
   user: string,
   tenant: string,
 ): Promise<Subject> {
-  const permdock = await createPermDock(
-    saasPolicy,
-    saasPrincipal(user, tenant),
-    {
-      tenant,
-    },
-  );
+  const permdock = await loadPermDock(saasPolicy, saasPrincipal(user, tenant), {
+    tenant,
+  });
   return permdock.subject;
 }

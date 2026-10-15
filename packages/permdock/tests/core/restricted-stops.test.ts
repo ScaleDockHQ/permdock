@@ -36,7 +36,7 @@ async function visible(
   action: "read" | "update",
 ): Promise<readonly string[]> {
   const permission = treePermissions[tree][action];
-  const permdock = await createPermDock(policy, who, { relations });
+  const permdock = createPermDock(policy, who, { relations });
   await permdock.loadRelations(permission, rows);
   return rows
     .filter((row) => permdock.can(permission, row))
@@ -167,7 +167,7 @@ describe("restricted with stops", () => {
   });
 
   it("denies a row deeper than the check reaches with relation-depth", async () => {
-    const permdock = await createPermDock(policy, user(owner), { relations });
+    const permdock = createPermDock(policy, user(owner), { relations });
     await permdock.loadRelations(permissions.item.read, rows);
     const deepest = rows.find((row) => row.id === "c33");
     expect(permdock.decide(permissions.item.read, deepest)).toMatchObject({
@@ -241,7 +241,7 @@ describe("restricted with stops in SQL", () => {
   });
 
   it("checks the rows above through the closure, a recursive walk or a helper", async () => {
-    const permdock = await createPermDock(policy, user(owner), { relations });
+    const permdock = createPermDock(policy, user(owner), { relations });
     const condition = itemUpdate(permdock.where(permissions.item.update));
     expect(condition.restrictedAncestors?.depth).toBe(32);
     const closed = text(condition, "permdock_closure");
@@ -267,7 +267,7 @@ describe("restricted with stops in SQL", () => {
   });
 
   it("resolves the rows above to a notIn on the parent for Prisma", async () => {
-    const permdock = await createPermDock(policy, user(owner), { relations });
+    const permdock = createPermDock(policy, user(owner), { relations });
     const where = permdock.where(permissions.item.update);
     const answers = [[{ id: "d1" }], [{ id: "secret" }, { id: "inner" }]];
     const resolved = await resolveRelated(where, {

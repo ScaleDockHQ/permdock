@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SupabaseRpcClient } from "../../src/supabase/index.ts";
 
-import { claimsFirst, countHolders, createPermDock } from "../../src/index.ts";
+import { claimsFirst, countHolders, loadPermDock } from "../../src/index.ts";
 import { postgrestSources } from "../../src/supabase/index.ts";
 import { permissions, policy } from "../fixtures/named-scopes.ts";
 
@@ -177,7 +177,7 @@ describe("postgrestSources", () => {
         client,
         versionFn === undefined ? {} : { versionFn },
       );
-      const permdock = await createPermDock(
+      const permdock = await loadPermDock(
         policy,
         {
           principal: { id: "u1", memberships: [], authzVersion: tokenVersion },
@@ -245,7 +245,7 @@ describe("postgrestSources", () => {
         ],
         authzVersion: tokenVersion,
       };
-      const permdock = await createPermDock(
+      const permdock = await loadPermDock(
         policy,
         { principal, context: {} },
         {
@@ -278,7 +278,7 @@ describe("postgrestSources", () => {
   it("feeds createPermDock for an acting user", async () => {
     const sources = postgrestSources(fakeClient({ u1: owner }));
     const subject = await sources.subject("u1");
-    const permdock = await createPermDock(policy, subject, {
+    const permdock = await loadPermDock(policy, subject, {
       customRoles: sources.customRoles({ id: "u1" }),
       memberships: claimsFirst(sources.memberships),
     });

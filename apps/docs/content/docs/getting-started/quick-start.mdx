@@ -87,7 +87,7 @@ import { createPermDock } from "permdock";
 import { policy } from "./policy";
 import { permissions } from "./permissions";
 
-const permdock = await createPermDock(policy, user); // sync when the policy declares no async `context`; never throws
+const permdock = createPermDock(policy, user); // synchronous; loadPermDock when a source answers with a Promise
 
 permdock.can(permissions.post.update, post); // boolean
 permdock.can(permissions.post.create); // collection action: no instance, enforced by the type

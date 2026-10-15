@@ -276,7 +276,7 @@ describe("subjectFromSupabase", () => {
     const permdock = async (
       claims: Record<string, unknown>,
     ): Promise<boolean> =>
-      (await createPermDock(policy, subjectFromSupabase(claims))).can(
+      createPermDock(policy, subjectFromSupabase(claims)).can(
         permissions.invoice.read,
       );
     expect(await permdock(base)).toBe(true);
@@ -394,7 +394,7 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
       roles: [role("member", grants)],
       subject: (user: { readonly id: string }) => user,
     });
-    const decision = (await createPermDock(policy, subject)).decide(
+    const decision = createPermDock(policy, subject).decide(
       permissions.invoice.read,
       invoice,
     );
@@ -416,15 +416,15 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
         },
       ],
     });
-    const permdock = await createPermDock(policy, subjectFromSupabase(claims));
+    const permdock = createPermDock(policy, subjectFromSupabase(claims));
     expect(permdock.can(permissions.invoice.read, invoice)).toBe(true);
     expect(permdock.can(permissions.invoice.pay, invoice)).toBe(false);
-    const other = await createPermDock(
+    const other = createPermDock(
       policy,
       subjectFromSupabase({ ...claims, client_id: "third-party" }),
     );
     expect(other.can(permissions.invoice.read, invoice)).toBe(false);
-    const scoped = await createPermDock(
+    const scoped = createPermDock(
       policy,
       subjectFromSupabase({ ...claims, scope: "openid invoice.pay" }),
     );
@@ -444,14 +444,12 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
       ],
     });
     const decide = async (clientId: string, clients: ClientNames | undefined) =>
-      (
-        await createPermDock(
-          named,
-          subjectFromSupabase(
-            { ...claims, client_id: clientId },
-            clients === undefined ? {} : { clients },
-          ),
-        )
+      createPermDock(
+        named,
+        subjectFromSupabase(
+          { ...claims, client_id: clientId },
+          clients === undefined ? {} : { clients },
+        ),
       ).can(permissions.invoice.read, invoice);
 
     it("matches the client the resolver names from the verified id", async () => {

@@ -96,7 +96,7 @@ const spice = spicedb({
 
 ### In an HTTP adapter
 
-Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `pdp: createPermDock` from `permdock/pdp`. With it, `protect` decides delegated permissions through the provider and a provider failure denies with `pdp-unavailable`. On the PDP instance `can`, `decide`, `assert`, `filter`, `simulate` and `where` return Promises. The request-scoped instance on the context stays the synchronous one, so `can` there keeps denying delegated permissions with `pdp-unavailable` instead of returning a Promise that would read as truthy.
+Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `pdp: loadPermDock` from `permdock/pdp`. With it, `protect` decides delegated permissions through the provider and a provider failure denies with `pdp-unavailable`. On the PDP instance `can`, `decide`, `assert`, `filter`, `simulate` and `where` return Promises. The request-scoped instance on the context stays the synchronous one, so `can` there keeps denying delegated permissions with `pdp-unavailable` instead of returning a Promise that would read as truthy.
 
 ## Request lifecycle
 

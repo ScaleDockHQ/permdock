@@ -234,7 +234,7 @@ describe("named scopes: the scenario", () => {
       personas.privateContact,
       personas.staffContact,
     ]) {
-      const permdock = await createPermDock(policy, principal, {
+      const permdock = createPermDock(policy, principal, {
         memberships: {
           membershipsFor: () => active(principal.memberships),
         },
@@ -260,7 +260,7 @@ describe("named scopes: permissions a suspended organization keeps", () => {
 
   it("holds only the kept permissions through a suspended instance", async () => {
     for (const principal of [personas.owner, personas.privateContact]) {
-      const permdock = await createPermDock(policy, principal, {
+      const permdock = createPermDock(policy, principal, {
         memberships: { membershipsFor: () => keep(principal.memberships) },
       });
       expect(readable(permdock, permissions.quote.read)).toEqual([]);
@@ -280,7 +280,7 @@ describe("named scopes: permissions a suspended organization keeps", () => {
         readable(permdock, permissions.invoice.read),
       );
     }
-    const owner = await createPermDock(policy, personas.owner, {
+    const owner = createPermDock(policy, personas.owner, {
       memberships: { membershipsFor: () => keep(personas.owner.memberships) },
     });
     expect(owner.heldRoles()).toEqual([]);
@@ -293,7 +293,7 @@ describe("named scopes: permissions a suspended organization keeps", () => {
   });
 
   it("drops a membership whose keep is not a list of keys", async () => {
-    const permdock = await createPermDock(policy, personas.privateContact, {
+    const permdock = createPermDock(policy, personas.privateContact, {
       memberships: {
         membershipsFor: () => {
           const out: Membership[] = [];

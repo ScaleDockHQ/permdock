@@ -7,7 +7,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import {
-  createPermDock as createPdpPermDock,
+  loadPermDock as loadPdpPermDock,
   remotePdp,
 } from "../../src/pdp/index.ts";
 import { createPermDock } from "../../src/server/index.ts";
@@ -57,7 +57,7 @@ describe("permdock/server pdp option", () => {
   it("decides protect through the remote PDP when pdp is set", async () => {
     const granted = createPermDock(policyAnswering(true), {
       subject: () => member,
-      pdp: createPdpPermDock,
+      pdp: loadPdpPermDock,
     });
     const guard = await granted.protect(
       permissions.doc.read,
@@ -70,7 +70,7 @@ describe("permdock/server pdp option", () => {
 
     const denied = createPermDock(policyAnswering(false), {
       subject: () => member,
-      pdp: createPdpPermDock,
+      pdp: loadPdpPermDock,
     });
     const refused = await denied.protect(
       permissions.doc.read,

@@ -9,11 +9,11 @@ import { policy } from "../fixtures/vocabulary.ts";
 describe("permdock/pdp vocabulary", () => {
   it("returns the instance typed by the policy vocabulary", () => {
     const permdock = createPermDock(policy, null);
-    expectTypeOf(permdock).resolves.toEqualTypeOf<
+    expectTypeOf(permdock).toEqualTypeOf<
       PdpPermDock<PolicyVocabularyOf<typeof policy>>
     >();
     expectTypeOf(permdock)
-      .resolves.toHaveProperty("roles")
+      .toHaveProperty("roles")
       .toEqualTypeOf<typeof roles>();
   });
 });

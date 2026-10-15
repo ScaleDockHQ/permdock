@@ -351,12 +351,10 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * The same subject, tenant, team, actor, delegation, sink and limits with
    * other sources: `customRoles`, `approvalPolicies` or `relations`. The
    * sources it names are read again for the subject's tenants; the others
-   * keep what this instance loaded. Returns a promise when a source it names
-   * answers asynchronously.
+   * keep what this instance loaded. Always a promise, since the sources it
+   * names may answer asynchronously.
    */
-  readonly derive: (
-    options: DeriveOptions,
-  ) => PermDock<V> | Promise<PermDock<V>>;
+  readonly derive: (options: DeriveOptions) => Promise<PermDock<V>>;
 };
 
 /** What `permdock.derive` may replace: the sources read after the subject is resolved. */
@@ -445,7 +443,7 @@ function instantiate(
         principals: options.principals,
         settings: options.settings,
         targets: (principal: Principal, tenant: string | undefined) =>
-          createPermDock(
+          loadPermDock(
             codePolicy,
             { principal, context: {} },
             compact<PermDockOptions>({
@@ -473,14 +471,14 @@ function instantiate(
   return build(customRoles, assignable, approvals);
 }
 
-export function createPermDock<
+function create<
   TUser,
-  TPrincipal extends Principal = Principal,
-  V extends PolicyVocabulary = PolicyVocabulary,
+  TPrincipal extends Principal,
+  V extends PolicyVocabulary,
 >(
   policy: Policy<TUser, TPrincipal, V>,
   user: TUser | Subject | null,
-  given: PermDockOptions = {},
+  given: PermDockOptions,
 ): PermDock<V> | Promise<PermDock<V>> {
   const options = withApp(policy, given);
   const auth: AuthEvent[] = [];
@@ -493,6 +491,46 @@ export function createPermDock<
   }
   // SAFETY: instantiate builds the instance from this policy, whose vocabulary type is V.
   return instantiate(policy, subject, options, auth) as PermDock<V>;
+}
+
+/**
+ * The instance for `user`, built synchronously. Every input must answer
+ * synchronously: the subject mapper, `memberships`, `customRoles`,
+ * `entitlements`, `approvalPolicies` and the freshness check. One that
+ * answers with a Promise throws here; use `loadPermDock` for those.
+ */
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  user: TUser | Subject | null,
+  options: PermDockOptions = {},
+): PermDock<V> {
+  const created = create(policy, user, options);
+  if (isThenable(created)) {
+    // The sources already ran; keep their failure from surfacing as an unhandled rejection.
+    created.then(undefined, () => undefined);
+    throw new Error(
+      "PermDock: createPermDock got a Promise from the subject mapper or a source (memberships, customRoles, entitlements, approvalPolicies); use loadPermDock for asynchronous inputs",
+    );
+  }
+  return created;
+}
+
+/** `createPermDock` for inputs that answer asynchronously: waits for every source, then builds the instance. */
+export function loadPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  user: TUser | Subject | null,
+  options: PermDockOptions = {},
+): Promise<PermDock<V>> {
+  // Through `then`, so a mapper or source that throws rejects instead of throwing.
+  return Promise.resolve().then(() => create(policy, user, options));
 }
 
 export { fromSnapshot } from "./from-snapshot.ts";

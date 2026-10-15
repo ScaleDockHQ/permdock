@@ -138,12 +138,12 @@ describe("invariant 13: authentication is upstream", () => {
   });
 
   it("treats a requested tenant with no membership as no tenant", async () => {
-    const permdock = await createPermDock(policy, viewer, { tenant: "o9" });
+    const permdock = createPermDock(policy, viewer, { tenant: "o9" });
     expect(permdock.subject.principal?.tenant).toBeUndefined();
     expect(
       permdock.can(permissions.project.read, { id: "x", orgId: "o9" }),
     ).toBe(false);
-    const member = await createPermDock(policy, viewer, { tenant: "o1" });
+    const member = createPermDock(policy, viewer, { tenant: "o1" });
     expect(member.subject.principal?.tenant).toBe("o1");
   });
 
@@ -200,7 +200,7 @@ describe("invariant 13: authentication is upstream", () => {
     // delegation plays no part; an actor from a header would have made it
     // `granted` through the delegation ceiling.
     expect(permdock.subject.actor).toBeUndefined();
-    const asAgent = await createPermDock(delegating, viewer, {
+    const asAgent = createPermDock(delegating, viewer, {
       actor: { id: "agent", kind: "eve" },
       tenant: "o1",
     });

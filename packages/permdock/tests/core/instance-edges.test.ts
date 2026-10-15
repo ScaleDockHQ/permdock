@@ -16,7 +16,7 @@ describe("instance edges", () => {
         throw new Error("sink");
       },
     };
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       { id: "u1" },
       {
@@ -96,13 +96,13 @@ describe("instance edges", () => {
         return Promise.reject(new Error("async-sink"));
       },
     };
-    const leakingAsync = await createPermDock(
+    const leakingAsync = createPermDock(
       policy,
       { id: "u1" },
       { sink: thenableSink },
     );
     leakingAsync.can(tree.post.read, { id: "p1", authorId: "u1", orgId: "o1" });
-    const leaking = await createPermDock(
+    const leaking = createPermDock(
       policy,
       { id: "u1" },
       { sink: throwingSink },
@@ -124,21 +124,19 @@ describe("instance edges", () => {
 
   it("filters out rows whose grant needs approval", async () => {
     expect(
-      (
-        await createPermDock(
-          definePolicy(tree, {
-            roles: [
-              role("member", [
-                allow(tree.post.delete, {
-                  where: { authorId: principal.id },
-                  approval: "human",
-                }),
-              ]),
-            ],
-            subject: () => ({ id: "u1", roles: ["member"] }),
-          }),
-          { id: "u1" },
-        )
+      createPermDock(
+        definePolicy(tree, {
+          roles: [
+            role("member", [
+              allow(tree.post.delete, {
+                where: { authorId: principal.id },
+                approval: "human",
+              }),
+            ]),
+          ],
+          subject: () => ({ id: "u1", roles: ["member"] }),
+        }),
+        { id: "u1" },
       ).filter(tree.post.delete, [{ id: "p1", authorId: "u1", orgId: "o1" }]),
     ).toEqual([]);
   });

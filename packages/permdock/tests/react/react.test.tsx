@@ -31,7 +31,7 @@ import { alice, policy as saasPolicy } from "../fixtures/saas.ts";
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = await createPermDock(policy as never, memberUser);
+  const server = createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");
@@ -62,7 +62,7 @@ function AssignableProbe(): string {
 
 describe("useAssignablePermissions", () => {
   it("reads the custom-role ceiling the subject may hand out from the snapshot", async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");

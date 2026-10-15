@@ -99,7 +99,7 @@ const dave: Principal = {
 };
 
 async function both(user: Principal, tenant: string) {
-  const server = await createPermDock(policy, user, {
+  const server = createPermDock(policy, user, {
     tenant,
     customRoles: memoryCustomRoleSource([
       { tenant: "acme", name: "contractor", includes: ["viewer"] },
@@ -203,7 +203,7 @@ describe("client parity", () => {
   });
 
   it("reports only global roles when no tenant is active", async () => {
-    const server = await createPermDock(policy, {
+    const server = createPermDock(policy, {
       ...alice,
       roles: ["support"],
     });
@@ -224,7 +224,7 @@ describe("where() tenant scope", () => {
   });
 
   it("returns nothing for tenant grants without an active tenant", async () => {
-    const server = await createPermDock(policy, alice);
+    const server = createPermDock(policy, alice);
     expect(server.where(permissions.project.read).condition).toEqual({
       op: "or",
       conditions: [],
@@ -251,7 +251,7 @@ describe("where() tenant scope", () => {
         ],
       },
     );
-    const server = await createPermDock(blocked, alice, { tenant: "acme" });
+    const server = createPermDock(blocked, alice, { tenant: "acme" });
     expect(server.can(permissions.project.read, acme)).toBe(false);
     expect(server.where(permissions.project.read).condition).toEqual({
       op: "or",

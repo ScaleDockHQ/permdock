@@ -1,7 +1,7 @@
 import {
-  createPermDock,
-  type Policy,
+  loadPermDock,
   type Permission,
+  type Policy,
   type Snapshot,
 } from "../index.ts";
 
@@ -18,7 +18,7 @@ export async function snapshotFixture(
     readonly simulated?: boolean;
   } = {},
 ): Promise<Snapshot> {
-  const instance = await createPermDock(
+  const instance = await loadPermDock(
     policy,
     subject,
     options.tenant === undefined ? {} : { tenant: options.tenant },

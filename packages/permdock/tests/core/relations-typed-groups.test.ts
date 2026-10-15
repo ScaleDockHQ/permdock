@@ -83,7 +83,7 @@ const tables = {
 const relations = memoryRelationSource(permissions, { rows, tables });
 
 async function readable(user: string): Promise<readonly string[]> {
-  const permdock = await createPermDock(policy, { id: user }, { relations });
+  const permdock = createPermDock(policy, { id: user }, { relations });
   await permdock.loadRelations(permissions.drive.read, rows.drive);
   return rows.drive
     .filter((row) => permdock.can(permissions.drive.read, row))

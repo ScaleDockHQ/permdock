@@ -415,7 +415,7 @@ describe("assignableLevels", () => {
     expect(
       steward.assignableLevels(permissions.job.read, { scope: "global" }),
     ).toEqual([]);
-    const outside = await createPermDock(
+    const outside = createPermDock(
       policy,
       { principal: { id: "u1" }, context: {} },
       {},
@@ -497,7 +497,7 @@ describe("deny with levels", () => {
       name: "reader",
       grants: [{ permission: "job.read", level: "team" }],
     });
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       denying,
       subjectIn([{ scope: "tenant", id: "acme", roles: ["reader"] }]),
       {

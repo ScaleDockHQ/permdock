@@ -989,7 +989,7 @@ describe("subjectFromIntrospection", () => {
 
 describe("signed snapshot", () => {
   it("lets createPermDock emit a JWS that joseTokenVerifier accepts", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const signer = joseTokenSigner({
       key: { ...PRIVATE_JWK },
       alg: "Ed25519",

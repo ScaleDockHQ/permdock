@@ -5,11 +5,11 @@ import type { CommandResult } from "../shared/result.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import {
-  type Policy,
-  createPermDock,
   findPermission,
+  loadPermDock,
   localSnapshotManifest,
   memoryCustomRoleSource,
+  type Policy,
 } from "../../index.ts";
 import { usageResult } from "../errors.ts";
 import {
@@ -226,7 +226,7 @@ async function verifyStreams(input: {
       // A stream holds rows of every organization the user belongs to, so the
       // policy is asked with the row's own organization active.
       const tenant = rowValue(fixture.row, root);
-      const permdock = await createPermDock(
+      const permdock = await loadPermDock(
         input.policy,
         fixtureSubject({
           ...fixture.subject,

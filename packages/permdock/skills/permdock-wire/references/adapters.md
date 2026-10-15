@@ -60,7 +60,7 @@ app.delete(
 );
 ```
 
-Every HTTP adapter takes `tenant` (for example `(c) => c.req.param('org')`), resolved again on each `protect` where route params exist, plus `limits` (`limits(store)` over a `LimitStore`, for quota grants) and `pdp` (`createPermDock` from `permdock/pdp`). A `protect` loader's result is validated against the resource schema; pass `{ trusted: true }` as the third argument only when the loader returns a row the server loaded itself. `assert` inside a handler becomes the same 403 Problem Details as a guard denial; no `onError` wiring is needed.
+Every HTTP adapter takes `tenant` (for example `(c) => c.req.param('org')`), resolved again on each `protect` where route params exist, plus `limits` (`limits(store)` over a `LimitStore`, for quota grants) and `pdp` (`loadPermDock` from `permdock/pdp`). A `protect` loader's result is validated against the resource schema; pass `{ trusted: true }` as the third argument only when the loader returns a row the server loaded itself. `assert` inside a handler becomes the same 403 Problem Details as a guard denial; no `onError` wiring is needed.
 
 Streams and sockets: pass `revocations: memoryRevocationFeed()` (from `permdock`) and open a connection after `protect` succeeded. `sse` drops items the subscriber cannot read and ends with an `event: permdock` frame on revocation; await it last. `socket` closes a WebSocket with `1008`. Check inbound socket messages with `conn.check(permission, data)`, which validates the message data; a denial keeps the socket open.
 
@@ -456,7 +456,7 @@ import {
 
 const session = await auth.api.getSession({ headers });
 const subject = await subjectFromBetterAuth(session, { auth });
-const permdock = await createPermDock(policy, subject, {
+const permdock = await loadPermDock(policy, subject, {
   customRoles: betterAuthCustomRoleSource(auth),
 });
 ```
@@ -568,7 +568,7 @@ const policy = definePolicy(permissions, {
   ],
 });
 
-const permdock = await createPermDock(policy, user);
+const permdock = createPermDock(policy, user);
 await permdock.can(permissions.post.read, post);
 ```
 

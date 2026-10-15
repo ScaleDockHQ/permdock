@@ -34,7 +34,7 @@ describe("invariant 2: deny overrides allow", () => {
       ],
       subject,
     });
-    const permdock = await createPermDock(policy, { id: "u1", roles: [] });
+    const permdock = createPermDock(policy, { id: "u1", roles: [] });
     expect(permdock.can(permissions.doc.read, open)).toBe(false);
   });
 
@@ -53,7 +53,7 @@ describe("invariant 2: deny overrides allow", () => {
         roles: [role("editor", grants)],
         subject,
       });
-      const permdock = await createPermDock(policy, {
+      const permdock = createPermDock(policy, {
         id: "u1",
         roles: ["editor"],
       });
@@ -74,7 +74,7 @@ describe("invariant 2: deny overrides allow", () => {
       ["owner", "suspended"],
       ["suspended", "owner"],
     ]) {
-      const permdock = await createPermDock(policy, { id: "u1", roles });
+      const permdock = createPermDock(policy, { id: "u1", roles });
       const decision = permdock.decide(permissions.doc.update, open);
       expect(decision.outcome).toBe("denied");
       expect(reasonOf(decision)).toBe("deny");
@@ -92,7 +92,7 @@ describe("invariant 2: deny overrides allow", () => {
       ],
       subject,
     });
-    const permdock = await createPermDock(policy, {
+    const permdock = createPermDock(policy, {
       id: "u1",
       roles: ["owner", "editor", "suspended"],
     });
@@ -117,7 +117,7 @@ describe("invariant 2: deny overrides allow", () => {
       ],
       subject,
     });
-    const permdock = await createPermDock(policy, {
+    const permdock = createPermDock(policy, {
       id: "u1",
       roles: ["editor"],
     });
@@ -139,7 +139,7 @@ describe("invariant 2: deny overrides allow", () => {
       ],
       subject,
     });
-    const permdock = await createPermDock(policy, {
+    const permdock = createPermDock(policy, {
       id: "u1",
       roles: ["editor"],
     });
@@ -194,7 +194,7 @@ describe("invariant 2: deny overrides allow", () => {
         ],
         subject,
       });
-      const permdock = await createPermDock(policy, {
+      const permdock = createPermDock(policy, {
         id: "u1",
         roles: ["editor"],
       });
@@ -222,7 +222,7 @@ describe("invariant 2: deny overrides allow", () => {
         ],
         subject: (user: Principal) => user,
       });
-      const permdock = await createPermDock(policy, {
+      const permdock = createPermDock(policy, {
         id: "u1",
         roles: ["editor"],
         tenant: "A",

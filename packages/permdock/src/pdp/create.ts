@@ -23,9 +23,9 @@ import {
   type SimulateOptions,
   type WhereResult,
   createPermDock as createCore,
+  loadPermDock as loadCore,
 } from "../core/permdock.ts";
 import { getResource } from "../core/permission-registry.ts";
-import { isThenable } from "../core/thenable.ts";
 import { denied, resourceIdOf } from "./shared.ts";
 
 function withoutProviders<
@@ -403,13 +403,9 @@ function wrap<V extends PolicyVocabulary>(
       const next = permdock.team(id);
       return wrap(next, policy, next.subject, providers);
     },
-    derive: (options) => {
-      const next = permdock.derive(options);
-      return isThenable(next)
-        ? next.then((derived) =>
-            wrap(derived, policy, derived.subject, providers),
-          )
-        : wrap(next, policy, next.subject, providers);
+    derive: async (options) => {
+      const derived = await permdock.derive(options);
+      return wrap(derived, policy, derived.subject, providers);
     },
     memberships: permdock.memberships.bind(permdock),
     tenants: permdock.tenants.bind(permdock),
@@ -434,7 +430,23 @@ function wrap<V extends PolicyVocabulary>(
   return wrapped;
 }
 
-export async function createPermDock<
+/** The PDP-aware instance, built synchronously like core `createPermDock`; use `loadPermDock` for asynchronous inputs. */
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  user: TUser | null,
+  options: PermDockOptions = {},
+): PdpPermDock<V> {
+  const localPolicy = withoutProviders(policy);
+  const permdock = createCore(localPolicy, user, options);
+  return wrap(permdock, localPolicy, permdock.subject, policy.providers ?? []);
+}
+
+/** `createPermDock` for inputs that answer asynchronously. */
+export async function loadPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
   V extends PolicyVocabulary = PolicyVocabulary,
@@ -444,6 +456,6 @@ export async function createPermDock<
   options: PermDockOptions = {},
 ): Promise<PdpPermDock<V>> {
   const localPolicy = withoutProviders(policy);
-  const permdock = await createCore(localPolicy, user, options);
+  const permdock = await loadCore(localPolicy, user, options);
   return wrap(permdock, localPolicy, permdock.subject, policy.providers ?? []);
 }

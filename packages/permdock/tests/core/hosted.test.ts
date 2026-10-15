@@ -85,7 +85,7 @@ async function withDocument(
   readonly permdock: Awaited<ReturnType<typeof createPermDock>>;
   readonly errors: unknown[];
 }> {
-  const permdock = await createPermDock(policy, user, {
+  const permdock = createPermDock(policy, user, {
     policies: hostedPolicies(memoryPolicySource(document(grants))),
   });
   const errors: unknown[] = [];
@@ -97,7 +97,7 @@ async function withDocument(
 
 describe("hosted grants", () => {
   it("ignores hosted grants without a policies source", async () => {
-    const permdock = await createPermDock(policy, proUser);
+    const permdock = createPermDock(policy, proUser);
     expect(permdock.can(permissions.auditLog.read, { id: "a1" })).toBe(false);
   });
 
@@ -405,7 +405,7 @@ describe("hosted grants", () => {
   });
 
   it("binds approval tokens to the document", async () => {
-    const plain = await createPermDock(policy, member);
+    const plain = createPermDock(policy, member);
     const { permdock } = await withDocument(member, [
       {
         id: "g_pro_audit",
@@ -437,7 +437,7 @@ describe("hosted grants", () => {
       },
       refresh: () => Promise.resolve(),
     };
-    const permdock = await createPermDock(policy, proUser, {
+    const permdock = createPermDock(policy, proUser, {
       policies: hostedPolicies(counting),
     });
     permdock.can(permissions.auditLog.read, { id: "a" });
@@ -449,7 +449,7 @@ describe("hosted grants", () => {
       },
       refresh: () => Promise.resolve(),
     };
-    const fallback = await createPermDock(policy, proUser, {
+    const fallback = createPermDock(policy, proUser, {
       policies: hostedPolicies(throwing),
     });
     const errors: unknown[] = [];
@@ -462,7 +462,7 @@ describe("hosted grants", () => {
 
   it("records the hosted grant on the decision event", async () => {
     const sink = memoryDecisionSink();
-    const permdock = await createPermDock(policy, proUser, {
+    const permdock = createPermDock(policy, proUser, {
       sink,
       policies: hostedPolicies(
         memoryPolicySource(
@@ -546,7 +546,7 @@ describe("hosted approvals that go stale on a resource change", () => {
   });
 
   async function reasons(grants: readonly unknown[]): Promise<unknown[]> {
-    const permdock = await createPermDock(versioned, member, {
+    const permdock = createPermDock(versioned, member, {
       policies: hostedPolicies(memoryPolicySource(document(grants))),
     });
     const errors: unknown[] = [];

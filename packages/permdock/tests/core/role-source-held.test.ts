@@ -45,7 +45,7 @@ describe("CustomRoleSource.rolesFor receives the held role names", () => {
         },
       ],
     };
-    await createPermDock(policy, principal, { customRoles: source });
+    createPermDock(policy, principal, { customRoles: source });
     expect(calls).toEqual([
       ["T", ["member"]],
       ["B", ["contact"]],
@@ -64,11 +64,11 @@ describe("CustomRoleSource.rolesFor receives the held role names", () => {
         return customRoles.filter((role) => role.tenant === tenant);
       },
     };
-    const admin = await createPermDock(policy, personas.admin, {
+    const admin = createPermDock(policy, personas.admin, {
       customRoles: source,
     });
     expect(admin.can(permissions.asset.delete, assets[0]!)).toBe(true);
-    const mechanic = await createPermDock(policy, personas.mechanic, {
+    const mechanic = createPermDock(policy, personas.mechanic, {
       customRoles: source,
     });
     expect(reads).toEqual(["T"]);

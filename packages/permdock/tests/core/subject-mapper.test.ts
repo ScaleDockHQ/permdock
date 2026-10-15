@@ -30,7 +30,7 @@ const policy = definePolicy(permissions, {
 
 describe("the policy's subject mapper", () => {
   it("maps a user that looks like a principal instead of passing it through", async () => {
-    const permdock = await createPermDock(policy, {
+    const permdock = createPermDock(policy, {
       id: "u1",
       roles: ["admin"],
       verified: false,
@@ -40,7 +40,7 @@ describe("the policy's subject mapper", () => {
   });
 
   it("still takes a resolved Subject as is", async () => {
-    const permdock = await createPermDock(policy, {
+    const permdock = createPermDock(policy, {
       principal: { id: "u1", roles: ["admin"] },
       context: {},
     });

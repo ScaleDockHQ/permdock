@@ -58,7 +58,7 @@ const admin = {
 
 describe("a resource whose own id is the scope instance", () => {
   it("checks the row's id against the membership in process and in a snapshot", async () => {
-    const permdock = await createPermDock(policy, admin);
+    const permdock = createPermDock(policy, admin);
     expect(permdock.can(permissions.organization.update, { id: "T" })).toBe(
       true,
     );

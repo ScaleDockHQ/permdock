@@ -173,7 +173,7 @@ describe("RunTicket", () => {
         binding: { connector: "slack", tools: ["post-message"] },
       },
     });
-    const permdock = await createPermDock(policy, subject);
+    const permdock = createPermDock(policy, subject);
     expect(permdock.can(permissions.doc.read, doc)).toBe(true);
     expect(permdock.can(permissions.doc.update, doc)).toBe(false);
   });
@@ -229,9 +229,9 @@ describe("RunTicket", () => {
     const { subject } = await resolve(plain);
     expect(subject.actor).toBeUndefined();
     expect(subject.principal?.tenant).toBeUndefined();
-    expect(
-      (await createPermDock(policy, subject)).can(permissions.doc.read, doc),
-    ).toBe(false);
+    expect(createPermDock(policy, subject).can(permissions.doc.read, doc)).toBe(
+      false,
+    );
   });
 
   it("refuses an automation that is missing, revoked or changed", async () => {

@@ -8,7 +8,7 @@ A PermDock subject has two halves. `principal` is the human or service whose gra
 ## The three parts
 
 ```ts
-const permdock = await createPermDock(policy, user, {
+const permdock = createPermDock(policy, user, {
   actor: { id: "https://agent.example/cimd.json", kind: "mcp-client" },
   delegation: {
     scopes: ["post:read", "post:update"],

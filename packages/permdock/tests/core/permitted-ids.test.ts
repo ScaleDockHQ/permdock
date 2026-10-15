@@ -44,7 +44,7 @@ const contact = {
 
 describe("permittedIds", () => {
   it("lists the instances an unconditional allow reaches, across tenants or within one", async () => {
-    const permdock = await createPermDock(policy, contact);
+    const permdock = createPermDock(policy, contact);
     expect(permdock.permittedIds(permissions.asset.read, "customer")).toEqual([
       "A",
       "B",
@@ -61,7 +61,7 @@ describe("permittedIds", () => {
   });
 
   it("leaves out an instance a deny reaches and follows a snapshot", async () => {
-    const staff = await createPermDock(
+    const staff = createPermDock(
       policy,
       {
         principal: {
@@ -105,7 +105,7 @@ describe("permittedIds", () => {
   });
 
   it("lists nothing for an actor whose delegation does not cover the permission", async () => {
-    const permdock = await createPermDock(policy, {
+    const permdock = createPermDock(policy, {
       ...contact,
       actor: { id: "bot", kind: "agent" },
       delegation: { scopes: ["quote:read"] },
@@ -116,7 +116,7 @@ describe("permittedIds", () => {
   });
 
   it("lists conditioned allows only on request, and then subtracts only unconditional denies", async () => {
-    const permdock = await createPermDock(policy, contact);
+    const permdock = createPermDock(policy, contact);
     expect(
       permdock.permittedIds(permissions.quote.read, "customer", {
         conditioned: true,
@@ -171,7 +171,7 @@ describe("permittedIds over fields, validity and conditioned denies", () => {
   });
 
   it("counts a field-limited allow as unconditional, a validity window as a condition, and a conditioned deny only by default", async () => {
-    const permdock = await createPermDock(notes, {
+    const permdock = createPermDock(notes, {
       principal: {
         id: "u1",
         memberships: [
@@ -186,7 +186,7 @@ describe("permittedIds over fields, validity and conditioned denies", () => {
     expect(
       permdock.permittedIds(tree.note.read, "group", { conditioned: true }),
     ).toEqual(["t1", "t2"]);
-    const fieldsOnly = await createPermDock(
+    const fieldsOnly = createPermDock(
       definePolicy(tree, {
         scopes: { group: { key: "team_id" } },
         roles: [

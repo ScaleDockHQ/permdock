@@ -181,9 +181,9 @@ describe("ownership: membership kinds", () => {
         ],
       });
     const row = { id: "f_1" };
-    expect((await holding("staff")).can(tree.folder.read, row)).toBe(true);
-    expect((await holding("link")).can(tree.folder.read, row)).toBe(false);
-    expect((await holding()).can(tree.folder.read, row)).toBe(false);
+    expect(holding("staff").can(tree.folder.read, row)).toBe(true);
+    expect(holding("link").can(tree.folder.read, row)).toBe(false);
+    expect(holding().can(tree.folder.read, row)).toBe(false);
   });
 });
 
@@ -408,7 +408,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
   });
 
   it("denies anonymous callers, unknown roles and the wrong scope", async () => {
-    const anonymous = await createPermDock(policy, null);
+    const anonymous = createPermDock(policy, null);
     const owner = await permdockFor(personas.owner);
     expect(reasons(decideRoleChange(anonymous, inT({})))).toEqual([
       "anonymous",
@@ -481,7 +481,7 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
   });
 
   it("caps holders and only moves a transfer-only role by transfer", async () => {
-    const permdock = await createPermDock(strict, primary);
+    const permdock = createPermDock(strict, primary);
     expect(reasons(decideRoleChange(permdock, change({})))).toEqual([
       "max-holders",
       "transfer-only",
@@ -508,7 +508,7 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
   ] as const)(
     "fails closed on $name with an unknown holder count",
     async ({ extra, reason }) => {
-      const permdock = await createPermDock(strict, primary);
+      const permdock = createPermDock(strict, primary);
       const decision = decideRoleChange(
         permdock,
         change({ ...extra, holders: Number.NaN }),
@@ -518,7 +518,7 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
   );
 
   it("refuses a self transfer and counts nothing for a revoke of an unheld role", async () => {
-    const permdock = await createPermDock(strict, primary);
+    const permdock = createPermDock(strict, primary);
     expect({
       transfer: reasons(
         decideRoleChange(
@@ -538,7 +538,7 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
   });
 
   it("refuses a role the target cannot hold alongside one it has", async () => {
-    const permdock = await createPermDock(strict, primary);
+    const permdock = createPermDock(strict, primary);
     const decision = decideRoleChange(
       permdock,
       change({ role: "approver", target: { id: "u_c", roles: ["creator"] } }),
@@ -626,7 +626,7 @@ describe("ownership: authority comes from live, held memberships", () => {
   });
 
   it("gives an expired membership no assign authority", async () => {
-    const permdock = await createPermDock(scoped, {
+    const permdock = createPermDock(scoped, {
       id: "u_alice",
       tenant: "T",
       memberships: [
@@ -656,12 +656,12 @@ describe("ownership: authority comes from live, held memberships", () => {
   });
 
   it("lists no tenant reached only through an expired membership", async () => {
-    const permdock = await createPermDock(scoped, {
+    const permdock = createPermDock(scoped, {
       id: "u_alice",
       memberships: [{ scope: "org", id: "T", roles: ["admin"], expiresAt: 1 }],
     });
     expect(permdock.tenants()).toEqual([]);
-    const pinned = await createPermDock(
+    const pinned = createPermDock(
       scoped,
       {
         id: "u_alice",
@@ -675,7 +675,7 @@ describe("ownership: authority comes from live, held memberships", () => {
   });
 
   it("denies a nested change with no within to a manageRoles holder", async () => {
-    const permdock = await createPermDock(scoped, {
+    const permdock = createPermDock(scoped, {
       id: "u_a",
       tenant: "T",
       memberships: [{ scope: "org", id: "T", roles: ["manager"] }],
@@ -694,7 +694,7 @@ describe("ownership: authority comes from live, held memberships", () => {
   });
 
   it("takes the tenant from the membership the actor holds on the instance", async () => {
-    const permdock = await createPermDock(scoped, {
+    const permdock = createPermDock(scoped, {
       id: "u_lead",
       tenant: "A",
       memberships: [

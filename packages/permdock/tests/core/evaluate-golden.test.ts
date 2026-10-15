@@ -24,7 +24,7 @@ function stable(decision: Decision): unknown {
 }
 
 async function explained(scenario: SaasScenario): Promise<unknown> {
-  const permdock = await createPermDock(
+  const permdock = createPermDock(
     saasPolicy,
     saasUser(scenario),
     saasScenarioOptions(scenario),

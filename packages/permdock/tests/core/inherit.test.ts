@@ -108,7 +108,7 @@ async function visible(
   user: User,
   source: RelationSource = relations,
 ): Promise<readonly string[]> {
-  const permdock = await createPermDock(policy, user, { relations: source });
+  const permdock = createPermDock(policy, user, { relations: source });
   await permdock.loadRelations(node.read, nodes);
   return nodes
     .filter((row) => permdock.can(node.read, row))
@@ -139,11 +139,7 @@ describe("inherit(): a permission held through a link to another row", () => {
   });
 
   it("chains through the parent and another inherit grant, ANDed with the grant's own where", async () => {
-    const permdock = await createPermDock(
-      policy,
-      { id: "vera" },
-      { relations },
-    );
+    const permdock = createPermDock(policy, { id: "vera" }, { relations });
     await permdock.loadRelations(node.delete, nodes);
     expect(
       nodes
@@ -157,7 +153,7 @@ describe("inherit(): a permission held through a link to another row", () => {
       ancestors: (query) => relations.ancestors(query),
       related: (query) => relations.related(query),
     };
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       { id: "vera" },
       { relations: rowless },
@@ -185,7 +181,7 @@ describe("inherit(): a permission held through a link to another row", () => {
       }),
       failing(() => Promise.reject(new Error("down"))),
     ]) {
-      const permdock = await createPermDock(
+      const permdock = createPermDock(
         policy,
         { id: "vera" },
         { relations: source },
@@ -224,7 +220,7 @@ describe("inherit(): a permission held through a link to another row", () => {
   });
 
   it("is server-only in snapshots and left out of where()", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       {
         id: "ana",

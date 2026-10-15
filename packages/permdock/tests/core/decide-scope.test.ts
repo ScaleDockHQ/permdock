@@ -75,7 +75,7 @@ const users = {
 } satisfies Record<string, Principal>;
 
 async function both(user: Principal): Promise<readonly PermDock[]> {
-  const server = await createPermDock(policy, user);
+  const server = createPermDock(policy, user);
   const client = fromSnapshot(parseSnapshot(JSON.stringify(server.snapshot())));
   return [server, client];
 }
@@ -131,7 +131,7 @@ describe("decide option scope", () => {
         }),
       ).toBe(true);
     }
-    const watcher = await createPermDock(policy, users.watcher);
+    const watcher = createPermDock(policy, users.watcher);
     expect(watcher.can(permissions.ticket.list, { id: "t1" })).toBe(true);
     expect(
       watcher.can(

@@ -63,9 +63,9 @@ type Binding = {
 Field names follow one rule: where a specification names the concept, PermDock uses that name or maps to it exactly once, in the "Spec names" table on [naming](/docs/getting-started/naming). `id`, `issuer`, `expiresAt`, `actor`, `delegation.scopes` and `authorizationDetails` are the camelCase spellings of `sub`, `iss`, `exp`, `act`, `scope` and `authorization_details`; `assurance` and `binding` carry the claims' own member names inside.
 
 ```ts
-const permdock = await createPermDock(policy, user); // human or service: principal only
-const permdock = await createPermDock(policy, user, { actor, delegation }); // agent on behalf of user
-const permdock = await createPermDock(policy, user, {
+const permdock = createPermDock(policy, user); // human or service: principal only
+const permdock = createPermDock(policy, user, { actor, delegation }); // agent on behalf of user
+const permdock = await loadPermDock(policy, user, {
   tenant,
   memberships,
   customRoles,

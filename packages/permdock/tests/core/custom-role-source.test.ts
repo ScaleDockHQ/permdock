@@ -56,7 +56,7 @@ describe("customRoleSource", () => {
   });
 
   it("lets assignableRoles see a custom role nobody holds", async () => {
-    const admin = await createPermDock(policy, personas.admin, {
+    const admin = createPermDock(policy, personas.admin, {
       customRoles: customRoleSource(reader()),
     });
     expect(admin.assignableRoles().map((leaf) => leaf.key)).toContain(
@@ -67,14 +67,14 @@ describe("customRoleSource", () => {
   it("skips the read with read 'held' while every held role is declared", async () => {
     const reads: string[] = [];
     const source = customRoleSource(reader(reads), { read: "held", policy });
-    const admin = await createPermDock(policy, personas.admin, {
+    const admin = createPermDock(policy, personas.admin, {
       customRoles: source,
     });
     expect(reads).toEqual([]);
     expect(admin.assignableRoles().map((leaf) => leaf.key)).not.toContain(
       "mechanic",
     );
-    await createPermDock(policy, personas.mechanic, { customRoles: source });
+    createPermDock(policy, personas.mechanic, { customRoles: source });
     expect(reads).toEqual(["T"]);
   });
 
@@ -91,19 +91,19 @@ describe("customRoleSource", () => {
       },
       { read: "held", policy },
     );
-    await createPermDock(
+    createPermDock(
       policy,
       { principal: { id: "p1", roles: ["platform-admin"] }, context: {} },
       { customRoles: source },
     );
     expect(reads).toEqual([]);
-    await createPermDock(
+    createPermDock(
       policy,
       { principal: { id: "p2", roles: ["auditor"] }, context: {} },
       { customRoles: source },
     );
     expect(reads).toEqual(["global"]);
-    await createPermDock(policy, null, { customRoles: source });
+    createPermDock(policy, null, { customRoles: source });
     expect(reads).toEqual(["global"]);
     expect(await source.globalRoles?.()).toEqual([platform]);
   });

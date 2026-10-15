@@ -228,7 +228,7 @@ describe("Claims meet the policy", () => {
   it("undeclared role names grant nothing and are reported on auth", async () => {
     const events: AuthEvent[] = [];
     const subject = await mapped({ roles: ["superuser", "admin"] });
-    const permdock = await createPermDock(policy, subject);
+    const permdock = createPermDock(policy, subject);
     permdock.on("auth", (event) => {
       // SAFETY: the auth channel carries AuthEvent payloads.
       events.push(event as AuthEvent);
@@ -244,7 +244,7 @@ describe("Claims meet the policy", () => {
       { org_id: "o_acme", groups: ["9f2c"] },
       { claims: { tenant: "org_id" }, groupRoles: { "9f2c": ["member"] } },
     );
-    const permdock = await createPermDock(policy, subject);
+    const permdock = createPermDock(policy, subject);
     expect(
       permdock.can(permissions.project.read, { id: "p", orgId: "o_acme" }),
     ).toBe(true);

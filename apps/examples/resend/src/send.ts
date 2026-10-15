@@ -37,7 +37,7 @@ function toRecipient(principal: string): Recipient {
   return { principal, channel: "email", address: emails[principal] ?? "" };
 }
 
-const sender = await createPermDock(policy, userById("u_billing"), {
+const sender = createPermDock(policy, userById("u_billing"), {
   memberships,
   principals,
 });

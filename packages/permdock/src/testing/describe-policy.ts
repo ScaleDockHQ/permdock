@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
-  createPermDock,
+  type Decision,
   fromSnapshot,
   listPermissions,
+  loadPermDock,
+  type PermDock,
   type PermDockOptions,
-  type Decision,
   type Policy,
 } from "../index.ts";
 
@@ -59,7 +60,7 @@ function isOutcomeCell(value: unknown): value is MatrixCell {
 
 /** Asserts `deniedBy` against the trace of a fresh `explain` call for the same arguments. */
 function assertDeniedBy(
-  instance: Awaited<ReturnType<typeof createPermDock>>,
+  instance: PermDock,
   permission: unknown,
   data: unknown,
   cell: MatrixCell,
@@ -115,7 +116,7 @@ function assertCell(decision: Decision, cell: MatrixCell): void {
 }
 
 function assertSnapshotCell(
-  instance: Awaited<ReturnType<typeof createPermDock>>,
+  instance: PermDock,
   permission: unknown,
   data: unknown,
   cell: MatrixCell,
@@ -141,14 +142,11 @@ export function describePolicy<TSubject>(
 ): void {
   describe("policy matrix", () => {
     const permissions = listPermissions(policy.permissions);
-    const permdocks = new Map<
-      string,
-      Awaited<ReturnType<typeof createPermDock>>
-    >();
+    const permdocks = new Map<string, PermDock>();
 
     beforeAll(async () => {
       for (const [name, user] of Object.entries(config.subjects)) {
-        permdocks.set(name, await createPermDock(policy, user, config.options));
+        permdocks.set(name, await loadPermDock(policy, user, config.options));
       }
     });
 
@@ -182,7 +180,7 @@ export function describePolicy<TSubject>(
             it(`${subjectName}`, async () => {
               const instance =
                 permdocks.get(subjectName) ??
-                (await createPermDock(
+                (await loadPermDock(
                   policy,
                   config.subjects[subjectName],
                   config.options,
@@ -212,7 +210,7 @@ export function describePolicy<TSubject>(
             it(`${fixtureName} / ${subjectName}`, async () => {
               const instance =
                 permdocks.get(subjectName) ??
-                (await createPermDock(
+                (await loadPermDock(
                   policy,
                   config.subjects[subjectName],
                   config.options,

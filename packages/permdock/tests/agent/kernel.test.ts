@@ -249,7 +249,7 @@ describe("createAgentKernel", () => {
   });
 
   it("hides tools outside the delegated scopes", async () => {
-    const delegated = await createPermDock(policy, memberUser, {
+    const delegated = createPermDock(policy, memberUser, {
       delegation: { scopes: ["post:list"] },
     });
     expect(delegated.mayUse(permissions.post.list)).toBe(true);

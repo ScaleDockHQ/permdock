@@ -68,7 +68,7 @@ describe("outbound denials", () => {
   });
 
   it("keeps a thrown value out of the decision event", async () => {
-    const permdock = await createPermDock(throwing, memberUser);
+    const permdock = createPermDock(throwing, memberUser);
     permdock.on("error", () => undefined);
     const events: DecisionEvent[] = [];
     permdock.on("decision", (event) => {
@@ -85,7 +85,7 @@ describe("outbound denials", () => {
   });
 
   it("keeps a thrown value out of the Problem Details body", async () => {
-    const permdock = await createPermDock(throwing, memberUser);
+    const permdock = createPermDock(throwing, memberUser);
     permdock.on("error", () => undefined);
     const decision = permdock.decide(permissions.post.read, ownPost);
     if (decision.outcome !== "denied") {

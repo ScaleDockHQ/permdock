@@ -112,7 +112,7 @@ export const policy = definePolicy(
 ```ts
 import { createPermDock } from "permdock";
 
-const permdock = await createPermDock(policy, user); // frozen, request-scoped, never throws
+const permdock = createPermDock(policy, user); // frozen, request-scoped, synchronous
 permdock.can(permissions.post.update, post); // boolean
 permdock.decide(permissions.post.delete, post); // { outcome: 'granted' | 'denied' | 'approval-required', ... }
 permdock.explain(permissions.post.delete, post); // the decision plus a trace naming the deny that won

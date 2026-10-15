@@ -12,7 +12,7 @@ import {
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { createPermDock, loadPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { listPermissions } from "../../src/core/permission-registry.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -511,7 +511,7 @@ describe("assignable roles and permissions", () => {
       assignable: async (tenant: string) =>
         tenant === "acme" ? ["viewer", "editor"] : [],
     };
-    const permdock = await createPermDock(
+    const permdock = await loadPermDock(
       policy,
       subjectIn([
         { tenant: "acme", roles: ["steward"] },
@@ -535,7 +535,7 @@ describe("assignable roles and permissions", () => {
 
   it("a throwing CustomRoleSource.assignable assigns nothing", async () => {
     const auth: unknown[] = [];
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       subjectIn([{ tenant: "acme", roles: ["steward"] }]),
       {
@@ -557,7 +557,7 @@ describe("assignable roles and permissions", () => {
   });
 
   it("is empty for anonymous subjects and without a tenant", async () => {
-    const anonymous = await createPermDock(policy, null);
+    const anonymous = createPermDock(policy, null);
     expect(anonymous.assignableRoles()).toEqual([]);
     expect(anonymous.assignablePermissions()).toEqual([]);
   });
@@ -681,7 +681,7 @@ describe("assigning custom roles", () => {
   });
 
   it("follows CustomRoleSource.assignable through the permissions it leaves", async () => {
-    const steward = await createPermDock(
+    const steward = createPermDock(
       policy,
       subjectIn([{ tenant: "acme", roles: ["steward"] }]),
       {

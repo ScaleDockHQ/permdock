@@ -91,6 +91,7 @@
     "listPermissions",
     "listPlans",
     "listRoles",
+    "loadPermDock",
     "localSnapshotManifest",
     "mayAccess",
     "membershipEvent",
@@ -631,7 +632,13 @@
   ],
   "./clerk": ["createClerkSubjectResolver", "subjectFromClerk"],
   "./convex": ["ConvexError", "createPermDock"],
-  "./pdp": ["createPermDock", "openfga", "remotePdp", "spicedb"],
+  "./pdp": [
+    "createPermDock",
+    "loadPermDock",
+    "openfga",
+    "remotePdp",
+    "spicedb"
+  ],
   "./compile": ["compileWhere", "escapeLike"],
   "./catalog": ["operationFindings", "parseCatalog", "rowConditionKeys"],
   "./preset": [

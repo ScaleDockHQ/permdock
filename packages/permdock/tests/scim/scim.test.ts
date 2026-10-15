@@ -5,7 +5,7 @@ import type { TokenVerifier } from "../../src/core/interfaces.ts";
 import type { RevocationEvent } from "../../src/core/revocations.ts";
 import type { DirectoryChange } from "../../src/scim/types.ts";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { createPermDock, loadPermDock } from "../../src/core/permdock.ts";
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
 import { memoryDecisionSink } from "../../src/core/sink.ts";
 import {
@@ -318,7 +318,7 @@ describe("identity-provider memberships hold only assignable roles", () => {
       roles: ["editor", "owner"],
       meta: { created: "", lastModified: "" },
     });
-    const permdock = await createPermDock(
+    const permdock = await loadPermDock(
       policy,
       { id: "00u1" },
       { tenant: TENANT, memberships: directoryMembershipSource(store) },
@@ -330,7 +330,7 @@ describe("identity-provider memberships hold only assignable roles", () => {
   });
 
   it("keeps a non-assignable role on a membership the application wrote", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       { id: "u_ada" },
       {
@@ -886,7 +886,7 @@ describe("scimHandler", () => {
       subject: (row: { readonly id: string } | null) =>
         row === null ? null : { id: row.id },
     });
-    const granted = await createPermDock(
+    const granted = await loadPermDock(
       policy,
       { id: "u_ada" },
       {
@@ -902,7 +902,7 @@ describe("scimHandler", () => {
     await store.patchUser(TENANT, user.id, [
       { op: "replace", path: "active", value: false },
     ]);
-    const denied = await createPermDock(
+    const denied = await loadPermDock(
       policy,
       { id: "u_ada" },
       {

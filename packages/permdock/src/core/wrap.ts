@@ -28,12 +28,9 @@ export function wrapPermDock<V extends PolicyVocabulary = PolicyVocabulary>(
     ...overrides(permdock),
     tenant: (id: string): PermDock<V> => wrap(permdock.tenant(id)),
     team: (id: string): PermDock<V> => wrap(permdock.team(id)),
-    derive: (
+    derive: async (
       options: Parameters<PermDock<V>["derive"]>[0],
-    ): PermDock<V> | Promise<PermDock<V>> => {
-      const derived = permdock.derive(options);
-      return derived instanceof Promise ? derived.then(wrap) : wrap(derived);
-    },
+    ): Promise<PermDock<V>> => wrap(await permdock.derive(options)),
   };
   // The spread skips the non-enumerable internals: carry them over so
   // feature functions (whoCan, decideCredential) work on a wrapped instance.

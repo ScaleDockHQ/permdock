@@ -12,7 +12,7 @@ import BoundaryHarness from "./BoundaryHarness.test.svelte";
 import { cell } from "./fixtures/cell.svelte.ts";
 
 async function saasSnapshot(): Promise<Snapshot> {
-  const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+  const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
   // SAFETY: snapshot() returns a Snapshot without a signer.
   return server.snapshot({ tenants: "all" }) as Snapshot;
 }

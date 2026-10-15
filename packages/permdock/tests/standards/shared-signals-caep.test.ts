@@ -317,7 +317,7 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.9.0", () => {
   async function decisionEvents(): Promise<DecisionEvent[]> {
     const events: DecisionEvent[] = [];
     for (const user of [{ id: "u_1" }, null]) {
-      const permdock = await createCorePermDock(policy, user);
+      const permdock = createCorePermDock(policy, user);
       permdock.on("decision", (event) => {
         // SAFETY: the decision channel carries DecisionEvent payloads.
         events.push(event as DecisionEvent);

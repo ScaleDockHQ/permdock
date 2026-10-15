@@ -42,7 +42,7 @@ function member(counter: LimitStore) {
 
 describe("alternatives on a denial", () => {
   it("lists a quota grant as an alternative without spending its quota", async () => {
-    const permdock = await member(memoryLimitStore());
+    const permdock = member(memoryLimitStore());
     const denied = permdock.decide(permissions.report.delete, report);
     expect(denied).toMatchObject({
       outcome: "denied",
@@ -70,7 +70,7 @@ describe("alternatives on a denial", () => {
         return store.remaining(input);
       },
     };
-    const permdock = await member(counting);
+    const permdock = member(counting);
     expect(permdock.can(permissions.report.delete, report)).toBe(false);
     expect(reads).toBe(0);
   });

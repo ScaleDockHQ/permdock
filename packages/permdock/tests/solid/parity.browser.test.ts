@@ -115,7 +115,7 @@ describe("permdock/solid parity", () => {
   });
 
   it("reads headers on every refresh and switches tenant when the prop changes", async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
     // SAFETY: snapshot() returns a Snapshot without a signer.
     const snapshot = server.snapshot({ tenants: "all" }) as Snapshot;
     const [token, setToken] = createSignal("a");

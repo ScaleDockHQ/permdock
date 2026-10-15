@@ -69,7 +69,7 @@ describe("tool arguments are boundary data", () => {
   });
 
   it("matches a direct decide on untrusted data", async () => {
-    const permdock = await createPermDock(policy, user);
+    const permdock = createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.create, {
       id: "i1",
       amount: "50000",

@@ -36,7 +36,7 @@ function member(id: string): Subject {
 
 async function pendingPayment() {
   const store = memoryApprovalStore();
-  const permdock = await createPermDock(policy, { id: "alice" });
+  const permdock = createPermDock(policy, { id: "alice" });
   const decision = permdock.decide(permissions.expense.pay, rows.expense[0]);
   if (decision.outcome !== "approval-required") {
     throw new Error(`expected approval-required, got ${decision.outcome}`);
@@ -292,7 +292,7 @@ group("approval modes and approver kinds", () => {
   });
 
   it("describes every stage's approvers", async () => {
-    const permdock = await createPermDock(policy, { id: "alice" });
+    const permdock = createPermDock(policy, { id: "alice" });
     const decision = permdock.decide(permissions.expense.pay, rows.expense[0]);
     expect(describe(decision).detail).toBe(
       "expense.pay requires approval from manager and approver.",

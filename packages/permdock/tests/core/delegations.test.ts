@@ -187,7 +187,7 @@ describe("policy delegations", () => {
   });
 
   it("lets a matching actor use the delegated permissions without a token delegation", async () => {
-    const permdock = await createPermDock(policy, member, { actor: eve });
+    const permdock = createPermDock(policy, member, { actor: eve });
     expect(outcome(permdock, permissions.post.read, post)).toBe("granted");
     expect(outcome(permdock, permissions.post.update, post)).toBe("granted");
     expect(outcome(permdock, permissions.post.delete, post)).toBe(
@@ -197,9 +197,9 @@ describe("policy delegations", () => {
 
   it("never exceeds the principal and never delegates a deny away", async () => {
     // The principal's grants decide first: a delegation adds nothing the user lacks.
-    const permdock = await createPermDock(policy, member, { actor: eve });
+    const permdock = createPermDock(policy, member, { actor: eve });
     expect(outcome(permdock, permissions.billing.read)).toBe("no-grant");
-    const asUser = await createPermDock(policy, member);
+    const asUser = createPermDock(policy, member);
     expect(outcome(asUser, permissions.billing.read)).toBe("no-grant");
     const wide = definePolicy(permissions, {
       roles: policy.roles,
@@ -208,7 +208,7 @@ describe("policy delegations", () => {
       ],
       subject,
     });
-    const agent = await createPermDock(wide, member, { actor: eve });
+    const agent = createPermDock(wide, member, { actor: eve });
     expect(
       outcome(agent, permissions.post.delete, { id: "p2", authorId: "locked" }),
     ).toBe("deny");
@@ -216,15 +216,15 @@ describe("policy delegations", () => {
   });
 
   it("ignores delegations for another actor kind, another id, or a role the principal lacks", async () => {
-    const other = await createPermDock(policy, member, {
+    const other = createPermDock(policy, member, {
       actor: { id: "bot", kind: "openai" },
     });
     expect(outcome(other, permissions.post.read, post)).toBe("no-delegation");
-    const asAdmin = await createPermDock(policy, admin, { actor: eve });
+    const asAdmin = createPermDock(policy, admin, { actor: eve });
     expect(outcome(asAdmin, permissions.billing.read)).toBe("no-delegation");
-    const named = await createPermDock(policy, admin, { actor: billingAgent });
+    const named = createPermDock(policy, admin, { actor: billingAgent });
     expect(outcome(named, permissions.billing.read)).toBe("granted");
-    const memberBilling = await createPermDock(policy, member, {
+    const memberBilling = createPermDock(policy, member, {
       actor: billingAgent,
     });
     expect(outcome(memberBilling, permissions.billing.read)).toBe("no-grant");
@@ -233,7 +233,7 @@ describe("policy delegations", () => {
   });
 
   it("intersects with a token delegation: both must cover", async () => {
-    const permdock = await createPermDock(policy, member, {
+    const permdock = createPermDock(policy, member, {
       actor: eve,
       delegation: { scopes: ["post:read", "post:delete"] },
     });
@@ -247,7 +247,7 @@ describe("policy delegations", () => {
   });
 
   it("stops applying after validUntil", async () => {
-    const permdock = await createPermDock(policy, member, { actor: eve });
+    const permdock = createPermDock(policy, member, { actor: eve });
     const [during] = permdock.simulate([[permissions.post.read, post]], {
       now: at(UNTIL - 60),
     });
@@ -272,7 +272,7 @@ describe("policy delegations", () => {
       ],
       subject,
     });
-    const permdock = await createPermDock(anyone, member, { actor: eve });
+    const permdock = createPermDock(anyone, member, { actor: eve });
     expect(outcome(permdock, permissions.post.read, post)).toBe("granted");
     expect(
       delegatedPermissions(
@@ -285,7 +285,7 @@ describe("policy delegations", () => {
   });
 
   it("carries the ceiling on the snapshot and the client evaluator agrees", async () => {
-    const permdock = await createPermDock(policy, member, { actor: eve });
+    const permdock = createPermDock(policy, member, { actor: eve });
     const snapshot = unsigned(permdock);
     expect(snapshot.delegated).toEqual(["post.read", "post.update"]);
     expect(snapshot.subject.delegation).toBeUndefined();
@@ -296,10 +296,10 @@ describe("policy delegations", () => {
     expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
       "not-delegated",
     );
-    const plain = unsigned(await createPermDock(policy, member));
+    const plain = unsigned(createPermDock(policy, member));
     expect(plain.delegated).toBeUndefined();
     const other = unsigned(
-      await createPermDock(policy, member, {
+      createPermDock(policy, member, {
         actor: { id: "bot", kind: "openai" },
       }),
     );
@@ -324,7 +324,7 @@ describe("read-only actors", () => {
   });
 
   it("gets nothing until the policy delegates to the actor kind", async () => {
-    const permdock = await createPermDock(policy, member, {
+    const permdock = createPermDock(policy, member, {
       actor: support(false),
     });
     expect(outcome(permdock, permissions.post.read, post)).toBe(
@@ -333,7 +333,7 @@ describe("read-only actors", () => {
   });
 
   it("uses every delegated permission when writable", async () => {
-    const permdock = await createPermDock(supportPolicy, member, {
+    const permdock = createPermDock(supportPolicy, member, {
       actor: support(false),
     });
     expect(outcome(permdock, permissions.post.read, post)).toBe("granted");
@@ -341,7 +341,7 @@ describe("read-only actors", () => {
   });
 
   it("is narrowed to read-only permissions, on the server and the client alike", async () => {
-    const permdock = await createPermDock(supportPolicy, member, {
+    const permdock = createPermDock(supportPolicy, member, {
       actor: support(true),
     });
     expect(outcome(permdock, permissions.post.read, post)).toBe("granted");

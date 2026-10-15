@@ -18,7 +18,7 @@ import { subjectFromSupabase, supabaseRls } from "permdock/supabase";
 
 // server: from claims the Supabase client verified (JWKS locally with asymmetric keys, Auth server with the legacy secret)
 const { data, error } = await supabase.auth.getClaims();
-const permdock = await createPermDock(
+const permdock = createPermDock(
   policy,
   subjectFromSupabase(error ? null : data.claims, {
     roles: "user_role", // hook-injected; global roles

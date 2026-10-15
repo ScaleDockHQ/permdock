@@ -51,7 +51,6 @@ import {
   resolveActiveTenant,
   tenantsOf,
 } from "./tenancy.ts";
-import { isThenable } from "./thenable.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
 /** Each round reads one more layer: link hops, then the chain, then nested groups. */
@@ -555,19 +554,15 @@ export function buildInstance(
     permittedIds(permission, scope, options) {
       return permittedIds(instance, permission, scope, options);
     },
-    derive(options: DeriveOptions): PermDock | Promise<PermDock> {
-      const derived = deriveEnv(
+    async derive(options: DeriveOptions): Promise<PermDock> {
+      const env = await deriveEnv(
         policy,
         subject,
         envBase,
         relationCache,
         options,
       );
-      return isThenable(derived)
-        ? Promise.resolve(derived).then((env) =>
-            buildInstance(policy, subject, env, team),
-          )
-        : buildInstance(policy, subject, derived, team);
+      return buildInstance(policy, subject, env, team);
     },
     subject,
   };

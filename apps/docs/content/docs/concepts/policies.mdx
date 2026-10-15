@@ -203,7 +203,7 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 
 ### Derived instances
 
-`permdock.tenant(id)` and `permdock.team(id)` narrow the same subject to one tenant or team. `permdock.derive({ customRoles?, approvalPolicies?, relations?, principals? })` keeps the subject, its active tenant and team, the actor, the delegation, the sink and the limit store, and swaps the sources it names: a server action that edits roles derives an instance whose `customRoles` reads every role of the tenant, and one that runs a write derives an instance with the tenant's `approvalPolicies`. Only the sources it names are read again, for the subject's tenants; it returns a promise when one of them answers asynchronously. The original instance is unchanged. A [`fromSnapshot`](/docs/concepts/snapshots) instance returns itself, because a snapshot carries its grants already resolved.
+`permdock.tenant(id)` and `permdock.team(id)` narrow the same subject to one tenant or team. `permdock.derive({ customRoles?, approvalPolicies?, relations?, principals? })` keeps the subject, its active tenant and team, the actor, the delegation, the sink and the limit store, and swaps the sources it names: a server action that edits roles derives an instance whose `customRoles` reads every role of the tenant, and one that runs a write derives an instance with the tenant's `approvalPolicies`. Only the sources it names are read again, for the subject's tenants; it always returns a promise, because those sources may answer asynchronously. The original instance is unchanged. A [`fromSnapshot`](/docs/concepts/snapshots) instance returns itself, because a snapshot carries its grants already resolved.
 
 ### Several rows or another principal
 
@@ -243,7 +243,9 @@ const recipients = await Promise.all(
 
 ### Evaluation is synchronous
 
-`can`, `decide`, `decideEach`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. `decideFor` returns a promise because it loads another principal; an unawaited one has no `outcome`, so a check against `'granted'` fails closed. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource` and `CustomRoleSource` run once inside `createPermDock`, which may itself be async, and their output is frozen into the instance. Each check is then a pure function of frozen data.
+`can`, `decide`, `decideEach`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. `decideFor` returns a promise because it loads another principal; an unawaited one has no `outcome`, so a check against `'granted'` fails closed. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource`, `CustomRoleSource`, `EntitlementSource` and `approvalPolicies` run once when the instance is built, and their output is frozen into the instance. Each check is then a pure function of frozen data.
+
+`createPermDock(policy, user, options)` builds the instance synchronously and returns a `PermDock`. When an input answers with a Promise (an async subject mapper or `context`, or a source that reads a database), it throws and names `loadPermDock`. `await loadPermDock(policy, user, options)` takes the same arguments, waits for every input and returns the same instance. `permdock/pdp` has the same pair. Server adapters build each request's instance with `loadPermDock`, so their sources may be async.
 
 Closure grants are typed `(data, ctx) => boolean`. A closure that returns a thenable is a `closure-error` denial reported to `on('error')`; the value is never awaited. There are no `decideAsync` or `canAsync` twins, because two evaluation paths can disagree and the synchronous one is easy to call by mistake, and PermDock does not infer asynchrony from the policy, because one async closure would make every `can` in the UI async. `explain` is `decide` with a `trace` attached, computed in process; `describe(decision)` turns a decision into prose ([decisions](/docs/concepts/decisions#explain)).
 
@@ -382,7 +384,7 @@ export const policy = definePolicy(vocabulary, {
   hostable: [permissions.invoice, permissions.auditLog.read],
 });
 
-const permdock = await createPermDock(policy, user, {
+const permdock = createPermDock(policy, user, {
   policies: hostedPolicies(permdockCloud.policies),
 });
 ```

@@ -24,7 +24,7 @@ const contact = {
 
 describe("numeric scope ids", () => {
   it("matches a bigint key a client read as a number against the membership's text id", async () => {
-    const permdock = await createPermDock(policy, contact);
+    const permdock = createPermDock(policy, contact);
     const asset = { id: "a", organization_id: "T", customer_id: 42 };
     expect(permdock.can(permissions.asset.read, asset, { trusted: true })).toBe(
       true,

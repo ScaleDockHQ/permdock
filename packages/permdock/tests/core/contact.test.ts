@@ -89,7 +89,7 @@ describe("contact principals", () => {
   });
 
   it("keeps only on memberships, as via contact, and drops roles, plans and the tenant", async () => {
-    const permdock = await createPermDock(policy, contact, {
+    const permdock = createPermDock(policy, contact, {
       entitlements: { entitlementsFor: () => ["enterprise"] },
     });
     const principal = permdock.subject.principal;
@@ -112,7 +112,7 @@ describe("contact principals", () => {
   });
 
   it("reads through a resource membership", async () => {
-    const permdock = await createPermDock(policy, contact);
+    const permdock = createPermDock(policy, contact);
     expect(permdock.decide(permissions.invoice.read, i1).outcome).toBe(
       "granted",
     );
@@ -126,7 +126,7 @@ describe("contact principals", () => {
   });
 
   it("is read-only unless a role whose for lists contact grants the write", async () => {
-    const permdock = await createPermDock(policy, contact);
+    const permdock = createPermDock(policy, contact);
     expect(reasonOf(permdock.decide(permissions.invoice.comment, i1))).toBe(
       "not-delegated",
     );
@@ -143,7 +143,7 @@ describe("contact principals", () => {
   });
 
   it("narrows where and snapshots the same way", async () => {
-    const permdock = await createPermDock(policy, contact);
+    const permdock = createPermDock(policy, contact);
     expect(permdock.where(permissions.invoice.comment).condition).toEqual({
       op: "or",
       conditions: [],
@@ -159,7 +159,7 @@ describe("contact principals", () => {
   });
 
   it("keeps a user with the same memberships unchanged", async () => {
-    const user = await createPermDock(policy, { ...contact, kind: "user" });
+    const user = createPermDock(policy, { ...contact, kind: "user" });
     expect(user.subject.principal?.roles).toEqual(["admin"]);
     expect(user.decide(permissions.invoice.comment, i1).outcome).toBe(
       "granted",
@@ -170,7 +170,7 @@ describe("contact principals", () => {
   });
 
   it("decideFor evaluates a contact on its resource memberships in the caller's tenant", async () => {
-    const member = await createPermDock(
+    const member = createPermDock(
       policy,
       {
         id: "u_1",
@@ -212,7 +212,7 @@ describe("contact principals", () => {
       ],
       subject: (person: Principal | null) => person,
     });
-    const requester = await createPermDock(approvals, {
+    const requester = createPermDock(approvals, {
       id: "u_1",
       tenant: "o1",
       memberships: [{ scope: "tenant", id: "o1", roles: ["member"] }],
@@ -250,7 +250,7 @@ describe("contact principals", () => {
         principal: { ...contact, kind: "user", tenant: "o1" },
       }),
     ).toBe(true);
-    const permdock = await createPermDock(policy, contact);
+    const permdock = createPermDock(policy, contact);
     expect(
       await decideCredential(permdock, {
         kind: "user",

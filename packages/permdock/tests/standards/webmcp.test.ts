@@ -20,7 +20,7 @@ import {
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/u;
 
 async function clientOf(user: User): Promise<WebMcpPermDock> {
-  const server = await createPermDock(policy, user);
+  const server = createPermDock(policy, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise || typeof snapshot === "string") {
     throw new Error("expected JSON snapshot");
@@ -186,7 +186,7 @@ describe("WebMCP: agent-supplied arguments are untrusted", () => {
   });
 
   it("a simulated snapshot exposes no tools at all", async () => {
-    const server = await createPermDock(policy, adminUser);
+    const server = createPermDock(policy, adminUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise || typeof snapshot === "string") {
       throw new Error("expected JSON snapshot");

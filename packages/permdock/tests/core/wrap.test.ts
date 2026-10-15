@@ -14,7 +14,7 @@ import {
 describe("wrapPermDock", () => {
   it("replaces members and re-applies them to tenant(), team() and derive()", async () => {
     const calls: string[] = [];
-    const base = await createPermDock(policy, memberUser);
+    const base = createPermDock(policy, memberUser);
     const wrapped = wrapPermDock(base, (inner) => ({
       // SAFETY: the wrapper forwards can's arguments and result unchanged.
       can: ((...args: Parameters<typeof inner.can>) => {
@@ -31,7 +31,7 @@ describe("wrapPermDock", () => {
   });
 
   it("leaves the members it does not replace untouched", async () => {
-    const base = await createPermDock(policy, memberUser);
+    const base = createPermDock(policy, memberUser);
     const wrapped = wrapPermDock(base, () => ({}));
     expect(wrapped.subject).toBe(base.subject);
     expect(wrapped.decide).toBe(base.decide);
@@ -41,7 +41,7 @@ describe("wrapPermDock", () => {
 describe("composeWraps", () => {
   it("applies otel first, then wrap", async () => {
     const order: string[] = [];
-    const base = await createPermDock(policy, memberUser);
+    const base = createPermDock(policy, memberUser);
     const composed = composeWraps(
       (permdock) => {
         order.push("otel");

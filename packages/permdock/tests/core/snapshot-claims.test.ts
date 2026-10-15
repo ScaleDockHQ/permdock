@@ -53,7 +53,7 @@ const user = {
 
 describe("claims in snapshots", () => {
   it("binds claim refs to the subject values and keeps carried refs", async () => {
-    const permdock = await createPermDock(policy, user);
+    const permdock = createPermDock(policy, user);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise || typeof snapshot !== "object") {
       throw new Error("expected a json snapshot");
@@ -76,7 +76,7 @@ describe("claims in snapshots", () => {
   });
 
   it("never lets the snapshot client grant what the server denies", async () => {
-    const permdock = await createPermDock(policy, user);
+    const permdock = createPermDock(policy, user);
     const client = fromSnapshot(
       parseSnapshot(JSON.stringify(permdock.snapshot())),
     );

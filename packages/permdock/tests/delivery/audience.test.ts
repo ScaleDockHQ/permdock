@@ -33,7 +33,7 @@ describe("audience", () => {
   });
 
   it("is empty for an anonymous sender", async () => {
-    const anonymous = await createPermDock(deliveryPolicy, null, {
+    const anonymous = createPermDock(deliveryPolicy, null, {
       principals: deliveryPrincipals,
     });
     expect(

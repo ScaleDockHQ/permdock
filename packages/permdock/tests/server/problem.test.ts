@@ -302,10 +302,10 @@ describe("step-up challenges", () => {
       ],
     };
     // SAFETY: the subject omits optional fields; the policy's user generic is erased to PermDock.
-    const permdock = (await createCorePermDock(policy, {
+    const permdock = createCorePermDock(policy, {
       principal: eligible,
       context: { purpose: "incident" },
-    } as Subject)) as PermDock;
+    } as Subject) as PermDock;
     const glass = permdock.decide(permissions.report.read, {
       id: "r1",
       ownerId: "u1",
@@ -362,7 +362,7 @@ describe("assert and protect parity", () => {
     if (guard.ok) {
       throw new Error("expected protect to deny");
     }
-    const instance = await createCorePermDock(
+    const instance = createCorePermDock(
       policy,
       "anonymous" in headers ? null : member,
     );

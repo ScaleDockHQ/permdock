@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock } from "permdock";
+import { loadPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -92,7 +92,7 @@ async function inProcess(
   user: KeysUser,
   scopes: readonly string[],
 ): Promise<Seen> {
-  const permdock = await createPermDock(
+  const permdock = await loadPermDock(
     policy,
     {
       principal: { id: user.id, memberships: user.memberships },

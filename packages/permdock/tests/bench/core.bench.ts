@@ -18,8 +18,8 @@ const client = fromSnapshot(snapshot, { tenant: "acme" });
 const store = createClientStore({ snapshot, tenant: "acme" });
 
 test("can", async ({ bench }) => {
-  const member = await createPermDock(policy, bob, { tenant: "acme" });
-  const admin = await createPermDock(policy, alice, { tenant: "acme" });
+  const member = createPermDock(policy, bob, { tenant: "acme" });
+  const admin = createPermDock(policy, alice, { tenant: "acme" });
   await bench.compare(
     bench("collection grant", () => {
       admin.can(permissions.project.create);
@@ -37,8 +37,8 @@ test("can", async ({ bench }) => {
 });
 
 test("filter over 1,000 rows", async ({ bench }) => {
-  const member = await createPermDock(policy, bob, { tenant: "acme" });
-  const admin = await createPermDock(policy, alice, { tenant: "acme" });
+  const member = createPermDock(policy, bob, { tenant: "acme" });
+  const admin = createPermDock(policy, alice, { tenant: "acme" });
   await bench.compare(
     bench("member with a where condition", () => {
       member.filter(permissions.project.update, rows);

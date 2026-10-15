@@ -214,7 +214,7 @@ describe("decideRoleChange: global roles", () => {
   });
 
   it("denies an anonymous actor", async () => {
-    const anonymous = await createPermDock(policy, null, {});
+    const anonymous = createPermDock(policy, null, {});
     expect(
       reasons(
         decideRoleChange(anonymous, {
@@ -272,11 +272,7 @@ describe("decideRoleChange: global roles with an assigns graph", () => {
   });
 
   it("hands out exactly the roles the held global roles list", async () => {
-    const root = await createPermDock(
-      graph,
-      { id: "u_actor", roles: ["root"] },
-      {},
-    );
+    const root = createPermDock(graph, { id: "u_actor", roles: ["root"] }, {});
     expect(decideRoleChange(root, change("assign", "agent"))).toMatchObject({
       outcome: "granted",
       role: "root",
@@ -290,11 +286,7 @@ describe("decideRoleChange: global roles with an assigns graph", () => {
   });
 
   it("answers no global roles on a snapshot", async () => {
-    const root = await createPermDock(
-      graph,
-      { id: "u_actor", roles: ["root"] },
-      {},
-    );
+    const root = createPermDock(graph, { id: "u_actor", roles: ["root"] }, {});
     const snapshot = root.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");

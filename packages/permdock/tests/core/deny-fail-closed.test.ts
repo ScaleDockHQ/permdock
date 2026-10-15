@@ -44,7 +44,7 @@ describe("a deny that cannot be evaluated denies", () => {
         throw new Error("lookup failed");
       }),
     );
-    const permdock = await createPermDock(policy, user);
+    const permdock = createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.update, invoice);
     expect(decision.outcome).toBe("denied");
     expect(reasonOf(decision)).toBe("closure-error");
@@ -54,7 +54,7 @@ describe("a deny that cannot be evaluated denies", () => {
     const policy = policyWith(
       deny(permissions.invoice.update, { where: opaqueWhere }),
     );
-    const permdock = await createPermDock(policy, user);
+    const permdock = createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.update, invoice);
     expect(decision.outcome).toBe("denied");
     expect(reasonOf(decision)).toBe("opaque-condition");
@@ -66,7 +66,7 @@ describe("a deny that cannot be evaluated denies", () => {
         where: nestedOpaque,
       }),
     );
-    const permdock = await createPermDock(policy, user);
+    const permdock = createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.update, invoice);
     expect(decision.outcome).toBe("denied");
     expect(reasonOf(decision)).toBe("opaque-condition");
@@ -78,7 +78,7 @@ describe("a deny that cannot be evaluated denies", () => {
         where: nestedOpaque,
       }),
     );
-    const server = await createPermDock(policy, user);
+    const server = createPermDock(policy, user);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -98,7 +98,7 @@ describe("a deny that cannot be evaluated denies", () => {
       ],
       subject,
     });
-    const permdock = await createPermDock(policy, user);
+    const permdock = createPermDock(policy, user);
     const decision = permdock.decide(permissions.invoice.update, invoice);
     expect(decision.outcome).toBe("denied");
     expect(reasonOf(decision)).toBe("opaque-condition");
@@ -114,7 +114,7 @@ describe("a deny that cannot be evaluated denies", () => {
       ],
       subject,
     });
-    const permdock = await createPermDock(policy, user);
+    const permdock = createPermDock(policy, user);
     expect(permdock.can(permissions.invoice.update, invoice)).toBe(true);
   });
 });

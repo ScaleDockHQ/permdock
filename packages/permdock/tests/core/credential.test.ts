@@ -495,11 +495,9 @@ describe("decideCredential", () => {
       o_1: { credentials: { maxTtl: 30 * DAY } },
     });
     const open = memorySettingsSource({});
-    const instance = await createPermDock(
-      policy,
-      userSubject("u_1", ["developer"]),
-      { settings: capped },
-    );
+    const instance = createPermDock(policy, userSubject("u_1", ["developer"]), {
+      settings: capped,
+    });
     expect(await decideCredential(instance, long, { now: NOW })).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
     });
@@ -710,7 +708,7 @@ describe("decideCredential: expired creator memberships", () => {
   });
 
   it("refuses a key in a tenant held only through an expired manageRoles membership", async () => {
-    const expiredAdmin = await createPermDock(scoped, {
+    const expiredAdmin = createPermDock(scoped, {
       id: "u_alice",
       tenant: "T",
       memberships: [
@@ -772,7 +770,7 @@ describe("a user key held to one tenant", () => {
 
   it("narrows memberships read from a source and drops global roles", async () => {
     const subject = credentialSubject(heldKey, { permissions });
-    const permdock = await createPermDock(policy, subject, {
+    const permdock = createPermDock(policy, subject, {
       memberships: {
         membershipsFor: () => [...(twoTenants.memberships ?? [])],
       },
@@ -795,7 +793,7 @@ describe("a user key held to one tenant", () => {
   it("holds no membership and answers for no tenant when asked for another", async () => {
     const subject = credentialSubject(heldKey, { permissions });
     const entitlementsFor = (): string[] => ["pro"];
-    const permdock = await createPermDock(policy, subject, {
+    const permdock = createPermDock(policy, subject, {
       tenant: "o_1",
       memberships: {
         membershipsFor: () => [...(twoTenants.memberships ?? [])],
@@ -817,7 +815,7 @@ describe("a user key held to one tenant", () => {
       inHeld: false,
       where: { condition: { op: "or", conditions: [] }, partial: false },
     });
-    const same = await createPermDock(policy, subject, {
+    const same = createPermDock(policy, subject, {
       tenant: "o_2",
       memberships: {
         membershipsFor: () => [...(twoTenants.memberships ?? [])],

@@ -1,5 +1,5 @@
 import {
-  createPermDock,
+  loadPermDock,
   type PermDockOptions,
   type Permission,
   type Policy,
@@ -76,7 +76,7 @@ export async function testOrmParity<TUser>(
   async function runCase(
     scenario: OrmParityScenario<TUser>,
   ): Promise<OrmParityCase> {
-    const permdock = await createPermDock(
+    const permdock = await loadPermDock(
       policy,
       scenario.user,
       scenario.options,

@@ -144,13 +144,10 @@ describe("verified_claims", () => {
     });
     const eu = { id: "a1", framework: "eidas" };
     expect(
-      (await createPermDock(policy, verified)).can(
-        permissions.account.open,
-        eu,
-      ),
+      createPermDock(policy, verified).can(permissions.account.open, eu),
     ).toBe(true);
     expect(
-      (await createPermDock(policy, plain)).can(permissions.account.open, eu),
+      createPermDock(policy, plain).can(permissions.account.open, eu),
     ).toBe(false);
   });
 });

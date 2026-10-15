@@ -217,7 +217,7 @@ describe("evaluationsHandler GET", () => {
   it("serves the snapshot, scoped to the requested tenant", async () => {
     const tenants: (string | undefined)[] = [];
     const resolve = async (): Promise<PermDock> => {
-      const permdock = await createCorePermDock(policy, memberUser);
+      const permdock = createCorePermDock(policy, memberUser);
       return {
         ...permdock,
         tenant: (id: string) => {

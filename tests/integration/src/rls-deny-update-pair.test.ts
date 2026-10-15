@@ -1,7 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock } from "permdock";
+import { loadPermDock } from "permdock";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { permissions, policy } from "../fixtures/deny-update-pair/policy.ts";
@@ -60,7 +60,7 @@ describe("a deny on an update pair, in RLS and in process", () => {
     ["locked", true, false],
     ["locked", true, true],
   ])("agrees on %s (locked %s) set to locked %s", async (id, from, to) => {
-    const permdock = await createPermDock(policy, { id: "u1", roles: [] });
+    const permdock = await loadPermDock(policy, { id: "u1", roles: [] });
     const allowed = permdock.can(permissions.doc.update, {
       current: { id, locked: from },
       next: { id, locked: to },

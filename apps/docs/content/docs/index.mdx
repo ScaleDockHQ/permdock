@@ -42,7 +42,7 @@ export const policy = definePolicy(
   },
 );
 
-const permdock = await createPermDock(policy, user);
+const permdock = createPermDock(policy, user);
 permdock.can(permissions.post.update, post); // boolean
 permdock.decide(permissions.post.delete, post); // { outcome: 'granted' | 'denied' | 'approval-required', ... }
 ```

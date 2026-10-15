@@ -116,7 +116,7 @@ describe("{ subject: { session: { live: true } } }", () => {
 
   it("denies a non-live session with reason condition, server and client alike", async () => {
     for (const live of [true, false]) {
-      const server = await createPermDock(policy, subject(live));
+      const server = createPermDock(policy, subject(live));
       const client = fromSnapshot(
         parseSnapshot(JSON.stringify(server.snapshot())),
       );
@@ -133,8 +133,8 @@ describe("{ subject: { session: { live: true } } }", () => {
   });
 
   it("binds where() to a constant for ORM filters", async () => {
-    const live = await createPermDock(policy, subject(true));
-    const stale = await createPermDock(policy, subject(false));
+    const live = createPermDock(policy, subject(true));
+    const stale = createPermDock(policy, subject(false));
     expect(
       JSON.stringify(live.where(permissions.invoice.update)),
     ).not.toContain("liveSession");
@@ -167,7 +167,7 @@ describe("subjectFromSupabase liveSession", () => {
   });
 
   it("carries through createPermDock", async () => {
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       subjectFromSupabase(claims, { liveSession: true }),
     );

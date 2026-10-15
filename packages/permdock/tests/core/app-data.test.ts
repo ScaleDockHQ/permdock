@@ -156,7 +156,7 @@ describe("role and plan x", () => {
         meta: { title: "Auditor", x: { colour: 7 } as never },
       },
     ]);
-    const permdock = await createPermDock(
+    const permdock = createPermDock(
       policy,
       { id: "u_1" },
       { customRoles, tenant: "o_1" },
@@ -195,7 +195,7 @@ describe("grant meta", () => {
     const withMeta = make({ x: { undo: 30 } });
     const without = make();
     expect(withMeta.fingerprint).toBe(without.fingerprint);
-    const permdock = await createPermDock(withMeta, { id: "u_1" });
+    const permdock = createPermDock(withMeta, { id: "u_1" });
     const decision = permdock.decide(permissions.doc.delete, { id: "d_1" });
     expect(decision.outcome).toBe("granted");
     expect(decision.outcome === "granted" && decision.matched).toMatchObject({
@@ -247,7 +247,7 @@ describe("membership x", () => {
     });
 
   it("keeps a valid x on the resolved membership", async () => {
-    const permdock = await createPermDock(make(), {
+    const permdock = createPermDock(make(), {
       id: "u_1",
       x: { department: "finance" },
     });
@@ -257,7 +257,7 @@ describe("membership x", () => {
   });
 
   it("carries x through the snapshot to the client", async () => {
-    const permdock = await createPermDock(make(), {
+    const permdock = createPermDock(make(), {
       id: "u_1",
       x: { department: "finance" },
     });
@@ -269,7 +269,7 @@ describe("membership x", () => {
 
   it("drops an invalid x, keeps the membership and reports it", async () => {
     const auth: unknown[] = [];
-    const permdock = await createPermDock(make(), {
+    const permdock = createPermDock(make(), {
       id: "u_1",
       x: { department: 1 },
     });

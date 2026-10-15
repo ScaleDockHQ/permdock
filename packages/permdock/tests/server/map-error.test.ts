@@ -26,7 +26,7 @@ async function thrown(work: () => Promise<unknown>): Promise<unknown> {
 
 describe("problemFromError", () => {
   it("maps a denial to a 403 problem", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const error = await thrown(() =>
       Promise.resolve(permdock.assert(permissions.post.update, otherPost)),
     );
@@ -38,7 +38,7 @@ describe("problemFromError", () => {
   });
 
   it("maps an approval requirement to its approval problem", async () => {
-    const permdock = await createPermDock(policy, memberUser);
+    const permdock = createPermDock(policy, memberUser);
     const error = await thrown(() =>
       Promise.resolve(permdock.assert(permissions.post.delete, ownPost)),
     );

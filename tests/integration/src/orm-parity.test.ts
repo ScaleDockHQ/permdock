@@ -9,7 +9,7 @@ import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { Kysely, PostgresDialect } from "kysely";
 import { readFileSync } from "node:fs";
-import { createPermDock, memoryCustomRoleSource } from "permdock";
+import { loadPermDock, memoryCustomRoleSource, type PermDock } from "permdock";
 import {
   checkRow as drizzleCheckRow,
   toWhere as drizzleWhere,
@@ -198,7 +198,7 @@ function failures(results: readonly OrmParityCase[]): readonly string[] {
 }
 
 type Checker = (
-  permdock: Awaited<ReturnType<typeof createPermDock>>,
+  permdock: PermDock,
   permission: Permission<string, unknown, "instance">,
   id: string,
 ) => Promise<{ readonly found: boolean; readonly granted?: boolean }>;
@@ -412,7 +412,7 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
       ),
     );
     for (const scenario of scenarios) {
-      const permdock = await createPermDock(
+      const permdock = await loadPermDock(
         itemPolicy,
         scenario.user,
         scenario.options,

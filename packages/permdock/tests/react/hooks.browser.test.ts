@@ -80,7 +80,7 @@ function withStore(store: ClientStore, node: ReactNode): ReactElement {
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = await createPermDock(policy as never, memberUser);
+  const server = createPermDock(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");
@@ -174,7 +174,7 @@ describe("permdock/react hooks on the client", () => {
   });
 
   it("read tenants, scoped roles and assignable roles", async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -282,7 +282,7 @@ describe("permdock/react <Protected> on the client", () => {
   });
 
   it("decides for another tenant with the tenant prop", async () => {
-    const server = await createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");

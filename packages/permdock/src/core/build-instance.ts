@@ -5,7 +5,7 @@ import type { Principal } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { instanceOptions } from "./instance-options.ts";
-import { createPermDock } from "./permdock.ts";
+import { loadPermDock } from "./permdock.ts";
 
 /**
  * `resolve()`, or `null` when it throws: a subject or delegation that cannot
@@ -57,7 +57,7 @@ export async function buildInstance<
     ...instanceOptions(input.sources),
     ...input.scope,
   });
-  const created = await createPermDock(input.policy, input.user, options);
+  const created = await loadPermDock(input.policy, input.user, options);
   return {
     permdock: input.wrap === undefined ? created : input.wrap(created),
     options,

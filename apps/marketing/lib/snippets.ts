@@ -14,7 +14,7 @@ export const heroSnippet: CodeSnippet = {
   code: `import { createPermDock } from 'permdock'
 import { permissions, policy } from './policy'
 
-const permdock = await createPermDock(policy, user)
+const permdock = createPermDock(policy, user)
 
 permdock.can(permissions.post.update, post)
 permdock.decide(permissions.post.delete, post)

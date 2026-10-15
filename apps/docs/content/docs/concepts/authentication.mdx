@@ -234,7 +234,7 @@ const subject = await subjectFromJwt(token, {
 //   expiresAt: 1757164800,
 // }
 
-const permdock = await createPermDock(policy, subject);
+const permdock = createPermDock(policy, subject);
 const decision = permdock.decide(permissions.post.update, post);
 // granted: editor role allows it AND 'post:update' is in delegation.scopes
 // denied { reason: 'not-delegated' }: the role allows it but the token did not delegate it

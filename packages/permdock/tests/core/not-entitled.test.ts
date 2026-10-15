@@ -17,7 +17,7 @@ import {
 } from "../../src/testing/saas/index.ts";
 
 async function both(user: string, tenant: string) {
-  const server = await createPermDock(saasPolicy, saasPrincipal(user, tenant), {
+  const server = createPermDock(saasPolicy, saasPrincipal(user, tenant), {
     tenant,
     customRoles: memoryCustomRoleSource(saasCustomRoles),
   });
