@@ -17,7 +17,7 @@ const memberships: RlsMemberships = {
   team: {
     table: "team_members",
     user: "user_id",
-    role: [{ table: "roles", id: "role_id", key: "key" }],
+    role: { through: "roles", on: { role_id: "id" }, column: "key" },
     team: "team_id",
   },
 };
