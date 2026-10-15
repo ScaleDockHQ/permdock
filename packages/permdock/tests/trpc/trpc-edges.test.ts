@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { memoryLimitStore } from "../../src/core/limits.ts";
+import { limits, memoryLimitStore } from "../../src/core/limits.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -225,10 +225,10 @@ describe("permdock/trpc limit codes", () => {
   it("maps an exhausted limit to TOO_MANY_REQUESTS and a missing store to SERVICE_UNAVAILABLE", async () => {
     const t = initTRPC.context<Ctx>().create();
     const codes = [];
-    for (const limits of [memoryLimitStore(), undefined]) {
+    for (const counter of [memoryLimitStore(), undefined]) {
       const { protect } = createPermDock(limitedPolicy, {
         subject: () => ({ id: "u1", roles: ["member"] }),
-        ...(limits === undefined ? {} : { limits }),
+        ...(counter === undefined ? {} : { limits: limits(counter) }),
       });
       const router = t.router({
         run: t.procedure

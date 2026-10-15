@@ -14,6 +14,7 @@ import {
   definePolicy,
   defineRoles,
   deny,
+  limits,
   memoryLimitStore,
   memoryPolicySource,
   memoryRevocationFeed,
@@ -402,7 +403,7 @@ const quotaPolicy = definePolicy(quotaPermissions, {
 
 describePolicy(quotaPolicy, {
   exhaustive: false,
-  options: { limits: memoryLimitStore() },
+  options: { limits: limits(memoryLimitStore()) },
   subjects: { member: { id: "u1", roles: ["member"] } },
   fixtures: { report: { id: "r1" } },
   matrix: {
@@ -447,7 +448,7 @@ const softQuotaPolicy = definePolicy(quotaPermissions, {
 
 describePolicy(softQuotaPolicy, {
   exhaustive: false,
-  options: { limits: memoryLimitStore() },
+  options: { limits: limits(memoryLimitStore()) },
   subjects: {
     member: { id: "u1", roles: ["member"] },
     capped: { id: "u2", roles: ["capped"] },

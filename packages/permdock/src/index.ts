@@ -120,7 +120,8 @@ export {
 } from "./core/memberships.ts";
 export { stripeEntitlementSource } from "./core/stripe-entitlements.ts";
 export type { StripeEntitlementsClient } from "./core/stripe-entitlements.ts";
-export { memoryLimitStore } from "./core/limits.ts";
+export { limits, memoryLimitStore } from "./core/limits.ts";
+export type { Limits } from "./core/limits.ts";
 export { memoryRelationSource } from "./core/memory-relations.ts";
 export type {
   MemoryEdge,

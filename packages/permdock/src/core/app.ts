@@ -4,13 +4,11 @@ import type { PermDockOptions } from "./permdock.ts";
 import type { Grant, Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { Principal } from "./subject.ts";
 
-import { memoryLimitStore } from "./limits.ts";
-
 /**
  * How strict `defineApp` is about the services the policy needs. `dev`
- * fills in in-process defaults (a memory limit store here, a memory
- * approval store in each adapter) so a new app runs before any
- * infrastructure exists. `prod` throws at startup when a grant needs a
+ * fills in in-process defaults (a memory approval store in each adapter)
+ * so a new app runs before any infrastructure exists; grant limits stay
+ * opt-in through `limits(store)`. `prod` throws at startup when a grant needs a
  * service the app does not configure, instead of denying at run time.
  */
 export type AppProfile = "dev" | "prod";
@@ -53,7 +51,7 @@ function assertProduction(policy: Policy, options: AppOptions): void {
     grants.some((grant) => grant.limit !== undefined)
   ) {
     throw new Error(
-      "PermDock: profile 'prod' needs limits: a grant has a limit and every call would deny with limit-unavailable",
+      "PermDock: profile 'prod' needs limits: a grant has a limit and every call would deny with limit-unavailable; pass limits: limits(store)",
     );
   }
 }
@@ -73,16 +71,7 @@ export function defineApp<
   options: AppOptions = {},
 ): Policy<TUser, TPrincipal, V> {
   const profile = options.profile ?? "prod";
-  const grants = grantsOf(policy);
-  const definition: AppDefinition = {
-    ...options,
-    profile,
-    ...(profile === "dev" &&
-    options.limits === undefined &&
-    grants.some((grant) => grant.limit !== undefined)
-      ? { limits: memoryLimitStore() }
-      : {}),
-  };
+  const definition: AppDefinition = { ...options, profile };
   if (profile === "prod") {
     assertProduction(policy, definition);
   }

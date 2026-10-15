@@ -1,14 +1,38 @@
 import type { Denial, GrantedDecision } from "../decision.ts";
+import type { QuotaVerdict } from "../limits.ts";
 import type { Grant } from "../policy-types.ts";
 import type { Allow, EvaluationState } from "./state.ts";
 
 import { compact } from "../compact.ts";
 import { shouldConsumeQuota } from "../grant-conditions.ts";
-import { applyQuota } from "../limits.ts";
 import { requiresApproval } from "../policy.ts";
 import { approvalOf } from "./approval.ts";
 
 export type QuotaState = Pick<GrantedDecision, "quota" | "obligations">;
+
+/** The quota verdict for one allow: free without a `limit`, unavailable without the `limits()` feature. */
+function quotaOf(
+  state: EvaluationState,
+  grant: Grant,
+  consume: boolean,
+): QuotaVerdict {
+  const { env, subject } = state;
+  if (grant.limit === undefined) {
+    return { ok: true };
+  }
+  if (env.limits === undefined) {
+    return { ok: false, reason: "limit-unavailable" };
+  }
+  return env.limits.quota({
+    cache: env.limitCache,
+    limit: grant.limit,
+    permissionKey: state.permission.key,
+    subjectId: subject.principal?.id ?? "",
+    tenant: subject.principal?.tenant,
+    now: state.now,
+    consume,
+  });
+}
 
 /** The first usable allow whose quota admits the call, or the quota denials. */
 export function quotaAllow(
@@ -21,22 +45,15 @@ export function quotaAllow(
       readonly quota: QuotaState;
     }
   | { readonly denials: readonly Denial[] } {
-  const { subject, env } = state;
   const denials: Denial[] = [];
   for (const candidate of usable) {
     const approval = approvalOf(state, candidate);
-    const quota = applyQuota({
-      store: env.limits,
-      cache: env.limitCache,
-      grant: candidate.grant,
-      permissionKey: state.permission.key,
-      subjectId: subject.principal?.id ?? "",
-      tenant: subject.principal?.tenant,
-      now: state.now,
-      consume:
-        !requiresApproval(approval) &&
-        shouldConsumeQuota(state.options.call, env.simulated),
-    });
+    const quota = quotaOf(
+      state,
+      candidate.grant,
+      !requiresApproval(approval) &&
+        shouldConsumeQuota(state.options.call, state.env.simulated),
+    );
     if (quota.ok) {
       return {
         allow: candidate,

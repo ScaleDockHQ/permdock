@@ -3,12 +3,12 @@ import type { TargetFactory } from "./decide-for.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
   DecisionSink,
-  LimitStore,
   MembershipSource,
   RelationSource,
   CustomRoleSource,
   SettingsSource,
 } from "./interfaces.ts";
+import type { Limits } from "./limits.ts";
 import type { DeriveOptions } from "./permdock.ts";
 import type { Policy } from "./policy-types.ts";
 import type { PrincipalSource } from "./principal-source.ts";
@@ -29,7 +29,7 @@ import { isThenable } from "./thenable.ts";
 export type InstanceEnv = {
   readonly customRoles: readonly CustomRole[];
   readonly sink: DecisionSink | undefined;
-  readonly limits: LimitStore | undefined;
+  readonly limits: Limits | undefined;
   readonly limitCache: Map<string, number>;
   readonly simulated: boolean;
   readonly roleSource: CustomRoleSource | undefined;

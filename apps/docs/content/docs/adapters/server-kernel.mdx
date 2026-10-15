@@ -12,6 +12,7 @@ permix adapters each copy request isolation onto the framework context; PermDock
 ## API
 
 ```ts
+import { limits, memoryLimitStore } from "permdock";
 import {
   createPermDock,
   discoverViaSignatureAgent,
@@ -29,7 +30,7 @@ export const { getPermDock, protect, connection, problem, openapi } =
       required: false,
     }),
     tenant: (request) => orgFromPath(request), // optional; resolved again on every protect
-    limits: memoryLimitStore(), // optional LimitStore for quota grants
+    limits: limits(memoryLimitStore()), // optional; counts quota grants
   });
 
 // Plain Fetch handler
@@ -65,7 +66,7 @@ export default async function handler(request: Request): Promise<Response> {
 | `InstanceOptions`                | `memberships`, `relations`, `entitlements`, `customRoles`, `policies`, `approvalPolicies`, `sink`, `limits` and `principals`, passed unchanged to core `createPermDock` for every instance. Every adapter's options type extends `InstanceOptions` from `permdock`.                                                                                                                                                                                                                  |
 | `memberships`, `customRoles`     | `MembershipSource`, and a `CustomRoleSource` or a `CustomRoleSourceFactory` that builds one for each request's subject ([extension interfaces](/docs/concepts/extension-interfaces#membershipsource-and-rolesource)).                                                                                                                                                                                                                                                                |
 | `store`, `sink`                  | `ApprovalStore` for the `PermDock-Approval` resume and `DecisionSink` for decision events.                                                                                                                                                                                                                                                                                                                                                                                           |
-| `limits`                         | `LimitStore` for quota grants. Without it a quota grant denies with `limit-unavailable`.                                                                                                                                                                                                                                                                                                                                                                                             |
+| `limits`                         | `limits(store)` over a `LimitStore`. Without it a quota grant denies with `limit-unavailable`.                                                                                                                                                                                                                                                                                                                                                                                       |
 | `pdp`                            | `createPermDock` from [`permdock/pdp`](/docs/adapters/pdp). `protect` then decides delegated permissions through the provider; `can` on the instance stays synchronous and keeps denying them with `pdp-unavailable`.                                                                                                                                                                                                                                                                |
 | `approval`                       | An `ApprovalHint` (`{ at?, hint? }`) added as the `approval` member of every `approval-required` Problem Details: where to approve and what to tell the caller. The terminal adapter takes the same option.                                                                                                                                                                                                                                                                          |
 | `otel`                           | [OpenTelemetry](/docs/adapters/otel) spans, counters and the duration histogram.                                                                                                                                                                                                                                                                                                                                                                                                     |

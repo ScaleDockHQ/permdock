@@ -6,7 +6,7 @@ import type { PrincipalSource } from "../../src/core/principal-source.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { memoryLimitStore } from "../../src/core/limits.ts";
+import { limits, memoryLimitStore } from "../../src/core/limits.ts";
 import { memoryMembershipSource } from "../../src/core/memory-sources.ts";
 import { createPermDock, fromSnapshot } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
@@ -93,9 +93,9 @@ describe("decideEach", () => {
   });
 
   it("consumes a limit once per granted row, in row order", async () => {
-    const limits = memoryLimitStore();
+    const counter = memoryLimitStore();
     const permdock = await createPermDock(policy, subjectOf(alice), {
-      limits,
+      limits: limits(counter),
     });
     const decisions = permdock.decideEach(permissions.invoice.send, [
       inO1,
@@ -199,10 +199,10 @@ describe("decideFor", () => {
   });
 
   it("never consumes a limit", async () => {
-    const limits = memoryLimitStore();
+    const counter = memoryLimitStore();
     const permdock = await createPermDock(policy, subjectOf(alice), {
       principals,
-      limits,
+      limits: limits(counter),
     });
     for (let index = 0; index < 3; index += 1) {
       expect(
@@ -210,7 +210,9 @@ describe("decideFor", () => {
           .outcome,
       ).toBe("granted");
     }
-    const asBob = await createPermDock(policy, subjectOf(bob), { limits });
+    const asBob = await createPermDock(policy, subjectOf(bob), {
+      limits: limits(counter),
+    });
     expect(asBob.decide(permissions.invoice.send, inO1).outcome).toBe(
       "granted",
     );

@@ -2,7 +2,8 @@ import type { LoadedApprovalPolicies } from "./approval-policies.ts";
 import type { CustomGrant } from "./custom-roles.ts";
 import type { Decision } from "./decision.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
-import type { DecisionSink, LimitStore } from "./interfaces.ts";
+import type { DecisionSink } from "./interfaces.ts";
+import type { Limits } from "./limits.ts";
 import type { DecideOptions } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
@@ -68,7 +69,8 @@ export type EvalEnv = {
   readonly customGrants: readonly CustomGrant[];
   readonly listeners: ListenerMap;
   readonly sink: DecisionSink | undefined;
-  readonly limits: LimitStore | undefined;
+  /** The `limits()` feature; without it a grant with a `limit` denies with `limit-unavailable`. */
+  readonly limits: Limits | undefined;
   readonly limitCache: Map<string, number>;
   readonly team: string | undefined;
   /** Relation facts, read through the instance's per-request cache. */

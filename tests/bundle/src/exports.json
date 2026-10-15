@@ -86,6 +86,7 @@
     "isPortableCondition",
     "isRole",
     "isSqlFunctionField",
+    "limits",
     "linkPolicyViolation",
     "listPermissions",
     "listPlans",

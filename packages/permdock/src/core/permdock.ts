@@ -9,7 +9,6 @@ import type { HostedPolicies } from "./hosted.ts";
 import type { InstanceEnv } from "./instance-env.ts";
 import type {
   DecisionSink,
-  LimitStore,
   EntitlementSource,
   MembershipSource,
   RelationSource,
@@ -18,6 +17,7 @@ import type {
   SettingsSource,
   TokenSigner,
 } from "./interfaces.ts";
+import type { Limits } from "./limits.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
 import type { Operation } from "./operations.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
@@ -375,7 +375,8 @@ export type PermDockOptions = {
   readonly actor?: Actor;
   readonly delegation?: Delegation;
   readonly sink?: DecisionSink;
-  readonly limits?: LimitStore;
+  /** Grant limits, `limits(store)`; without it a grant with a `limit` denies with `limit-unavailable`. */
+  readonly limits?: Limits;
   readonly session?: string;
   readonly expiresAt?: number;
   /** Hosted grants, `hostedPolicies(source)`; `current()` is read once, when the instance is created. */

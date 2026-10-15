@@ -237,7 +237,7 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
 
 ### limit-unavailable
 
-503. A `limit` grant could not be counted: no `LimitStore`, a store that threw, or one that returned a Promise. Fail-closed, and the server's fault rather than the caller's.
+503. A `limit` grant could not be counted: no `limits` feature, a store that threw, or one that returned a Promise. Fail-closed, and the server's fault rather than the caller's.
 
 ```json
 {

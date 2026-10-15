@@ -1,6 +1,6 @@
 import type { LimitDetail, Obligation, Quota } from "./decision.ts";
 import type { LimitStore } from "./interfaces.ts";
-import type { Grant, GrantLimit } from "./policy-types.ts";
+import type { GrantLimit } from "./policy-types.ts";
 
 import { durationOf, nowSeconds, rfc3339 } from "./time.ts";
 
@@ -11,59 +11,6 @@ function isThenable(value: unknown): value is Promise<unknown> {
     "then" in value &&
     typeof value.then === "function"
   );
-}
-
-/** Throws at definition time for a `limit` no store could count. */
-export function assertLimit(
-  limit: GrantLimit | undefined,
-  permissionKey: string,
-): void {
-  if (limit === undefined) {
-    return;
-  }
-  if (!Number.isSafeInteger(limit.count) || limit.count <= 0) {
-    throw new Error(
-      `PermDock: limit count on '${permissionKey}' must be a positive integer`,
-    );
-  }
-  if (durationOf(limit.per) === undefined) {
-    throw new Error(
-      `PermDock: limit per on '${permissionKey}' must be a whole number of seconds above 0 (3600 for an hour), got ${JSON.stringify(limit.per)}`,
-    );
-  }
-  if (
-    limit.mode !== undefined &&
-    limit.mode !== "hard" &&
-    limit.mode !== "soft"
-  ) {
-    throw new Error(
-      `PermDock: limit mode on '${permissionKey}' must be 'hard' or 'soft'`,
-    );
-  }
-  if (
-    limit.alertAt !== undefined &&
-    (typeof limit.alertAt !== "number" ||
-      !(limit.alertAt > 0 && limit.alertAt <= 1))
-  ) {
-    throw new Error(
-      `PermDock: limit alertAt on '${permissionKey}' must be a fraction above 0 and at most 1`,
-    );
-  }
-}
-
-/** The declared fields of a validated `limit`, so extra keys never reach the grant. */
-export function normalizeLimit(
-  limit: GrantLimit | undefined,
-): GrantLimit | undefined {
-  if (limit === undefined) {
-    return undefined;
-  }
-  return {
-    count: limit.count,
-    per: limit.per,
-    ...(limit.mode === undefined ? {} : { mode: limit.mode }),
-    ...(limit.alertAt === undefined ? {} : { alertAt: limit.alertAt }),
-  };
 }
 
 function limitWindowId(per: number, now: number): string | undefined {
@@ -209,23 +156,36 @@ function verdictFor(
     : { ok: true, quota: { remaining: left, resetsAt } };
 }
 
-export function applyQuota(input: {
-  readonly store: LimitStore | undefined;
+/** What the quota stage of `evaluate` asks about one allow whose grant has a `limit`. */
+export type QuotaInput = {
   readonly cache: Map<string, number>;
-  readonly grant: Grant;
+  readonly limit: GrantLimit;
   readonly permissionKey: string;
   readonly subjectId: string;
   readonly tenant: string | undefined;
   readonly now: number;
   readonly consume: boolean;
-}): QuotaVerdict {
-  const limit = input.grant.limit;
-  if (limit === undefined) {
-    return { ok: true };
-  }
-  if (input.store === undefined) {
-    return { ok: false, reason: "limit-unavailable" };
-  }
+};
+
+/**
+ * Grant limits as an instance option: `limits: limits(store)`. The counting
+ * code ships only with an app that imports this function; without it, a grant
+ * with a `limit` denies with `limit-unavailable`.
+ */
+export type Limits = {
+  readonly feature: "limits";
+  readonly quota: (input: QuotaInput) => QuotaVerdict;
+};
+
+export function limits(store: LimitStore): Limits {
+  return Object.freeze({
+    feature: "limits" as const,
+    quota: (input: QuotaInput) => applyQuota(store, input),
+  });
+}
+
+function applyQuota(store: LimitStore, input: QuotaInput): QuotaVerdict {
+  const limit = input.limit;
   const payload = {
     key: input.permissionKey,
     subjectId: input.subjectId,
@@ -240,7 +200,7 @@ export function applyQuota(input: {
   }
   if (!input.consume) {
     try {
-      const peeked = input.store.remaining(payload);
+      const peeked = store.remaining(payload);
       if (isThenable(peeked)) {
         return { ok: false, reason: "limit-unavailable" };
       }
@@ -257,7 +217,7 @@ export function applyQuota(input: {
     return verdictFor(limit, cached - 1, input.now);
   }
   try {
-    const consumed = input.store.consume(payload);
+    const consumed = store.consume(payload);
     if (isThenable(consumed)) {
       return { ok: false, reason: "limit-unavailable" };
     }

@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { PermDockDeniedError } from "../../src/core/errors.ts";
-import { memoryLimitStore } from "../../src/core/limits.ts";
+import { limits, memoryLimitStore } from "../../src/core/limits.ts";
 import {
   type PermDock,
   createPermDock as createCorePermDock,
@@ -63,7 +63,7 @@ describe("rate limit responses", () => {
   it("answers an exhausted limit with 429 and the RateLimit fields", async () => {
     const { protect } = createPermDock(policy, {
       subject: () => ({ id: "u1", roles: ["member"] }),
-      limits: memoryLimitStore(),
+      limits: limits(memoryLimitStore()),
     });
     const guard = protect(permissions.report.export);
     expect((await guard(request())).ok).toBe(true);

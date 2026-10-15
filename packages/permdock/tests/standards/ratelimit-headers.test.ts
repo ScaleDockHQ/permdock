@@ -7,6 +7,7 @@ import {
   allow,
   definePermissions,
   definePolicy,
+  limits,
   memoryLimitStore,
   resource,
   role,
@@ -84,7 +85,7 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
     });
     const { protect } = createPermDock(policy, {
       subject: () => ({ id: "u1", roles: ["member"] }),
-      limits: memoryLimitStore(),
+      limits: limits(memoryLimitStore()),
     });
     const guard = protect(permissions.report.export);
     const request = (): Request => new Request("https://api.example/reports");

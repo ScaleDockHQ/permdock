@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import type { LimitStore } from "../../src/core/interfaces.ts";
+import type { QuotaInput } from "../../src/core/limits.ts";
 import type { GrantLimit } from "../../src/core/policy-types.ts";
 
-import {
-  applyQuota,
-  assertLimit,
-  memoryLimitStore,
-} from "../../src/core/limits.ts";
+import { assertLimit } from "../../src/core/limit-grants.ts";
+import { limits, memoryLimitStore } from "../../src/core/limits.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 
@@ -18,21 +17,15 @@ const NOW = 1_800_000_000;
 
 function quota(
   limit: GrantLimit,
-  overrides: Partial<Parameters<typeof applyQuota>[0]> = {},
+  {
+    store = memoryLimitStore(),
+    ...overrides
+  }: Partial<QuotaInput> & { readonly store?: LimitStore } = {},
 ) {
-  return applyQuota({
-    store: memoryLimitStore(),
+  return limits(store).quota({
     cache: new Map(),
-    grant: {
-      permission: permissions.report.export,
-      effect: "allow",
-      to: { kind: "anyone" },
-      role: null,
-      portable: true,
-      scope: "global",
-      limit,
-    },
-    permissionKey: "report.export",
+    limit,
+    permissionKey: permissions.report.export.key,
     subjectId: "u1",
     tenant: undefined,
     now: NOW,
@@ -113,7 +106,7 @@ describe("memoryLimitStore", () => {
   });
 });
 
-describe("applyQuota peeking", () => {
+describe("limits() peeking", () => {
   const limit = { count: 3, per: 3600 };
 
   it("refuses a window no store can count", () => {
