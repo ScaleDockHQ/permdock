@@ -555,6 +555,53 @@ describe("legacy parser shapes", () => {
     });
   });
 
+  it("reads a role list given as an array and refuses an empty and", async () => {
+    const memberships: RlsMemberships = {
+      tenant: { table: "org_members", user: "u", role: "r", tenant: "org" },
+    };
+    const exists = (where: unknown) => ({
+      SubLink: {
+        subLinkType: 0,
+        subselect: select({ A_Const: { ival: 1 } }, "org_members", where),
+      },
+    });
+    nextParse(
+      legacyWhere(
+        exists({
+          BoolExpr: {
+            boolop: 0,
+            args: [
+              op("=", col("org"), col("org_id")),
+              op("=", col("u"), fn("auth.uid")),
+              {
+                A_Expr: {
+                  kind: 7,
+                  name: [str("=")],
+                  lexpr: col("r"),
+                  rexpr: [{ A_Const: { sval: { sval: "owner" } } }],
+                },
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    expect((await condition("legacy", { memberships })).mapped).toEqual({
+      op: "memberOf",
+      scope: "tenant",
+      field: "org_id",
+      roles: ["owner"],
+    });
+    nextParse(legacyWhere(exists({ BoolExpr: { boolop: 0 } })));
+    expect((await condition("legacy", { memberships })).mapped).toMatchObject({
+      op: "opaque",
+    });
+    nextParse(legacyWhere(op("=", col("org"), [select(fn("ids"))])));
+    expect((await condition("legacy", { memberships })).mapped).toMatchObject({
+      op: "opaque",
+    });
+  });
+
   it("reads numeric sublink kinds and IN lists given as arrays", async () => {
     const memberships: RlsMemberships = {
       tenant: { table: "org_members", user: "u", role: "r", tenant: "org" },
