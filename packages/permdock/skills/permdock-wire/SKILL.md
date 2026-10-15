@@ -18,6 +18,7 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
 - The Standard Schema validator already in the repo: Zod, Valibot, ArkType, Effect Schema.
 - Where the signed-in user comes from (the session or a verified token) and which roles and plans exist.
 - The first path to guard.
+- Whether the app is new (start from a preset) or already has its own checks (adopt beside them).
 
 ## Invariants
 
@@ -29,9 +30,11 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
 
 ## Workflow
 
-1. **Detect.** Find the framework and the validator. Collect-only frameworks use `permdock/unplugin` for collect and `permdock/server` (or the matching HTTP adapter) at runtime; Nuxt collects the same way and runs on `permdock/h3`. Never add a per-vendor package.
+1. **Start.** A new app starts from a preset: the user's code from [permdock.com/create](https://permdock.com/create), or flags. Run `npx permdock init --preset <code> --dry-run`, show the file list, then run it without `--dry-run`; it never overwrites a file unless `--force` is passed. It writes the owned files the steps below describe; review them instead of writing them. An app with its own checks keeps them and adopts beside them with `shadowMode` and `permdock scan --legacy` ([existing apps](https://permdock.com/docs/getting-started/existing-apps)). -> [references/presets-and-recipes.md](references/presets-and-recipes.md)
+   ✓ Either `permdock init` wrote the files and printed the install line, or the legacy checks are listed and none was removed.
+2. **Detect.** Find the framework and the validator. Collect-only frameworks use `permdock/unplugin` for collect and `permdock/server` (or the matching HTTP adapter) at runtime; Nuxt collects the same way and runs on `permdock/h3`. Never add a per-vendor package.
    ✓ The adapter import path (`permdock/<framework>`) and the validator import are named.
-2. **Define.** Create `src/permissions.ts`. Importable everywhere; no rules, no secrets.
+3. **Define.** Create `src/permissions.ts`. Importable everywhere; no rules, no secrets.
 
    ```ts
    import {
@@ -52,7 +55,7 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
 
    ✓ Every resource the first guard needs has a leaf; instance actions sit in `actions`, list and create in `collection`.
 
-3. **Policy.** Create `src/policy.ts`. Prefer `grants` with `to:` selectors (`anyone()`, `authenticated()`, `relation()`, a role or plan leaf, `actor()`, `assurance()`); `role(roles.member, …)` sugar also works.
+4. **Policy.** Create `src/policy.ts`. Prefer `grants` with `to:` selectors (`anyone()`, `authenticated()`, `relation()`, a role or plan leaf, `actor()`, `assurance()`); `role(roles.member, …)` sugar also works.
 
    ```ts
    import { definePolicy, role, allow, principal, relation } from "permdock";
@@ -83,11 +86,11 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
    Short policy features that need no other skill -> [references/policy-options.md](references/policy-options.md): usage limits, `disclosure: 'hide'`, plan gates, `validFrom` / `validUntil`, step-up with `assurance()`.
    ✓ At least one role grants the first guard's permission, and no client entry imports `policy.ts`.
 
-4. **Factory.** Create `src/permdock/server.ts` (or the adapter's documented factory file) with `createPermDock` from `permdock/<framework>`. Copy the exact return names. -> [references/adapters.md](references/adapters.md)
+5. **Factory.** Create `src/permdock/server.ts` (or the adapter's documented factory file) with `createPermDock` from `permdock/<framework>`. Copy the exact return names. -> [references/adapters.md](references/adapters.md)
    ✓ The factory file compiles and exports the adapter's public members.
-5. **Guard.** Add one check on the path the user asked for: `assert` or `protect` / `getPermission` with a permission reference on the server, `<Protected permission={permissions.post.update}>` inside `PermDockProvider` in React.
+6. **Guard.** Add one check on the path the user asked for: `assert` or `protect` / `getPermission` with a permission reference on the server, `<Protected permission={permissions.post.update}>` or `useGate` inside `PermDockProvider` in React. For a gated button, approval dialog, tenant switcher or role picker, add the recipe from the `@permdock` registry rather than writing one. -> [references/presets-and-recipes.md](references/presets-and-recipes.md#recipes)
    ✓ That path cannot run without a `granted` decision, and the adapter handles a denial (Problem Details or fallback UI).
-6. **Check.** Run `permdock collect`, `permdock catalog`, `permdock usage` and `permdock doctor`, and add `permdock collect --check` to CI. For a Vite SPA, Expo or another framework without `'use client'`, set `doctor.clientEntries` to the client source globs so PD001 checks them. When client code lives outside `collect.srcPath`, list every source folder in `doctor.srcPath` instead of widening the catalog. Add a `describePolicy` suite from `permdock/testing` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). -> [references/policy-options.md](references/policy-options.md#cli-starting-points)
+7. **Check.** Run `permdock collect`, `permdock catalog`, `permdock usage` and `permdock doctor`, and add `permdock collect --check` to CI. For a Vite SPA, Expo or another framework without `'use client'`, set `doctor.clientEntries` to the client source globs so PD001 checks them. When client code lives outside `collect.srcPath`, list every source folder in `doctor.srcPath` instead of widening the catalog. Add a `describePolicy` suite from `permdock/testing` ([scenario testing](https://permdock.com/docs/guides/scenario-testing)). -> [references/policy-options.md](references/policy-options.md#cli-starting-points)
    ✓ Collect and doctor findings are fixed, or the three files typecheck and one matrix test passes.
 
 ## Next skills
@@ -111,6 +114,7 @@ Install each with `npx skills add ScaleDockHQ/PermDock --skill <name>` when the 
 ## Reference index
 
 - [references/adapters.md](references/adapters.md): factory shapes for Next.js, HTTP frameworks, meta-framework servers (SvelteKit, Astro, SolidStart, TanStack Start, h3 for Nitro and Nuxt), RPC frameworks, UI frameworks, AuthZEN, OpenAPI, OpenTelemetry, SCIM, Cloud, the Resend, Chat SDK and Workflow SDK implementation entries, Better Auth, Clerk, Supabase and better-supabase, the remote PDP, collect-only frameworks, and the `deniedResponse`, `context` and `wrap` adapter hooks.
+- [references/presets-and-recipes.md](references/presets-and-recipes.md): `permdock init` and preset codes, what the package owns and what the app owns, and the `@permdock` shadcn recipes for React and React Native.
 - [references/policy-options.md](references/policy-options.md): limits, disclosure, plans, validity windows, step-up, app data and app obligations, and CLI starting points (OpenAPI import, Arazzo, Cloud push).
 - The `permdock` skill: the mental model, `explain` for an unexpected denial, and the docs MCP.
 - Docs: [policies](https://permdock.com/docs/concepts/policies), [conditions](https://permdock.com/docs/concepts/conditions), [decisions](https://permdock.com/docs/concepts/decisions), [adapters](https://permdock.com/docs/adapters).

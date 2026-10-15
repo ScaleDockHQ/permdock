@@ -33,6 +33,7 @@ This is the short product brief: what PermDock is, who it is for, the principles
 - **Delegation-aware.** A subject is a principal, an actor and a delegation; an agent never exceeds the user it acts for ([subject](./apps/docs/content/docs/concepts/subject.mdx)).
 - **Standards-first.** Wire formats follow AuthZEN, OpenAPI, Standard Schema, RFC 9457 Problem Details, JOSE, SCIM, SSF and CAEP, and MCP, so any language can read what PermDock produces ([standards](./apps/docs/content/docs/standards/index.mdx)).
 - **Agent-readable.** Shipped skills, `AGENTS.md`, `llms.txt`, a JSON Schema catalog and denials written for models.
+- **Mix and match.** Each feature is a function or an option on one instance, so an app takes only what it uses. A preset from [`/create`](https://permdock.com/create) or `permdock init` writes the owned files for an archetype and a stack; rules stay in the package ([presets](./apps/docs/content/docs/concepts/presets.mdx)).
 - **Small.** ESM-only, runtime entries that depend on `@standard-schema/spec` only (no CLI dependency reaches them), and per-entry bundle size measured in CI.
 
 ## Non-goals
@@ -40,7 +41,7 @@ This is the short product brief: what PermDock is, who it is for, the principles
 - Requiring a network call to decide. PermDock is a decision point you embed; every hosted capability has an in-process default behind the same interface.
 - A policy language, an authentication product, token issuance, or Zanzibar-scale relationship graphs. PermDock bridges to OpenFGA or SpiceDB through a provider or a `RelationSource`; object hierarchies are relation grants that walk a parent chain to a bounded depth ([relationships](apps/docs/content/docs/concepts/relationships.mdx)), and resource roles follow declared, typed `parent` chains.
 - Storing or managing tenants, teams, invitations, memberships or custom roles. PermDock reads them through `MembershipSource` and `CustomRoleSource`; the auth provider or the application owns the tables ([tenancy](./apps/docs/content/docs/concepts/tenancy.mdx)).
-- UI components beyond `<Protected>`. Hooks return data and the application's design system renders it.
+- Shipped UI components beyond `<Protected>`. Hooks return data, and the `@permdock` shadcn registry hands out recipes that the application owns and builds from its own design system ([recipes](./apps/docs/content/docs/concepts/recipes.mdx)). Security logic never goes into those files: it stays in the package, where an update reaches it.
 
 ## Voice
 
