@@ -221,7 +221,7 @@ describe("resumeDecision edges", () => {
     ["another row", { resource: { type: "post", id: "7" } }],
     [
       "another principal",
-      { subject: { principal: { id: "someone-else", kind: "user" } } },
+      { subject: { principal: { id: "someone-else", roles: [] } } },
     ],
   ])("denies a token issued for %s", async (_label, overrides) => {
     const store = approved("t1", overrides);

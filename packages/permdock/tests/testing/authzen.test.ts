@@ -34,9 +34,9 @@ describe("AuthZEN runner with partial vector sets", () => {
       evaluation: [
         {
           request: {
-            subject: { type: "user" },
+            subject: { type: "user", id: "nobody" },
             action: { name: "can_create_todo" },
-            resource: { type: "todo" },
+            resource: { type: "todo", id: "t1" },
           },
           expected: false,
         },
