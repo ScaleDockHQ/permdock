@@ -769,6 +769,31 @@ describe("configuration and remaining causes", () => {
       await verifier().verify(`${encoded}.${p}.${s}`, { audience: AUDIENCE }),
     ).toMatchObject({ cause: "malformed" });
 
+    const dpopBound = await accessToken({ cnf: { jkt: "thumb" } });
+    const bearerEvents: string[] = [];
+    const asBearer = await subjectFromJwt(dpopBound, {
+      jwks: PUBLIC_JWKS,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      onAuth: (event) => {
+        bearerEvents.push(String(event.cause));
+      },
+    });
+    expect(asBearer.principal).toBeNull();
+    expect(bearerEvents).toContain("dpop-proof-invalid");
+    const certBound = await accessToken({ cnf: { "x5t#S256": "aa" } });
+    const certEvents: string[] = [];
+    const certAsBearer = await subjectFromJwt(certBound, {
+      jwks: PUBLIC_JWKS,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      onAuth: (event) => {
+        certEvents.push(String(event.cause));
+      },
+    });
+    expect(certAsBearer.principal).toBeNull();
+    expect(certEvents).toContain("mtls-binding-mismatch");
+
     const bound = await accessToken({ cnf: { "x5t#S256": "aa" } });
     const events: string[] = [];
     const mtls = await subjectFromJwt(bound, {

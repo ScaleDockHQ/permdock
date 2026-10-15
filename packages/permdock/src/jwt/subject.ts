@@ -65,6 +65,32 @@ function mtlsThumbprint(claims: JwtClaims): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+/**
+ * The sender constraint to enforce. Without a configured `sender`, a token
+ * whose `cnf` binds it to a key or a certificate is held to that binding,
+ * never accepted as a bearer token (RFC 9449 section 7.1, RFC 8705
+ * section 3). An explicit `sender: "none"` is the opt-out for a gateway
+ * that verified the binding upstream.
+ */
+function senderFor(
+  options: JwtSubjectOptions,
+  cnf: unknown,
+): "none" | "dpop" | "mtls" {
+  if (options.sender !== undefined) {
+    return options.sender;
+  }
+  if (options.profile === "fapi2") {
+    return "dpop";
+  }
+  if (cnf === null || typeof cnf !== "object" || Array.isArray(cnf)) {
+    return "none";
+  }
+  if (Object.hasOwn(cnf, "jkt")) {
+    return "dpop";
+  }
+  return Object.hasOwn(cnf, "x5t#S256") ? "mtls" : "none";
+}
+
 async function extraMemberships(
   options: JwtSubjectOptions,
   subject: MappedSubject,
@@ -173,10 +199,9 @@ async function resolveSubject(
     emitAuth(options, "wrong-token-type", token);
     return anonymousSubject();
   }
-  const sender =
-    options.sender ?? (options.profile === "fapi2" ? "dpop" : "none");
   const cnf = verified.claims["cnf"];
   const hasCnf = cnf !== null && typeof cnf === "object";
+  const sender = senderFor(options, cnf);
   if (options.profile === "fapi2" && !hasCnf) {
     emitAuth(options, "sender-constraint-required", token);
     return anonymousSubject();
