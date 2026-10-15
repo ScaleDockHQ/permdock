@@ -98,7 +98,7 @@ import { approvalActions, chatSdkTransport } from "permdock/chat-sdk";
 const chatPermDock = createPermDock(policy, {
   principals,
   memberships,
-  approvals: store,
+  store: store,
 });
 const actions = approvalActions(chatPermDock, { workspace: "T0ACME" });
 chat.onAction([...actions.actionIds], actions.onAction);
@@ -139,7 +139,7 @@ const workflow = createPermDock(policy, {
   verifier,
   principals,
   automations,
-  approvals: store,
+  store: store,
   waiter: pollingApprovalWaiter({ store, interval: 5_000 }),
   sink,
 });

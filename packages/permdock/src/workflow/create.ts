@@ -54,8 +54,8 @@ export type WorkflowPermDockOptions = PermDockOptions & {
   readonly principals: PrincipalSource;
   /** The live automation records, read by `start` and on every `getPermDock`. */
   readonly automations: AutomationSource;
-  /** Where `awaitApproval` opens and resumes requests. */
-  readonly approvals?: ApprovalStore;
+  /** Where `awaitApproval` opens and resumes requests; the same option name as every other adapter. */
+  readonly store?: ApprovalStore;
   /** Suspends `awaitApproval` until a request is decided. */
   readonly waiter?: ApprovalWaiter;
   readonly audience?: string | readonly string[];
@@ -216,7 +216,7 @@ export function createPermDock<
     verifier,
     principals,
     automations,
-    approvals,
+    store: approvals,
     waiter,
     audience,
     issuer,

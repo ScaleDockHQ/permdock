@@ -118,7 +118,7 @@ function setup() {
     automations: memoryAutomationSource([published]),
     audience: AUDIENCE,
     issuer: ISSUER,
-    approvals: store,
+    store: store,
     approvalPolicies: memoryApprovalPolicySource([
       { permission: "invoice.send", approval: "human" },
     ]),

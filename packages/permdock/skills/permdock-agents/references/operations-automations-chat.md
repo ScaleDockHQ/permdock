@@ -112,7 +112,7 @@ const workflow = createPermDock(policy, {
   verifier, // TokenVerifier for run tickets
   principals, // PrincipalSource, read live on every step
   automations, // AutomationSource
-  approvals: store,
+  store: store,
   waiter: pollingApprovalWaiter({ store }),
   sink,
 });
@@ -171,7 +171,7 @@ import { createPermDock } from "permdock/chat";
 const chatPermDock = createPermDock(policy, {
   principals,
   memberships,
-  approvals: store,
+  store: store,
 });
 
 const pay = chatPermDock.protect(

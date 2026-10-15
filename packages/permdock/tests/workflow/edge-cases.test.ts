@@ -220,7 +220,7 @@ describe("permdock/workflow: approvals without a row or a store", () => {
     const store = memoryApprovalStore();
     const { workflow, ticketFor } = setup({
       approvalPolicies,
-      approvals: store,
+      store: store,
     });
     const decision = await workflow.openApproval(
       await ticketFor(),

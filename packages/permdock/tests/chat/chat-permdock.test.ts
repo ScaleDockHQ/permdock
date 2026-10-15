@@ -20,7 +20,7 @@ function chat(store = memoryApprovalStore()) {
     chat: createPermDock(chatPolicy, {
       principals: chatPrincipals,
       memberships: chatMemberships,
-      approvals: store,
+      store: store,
     }),
   };
 }

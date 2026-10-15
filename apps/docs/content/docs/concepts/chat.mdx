@@ -23,7 +23,7 @@ import { createPermDock } from "permdock/chat";
 const chat = createPermDock(policy, {
   principals,
   memberships,
-  approvals: store,
+  store,
 });
 
 const pay = chat.protect(operations["invoice.pay"], async ({ input, row }) => {

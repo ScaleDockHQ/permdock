@@ -53,7 +53,7 @@ const workflow = createPermDock(policy, {
   verifier,
   principals,
   automations,
-  approvals: store,
+  store,
   waiter: pollingApprovalWaiter({ store }),
   sink,
 });

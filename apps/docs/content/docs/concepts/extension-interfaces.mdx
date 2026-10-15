@@ -216,7 +216,7 @@ Both are documented with their evaluation rules on the [tenancy](/docs/concepts/
 import { customRoleSource } from "permdock";
 
 const customRoles = customRoleSource({
-  rolesOf: (tenant) => db.customRoles.findMany({ where: { tenant } }), // every role of the tenant
+  rolesFor: (tenant) => db.customRoles.findMany({ where: { tenant } }), // every role of the tenant
   globalRoles: () => db.customRoles.findMany({ where: { scope: "global" } }),
 });
 ```

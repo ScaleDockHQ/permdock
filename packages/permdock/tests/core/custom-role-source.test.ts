@@ -14,7 +14,7 @@ const stored: readonly CustomRole[] = [
 
 function reader(reads: string[] = []) {
   return {
-    rolesOf(tenant: string): CustomRole[] {
+    rolesFor(tenant: string): CustomRole[] {
       reads.push(tenant);
       return [...stored];
     },
@@ -33,7 +33,7 @@ describe("customRoleSource", () => {
 
   it("filters an async read and junk to the tenant", async () => {
     const source = customRoleSource({
-      rolesOf: (tenant) =>
+      rolesFor: (tenant) =>
         Promise.resolve([
           // SAFETY: a store answering junk; the source must drop it.
           null as unknown as CustomRole,
@@ -47,7 +47,7 @@ describe("customRoleSource", () => {
   it("passes assignable and globalRoles through", async () => {
     const platform: CustomRole = { scope: "global", name: "auditor" };
     const source = customRoleSource({
-      rolesOf: () => [],
+      rolesFor: () => [],
       assignable: (tenant) => [`admin-${tenant}`],
       globalRoles: () => [platform],
     });
@@ -83,7 +83,7 @@ describe("customRoleSource", () => {
     const reads: string[] = [];
     const source = customRoleSource(
       {
-        rolesOf: () => [],
+        rolesFor: () => [],
         globalRoles: () => {
           reads.push("global");
           return [platform];

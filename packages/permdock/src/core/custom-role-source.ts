@@ -8,7 +8,7 @@ import { isThenable } from "./thenable.ts";
 /** Reads custom roles from the application's store, as `customRoleSource` takes them. */
 export type CustomRoleReader = {
   /** Every custom role of `tenant`, whether or not anyone in the request holds it. */
-  rolesOf(tenant: string): CustomRole[] | Promise<CustomRole[]>;
+  rolesFor(tenant: string): CustomRole[] | Promise<CustomRole[]>;
   assignable?(tenant: string): string[] | Promise<string[]>;
   /** Platform custom roles (`scope: 'global'`). */
   globalRoles?(): CustomRole[] | Promise<CustomRole[]>;
@@ -56,7 +56,7 @@ export function customRoleSource(
       ) {
         return [];
       }
-      const roles = reader.rolesOf(tenant);
+      const roles = reader.rolesFor(tenant);
       return isThenable(roles)
         ? roles.then((list) => ofTenant(tenant, list))
         : ofTenant(tenant, roles);
