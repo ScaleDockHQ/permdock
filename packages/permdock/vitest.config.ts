@@ -130,7 +130,7 @@ export default defineConfig({
         "src/cli/**": {
           statements: 98,
           lines: 98,
-          functions: 99,
+          functions: 100,
           branches: 96,
         },
         "src/testing/**": {
