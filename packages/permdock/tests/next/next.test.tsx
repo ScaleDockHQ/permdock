@@ -111,10 +111,15 @@ describe("permdock/next", () => {
 
   it("accepts an explicit tenant and falls back to the factory resolver", async () => {
     const { getPermDock } = createPermDock(policy, {
-      subject: () => ({
-        ...memberUser,
-        memberships: [{ tenant: "acme", roles: ["member"] }],
-      }),
+      // A resolved Subject: the policy's mapper would drop the memberships.
+      // SAFETY: createPermDock accepts a resolved Subject wherever it takes the policy's user.
+      subject: (() => ({
+        principal: {
+          ...memberUser,
+          memberships: [{ tenant: "acme", roles: ["member"] }],
+        },
+        context: {},
+      })) as unknown as () => typeof memberUser,
       tenant: async () => "acme",
     });
 

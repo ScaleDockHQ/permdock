@@ -20,7 +20,6 @@ import {
   type Principal,
   type Subject,
   anonymousSubject,
-  isPrincipal,
   isSubject,
 } from "./subject.ts";
 import { resolveActiveTenant } from "./tenancy.ts";
@@ -103,8 +102,6 @@ function assemblePrincipal(
       session = user.session ?? session;
       expiresAt = user.expiresAt ?? expiresAt;
       liveSession = user.liveSession === true ? true : undefined;
-    } else if (isPrincipal(user)) {
-      principal = user;
     } else {
       // SAFETY: TUser is erased at the policy boundary; createPermDock types user as TUser.
       principal = policy.subject(user as never);
