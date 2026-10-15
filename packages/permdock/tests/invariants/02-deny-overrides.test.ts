@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { Principal } from "../../src/index.ts";
+
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import {
   allow,
@@ -218,7 +220,7 @@ describe("invariant 2: deny overrides allow", () => {
           role("editor", [allow(items.item.update)]),
           role("frozen", [deny(items.item.update)], { on: "org" }),
         ],
-        subject: (user: Parameters<typeof subject>[0]) => user,
+        subject: (user: Principal) => user,
       });
       const permdock = await createPermDock(policy, {
         id: "u1",

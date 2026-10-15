@@ -172,6 +172,21 @@ describe("mapClaimsToSubject memberships", () => {
     ]);
   });
 
+  it.each([
+    ["an RFC 3339 string", "2001-01-01T00:00:01Z", 978_307_201],
+    ["NaN", Number.NaN, 0],
+    ["a string that is not RFC 3339", "soon", 0],
+    ["null, which never expires", null, undefined],
+  ])(
+    "reads an expiry given as %s, failing closed",
+    (_name, given, expected) => {
+      const membership = memberships([
+        { scope: "project", id: "p1", roles: ["editor"], expiresAt: given },
+      ])?.[0];
+      expect(membership?.expiresAt).toBe(expected);
+    },
+  );
+
   it("reads named-scope entries with within, via and expiry", () => {
     expect(
       memberships([
