@@ -252,7 +252,7 @@ export function accessReviewApplier(
       permission: Permission,
       data?: unknown,
     ) => ReturnType<PermDock["decide"]>;
-    return decide(permission).outcome === "granted";
+    return decide(permission).outcome !== "denied";
   };
 
   /** `undefined` once the item is marked applied, else why it is not. */
