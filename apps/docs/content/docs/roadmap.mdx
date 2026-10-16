@@ -1,13 +1,13 @@
 ---
 title: Roadmap
-description: What PermDock 0.1.0 contains, what is planned, what the project deliberately does not do, how versions are numbered, and the open design questions.
+description: What PermDock contains, what is planned, what the project deliberately does not do, how versions are numbered, and the open design questions.
 ---
 
 This page is the single place for what exists, what is planned and what is still undecided. A page for something not built yet carries a `Status: planned` or `Status: tracking` line under its frontmatter; every other page describes code in the package. Design rationale lives in the Why section of the page that owns each decision.
 
 ## Current scope
 
-`permdock@0.1.0` is on npm. It is one package: core, every adapter, the `permdock` CLI (`permdock/cli`, `permdock/unplugin`, `permdock/next/plugin`) and the test runners (`permdock/testing`).
+`permdock` is on npm; `packages/permdock/package.json` holds the version. It is one package: core, every adapter, the `permdock` CLI (`permdock/cli`, `permdock/unplugin`, `permdock/next/plugin`) and the test runners (`permdock/testing`).
 
 - **Core.** `definePermissions`, `resource` and typed permission references, with `renamed` for former keys; `definePolicy`, `role`, `allow`, `deny` and portable conditions with an in-memory evaluator; time-bound grants (`validFrom`, `validUntil`) and policy `delegations` for agents; the two-principal subject (`principal`, `actor`, `delegation`) with tenancy, memberships, scoped, custom and global custom roles; `createPermDock` with `can`, `decide`, `explain`, `assert`, `filter`, `simulate`, `snapshot` and `on`; field-level grants, quota grants through `LimitStore`, approvals with quorum, stages, escalation and out-of-office delegation through `ApprovalStore`, access reviews that record a keep or a revoke without applying it, decision events through `DecisionSink`, and connections that end on a `RevocationFeed`. See [concepts](/docs/concepts/permissions).
 - **Feature entries.** `defineOperations` binds application actions to permissions. `permdock/agent` is the contract the agent adapters build on. `permdock/workflow` runs automations as their publisher with live rights. `permdock/delivery` sends notifications only to recipients the sender's policy grants. `permdock/chat` decides chat commands as the linked author. Support sessions let staff act for a user with attribution. See [operations](/docs/concepts/operations), [automations](/docs/concepts/automations), [delivery](/docs/concepts/delivery), [chat](/docs/concepts/chat) and [support sessions](/docs/concepts/support-sessions).

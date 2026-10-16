@@ -46,7 +46,10 @@ const verifier = webhookVerifier({
   replay: memoryReplayStore(),
 });
 const delivery = await verifier.verify(request);
-if (!delivery.ok) return new Response(null, { status: 403 });
+if (!delivery.ok)
+  return new Response(null, {
+    status: delivery.cause === "invalid-signature" ? 403 : 400,
+  });
 ```
 
 Behaviour:
@@ -55,7 +58,7 @@ Behaviour:
 - **Any entry verifies.** The verifier checks `v1` entries against each `secret` and `v1a` entries against each Ed25519 key in `jwks` (an inline set, or a URL it fetches and caches for 300 seconds). Unknown versions are ignored.
 - **Timestamps are bounded.** A `webhook-timestamp` more than `tolerance` seconds (default 300) before or after the clock fails with `timestamp-out-of-range`.
 - **Replays fail.** The `webhook-id` is claimed in the `ReplayStore` only after a signature verifies, so a forged delivery cannot burn a real id. A store that throws fails the delivery closed. Replay protection covers one store: receivers behind a load balancer share a store, or each instance accepts a delivery once.
-- **It never throws.** `verify` answers `{ ok: true, id, timestamp, body }`, with `timestamp` in RFC 3339, or `{ ok: false, cause }` with `missing-headers`, `malformed`, `timestamp-out-of-range`, `invalid-signature`, `keys-unavailable` or `replayed`.
+- **It never throws.** `verify` answers `{ ok: true, id, timestamp, body }`, with `timestamp` in RFC 3339, or `{ ok: false, cause }` with `missing-headers`, `malformed`, `timestamp-out-of-range`, `invalid-signature`, `keys-unavailable` or `replayed`. Answer `400` for the first three, `403` for `invalid-signature`, `503` for `keys-unavailable` and `204` for `replayed`, as `cloudApprovalWaiter` does; never `401`, which RFC 9110 pairs with a `WWW-Authenticate` scheme a webhook does not have.
 - **Build it once.** A verifier with a `jwks` URL caches the key set; one built per request fetches the key set on every delivery.
 
 ## Mapping table

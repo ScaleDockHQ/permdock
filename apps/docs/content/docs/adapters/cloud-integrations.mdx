@@ -103,7 +103,10 @@ const verifier = webhookVerifier({
 
 export async function POST(request: Request) {
   const delivery = await verifyWebhook(request, { verifier });
-  if (!delivery.ok) return new Response(null, { status: 401 });
+  if (!delivery.ok)
+    return new Response(null, {
+      status: delivery.cause === "invalid-signature" ? 403 : 400,
+    });
   for (const event of delivery.events) {
     if (event.type === "com.permdock.catalog.published")
       await permdockCloud.policies.refresh();
