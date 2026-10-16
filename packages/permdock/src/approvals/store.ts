@@ -502,7 +502,7 @@ function isStale(request: ApprovalRequest, now: Date): boolean {
 }
 
 export function memoryApprovalStore(
-  options: { readonly ttl?: number } = {},
+  options: { readonly ttl?: number; readonly now?: () => Instant } = {},
 ): MemoryApprovalStore {
   if (options.ttl !== undefined && durationOf(options.ttl) === undefined) {
     throw new RangeError(
@@ -511,12 +511,13 @@ export function memoryApprovalStore(
   }
   const ttl = options.ttl ?? DEFAULT_APPROVAL_TTL;
   const records = new Map<string, ApprovalRequest>();
+  const clock = (at?: Instant): Date => dateAt(at ?? options.now?.());
 
   const store: MemoryApprovalStore = {
     ttl,
     create(request: ApprovalRequest): void {
       const current = records.get(request.token);
-      if (current !== undefined && !isStale(current, new Date())) {
+      if (current !== undefined && !isStale(current, clock())) {
         return;
       }
       records.set(request.token, freezeDeep(request));
@@ -537,7 +538,7 @@ export function memoryApprovalStore(
       return next;
     },
     consume(token: string, at?: Instant): ApprovalRequest | null {
-      const now = dateAt(at);
+      const now = clock(at);
       const current = records.get(token);
       if (
         current?.status !== "approved" ||
@@ -560,7 +561,7 @@ export function memoryApprovalStore(
       return pageApprovals(matching, query);
     },
     expire(at?: Instant): number {
-      const now = dateAt(at);
+      const now = clock(at);
       let count = 0;
       const instant = now.getTime();
       for (const [token, request] of records) {
@@ -582,7 +583,7 @@ export function memoryApprovalStore(
       return count;
     },
     cancel(filter: ApprovalListFilter, meta: ApprovalCancelMeta): number {
-      const now = new Date();
+      const now = clock();
       let count = 0;
       for (const [token, request] of records) {
         if (request.status !== "pending" || !matchesFilter(request, filter)) {
