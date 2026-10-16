@@ -7,5 +7,7 @@ export default defineConfig({
   plugins: [svelte()],
   test: {
     include: ["src/**/*.test.ts"],
+    // Every test walks or spawns over the whole dist; in CI they share the runner with lint and typecheck.
+    testTimeout: 30_000,
   },
 });

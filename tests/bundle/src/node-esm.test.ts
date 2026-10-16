@@ -30,6 +30,5 @@ describe("plain Node ESM", () => {
       { cwd: ROOT, encoding: "utf8" },
     );
     expect(JSON.parse(output)).toEqual({});
-    // One cold process loads every entry; in CI it shares the runner with lint and typecheck.
-  }, 30_000);
+  });
 });
