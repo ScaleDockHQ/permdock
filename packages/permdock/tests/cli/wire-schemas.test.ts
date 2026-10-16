@@ -8,6 +8,7 @@ import type { PolicyDocument } from "../../src/core/hosted.ts";
 
 import { parseApprovalRequest } from "../../src/approvals/parse-request.ts";
 import { signApproval } from "../../src/approvals/signature.ts";
+import { validateOpenapi } from "../../src/cli/openapi/schema.ts";
 import {
   RUN_TICKET_SCHEMA,
   SUPPORT_SESSION_SCHEMA,
@@ -22,6 +23,8 @@ import {
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { signRunTicket } from "../../src/server/run-ticket.ts";
 import { signSupportSession } from "../../src/server/support-session.ts";
+import { CONNECTOR_SCHEMA } from "../../src/testing/cloud-api/connector-schema.ts";
+import { CLOUD_API_DOCUMENT } from "../../src/testing/cloud-api/document.ts";
 import { jwtFixtureTokens } from "../../src/testing/jwt-fixtures.ts";
 
 const SCHEMAS = new URL("../../schemas/", import.meta.url);
@@ -46,7 +49,10 @@ const ajv = new Ajv2020({
   formats: { "date-time": true },
 });
 
-const files = readdirSync(SCHEMAS).filter((name) => name.endsWith(".json"));
+const OPENAPI_DOCUMENTS = new Set(["cloud-api-v1.json"]);
+const files = readdirSync(SCHEMAS).filter(
+  (name) => name.endsWith(".json") && !OPENAPI_DOCUMENTS.has(name),
+);
 
 function validator(name: string): (value: unknown) => readonly unknown[] {
   const check = ajv.getSchema(`https://permdock.com/schemas/${name}`);
@@ -549,5 +555,67 @@ describe("connector-v1.json", () => {
         config: { url: "http://ops.example.com" },
       }),
     ).not.toEqual([]);
+  });
+});
+
+describe("cloud-api-v1.json", () => {
+  it("is CLOUD_API_DOCUMENT and connector-v1.json is CONNECTOR_SCHEMA", () => {
+    expect(json(new URL("cloud-api-v1.json", SCHEMAS))).toEqual(
+      CLOUD_API_DOCUMENT,
+    );
+    expect(json(new URL("connector-v1.json", SCHEMAS))).toEqual(
+      CONNECTOR_SCHEMA,
+    );
+  });
+
+  it("is a valid OpenAPI 3.1 document", () => {
+    expect(validateOpenapi(CLOUD_API_DOCUMENT)).toEqual({
+      ok: true,
+      version: "3.1",
+    });
+  });
+
+  it("compiles every response schema against the package schemas", () => {
+    const local = new Ajv2020({ strict: false });
+    for (const name of files) {
+      local.addSchema(json(new URL(name, SCHEMAS)));
+    }
+    local.addSchema({ ...CLOUD_API_DOCUMENT, $id: "cloud-api" });
+    // SAFETY: the document's paths are path items of operations, read for their response keys only.
+    const paths = CLOUD_API_DOCUMENT["paths"] as Record<
+      string,
+      Record<
+        string,
+        { responses?: Record<string, { content?: Record<string, unknown> }> }
+      >
+    >;
+    const compiled: string[] = [];
+    for (const [path, item] of Object.entries(paths)) {
+      for (const [method, operation] of Object.entries(item)) {
+        for (const [status, response] of Object.entries(
+          operation.responses ?? {},
+        )) {
+          for (const type of Object.keys(response.content ?? {})) {
+            const pointer = [
+              "paths",
+              path,
+              method,
+              "responses",
+              status,
+              "content",
+              type,
+              "schema",
+            ]
+              .map((part) => part.replaceAll("~", "~0").replaceAll("/", "~1"))
+              .join("/");
+            expect(local.getSchema(`cloud-api#/${pointer}`)).toBeTypeOf(
+              "function",
+            );
+            compiled.push(`${method} ${path} ${status}`);
+          }
+        }
+      }
+    }
+    expect(compiled.length).toBeGreaterThan(60);
   });
 });

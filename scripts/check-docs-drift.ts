@@ -2,6 +2,7 @@ import { globSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { cloudRouteDrift } from "./docs-drift-cloud-routes.ts";
 import { writeRenamedSection } from "./docs-drift-renamed-section.ts";
 import { renameDrift } from "./docs-drift-renames.ts";
 import { rewriteDrift } from "./docs-drift-rewrites.ts";
@@ -240,6 +241,7 @@ const problems = [
     exportsFile: EXPORTS,
   }),
   ...rewriteDrift(ROOT),
+  ...cloudRouteDrift(ROOT),
 ];
 
 if (problems.length > 0) {
@@ -247,6 +249,6 @@ if (problems.length > 0) {
   process.exitCode = 1;
 } else {
   process.stdout.write(
-    "docs match the doctor checks, package entries, standards tests, names, exports and the 0.5 renames; dev rewrites match vercel.json\n",
+    "docs match the doctor checks, package entries, standards tests, names, exports and the 0.5 renames; dev rewrites match vercel.json; Cloud route tables match schemas/cloud-api-v1.json\n",
   );
 }
