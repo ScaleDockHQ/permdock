@@ -48,6 +48,12 @@ jobs:
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
+      # Native runtime; Postgres comes up while permdock builds.
+      - name: Start the local stack
+        id: stack
+        background: true
+        run: pnpm run supabase:start
+
       - name: Build permdock
         run: pnpm --filter permdock build
         working-directory: .
@@ -55,8 +61,7 @@ jobs:
       - name: Generated SQL, manifest, blocks and types are current
         run: pnpm run gen:check
 
-      - name: Start the local stack
-        run: pnpm run supabase:start
+      - wait: stack
 
       # pg-delta replays the migrations, then diffs them against supabase/schemas;
       # --strict-coverage fails on an object pg-delta cannot manage.

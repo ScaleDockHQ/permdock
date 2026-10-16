@@ -1,6 +1,8 @@
-# actionlint 1.7.12 rejects `$/` (rhysd/actionlint#711). Same-repo `uses` stays `$/` so zizmor's self-repository audit passes.
+# actionlint 1.7.12 rejects `$/` (rhysd/actionlint#711) and background steps (#693). Same-repo `uses` stays `$/` so zizmor's self-repository audit passes; zizmor parses background steps.
 paths:
   .github/workflows/**/*.{yml,yaml}:
     ignore:
       - 'reusable workflow call "\$/.+" at "uses" is not following the format'
       - 'specifying action "\$/.+" in invalid format because ref is missing'
+      - 'unexpected key "background" for step'
+      - 'step must run script with "run" section or run action with "uses" section'
