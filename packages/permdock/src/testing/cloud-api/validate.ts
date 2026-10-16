@@ -33,23 +33,21 @@ function patternOf(template: string): RegExp {
   return new RegExp(`^${source}$`, "u");
 }
 
-function routesOf(
-  document: Readonly<Record<string, unknown>>,
-): readonly Route[] {
-  const paths = isRecord(document["paths"]) ? document["paths"] : {};
+type PathItems = Readonly<
+  Record<string, Readonly<Record<string, { readonly responses?: unknown }>>>
+>;
+
+function routesOf(paths: PathItems): readonly Route[] {
   const routes: Route[] = [];
   for (const [template, item] of Object.entries(paths)) {
-    if (!isRecord(item)) {
-      continue;
-    }
     for (const method of METHODS) {
-      const operation = item[method];
-      if (isRecord(operation) && isRecord(operation["responses"])) {
+      const responses = item[method]?.responses;
+      if (isRecord(responses)) {
         routes.push({
           method: method.toUpperCase(),
           template,
           pattern: patternOf(template),
-          responses: operation["responses"],
+          responses,
         });
       }
     }
@@ -82,7 +80,8 @@ export function cloudApiValidator(): CloudApiResponseCheck {
   ajv.addSchema(APPROVAL_REQUEST_SCHEMA);
   ajv.addSchema(CONNECTOR_SCHEMA);
   ajv.addSchema({ ...CLOUD_API_DOCUMENT, $id: DOCUMENT_ID });
-  const routes = routesOf(CLOUD_API_DOCUMENT);
+  // SAFETY: CLOUD_API_DOCUMENT is this module's own OpenAPI document; every path item maps methods to operations.
+  const routes = routesOf(CLOUD_API_DOCUMENT["paths"] as PathItems);
   const validators = new Map<string, ValidateFunction | undefined>();
   const validatorFor = (
     parts: readonly string[],
@@ -112,11 +111,10 @@ export function cloudApiValidator(): CloudApiResponseCheck {
     if (!isRecord(content)) {
       return [];
     }
-    const type =
-      (response.headers.get("content-type") ?? "")
-        .split(";")[0]
-        ?.trim()
-        .toLowerCase() ?? "";
+    const [type = ""] = (response.headers.get("content-type") ?? "")
+      .toLowerCase()
+      .split(";")
+      .map((part) => part.trim());
     if (!(type in content)) {
       return [
         `${name}: content type "${type}", documented ${Object.keys(content).join(", ")}`,
@@ -144,9 +142,6 @@ export function cloudApiValidator(): CloudApiResponseCheck {
     if (validate === undefined || validate(body)) {
       return [];
     }
-    return (validate.errors ?? []).map(
-      (error) =>
-        `${name}: ${error.instancePath || "/"} ${error.message ?? "is invalid"}`,
-    );
+    return [`${name}: ${ajv.errorsText(validate.errors)}`];
   };
 }
