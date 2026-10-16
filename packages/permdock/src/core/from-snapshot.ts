@@ -252,7 +252,7 @@ export function fromSnapshot(
         : signSnapshot(
             snapshot,
             signing.signer,
-            signing.audience,
+            compact({ audience: signing.audience }),
           )) as PermDock["snapshot"],
     on() {
       return (): void => undefined;

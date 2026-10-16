@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/support-session-v1.json",
+  "title": "PermDock support session",
+  "description": "The claims of a vnd.permdock.support-session+jwt, wire format v1: sub is the viewed principal, act the support actor, jti the session id. exp is after iat, by at most one day.",
+  "type": "object",
+  "required": [
+    "v",
+    "iss",
+    "sub",
+    "aud",
+    "jti",
+    "iat",
+    "exp",
+    "act",
+    "tenant",
+    "reason",
+    "permissions"
+  ],
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "iss": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "sub": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "aud": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "minItems": 1
+        }
+      ]
+    },
+    "jti": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "iat": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "exp": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "act": {
+      "type": "object",
+      "required": ["sub", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "sub": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "support"
+        }
+      }
+    },
+    "tenant": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "minItems": 1,
+      "maxItems": 64
+    },
+    "approved_by": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    }
+  }
+}

@@ -711,7 +711,11 @@ export function approvalsHandler(
           const signed =
             current === null || !party(current, principal.id)
               ? undefined
-              : await signApproval(current, options.signer, options.audience);
+              : await signApproval(
+                  current,
+                  options.signer,
+                  compact({ audience: options.audience }),
+                );
           if (signed === undefined) {
             return problem(404, "no signed approval for that request");
           }

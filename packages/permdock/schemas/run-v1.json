@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/run-v1.json",
+  "title": "PermDock run ticket",
+  "description": "The claims of a vnd.permdock.run+jwt, wire format v1. At least one of scope and authorization_details is present; automation is present exactly when kind is automation.",
+  "type": "object",
+  "required": ["v", "iss", "sub", "aud", "jti", "iat", "exp", "kind"],
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "iss": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "sub": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "aud": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "minItems": 1
+        }
+      ]
+    },
+    "jti": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "iat": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "exp": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kind": {
+      "enum": ["automation", "job", "caller"]
+    },
+    "act": {
+      "$ref": "#/$defs/act"
+    },
+    "scope": {
+      "type": "string"
+    },
+    "authorization_details": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "automation": {
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        }
+      }
+    },
+    "tenant": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "trigger": {
+      "type": "object"
+    },
+    "binding": {
+      "type": "object",
+      "properties": {
+        "connector": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "maxItems": 64
+        }
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "required": ["scope"],
+      "properties": {
+        "scope": true
+      }
+    },
+    {
+      "required": ["authorization_details"],
+      "properties": {
+        "authorization_details": true
+      }
+    }
+  ],
+  "$defs": {
+    "act": {
+      "description": "RFC 8693 act: the party running the work; at most 8 nested levels.",
+      "type": "object",
+      "required": ["sub"],
+      "properties": {
+        "sub": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "act": {
+          "$ref": "#/$defs/act"
+        }
+      }
+    }
+  }
+}

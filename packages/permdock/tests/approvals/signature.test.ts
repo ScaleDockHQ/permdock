@@ -100,7 +100,7 @@ describe("signApproval", () => {
       kid: "2026-09",
       issuer: ISSUER,
     });
-    const token = await signApproval(APPROVED, signer, ISSUER);
+    const token = await signApproval(APPROVED, signer, { audience: ISSUER });
     expect(decodeProtectedHeader(token ?? "").typ).toBe(
       "vnd.permdock.approval+jwt",
     );
@@ -119,9 +119,13 @@ describe("signApproval", () => {
     const signer: TokenSigner = {
       sign: () => Promise.reject(new Error("unexpected")),
     };
-    expect(await signApproval(APPROVED, undefined, ISSUER)).toBeUndefined();
     expect(
-      await signApproval({ ...APPROVED, status: "rejected" }, signer, ISSUER),
+      await signApproval(APPROVED, undefined, { audience: ISSUER }),
+    ).toBeUndefined();
+    expect(
+      await signApproval({ ...APPROVED, status: "rejected" }, signer, {
+        audience: ISSUER,
+      }),
     ).toBeUndefined();
   });
 });

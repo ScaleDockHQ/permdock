@@ -30,7 +30,7 @@ const tsdownEntries = new Set(
 );
 
 const exported = Object.entries(manifest.exports).filter(
-  ([entry]) => entry !== "./package.json",
+  ([entry]) => entry !== "./package.json" && entry !== "./schemas/*",
 );
 
 describe("every package entry is listed everywhere a gate reads it", () => {

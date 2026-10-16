@@ -1,6 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { isRecord } from "./compact.ts";
+import { isForbiddenKey } from "./paths.ts";
 
 /**
  * The JSON Schema 2020-12 keywords the package's own schemas use;
@@ -304,4 +305,24 @@ export function checkSchema(
       );
     }
   }
+}
+
+/** The path of the first `__proto__`, `constructor` or `prototype` key in `value`, if any. */
+export function forbiddenKeyPath(
+  value: unknown,
+  path: Path = [],
+): Path | undefined {
+  if (value === null || typeof value !== "object") {
+    return undefined;
+  }
+  for (const [key, child] of Object.entries(value)) {
+    if (isForbiddenKey(key)) {
+      return [...path, key];
+    }
+    const found = forbiddenKeyPath(child, [...path, key]);
+    if (found !== undefined) {
+      return found;
+    }
+  }
+  return undefined;
 }

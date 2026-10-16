@@ -62,7 +62,10 @@ function packageEntries(): readonly string[] {
     read(join(ROOT, "packages", "permdock", "package.json")),
   ) as { readonly exports: Readonly<Record<string, unknown>> };
   return Object.keys(manifest.exports)
-    .filter((entry) => entry !== "." && entry !== "./package.json")
+    .filter(
+      (entry) =>
+        entry !== "." && entry !== "./package.json" && entry !== "./schemas/*",
+    )
     .map((entry) => `permdock/${entry.slice(2)}`);
 }
 

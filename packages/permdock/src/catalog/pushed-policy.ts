@@ -18,8 +18,11 @@ import type { SnapshotScope } from "../core/snapshot-types.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { snapshotScopes } from "../core/instance-snapshot.ts";
-import { checkSchema, copyJson } from "../core/json-schema.ts";
-import { isForbiddenKey } from "../core/paths.ts";
+import {
+  checkSchema,
+  copyJson,
+  forbiddenKeyPath,
+} from "../core/json-schema.ts";
 import { RFC3339_PATTERN } from "../core/time.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
 import { wireValidity } from "../core/validity.ts";
@@ -227,25 +230,6 @@ export function pushedPolicy(policy: Policy): PushedPolicy {
   };
 }
 
-function unsafeKeyPath(
-  value: unknown,
-  path: readonly PropertyKey[],
-): readonly PropertyKey[] | undefined {
-  if (value === null || typeof value !== "object") {
-    return undefined;
-  }
-  for (const [key, child] of Object.entries(value)) {
-    if (isForbiddenKey(key)) {
-      return [...path, key];
-    }
-    const found = unsafeKeyPath(child, [...path, key]);
-    if (found !== undefined) {
-      return found;
-    }
-  }
-  return undefined;
-}
-
 /**
  * Validates a pushed policy (parsed, or the JSON text) against
  * `schemas/pushed-policy-v1.json` and returns a deep-frozen copy. Throws
@@ -267,7 +251,7 @@ export function parsePushedPolicy(json: unknown): PushedPolicy {
   if (issues.length === 0) {
     checkSchema(PUSHED_POLICY_SCHEMA, copy, [], issues);
   }
-  const unsafe = issues.length === 0 ? unsafeKeyPath(copy, []) : undefined;
+  const unsafe = issues.length === 0 ? forbiddenKeyPath(copy) : undefined;
   if (unsafe !== undefined) {
     issues.push({ message: "Unsafe key", path: [...unsafe] });
   }

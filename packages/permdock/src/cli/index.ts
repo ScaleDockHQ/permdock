@@ -1,6 +1,7 @@
 export { catalogPath } from "./catalog-path.ts";
 export { defineConfig } from "./config.ts";
 export { parseGrantsMarker, parseHookMarker } from "./sql/markers.ts";
+export { RUN_TICKET_SCHEMA, SUPPORT_SESSION_SCHEMA } from "./token-schemas.ts";
 export type {
   SupabaseGrantsMarker,
   SupabaseHookMarker,

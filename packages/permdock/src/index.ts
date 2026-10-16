@@ -137,6 +137,10 @@ export {
   parsePolicyDocument,
   policyDocumentFromClaims,
 } from "./core/hosted.ts";
+export { signPolicyDocument } from "./core/policy-sign.ts";
+export type { SignPolicyDocumentOptions } from "./core/policy-sign.ts";
+export { signSnapshot, snapshotFromClaims } from "./core/snapshot-sign.ts";
+export type { SignSnapshotOptions } from "./core/snapshot-sign.ts";
 export type {
   HostedGrant,
   HostedGrantDropReason,

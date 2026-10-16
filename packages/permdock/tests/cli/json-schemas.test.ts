@@ -8,7 +8,7 @@ import type {
 } from "../../src/approvals/index.ts";
 
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
-import { APPROVAL_REQUEST_SCHEMA } from "../../src/cli/approval-schema.ts";
+import { APPROVAL_REQUEST_SCHEMA } from "../../src/approvals/request-schema.ts";
 import { PERMDOCK_CLAIMS_SCHEMA } from "../../src/cli/claims-schema.ts";
 import { testApprovalStore } from "../../src/testing/index.ts";
 

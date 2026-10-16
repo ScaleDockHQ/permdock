@@ -12,7 +12,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { emptySnapshot, fromSnapshot } from "../core/from-snapshot.ts";
-import { snapshotFromClaims } from "../core/snapshot-sign.ts";
+import { snapshotClaim } from "../core/snapshot-sign.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
 import { nowSeconds } from "../core/tenancy.ts";
 import { secondsOf } from "../core/time.ts";
@@ -329,7 +329,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       const verified = await options.verifier.verify(raw, {
         typ: "vnd.permdock.snapshot+jwt",
       });
-      return verified.ok ? snapshotFromClaims(verified.claims) : undefined;
+      return verified.ok ? snapshotClaim(verified.claims) : undefined;
     } catch {
       return undefined;
     }
