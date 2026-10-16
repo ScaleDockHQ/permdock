@@ -125,15 +125,15 @@ One branch and one PR per chat or plan, small conventional commits (lower-case s
 Each is a record in `docs/decisions`:
 
 - 0002 no global `typescript` override; 0003 Zod and agent SDKs; 0004 `engines.node: ">=24"`
-- 0005 extra workspace globs and root scripts; 0006 relaxed tsconfig for vendored UI
-- 0008 `turbo query affected`; 0009 extra boundary rules; 0010 pnpm through Corepack on Vercel
+- 0005 extra workspaces and root scripts; 0006 relaxed tsconfig for vendored UI
+- 0008 `turbo query affected`; 0009 extra boundary rules; 0010 Corepack on Vercel
 - 0011 no docs `robots.ts`; 0012 plain cross-zone anchors; 0013 no `fumadocs-openapi`
 - 0015 Ask AI input from `InputGroup`; 0016 Portless names; 0017 `permdock-<topic>` skills; 0018 blocked majors
 - 0019 `<Adapter>PermDock` and no `$` members; 0020 the CLI inside `permdock`; 0021 `^build` over `transit`
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 150-character headers; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
-- 0029 no Turbopack build cache in CI; 0030 `Vary` only on Markdown
-- 0031 `tests/*` outside root Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`
+- 0029 no Turbopack cache in CI; 0030 `Vary` only on Markdown
+- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`
 
 ## Pre-release pins
 
