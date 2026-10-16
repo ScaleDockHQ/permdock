@@ -17,13 +17,51 @@ env:
   CI: true
   TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
   AFFECTED: ${{ inputs.affected && '--affected' || '' }}
-  # The Next.js workspaces; GitHub-hosted runners run out of memory building them in parallel.
-  NEXT_APPS: >-
+  # GitHub-hosted runners run out of memory building these in parallel, and lint, typecheck
+  # and test reach them through `build` and `^build`. A Remote Cache hit after ci.yml's `build`.
+  BUILD_NEXT_APPS: >-
+    pnpm exec turbo run build --concurrency=1
     --filter=docs --filter=marketing --filter=@permdock/example-next
     --filter=@permdock/example-next-better-supabase
 
 jobs:
-  verify:
+  # One machine and one install for every cheap gate; Turbo runs the workspace tasks concurrently.
+  static:
+    name: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # `--affected` diffs against the merge base.
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+
+      - name: Build Next.js apps
+        run: $BUILD_NEXT_APPS
+
+      - parallel:
+          # Includes the public types under TypeScript 5.9, 6 and 7 (tests/types).
+          - name: Workspace tasks
+            run: >-
+              pnpm exec turbo run lint typecheck typecheck:tooling knip docs:drift openapi:check
+              gen:check doctor size check:publish audit:high $AFFECTED
+          - name: Format
+            run: pnpm run format:check
+          - name: Root lint
+            run: pnpm run lint:root
+          - name: Boundaries
+            run: pnpm run boundaries
+
+  heavy:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -34,63 +72,29 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: format
-            run: pnpm run format:check
-          - name: lint
-            next: true
-            run: pnpm run lint:root && pnpm exec turbo run lint $AFFECTED
-          - name: knip
-            run: pnpm exec turbo run knip
-          # Includes the public types under TypeScript 5.9, 6 and 7 (tests/types).
-          - name: typecheck
-            next: true
-            run: pnpm exec turbo run typecheck typecheck:tooling typecheck:perf $AFFECTED
           - name: test
             next: true
             run: pnpm run authzen:vectors && pnpm exec turbo run test $AFFECTED
           # The Nest adapter against Nest 11, the lowest peer version.
           - name: nest-11
-            run: scripts/test-nest-11.sh
-          - name: boundaries
-            run: pnpm run boundaries
-          - name: audit
-            run: pnpm exec turbo run audit:high
-          - name: drift
-            next: true
-            run: pnpm exec turbo run docs:drift openapi:check gen:check $AFFECTED
-          - name: doctor
-            run: pnpm exec turbo run doctor $AFFECTED
-          - name: size
-            run: pnpm exec turbo run size $AFFECTED
-          - name: publish
-            run: pnpm exec turbo run check:publish $AFFECTED
+            run: pnpm run test:nest-11
+          # Alone on its machine: its check-time ceiling flakes when other tasks share the CPU.
+          - name: perf
+            run: pnpm exec turbo run typecheck:perf
     steps:
       - uses: actions/checkout@v7
         with:
-          # `--affected` diffs against the merge base.
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
-      # Turbopack's build cache; Turborepo restores the outputs, not `.next/cache`.
-      - uses: actions/cache@v6
-        if: matrix.next
-        with:
-          path: |
-            apps/*/.next/cache
-            apps/examples/*/.next/cache
-          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/**/*.ts', 'apps/**/*.tsx', 'apps/**/*.mdx', 'apps/**/*.css', '!**/node_modules/**') }}
-          restore-keys: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-
       - name: Build Next.js apps
         if: matrix.next
-        run: |
-          # Word splitting turns NEXT_APPS into separate flags.
-          # shellcheck disable=SC2086
-          pnpm exec turbo run build $NEXT_APPS --concurrency=1
+        run: $BUILD_NEXT_APPS
 
       - name: ${{ matrix.name }}
         run: ${{ matrix.run }}
