@@ -149,7 +149,10 @@ function trustedHelpers(
       : [
           helperEntry(
             IS_APPROVER,
-            "p_approvers jsonb, p_tenant text",
+            typeof config.rls.approvals === "object" &&
+              config.rls.approvals.delegations === true
+              ? "p_approvers jsonb, p_tenant text, p_requester text, p_resource text"
+              : "p_approvers jsonb, p_tenant text",
             "boolean",
             client,
           ),

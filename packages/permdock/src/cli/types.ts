@@ -235,7 +235,8 @@ export type RlsConfig = {
    * Add the approval store `supabaseApprovalStore` reads and writes: the
    * `approval_requests` table and one function per `ApprovalStore` method, in
    * the helper schema, executable by no client role. Off by default. An
-   * object adopts a table the app already has instead.
+   * object with `table` adopts a table the app already has instead, and
+   * `delegations: true` adds the out-of-office covers.
    */
   readonly approvals?: boolean | RlsApprovalsAdopt;
   /**
@@ -321,8 +322,15 @@ export type RlsConfig = {
  * fields into the app's own columns on each write, converted to their types.
  */
 export type RlsApprovalsAdopt = {
-  /** `table` or `schema.table`. */
-  readonly table: string;
+  /** `table` or `schema.table`. Without it the store is the generated `approval_requests`. */
+  readonly table?: string;
+  /**
+   * Add `approval_delegations`, the out-of-office covers a user writes for
+   * themselves, and the four-argument `permdock_is_approver` that answers for
+   * a delegate inside an active cover. `tableApprovalDelegationSource` reads
+   * the same rows for `approvalsHandler`. Off by default.
+   */
+  readonly delegations?: boolean;
   /** A text column unique per request. Default `token`. */
   readonly token?: string;
   /** A jsonb column holding the `ApprovalRequest`. Default `body`. */

@@ -23,6 +23,13 @@ type IsApproverInput = {
   readonly schema: string;
   /** Whether the manifest's `rls.helpers` lists `permdock_is_approver`. */
   readonly listed: boolean;
+  /**
+   * Whether the listed helper takes `p_requester, p_resource`, which
+   * `rls.approvals.delegations` writes. The template then passes
+   * better-supabase's `{requester}`, so a delegate inside an active cover
+   * matches; better-supabase 0.9.0 or later fills it.
+   */
+  readonly covers?: boolean;
   readonly tenantScope: string;
   readonly rootTenant: boolean;
   readonly catalog: CatalogDocument | undefined;
@@ -33,6 +40,12 @@ type IsApproverOutput = {
   readonly requires?: AuthorizationRequirement;
   readonly problems: readonly string[];
 };
+
+/** The resource a cover's `resources` names for a request kind: `job` for `job.update`, else the kind. */
+function resourceOf(kind: string): string {
+  const dot = kind.indexOf(".");
+  return dot <= 0 ? kind : kind.slice(0, dot);
+}
 
 /**
  * better-supabase's `isApprover` template: one `case` over `{kind}` whose
@@ -73,8 +86,11 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
         );
       }
     }
+    const json = `${quoteSqlLiteral(JSON.stringify(approvers))}::jsonb`;
     branches.push(
-      `when ${quoteSqlLiteral(kind)} then ${fn}(${quoteSqlLiteral(JSON.stringify(approvers))}::jsonb, ({tenant})::text)`,
+      input.covers === true
+        ? `when ${quoteSqlLiteral(kind)} then ${fn}(${json}, ({tenant})::text, ({requester})::text, ${quoteSqlLiteral(resourceOf(kind))})`
+        : `when ${quoteSqlLiteral(kind)} then ${fn}(${json}, ({tenant})::text)`,
     );
   }
   if (branches.length === 0) {
@@ -88,7 +104,11 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
   }
   return {
     template: `case {kind} ${branches.join(" ")} else false end`,
-    requires: { function: fn, args: "jsonb, text", role: "postgres" },
+    requires: {
+      function: fn,
+      args: input.covers === true ? "jsonb, text, text, text" : "jsonb, text",
+      role: "postgres",
+    },
     problems,
   };
 }
