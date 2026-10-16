@@ -7,6 +7,7 @@ import { deliveryEvent } from "../core/delivery-event.ts";
 import { ownRecord } from "../core/paths.ts";
 import { statusProblem } from "../core/problem-types.ts";
 import { isRfc3339, nowSeconds } from "../core/time.ts";
+import { bodyTooLarge, readBodyText } from "../server/body.ts";
 import { methodNotAllowed, problemResponse } from "../server/problem.ts";
 import { CATEGORY_TAG, DELIVERY_TAG, KEY_TAG } from "./transport.ts";
 
@@ -190,10 +191,13 @@ export function resendWebhook(
     if (id === null || timestamp === null || signature === null) {
       return unsigned();
     }
-    const body = await request.text();
-    if (body.length > MAX_BODY) {
-      return problemResponse(statusProblem(413, "webhook body is too large"));
+    const read = await readBodyText(request, MAX_BODY);
+    if (!read.ok) {
+      return read.cause === "too-large"
+        ? bodyTooLarge(MAX_BODY)
+        : problemResponse(statusProblem(400, "webhook body was unreadable"));
     }
+    const body = read.text;
     let payload: unknown;
     try {
       payload = options.resend.webhooks.verify({

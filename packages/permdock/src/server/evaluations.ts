@@ -8,6 +8,7 @@ import { compact, isRecord } from "../core/compact.ts";
 import { type Decision, NO_GRANT } from "../core/decision.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { type WireDecision, wireDenials } from "../core/wire-denial.ts";
+import { bodyTooLarge, readBodyText } from "./body.ts";
 import {
   type PermissionLookup,
   itemResourceData,
@@ -318,9 +319,15 @@ export function evaluationsHandler(options: {
   const lookup = permissionLookup(options.policy.permissions);
   const maxEvaluations = options.maxEvaluations ?? DEFAULT_MAX_EVALUATIONS;
   const POST = async (request: Request): Promise<Response> => {
+    const read = await readBodyText(request);
+    if (!read.ok) {
+      return read.cause === "too-large"
+        ? bodyTooLarge()
+        : validationProblem("evaluations body was not valid JSON");
+    }
     let body: unknown;
     try {
-      body = await request.json();
+      body = JSON.parse(read.text);
     } catch {
       return validationProblem("evaluations body was not valid JSON");
     }

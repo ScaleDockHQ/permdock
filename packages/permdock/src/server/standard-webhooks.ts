@@ -3,6 +3,7 @@ import type { Instant } from "../core/time.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 
 import { nowSeconds, rfc3339 } from "../core/time.ts";
+import { readBodyText } from "./body.ts";
 
 /** The three Standard Webhooks headers a delivery carries. */
 export type WebhookHeaders = {
@@ -241,11 +242,8 @@ function header(input: WebhookInput, name: string): string | undefined {
 
 async function bodyOf(input: WebhookInput): Promise<string | undefined> {
   if (input instanceof Request) {
-    try {
-      return await input.text();
-    } catch {
-      return undefined;
-    }
+    const read = await readBodyText(input);
+    return read.ok ? read.text : undefined;
   }
   return input.body;
 }

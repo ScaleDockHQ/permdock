@@ -8,7 +8,8 @@
     },
     "test": {
       "dependsOn": ["$TURBO_EXTENDS$", "//#authzen:vectors"],
-      "inputs": ["$TURBO_DEFAULT$", "tests/testing/fixtures/authzen/**"]
+      "inputs": ["$TURBO_DEFAULT$", "tests/testing/fixtures/authzen/**"],
+      "env": ["$TURBO_EXTENDS$", "PERMDOCK_COLLECT"]
     }
   }
 }

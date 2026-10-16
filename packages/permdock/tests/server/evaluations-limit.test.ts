@@ -38,6 +38,30 @@ describe("evaluationsHandler batch limit", () => {
     expect(resolved).toBe(1);
   });
 
+  it("answers a body over 1 MiB with 413 before resolving an instance", async () => {
+    let resolved = 0;
+    const handler = evaluationsHandler({
+      policy,
+      resolve: async () => {
+        resolved += 1;
+        return createCorePermDock(policy, memberUser);
+      },
+    });
+    const body = JSON.stringify({
+      evaluations: [],
+      pad: "x".repeat(1_048_576),
+    });
+    const response = await handler.POST(
+      new Request("https://api.example/access/v1/evaluations", {
+        method: "POST",
+        headers: { "content-type": "application/json", "content-length": "2" },
+        body,
+      }),
+    );
+    expect(response.status).toBe(413);
+    expect(resolved).toBe(0);
+  });
+
   it("defaults to the AuthZEN limit of 256", async () => {
     const handler = evaluationsHandler({
       policy,

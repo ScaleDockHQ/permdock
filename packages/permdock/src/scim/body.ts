@@ -2,6 +2,7 @@ import type { AppData } from "../core/app-data.ts";
 
 import { readAppData } from "../core/app-data.ts";
 import { compact, isRecord } from "../core/compact.ts";
+import { readBodyText } from "../server/body.ts";
 import {
   APP_DATA_EXTENSION,
   PATCH_SCHEMA,
@@ -10,13 +11,24 @@ import {
   type DirectoryUser,
 } from "./types.ts";
 
-export async function readJson(request: Request): Promise<unknown> {
-  const text = await request.text();
-  if (text === "") {
-    return undefined;
+/** The parsed body; `undefined` for an empty or unreadable one. Invalid JSON throws a `SyntaxError`. */
+export async function readJson(
+  request: Request,
+): Promise<
+  | { readonly tooLarge: false; readonly body: unknown }
+  | { readonly tooLarge: true }
+> {
+  const read = await readBodyText(request);
+  if (!read.ok) {
+    return read.cause === "too-large"
+      ? { tooLarge: true }
+      : { tooLarge: false, body: undefined };
   }
-  const parsed: unknown = JSON.parse(text);
-  return parsed;
+  if (read.text === "") {
+    return { tooLarge: false, body: undefined };
+  }
+  const body: unknown = JSON.parse(read.text);
+  return { tooLarge: false, body };
 }
 
 export function schemasOk(
