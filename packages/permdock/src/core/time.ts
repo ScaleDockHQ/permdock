@@ -15,7 +15,8 @@ export type Instant = { readonly epochMilliseconds: number };
 export const RFC3339_PATTERN =
   "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$";
 
-const RFC3339 = new RegExp(RFC3339_PATTERN, "u");
+// oxlint-disable-next-line eslint/no-inline-comments -- bundlers only read the annotation inline
+const RFC3339 = /* @__PURE__ */ new RegExp(RFC3339_PATTERN, "u");
 
 export function isRfc3339(value: unknown): value is string {
   return (

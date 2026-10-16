@@ -36,7 +36,8 @@ export function idempotencyKeyFor(
 }
 
 const ATOM = "[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+";
-const ADDR_SPEC = new RegExp(
+// oxlint-disable-next-line eslint/no-inline-comments -- bundlers only read the annotation inline
+const ADDR_SPEC = /* @__PURE__ */ new RegExp(
   `^${ATOM}(?:\\.${ATOM})*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`,
   "u",
 );

@@ -123,7 +123,8 @@ export function parseApiKey(key: unknown): ApiKeyParts | undefined {
 const FEED_PREFIX = "pdfeed_";
 const FEED_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
 const FEED_SECRET_LENGTH = 26;
-const FEED_TAIL = new RegExp(
+// oxlint-disable-next-line eslint/no-inline-comments -- bundlers only read the annotation inline
+const FEED_TAIL = /* @__PURE__ */ new RegExp(
   `^[a-z2-7]{${String(FEED_SECRET_LENGTH + CHECKSUM_LENGTH)}}$`,
   "u",
 );
