@@ -719,6 +719,7 @@
     "testAutomationSource",
     "testClientParity",
     "testClientStore",
+    "testCloudApi",
     "testCredentialVerifier",
     "testCustomRoleSource",
     "testDecisionProvider",
