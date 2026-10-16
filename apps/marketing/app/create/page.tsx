@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 
-import { CreateBuilder } from "@/components/create/builder";
+import {
+  CreateBuilder,
+  CreateBuilderSkeleton,
+} from "@/components/create/builder";
 
 export const metadata = {
   title: "Create",
@@ -22,7 +25,7 @@ export default function CreatePage() {
         </p>
       </div>
       {/* The builder reads ?preset= on the client; the shell stays static. */}
-      <Suspense>
+      <Suspense fallback={<CreateBuilderSkeleton />}>
         <CreateBuilder />
       </Suspense>
     </div>

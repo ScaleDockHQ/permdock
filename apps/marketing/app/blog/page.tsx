@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { blogSource } from "@/lib/source";
+import { publishedPosts } from "@/lib/source";
 import { Frame, FrameFooter, FramePanel } from "@permdock/ui/reui/frame";
 
 export const metadata = {
@@ -9,11 +9,7 @@ export const metadata = {
 };
 
 export default function BlogIndexPage() {
-  const posts = blogSource.getPages().filter((page) => {
-    // SAFETY: blog frontmatter may carry `draft`; only `=== true` is trusted below
-    const data = page.data as { draft?: unknown };
-    return data.draft !== true;
-  });
+  const posts = publishedPosts();
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-16 md:px-8">

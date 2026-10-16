@@ -18,9 +18,10 @@ import {
   presetMatrix,
   resolvePreset,
 } from "permdock/preset";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { InstallCopy } from "@/components/sections/install-copy";
+import { Skeleton } from "@permdock/ui/components/skeleton";
 import {
   Tabs,
   TabsContent,
@@ -104,15 +105,13 @@ export function CreateBuilder() {
     const code = search.get("preset");
     return (code === null ? undefined : decodePreset(code)) ?? START;
   });
-  const preset: Preset = useMemo(() => resolvePreset(input), [input]);
-  const generated = useMemo(() => generatePreset(preset), [preset]);
-  const matrix = useMemo(() => presetMatrix(preset), [preset]);
-  const locked = useMemo(
-    () =>
-      resolvePreset({ archetype: preset.archetype, agents: preset.agents })
-        .features,
-    [preset.archetype, preset.agents],
-  );
+  const preset: Preset = resolvePreset(input);
+  const generated = generatePreset(preset);
+  const matrix = presetMatrix(preset);
+  const locked = resolvePreset({
+    archetype: preset.archetype,
+    agents: preset.agents,
+  }).features;
   useEffect(() => {
     const url = new URL(window.location.href);
     url.searchParams.set("preset", generated.code);
@@ -333,6 +332,18 @@ export function CreateBuilder() {
           </TabsContent>
         </Tabs>
       </div>
+    </div>
+  );
+}
+
+export function CreateBuilderSkeleton() {
+  return (
+    <div
+      aria-hidden
+      className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+    >
+      <Skeleton className="h-[40rem] rounded-xl" />
+      <Skeleton className="h-[40rem] rounded-xl" />
     </div>
   );
 }
