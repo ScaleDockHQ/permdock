@@ -133,6 +133,7 @@ Each is a record in `docs/decisions`:
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 150-character headers; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
 - 0029 no Turbopack build cache in CI; 0030 `Vary` only on Markdown
+- 0031 `tests/*` outside root Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`
 
 ## Pre-release pins
 
