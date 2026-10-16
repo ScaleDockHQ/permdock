@@ -25,7 +25,7 @@ function asRoles(value: unknown): readonly string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-const REGISTERED_CLAIMS = new Set([
+const REGISTERED_CLAIMS: ReadonlySet<string> = new Set([
   "iss",
   "sub",
   "aud",
@@ -45,7 +45,10 @@ const REGISTERED_CLAIMS = new Set([
 ]);
 
 /** Registered claims plus `unsafeMetadata`, which the user can edit. */
-const NOT_EXTRA = new Set([...REGISTERED_CLAIMS, "unsafeMetadata"]);
+const NOT_EXTRA: ReadonlySet<string> = new Set([
+  ...REGISTERED_CLAIMS,
+  "unsafeMetadata",
+]);
 
 function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
   return omitKeys(claims, NOT_EXTRA);

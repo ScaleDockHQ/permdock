@@ -21,7 +21,7 @@ import { rel } from "./files.ts";
 /** oxc reports recoverable problems as `Warning` or `Advice`; only `Error` leaves the program incomplete. */
 const PARSE_ERRORS: ReadonlySet<string> = new Set(["Error"]);
 
-const CHECK_CALLS = new Set([
+const CHECK_CALLS: ReadonlySet<string> = new Set([
   "can",
   "decide",
   "assert",

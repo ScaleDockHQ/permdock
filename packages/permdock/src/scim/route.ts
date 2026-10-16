@@ -2,7 +2,7 @@ import type { ScimPage } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 
-const RESOURCES = new Set([
+const RESOURCES: ReadonlySet<string> = new Set([
   "Users",
   "Groups",
   "ServiceProviderConfig",

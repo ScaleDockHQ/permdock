@@ -117,7 +117,7 @@ const SECTIONS: Readonly<Record<Section, Readonly<Record<string, true>>>> = {
   doctor: DOCTOR,
 };
 
-const TOP_LEVEL = new Set<string>([
+const TOP_LEVEL: ReadonlySet<string> = new Set<string>([
   "permissions",
   "policy",
   "operations",

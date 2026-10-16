@@ -5,7 +5,7 @@ import { emitPermissionsModule } from "../generate.ts";
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/u;
 
 /** Actions a collection permission decides: there is no row yet, or a list of rows. */
-const COLLECTION_ACTIONS = new Set(["create", "list"]);
+const COLLECTION_ACTIONS: ReadonlySet<string> = new Set(["create", "list"]);
 
 /** A condition value: JSON, or a field of the principal (`principal.id`). */
 export type ImportedValue =

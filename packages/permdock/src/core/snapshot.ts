@@ -74,7 +74,13 @@ export function snapshotGrant(
   return freezeDeep(entry);
 }
 
-const CARRIED = new Set(["id", "roles", "plans", "tenant", "memberships"]);
+const CARRIED: ReadonlySet<string> = new Set([
+  "id",
+  "roles",
+  "plans",
+  "tenant",
+  "memberships",
+]);
 
 /** Principal refs the snapshot principal does not carry (`claims`, `teamIds`, …) are bound to the subject's values. */
 function isClaimRef(ref: string): boolean {

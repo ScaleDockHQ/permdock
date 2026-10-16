@@ -190,8 +190,15 @@ export type MembershipSubquery = {
   readonly field?: string;
 };
 
-const EXISTS = new Set<string | number>(["EXISTS_SUBLINK", 0]);
-const IN_OR_ANY = new Set<string | number>(["ANY_SUBLINK", "IN_SUBLINK", 2]);
+const EXISTS: ReadonlySet<string | number> = new Set<string | number>([
+  "EXISTS_SUBLINK",
+  0,
+]);
+const IN_OR_ANY: ReadonlySet<string | number> = new Set<string | number>([
+  "ANY_SUBLINK",
+  "IN_SUBLINK",
+  2,
+]);
 
 function subquery(
   select: unknown,

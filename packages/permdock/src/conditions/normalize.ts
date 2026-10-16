@@ -17,7 +17,7 @@ import {
   assertSqlFunctionName,
 } from "./sql-function-assert.ts";
 
-const FIELD_OPS = new Set([
+const FIELD_OPS: ReadonlySet<string> = new Set([
   "eq",
   "ne",
   "gt",

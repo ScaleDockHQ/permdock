@@ -464,8 +464,14 @@ class Rewriter {
   }
 }
 
-const POLICY_STATEMENTS = new Set(["CreatePolicyStmt", "AlterPolicyStmt"]);
-const BODY_STATEMENTS = new Set(["CreateFunctionStmt", "DoStmt"]);
+const POLICY_STATEMENTS: ReadonlySet<string> = new Set([
+  "CreatePolicyStmt",
+  "AlterPolicyStmt",
+]);
+const BODY_STATEMENTS: ReadonlySet<string> = new Set([
+  "CreateFunctionStmt",
+  "DoStmt",
+]);
 
 function bodyStrings(statement: unknown): readonly string[] {
   const options = [

@@ -30,7 +30,10 @@ export type WireDecision =
       readonly denials: readonly WireDenial[];
     });
 
-const IN_PROCESS = new Set<DenialReason>(["closure-error", "validation"]);
+const IN_PROCESS: ReadonlySet<DenialReason> = new Set<DenialReason>([
+  "closure-error",
+  "validation",
+]);
 
 function jsonDetail(value: unknown): unknown {
   if (value === undefined || value === null || value instanceof Error) {

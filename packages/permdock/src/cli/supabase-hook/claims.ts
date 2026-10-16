@@ -7,7 +7,11 @@ import { quoteLiteral, quoteQualified, quoteTable } from "../sql/quote.ts";
 
 const CLAIM_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 
-const PROTOTYPE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const PROTOTYPE_KEYS: ReadonlySet<string> = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
 
 const USER_EDITABLE = /^(raw_)?user_meta(_)?data$/iu;
 

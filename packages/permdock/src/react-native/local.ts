@@ -48,7 +48,13 @@ export type LocalSnapshotOptions = {
   readonly subscribe?: (listener: () => void) => () => void;
 };
 
-const CARRIED = new Set(["id", "roles", "plans", "tenant", "memberships"]);
+const CARRIED: ReadonlySet<string> = new Set([
+  "id",
+  "roles",
+  "plans",
+  "tenant",
+  "memberships",
+]);
 
 function isClaimRef(ref: string): boolean {
   const [root, head] = ref.split(".", 2);

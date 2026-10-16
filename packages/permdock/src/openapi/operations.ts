@@ -3,7 +3,7 @@ import type { Permission, PermissionTree } from "../core/permission-types.ts";
 import { isRecord } from "../core/compact.ts";
 import { findPermission, isPermission } from "../core/permission-registry.ts";
 
-const METHODS = new Set([
+const METHODS: ReadonlySet<string> = new Set([
   "GET",
   "PUT",
   "POST",

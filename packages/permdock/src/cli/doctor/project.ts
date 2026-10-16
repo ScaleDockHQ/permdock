@@ -330,7 +330,11 @@ export function pd040(
 
 const GRANT =
   /\b(grant|revoke)\s+([\s\S]+?)\s+on\s+(?:table\s+)?([\w."]+)\s+(?:to|from)\s+([\w\s,"]+?)(?:\s+with\s+grant\s+option|\s+cascade|\s+restrict)?\s*;/giu;
-const CLIENT_ROLES = new Set(["anon", "authenticated", "public"]);
+const CLIENT_ROLES: ReadonlySet<string> = new Set([
+  "anon",
+  "authenticated",
+  "public",
+]);
 
 /** Writable columns per privilege: a revoke of one leaves the other in place. */
 type Writable = {

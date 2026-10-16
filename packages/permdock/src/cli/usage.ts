@@ -207,7 +207,7 @@ async function usagePolicy(
   }
 }
 
-const CLIENT_CALLS = new Set([
+const CLIENT_CALLS: ReadonlySet<string> = new Set([
   "usePermission",
   "can",
   "decide",

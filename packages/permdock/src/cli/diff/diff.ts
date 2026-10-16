@@ -285,7 +285,7 @@ function validityChange(
     : "validity widened";
 }
 
-const NARROWING = new Set([
+const NARROWING: ReadonlySet<string> = new Set([
   "where added",
   "where changed",
   "check added",

@@ -140,7 +140,15 @@ export function policyDocumentFromClaims(
   return parsePolicyDocument({ ...claim, id: jti, issuedAt: rfc3339(iat) });
 }
 
-const COMPARISONS = new Set(["eq", "ne", "gt", "gte", "lt", "lte", "contains"]);
+const COMPARISONS: ReadonlySet<string> = new Set([
+  "eq",
+  "ne",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+  "contains",
+]);
 
 function safePath(path: unknown): path is string {
   if (typeof path !== "string" || path.length === 0) {

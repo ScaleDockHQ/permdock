@@ -1,6 +1,6 @@
 import type { Grant, Policy } from "./policy-types.ts";
 
-const ROW_GRANTEES = new Set([
+const ROW_GRANTEES: ReadonlySet<string> = new Set([
   "relation",
   "plan",
   "actor",

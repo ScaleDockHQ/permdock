@@ -2,7 +2,11 @@ import { canonicalJson } from "./canonical-json.ts";
 import { isRecord } from "./compact.ts";
 import { sha256Digest } from "./sha256.ts";
 
-const OMITTED_TOP_LEVEL = new Set(["generatedAt", "generator", "fingerprint"]);
+const OMITTED_TOP_LEVEL: ReadonlySet<string> = new Set([
+  "generatedAt",
+  "generator",
+  "fingerprint",
+]);
 
 function fingerprintInput(catalog: Record<string, unknown>): unknown {
   const out: Record<string, unknown> = {};

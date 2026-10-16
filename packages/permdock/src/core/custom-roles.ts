@@ -74,7 +74,11 @@ export type CustomGrant = {
   readonly role: CustomRole;
 };
 
-const GRANT_KEYS = new Set(["permission", "effect", "level"]);
+const GRANT_KEYS: ReadonlySet<string> = new Set([
+  "permission",
+  "effect",
+  "level",
+]);
 
 /** Every level of a permission an own allow reaches: `'all'` for an allow without a level. */
 type AllowLevels = "all" | Map<string, Condition>;
