@@ -120,6 +120,27 @@ describe("readBodyText", () => {
       cause: "unreadable",
     });
   });
+
+  it("reports a body already read or locked as unreadable", async () => {
+    const used = new Request("https://app.test/x", {
+      method: "POST",
+      body: "{}",
+    });
+    await used.text();
+    const locked = new Request("https://app.test/x", {
+      method: "POST",
+      body: "{}",
+    });
+    locked.body?.getReader();
+    await expect(readBodyText(used)).resolves.toStrictEqual({
+      ok: false,
+      cause: "unreadable",
+    });
+    await expect(readBodyText(locked)).resolves.toStrictEqual({
+      ok: false,
+      cause: "unreadable",
+    });
+  });
 });
 
 describe("bodyTooLarge", () => {

@@ -21,15 +21,18 @@ export async function readBodyText(
   if (declared !== null && Number(declared) > maxBytes) {
     return { ok: false, cause: "too-large" };
   }
+  if (request.bodyUsed) {
+    return { ok: false, cause: "unreadable" };
+  }
   if (request.body === null) {
     return { ok: true, text: "" };
   }
-  const reader: ReadableStreamDefaultReader<Uint8Array> =
-    request.body.getReader();
   const decoder = new TextDecoder();
   let size = 0;
   let text = "";
   try {
+    const reader: ReadableStreamDefaultReader<Uint8Array> =
+      request.body.getReader();
     for (;;) {
       // oxlint-disable-next-line no-await-in-loop -- chunks arrive in order; the cap is checked between them
       const chunk = await reader.read();
