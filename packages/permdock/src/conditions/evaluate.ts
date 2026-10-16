@@ -79,7 +79,9 @@ function comparablePair(
   return undefined;
 }
 
-function compare(op: string, left: unknown, right: unknown): boolean {
+type CompareOp = "eq" | "ne" | "gt" | "gte" | "lt" | "lte";
+
+function compare(op: CompareOp, left: unknown, right: unknown): boolean {
   if (
     left === undefined ||
     left === null ||
@@ -106,9 +108,10 @@ function compare(op: string, left: unknown, right: unknown): boolean {
       return a < b;
     case "lte":
       return a <= b;
-    default:
-      /* v8 ignore next */
-      return false;
+    default: {
+      const unhandled: never = op;
+      return unhandled;
+    }
   }
 }
 
