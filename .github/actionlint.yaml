@@ -1,6 +1,4 @@
-# actionlint 1.7.12 rejects `$/` (rhysd/actionlint#711), parallel and background steps (#693), cache-mode, concurrency.queue and ubuntu-26.04 (#682). zizmor parses them.
-self-hosted-runner:
-  labels: [ubuntu-26.04, ubuntu-26.04-arm]
+# actionlint 1.7.12 rejects `$/` (rhysd/actionlint#711), parallel and background steps (#693), cache-mode and concurrency.queue. zizmor parses them.
 paths:
   .github/workflows/**/*.{yml,yaml}:
     ignore:

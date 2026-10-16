@@ -37,7 +37,7 @@ packages/permdock/    npm `permdock`, the only published package
   src/cli             the `permdock` bin and `permdock/cli`; commands load on demand
   schemas/ rulesets/ skills/   catalog and OpenAPI schemas, lint ruleset, consumer skills
 packages/{typescript-config,ox-config,next-config,ui}   private presets, createNextConfig(), vendored UI
-apps/marketing/ apps/docs/   Next.js 16.3, Vercel Services at `/` and `/docs`
+apps/marketing/ apps/docs/   Next.js 16.4, Vercel Services at `/` and `/docs`
 apps/examples/<name>/        one app per adapter
 tests/{types,integration,runtimes,bundle}       TS 5.9/6/7, Postgres, Bun/Deno/workerd, size
 docs/agents/ docs/decisions/   corrections agents needed twice; exceptions to the repo standard
@@ -53,7 +53,7 @@ pnpm verify                # every CI gate: root steps, then one cached turbo ru
 pnpm test                  # vitest unit + type tests
 pnpm test:integration      # testcontainers Postgres (Docker)
 pnpm test:runtimes         # Bun (on PATH), Deno and workerd; CI requires all three
-pnpm lint && pnpm format   # oxlint per workspace, oxfmt over the whole repo
+pnpm lint && pnpm format   # oxlint per workspace, oxfmt everywhere; `pnpm fix` applies both
 pnpm knip                  # unused files, exports and dependencies
 pnpm size                  # per-entry gzip against the baseline
 pnpm gen:check && pnpm doctor   # generated catalogs and SQL current; doctors per example
@@ -124,13 +124,15 @@ One branch and one PR per chat or plan, small conventional commits (lower-case s
 
 Each is a record in `docs/decisions`:
 
-- 0002 no global `typescript` override; 0003 Zod and agent SDKs where PermDock supports them; 0004 `engines.node: ">=24"`
+- 0002 no global `typescript` override; 0003 Zod and agent SDKs; 0004 `engines.node: ">=24"`
 - 0005 extra workspace globs and root scripts; 0006 relaxed tsconfig for vendored UI
-- 0008 `turbo query affected`; 0009 boundary rules Turborepo cannot express; 0010 pnpm through Corepack on Vercel
-- 0011 no docs `robots.ts`; 0012 cross-zone links are plain anchors; 0013 no `fumadocs-openapi`
+- 0008 `turbo query affected`; 0009 extra boundary rules; 0010 pnpm through Corepack on Vercel
+- 0011 no docs `robots.ts`; 0012 plain cross-zone anchors; 0013 no `fumadocs-openapi`
 - 0015 Ask AI input from `InputGroup`; 0016 Portless names; 0017 `permdock-<topic>` skills; 0018 blocked majors
 - 0019 `<Adapter>PermDock` and no `$` members; 0020 the CLI inside `permdock`; 0021 `^build` over `transit`
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
+- 0026 150-character headers; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
+- 0029 no Turbopack build cache in CI; 0030 `Vary` only on Markdown
 
 ## Pre-release pins
 

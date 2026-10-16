@@ -131,6 +131,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 | `pnpm dev:docs` / `pnpm dev:marketing` | Docs on `:3001`; marketing on `:3000` with `/docs` proxied                                                                                                  |
 | `pnpm env:pull`                        | `.env.local` from Vercel's development environment; `env:pull:production` writes `.env.production.local`                                                    |
 | `pnpm format` / `pnpm lint`            | Oxfmt over the whole repository; Oxlint per workspace                                                                                                       |
+| `pnpm fix`                             | `format`, then Oxlint with `--fix` at the root and in every workspace                                                                                       |
 | `pnpm knip`                            | Unused files, exports and dependencies                                                                                                                      |
 | `pnpm boundaries`                      | `turbo boundaries`: workspace dependency rules by tag                                                                                                       |
 | `pnpm audit:high`                      | `pnpm audit` failing on high and critical advisories                                                                                                        |

@@ -22,6 +22,7 @@
     "doctor": "turbo run doctor",
     "env:pull": "vercel env pull .env.local --environment=development --yes",
     "env:pull:production": "vercel env pull .env.production.local --environment=production --yes",
+    "fix": "oxfmt . && pnpm run lint:root --fix && turbo run lint -- --fix",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "gen:check": "turbo run gen:check",

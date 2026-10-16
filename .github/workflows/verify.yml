@@ -17,12 +17,6 @@ env:
   CI: true
   TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
   AFFECTED: ${{ inputs.affected && '--affected' || '' }}
-  # GitHub-hosted runners run out of memory building these in parallel, and lint, typecheck
-  # and test reach them through `build` and `^build`. A Remote Cache hit after ci.yml's `build`.
-  BUILD_NEXT_APPS: >-
-    pnpm exec turbo run build --concurrency=1
-    --filter=docs --filter=marketing --filter=@permdock/example-next
-    --filter=@permdock/example-next-better-supabase
 
 jobs:
   # One machine and one install for every cheap gate; Turbo runs the workspace tasks concurrently.
@@ -44,9 +38,6 @@ jobs:
       - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
-
-      - name: Build Next.js apps
-        run: $BUILD_NEXT_APPS
 
       - parallel:
           # Includes the public types under TypeScript 5.9, 6 and 7 (tests/types).
@@ -73,7 +64,6 @@ jobs:
       matrix:
         include:
           - name: test
-            next: true
             run: pnpm run authzen:vectors && pnpm exec turbo run test $AFFECTED
           # The Nest adapter against Nest 11, the lowest peer version.
           - name: nest-11
@@ -91,10 +81,6 @@ jobs:
       - uses: $/.github/actions/setup
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
-
-      - name: Build Next.js apps
-        if: matrix.next
-        run: $BUILD_NEXT_APPS
 
       - name: ${{ matrix.name }}
         run: ${{ matrix.run }}

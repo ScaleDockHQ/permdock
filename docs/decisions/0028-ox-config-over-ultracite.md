@@ -1,0 +1,20 @@
+# 0028. `packages/ox-config` instead of Ultracite
+
+- Status: accepted
+- Date: 2026-10-16
+
+## Context
+
+The standard runs lint and format through Ultracite 8: a root `oxlint.config.ts` on its presets, `oxfmt.config.ts` spreading `ultracite/oxfmt`, `pnpm check` and `pnpm fix` as `ultracite check` and `ultracite fix`, and no `packages/ox-config`. PermDock's `packages/ox-config` holds about 670 lines of house rules, the adapter kit boundary (`kitBoundary`), the `library` preset with `max-lines`, and an anti-slop plugin, each disabled rule with a reason and a finding count.
+
+## Decision
+
+Lint and format stay on `packages/ox-config`, which the root `oxlint.config.ts` and `oxfmt.config.ts` import. `pnpm check` and `pnpm fix` run Oxfmt and Oxlint directly, and the pre-commit hook runs `oxfmt` on staged files.
+
+## Consequences
+
+Rule updates that Ultracite ships arrive only when copied by hand. Revisit as one migration: move the house rules after the Ultracite presets in the root config, keep the reasons and counts, then delete the workspace and its boundary tag.
+
+## Alternatives considered
+
+- Migrate in the same change as the CI work: it touches every workspace's lint config and would hide CI regressions behind lint noise.
