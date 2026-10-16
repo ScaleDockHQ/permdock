@@ -1,5 +1,8 @@
 rules:
   unpinned-uses:
     config:
+      # GitHub-owned actions on their major tag; every third-party action on a commit SHA.
       policies:
-        "*": ref-pin
+        actions/*: ref-pin
+        github/*: ref-pin
+        "*": hash-pin
