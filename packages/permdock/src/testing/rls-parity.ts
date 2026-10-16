@@ -2,6 +2,7 @@ import { membershipsClaim } from "../core/custom-roles.ts";
 import { type Scope, scopeList } from "../core/scopes.ts";
 import {
   SQL_IDENT as IDENT,
+  defaultSqlCommand,
   quoteSqlIdent as quoteIdent,
   quoteSqlTable as quoteTable,
 } from "../core/sql.ts";
@@ -183,19 +184,20 @@ function statementSql(action: string, table: string, keyOnly: boolean): string {
   const quoted = quoteTable(table);
   const id = quoteIdent("id");
   const back = keyOnly ? id : "*";
-  switch (action) {
-    case "read":
-    case "list":
-    case "get":
+  const command = defaultSqlCommand(action) ?? "select";
+  switch (command) {
+    case "select":
       return `select ${back} from ${quoted} where ${id} = $1`;
     case "update":
       return `update ${quoted} set ${id} = ${id} where ${id} = $1 returning ${back}`;
-    case "create":
+    case "insert":
       return `insert into ${quoted} (${id}) values ($1) returning ${back}`;
     case "delete":
       return `delete from ${quoted} where ${id} = $1 returning ${back}`;
-    default:
-      return `select ${back} from ${quoted} where ${id} = $1`;
+    default: {
+      const unhandled: never = command;
+      return unhandled;
+    }
   }
 }
 

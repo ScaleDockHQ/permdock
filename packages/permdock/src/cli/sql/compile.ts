@@ -7,6 +7,7 @@ import { sole } from "../../core/compact.ts";
 import { andWhere, leveled } from "../../core/custom-roles.ts";
 import { requiresStandIn } from "../../core/delegation.ts";
 import { policyLevels } from "../../core/policy.ts";
+import { type SqlCommand, defaultSqlCommand } from "../../core/sql.ts";
 import { scopeField } from "../../core/tenancy.ts";
 import {
   type Condition,
@@ -38,7 +39,7 @@ import {
 import { quoteLiteral } from "./quote.ts";
 import { subjectClaimJsonSql, subjectClaimSql } from "./subject.ts";
 
-export type SqlCommand = "select" | "insert" | "update" | "delete";
+export type { SqlCommand };
 
 /**
  * One grant (or one grant-key group) on one table and command, before
@@ -163,20 +164,7 @@ export function commandFor(
     const configured = actions[action];
     return configured === "none" ? undefined : configured;
   }
-  switch (action) {
-    case "read":
-    case "list":
-    case "get":
-      return "select";
-    case "create":
-      return "insert";
-    case "update":
-      return "update";
-    case "delete":
-      return "delete";
-    default:
-      return undefined;
-  }
+  return defaultSqlCommand(action);
 }
 
 export function tableFor(

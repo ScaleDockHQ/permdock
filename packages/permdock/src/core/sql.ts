@@ -55,3 +55,23 @@ export function sqlTextArray(values: readonly string[]): string {
     ? `'{}'::text[]`
     : `array[${values.map(quoteSqlLiteral).join(", ")}]::text[]`;
 }
+
+export type SqlCommand = "select" | "insert" | "update" | "delete";
+
+/** The SQL command a default verb runs: `read`, `list` and `get` select, `create` inserts, `update` and `delete` keep their name. */
+export function defaultSqlCommand(action: string): SqlCommand | undefined {
+  switch (action) {
+    case "read":
+    case "list":
+    case "get":
+      return "select";
+    case "create":
+      return "insert";
+    case "update":
+      return "update";
+    case "delete":
+      return "delete";
+    default:
+      return undefined;
+  }
+}
