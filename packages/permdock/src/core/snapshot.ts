@@ -14,7 +14,7 @@ import { freezeDeep } from "./freeze.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";
-import { isRfc3339, rfc3339 } from "./time.ts";
+import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
 import { wireValidity } from "./validity.ts";
 import { listPlans, listRoles, type Plan, type Role } from "./vocabulary.ts";
 import { toWireDelegation } from "./wire-delegation.ts";
@@ -144,7 +144,7 @@ export function buildSnapshot(input: {
   /** The id field of a resource, when its `id` option names one. */
   readonly idOf?: (resource: string) => string | undefined;
 }): Snapshot {
-  const now = input.now ?? Math.floor(Date.now() / 1000);
+  const now = input.now ?? nowSeconds();
   const principal = input.subject.principal;
   const allTenants = tenantsOf(principal, scopeList(input.scopes));
   const tenants =

@@ -13,6 +13,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { membershipEvent, memoryDecisionSink } from "../core/sink.ts";
+import { isoNow } from "../core/time.ts";
 
 export function reportUnknownRoles(
   roles: readonly string[] | undefined,
@@ -175,7 +176,7 @@ export function directoryEvent(input: {
 }): DirectoryEvent {
   return compact<DirectoryEvent>({
     type: "directory",
-    at: new Date().toISOString(),
+    at: isoNow(),
     source: "scim",
     operation: input.operation,
     tenant: input.tenant,

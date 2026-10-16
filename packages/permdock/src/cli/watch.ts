@@ -3,6 +3,7 @@ import { basename, dirname, relative, resolve, sep } from "node:path";
 
 import type { PermDockPluginOptions } from "./types.ts";
 
+import { dateAt } from "../core/time.ts";
 import { runCollect } from "./collect.ts";
 import { isConfigFile, loadConfig } from "./config.ts";
 import { describeError } from "./errors.ts";
@@ -53,7 +54,7 @@ export async function collectOnce(
   check: boolean,
   fresh: boolean,
   configFile?: string,
-  now: () => Date = () => new Date(),
+  now: () => Date = () => dateAt(),
 ): Promise<CollectRun> {
   const config = await loadConfig(cwd, configFile, { fresh });
   const collect = { ...config.collect, ...options?.collect };

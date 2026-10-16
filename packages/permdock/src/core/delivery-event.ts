@@ -4,6 +4,7 @@ import type { DeliveryEvent } from "./event-types.ts";
 import { assertAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
 import { requireEventInstant } from "./event-time.ts";
+import { isoNow } from "./time.ts";
 
 /**
  * A `delivery` sink event. Throws a `TypeError` when `cause` or `retryable`
@@ -31,7 +32,7 @@ export function deliveryEvent(
   }
   return compact<DeliveryEvent>({
     type: "delivery",
-    at: requireEventInstant(input.at, "at") ?? new Date().toISOString(),
+    at: requireEventInstant(input.at, "at") ?? isoNow(),
     source: input.source,
     operation: input.operation,
     channel: input.channel,

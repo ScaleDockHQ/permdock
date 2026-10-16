@@ -11,6 +11,7 @@ import {
   subjectMemberships,
   tenantOf,
 } from "../core/scopes.ts";
+import { epochSeconds } from "../core/time.ts";
 import {
   type Condition,
   type ConditionValue,
@@ -32,6 +33,7 @@ function unwrap(value: ConditionValue, subject: Subject): unknown {
     return resolveRef(value.ref, subject);
   }
   if (isConditionDate(value)) {
+    // Row values from an ORM arrive as `Date`, so both sides compare as one.
     return new Date(isoInstant(value.date) ?? Number.NaN);
   }
   if (isReadonlyArray(value)) {
@@ -241,7 +243,7 @@ export function evaluateCondition(
   condition: Condition,
   data: unknown,
   subject: Subject,
-  now: number = Date.now() / 1000,
+  now: number = epochSeconds(),
   scopes: readonly Scope[] = scopeList(undefined),
   related?: RelatedResolver,
   onOpaque?: OpaqueHook,

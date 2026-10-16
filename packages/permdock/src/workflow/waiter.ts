@@ -1,6 +1,8 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { Instant } from "../core/time.ts";
 
+import { nowMillis } from "../core/time.ts";
+
 export type ApprovalWaitOptions = {
   /** When the approval request expires; the wait ends then whatever the store says. */
   readonly expiresAt?: Instant;
@@ -101,7 +103,7 @@ export function pollingApprovalWaiter(
           }
           const expired =
             expiresAt !== undefined &&
-            expiresAt.epochMilliseconds <= Date.now();
+            expiresAt.epochMilliseconds <= nowMillis();
           if (expired || (await decided(token))) {
             finish();
             return;

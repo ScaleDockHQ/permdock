@@ -1,4 +1,7 @@
-import { isRfc3339 } from "./time.ts";
+import { isoAt, isRfc3339 } from "./time.ts";
+
+// ECMA-262 time values span ±8.64e15 ms from the epoch.
+const MAX_TIME_VALUE = 8.64e15;
 
 /**
  * An event time as RFC 3339, or `undefined` when there is none or it is not a
@@ -14,8 +17,8 @@ export function eventInstant(
   if (typeof value !== "number") {
     return undefined;
   }
-  const date = new Date(value * 1000);
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+  const millis = value * 1000;
+  return Math.abs(millis) <= MAX_TIME_VALUE ? isoAt(millis) : undefined;
 }
 
 /** `eventInstant` for a builder input, where a malformed time is the caller's error. */

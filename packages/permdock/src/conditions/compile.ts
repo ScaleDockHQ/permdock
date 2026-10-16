@@ -203,6 +203,7 @@ function unwrap(value: ConditionValue, subject: Subject | undefined): unknown {
   }
   if (isConditionDate(value)) {
     const instant = isoInstant(value.date);
+    // Drizzle, Kysely and Prisma bind a `Date` as a timestamp parameter.
     return instant === undefined ? null : new Date(instant);
   }
   if (isReadonlyArray(value)) {

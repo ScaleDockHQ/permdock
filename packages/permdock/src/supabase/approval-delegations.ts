@@ -5,6 +5,7 @@ import type {
 import type { SqlQuery } from "./sources.ts";
 
 import { quoteQualifiedTable } from "../core/sql.ts";
+import { isoAt } from "../core/time.ts";
 
 export type TableApprovalDelegationSourceOptions = {
   readonly query: SqlQuery;
@@ -29,7 +30,7 @@ function instant(value: unknown): string | undefined {
     return undefined;
   }
   const ms = Date.parse(value);
-  return Number.isNaN(ms) ? undefined : new Date(ms).toISOString();
+  return Number.isNaN(ms) ? undefined : isoAt(ms);
 }
 
 function list(value: unknown): readonly string[] | undefined | false {

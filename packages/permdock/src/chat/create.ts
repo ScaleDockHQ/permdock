@@ -30,6 +30,7 @@ import { withApp } from "../core/app.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { loadPermDock as loadCorePermDock } from "../core/permdock.ts";
+import { nowMillis } from "../core/time.ts";
 import { approvalPrompt } from "../delivery/approval-prompt.ts";
 import { isChatAuthor, subjectFromChat } from "./subject.ts";
 
@@ -202,7 +203,7 @@ export function createPermDock<
       id: idOf(row),
     });
     const current = await approvals.get(decision.token);
-    if (current !== null && isLive(current, Date.now())) {
+    if (current !== null && isLive(current, nowMillis())) {
       if (current.status === "pending") {
         return approvalPrompt(current, { operation });
       }

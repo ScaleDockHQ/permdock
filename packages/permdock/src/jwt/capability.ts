@@ -14,6 +14,7 @@ import {
 } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
 import { type Subject, anonymousSubject } from "../core/subject.ts";
+import { epochSeconds } from "../core/time.ts";
 import { verifyDpopProof } from "./dpop.ts";
 import { decodeHeader, normalizeTyp } from "./header.ts";
 import { joseTokenVerifier } from "./verifier.ts";
@@ -204,7 +205,7 @@ export async function subjectFromCapability(
   ) {
     return deny("invalid-claims");
   }
-  const now = Date.now() / 1000;
+  const now = epochSeconds();
   if (capability.expiresAt <= now) {
     return deny("expired");
   }

@@ -8,6 +8,7 @@ import {
   isFieldRelation,
   isPrincipalRelation,
 } from "../../core/resource-relations.ts";
+import { isoAt, nowMillis } from "../../core/time.ts";
 import {
   listPermissions,
   loadPermDock,
@@ -28,7 +29,7 @@ export type TreeEntropy = {
 };
 
 const SYSTEM_ENTROPY: TreeEntropy = Object.freeze({
-  now: () => Date.now(),
+  now: () => nowMillis(),
   randomUUID: () => randomUUID(),
 });
 
@@ -197,7 +198,7 @@ function placeholder(column: RequiredColumn, entropy: TreeEntropy): unknown {
     return 0;
   }
   if (type.startsWith("timestamp") || type === "date") {
-    return new Date(entropy.now()).toISOString();
+    return isoAt(entropy.now());
   }
   if (type === "json" || type === "jsonb") {
     return {};
@@ -224,7 +225,7 @@ function distinctPlaceholder(
     return value;
   }
   if (column.type.startsWith("timestamp") || column.type === "date") {
-    return new Date(Date.parse(value) + index * 86_400_000).toISOString();
+    return isoAt(Date.parse(value) + index * 86_400_000);
   }
   return `${value}-${String(index + 1)}`;
 }
@@ -426,20 +427,21 @@ export async function verifyTree(input: {
           continue;
         }
         const expired = spec.expiresAt !== undefined && index % 10 === 6;
-        const expiresAt = expired ? new Date(now - 86_400_000) : undefined;
+        const expiresAt = expired ? now - 86_400_000 : undefined;
         edgeRows.push({
           [object]: item.id,
           [subject]: holder,
           ...(spec.expiresAt === undefined
             ? {}
-            : { [spec.expiresAt]: expiresAt ?? null }),
+            : {
+                [spec.expiresAt]:
+                  expiresAt === undefined ? null : isoAt(expiresAt),
+              }),
         });
         list.push({
           id: String(item.id),
           principal: holder,
-          ...(expiresAt === undefined
-            ? {}
-            : { expiresAt: expiresAt.getTime() / 1000 }),
+          ...(expiresAt === undefined ? {} : { expiresAt: expiresAt / 1000 }),
         });
       }
       if (edgeRows.length > 0) {

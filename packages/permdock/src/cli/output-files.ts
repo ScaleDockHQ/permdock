@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 
+import { dateAt } from "../core/time.ts";
 import { writeFileEnsuringDir } from "./files.ts";
 import { shortDiff } from "./text-diff.ts";
 
@@ -201,7 +202,9 @@ export function nextMigrationVersion(
   });
   return times.length === 0
     ? migrationVersion(now)
-    : migrationVersion(new Date(Math.max(...times) + 1000));
+    : migrationVersion(
+        dateAt({ epochMilliseconds: Math.max(...times) + 1000 }),
+      );
 }
 
 /**

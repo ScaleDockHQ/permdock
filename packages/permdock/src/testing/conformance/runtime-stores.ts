@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 
+import { isoNow } from "../../core/time.ts";
 import {
   type DecisionSink,
   type LimitStore,
@@ -45,7 +46,7 @@ export function testDecisionSink(sink: DecisionSink): void {
         sink.write([
           {
             type: "membership",
-            at: new Date().toISOString(),
+            at: isoNow(),
             source: "app",
             operation: "changed",
             principal: { id: "u_1" },

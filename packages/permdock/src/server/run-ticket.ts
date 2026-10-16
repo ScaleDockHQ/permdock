@@ -19,7 +19,7 @@ import { freezeDeep } from "../core/freeze.ts";
 import { isId } from "../core/ids.ts";
 import { isForbiddenKey, ownRecord } from "../core/paths.ts";
 import { anonymousSubject } from "../core/subject.ts";
-import { nowSeconds } from "../core/time.ts";
+import { epochSeconds, nowSeconds } from "../core/time.ts";
 import {
   fromWireDelegation,
   toWireDelegation,
@@ -636,7 +636,7 @@ export async function subjectFromRunTicket(
   if (ticket === undefined) {
     return deny("invalid-claims");
   }
-  if (ticket.exp <= Date.now() / 1000) {
+  if (ticket.exp <= epochSeconds()) {
     return deny("expired");
   }
   const automation = await checkAutomation(ticket, options.automations);

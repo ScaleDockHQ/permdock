@@ -27,6 +27,7 @@ import {
   anonymousSubject,
 } from "../core/subject.ts";
 import { isThenable } from "../core/thenable.ts";
+import { isoAt, nowMillis } from "../core/time.ts";
 
 const PREFIX = "pdk_";
 const ID = /^[\w-]{1,128}$/u;
@@ -334,7 +335,7 @@ export function memoryCredentialStore(
     verify: (secret: string) => verifier.verify(secret),
     touch(id: string, at: Instant): void {
       if (records.has(id)) {
-        used.set(id, new Date(at.epochMilliseconds).toISOString());
+        used.set(id, isoAt(at.epochMilliseconds));
       }
     },
     lastUsedAt(id: string): string | undefined {
@@ -470,7 +471,7 @@ function touch(verifier: CredentialVerifier, id: string): void {
     return;
   }
   try {
-    const touched = verifier.touch(id, { epochMilliseconds: Date.now() });
+    const touched = verifier.touch(id, { epochMilliseconds: nowMillis() });
     if (isThenable(touched)) {
       void Promise.resolve(touched).catch(() => undefined);
     }
@@ -576,7 +577,7 @@ export async function subjectFromApiKey(
   }
   if (
     credential.expiresAt !== undefined &&
-    Date.parse(credential.expiresAt) <= Date.now()
+    Date.parse(credential.expiresAt) <= nowMillis()
   ) {
     return deny("expired");
   }

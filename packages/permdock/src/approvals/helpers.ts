@@ -10,7 +10,7 @@ import { parseApprovalHeader } from "../core/approval-header.ts";
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { dateAt, durationOf, type Instant } from "../core/time.ts";
+import { dateAt, durationOf, isoAt, type Instant } from "../core/time.ts";
 import { toWireDelegation } from "../core/wire-delegation.ts";
 import { ApprovalError } from "./errors.ts";
 import { listAllApprovals } from "./page.ts";
@@ -158,7 +158,7 @@ export async function requestApproval(
       detail: meta.detail ?? describe(decision).detail,
       adapter: meta.adapter,
       createdAt: now.toISOString(),
-      expiresAt: new Date(now.getTime() + ttl * 1000).toISOString(),
+      expiresAt: isoAt(now.getTime() + ttl * 1000),
       status: "pending",
       x: meta.x,
     }),

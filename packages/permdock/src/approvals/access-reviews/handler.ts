@@ -4,6 +4,7 @@ import type { AccessReviewStore } from "./types.ts";
 
 import { compact } from "../../core/compact.ts";
 import { problemType, statusProblem } from "../../core/problem-types.ts";
+import { isoNow } from "../../core/time.ts";
 import { readBodyText } from "../../server/body.ts";
 import { hasCredentials } from "../../server/http.ts";
 import {
@@ -275,11 +276,7 @@ export function accessReviewsHandler(
       if (route.kind === "applied") {
         return json(
           200,
-          await store.markApplied(
-            route.id,
-            route.item,
-            new Date().toISOString(),
-          ),
+          await store.markApplied(route.id, route.item, isoNow()),
         );
       }
       const note = await readNote(request);

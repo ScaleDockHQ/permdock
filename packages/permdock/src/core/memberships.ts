@@ -3,6 +3,7 @@ import type { Membership } from "./subject.ts";
 
 import { byCodePoint } from "./compare.ts";
 import { isThenable } from "./thenable.ts";
+import { nowSeconds } from "./time.ts";
 
 /** Two memberships are the same row when everything but `roles` matches. */
 function identity(membership: Membership): string {
@@ -214,7 +215,7 @@ export async function countHolders(
   const role = typeof query.role === "string" ? query.role : query.role.key;
   try {
     const entries = await composed.list({ scope: query.scope, id: query.id });
-    const now = Math.floor(Date.now() / 1000);
+    const now = nowSeconds();
     const holders = new Set<string>();
     for (const entry of entries) {
       const membership = entry.membership;

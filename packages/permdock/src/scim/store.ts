@@ -1,5 +1,6 @@
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { isoNow } from "../core/time.ts";
 import { matchFilter } from "./filter.ts";
 import {
   DirectoryNotFoundError,
@@ -16,7 +17,7 @@ import {
 const DEFAULT_COUNT = 100;
 
 function now(): string {
-  return new Date().toISOString();
+  return isoNow();
 }
 
 // A parsed body carries an empty `created`; only a stored time is kept.

@@ -8,6 +8,7 @@ import type { GenerateOutcome } from "./generate.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { escapeSqlIdent, quoteSqlLiteral } from "../../core/sql.ts";
+import { dateAt } from "../../core/time.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError } from "../errors.ts";
 import { sqlFiles } from "../files.ts";
@@ -752,7 +753,7 @@ function writeRetire(
     part: "retire",
     marker: RETIRE_MARKER,
     text,
-    now: now ?? new Date(),
+    now: now ?? dateAt(),
     check: false,
   });
   if (file === undefined) {

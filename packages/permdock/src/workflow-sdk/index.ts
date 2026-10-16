@@ -72,6 +72,7 @@ export function workflowSdkWaiter(
           await hook;
           return;
         }
+        // The Workflow SDK `sleep` takes a `Date` deadline.
         await Promise.race([hook, sleep(new Date(expiresAt))]);
       } finally {
         hook.dispose();

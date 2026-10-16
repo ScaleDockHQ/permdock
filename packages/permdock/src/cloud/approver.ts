@@ -2,6 +2,7 @@ import type { ApprovalVerdict } from "../approvals/types.ts";
 import type { CloudApproverOptions } from "./types.ts";
 
 import { ApprovalError } from "../approvals/errors.ts";
+import { nowSeconds } from "../core/time.ts";
 
 const APPROVER_HEADER = "PermDock-Approver";
 
@@ -60,7 +61,7 @@ export async function approverHeaders(
     );
   }
   const request = await target();
-  const issuedAt = Math.floor(Date.now() / 1000);
+  const issuedAt = nowSeconds();
   try {
     const token = await options.signer.sign(
       {

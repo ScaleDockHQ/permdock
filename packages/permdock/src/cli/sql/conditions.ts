@@ -8,6 +8,7 @@ import { isReadonlyArray, isRecord, sole } from "../../core/compact.ts";
 import { isForbiddenKey } from "../../core/paths.ts";
 import { resolveScope, rootScope } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
+import { isoAt } from "../../core/time.ts";
 import {
   type Condition,
   type ConditionValue,
@@ -195,9 +196,7 @@ function sqlValue(
     // An explicit UTC instant, so the session TimeZone cannot shift it
     // away from what can() compares in memory.
     const instant = isoInstant(value.date);
-    return instant === undefined
-      ? "null"
-      : quoteLiteral(new Date(instant).toISOString());
+    return instant === undefined ? "null" : quoteLiteral(isoAt(instant));
   }
   if (isReadonlyArray(value)) {
     return `array[${value.map((item) => sqlValue(item, ctx)).join(", ")}]`;

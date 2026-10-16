@@ -19,6 +19,7 @@ import { assertAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
 import { EVENT_SCHEMA_IDS } from "./event-schemas.ts";
 import { requireEventInstant } from "./event-time.ts";
+import { isoNow } from "./time.ts";
 
 /**
  * The closed list of CloudEvents `type` values, `com.permdock.<family>` or
@@ -402,7 +403,7 @@ export function automationEvent(input: {
   const { automation } = input;
   return compact<AutomationEvent>({
     type: "automation",
-    at: requireEventInstant(input.at, "at") ?? new Date().toISOString(),
+    at: requireEventInstant(input.at, "at") ?? isoNow(),
     source: input.source ?? "permdock",
     operation: input.operation,
     automation: compact<AutomationEvent["automation"]>({
@@ -439,7 +440,7 @@ export function supportSessionEvent(input: {
   const { session } = input;
   return compact<AccessEvent>({
     type: "access",
-    at: requireEventInstant(input.at, "at") ?? new Date().toISOString(),
+    at: requireEventInstant(input.at, "at") ?? isoNow(),
     source: input.source ?? "permdock",
     operation: input.operation,
     tenant: session.tenant,
@@ -485,7 +486,7 @@ export function credentialEvent(input: {
   const { credential } = input;
   return compact<CredentialEvent>({
     type: "credential",
-    at: requireEventInstant(input.at, "at") ?? new Date().toISOString(),
+    at: requireEventInstant(input.at, "at") ?? isoNow(),
     source: input.source ?? "permdock",
     operation: input.operation,
     credential: { id: credential.id, kind: credential.kind },
@@ -525,7 +526,7 @@ export function membershipEvent(input: {
   }
   return compact<MembershipEvent>({
     type: "membership",
-    at: requireEventInstant(input.at, "at") ?? new Date().toISOString(),
+    at: requireEventInstant(input.at, "at") ?? isoNow(),
     source: input.source,
     operation: input.operation,
     principal: input.principal,
@@ -565,7 +566,7 @@ export function accessEvent(input: {
 }): AccessEvent {
   return compact<AccessEvent>({
     type: "access",
-    at: requireEventInstant(input.at, "at") ?? new Date().toISOString(),
+    at: requireEventInstant(input.at, "at") ?? isoNow(),
     source: input.source,
     operation: input.operation,
     tenant: input.tenant,

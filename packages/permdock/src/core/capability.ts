@@ -14,7 +14,7 @@ import {
   type Subject,
   anonymousSubject,
 } from "./subject.ts";
-import { nowSeconds } from "./time.ts";
+import { epochSeconds, nowSeconds } from "./time.ts";
 
 /**
  * Who may redeem a capability: anyone holding it, any signed-in principal,
@@ -366,7 +366,7 @@ function holdsScope(
 export function redeemerAllows(
   redeemer: CapabilityRedeemer | undefined,
   viewer: Subject | undefined,
-  now: number = Date.now() / 1000,
+  now: number = epochSeconds(),
 ): boolean {
   if (redeemer === undefined || redeemer === "anyone") {
     return true;

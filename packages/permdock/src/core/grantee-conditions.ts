@@ -29,6 +29,7 @@ import {
   restrictedStops,
 } from "./resource-relations.ts";
 import { type Scope, resolveScope, rootScope, scopeList } from "./scopes.ts";
+import { isoNow } from "./time.ts";
 
 /**
  * A `memberOf` relation on the first scope means "the row is in the active
@@ -330,10 +331,7 @@ export function relationCondition(
       field: spec.principal,
       value: { ref: "principal.id" },
     };
-    const period = periodConditions(
-      spec,
-      options.now ?? { date: new Date().toISOString() },
-    );
+    const period = periodConditions(spec, options.now ?? { date: isoNow() });
     return period.length === 0
       ? owner
       : { op: "and", conditions: [owner, ...period] };

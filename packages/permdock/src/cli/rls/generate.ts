@@ -6,6 +6,7 @@ import type { IndexTarget } from "./indexes.ts";
 
 import { renamedKeys } from "../../core/permission-registry.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
+import { dateAt } from "../../core/time.ts";
 import { type Policy, listPermissions } from "../../index.ts";
 import { cliErrorKind, describeError, exitCodeOf } from "../errors.ts";
 import { requirePolicy } from "../load.ts";
@@ -157,7 +158,7 @@ export async function runRlsGenerate(
       part: "backfill",
       marker: BACKFILL_MARKER,
       text: generated.backfill,
-      now: input.io.now?.() ?? new Date(),
+      now: input.io.now?.() ?? dateAt(),
       check: input.check,
       reserved: files.map((other) => other.rel),
     });

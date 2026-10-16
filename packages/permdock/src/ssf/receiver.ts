@@ -20,6 +20,7 @@ import type {
 
 import { cancelApprovals } from "../approvals/helpers.ts";
 import { compact, isRecord } from "../core/compact.ts";
+import { epochSeconds } from "../core/time.ts";
 import { readBodyText } from "../server/body.ts";
 import {
   asSubject,
@@ -166,7 +167,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
       result.claims.iat +
         (config.maxTokenAge ?? DEFAULT_SET_MAX_AGE) +
         (config.clockTolerance ?? 0) <=
-        Date.now() / 1000
+        epochSeconds()
     ) {
       return {
         ok: false,

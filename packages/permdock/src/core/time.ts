@@ -31,6 +31,16 @@ export function rfc3339(seconds: number): string {
   return new Date(seconds * 1000).toISOString();
 }
 
+/** Milliseconds since the epoch as RFC 3339 in UTC, milliseconds kept; throws a `RangeError` for a value outside the `Date` range. */
+export function isoAt(millis: number): string {
+  return new Date(millis).toISOString();
+}
+
+/** RFC 3339 in UTC of `now`, or of the clock when absent; throws a `RangeError` for a `now` that is not an `Instant`. */
+export function isoNow(now?: Instant): string {
+  return dateAt(now).toISOString();
+}
+
 /** Whole seconds since the epoch of an RFC 3339 instant; `undefined` for anything else. */
 export function secondsOf(value: unknown): number | undefined {
   return isRfc3339(value) ? Math.floor(Date.parse(value) / 1000) : undefined;
