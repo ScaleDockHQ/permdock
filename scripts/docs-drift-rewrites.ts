@@ -31,13 +31,12 @@ export function rewriteDrift(root: string): readonly string[] {
     join(root, "apps", "marketing", "next.config.ts"),
     "utf8",
   );
-  const local = new Set(
-    [
-      ...config.matchAll(
-        /source: "([^"]+)",\s*destination: `\$\{docsOrigin\}/gu,
-      ),
-    ].map(([, source = ""]) => normalise(source)),
-  );
+  const local = new Set<string>();
+  for (const [, source = ""] of config.matchAll(
+    /source: "([^"]+)",\s*destination: `\$\{docsOrigin\}/gu,
+  )) {
+    local.add(normalise(source));
+  }
   return [
     ...[...deployed]
       .filter((source) => !local.has(source))
