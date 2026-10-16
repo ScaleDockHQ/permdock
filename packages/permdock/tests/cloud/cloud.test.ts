@@ -190,6 +190,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
     }
     if (method === "GET" && path === "/snapshot") {
       expect(request.headers.get("accept")).toBe("application/jwt");
+      expect(request.headers.get("permdock-subject")).toBe("subject.jwt.token");
       if (typeof snapshot === "string") {
         return new Response(snapshot, { status: 200 });
       }
@@ -208,7 +209,7 @@ describe("cloud", () => {
     expect(() => cloud({ key: KEY })).toThrow(/requires url and key/);
   });
 
-  it("returns a frozen client with approvals, sink and snapshots", () => {
+  it("returns a frozen client with approvals, sink and snapshotsFor", () => {
     const client = cloud({
       url: CLOUD_URL,
       key: KEY,
@@ -219,7 +220,7 @@ describe("cloud", () => {
       expect.objectContaining({
         approvals: expect.any(Object),
         sink: expect.any(Object),
-        snapshots: expect.any(Object),
+        snapshotsFor: expect.any(Function),
       }),
     );
     expect(client).not.toHaveProperty("memberships");
@@ -359,7 +360,9 @@ describe("cloud", () => {
     };
     await client.sink.write([event]);
     expect(backend.decisions).toEqual([[event]]);
-    await expect(client.snapshots.get()).rejects.toThrow(/unsigned/);
+    await expect(
+      client.snapshotsFor("subject.jwt.token").get(),
+    ).rejects.toThrow(/unsigned/);
   });
 
   it("returns a compact JWS snapshot unchanged", async () => {
@@ -369,7 +372,7 @@ describe("cloud", () => {
       key: KEY,
       fetch: fakeCloud({ snapshot: jws }).fetch,
     });
-    expect(await client.snapshots.get()).toBe(jws);
+    expect(await client.snapshotsFor("subject.jwt.token").get()).toBe(jws);
   });
 
   it("schedules flush through waitUntil when the batch is under flushAt", async () => {
@@ -679,7 +682,7 @@ describe("cloud conformance", () => {
     testDecisionSink(client.sink);
   });
   describe("snapshots", () => {
-    testSnapshotSource(client.snapshots);
+    testSnapshotSource(client.snapshotsFor("subject.jwt.token"));
   });
   describe("policies", () => {
     testPolicySource(client.policies);

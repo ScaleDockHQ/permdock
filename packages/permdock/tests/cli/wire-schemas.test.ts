@@ -456,3 +456,98 @@ describe("parseApprovalRequest", () => {
     expect(parseApprovalRequest("apr_1")).toBeNull();
   });
 });
+
+describe("connector-v1.json", () => {
+  const check = validator("connector-v1.json");
+  const valid = [
+    {
+      kind: "webhook",
+      name: "Ops",
+      config: {
+        url: "https://ops.example.com/hook",
+        types: ["com.permdock.decision"],
+      },
+    },
+    {
+      kind: "otlp",
+      name: "Grafana",
+      config: { endpoint: "https://otlp.example.com", signals: ["logs"] },
+    },
+    {
+      kind: "siem",
+      name: "Splunk",
+      config: {
+        destination: "splunk-hec",
+        endpoint: "https://hec.example.com",
+      },
+    },
+    {
+      kind: "evidence",
+      name: "Auditor",
+      config: {
+        format: "jws",
+        destination: "https://drop.example.com",
+        schedule: "daily",
+      },
+    },
+    {
+      kind: "scim",
+      name: "Okta",
+      config: {
+        tenant: "o_acme",
+        target: "https://app.example.com/scim/v2",
+        groupRoles: { g_admins: "admin" },
+      },
+    },
+    {
+      kind: "caep-transmitter",
+      name: "Okta signals",
+      config: { issuer: "https://acme.okta.com", delivery: "push" },
+    },
+    {
+      kind: "federated-upstream",
+      name: "Clerk",
+      config: {
+        discovery: "https://clerk.example.com",
+        client_id: "c_1",
+        scopes: ["openid"],
+      },
+    },
+    {
+      kind: "chat",
+      name: "Slack",
+      config: { platform: "slack", workspace: "T123" },
+    },
+    { kind: "email", name: "Mail", config: { from: "approvals@example.com" } },
+    {
+      kind: "vercel-oidc",
+      name: "Vercel",
+      config: { team_id: "team_1", environment: "production" },
+    },
+  ];
+
+  it("accepts one connector of every kind", () => {
+    expect(valid.map((item) => check(item))).toEqual(valid.map(() => []));
+  });
+
+  it("rejects an unknown kind, a missing field, an extra field and http", () => {
+    expect(
+      check({ kind: "trusted-issuer", name: "x", config: {} }),
+    ).not.toEqual([]);
+    expect(check({ kind: "webhook", name: "x", config: {} })).not.toEqual([]);
+    expect(
+      check({
+        kind: "chat",
+        name: "x",
+        config: { platform: "slack", workspace: "T", token: "xoxb" },
+      }),
+    ).not.toEqual([]);
+    expect(
+      check({
+        kind: "webhook",
+        name: "x",
+        config: { url: "http://ops.example.com" },
+      }),
+    ).not.toEqual([]);
+  });
+});

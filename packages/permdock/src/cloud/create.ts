@@ -10,9 +10,15 @@ import type {
 import type { CatalogDocument } from "../catalog/types.ts";
 import type { SinkEvent } from "../core/event-types.ts";
 import type { DecisionSink, SnapshotSource } from "../core/interfaces.ts";
-import type { CloudCatalog, CloudClient, CloudOptions } from "./types.ts";
+import type {
+  CloudCatalog,
+  CloudCatalogPush,
+  CloudClient,
+  CloudOptions,
+} from "./types.ts";
 
 import { ApprovalError, isApprovalErrorCode } from "../approvals/errors.ts";
+import { parseApprovalRequest } from "../approvals/parse-request.ts";
 import { APPROVAL_HEADER } from "../approvals/types.ts";
 import { catalogFingerprint } from "../core/catalog-fingerprint.ts";
 import { compact, isRecord } from "../core/compact.ts";
@@ -22,6 +28,7 @@ import {
   type PolicySource,
   policyDocumentFromClaims,
 } from "../core/hosted.ts";
+import { parseCatalogEventData } from "../core/parse-sink-events.ts";
 import {
   CLOUDEVENTS_BATCH_CONTENT_TYPE,
   isAbsoluteUri,
@@ -32,6 +39,32 @@ import { approverHeaders } from "./approver.ts";
 import { cloudConnection, isCompactJws } from "./request.ts";
 
 export { cloudEndpoints } from "./request.ts";
+
+/** Carries the `at+jwt` that names the subject of `GET /snapshot`. */
+const SUBJECT_HEADER = "PermDock-Subject";
+
+function catalogPushOf(value: unknown): CloudCatalogPush | null {
+  if (
+    !isRecord(value) ||
+    !Number.isSafeInteger(value["version"]) ||
+    typeof value["fingerprint"] !== "string"
+  ) {
+    return null;
+  }
+  const version = Number(value["version"]);
+  const fingerprint = value["fingerprint"];
+  if (value["unchanged"] === true) {
+    return { version, fingerprint, unchanged: true };
+  }
+  const data = parseCatalogEventData({
+    kind: "drift",
+    fingerprint,
+    findings: value["findings"],
+  });
+  return data?.findings === undefined
+    ? null
+    : { version, fingerprint, findings: data.findings };
+}
 
 function asApproval(value: unknown): ApprovalRequest | null {
   if (
@@ -131,7 +164,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
           if (!response.ok) {
             throw await approvalErrorFrom(response);
           }
-          const found = asApproval(await response.json());
+          const found = parseApprovalRequest(await response.json());
           if (found === null) {
             throw new ApprovalError(
               "approval-not-found",
@@ -139,7 +172,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
             );
           }
           const etag = response.headers.get("etag");
-          return etag === null ? { id: found.id } : { id: found.id, etag };
+          return etag === null ? { request: found } : { request: found, etag };
         },
       );
       const response = await request("/approvals/by-token/resolve", {
@@ -307,9 +340,13 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     flush,
   };
 
-  const snapshots: SnapshotSource = {
+  const snapshotsFor = (subject: string): SnapshotSource => ({
     async get(): Promise<string> {
-      const response = await request("/snapshot", {}, "application/jwt");
+      const response = await request(
+        "/snapshot",
+        { headers: { [SUBJECT_HEADER]: subject } },
+        "application/jwt",
+      );
       if (!response.ok) {
         throw new Error("PermDock Cloud snapshot request failed");
       }
@@ -319,7 +356,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       }
       return text;
     },
-  };
+  });
 
   let document: PolicyDocument | null = null;
 
@@ -368,9 +405,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
   };
 
   const catalog: CloudCatalog = {
-    async push(
-      value: CatalogDocument,
-    ): Promise<{ readonly fingerprint: string }> {
+    async push(value: CatalogDocument): Promise<CloudCatalogPush> {
       const fingerprint = catalogFingerprint(value);
       const response = await request("/catalog", {
         method: "POST",
@@ -381,14 +416,20 @@ export function cloud(options: CloudOptions = {}): CloudClient {
           `PermDock Cloud rejected the catalog: HTTP ${String(response.status)}`,
         );
       }
-      return { fingerprint };
+      const parsed = catalogPushOf(await response.json());
+      if (parsed === null) {
+        throw new Error(
+          "PermDock Cloud answered the catalog push in an unknown shape",
+        );
+      }
+      return parsed;
     },
   };
 
   return freezeDeep({
     approvals,
     sink,
-    snapshots,
+    snapshotsFor,
     policies,
     catalog,
     issuer: root,

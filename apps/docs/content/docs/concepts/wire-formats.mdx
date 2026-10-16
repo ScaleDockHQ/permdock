@@ -557,7 +557,7 @@ The envelope is the same for all of them:
 | `vnd.permdock.evidence+jwt`        | `events`: CloudEvents 1.0 events from a sink                                                                                                                  | `signDecisionBatch`, `memoryDecisionSink({ signer })` ([audit](/docs/concepts/audit-and-observability)); `permdock/cloud` exports             | A SIEM, an auditor, a compliance tool verifying provenance offline                                                               |
 | `at+jwt`                           | None; RFC 9068 `sub` is the approver's principal id, `exp` is `iat` + 60 seconds, and `act` is never present                                                  | `cloud({ approver })`, sent as `PermDock-Approver` on `approvals.resolve` ([approver token](/docs/adapters/cloud#approver-token))             |
 
-Each signed format has a JSON Schema in the `permdock` package: `schemas/snapshot-v1.json` (the unsigned snapshot), `schemas/approval-signature-v1.json`, `schemas/policy-v1.json`, `schemas/capability-v1.json`, `schemas/run-v1.json`, `schemas/support-session-v1.json` and `schemas/evidence-export-v1.json` (the claims sets). Import one as `permdock/schemas/<name>.json`. `snapshotFromClaims` reads a verified snapshot token back into a Snapshot, `policyDocumentFromClaims` a policy token and `parseApprovalRequest` (`permdock/approvals`) an approval request record.
+Each signed format has a JSON Schema in the `permdock` package: `schemas/snapshot-v1.json` (the unsigned snapshot), `schemas/approval-signature-v1.json`, `schemas/policy-v1.json`, `schemas/capability-v1.json`, `schemas/run-v1.json`, `schemas/support-session-v1.json` and `schemas/evidence-export-v1.json` (the claims sets). `schemas/connector-v1.json` is the unsigned Cloud connector body. Import one as `permdock/schemas/<name>.json`. `snapshotFromClaims` reads a verified snapshot token back into a Snapshot, `policyDocumentFromClaims` a policy token and `parseApprovalRequest` (`permdock/approvals`) an approval request record.
 
 Signed snapshot, decoded:
 
@@ -909,6 +909,27 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 ```
 
 `drafts` appears only when the output depends on an unfinished specification, today `--target 3.3` (`oas`, `securityProfiles`; [OpenAPI 3.3](/docs/standards/openapi)) and `--overlay 1.2` (`overlay`; [OpenAPI Overlay](/docs/standards/openapi-overlay)), and carries only the keys that apply; each value names the pinned revision. `permdock openapi emit --check` fails when a committed document's `drafts` differ from the installed CLI's pins. The shape is versioned by `v` like every other extension.
+
+## Catalog push response
+
+`POST /catalog` on PermDock Cloud answers `201 { version, fingerprint, findings }` for a new catalog version, where `findings` are the `CatalogFinding` items of a `com.permdock.catalog.drift` event, or `200 { version, fingerprint, unchanged: true }` when the fingerprint is already published. `cloud().catalog.push` returns it as `CloudCatalogPush` ([PermDock Cloud](/docs/adapters/cloud)).
+
+## Connector
+
+A PermDock Cloud connector is `{ id?, kind, name, config }`. The JSON Schema is `schemas/connector-v1.json`, one `oneOf` branch per `kind`, each `config` closed with `additionalProperties: false` and every URL `https://`:
+
+```json
+{
+  "kind": "webhook",
+  "name": "Ops alerts",
+  "config": {
+    "url": "https://ops.example.com/permdock",
+    "types": ["com.permdock.approval.requested"]
+  }
+}
+```
+
+The kinds are `webhook`, `otlp`, `siem`, `evidence`, `scim`, `caep-transmitter`, `federated-upstream`, `chat`, `email` and `vercel-oidc` ([Cloud integrations](/docs/adapters/cloud-integrations)). A secret is never part of `config`; the Cloud generates it and shows it once.
 
 ## Supabase claims
 

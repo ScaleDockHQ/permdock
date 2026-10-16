@@ -1,4 +1,4 @@
-import type { ApprovalVerdict } from "../approvals/types.ts";
+import type { ApprovalRequest, ApprovalVerdict } from "../approvals/types.ts";
 import type { CloudApproverOptions } from "./types.ts";
 
 import { ApprovalError } from "../approvals/errors.ts";
@@ -12,11 +12,28 @@ const APPROVAL_DETAIL_TYPE = "permdock_approval";
 /** Seconds an approver token lives: it proves one resolve call, and the Cloud refuses a replayed `jti`. */
 const APPROVER_TTL = 60;
 
-/** The request an approver token is bound to: its id and, when the Cloud sent one, its ETag. */
+/** The request an approver token is bound to and, when the Cloud sent one, its ETag. */
 type ApproverTarget = {
-  readonly id: string;
+  readonly request: ApprovalRequest;
   readonly etag?: string;
 };
+
+async function facts(
+  read: CloudApproverOptions["permissions"],
+  request: ApprovalRequest,
+  verdict: ApprovalVerdict,
+  fallback: readonly string[] | undefined,
+): Promise<readonly string[]> {
+  if (read === undefined) {
+    return fallback ?? [];
+  }
+  try {
+    const held = await read(request, verdict.by);
+    return held.filter((item) => typeof item === "string");
+  } catch {
+    return [];
+  }
+}
 
 function unauthenticated(detail: string): ApprovalError {
   return new ApprovalError("approver-unauthenticated", detail);
@@ -31,7 +48,9 @@ function isSystemRejection(verdict: ApprovalVerdict): boolean {
  * The `PermDock-Approver` header for `verdict`: an RFC 9068 `at+jwt` whose
  * `sub` is the approver, signed by `options.signer` for `<issuer>/approvals`,
  * with a fresh `jti` and one `permdock_approval` authorization detail naming
- * the request id and the verdict status. `target` runs only after the
+ * the request id, the verdict status and the approver's `permissions` and
+ * `relations`, the only facts the Cloud checks `holder()` and `relation()`
+ * approvers against. `target` runs only after the
  * approver checks pass. Throws an `ApprovalError` before any resolve when the
  * approver cannot be proven: no signer, no principal, an actor, a failed
  * lookup or a signer failure.
@@ -60,7 +79,19 @@ export async function approverHeaders(
       "PermDock Cloud: cloud() needs approver.signer to prove who resolves an approval",
     );
   }
-  const request = await target();
+  const { request, etag } = await target();
+  const permissions = await facts(
+    options.permissions,
+    request,
+    verdict,
+    verdict.permissions,
+  );
+  const relations = await facts(
+    options.relations,
+    request,
+    verdict,
+    verdict.relations,
+  );
   const issuedAt = nowSeconds();
   try {
     const token = await options.signer.sign(
@@ -71,7 +102,9 @@ export async function approverHeaders(
             type: APPROVAL_DETAIL_TYPE,
             id: request.id,
             status: verdict.status,
-            ...(request.etag === undefined ? {} : { etag: request.etag }),
+            permissions,
+            relations,
+            ...(etag === undefined ? {} : { etag }),
           },
         ],
       },

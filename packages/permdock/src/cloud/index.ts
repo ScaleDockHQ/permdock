@@ -2,6 +2,7 @@ export { cloud, cloudEndpoints } from "./create.ts";
 export type {
   CloudApproverOptions,
   CloudCatalog,
+  CloudCatalogPush,
   CloudClient,
   CloudConnectionOptions,
   CloudEndpointOptions,

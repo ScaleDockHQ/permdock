@@ -43,12 +43,68 @@ describe("cloud().catalog.push", () => {
         expect(request.method).toBe("POST");
         expect(request.headers.get("authorization")).toBe(`Bearer ${KEY}`);
         posted.push(await request.json());
-        return new Response(null, { status: 204 });
+        return Response.json(
+          {
+            version: 2,
+            fingerprint: catalogFingerprint(document),
+            findings: [
+              {
+                code: "permission-removed",
+                permission: "invoice.void",
+                grant: "g_1",
+              },
+            ],
+          },
+          { status: 201 },
+        );
       },
     });
     const fingerprint = catalogFingerprint(document);
-    expect(await client.catalog.push(document)).toEqual({ fingerprint });
+    expect(await client.catalog.push(document)).toEqual({
+      version: 2,
+      fingerprint,
+      findings: [
+        {
+          code: "permission-removed",
+          permission: "invoice.void",
+          grant: "g_1",
+        },
+      ],
+    });
     expect(posted).toEqual([{ fingerprint, catalog: document }]);
+  });
+
+  it("returns unchanged for a fingerprint already published", async () => {
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: () =>
+        Promise.resolve(
+          Response.json({ version: 1, fingerprint: "f", unchanged: true }),
+        ),
+    });
+    expect(await client.catalog.push(document)).toEqual({
+      version: 1,
+      fingerprint: "f",
+      unchanged: true,
+    });
+  });
+
+  it.each([
+    [{ fingerprint: "f", findings: [] }],
+    [{ version: 1, findings: [] }],
+    [{ version: 1, fingerprint: "f" }],
+    [{ version: 1, fingerprint: "f", findings: [{ code: "made-up" }] }],
+    [[]],
+  ])("throws on an unknown answer %j", async (body) => {
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: () => Promise.resolve(Response.json(body)),
+    });
+    await expect(client.catalog.push(document)).rejects.toThrow(
+      "unknown shape",
+    );
   });
 
   it("throws when the Cloud rejects the catalog", async () => {
