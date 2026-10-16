@@ -4,29 +4,29 @@ For agents and humans changing this repository. Consumers get the `permdock` and
 
 `PRODUCT.md` is the product brief. Every design decision and its rationale lives in `apps/docs/content/docs/`, in the `Why` section of the page that owns it. Read `index.mdx`, `getting-started/naming.mdx` and `security/threat-model.mdx` there before touching code.
 
-## Rules
+## Rules and conventions
 
-Topic rules live in `.agents/rules/*.mdc`. Cursor loads them through the `.cursor/rules` symlink and Claude Code through the `.claude/rules/<name>.md` symlinks. Always-on rules load in every session; the others attach when you touch a file matching their globs. If your tool loads neither, read the rule for the area you touch.
+Conventions are rules: code in `architecture.mdc`, names in `naming.mdc`, prose in `writing.mdc`. Topic rules live in `.agents/rules/*.mdc`. Cursor loads them through the `.cursor/rules` symlink and Claude Code through the `.claude/rules/<name>.md` symlinks. Always-on rules load in every session, the others when you touch a file matching their globs; if your tool loads neither, read the rule for the area.
 
-| Rule                                   | Read it when                                                                                 |
-| -------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `architecture.mdc`                     | Always on: layout, boundary tags, code rules                                                 |
-| `git-workflow.mdc`                     | Always on: one branch and one PR per chat or plan, never merge unasked                       |
-| `writing.mdc`                          | Always on: prose in docs, READMEs, skills, changesets, comments, commits, PRs                |
-| `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`                                 |
-| `naming.mdc`                           | Adding or renaming a public identifier, option, flag, denial reason or wire field            |
-| `change-checklist.mdc`                 | Before opening a PR: what else to update when you change X                                   |
-| `docs.mdc`                             | Editing `apps/docs/content/docs`                                                             |
-| `testing.mdc`                          | Writing tests, runners, fixtures or examples                                                 |
-| `deployment.mdc`                       | Touching `apps/marketing`, the docs app code, `packages/{ui,next-config}` or `vercel.json`   |
-| `local-dev-portless-agent-browser.mdc` | Running or checking the apps locally                                                         |
-| `skills.mdc`                           | Touching `packages/permdock/skills`, `.claude-plugin`, vendored skills or `skills-lock.json` |
+| Rule                                   | Read it when                                                                |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| `architecture.mdc`                     | Always on: layout, boundary tags, code rules                                |
+| `git-workflow.mdc`                     | Always on: one branch and one PR per chat or plan, never merge unasked      |
+| `writing.mdc`                          | Always on: prose in docs, skills, changesets, comments, commits, PRs        |
+| `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`                |
+| `naming.mdc`                           | Adding or renaming a public name, option, flag, denial reason or wire field |
+| `change-checklist.mdc`                 | Before opening a PR: what else to update when you change X                  |
+| `docs.mdc`                             | Editing `apps/docs/content/docs`                                            |
+| `testing.mdc`                          | Writing tests, runners, fixtures or examples                                |
+| `deployment.mdc`                       | Touching app code, `packages/{ui,next-config}` or `vercel.json`             |
+| `local-dev-portless-agent-browser.mdc` | Running or checking the apps locally                                        |
+| `skills.mdc`                           | Touching shipped or vendored skills, `.claude-plugin`, `skills-lock.json`   |
 
 A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, plus `paths` (Claude Code) unless it is always on, a row here, and a `.claude/rules/<name>.md` symlink.
 
 ## Status
 
-`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver as the Versioning section of `roadmap.mdx` sets out: a breaking change to a name, default or wire format carries a changeset that says so, and a breaking wire-format change bumps that format's major. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24 or later, pnpm 12.14.0 (`devEngines` fails on any other version), TypeScript 7 for the repository.
+`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver as the Versioning section of `roadmap.mdx` sets out: a breaking change to a name, default or wire format carries a changeset that says so, and a breaking wire-format change bumps that format's major. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24, pnpm 12.14.0 (`devEngines` fails on any other), TypeScript 7.
 
 ## Repo layout
 
@@ -71,21 +71,21 @@ Run `pnpm exec portless list` first and reuse a running PermDock route. The Port
 
 ## When you change X, also update Y
 
-| Change                         | Also update                                                                                      |
-| ------------------------------ | ------------------------------------------------------------------------------------------------ |
-| Env key                        | The app's `env.ts`, `.env.example`, the task `env` in `turbo.json`, Vercel for each environment  |
-| Route                          | The app's `sitemap.ts`, `deployment.mdc` route ownership, a `redirects()` entry for a moved URL  |
-| UI primitive                   | Vendor it into `packages/ui` with the shadcn CLI, then `DESIGN.md` if it adds a token or pattern |
-| Dependency                     | Catalog pin (`docs/agents/pnpm-catalog.md`), "Pre-release pins" below, the installed docs        |
-| `typescript` bump              | `oxlint-tsgolint` in the same commit                                                             |
-| Next.js bump                   | Run `next dev` once per Next.js app and commit the refreshed `AGENTS.md` block                   |
-| Package version                | `server.json`                                                                                    |
-| File move                      | Knip entries, the `docs:drift` paths                                                             |
-| Rename                         | The docs Naming page, the `docs:drift` naming check, the changeset's old-to-new table            |
-| Perf-sensitive change          | The bundle, type and CLI-startup baselines, before and after in the commit                       |
-| User-visible change            | A changeset; the owning docs page                                                                |
-| Exception to the repo standard | A record in `docs/decisions` and a line under Deviations                                         |
-| `permdock`, docs or examples   | The rows in `change-checklist.mdc`                                                               |
+| Change                         | Also update                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| Env key                        | The app's `env.ts`, `.env.example`, the task `env` in `turbo.json`, Vercel      |
+| Route                          | The app's `sitemap.ts`, `deployment.mdc`, a `redirects()` entry for a moved URL |
+| UI primitive                   | `packages/ui` through the shadcn CLI; `DESIGN.md` for a new token or pattern    |
+| Dependency                     | Catalog pin (`docs/agents/pnpm-catalog.md`), "Pre-release pins" below           |
+| `typescript` bump              | `oxlint-tsgolint` in the same commit                                            |
+| Next.js bump                   | Run `next dev` per Next.js app; commit the refreshed `AGENTS.md` block          |
+| Package version                | `server.json`                                                                   |
+| File move                      | Knip entries, the `docs:drift` paths                                            |
+| Rename                         | The docs Naming page, the `docs:drift` check, the changeset's old-to-new table  |
+| Perf-sensitive change          | The bundle, type and CLI-startup baselines, before and after in the commit      |
+| User-visible change            | A changeset; the owning docs page                                               |
+| Exception to the repo standard | A record in `docs/decisions` and a line under Deviations                        |
+| `permdock`, docs or examples   | The rows in `change-checklist.mdc`                                              |
 
 ## Hard rules
 
