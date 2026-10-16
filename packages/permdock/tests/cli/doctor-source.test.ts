@@ -198,6 +198,19 @@ describe("PD014 discovery and jwks", () => {
     ]);
   });
 
+  it("skips the Standard Webhooks jwks of the webhook verifiers", () => {
+    expect(
+      messages(
+        pd014([
+          src(
+            "a.ts",
+            `import { cloudApprovalWaiter, verifyWebhook } from "permdock/cloud";\nimport { webhookVerifier as verifier } from "permdock/server";\nexport const w = cloudApprovalWaiter({ store, jwks: url, replay });\nexport const v = verifyWebhook(request, { jwks: url, replay });\nexport const x = verifier({ jwks: url, replay });`,
+          ),
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
   it("reads quoted keys and skips spread, computed and non-string keys", () => {
     expect(
       messages(

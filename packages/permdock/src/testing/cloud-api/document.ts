@@ -735,7 +735,7 @@ const IDENTITY: Readonly<Record<string, Node>> = {
     post: {
       security: [{ oauthClient: [] }, { publicClient: [] }],
       summary:
-        "authorization_code, device_code, token exchange (confidential only), refresh_token",
+        "authorization_code, device_code, client_credentials and token exchange (confidential only), refresh_token",
       requestBody: body(
         {
           type: "object",
@@ -745,6 +745,7 @@ const IDENTITY: Readonly<Record<string, Node>> = {
               enum: [
                 "authorization_code",
                 "urn:ietf:params:oauth:grant-type:device_code",
+                "client_credentials",
                 "urn:ietf:params:oauth:grant-type:token-exchange",
                 "refresh_token",
               ],
