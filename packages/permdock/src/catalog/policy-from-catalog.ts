@@ -29,6 +29,7 @@ import type {
 import { normalizeWhere } from "../conditions/normalize.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { isPortableCondition } from "../core/hosted.ts";
 import { resource } from "../core/permission-leaf.ts";
 import { getRegistry, findPermission } from "../core/permission-registry.ts";
 import { definePermissions } from "../core/permissions.ts";
@@ -184,9 +185,17 @@ function permissionTree(catalog: CatalogDocument): PermissionTree {
   }
 }
 
-function condition(value: unknown, label: string): Condition | undefined {
+/** A portable grant's condition must be in the portable subset; a non-portable one is read as written and fails closed where it cannot evaluate. */
+function condition(
+  value: unknown,
+  label: string,
+  portable: boolean,
+): Condition | undefined {
   if (value === undefined) {
     return undefined;
+  }
+  if (portable && !isPortableCondition(value)) {
+    return invalid(`${label} is not a portable condition`);
   }
   try {
     return normalizeWhere(value);
@@ -204,7 +213,11 @@ function buildGrant(tree: PermissionTree, raw: PushedGrant): Grant {
   const where =
     raw.closure === true
       ? CODE_CONDITION
-      : condition(raw.where, `grant '${raw.permission}' where`);
+      : condition(
+          raw.where,
+          `grant '${raw.permission}' where`,
+          raw.portable !== false,
+        );
   return freezeDeep(
     compact<Grant>({
       permission,
@@ -212,7 +225,11 @@ function buildGrant(tree: PermissionTree, raw: PushedGrant): Grant {
       to: raw.to,
       role: raw.role,
       where,
-      check: condition(raw.check, `grant '${raw.permission}' check`),
+      check: condition(
+        raw.check,
+        `grant '${raw.permission}' check`,
+        raw.portable !== false,
+      ),
       approval: raw.approval,
       portable: raw.portable !== false,
       limit: raw.limit,
@@ -424,30 +441,27 @@ export function policyFromCatalog<TUser = unknown>(
       binding(name, role, own, roleOn(role, own, resources, permissions)),
     ];
   });
-  const bound = new Set(roles.map((role) => role.name));
   const vocabulary = freezeDeep({
     permissions,
     roles: defineRoles(
       Object.fromEntries(
-        roleNames
-          .filter((name) => !bound.has(name))
-          .map((name) => {
-            const role = catalogRoles.get(name);
-            return [
-              name,
-              compact({
-                on:
-                  role?.on === undefined || role.on === "resource"
-                    ? undefined
-                    : role.on,
-                assignable: role?.assignable,
-                meta:
-                  role?.audience === undefined
-                    ? undefined
-                    : { audience: role.audience },
-              }),
-            ];
-          }),
+        roleNames.map((name) => {
+          const role = catalogRoles.get(name);
+          return [
+            name,
+            compact({
+              on:
+                role?.on === undefined || role.on === "resource"
+                  ? undefined
+                  : role.on,
+              assignable: role?.assignable,
+              meta:
+                role?.audience === undefined
+                  ? undefined
+                  : { audience: role.audience },
+            }),
+          ];
+        }),
       ),
     ),
     plans: definePlans(

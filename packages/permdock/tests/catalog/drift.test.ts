@@ -37,6 +37,7 @@ function build(withVoid: boolean, roles: readonly string[]) {
     invoice: resource({
       actions: withVoid ? ["read", "void"] : ["read"],
     }),
+    ledger: resource({ actions: ["read"] }),
   });
   const policy = definePolicy(tree, {
     hostable: [tree.invoice],
@@ -73,6 +74,20 @@ const document: PolicyDocument = {
       approval: "human",
     },
     {
+      id: "g-ledger",
+      permission: "ledger.read",
+      effect: "allow",
+      to: { kind: "role", role: "finance", scope: "global" },
+    },
+    {
+      id: "g-opaque",
+      permission: "invoice.read",
+      effect: "allow",
+      to: { kind: "role", role: "finance", scope: "global" },
+      approval: "human",
+      where: { op: "opaque", sql: "true", fingerprint: "x" },
+    },
+    {
       id: "g-weak",
       permission: "invoice.read",
       effect: "allow",
@@ -91,6 +106,7 @@ describe("hostedGrantFindings", () => {
         grant: "g-void",
       },
       { code: "grantee-removed", permission: "invoice.read", grant: "g-read" },
+      { code: "not-hostable", permission: "ledger.read", grant: "g-ledger" },
       {
         code: "approval-tightened",
         permission: "invoice.read",
@@ -121,6 +137,7 @@ describe("catalogDrift", () => {
     expect(data.findings?.map((finding) => finding.code)).toEqual([
       "permission-removed",
       "grantee-removed",
+      "not-hostable",
       "approval-tightened",
     ]);
     expect(parseCatalogEventData(JSON.parse(JSON.stringify(data)))).toEqual(
