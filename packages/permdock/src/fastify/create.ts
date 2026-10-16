@@ -71,6 +71,8 @@ export type FastifyProtect = <
 ) => Promise<void>;
 
 export type FastifyPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  /** The `PermDock` for one request, for code the middleware does not run before. */
+  readonly getPermDock: (request: FastifyRequest) => Promise<PermDock<V>>;
   readonly middleware: () => FastifyPluginAsync;
   readonly protect: FastifyProtect;
   readonly permdockHandler: () => FastifyPluginAsync;
@@ -115,6 +117,7 @@ export function createPermDock<
     rebind,
     scopeOf,
     handlerScope,
+    getPermDock,
     guard: runGuard,
   } = bindKernel(policy, options, "fastify", toRequest);
 
@@ -191,6 +194,7 @@ export function createPermDock<
       fn(request as FastifyPermDockRequest<Route, V>, reply);
 
   return {
+    getPermDock,
     middleware: () => plugin,
     protect,
     permdockHandler: () => handler,

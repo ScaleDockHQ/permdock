@@ -295,3 +295,22 @@ describe("permdock/trpc", () => {
     expect(crashed.data).toEqual({ code: "X" });
   });
 });
+
+describe("permdock/trpc getPermDock", () => {
+  it("builds the instance for one procedure call outside the middleware", async () => {
+    const { getPermDock } = createPermDock<Ctx>(policy, {
+      subject: (opts) => opts.ctx.user,
+    });
+    const permdock = await getPermDock({
+      ctx: { user: memberUser },
+      path: "posts.update",
+      type: "mutation",
+      next: () => Promise.resolve(undefined),
+    });
+    expect({
+      id: permdock.subject.principal?.id,
+      own: permdock.can(permissions.post.update, ownPost),
+      other: permdock.can(permissions.post.update, otherPost),
+    }).toEqual({ id: "u1", own: true, other: false });
+  });
+});

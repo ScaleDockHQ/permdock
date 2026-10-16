@@ -239,3 +239,21 @@ describe("permdock/orpc", () => {
     ).toEqual([permissions.post.delete.key]);
   });
 });
+
+describe("permdock/orpc getPermDock", () => {
+  it("builds the instance for one procedure call outside the middleware", async () => {
+    const { getPermDock } = createPermDock<Ctx>(policy, {
+      subject: (opts) => opts.context.user,
+    });
+    const permdock = await getPermDock({
+      context: { user: memberUser },
+      path: ["posts", "update"],
+      next: () => Promise.resolve(undefined),
+    });
+    expect({
+      id: permdock.subject.principal?.id,
+      own: permdock.can(permissions.post.update, ownPost),
+      other: permdock.can(permissions.post.update, otherPost),
+    }).toEqual({ id: "u1", own: true, other: false });
+  });
+});

@@ -5,7 +5,6 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { ServerAdapterOptions } from "../server/bind.ts";
-import type { TenantScope } from "../server/create.ts";
 import type {
   Guard,
   OpenApiHooks,
@@ -61,11 +60,9 @@ export function createPermDock<
   const { kernel, handlerScope } = bound;
   const bind = (req: IncomingMessage): globalThis.Request =>
     bound.bind(nodeRequest(req));
-  const scopeOf = (req: IncomingMessage): Promise<TenantScope> =>
-    bound.scopeOf(nodeRequest(req));
 
-  const getPermDock = async (req: IncomingMessage): Promise<PermDock<V>> =>
-    kernel.getPermDock(bind(req), await scopeOf(req));
+  const getPermDock = (req: IncomingMessage): Promise<PermDock<V>> =>
+    bound.getPermDock(nodeRequest(req));
 
   // SAFETY: NodeProtect's overloads only narrow the guard by whether permission is null, as the kernel's do.
   const protect = ((

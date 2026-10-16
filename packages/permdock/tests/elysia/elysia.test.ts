@@ -142,3 +142,25 @@ describe("permdock/elysia routes before the plugin", () => {
     expect(resolved).toBe(1);
   });
 });
+
+describe("permdock/elysia getPermDock", () => {
+  it("builds the request's instance outside the plugin", async () => {
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = new Elysia().get("/", async (ctx) => {
+      const permdock = await getPermDock(ctx);
+      return {
+        id: permdock.subject.principal?.id,
+        own: permdock.can(permissions.post.update, ownPost),
+        other: permdock.can(permissions.post.update, otherPost),
+      };
+    });
+    const response = await app.handle(new Request("http://localhost/"));
+    expect(await response.json()).toEqual({
+      id: "u1",
+      own: true,
+      other: false,
+    });
+  });
+});

@@ -86,6 +86,8 @@ export type BoundKernel<TContext, V extends PolicyVocabulary> = {
   readonly scopeOf: (context: TContext) => Promise<TenantScope>;
   /** The `permdockHandler` scope: the `tenant` option against the request's context. */
   readonly handlerScope: (request: Request) => Promise<TenantScope>;
+  /** The instance for `context`; an invalid Web Bot Auth signature throws `InvalidSignatureError`. */
+  readonly getPermDock: (context: TContext) => Promise<PermDock<V>>;
   /** The instance for `context`; an invalid Web Bot Auth signature is its `401` response. */
   readonly attach: (context: TContext) => Promise<Attached<V>>;
   /** `protect` for `context`: `data` reads the framework context and the tenant comes from `scopeOf`. */
@@ -205,10 +207,11 @@ export function bindKernel<
       : scopeOf(context);
   };
 
+  const getPermDock = async (context: TContext): Promise<PermDock<V>> =>
+    kernel.getPermDock(bind(context), await scopeOf(context));
+
   const attach = (context: TContext): Promise<Attached<V>> =>
-    attached(async () =>
-      kernel.getPermDock(bind(context), await scopeOf(context)),
-    );
+    attached(() => getPermDock(context));
 
   const guard = async (
     permission: Permission | null,
@@ -222,7 +225,16 @@ export function bindKernel<
       protectOptions,
     )(bind(context), await scopeOf(context));
 
-  return { kernel, bind, rebind, scopeOf, handlerScope, attach, guard };
+  return {
+    kernel,
+    bind,
+    rebind,
+    scopeOf,
+    handlerScope,
+    getPermDock,
+    attach,
+    guard,
+  };
 }
 
 /** The instance `build` resolves; an invalid Web Bot Auth signature is its `401` response. */

@@ -164,3 +164,30 @@ describe("permdock/express", () => {
     expect(body.evaluations[0]?.decision).toBe(true);
   });
 });
+
+describe("permdock/express getPermDock", () => {
+  it("builds the request's instance outside the middleware", async () => {
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = express();
+    app.get("/", (req, res, next) => {
+      getPermDock(req)
+        .then((permdock) => {
+          res.json({
+            id: permdock.subject.principal?.id,
+            own: permdock.can(permissions.post.update, ownPost),
+            other: permdock.can(permissions.post.update, otherPost),
+          });
+        })
+        .catch(next);
+    });
+    const request = await listen(app);
+    const response = await request("/");
+    expect(await response.json()).toEqual({
+      id: "u1",
+      own: true,
+      other: false,
+    });
+  });
+});
