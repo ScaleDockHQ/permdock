@@ -48,9 +48,10 @@ function isSystemRejection(verdict: ApprovalVerdict): boolean {
  * The `PermDock-Approver` header for `verdict`: an RFC 9068 `at+jwt` whose
  * `sub` is the approver, signed by `options.signer` for `<issuer>/approvals`,
  * with a fresh `jti` and one `permdock_approval` authorization detail naming
- * the request id, the verdict status and the approver's `permissions` and
- * `relations`, the only facts the Cloud checks `holder()` and `relation()`
- * approvers against. `target` runs only after the
+ * the request id, the verdict status, `vouched`, and the approver's
+ * `permissions` and `relations`. With the `roles`, `memberships` and `tenant`
+ * claims they are the only facts the Cloud checks a request's `approvers`
+ * against in bring-your-own mode. `target` runs only after the
  * approver checks pass. Throws an `ApprovalError` before any resolve when the
  * approver cannot be proven: no signer, no principal, an actor, a failed
  * lookup or a signer failure.
@@ -70,8 +71,8 @@ export async function approverHeaders(
       "PermDock Cloud: a person approves; a verdict with an actor has no approver token",
     );
   }
-  const id = verdict.by.principal?.id;
-  if (typeof id !== "string" || id === "") {
+  const principal = verdict.by.principal;
+  if (principal === null || principal.id === "") {
     throw unauthenticated("PermDock Cloud: the approver has no principal id");
   }
   if (options === undefined) {
@@ -96,7 +97,12 @@ export async function approverHeaders(
   try {
     const token = await options.signer.sign(
       {
-        sub: id,
+        sub: principal.id,
+        roles: principal.roles,
+        ...(principal.memberships === undefined
+          ? {}
+          : { memberships: principal.memberships }),
+        ...(principal.tenant === undefined ? {} : { tenant: principal.tenant }),
         authorization_details: [
           {
             type: APPROVAL_DETAIL_TYPE,
@@ -105,6 +111,9 @@ export async function approverHeaders(
             permissions,
             relations,
             ...(etag === undefined ? {} : { etag }),
+            ...(verdict.vouched === undefined
+              ? {}
+              : { vouched: verdict.vouched }),
           },
         ],
       },

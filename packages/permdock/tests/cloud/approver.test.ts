@@ -490,4 +490,35 @@ describe("approver facts on the PermDock-Approver token", () => {
       }),
     ).toMatchObject({ permissions: [], relations: [] });
   });
+
+  it("signs the approver's roles, memberships, tenant and vouched rule", async () => {
+    const backend = recorder();
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: backend.fetch,
+      approver: { signer },
+    });
+    await client.approvals.resolve("opaque-token", {
+      status: "approved",
+      by: {
+        principal: {
+          id: "u_3",
+          roles: ["member"],
+          memberships: [{ scope: "tenant", id: "o_1", roles: ["admin"] }],
+          tenant: "o_1",
+        },
+        context: {},
+      },
+      vouched: "app-rule",
+    });
+    const claims = await approverClaims(backend.resolves()[0]?.approver);
+    expect(claims).toMatchObject({
+      sub: "u_3",
+      roles: ["member"],
+      memberships: [{ scope: "tenant", id: "o_1", roles: ["admin"] }],
+      tenant: "o_1",
+      authorization_details: [expect.objectContaining({ vouched: "app-rule" })],
+    });
+  });
 });

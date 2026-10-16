@@ -183,16 +183,17 @@ const permdockCloud = cloud({
 });
 ```
 
-| Field | Value                                                                                                  |
-| ----- | ------------------------------------------------------------------------------------------------------ |
-| `typ` | `at+jwt` ([RFC 9068](https://www.rfc-editor.org/rfc/rfc9068))                                          |
-| `iss` | The signer's `issuer`                                                                                  |
-| `sub` | `verdict.by.principal.id`                                                                              |
-| `aud` | `approver.audience`, default `<issuer>/approvals` with `issuer` the environment URL (`cloud().issuer`) |
-| `iat` | The signing time                                                                                       |
-| `exp` | `iat` plus 60 seconds                                                                                  |
-| `jti` | A fresh UUID per resolve; the Cloud refuses a `jti` it has seen                                        |
-| `act` | Never present                                                                                          |
+| Field                            | Value                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `typ`                            | `at+jwt` ([RFC 9068](https://www.rfc-editor.org/rfc/rfc9068))                                          |
+| `iss`                            | The signer's `issuer`                                                                                  |
+| `sub`                            | `verdict.by.principal.id`                                                                              |
+| `aud`                            | `approver.audience`, default `<issuer>/approvals` with `issuer` the environment URL (`cloud().issuer`) |
+| `iat`                            | The signing time                                                                                       |
+| `exp`                            | `iat` plus 60 seconds                                                                                  |
+| `jti`                            | A fresh UUID per resolve; the Cloud refuses a `jti` it has seen                                        |
+| `act`                            | Never present                                                                                          |
+| `roles`, `memberships`, `tenant` | `verdict.by.principal`'s, in the claim-table form above                                                |
 
 `authorization_details` ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)) binds the token to one verdict on one request. Before it signs, `resolve` reads the request through `GET /approvals/by-token` and adds one entry:
 
@@ -203,7 +204,9 @@ const permdockCloud = cloud({
       "type": "permdock_approval",
       "id": "apr_…",
       "status": "approved",
-      "etag": "\"sha-256:…\""
+      "etag": "\"sha-256:…\"",
+      "permissions": ["post.moderate"],
+      "relations": []
     }
   ]
 }
@@ -216,7 +219,7 @@ The entry also carries the approver's facts, the only input the Cloud checks a r
 - `permissions`: the `holder(permission)` approvers the person holds, from `approver.permissions(request, by)`, typically `approverPermissions(request, permdockFor(by))`; without the option, `verdict.permissions`.
 - `relations`: the relation approvers the person holds on the request's resource, from `approver.relations(request, by)`, typically `approverRelations(request, by, { relations, permissions })`; without the option, `verdict.relations`.
 
-A fact that is missing means not held, so a `holder()` or `relation()` approver it does not list answers `403` `approver-not-eligible`. A reader that throws signs none. In Cloud-native mode the Cloud computes the same facts itself, from its directory and the policy `policyFromCatalog` rebuilds from the pushed catalog, and ignores the signed ones.
+With `roles`, `memberships` and `tenant`, and `vouched` when the verdict names an application rule, these are everything the Cloud checks eligibility against. A fact that is missing means not held, so a `holder()` or `relation()` approver it does not list answers `403` `approver-not-eligible`. A reader that throws signs none. In Cloud-native mode the Cloud computes the same facts itself, from its directory and the policy `policyFromCatalog` rebuilds from the pushed catalog, and ignores the signed ones.
 
 - Register the signer's JWK Set in the environment as a trusted issuer with purpose `approver` (`POST /trusted-issuers`). `sub` must equal the approver's `subject` in the Cloud directory, and a registered audience must equal `aud`.
 - `resolve` throws `ApprovalError` before sending a resolve when it cannot prove a person. The codes are `approver-unauthenticated` (no `approver` option, an anonymous principal, an empty id, or a signer that throws) and `approver-not-eligible` (a verdict whose subject has an `actor`, which is an agent approving). A failed read of the request throws the code the Cloud names, `approval-not-found` by default.
