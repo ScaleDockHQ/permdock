@@ -29,8 +29,6 @@ catalog:
   "@changesets/cli": 3.0.3
   "@fumadocs/local-md": 0.3.5
   "@types/mdast": 4.0.4
-  mdast-util-mdx-jsx: 3.2.0
-  unist-util-visit: 5.1.0
   "@sentry/nextjs": 11.8.0
   "@t3-oss/env-nextjs": 0.13.11
   "@vercel/analytics": 2.0.1
@@ -200,6 +198,12 @@ catalogs:
     typescript: 5.9.3
   ts6:
     typescript: 6.0.3
+  # tests/nest-11: the Nest adapter against Nest 11, the lowest peer version.
+  nest11:
+    "@nestjs/common": 11.2.7
+    "@nestjs/core": 11.2.7
+    "@nestjs/platform-express": 11.2.7
+    "@nestjs/platform-fastify": 11.2.7
   peers:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
     better-supabase: ">=0.6.0 <0.10.0"

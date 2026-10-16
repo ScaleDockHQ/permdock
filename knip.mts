@@ -86,6 +86,20 @@ const config: KnipConfig = {
       // The gitignored client `prisma generate` writes to src/support/prisma imports its runtime.
       ignoreDependencies: ["@prisma/client"],
     },
+    "tests/nest-11": {
+      // The suites live in packages/permdock and tests/integration; vitest.config.ts
+      // aliases their `@nestjs/*` imports to these Nest 11 copies.
+      ignoreDependencies: [
+        "@nestjs/common",
+        "@nestjs/core",
+        "@nestjs/platform-express",
+        "@nestjs/platform-fastify",
+        "@permdock/integration",
+        "permdock",
+        "reflect-metadata",
+        "rxjs",
+      ],
+    },
     "tests/runtimes": {
       entry: ["src/serve-{bun,deno}.ts", "src/worker.ts"],
       // The suite spawns the `deno` binary this package installs.

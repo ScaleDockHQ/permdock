@@ -1,0 +1,28 @@
+{
+  "name": "@permdock/nest-11",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "oxlint --disable-nested-config --type-aware",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@nestjs/common": "catalog:nest11",
+    "@nestjs/core": "catalog:nest11",
+    "@nestjs/platform-express": "catalog:nest11",
+    "@nestjs/platform-fastify": "catalog:nest11",
+    "@permdock/integration": "workspace:*",
+    "@permdock/ox-config": "workspace:*",
+    "@permdock/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "permdock": "workspace:*",
+    "reflect-metadata": "catalog:",
+    "rxjs": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

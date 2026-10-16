@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tags": ["test"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/permdock/tests/nest/**",
+        "$TURBO_ROOT$/tests/integration/src/http/nest.test.ts",
+        "$TURBO_ROOT$/tests/integration/src/support/**"
+      ]
+    }
+  }
+}
