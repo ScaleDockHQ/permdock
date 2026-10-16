@@ -74,6 +74,28 @@ export function renderFlight(
   return result.ok ? { ...result, stderr } : result;
 }
 
+// React 19.3 canaries outline repeated strings into their own rows (`1:"…"`) and reference them as `"$1"`.
+function clientReference(flight: string): unknown {
+  const rows = new Map<string, string>();
+  for (const line of flight.trim().split("\n")) {
+    const colon = line.indexOf(":");
+    rows.set(line.slice(0, colon), line.slice(colon + 1));
+  }
+  const resolve = (value: unknown): unknown => {
+    if (typeof value !== "string" || !/^\$\d+$/u.test(value)) {
+      return value;
+    }
+    const row = rows.get(value.slice(1));
+    return row === undefined ? value : JSON.parse(row);
+  };
+  const reference = [...rows.values()].find((row) => row.startsWith("I["));
+  if (reference === undefined) {
+    return undefined;
+  }
+  const parsed: unknown = JSON.parse(reference.slice(1));
+  return Array.isArray(parsed) ? parsed.map(resolve) : parsed;
+}
+
 async function decodeSnapshot(
   flight: string,
 ): Promise<{ readonly snapshot: unknown }> {
@@ -95,9 +117,11 @@ describe("react-server build", () => {
     expect(result.id).toMatch(
       /dist\/react\/provider-client\.js#PermDockProvider$/u,
     );
-    expect(result.flight).toMatch(
-      /\d+:I\[".*provider-client\.js",\[\],"PermDockProvider"\]/u,
-    );
+    expect(clientReference(result.flight)).toEqual([
+      expect.stringMatching(/provider-client\.js$/u),
+      [],
+      "PermDockProvider",
+    ]);
   });
 
   it('keeps "use client" on the client provider entry', () => {
