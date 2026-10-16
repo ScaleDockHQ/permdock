@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  MAX_BODY_BYTES,
-  bodyTooLarge,
-  readBodyText,
-} from "../../src/server/body.ts";
+import { MAX_BODY_BYTES, readBodyText } from "../../src/server/body-text.ts";
+import { bodyTooLarge } from "../../src/server/body.ts";
 
 type StreamRequestInit = RequestInit & { readonly duplex: "half" };
 

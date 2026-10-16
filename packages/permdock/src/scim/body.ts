@@ -2,7 +2,7 @@ import type { AppData } from "../core/app-data.ts";
 
 import { readAppData } from "../core/app-data.ts";
 import { compact, isRecord } from "../core/compact.ts";
-import { readBodyText } from "../server/body.ts";
+import { readBodyText } from "../server/body-text.ts";
 import {
   APP_DATA_EXTENSION,
   PATCH_SCHEMA,

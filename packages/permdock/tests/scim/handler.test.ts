@@ -16,7 +16,7 @@ import {
   ROLES_EXTENSION,
   USER_SCHEMA,
 } from "../../src/scim/types.ts";
-import { MAX_BODY_BYTES } from "../../src/server/body.ts";
+import { MAX_BODY_BYTES } from "../../src/server/body-text.ts";
 
 const TOKEN = "scim-secret";
 const TENANT = "o_acme";

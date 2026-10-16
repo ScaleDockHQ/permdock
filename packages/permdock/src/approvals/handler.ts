@@ -16,7 +16,8 @@ import { problemType, statusProblem } from "../core/problem-types.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { sha256Digest } from "../core/sha256.ts";
 import { nowMillis } from "../core/time.ts";
-import { bodyTooLarge, readBodyText } from "../server/body.ts";
+import { readBodyText } from "../server/body-text.ts";
+import { bodyTooLarge } from "../server/body.ts";
 import { hasCredentials } from "../server/http.ts";
 import {
   methodNotAllowed,

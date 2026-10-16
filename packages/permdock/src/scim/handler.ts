@@ -1,5 +1,5 @@
 import { compact, isRecord } from "../core/compact.ts";
-import { MAX_BODY_BYTES } from "../server/body.ts";
+import { MAX_BODY_BYTES } from "../server/body-text.ts";
 import { authenticateScim } from "./auth.ts";
 import { groupFromBody, readJson, schemasOk, userFromBody } from "./body.ts";
 import { resourceTypes, schemas, serviceProviderConfig } from "./discovery.ts";

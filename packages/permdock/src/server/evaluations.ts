@@ -8,7 +8,8 @@ import { compact, isRecord } from "../core/compact.ts";
 import { type Decision, NO_GRANT } from "../core/decision.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { type WireDecision, wireDenials } from "../core/wire-denial.ts";
-import { bodyTooLarge, readBodyText } from "./body.ts";
+import { readBodyText } from "./body-text.ts";
+import { bodyTooLarge } from "./body.ts";
 import {
   type PermissionLookup,
   itemResourceData,

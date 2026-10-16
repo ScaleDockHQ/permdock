@@ -3,7 +3,7 @@ import type { Instant } from "../core/time.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 
 import { nowSeconds, rfc3339 } from "../core/time.ts";
-import { readBodyText } from "./body.ts";
+import { readBodyText } from "./body-text.ts";
 
 /** The three Standard Webhooks headers a delivery carries. */
 export type WebhookHeaders = {

@@ -9,7 +9,8 @@ import { ownGet } from "../core/paths.ts";
 import { getResource, listPermissions } from "../core/permission-registry.ts";
 import { statusProblem } from "../core/problem-types.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import { bodyTooLarge, readBodyText } from "../server/body.ts";
+import { readBodyText } from "../server/body-text.ts";
+import { bodyTooLarge } from "../server/body.ts";
 import { permissionLookup } from "../server/evaluation-items.ts";
 import {
   applyApprovalResume,

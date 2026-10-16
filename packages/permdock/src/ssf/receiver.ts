@@ -21,7 +21,7 @@ import type {
 import { cancelApprovals } from "../approvals/helpers.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { epochSeconds } from "../core/time.ts";
-import { readBodyText } from "../server/body.ts";
+import { readBodyText } from "../server/body-text.ts";
 import {
   asSubject,
   eventSession,

@@ -7,7 +7,8 @@ import { deliveryEvent } from "../core/delivery-event.ts";
 import { ownRecord } from "../core/paths.ts";
 import { statusProblem } from "../core/problem-types.ts";
 import { isRfc3339, nowSeconds } from "../core/time.ts";
-import { bodyTooLarge, readBodyText } from "../server/body.ts";
+import { readBodyText } from "../server/body-text.ts";
+import { bodyTooLarge } from "../server/body.ts";
 import { methodNotAllowed, problemResponse } from "../server/problem.ts";
 import { CATEGORY_TAG, DELIVERY_TAG, KEY_TAG } from "./transport.ts";
 

@@ -5,7 +5,7 @@ import type { AccessReviewStore } from "./types.ts";
 import { compact } from "../../core/compact.ts";
 import { problemType, statusProblem } from "../../core/problem-types.ts";
 import { isoNow } from "../../core/time.ts";
-import { readBodyText } from "../../server/body.ts";
+import { readBodyText } from "../../server/body-text.ts";
 import { hasCredentials } from "../../server/http.ts";
 import {
   methodNotAllowed,
