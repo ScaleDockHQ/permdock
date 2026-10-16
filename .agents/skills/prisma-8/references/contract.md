@@ -155,7 +155,7 @@ model User {
 }
 ```
 
-Note: scalar lists (e.g. `String[]`) are gated on the target's `sql.scalarList` capability — PostgreSQL declares it, so `tags String[]` lowers to an array column (with a generated no-NULL-elements check, see `@noCheck` under *Enums*); SQLite does not, and rejects the field with `PSL_SCALAR_LIST_UNSUPPORTED_TARGET`. Implicit Prisma-ORM many-to-many (list navigation on both sides without a join model) is rejected by the SQL interpreter — declare the join model explicitly and the ORM traverses it for you (`references/queries.md`). Composite/embeddable types (`type Address { ... }` with `address Address` on a model) are supported: the interpreter lowers them to `valueObjects` in the domain and stores them as `jsonb` columns. See *Workflow — Value objects* below.
+Note: scalar lists (e.g. `String[]`) are gated on the target's `sql.scalarList` capability — PostgreSQL declares it, so `tags String[]` lowers to an array column (with a generated no-NULL-elements check; write `tags String?[]` for a list whose elements may be null, which gets no such check); SQLite does not, and rejects the field with `PSL_SCALAR_LIST_UNSUPPORTED_TARGET`. Implicit Prisma-ORM many-to-many (list navigation on both sides without a join model) is rejected by the SQL interpreter — declare the join model explicitly and the ORM traverses it for you (`references/queries.md`). Composite/embeddable types (`type Address { ... }` with `address Address` on a model) are supported: the interpreter lowers them to `valueObjects` in the domain and stores them as `jsonb` columns. See *Workflow — Value objects* below.
 
 ## Workflow — Edit a model / field / relation (TS builder)
 
@@ -260,6 +260,8 @@ model Feature {
 }
 ```
 
+A variant's base can be in another namespace: write `@@base(ns.Model, "value")`. Such a variant must set `@@map(...)`, because a variant that shares its base's table has to be in the base's namespace.
+
 Verify the polymorphism syntax against the interpreter tests if in doubt: `packages/2-sql/2-authoring/contract-psl/test/interpreter.polymorphism.test.ts`.
 
 Mongo PSL takes the same `@@discriminator(field)` / `@@base(Base, "value")` attributes (the Mongo interpreter implements both; `examples/mongo-demo/src/contract.prisma` declares `Post` with `@@discriminator(kind)` and `Article` / `Tutorial` variants via `@@base(Post, "article")`). Variants share the base's collection — there is no `@@map` on a Mongo variant, since there is no second table to join. The TS builder's `discriminator` option on the model is the programmatic equivalent.
@@ -312,7 +314,7 @@ model User {
 
 **Mongo enums.** A Mongo PSL contract's collection validator lists each enum's members in their stored JSON forms, so a PSL enum needs a codec whose BSON type JSON holds: string, int, double, bool, object or array, with finite numbers for doubles. An enum over `mongo/int64@1`, `mongo/date@1` or `mongo/objectId@1` is refused with `PSL_EXTENSION_INVALID_VALUE`. A TypeScript Mongo contract has no collection validator and accepts these enums.
 
-**Waiving enforcement (`@noCheck`).** A field can decline the generated CHECK constraints for its column: bare `@noCheck` waives every kind the column's shape derives; `@noCheck(membership)` and `@noCheck(elementNotNull)` waive one kind (`membership` is the enum value-set check; `elementNotNull` is the no-NULL-elements check every list column gets). The TS authoring equivalent is `.noCheck(...)` on the field builder. Declared types do not change: the field still types as the enum union, and a list still types with non-null elements — once enforcement is waived, runtime values may diverge from what the types claim. That divergence is the author's accepted risk, and it is scoped to the kinds actually waived: waiving `membership` stops the database rejecting out-of-set values, waiving `elementNotNull` stops it rejecting NULL elements. A list that waives only `membership` still rejects NULL elements. `contract infer` emits `@noCheck(elementNotNull)` automatically for list columns whose source database does not carry the generated check.
+**Generated checks cannot be waived.** On a managed table every enum column gets a membership check, and every list column with non-null elements gets a no-NULL-elements check. A list whose elements may be null is written `String?[]` (TS: `.many({ elementsNullable: true })`) and gets no element check. `contract infer` writes `String?[]` for a list column whose database has no element check, and a Prisma 7 schema's lists are read as `String?[]`.
 
 Canonical worked example: `examples/prisma-8-demo/src/prisma/contract.prisma`.
 
@@ -355,6 +357,46 @@ namespace public {
 ```
 
 Canonical worked example: `examples/supabase/src/contract.prisma`.
+
+## Workflow — Mixins (shared members)
+
+The concept: a mixin is a named set of members for one kind of block. Declare it with the block's keyword followed by `mixin`, and include it in a block with `+<Name>`. The emitted contract is the same as if the mixin's members were written at the position of the inclusion.
+
+```prisma
+model mixin Timestamps {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  @@index([createdAt])
+}
+
+enum mixin BaseRoles {
+  ADMIN = "admin"
+  USER  = "user"
+}
+
+model User {
+  id    Int    @id
+  +Timestamps
+  email String
+}
+
+enum Role {
+  @@type("pg/text@1")
+  +BaseRoles
+  GUEST = "guest"
+}
+```
+
+`User` has the fields `id`, `createdAt`, `updatedAt`, `email`, in that order, and the index on `createdAt`. `Role` has the members `ADMIN`, `USER`, `GUEST`.
+
+Rules:
+
+- **One keyword per mixin.** A `model mixin` can be included only in models, a `type mixin` only in composite types, an `enum mixin` only in enums, and a mixin for a block an extension defines (for example `policy_select mixin`) only in blocks of that keyword.
+- **A member provided twice is an error.** A field name or an enum member that the block already has, from its own body or from another mixin, is reported and the earlier one is kept. Including the same mixin twice in one block is also an error.
+- **A mixin's attributes can name only its own fields.** `@@index([createdAt])` inside `Timestamps` works because `createdAt` is a field of the mixin. An attribute that needs a field of the including model belongs in that model; a model's own attributes can name the fields a mixin provides, as in `@@id([tenantId, id])`.
+- **A mixin cannot include a mixin.**
+- **Names follow namespaces.** A mixin declared in `namespace auth { ... }` is included from another namespace as `+auth.Timestamps`. The types of its fields are looked up from the mixin's namespace, not from the including block's.
+- **A mixin is not a type.** It cannot be used as a field type, and it produces nothing in the contract unless a block includes it.
 
 ## Workflow — Cross-contract foreign keys
 

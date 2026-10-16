@@ -14,7 +14,8 @@ Applies to every repo kind. A tooling repo without TypeScript skips the tsconfig
 - **pnpm:** the latest release, as an exact version in `packageManager`, `engines` and `devEngines.packageManager` (`onFail: "error"`), never a range.
 - **Root `package.json`:** `"private": true`, `"type": "module"`, `"license": "MIT"`.
 - **TypeScript:** the latest `typescript` release, which is the native Go compiler from 7.0 on.
-  - Never install `@typescript/native-preview` (retired) or `@typescript/typescript6`. Nothing in the standard needs the JS compiler API: Knip parses with oxc, Next runs the project-local `tsc`, and oxlint type-checks through tsgolint.
+  - Never install `@typescript/native-preview` (retired). Nothing in the standard needs the JS compiler API: Knip parses with oxc, Next runs the project-local `tsc`, and oxlint type-checks through tsgolint.
+  - `@typescript/typescript6` is allowed only for a library that calls the JS compiler API or ships a classic-compiler fallback for consumers on TypeScript 5.9 or 6. Add it as a catalog alias (`typescript-classic: npm:@typescript/typescript6@<exact>`), depend on it only from that package, and record it in an ADR.
   - `typecheck` is `tsc --noEmit`. Leave `--checkers` and `--builders` at their defaults; use `--singleThreaded` only on a memory-constrained runner, with a comment.
   - `typescript` and `oxlint-tsgolint` move together, because tsgolint tracks the TypeScript version.
 
@@ -34,6 +35,7 @@ minimumReleaseAge: 1440
 minimumReleaseAgeExcludePrune: true # drop excludes the lockfile no longer resolves
 trustPolicy: no-downgrade
 trustPolicyExcludePrune: true # same for trustPolicyExclude
+blockExoticSubdeps: true # transitive deps resolve only from the registry, never git or tarball URLs
 allowBuilds: { lefthook: true, supabase: true, esbuild: true } # each entry reviewed and commented
 nodeOptions: "${NODE_OPTIONS:- } --disable-warning=MODULE_TYPELESS_PACKAGE_JSON"
 overrides:
@@ -48,6 +50,7 @@ overrides:
 Every workspace dependency is `catalog:` or `workspace:*`. Every override, `minimumReleaseAgeExclude` entry, `allowBuilds` entry and patch has a comment explaining why.
 
 - pnpm fails on a key it does not recognize when the pinned version is running, so check every key against the installed `pnpm-workspace.yaml` docs.
+- `blockExoticSubdeps` is set explicitly even where pnpm defaults it on, so the policy survives a default change.
 - An explicit `minimumReleaseAge` makes `minimumReleaseAgeStrict` true, so a too-young version stops with an approval prompt instead of being excluded silently. Never approve it to get around the policy.
 
 With Expo (see [`expo.md`](expo.md)):
@@ -99,5 +102,5 @@ Also:
 - **Offline:** `sync:start`, `sync:stop`, `sync:reset`, `sync:logs`.
 - **Releases:** `changeset`, `version-packages`, `release`.
 - **Env:** `env:pull`, `env:pull:production`, `env:local`.
-- **Database:** `supabase:start`, `supabase:stop`, `supabase:reset`, `supabase:diff` (`supabase db schema declarative sync`), `supabase:pull` (`supabase config pull`), `supabase:types`, `supabase:test`, `supabase:signing-key`, `db:gen`.
+- **Database:** `supabase:start` (`supabase start --runtime native`), `supabase:stop`, `supabase:reset`, `supabase:diff` (`supabase db schema declarative sync --no-apply`), `supabase:pull` (`supabase config pull`), `supabase:types`, `supabase:test`, `supabase:signing-key`, `db:gen`.
 - **Other:** `openapi:generate`, `prepare`.

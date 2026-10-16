@@ -9,7 +9,7 @@ membership tables and the access token hook the provider generates.
 ```ts
 export default defineConfig({
   authorization: authorizationProvider(), // from the authorization package
-  sql: { modules: { access: { model: "provider" } } },
+  blocks: { access: { model: "provider" } },
 });
 ```
 
@@ -27,11 +27,11 @@ export default defineConfig({
   doctor reports BS408 otherwise.
 - Name the same tenant claim on both sides: `claims.tenant` must equal
   `authorization.tokenHook.tenantClaim` (BS409).
-- `sql.modules.access.model: "provider"` makes `can()`, `tenant_ids_with()`
+- `blocks.access.model: "provider"` makes `can()`, `tenant_ids_with()`
   and `platform_can()` call the provider's `idsWith` and `isPlatform`. Every
   permission key a SQL module checks must be `sqlComplete: true` in
   `authorization.permissions`; map an action to another key with
-  `sql.modules.<module>.permissions`. Doctor reports BS411.
+  `blocks.<module>.permissions`. Doctor reports BS411.
 - Bucket and topic `access` policies call the access contract by default.
   For another scope, copy the provider's `idsWith` and `isPlatform` into the
   policy's `sql`. Use only keys marked `sqlComplete: true`: the policies check

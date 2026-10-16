@@ -20,6 +20,10 @@ is no separate CLI package to add.
 new` for data and role settings. The sync needs
    `[experimental.pgdelta] enabled = true` in `supabase/config.toml`;
    doctor reports BS316 when a project is still on the legacy migra engine.
+   `sql.workflow` in the config picks how the SQL modules reach a migration:
+   `pg-delta` (the default), `migra` (declarative schemas 1.0, `supabase db
+diff`) or `migrations` (no `supabase/schemas`: the `sql` commands write
+   `<stamp>_better_supabase_modules.sql`, applied with `supabase migration up`).
 2. For a new table in an exposed schema, in the same file: `enable row level
 security`, a policy per role and command the app uses, and an index on
    every column a policy filters by. Write tenant checks as
@@ -62,7 +66,8 @@ stay hidden.
    `--dry-run`, and fix the lines it lists for review.
 2. Run `pnpm better-supabase sql upgrade`, so the SQL modules get the
    release's SQL and any forward steps land in a migration, then write a
-   migration from the changed files.
+   migration from the changed files (under the `migrations` workflow it
+   writes that migration itself).
 3. Run `pnpm better-supabase gen` and commit the result. Since 0.3, a
    composite foreign key such as `(customer_id, organization_id)` is named
    after the remaining column (`customer`); set `tables.<name>.relations` in
@@ -95,6 +100,7 @@ Name the definition `betterSupabase` (in `lib/supabase/index.ts`) and every runt
 - Astro: `bs.locals(Astro).db`; SolidStart: `(await bs.require()).db`
 - Browser: `bs.db`, or the hooks from `createHooks<typeof bs>()`
 - Vue, Solid and Svelte, TanStack DB collections and a local expo-sqlite database: [references/frontend.md](references/frontend.md)
+- UI for a block (notification bell, notification list, command search, onboarding checklist): build it from the app's shadcn or React Native components and the block's hook, following [references/ui-recipes.md](references/ui-recipes.md). There is no better-supabase UI package; install glue with `npx shadcn add @better-supabase/<item>`.
 
 For who the caller is (sessions, claims, OAuth clients, agents, scopes), use
 the `better-supabase-auth` skill.

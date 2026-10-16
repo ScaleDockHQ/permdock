@@ -123,10 +123,38 @@ model('Message', { fields: { id, text } }).sql(({ cols }) => ({
 @@fullTextIndex([[title, subtitle], body], name: "post_search")
 ```
 
-**Searching an index from the SQL builder.** A table's `indexes` holds each of its indexes under the name the contract gave it, `name:` or `map:`. Pass the full-text index to `fns.fullTextMatches` and `fns.fullTextRank` in place of a column: the operation searches the document the index was built over, with the index's weight groups and language, so the query always matches the index and a title match ranks above a body match. The index states its language, so passing `language` with one is a type error. An index of another type is a type error too.
+**Searching an index in the ORM: `using`.** Every collection has a method under `using` for each full-text index of its model's table, named after the index. It filters to the matching rows and orders them by relevance, best first, and returns the same collection, so it chains like `where`:
 
 ```typescript
 const q = websearchToTsquery(query);
+const posts = await db.orm.public.Post.select('id', 'title').using.post_search(q).limit(20).all();
+const mine = await db.orm.public.Post.where({ userId }).using.post_search(q).all();
+const users = await db.orm.public.User
+  .include('posts', (posts) => posts.using.post_search(q).limit(3))
+  .all();
+```
+
+The relevance order is added where the method is called: an `orderBy` before it sorts first, one after it breaks ties. A custom collection class stays the class, so `this.using.post_search(q)` works in a class method. A model with no full-text index has no full-text methods, and a misspelled name is a type error. With the pgvector extension, `using` also has `<field>_nearest(vector, maxDistance?)` for each vector field, such as `db.orm.public.Post.using.embedding_nearest(v, 0.5)`: nearest by cosine distance first. `using` is reserved: a custom class cannot define its own `using`.
+
+**Searching an index by hand: name it.** For anything `using` does not do, such as another order or `fullTextHeadline`, name the full-text index and pass it to `fns.fullTextMatches` and `fns.fullTextRank` in place of a column. The operation searches the document the index was built over, with the index's weight groups and language, so the query always matches the index, Postgres uses it, and a title match ranks above a body match. The index states its language, so passing `language` with one is a type error. An index of another type, or a name the model's table does not have, is a type error too.
+
+In the ORM, every `where` and `orderBy` callback receives a second argument `{ fns, indexes }`: `fns` is the SQL builder's functions, and `indexes` holds the indexes of the model's table under the name the contract gave each, `name:` or `map:`. A value from `fns`, such as a rank, has `.asc()` and `.desc()`:
+
+```typescript
+const q = websearchToTsquery(query);
+const posts = await db.orm.public.Post
+  .select('id', 'title')
+  .where((_p, { fns, indexes }) => fns.fullTextMatches(indexes.post_search, q))
+  .orderBy((_p, { fns, indexes }) => fns.fullTextRank(indexes.post_search, q).desc())
+  .limit(20)
+  .all();
+```
+
+The same argument reaches the callbacks inside an include refinement, a fragment and a relation filter (`some`, `every`, `none`), where the index's columns follow the alias the ORM gives the related table. A condition from `fns` combines with the ORM's `and`, `or` and `not`. The body of a fragment for any model (`db.orm.fragment(fields, body)`) gets `fns` but no indexes.
+
+In the SQL builder, a table's `indexes` holds the same references:
+
+```typescript
 const post = db.sql.public.post;
 const posts = post
   .select('id', 'title')

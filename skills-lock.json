@@ -83,19 +83,19 @@
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase/SKILL.md",
-      "computedHash": "192cad75062a193565ad4628b33629a950dadbb192a4b14e9518afec68e3a386"
+      "computedHash": "5b20de1faa179b6024e695a18cf824a91a799d990b70317f716dbfc56e861274"
     },
     "better-supabase-api": {
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase-api/SKILL.md",
-      "computedHash": "ae0dc0d414fd800a52ec431ce53ad7c23fcd6df6db9f3577b213aeeb2b867319"
+      "computedHash": "8a077a662d51217007a2daaab27d9c20837c5fae5402c9aa4c207ec76df669de"
     },
     "better-supabase-auth": {
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase-auth/SKILL.md",
-      "computedHash": "04a6f6e535e5f4eaa16f59a0e3b4525bc5969a6e50a69c700ce17e97589675b5"
+      "computedHash": "2f1634c750e5ec61da53a2912bfaf3841ba34a7b1a2bf1488038b166126180eb"
     },
     "better-supabase-testing": {
       "source": "ScaleDockHQ/better-supabase",
@@ -269,7 +269,7 @@
       "source": "vercel-labs/vercel-plugin",
       "sourceType": "github",
       "skillPath": "skills/flags-sdk/SKILL.md",
-      "computedHash": "96fea048504ecd3f8fdd3255494c44637965695f71e85b8404c4f5c2db03379b"
+      "computedHash": "74dac700740c3fa969cb18e136daca70babd1099f11b4e81f2381b48489bf765"
     },
     "gnap": {
       "source": "ScaleDockHQ/scaledock-skills",
@@ -341,7 +341,7 @@
       "source": "neondatabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/neon-postgres/SKILL.md",
-      "computedHash": "b9763d379a3c5039e5555540a1333b1c529e2365d4f0b8fe2998ba41509814c5"
+      "computedHash": "0d936096676b18674d47828a87b21fcabf37cf0d7e3ed002e46e169eb7e0a7da"
     },
     "next-cache-components-adoption": {
       "source": "vercel/next.js",
@@ -527,7 +527,7 @@
       "source": "prisma/orm",
       "sourceType": "github",
       "skillPath": "skills/prisma-8/SKILL.md",
-      "computedHash": "7a28c146df514842da317ced4b7157ac186c4c40d49de52d36faa18bacfd635b"
+      "computedHash": "5cef2b27184e01a3fb82c2d6d5e42c460861de68de64ad1d21576fc373acd602"
     },
     "prisma-cli": {
       "source": "prisma/skills",
@@ -581,7 +581,7 @@
       "source": "ScaleDockHQ/scaledock-skills",
       "sourceType": "github",
       "skillPath": "skills/ratelimit-headers/SKILL.md",
-      "computedHash": "94a3bbfff35212a070a32f60c6fb1e165fc35e432a38c346e282ab9770fac482"
+      "computedHash": "eb06c21676e82acfe4b1701a2a1be899741bf4b0d876a02a770cb1e351a5b66b"
     },
     "react-native-best-practices": {
       "source": "callstackincubator/agent-skills",
@@ -617,19 +617,19 @@
       "source": "ScaleDockHQ/scaledock-skills",
       "sourceType": "github",
       "skillPath": "skills/scaledock-http-api/SKILL.md",
-      "computedHash": "da6277b869df756e710e40ddf3f7349a1e78927eae30fb04f1df892fdf8da62b"
+      "computedHash": "f0a5d9f514d682c7c8168c4bdc7af12a40ebc6fd9a6b229a5ebdb1c2f68598f3"
     },
     "scaledock-mcp-server": {
       "source": "ScaleDockHQ/scaledock-skills",
       "sourceType": "github",
       "skillPath": "skills/scaledock-mcp-server/SKILL.md",
-      "computedHash": "b14e9d29aa87e4296101e0ae7da42cf3f4cd6949c58a20a47bbe362ac5ebc07f"
+      "computedHash": "193c7e2334b731ba3edab181daa481aa3780543301926db9db41cf542297612b"
     },
     "scaledock-repo-standard": {
       "source": "ScaleDockHQ/scaledock-skills",
       "sourceType": "github",
       "skillPath": "skills/scaledock-repo-standard/SKILL.md",
-      "computedHash": "7f25db229b13f387f190ad84b53602aefc9ec053edfc3a5130233c4d02143abd"
+      "computedHash": "e00bbb729dd97db776c89e6c2e7ba5f6b53566364e810789ecfed5d20ad47c2d"
     },
     "scim": {
       "source": "ScaleDockHQ/scaledock-skills",
@@ -659,13 +659,13 @@
       "source": "shadcn-ui/ui",
       "sourceType": "github",
       "skillPath": "skills/shadcn/SKILL.md",
-      "computedHash": "da388f632cd83783c02967446e21941c9ee8291ccb43ba74c23f7d4e9b7c298c"
+      "computedHash": "b864a958765563321f485a96f4d59c0bb6539f4286ab6d8b8b66895b7ebd302d"
     },
     "shared-signals": {
       "source": "ScaleDockHQ/scaledock-skills",
       "sourceType": "github",
       "skillPath": "skills/shared-signals/SKILL.md",
-      "computedHash": "9f364fb57b4c70ab07cb07fa37a1ff1e9c717f8dfc526cd58f5296aa48133788"
+      "computedHash": "8cc1678aad132bb2c41f19f1ec9872b5d47dbb5ee581df204bdc77e269ee5285"
     },
     "skill-creator": {
       "source": "anthropics/skills",
@@ -677,13 +677,13 @@
       "source": "ScaleDockHQ/scaledock-skills",
       "sourceType": "github",
       "skillPath": "skills/spiffe/SKILL.md",
-      "computedHash": "2f28f32caaaef91bd3d13357f198e8e537b39e351dad48f38cd89dff02baaf4f"
+      "computedHash": "c62f01c4b5f4eb2c55ed465d8e85faab7266993136347d0147494514ecd843bb"
     },
     "standard-schema": {
       "source": "ScaleDockHQ/scaledock-skills",
       "sourceType": "github",
       "skillPath": "skills/standard-schema/SKILL.md",
-      "computedHash": "6fbb4fc5eb91b52285c2ab1144a831982b5f9ea90f3900573ac9691e60133e03"
+      "computedHash": "8ed051848e0549b71bec1ffddec57af3539a0fac856fafb43f10c44a4d268a7d"
     },
     "supabase": {
       "source": "supabase/agent-skills",
@@ -701,13 +701,13 @@
       "source": "supabase/server",
       "sourceType": "github",
       "skillPath": "skills/supabase-server/SKILL.md",
-      "computedHash": "e54d19a02647a31e039b83f9cea518f540466ab17f9ef2e887e343b952d7afff"
+      "computedHash": "bfbaab2e3151c329a2b32e14e9f914ebf08dddc3eed8bd69666e19bf3e8bbd2c"
     },
     "svelte-code-writer": {
       "source": "sveltejs/ai-tools",
       "sourceType": "github",
       "skillPath": "plugins/claude/svelte/skills/svelte-code-writer/SKILL.md",
-      "computedHash": "6f78193a79906175595ce8e4ca8d726da350eb99035a9544b6553620df5673a1"
+      "computedHash": "abe888cce357ab0fa0104ff2266edaf9c3a8382320b303f920cd777762a6bc85"
     },
     "svelte-core-bestpractices": {
       "source": "sveltejs/ai-tools",
@@ -785,7 +785,7 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-native-skills/SKILL.md",
-      "computedHash": "41d24eafa7c3d82e270439808f7cfbc4d51aeb2d14f2809a2267c16275784d06"
+      "computedHash": "2e9088a7333666d8c2833b8ff58bd51b955501c42b4c7244f72b4cbf22dafcc4"
     },
     "vercel-sandbox": {
       "source": "vercel-labs/vercel-plugin",

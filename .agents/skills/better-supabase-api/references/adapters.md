@@ -101,6 +101,12 @@ const handle = bs.fetchHandler(new OpenAPIHandler(router), { prefix: "/api" });
 const app = new Hono().all("/api/*", (c) => handle(c.req.raw));
 ```
 
+`bs.authed()` doesn't apply to a contract implementer. Guard one procedure
+with `os.customers.remove.use(bs.middleware({ permission: "customers.delete" }))`
+before `.handler(...)`. The `authorizer` passed to `createOrpc` decides the
+permission, so an authorization package plugs in as that authorizer, not as
+a second guard.
+
 ## Edge Functions
 
 ```ts title="supabase/functions/api/index.ts"

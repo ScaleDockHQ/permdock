@@ -54,7 +54,7 @@ RLS still decides what a user can read and write. `tenant()` makes queries
 explicit and fills the column; it doesn't replace the policy.
 
 The tenant comes from `context.tenant`, which the server's `tenant` resolver
-sets per request (the default `sql.modules.access.activeTenant: 'resolver'`), then
+sets per request (the default `blocks.access.activeTenant: 'resolver'`), then
 the verified `tenant_id` claim (renamed with `claims.tenant` in
 `better-supabase.config.ts`), then `app_metadata.tenant_id`. A resolver may
 read the URL, but `current_tenant_id()` only returns a tenant the caller is a

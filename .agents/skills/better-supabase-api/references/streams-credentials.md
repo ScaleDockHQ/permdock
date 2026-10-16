@@ -97,8 +97,11 @@ entry.
 From `better-supabase/workflow-sdk`, which runs anywhere: `startFor(ctx, workflow, args)`
 starts a run members see under RLS, `authorizeHook(token, ctx)` checks a
 caller before `resumeHook`, `protectWebHandler(handler, key, { can })` refuses callers before a workflow UI route or a run's stream and
-`workflowStarter({ name: workflow })` hands scheduled starts from the
-`workflows` block to the SDK.
+`workflowStarter({ name: workflow }, { runAs })` hands scheduled starts from the
+`workflows` block to the SDK. Schedules and `startOnEvent` need `runAs`
+(`{ publisher, permissions }`): the run starts as that user, capped to those
+permission keys, and the event actor or schedule creator only lands in
+`bs.trigger`.
 
 Docs: https://bettersupabase.com/docs/blocks/streams.md,
 https://bettersupabase.com/docs/extending/credentials.md and
