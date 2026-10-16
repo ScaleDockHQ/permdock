@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.6 or later as a peer; `authorizer` needs 0.8. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
+The entry needs `better-supabase` 0.6 or later as a peer; `authorizer` needs 0.8, and share links and approval covers need 0.9. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
 ## Why
 
@@ -27,6 +27,9 @@ The entry needs `better-supabase` 0.6 or later as a peer; `authorizer` needs 0.8
 | `role_permissions`, `authorize()`, the SQL helpers and the table policies                                                       | PermDock        |
 | Building each access request from the verified context, and the `permission` option of routes, actions and tools                | better-supabase |
 | Deciding each request (`authorizer`), and tool and route authorization                                                          | PermDock        |
+| Share-link rows: creating, hashing, expiring and revoking them                                                                  | better-supabase |
+| The guest subject a share link becomes, and its reads under RLS (`subjectFromShareLink`)                                        | PermDock        |
+| Approval delegation (out-of-office covers) when both are installed                                                              | PermDock        |
 
 ## API
 
@@ -39,6 +42,7 @@ import {
   apiKeyVerifier,
   apiKeyClaimOptions,
   subjectFromBetterSupabase,
+  subjectFromShareLink,
   toolPolicy,
   credentialGuard,
   hookCan,
@@ -63,6 +67,7 @@ import {
 - `apiKeyVerifier({ keys, manifest?, serviceRoles?, allPermissions? })` is a `CredentialVerifier` over better-supabase's `createApiKeys()`, for [`subjectFromApiKey`](/docs/concepts/credentials#using-a-key). A personal key is a `user` credential acting as its user, a tenant key a `service` credential holding `serviceRoles` in its tenant, and the key's scopes are the credential's permissions. `serviceRoles` defaults to the manifest's `rls.apiKeys.serviceRoles`. A rotated key in its grace period verifies, and its credential's `expiresAt` is the end of the grace period when that comes before the key's own expiry. An invalid, revoked, expired or rate-limited key, and a failed lookup, verify to `null`.
 - `apiKeyClaimOptions(manifest)` returns the `claim` and `tenantClaim` options of better-supabase's `apiKeyClaims()` and `apiKeyResolver()`, from the manifest's `rls.apiKeys`, so a key's token carries the scopes ceiling, tenant and roles the helpers read. It throws when the manifest has no `rls.apiKeys`.
 - `subjectFromBetterSupabase(session, options?)` is `subjectFromSupabaseSession` with better-supabase's defaults: `memberships` for the memberships and the entitlements module's `features` claim for `principal.plans`. A `user` session maps through `subjectFromSupabase`. With `apiKeys: { permissions, manifest?, serviceRoles? }`, an `apiKey` session maps like `apiKeyVerifier`'s credential; without it, and for `anon`, `service` and `invalid` sessions, the subject is anonymous. `plans: { claim?, keys? }` decodes the short codes `entitlements.claim.keys` writes back to feature keys. Other options override the defaults.
+- `subjectFromShareLink(token, { shareLinks, links, ttl?, linkPolicy?, onAuth? })` resolves a better-supabase share-link token into a link subject ([Share links](#share-links)).
 - `toolPolicy({ permdock, data? })` returns the `authorize` and `visible` hooks of `createMcp` for tools whose `meta` is a permission ([MCP tools](#mcp-tools)).
 - `credentialGuard(provider, { permdock, use, revoke? })` wraps a `CredentialProvider` so PermDock decides each token use ([Credentials](#credentials)).
 - `hookCan(permdock)` and `handlerCan({ getPermDock })` return the `can` options of `authorizeHook` and `protectWebHandler` in `better-supabase/workflow-sdk` ([Workflows](#workflows)).
@@ -284,6 +289,7 @@ import { createMcp } from "better-supabase/mcp";
 import { createPermDock } from "permdock";
 import {
   subjectFromBetterSupabase,
+  subjectFromShareLink,
   toolPolicy,
 } from "permdock/better-supabase";
 import { betterSupabase } from "../_shared/supabase.ts";
@@ -406,6 +412,61 @@ authorizationProvider({
 - better-supabase refuses the requester before it asks, so nobody approves their own request.
 - For tool calls and support sessions, `isApprover` replaces the module's default approver. Leave `'support-session'` out and only the service role can approve a support session.
 - `permdock_is_approver` checks `user()` by id and `holder()` through `permitted_<root scope>_ids_by_permission` in the tenant. A role, relation or other grantee approver matches nobody in SQL and is a problem. So is a `holder()` key the catalog lacks, and a tenant scope that is not the root scope.
+- With [`rls.approvals.delegations`](#approval-delegation), the manifest lists the four-argument `permdock_is_approver`, and each branch also passes better-supabase's `{requester}` and the kind's resource, so a delegate inside an active cover matches.
+
+## Approval delegation
+
+When both libraries are installed, PermDock owns approval delegation. Configure out-of-office covers once, in PermDock, and leave better-supabase's own delegation unused:
+
+```ts title="permdock.config.ts"
+export default {
+  permissions: "./permissions.ts",
+  policy: "./policy.ts",
+  rls: {
+    dialect: "supabase",
+    authorize: "database",
+    approvals: { delegations: true },
+  },
+};
+```
+
+- `rls.approvals.delegations` writes `approval_delegations` in the helper schema. Each row is a cover: a delegator, a delegate, an optional `tenant`, optional `resources`, and a required `from` and `until` window. A signed-in user reads the covers they gave or received, and writes only their own, in a tenant they belong to.
+- It also writes a four-argument `permdock_is_approver(p_approvers, p_tenant, p_requester, p_resource)`. The check passes when the caller matches the approvers. It also passes for a delegate inside an active cover whose delegator matches them. The delegator must not be the requester, and the delegate must be a member of the tenant. The two-argument form keeps no covers.
+- Rerun `permdock supabase inspect --out`. `authorizationProvider` sees the four-argument helper in the manifest and passes `{requester}`, which better-supabase 0.9.0 or later fills for the approvals block, AI tool calls and support sessions.
+- `tableApprovalDelegationSource({ query })` from `permdock/supabase` reads the same rows as `approvalDelegations` for [`approvalsHandler`](/docs/adapters/approvals#delegation), so an approval decided in process and one decided in SQL follow the same covers.
+- A cover is checked against the delegator's own rights, one hop: the delegator's covers are never followed. A `holder()` approver through a cover needs `rls.authorize: "database"`, where `permdock_has_permission_for` and `permitted_<scope>_ids_by_permission_for` exist. In `jwt` mode only `user()` approvers pass through a cover. A cover with `permissions` set matches only in `approvalsHandler`, because the SQL check has the request kind but not its permission.
+
+better-supabase's approvals block keeps its own `delegate_approval` for apps without an authorization provider. With PermDock installed, don't configure covers there too: the provider's `isApprover` decides who may approve, so a cover written only in better-supabase is not consulted.
+
+## Share links
+
+better-supabase's share-links block stores guest links: a hashed token, the subject it points at, a role, an optional expiry and a revocation. `subjectFromShareLink` turns a live row into a PermDock link principal, so a guest page decides with `can()` and reads rows under RLS through [`exchangeCapability`](/docs/concepts/capabilities#rls), the same way as a signed PermDock link:
+
+```ts title="app/q/[token]/page.tsx"
+import { subjectFromShareLink } from "permdock/better-supabase";
+import { createPermDock } from "permdock";
+import { exchangeCapability } from "permdock/supabase";
+
+const subject = await subjectFromShareLink(token, {
+  shareLinks, // the share-links block's client, called as anon
+  links: {
+    quote: {
+      resource: permissions.quote,
+      roles: { view: ["viewer"], comment: ["viewer", "commenter"] },
+    },
+  },
+  ttl: 300,
+});
+const permdock = createPermDock(policy, subject);
+if (!permdock.can(permissions.quote.read, { id: quoteId }).granted) notFound();
+const db = await exchangeCapability(subject, { key, alg: "HS256", ttl: 300 });
+```
+
+- `links` maps each share-link `subjectType` to its PermDock resource and maps the row's role to PermDock roles. A type or role it does not name denies.
+- The capability holds the row's subject id and expires at the earlier of `ttl` (default 300 seconds, at most 3600) and the row's `expiresAt`. Revoking the row stops new subjects at once; a token already exchanged lasts until its `ttl`.
+- Every failure is the anonymous subject, so every check denies: an empty, unknown, revoked or expired token, a failed or throwing `resolve`, a malformed row, and a `linkPolicy` that refuses. `onAuth` receives each denial with `source: "share-link"`.
+- `linkPolicy` applies [link rules](/docs/concepts/capabilities#link-policy-per-scope) to the capability. The row carries no issue time, so a `maxLifetime` rule always refuses.
+- better-supabase resolves the token in its own `security definer` function, which reads only the share-link table. The guest's reads of the quote itself still go through the exchanged token and RLS.
 
 ## Access reviews
 

@@ -264,7 +264,7 @@ ${serverOnly(fn(APPROVAL_STORE.cancel), "jsonb, text, text, text")}
  * other grantee approvers need facts the database does not hold for every
  * membership source, so they match nobody.
  */
-export function isApproverSql(ctx: RlsSqlContext): string {
+function isApproverSql(ctx: RlsSqlContext): string {
   const fn = qualified(ctx, APPROVAL_STORE.isApprover);
   const root = ctx.scopes[0]?.name;
   const inTenant =
