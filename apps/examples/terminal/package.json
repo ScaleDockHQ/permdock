@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --experimental-strip-types src/main.ts",
+    "dev": "node --watch src/main.ts",
     "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "start": "node --experimental-strip-types src/main.ts",
+    "start": "node src/main.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

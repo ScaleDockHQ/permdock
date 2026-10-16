@@ -37,6 +37,7 @@ export function scan(ctx: CliContext): Command {
         });
         return;
       }
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const { runLegacyScan } = await import("../legacy-scan.ts");
       const src = listArg(rawArgs, "src");
       ctx.report(

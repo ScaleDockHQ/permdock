@@ -6,8 +6,8 @@
   "scripts": {
     "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "start": "node --experimental-strip-types src/http.ts",
-    "stdio": "node --experimental-strip-types src/stdio.ts",
+    "start": "node src/http.ts",
+    "stdio": "node src/stdio.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

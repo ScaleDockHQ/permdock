@@ -42,7 +42,7 @@ export default defineConfig({
     {
       files: ["registry/types/*.d.ts"],
       rules: {
-        // Ambient module declarations stub React Native Reusables for the -native recipes.
+        // Ambient module declarations stub React Native Reusables for the -native recipes (1 finding).
         "import/unambiguous": "off",
       },
     },
@@ -63,7 +63,7 @@ export default defineConfig({
     {
       files: ["env.ts"],
       rules: {
-        // The one module that reads `process.env`; everything else imports `env`.
+        // The one module that reads `process.env`; everything else imports `env` (4 findings).
         "node/no-process-env": "off",
       },
     },

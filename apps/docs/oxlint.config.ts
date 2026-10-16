@@ -18,14 +18,14 @@ export default defineConfig({
     {
       files: ["env.ts"],
       rules: {
-        // The one module that reads `process.env`; everything else imports `env`.
+        // The one module that reads `process.env`; everything else imports `env` (4 findings).
         "node/no-process-env": "off",
       },
     },
     {
       files: ["lib/changelog.ts"],
       rules: {
-        // Turbopack leaves `import.meta.dirname` undefined; `import.meta.url` survives bundling.
+        // Turbopack leaves `import.meta.dirname` undefined; `import.meta.url` survives bundling (1 finding).
         "unicorn/prefer-import-meta-properties": "off",
       },
     },

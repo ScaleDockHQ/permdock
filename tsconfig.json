@@ -1,7 +1,6 @@
 {
   "extends": "@permdock/typescript-config/base.json",
   "compilerOptions": {
-    "resolveJsonModule": true,
     "types": ["node"],
     "allowJs": true
   },

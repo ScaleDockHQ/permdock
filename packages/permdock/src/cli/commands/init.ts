@@ -61,6 +61,7 @@ export function init(ctx: CliContext): Command {
       },
     },
     async run({ args: parsed, rawArgs }) {
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const { runInit } = await import("../init.ts");
       // SAFETY: runInit checks the archetype and resolvePreset drops ids outside the catalogue.
       const selection = {

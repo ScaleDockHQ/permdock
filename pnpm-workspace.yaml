@@ -253,9 +253,6 @@ catalogMode: strict
 catalogPrune: true
 engineStrict: true
 minimumReleaseAge: 1440
-minimumReleaseAgeExclude:
-  # First-party ScaleDockHQ release, adopted on publish day; remove a day after 0.8.0 is published.
-  - better-supabase@0.8.0
 # Drops excludes the lockfile no longer resolves.
 minimumReleaseAgeExcludePrune: true
 # Transitive dependencies resolve only from the registry, never from git or tarball URLs.

@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --experimental-strip-types src/webhook.ts",
+    "dev": "node --watch src/webhook.ts",
     "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "send": "node --experimental-strip-types src/send.ts",
-    "start": "node --experimental-strip-types src/webhook.ts",
+    "send": "node src/send.ts",
+    "start": "node src/webhook.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

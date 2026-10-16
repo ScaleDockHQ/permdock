@@ -26,7 +26,7 @@ A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, p
 
 ## Status
 
-`permdock@0.1.0` is on npm. Releases follow semver as the Versioning section of `roadmap.mdx` sets out: a breaking change to a name, default or wire format carries a changeset that says so, and a breaking wire-format change bumps that format's major. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24 or later, pnpm 12.14.0 (`devEngines` fails on any other version), TypeScript 7 for the repository.
+`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver as the Versioning section of `roadmap.mdx` sets out: a breaking change to a name, default or wire format carries a changeset that says so, and a breaking wire-format change bumps that format's major. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24 or later, pnpm 12.14.0 (`devEngines` fails on any other version), TypeScript 7 for the repository.
 
 ## Repo layout
 
@@ -136,8 +136,8 @@ Each is a record in `docs/decisions`:
 
 ## Pre-release pins
 
-- `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.41: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
-- `drizzle-orm` 1.0.0-rc.4: the release candidate the standard asks for; the peer also accepts 0.40.
+- `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.42: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
+- `drizzle-orm` 1.0.0-rc.5-5935859: the release candidate the standard asks for; the peer also accepts 0.40.
 - `@supabase/pg-delta` 1.0.0-alpha.59: the Declarative Schemas 2.0 engine `tests/integration` plans against; it has no stable release.
 - Prisma 8 and Expo SDK 58 stay on 7.10.0 and SDK 57 until their blockers clear (0018).
 

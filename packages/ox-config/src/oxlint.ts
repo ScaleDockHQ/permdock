@@ -165,7 +165,9 @@ export const core: OxlintConfig = defineConfig({
     perf: "error",
     restriction: "error",
     pedantic: "error",
+    // oxfmt owns layout; the style rules worth keeping are enabled one by one below (36653 findings in `packages/permdock/src`).
     style: "off",
+    // Unstable rules that change between oxlint releases (414 findings in `packages/permdock/src`).
     nursery: "off",
   },
   rules: {
