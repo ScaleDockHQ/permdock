@@ -136,7 +136,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 | `pnpm boundaries`                      | `turbo boundaries`: workspace dependency rules by tag                                                                                                       |
 | `pnpm audit:high`                      | `pnpm audit` failing on high and critical advisories                                                                                                        |
 | `pnpm openapi:generate`                | Refresh the vendored OpenAPI and Overlay schemas; `openapi:check` fails when they changed                                                                   |
-| `pnpm analyze`                         | `next experimental-analyze` for docs and marketing; not part of `verify`                                                                                    |
+| `pnpm analyze`                         | `next analyze` for docs and marketing; not part of `verify`                                                                                                 |
 | `pnpm standards:fixtures`              | Refresh the upstream schemas and RFC vectors `tests/standards` checks against                                                                               |
 | `pnpm changeset`                       | Record a user-visible change                                                                                                                                |
 
