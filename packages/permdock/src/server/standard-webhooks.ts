@@ -94,9 +94,13 @@ export type WebhookVerifier = {
   verify(input: WebhookInput): Promise<VerifiedWebhookMessage>;
 };
 
+/** Derived from Web Crypto, so the declaration needs neither the DOM lib nor `@types/node` 25+. */
+type SubtleKey = Awaited<ReturnType<typeof crypto.subtle.importKey>>;
+
 const DEFAULT_TOLERANCE = 300;
 const JWKS_TTL_SECONDS = 300;
-const encoder = new TextEncoder();
+// oxlint-disable-next-line eslint/no-inline-comments -- bundlers only read the annotation inline
+const encoder = /* @__PURE__ */ new TextEncoder();
 
 function decodeBase64(value: string): Uint8Array<ArrayBuffer> | undefined {
   if (!/^[A-Za-z0-9+/]*={0,2}$/u.test(value) || value.length % 4 !== 0) {
@@ -134,7 +138,7 @@ function secretBytes(secret: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-function hmacKey(secret: string, usage: "sign" | "verify"): Promise<CryptoKey> {
+function hmacKey(secret: string, usage: "sign" | "verify"): Promise<SubtleKey> {
   return crypto.subtle.importKey(
     "raw",
     secretBytes(secret),
@@ -270,7 +274,7 @@ function parseSignatures(value: string): readonly Signature[] {
 function importEd25519(
   jwk: WebhookJwk,
   usage: "sign" | "verify",
-): Promise<CryptoKey> {
+): Promise<SubtleKey> {
   const material =
     usage === "sign"
       ? { kty: "OKP", crv: "Ed25519", x: jwk.x, d: jwk.d }
@@ -283,7 +287,7 @@ function importEd25519(
 
 async function publicKeys(jwks: {
   readonly keys: readonly WebhookJwk[];
-}): Promise<readonly CryptoKey[]> {
+}): Promise<readonly SubtleKey[]> {
   const imported = await Promise.all(
     jwks.keys
       .filter(isEd25519)
@@ -294,7 +298,7 @@ async function publicKeys(jwks: {
 
 async function anyVerifies(
   algorithm: "HMAC" | "Ed25519",
-  keys: readonly CryptoKey[],
+  keys: readonly SubtleKey[],
   signatures: readonly Signature[],
   content: Uint8Array<ArrayBuffer>,
 ): Promise<boolean> {
@@ -342,12 +346,12 @@ export function webhookVerifier(
   const tolerance = options.tolerance ?? DEFAULT_TOLERANCE;
   const jwks = options.jwks;
   let cached:
-    | { readonly keys: readonly CryptoKey[]; readonly until: number }
+    | { readonly keys: readonly SubtleKey[]; readonly until: number }
     | undefined;
 
   async function ed25519Keys(
     now: number,
-  ): Promise<readonly CryptoKey[] | undefined> {
+  ): Promise<readonly SubtleKey[] | undefined> {
     if (jwks === undefined) {
       return [];
     }

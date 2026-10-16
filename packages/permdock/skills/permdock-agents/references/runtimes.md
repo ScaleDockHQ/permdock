@@ -164,8 +164,8 @@ Identity comes from transport auth, never the task body. `actor.kind` is `'a2a'`
 Client entry. No factory. Register snapshot-allowed tools on `document.modelContext`:
 
 ```ts
-import { registerTools } from "permdock/webmcp";
 import { approvalHeaders, usePermDock } from "permdock/react";
+import { registerTools } from "permdock/webmcp";
 
 const permdock = usePermDock();
 const controller = new AbortController();

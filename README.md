@@ -7,7 +7,7 @@ Typed permissions for TypeScript apps, APIs, databases and AI agents: one defini
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 ![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-5fa04e.svg)
 ![TypeScript 7](https://img.shields.io/badge/TypeScript-7-3178c6.svg)
-![pnpm 12](https://img.shields.io/badge/pnpm-12.8.1-f69220.svg)
+![pnpm 12](https://img.shields.io/badge/pnpm-12.14.0-f69220.svg)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](./CODE_OF_CONDUCT.md)
 
 [**Docs**](https://permdock.com/docs) · [**npm package**](./packages/permdock/README.md) · [**Changelog**](./CHANGELOG.md) · [**Product brief**](./PRODUCT.md) · [**Roadmap**](./apps/docs/content/docs/roadmap.mdx) · [**Agent guide**](./AGENTS.md) · [**Contributing**](./CONTRIBUTING.md) · [**Report issue**](https://github.com/ScaleDockHQ/PermDock/issues)
@@ -82,7 +82,7 @@ Every entry has a page under [`apps/docs/content/docs/adapters`](./apps/docs/con
 ### Prerequisites
 
 - Node.js 24 or later (`.node-version` pins 24, which CI runs).
-- pnpm 12.8.1 exactly: `devEngines` fails any other version.
+- pnpm 12.14.0 exactly: `devEngines` fails any other version.
 - Docker, only for `pnpm test:integration`.
 - Bun on `PATH`, only for `pnpm test:runtimes`.
 
