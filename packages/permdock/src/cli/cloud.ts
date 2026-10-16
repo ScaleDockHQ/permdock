@@ -2,26 +2,13 @@ import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, PermDockConfig } from "./types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
-import { snapshotScopes } from "../core/instance-snapshot.ts";
-import {
-  type Grant,
-  type Policy,
-  type Snapshot,
-  type SnapshotGrant,
-  catalogFingerprint,
-} from "../index.ts";
+import { pushedPolicy } from "../catalog/pushed-policy.ts";
+import { catalogFingerprint } from "../index.ts";
 import { runCatalog } from "./catalog.ts";
 import { describeError } from "./errors.ts";
 import { loadConfiguredPolicy } from "./load.ts";
 
-export type PushedPolicy = {
-  readonly fingerprint: string;
-  /** As a snapshot carries them: ordered `{ name, key, within?, resources? }`; absent without declared scopes. */
-  readonly scopes?: Snapshot["scopes"];
-  readonly grants: readonly (SnapshotGrant & {
-    readonly limit?: Grant["limit"];
-  })[];
-};
+export { pushedPolicy };
 
 function firstNonEmpty(...values: readonly (string | undefined)[]): string {
   for (const value of values) {
@@ -30,43 +17,6 @@ function firstNonEmpty(...values: readonly (string | undefined)[]): string {
     }
   }
   return "";
-}
-
-function pushedGrant(grant: Grant): PushedPolicy["grants"][number] {
-  const entry: Record<string, unknown> = {
-    permission: grant.permission.key,
-    effect: grant.effect,
-    role: grant.role,
-    to: grant.to,
-    where: grant.portable ? grant.where : undefined,
-    check: grant.portable ? grant.check : undefined,
-    approval: grant.approval,
-    scope:
-      grant.scope === "global"
-        ? undefined
-        : typeof grant.scope === "string"
-          ? grant.scope
-          : { resource: grant.scope.resource },
-    portable: grant.portable ? undefined : false,
-    fields: grant.fields,
-    limit: grant.limit,
-  };
-  // SAFETY: entry is built above with the grant fields; the filter only drops undefined ones.
-  return Object.fromEntries(
-    Object.entries(entry).filter(([, value]) => value !== undefined),
-  ) as PushedPolicy["grants"][number];
-}
-
-/** The code policy as the hosted AuthZEN endpoint evaluates it; closures travel as `portable: false` and deny there. */
-export function pushedPolicy(policy: Policy): PushedPolicy {
-  const scopes = snapshotScopes(policy);
-  return {
-    fingerprint: policy.fingerprint,
-    ...(scopes === undefined ? {} : { scopes }),
-    grants: policy.grants
-      .filter((grant) => grant.hosted === undefined)
-      .map(pushedGrant),
-  };
 }
 
 export async function runCloud(input: {

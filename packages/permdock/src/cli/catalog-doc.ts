@@ -27,6 +27,7 @@ import {
   formerKeys,
   getResource,
   listPermissions,
+  listRoles,
 } from "../index.ts";
 import { CATALOG_SCHEMA, generatorBanner } from "./version.ts";
 
@@ -64,6 +65,9 @@ export function buildCatalog(
         ? {
             id: node?.id ?? "id",
             schema: node === undefined ? null : jsonSchemaOf(node),
+            parent: node?.parent,
+            links: node?.links,
+            disclosure: node?.disclosure,
             relations: node?.relations,
             version: node?.version,
             restricted: node?.restricted,
@@ -74,6 +78,9 @@ export function buildCatalog(
             id: node?.id ?? "id",
             schema: node === undefined ? null : jsonSchemaOf(node),
             definedIn,
+            parent: node?.parent,
+            links: node?.links,
+            disclosure: node?.disclosure,
             relations: node?.relations,
             version: node?.version,
             restricted: node?.restricted,
@@ -316,7 +323,11 @@ function catalogRoles(
       : { roles: scanned.map((key) => ({ key })) };
   }
   const names = [
-    ...new Set([...scanned, ...policy.roles.map((role) => role.name)]),
+    ...new Set([
+      ...scanned,
+      ...policy.roles.map((role) => role.name),
+      ...listRoles(policy.vocabulary?.roles).map((leaf) => leaf.key),
+    ]),
   ].toSorted();
   if (names.length === 0) {
     return {};
@@ -325,7 +336,15 @@ function catalogRoles(
     roles: names.map((key) => {
       const binding = policy.rolesByName.get(key);
       if (binding === undefined) {
-        return { key };
+        const leaf = findRole(policy.vocabulary?.roles, key);
+        return leaf === undefined
+          ? { key }
+          : withDefined({
+              key,
+              on: leaf.on,
+              assignable: leaf.assignable,
+              audience: leaf.meta.audience,
+            });
       }
       const audience =
         binding.meta?.audience ??
@@ -390,6 +409,9 @@ function compactResource(resource: {
   readonly id: string;
   readonly schema: unknown;
   readonly definedIn?: string;
+  readonly parent?: CatalogDocument["resources"][string]["parent"] | undefined;
+  readonly links?: CatalogDocument["resources"][string]["links"] | undefined;
+  readonly disclosure?: "hide" | "reveal" | undefined;
   readonly relations?: CatalogDocument["resources"][string]["relations"];
   readonly version?: string | undefined;
   readonly restricted?: string | undefined;
@@ -406,6 +428,19 @@ function compactResource(resource: {
     schema: resource.schema,
     ...withDefined({
       definedIn: resource.definedIn,
+      parent:
+        resource.parent === undefined
+          ? undefined
+          : {
+              field: resource.parent.field,
+              resource: resource.parent.resource,
+            },
+      links:
+        resource.links === undefined || Object.keys(resource.links).length === 0
+          ? undefined
+          : resource.links,
+      disclosure:
+        resource.disclosure === "hide" ? ("hide" as const) : undefined,
       relations,
       version: resource.version,
       restricted: resource.restricted,

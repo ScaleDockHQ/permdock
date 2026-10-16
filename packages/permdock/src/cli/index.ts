@@ -6,6 +6,12 @@ export type {
   SupabaseHookMarker,
 } from "./sql/markers.ts";
 export { run } from "./run.ts";
+export {
+  PUSHED_POLICY_SCHEMA,
+  parsePushedPolicy,
+  pushedPolicy,
+} from "../catalog/pushed-policy.ts";
+export type { PushedGrant, PushedPolicy } from "../catalog/pushed-policy.ts";
 export type {
   CatalogActivation,
   CatalogApproval,
