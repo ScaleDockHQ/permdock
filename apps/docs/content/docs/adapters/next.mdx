@@ -214,11 +214,11 @@ A Next.js app exposes an MCP server as a route handler through [`mcp-handler`](h
 // app/api/mcp/route.ts
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { createPermDock } from "permdock/mcp";
-import { createJwtSubjectResolver } from "permdock/jwt";
+import { jwtSubjectResolver } from "permdock/jwt";
 import { policy, permissions } from "@/permissions";
 import { store } from "@/permdock"; // the same ApprovalStore the server components use
 
-const verify = createJwtSubjectResolver({
+const verify = jwtSubjectResolver({
   issuer: process.env.AUTH_ISSUER!,
   audience: process.env.MCP_RESOURCE!,
 });

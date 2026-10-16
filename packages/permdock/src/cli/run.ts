@@ -10,6 +10,7 @@ import { stripVTControlCharacters } from "node:util";
 import type { CommandResult } from "./shared/result.ts";
 import type { CliIo, RunResult } from "./types.ts";
 
+import { dateAt } from "../core/time.ts";
 import {
   type CliContext,
   type Command,
@@ -96,7 +97,7 @@ export async function run(
     ...(loaded.file === undefined ? {} : { configPath: loaded.file }),
     configWarnings: loaded.warnings,
     io,
-    now: io.now?.() ?? new Date(),
+    now: io.now?.() ?? dateAt(),
     json,
     color,
     interactive: io.interactive === true && !json && globals.yes !== true,

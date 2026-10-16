@@ -247,7 +247,7 @@ describe("resendWebhook edge cases", () => {
     );
   });
 
-  it("refuses a body over one million characters with 413 before verifying", async () => {
+  it("refuses a body over one million bytes with 413 before verifying", async () => {
     let verified = 0;
     const sink = memoryDecisionSink();
     const handler = resendWebhook({

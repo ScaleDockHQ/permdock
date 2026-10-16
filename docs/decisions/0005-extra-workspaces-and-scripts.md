@@ -1,19 +1,19 @@
 # 0005. Extra workspace globs and root scripts
 
 - Status: accepted
-- Date: 2026-09-30
+- Date: 2026-10-16
 
 ## Context
 
-The standard workspace list is `apps/*`, `packages/*` and `tests/*`. PermDock has one example app per adapter and one workspace per TypeScript version under test.
+The standard workspace list is `apps/*`, `packages/*` and `tests/*`. PermDock has one example app per adapter and one workspace per TypeScript version under test, and `tests/nest-11` runs the Nest adapter against its lowest peer version.
 
 ## Decision
 
-`pnpm-workspace.yaml` also lists `apps/examples/*` and `tests/types/*`. The root keeps the scripts the standard does not have: `authzen:vectors`, `openapi:generate`, `permdock`, `standards:fixtures`, `test:integration` and `test:runtimes`.
+`pnpm-workspace.yaml` also lists `apps/examples/*` and `tests/types/*`. The root keeps the scripts the standard does not have: `authzen:vectors`, `bench`, `cli:startup`, `openapi:generate`, `permdock`, `standards:fixtures`, `test:e2e`, `test:integration` and `test:runtimes`. `test:e2e` runs the `instant()` navigation specs, which need a production build and Docker; `bench` runs Vitest benchmarks, which are not a gate. `cli:startup` times the built `permdock --help` against `--version` (`scripts/cli-startup.json`); the standard asks for the measurement but names no script.
 
 ## Consequences
 
-`pnpm install` resolves 47 workspaces. Vercel installs only the service and its dependencies (`--filter '{.}...'`), so deploys do not pay for them.
+`pnpm install` resolves 56 workspaces besides the root. Vercel installs only the service and its dependencies (`--filter '{.}...'`), so deploys do not pay for them.
 
 ## Alternatives considered
 

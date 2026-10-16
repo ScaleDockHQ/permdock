@@ -6,6 +6,7 @@ paths:
   - "packages/permdock/skills/**"
   - ".claude-plugin/**"
   - "skills-lock.json"
+  - ".agents/skills/**"
 ---
 
 # Skills

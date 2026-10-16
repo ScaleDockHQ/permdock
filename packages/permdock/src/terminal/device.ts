@@ -7,6 +7,7 @@ import type {
 import { compact, isRecord } from "../core/compact.ts";
 import { secondsAt } from "../core/time.ts";
 import { timeoutSignal } from "../core/timeout.ts";
+import { readBodyText } from "../server/body-text.ts";
 
 /** Milliseconds an authorization server request may take. */
 export const TERMINAL_TIMEOUT_MS = 10_000;
@@ -23,8 +24,12 @@ type DeviceAuthorization = {
 async function readJson(
   response: Response,
 ): Promise<Record<string, unknown> | null> {
+  const text = await readBodyText(response);
+  if (!text.ok) {
+    return null;
+  }
   try {
-    const body: unknown = await response.json();
+    const body: unknown = JSON.parse(text.text);
     return isRecord(body) ? body : null;
   } catch {
     return null;

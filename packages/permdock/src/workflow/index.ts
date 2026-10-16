@@ -1,7 +1,7 @@
 export { createPermDock } from "./create.ts";
 export type {
   AwaitApprovalOptions,
-  StartAutomationOptions,
+  AutomationOptions,
   StartAutomationResult,
   WorkflowPermDock,
   WorkflowPermDockOptions,

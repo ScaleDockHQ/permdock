@@ -12,10 +12,7 @@ import type { JwtSubjectOptions } from "../../src/jwt/index.ts";
 
 import { bytesToBase64Url, sha256 } from "../../src/core/sha256.ts";
 import { verifyDpopProof } from "../../src/jwt/dpop.ts";
-import {
-  createJwtSubjectResolver,
-  subjectFromJwt,
-} from "../../src/jwt/subject.ts";
+import { jwtSubjectResolver, subjectFromJwt } from "../../src/jwt/subject.ts";
 
 const ISSUER = "https://as.bank.example";
 const AUDIENCE = "https://api.bank.example";
@@ -179,9 +176,9 @@ describe("FAPI 2.0 Security Profile (Final) resource server, section 5.3.4", () 
   });
 
   it("item 5: the profile refuses sender none at configuration time", () => {
-    expect(() =>
-      createJwtSubjectResolver(fapi([], { sender: "none" })),
-    ).toThrow(/requires a sender constraint/u);
+    expect(() => jwtSubjectResolver(fapi([], { sender: "none" }))).toThrow(
+      /requires a sender constraint/u,
+    );
   });
 
   it("item 2: a token in the query string is rejected even when it verifies", async () => {

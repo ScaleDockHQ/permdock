@@ -5,6 +5,7 @@ import type {
   JoseTokenVerifierOptions,
 } from "./types.ts";
 
+import { nowSeconds } from "../core/time.ts";
 import {
   DEFAULT_JWKS_COOLDOWN,
   DEFAULT_JWKS_MAX_TTL,
@@ -247,7 +248,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
     force: boolean,
     nowInput?: number,
   ): Promise<ResolvedKeys> => {
-    const now = nowInput ?? Math.floor(Date.now() / 1000);
+    const now = nowInput ?? nowSeconds();
     if (options.jwks instanceof URL) {
       return loadJwks(options.jwks.href, now, force);
     }
@@ -276,7 +277,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
       return resolve(false, now);
     },
     refetchJwks(now?: number): Promise<ResolvedKeys> {
-      const current = now ?? Math.floor(Date.now() / 1000);
+      const current = now ?? nowSeconds();
       if (current < cooldownUntil) {
         return resolve(false, current);
       }

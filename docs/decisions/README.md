@@ -36,3 +36,7 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0028](./0028-ox-config-over-ultracite.md)             | `packages/ox-config` instead of Ultracite                                   |
 | [0029](./0029-no-turbopack-build-cache-in-ci.md)       | No Turbopack build cache on GitHub runners                                  |
 | [0030](./0030-vary-on-markdown-only.md)                | `Vary: Accept` only on the Markdown response                                |
+| [0031](./0031-tests-outside-root-vitest-projects.md)   | `tests/*` stays outside the root Vitest `projects`                          |
+| [0032](./0032-no-actions-lock-yet.md)                  | No `actions.lock` until workflow lockfiles are generally available          |
+| [0033](./0033-next-tsconfig-react-jsx.md)              | `next.json` sets `jsx: "react-jsx"`                                         |
+| [0034](./0034-structural-instant-over-temporal.md)     | The runtime takes a structural `Instant`, not `Temporal`                    |

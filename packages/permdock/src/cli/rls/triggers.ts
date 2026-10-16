@@ -4,7 +4,12 @@ import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
 
 const PREFIX = "PermDock CLI";
-const EVENTS = new Set(["insert", "update", "delete", "truncate"]);
+const EVENTS: ReadonlySet<string> = new Set([
+  "insert",
+  "update",
+  "delete",
+  "truncate",
+]);
 const AUDITED = [CUSTOM_ROLES.permissions, CUSTOM_ROLES.includes, "user_roles"];
 const IDENT = /^[a-z_][a-z0-9_$]*$/u;
 

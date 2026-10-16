@@ -1,0 +1,47 @@
+---
+title: Connecting tools
+description: Connect a coding agent to the PermDock docs MCP server, the Markdown pages and the Agent Skills, and point the permdock CLI at PermDock Cloud.
+---
+
+These docs are readable by agents in three forms: a remote MCP server, Markdown twins of every page, and Agent Skills that ship in the `permdock` package. None of them needs an account.
+
+## Docs MCP server
+
+`https://permdock.com/mcp` is a Streamable HTTP MCP server named `permdock-docs`. Its tools search the docs and read pages; they are read-only, take no subject, token or policy, and need no authentication, so there is no OAuth consent step.
+
+| Client      | Install                                                                                                                                                    |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cursor      | [Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=permdock-docs&config=eyJ1cmwiOiJodHRwczovL3Blcm1kb2NrLmNvbS9tY3AifQ==)                 |
+| VS Code     | [Add to VS Code](vscode:mcp/install?%7B%22name%22%3A%22permdock-docs%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fpermdock.com%2Fmcp%22%7D) |
+| Claude Code | `claude mcp add --transport http permdock-docs https://permdock.com/mcp`                                                                                   |
+| Other       | A remote server entry with `url` set to `https://permdock.com/mcp`                                                                                         |
+
+```json title=".cursor/mcp.json"
+{
+  "mcpServers": {
+    "permdock-docs": { "url": "https://permdock.com/mcp" }
+  }
+}
+```
+
+To serve your own application's permissions over MCP, use the [MCP adapter](/docs/adapters/mcp); the docs server only reads documentation.
+
+## Markdown and llms.txt
+
+Every page has a Markdown twin: append `.md` to its URL (`/docs/getting-started/installation.md`), or request the page with `Accept: text/markdown`. `/docs.md` is this site's index page. `/llms.txt` lists every page and `/llms-full.txt` concatenates them ([Agent docs standards](/docs/standards/agent-docs-standards)).
+
+## Agent Skills
+
+```bash
+npx skills add ScaleDockHQ/PermDock
+```
+
+With `permdock` installed, `pnpm exec permdock skills install` copies the skills that match the installed version ([skills](/docs/cli/skills)).
+
+## CLI
+
+The `permdock` CLI ships in the `permdock` package and has no `login` command. Commands that read the project, such as `collect`, `doctor` and `scan`, need no network. `permdock cloud push` reads `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` from the environment ([cloud](/docs/cli/cloud)). Under `--json`, a failing command prints RFC 9457 Problem Details ([CLI](/docs/cli)).
+
+## OpenAPI
+
+PermDock publishes no hosted API, so these docs carry no OpenAPI reference or "try it" console. `permdock openapi` adds `security` and `securitySchemes` from the permission catalog to your app's own OpenAPI document ([openapi](/docs/cli/openapi)).

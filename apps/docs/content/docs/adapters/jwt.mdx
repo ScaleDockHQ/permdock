@@ -26,7 +26,7 @@ flowchart LR
 ```ts
 import {
   subjectFromJwt,
-  createJwtSubjectResolver,
+  jwtSubjectResolver,
   verifyDpopProof,
 } from "permdock/jwt";
 
@@ -70,8 +70,8 @@ const subject = await subjectFromJwt(token, {
 
 | Export                                                        | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `subjectFromJwt(token, options)`                              | Verifies one token and returns a `Subject`. `token` may be `undefined` or `null` (no header), in which case the result is anonymous without an audit event. Never throws. Each call builds a new verifier and fetches Discovery and the JWKS with no cache: use `createJwtSubjectResolver` for a server.                                                                                                                                                                                                                                      |
-| `createJwtSubjectResolver(options)`                           | Returns `(token, request?) => Promise<Subject>` with a cached Discovery document and JWKS. Use one resolver per issuer for the life of the process; pass it as the `subject` option of a server adapter.                                                                                                                                                                                                                                                                                                                                      |
+| `subjectFromJwt(token, options)`                              | Verifies one token and returns a `Subject`. `token` may be `undefined` or `null` (no header), in which case the result is anonymous without an audit event. Never throws. Each call builds a new verifier and fetches Discovery and the JWKS with no cache: use `jwtSubjectResolver` for a server.                                                                                                                                                                                                                                            |
+| `jwtSubjectResolver(options)`                                 | Returns `(token, request?) => Promise<Subject>` with a cached Discovery document and JWKS. Use one resolver per issuer for the life of the process; pass it as the `subject` option of a server adapter.                                                                                                                                                                                                                                                                                                                                      |
 | `verifyDpopProof(request, claims, accessToken?, { replay }?)` | Checks the `DPoP` header of `request` against `claims.cnf.jkt`: an asymmetric `alg` and a public `jwk` only, proof signature, `htm` match, `htu` against the request URI without its query and fragment (RFC 9449 section 4.3), `iat` window, `ath` hash of the access token. With `replay`, a proof without a `jti`, or with a `jti` the same key used in the last 60 seconds, is invalid. Returns `{ ok: true }` or `{ ok: false, cause }`. Called automatically when `sender: 'dpop'`; exported for adapters that verify tokens elsewhere. |
 | `joseTokenVerifier(options)`                                  | The built-in `TokenVerifier`: `jwks` or `discovery`, `algorithms`, `typ`, `audience`, `clockTolerance`, `decryptionKeys`. Exported so `permdock/ssf`, `permdock/cloud` and your own code verify PermDock's signed outputs and SETs with the same rules ([extension interfaces](/docs/concepts/extension-interfaces)).                                                                                                                                                                                                                         |
 | `joseTokenSigner({ key, alg, kid, issuer, audience })`        | The built-in `TokenSigner`: signs a payload as compact JWS with a `vnd.permdock.*+jwt` `typ`. `issuer` is required; `audience` is the default `aud`. Used by `permdock.snapshot({ signer })`, `approvalsHandler({ signer })` and `permdock/cloud` ([wire formats](/docs/concepts/wire-formats)).                                                                                                                                                                                                                                              |
@@ -109,7 +109,7 @@ Option notes:
 
 ### Discovery and JWKS caching
 
-`createJwtSubjectResolver` fetches the Discovery document (when `discovery` is set) and the JWKS lazily on first use and caches them:
+`jwtSubjectResolver` fetches the Discovery document (when `discovery` is set) and the JWKS lazily on first use and caches them:
 
 - The Discovery document is fetched over HTTPS only; `http:` issuers are a configuration error. Its `issuer` must equal the configured issuer (Discovery 1.0 section 4.3); a mismatch is reported once by `permdock doctor` and every token resolves to anonymous with cause `discovery-mismatch` until it is fixed. The document is re-read on the JWKS refetch schedule.
 - The JWKS cache honours `Cache-Control: max-age` on the JWKS response, with a configurable floor and ceiling (`jwksCache: { minTtl, maxTtl }`).
@@ -264,11 +264,11 @@ A client in any language verifies a signed snapshot with its JOSE library and th
 ```ts
 import { Hono } from "hono";
 import { createPermDock } from "permdock/hono";
-import { createJwtSubjectResolver } from "permdock/jwt";
+import { jwtSubjectResolver } from "permdock/jwt";
 import { policy } from "./policy";
 import { permissions } from "./permissions";
 
-const resolve = createJwtSubjectResolver({
+const resolve = jwtSubjectResolver({
   discovery: "https://login.example.com",
   audience: "https://api.example.com",
   algorithms: ["ES256"],
@@ -298,9 +298,9 @@ The MCP SDK verifies the bearer token and attaches `authInfo` with `scopes`, `cl
 
 ```ts
 import { createPermDock } from "permdock/mcp";
-import { createJwtSubjectResolver } from "permdock/jwt";
+import { jwtSubjectResolver } from "permdock/jwt";
 
-const resolve = createJwtSubjectResolver({/* same options as above */});
+const resolve = jwtSubjectResolver({/* same options as above */});
 
 const { protectServer } = createPermDock(policy, {
   subject: async (authInfo) => {
@@ -316,7 +316,7 @@ The SDK's verification and the resolver's verification must agree on issuer and 
 ## What it validates
 
 - Signature, `alg`, `kid`, `typ`, `iss`, `aud`, `exp`, `nbf`, `iat` as listed in the behaviour table; the RFC 8725 checklist row by row is on [JOSE](/docs/standards/jose).
-- DPoP proof (`sender: 'dpop'`) and mTLS thumbprint (`sender: 'mtls'`); without the request or certificate the token resolves anonymous. `verifyDpopProof` bounds proofs by the `iat` window; pass `replay: memoryReplayStore()` (or a shared `ReplayStore` across instances) to `createJwtSubjectResolver` to refuse a reused `jti` as well.
+- DPoP proof (`sender: 'dpop'`) and mTLS thumbprint (`sender: 'mtls'`); without the request or certificate the token resolves anonymous. `verifyDpopProof` bounds proofs by the `iat` window; pass `replay: memoryReplayStore()` (or a shared `ReplayStore` across instances) to `jwtSubjectResolver` to refuse a reused `jti` as well.
 - The Discovery document's `issuer` and transport.
 - Claim path safety at configuration time.
 - Role names against the policy: unknown names are dropped with a development warning, unless a `customRoles` source resolves them for the token's tenant.

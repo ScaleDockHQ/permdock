@@ -4,6 +4,8 @@ import type { AccessReviewStore } from "./types.ts";
 
 import { compact } from "../../core/compact.ts";
 import { problemType, statusProblem } from "../../core/problem-types.ts";
+import { isoNow } from "../../core/time.ts";
+import { readBodyText } from "../../server/body-text.ts";
 import { hasCredentials } from "../../server/http.ts";
 import {
   methodNotAllowed,
@@ -102,14 +104,19 @@ async function resolveSubject(
 }
 
 const MAX_NOTE = 2000;
+const MAX_NOTE_BODY_BYTES = 16 * 1024;
 
 async function readNote(request: Request): Promise<string | undefined> {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     return undefined;
   }
+  const read = await readBodyText(request, MAX_NOTE_BODY_BYTES);
+  if (!read.ok) {
+    return undefined;
+  }
   try {
-    const body: unknown = JSON.parse(await request.text());
+    const body: unknown = JSON.parse(read.text);
     if (
       body !== null &&
       typeof body === "object" &&
@@ -269,11 +276,7 @@ export function accessReviewsHandler(
       if (route.kind === "applied") {
         return json(
           200,
-          await store.markApplied(
-            route.id,
-            route.item,
-            new Date().toISOString(),
-          ),
+          await store.markApplied(route.id, route.item, isoNow()),
         );
       }
       const note = await readNote(request);

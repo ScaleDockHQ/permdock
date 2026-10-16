@@ -17,7 +17,7 @@ import type {
   PermissionState,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "./types.ts";
 
 import {
@@ -82,7 +82,7 @@ export function tenantView(permdock: ClientPermDock): TenantView {
 
 export function rolesView(
   permdock: ClientPermDock,
-  options: UseRolesOptions,
+  options: RolesOptions,
 ): { readonly roles: readonly Role[] } {
   const scoped =
     options.team === undefined ? permdock : permdock.team(options.team);

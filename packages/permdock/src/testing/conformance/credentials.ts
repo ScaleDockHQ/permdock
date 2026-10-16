@@ -2,6 +2,7 @@ import { expect, it, vi } from "vitest";
 
 import type { ReplayStore } from "../../ssf/index.ts";
 
+import { nowMillis, nowSeconds } from "../../core/time.ts";
 import {
   type CredentialVerifier,
   type RevocationEvent,
@@ -27,7 +28,7 @@ export function testReplayStore(store: ReplayStore): void {
   });
 
   it("forgets a jti whose expiresAt has passed", async () => {
-    await store.remember("ttl-jti", Math.floor(Date.now() / 1000) - 1);
+    await store.remember("ttl-jti", nowSeconds() - 1);
     expect(await store.seen("ttl-jti")).toBe(false);
   });
 
@@ -36,7 +37,7 @@ export function testReplayStore(store: ReplayStore): void {
       context.skip();
       return;
     }
-    const expiresAt = Math.floor(Date.now() / 1000) + 60;
+    const expiresAt = nowSeconds() + 60;
     const results = await Promise.all([
       store.claim("claim-key", expiresAt),
       store.claim("claim-key", expiresAt),
@@ -238,8 +239,8 @@ export function testCredentialVerifier(
       const key = await live();
       const before = parseCredential(await verifier.verify(key));
       const id = parseApiKey(key)?.id ?? "";
-      await verifier.touch?.(id, { epochMilliseconds: Date.now() });
-      await verifier.touch?.("unknown-id", { epochMilliseconds: Date.now() });
+      await verifier.touch?.(id, { epochMilliseconds: nowMillis() });
+      await verifier.touch?.("unknown-id", { epochMilliseconds: nowMillis() });
       expect(parseCredential(await verifier.verify(key))).toEqual(before);
     });
   }

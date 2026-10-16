@@ -3,6 +3,7 @@ import type { JsonWebKeyLike } from "../core/subject.ts";
 import type { JoseTokenSignerOptions, JwtAlgorithm } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
+import { nowSeconds } from "../core/time.ts";
 import { loadJose } from "./load-jose.ts";
 
 const SIGNING_ALGS: ReadonlySet<JwtAlgorithm> = new Set([
@@ -67,7 +68,7 @@ export function joseTokenSigner(options: JoseTokenSignerOptions): TokenSigner {
     if (audience === undefined || audience.length === 0) {
       throw new Error("PermDock: joseTokenSigner requires an audience.");
     }
-    const issuedAt = signOptions.issuedAt ?? Math.floor(Date.now() / 1000);
+    const issuedAt = signOptions.issuedAt ?? nowSeconds();
     if (!Number.isSafeInteger(issuedAt)) {
       throw new TypeError("PermDock: iat must be a whole NumericDate.");
     }

@@ -9,6 +9,8 @@ import { ownGet } from "../core/paths.ts";
 import { getResource, listPermissions } from "../core/permission-registry.ts";
 import { statusProblem } from "../core/problem-types.ts";
 import { resourceRef } from "../core/resource-ref.ts";
+import { readBodyText } from "../server/body-text.ts";
+import { bodyTooLarge } from "../server/body.ts";
 import { permissionLookup } from "../server/evaluation-items.ts";
 import {
   applyApprovalResume,
@@ -61,8 +63,15 @@ async function readJson(request: Request): Promise<unknown> {
       "AuthZEN requests must use Content-Type: application/json",
     );
   }
+  const read = await readBodyText(request);
+  if (!read.ok) {
+    return read.cause === "too-large"
+      ? bodyTooLarge()
+      : validationProblem("AuthZEN body was not valid JSON");
+  }
   try {
-    return await request.json();
+    const body: unknown = JSON.parse(read.text);
+    return body;
   } catch {
     return validationProblem("AuthZEN body was not valid JSON");
   }

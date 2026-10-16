@@ -21,12 +21,8 @@ const config: KnipConfig = {
       ignoreDependencies: ["shiki"],
     },
     "apps/marketing": {
-      // shadcn and ReUI registry code is vendored whole, used or not; the
-      // @permdock recipes are registry sources shadcn build reads.
-      entry: [
-        "components/{blocks,examples}/**/*.{ts,tsx}",
-        "registry/**/*.tsx",
-      ],
+      // The @permdock recipes are registry sources shadcn build reads.
+      entry: ["registry/**/*.tsx"],
       // The -native recipes import React Native Reusables, stubbed by registry/types.
       ignoreUnresolved: ["@/components/ui/button", "@/components/ui/text"],
     },
@@ -68,8 +64,6 @@ const config: KnipConfig = {
       entry: ["src/**/*.{ts,tsx}"],
     },
     "packages/permdock": {
-      // `fromResponse` is the documented alias of `sendResponse` in `permdock/node`.
-      ignoreIssues: { "src/node/http.ts": ["duplicates"] },
       entry: [
         "tests/cli/fixtures/*/permdock.config.ts",
         "tests/cli/fixtures/*/src/*.ts",
@@ -85,6 +79,20 @@ const config: KnipConfig = {
       entry: ["fixtures/**/*.ts", "src/support/openai-resume.ts"],
       // The gitignored client `prisma generate` writes to src/support/prisma imports its runtime.
       ignoreDependencies: ["@prisma/client"],
+    },
+    "tests/nest-11": {
+      // The suites live in packages/permdock and tests/integration; vitest.config.ts
+      // aliases their `@nestjs/*` imports to these Nest 11 copies.
+      ignoreDependencies: [
+        "@nestjs/common",
+        "@nestjs/core",
+        "@nestjs/platform-express",
+        "@nestjs/platform-fastify",
+        "@permdock/integration",
+        "permdock",
+        "reflect-metadata",
+        "rxjs",
+      ],
     },
     "tests/runtimes": {
       entry: ["src/serve-{bun,deno}.ts", "src/worker.ts"],

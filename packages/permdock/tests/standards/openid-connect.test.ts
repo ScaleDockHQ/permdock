@@ -12,10 +12,7 @@ import { createPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
-import {
-  createJwtSubjectResolver,
-  subjectFromJwt,
-} from "../../src/jwt/subject.ts";
+import { jwtSubjectResolver, subjectFromJwt } from "../../src/jwt/subject.ts";
 import { problemFromDecision } from "../../src/server/problem.ts";
 import { BACKCHANNEL_LOGOUT_EVENT } from "../../src/ssf/events.ts";
 import { createPermDock as createSsf } from "../../src/ssf/index.ts";
@@ -110,7 +107,7 @@ describe("OpenID Connect Discovery 1.0 and RFC 8414", () => {
       },
       [`${ISSUER}/keys`]: { keys: [publicJwk] },
     });
-    const resolve = createJwtSubjectResolver({
+    const resolve = jwtSubjectResolver({
       discovery: ISSUER,
       audience: API,
       fetch,
@@ -202,7 +199,7 @@ describe("OpenID Connect Discovery 1.0 and RFC 8414", () => {
     expect(causes).toEqual(["discovery-unavailable"]);
     expect(seen).not.toContain("http://login.example.com/keys");
     expect(() =>
-      createJwtSubjectResolver({
+      jwtSubjectResolver({
         discovery: {
           issuer: ISSUER,
           metadata: { jwks_uri: "http://login.example.com/keys" },
@@ -214,16 +211,16 @@ describe("OpenID Connect Discovery 1.0 and RFC 8414", () => {
 
   it("section 3: an http issuer, a second issuer or jwks next to discovery is a configuration error", () => {
     expect(() =>
-      createJwtSubjectResolver({ discovery: "http://login.example.com" }),
+      jwtSubjectResolver({ discovery: "http://login.example.com" }),
     ).toThrow(/https/u);
     expect(() =>
-      createJwtSubjectResolver({
+      jwtSubjectResolver({
         discovery: ISSUER,
         issuer: "https://other.example.com",
       }),
     ).toThrow(/issuer must match/u);
     expect(() =>
-      createJwtSubjectResolver({
+      jwtSubjectResolver({
         discovery: ISSUER,
         jwks: { keys: [] },
       }),

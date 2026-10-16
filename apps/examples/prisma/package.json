@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "prisma generate && node --watch --experimental-strip-types src/serve.ts",
+    "dev": "prisma generate && node --watch src/serve.ts",
     "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "start": "prisma generate && node --experimental-strip-types src/serve.ts",
+    "start": "prisma generate && node src/serve.ts",
     "typecheck": "tsc --noEmit",
     "typegen": "prisma generate"
   },

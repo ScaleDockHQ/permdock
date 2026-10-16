@@ -15,7 +15,7 @@ import { annotationsFor } from "../core/permission-leaf.ts";
 import { findPermission } from "../core/permission-registry.ts";
 import { anonymousSubject } from "../core/subject.ts";
 import { parseSupportSession } from "../core/support-session.ts";
-import { rfc3339, secondsOf } from "../core/time.ts";
+import { epochSeconds, rfc3339, secondsOf } from "../core/time.ts";
 
 const SUPPORT_SESSION_TYP = "vnd.permdock.support-session+jwt";
 
@@ -219,7 +219,7 @@ export async function subjectFromSupportSession(
   if (session === undefined) {
     return deny("invalid-claims");
   }
-  if ((secondsOf(session.expiresAt) ?? 0) <= Date.now() / 1000) {
+  if ((secondsOf(session.expiresAt) ?? 0) <= epochSeconds()) {
     return deny("expired");
   }
   if (await ended(options.sessions, session.id)) {

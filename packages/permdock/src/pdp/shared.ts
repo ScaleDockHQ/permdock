@@ -3,7 +3,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { RemotePdpAuth, RemotePdpCache } from "./types.ts";
 
-import { durationOf } from "../core/time.ts";
+import { durationOf, nowMillis } from "../core/time.ts";
 import { decisionToken } from "../core/token.ts";
 
 export const DEFAULT_TIMEOUT_MS = 300;
@@ -98,7 +98,7 @@ export function ttlCache<T>(ttl: number): TtlCache<T> {
         return undefined;
       }
       const hit = entries.get(key);
-      if (hit !== undefined && Date.now() - hit.at < ttl) {
+      if (hit !== undefined && nowMillis() - hit.at < ttl) {
         return hit.value;
       }
       entries.delete(key);
@@ -108,7 +108,7 @@ export function ttlCache<T>(ttl: number): TtlCache<T> {
       if (ttl <= 0) {
         return;
       }
-      entries.set(key, { at: Date.now(), value });
+      entries.set(key, { at: nowMillis(), value });
       if (entries.size > CACHE_MAX) {
         const oldest = entries.keys().next();
         if (oldest.done !== true) {

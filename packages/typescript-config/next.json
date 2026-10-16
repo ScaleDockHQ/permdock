@@ -6,7 +6,6 @@
     "lib": ["ES2025", "DOM", "DOM.Iterable"],
     "allowJs": true,
     "checkJs": true,
-    "resolveJsonModule": true,
     "incremental": true,
     "plugins": [{ "name": "next" }]
   },

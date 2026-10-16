@@ -70,6 +70,8 @@ export type ElysiaPermDockPlugin<
 >;
 
 export type ElysiaPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  /** The `PermDock` for one request, for code the middleware does not run before. */
+  readonly getPermDock: (ctx: ElysiaRequestContext) => Promise<PermDock<V>>;
   readonly middleware: () => ElysiaPermDockPlugin<V>;
   readonly protect: ElysiaProtect;
   /**
@@ -98,6 +100,7 @@ export function createPermDock<
     bind,
     scopeOf,
     handlerScope,
+    getPermDock,
     guard: runGuard,
   } = bindKernel(policy, options, "elysia", toRequest);
 
@@ -155,6 +158,7 @@ export function createPermDock<
   };
 
   return {
+    getPermDock,
     middleware,
     protect,
     connection,

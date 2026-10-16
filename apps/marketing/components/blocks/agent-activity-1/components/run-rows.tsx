@@ -48,7 +48,7 @@ export const LABEL = "text-[13px]"
 
 /** Light fills read as annotation beside body text; a solid badge on every row
     would compete with the step label for the eye. */
-export const STATUS_BADGE: Record<
+const STATUS_BADGE: Record<
   Exclude<StepStatus, "ok">,
   {
     variant: "info-light" | "warning-light" | "destructive-light" | "secondary"
@@ -91,7 +91,7 @@ const BLOCKED_BADGE = {
 
 /** One label line tall and pinned to the top, so a row with a note keeps its
     icon beside the label. The width is explicit: the label spine measures it. */
-export function Glyph({
+function Glyph({
   children,
   tone = "live",
 }: {
@@ -129,7 +129,7 @@ function StepClock({ seconds }: { seconds: number }) {
 
 /** The system outside this repo that a step reached. Named rather than implied,
     because the reader's question is where their data went. */
-export function ServerChip({ name }: { name: string }) {
+function ServerChip({ name }: { name: string }) {
   return (
     <Badge variant="primary-light" className="shrink-0 font-mono font-normal">
       {name}
@@ -185,7 +185,7 @@ function ArtifactAction({
 
 /** The artifact, and the two things a reader actually does with one: take the
     reference somewhere else, or open what it names. */
-export function Artifact({ step }: { step: AgentStep }) {
+function Artifact({ step }: { step: AgentStep }) {
   const [copied, setCopied] = useState(false)
   const timer = useRef<number | null>(null)
   const actions = ARTIFACT_ACTIONS[step.artifactKind]

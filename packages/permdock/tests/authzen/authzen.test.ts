@@ -395,6 +395,15 @@ describe("permdock/authzen", () => {
     expect(body.evaluations.map((row) => row.decision)).toEqual([true, false]);
   });
 
+  it("rejects a body over 1 MiB with 413", async () => {
+    const response = await pdp()(
+      request("/access/v1/evaluation", {
+        json: { ...memberBody(), pad: "x".repeat(1_048_576) },
+      }),
+    );
+    expect(response.status).toBe(413);
+  });
+
   it("rejects an oversized evaluations batch", async () => {
     const response = await pdp({ maxEvaluations: 2 })(
       request("/access/v1/evaluations", {

@@ -10,7 +10,7 @@ import { listPermissions } from "../index.ts";
  * Errors Node raises while resolving or parsing a module graph, before any of
  * its code runs, so loading it again through jiti cannot repeat a side effect.
  */
-const NOT_NATIVE = new Set([
+const NOT_NATIVE: ReadonlySet<string> = new Set([
   "ERR_MODULE_NOT_FOUND",
   "ERR_UNKNOWN_FILE_EXTENSION",
   "ERR_UNSUPPORTED_DIR_IMPORT",

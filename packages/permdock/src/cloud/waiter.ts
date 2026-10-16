@@ -2,7 +2,7 @@ import type { ApprovalStore } from "../approvals/types.ts";
 import type { ApprovalWaiter } from "../workflow/waiter.ts";
 import type {
   PermDockCloudEvent,
-  VerifyWebhookOptions,
+  WebhookOptions,
   WebhookFailureCause,
 } from "./webhook.ts";
 
@@ -15,7 +15,7 @@ import { verifyWebhook } from "./webhook.ts";
 /** Polling the store is the fallback for a webhook this process never receives. */
 const FALLBACK_INTERVAL = 60_000;
 
-export type CloudApprovalWaiterOptions = VerifyWebhookOptions &
+export type CloudApprovalWaiterOptions = WebhookOptions &
   (
     | {
         /** Read when a wait starts and every `interval` after; typically `cloud().approvals`. */

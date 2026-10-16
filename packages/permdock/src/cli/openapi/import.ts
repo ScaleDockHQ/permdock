@@ -30,7 +30,11 @@ const METHODS = [
   "query",
 ] as const;
 
-const UNSAFE_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
+const UNSAFE_SEGMENTS: ReadonlySet<string> = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
 const SEGMENT = /^[A-Za-z_$][A-Za-z0-9_$-]*$/u;
 
 type Operation = {

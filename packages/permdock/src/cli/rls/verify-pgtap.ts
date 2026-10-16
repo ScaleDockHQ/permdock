@@ -4,6 +4,7 @@ import type { PermDockConfig, RlsDialect } from "../types.ts";
 import { isRecord } from "../../core/compact.ts";
 import { customRoleScope, membershipsClaim } from "../../core/custom-roles.ts";
 import { type Scope, scopeList } from "../../core/scopes.ts";
+import { defaultSqlCommand } from "../../core/sql.ts";
 import { type CustomRole, type Policy, findPermission } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
@@ -44,10 +45,9 @@ export function statementFor(
   const quoted = quoteTable(table);
   const id = quoteIdent("id");
   const key = rowId(fixture.row);
-  switch (action) {
-    case "read":
-    case "list":
-    case "get":
+  const command = defaultSqlCommand(action) ?? "select";
+  switch (command) {
+    case "select":
       return {
         sql: `select ${id} from ${quoted} where ${id} = $1`,
         values: [key],
@@ -65,7 +65,7 @@ export function statementFor(
         values: [key, ...next.map(([, value]) => value)],
       };
     }
-    case "create": {
+    case "insert": {
       const cols = columnsOf(fixture.row);
       if (cols.length === 0) {
         return {
@@ -83,11 +83,10 @@ export function statementFor(
         sql: `delete from ${quoted} where ${id} = $1 returning ${id}`,
         values: [key],
       };
-    default:
-      return {
-        sql: `select ${id} from ${quoted} where ${id} = $1`,
-        values: [key],
-      };
+    default: {
+      const unhandled: never = command;
+      return unhandled;
+    }
   }
 }
 

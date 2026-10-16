@@ -9,7 +9,7 @@ import type {
 } from "./brands.ts";
 
 /** `definePermissions` options. */
-export type DefinePermissionsOptions<PX = never, RX = never> = {
+export type PermissionsOptions<PX = never, RX = never> = {
   /**
    * Keys a permission used to have, mapped to its current key. Old keys are
    * accepted wherever a key arrives as a string (stored custom roles, OAuth

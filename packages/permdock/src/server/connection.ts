@@ -5,7 +5,7 @@ import type { RevocationEvent, RevocationFeed } from "../core/revocations.ts";
 
 import { compact } from "../core/compact.ts";
 import { PermDockRevokedError, type RevokedCode } from "../core/errors.ts";
-import { durationOf } from "../core/time.ts";
+import { durationOf, epochSeconds } from "../core/time.ts";
 
 /** `setTimeout` stores delays in a signed 32-bit integer. */
 const MAX_DELAY = 2_147_483_647;
@@ -249,7 +249,7 @@ export async function openConnection<T>(
   };
 
   schedule = (permdock: PermDock): void => {
-    const now = Date.now() / 1000;
+    const now = epochSeconds();
     const expiresAt = permdock.subject.expiresAt;
     if (expiresAt !== undefined) {
       if (expiresAt <= now) {

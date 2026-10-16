@@ -16,7 +16,11 @@ import {
   parseTeamRows,
 } from "./parse.ts";
 
-const PROFILE_FIELDS = new Set(["name", "image", "displayName"]);
+const PROFILE_FIELDS: ReadonlySet<string> = new Set([
+  "name",
+  "image",
+  "displayName",
+]);
 
 function extraFields(user: Record<string, unknown>): Record<string, unknown> {
   const reserved = new Set([

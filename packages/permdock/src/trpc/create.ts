@@ -5,6 +5,7 @@ import {
 } from "@trpc/server";
 
 import type { PermDockRevokedError } from "../core/errors.ts";
+import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
@@ -58,6 +59,8 @@ export type TrpcOpenApiHooks = {
 };
 
 export type TrpcPermDock<TCtx = object> = {
+  /** The `PermDock` for one procedure call, for code the middleware does not run before. */
+  readonly getPermDock: (opts: TrpcMiddlewareOpts<TCtx>) => Promise<PermDock>;
   readonly middleware: () => TrpcMiddleware;
   readonly protect: (
     permission: Permission | null,
@@ -172,6 +175,10 @@ export function createPermDock<
     (opts) => opts.path,
   );
 
+  const getPermDock = async (
+    opts: TrpcMiddlewareOpts<TCtx>,
+  ): Promise<PermDock> => kernel.getPermDock(bind(opts), await scopeOf(opts));
+
   // SAFETY: the function has tRPC's middleware call shape; its generics cannot be inferred from it.
   const middleware = (): TrpcMiddleware =>
     (async (opts: TrpcMiddlewareOpts<TCtx>): Promise<unknown> => {
@@ -279,6 +286,7 @@ export function createPermDock<
   };
 
   return {
+    getPermDock,
     middleware,
     protect,
     connection,

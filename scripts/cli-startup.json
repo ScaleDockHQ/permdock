@@ -1,0 +1,12 @@
+{
+  "recordedMs": {
+    "version": 29,
+    "help": 28
+  },
+  "maxMs": {
+    "version": 150,
+    "help": 200
+  },
+  "maxHelpRatio": 1.5,
+  "helpSlackMs": 15
+}

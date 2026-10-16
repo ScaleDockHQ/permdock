@@ -92,6 +92,8 @@ export type PermDockModuleOptions = {
 };
 
 export type NestPermDock = {
+  /** The `PermDock` for one request, for code the guard does not run before. */
+  readonly getPermDock: (req: NestRequest) => Promise<PermDock>;
   readonly PermDockModule: Type<unknown> & {
     readonly forRoot: (options?: PermDockModuleOptions) => DynamicModule;
   };
@@ -228,12 +230,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   policy: Policy<TUser, TPrincipal>,
   options: NestPermDockOptions<TUser>,
 ): NestPermDock {
-  const { kernel, bind, rebind, scopeOf, handlerScope } = bindKernel(
-    policy,
-    options,
-    "nest",
-    toRequest,
-  );
+  const { kernel, bind, rebind, scopeOf, handlerScope, getPermDock } =
+    bindKernel(policy, options, "nest", toRequest);
 
   const applyProtect = async (
     remaining: readonly ProtectRule[],
@@ -487,6 +485,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   };
 
   return {
+    getPermDock,
     PermDockModule: PermDockRoot,
     PermDockGuard,
     Protect,

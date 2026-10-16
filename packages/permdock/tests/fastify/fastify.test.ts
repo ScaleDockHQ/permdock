@@ -117,3 +117,22 @@ describe("permdock/fastify", () => {
     expect(body.evaluations[0]?.decision).toBe(true);
   });
 });
+
+describe("permdock/fastify getPermDock", () => {
+  it("builds the request's instance outside the plugin", async () => {
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = Fastify();
+    apps.push(app);
+    app.get("/", (request) =>
+      getPermDock(request).then((permdock) => ({
+        id: permdock.subject.principal?.id,
+        own: permdock.can(permissions.post.update, ownPost),
+        other: permdock.can(permissions.post.update, otherPost),
+      })),
+    );
+    const response = await app.inject("/");
+    expect(response.json()).toEqual({ id: "u1", own: true, other: false });
+  });
+});

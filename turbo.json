@@ -88,16 +88,7 @@
         "!.next/dev/**",
         ".source/**"
       ],
-      "env": [
-        "DEMO_LATENCY_MS",
-        "DOCS_ORIGIN",
-        "EXPOSE_TESTING_API",
-        "NEXT_PUBLIC_*",
-        "PERMDOCK_COLLECT",
-        "SENTRY_ORG",
-        "SENTRY_PROJECT",
-        "SESSION_SECRET"
-      ],
+      "env": ["NEXT_PUBLIC_*", "SENTRY_ORG", "SENTRY_PROJECT"],
       "passThroughEnv": ["SENTRY_AUTH_TOKEN"]
     },
     "typecheck": {
@@ -116,7 +107,11 @@
       "dependsOn": ["build", "^build"],
       "inputs": ["$TURBO_DEFAULT$"]
     },
-    "test:instant": {
+    "//#authzen:vectors": {
+      "inputs": ["scripts/fetch-authzen-vectors.ts"],
+      "outputs": ["packages/permdock/tests/testing/fixtures/authzen/**"]
+    },
+    "test:e2e": {
       "dependsOn": ["^build"],
       "cache": false,
       "env": ["DEMO_LATENCY_MS"],
@@ -153,6 +148,11 @@
         "packages/permdock/src/**",
         "packages/permdock/tests/**"
       ],
+      "outputs": []
+    },
+    "//#cli:startup": {
+      "dependsOn": ["permdock#build"],
+      "inputs": ["scripts/cli-startup.*", "packages/permdock/src/cli/**"],
       "outputs": []
     },
     "//#knip": {

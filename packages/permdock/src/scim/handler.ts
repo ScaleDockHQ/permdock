@@ -1,4 +1,5 @@
 import { compact, isRecord } from "../core/compact.ts";
+import { MAX_BODY_BYTES } from "../server/body-text.ts";
 import { authenticateScim } from "./auth.ts";
 import { groupFromBody, readJson, schemasOk, userFromBody } from "./body.ts";
 import { resourceTypes, schemas, serviceProviderConfig } from "./discovery.ts";
@@ -229,7 +230,15 @@ export function scimHandler(
         return new Response(null, { status: 204 });
       }
 
-      const body = await readJson(request);
+      const read = await readJson(request);
+      if (read.tooLarge) {
+        return scimError(
+          413,
+          "",
+          `request body exceeds ${String(MAX_BODY_BYTES)} bytes`,
+        );
+      }
+      const { body } = read;
       if (!isRecord(body)) {
         return scimError(400, "invalidSyntax", "malformed body");
       }

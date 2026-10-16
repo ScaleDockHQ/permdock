@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "analyze": "next experimental-analyze",
+    "analyze": "next analyze",
     "build": "next build",
     "dev": "next dev -p ${PORT:-3001}",
     "dev:portless": "portless",
@@ -34,13 +34,11 @@
     "fumadocs-typescript": "catalog:",
     "fumadocs-ui": "catalog:",
     "lucide-react": "catalog:",
-    "mdast-util-mdx-jsx": "catalog:",
     "next": "catalog:",
     "permdock": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
     "shiki": "catalog:",
-    "unist-util-visit": "catalog:",
     "valibot": "catalog:",
     "zod": "catalog:"
   },

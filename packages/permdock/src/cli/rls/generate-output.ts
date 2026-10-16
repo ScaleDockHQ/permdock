@@ -1,6 +1,7 @@
 import type { Scope } from "../../core/scopes.ts";
 import type { RlsGenerateInput } from "./generate-options.ts";
 
+import { dateAt } from "../../core/time.ts";
 import {
   type OutputFile,
   type SplitPart,
@@ -201,7 +202,7 @@ export function outputFiles(plan: {
             out,
             SEEDS_MARKER,
             seeds,
-            input.io.now?.() ?? new Date(),
+            input.io.now?.() ?? dateAt(),
           );
           if (!planned.current || input.check) {
             files.push({ part, rel: planned.rel, text: seeds });

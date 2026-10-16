@@ -23,7 +23,11 @@ import {
 
 export { GENAI_SEMCONV_PIN };
 
-const FORBIDDEN = new Set(["__proto__", "constructor", "prototype"]);
+const FORBIDDEN: ReadonlySet<string> = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
 const SPAN_STATUS_ERROR = 2;
 
 // `@opentelemetry/api` 1.x keeps registered providers on this global, so

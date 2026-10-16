@@ -10,8 +10,15 @@ import {
 } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 
-const SOURCE_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".cts"]);
-const SKIP_DIRS = new Set([
+const SOURCE_EXT: ReadonlySet<string> = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mts",
+  ".cts",
+]);
+const SKIP_DIRS: ReadonlySet<string> = new Set([
   "node_modules",
   "dist",
   ".next",
@@ -20,7 +27,10 @@ const SKIP_DIRS = new Set([
   ".git",
 ]);
 
-const PACKAGE_SKIP_DIRS = new Set(["node_modules", ".git"]);
+const PACKAGE_SKIP_DIRS: ReadonlySet<string> = new Set([
+  "node_modules",
+  ".git",
+]);
 
 export function listSourceFiles(
   cwd: string,

@@ -43,6 +43,8 @@ export type HonoPermDockEnv<
 };
 
 export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  /** The `PermDock` for one request, for code the middleware does not run before. */
+  readonly getPermDock: (c: Context) => Promise<PermDock<V>>;
   readonly middleware: () => MiddlewareHandler<HonoPermDockEnv<unknown, V>>;
   readonly protect: <TData = unknown>(
     permission: Permission | null,
@@ -181,6 +183,7 @@ export function createPermDock<
     bind,
     scopeOf,
     handlerScope,
+    getPermDock,
     attach,
     guard: runGuard,
   } = bindKernel(policy, options, "hono", (c: Context) => c.req.raw);
@@ -232,6 +235,7 @@ export function createPermDock<
   };
 
   return {
+    getPermDock,
     middleware,
     protect,
     connection,

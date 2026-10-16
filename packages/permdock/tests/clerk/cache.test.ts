@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ClerkBackend } from "../../src/clerk/index.ts";
 
-import { createClerkSubjectResolver } from "../../src/clerk/index.ts";
+import { clerkSubjectResolver } from "../../src/clerk/index.ts";
 
 function countingBackend(fail = false): {
   readonly backend: ClerkBackend;
@@ -29,11 +29,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("createClerkSubjectResolver", () => {
+describe("clerkSubjectResolver", () => {
   it("keeps a user's membership list for the cache ttl", async () => {
     vi.useFakeTimers();
     const { backend, calls } = countingBackend();
-    const subject = createClerkSubjectResolver({
+    const subject = clerkSubjectResolver({
       memberships: "all",
       backend,
       cache: { ttl: 10 },
@@ -53,7 +53,7 @@ describe("createClerkSubjectResolver", () => {
 
   it("loads every request without a cache and never caches a failure", async () => {
     const plain = countingBackend();
-    const uncached = createClerkSubjectResolver({
+    const uncached = clerkSubjectResolver({
       memberships: "all",
       backend: plain.backend,
     });
@@ -61,7 +61,7 @@ describe("createClerkSubjectResolver", () => {
     await uncached({ sub: "u1", sid: "s1" });
     expect(plain.calls()).toBe(2);
     const failing = countingBackend(true);
-    const subject = createClerkSubjectResolver({
+    const subject = clerkSubjectResolver({
       memberships: "all",
       backend: failing.backend,
       cache: { ttl: 10_000 },

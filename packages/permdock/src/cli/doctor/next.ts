@@ -18,7 +18,10 @@ import { collectedOf, policyOf } from "./inputs.ts";
 const ROUTE_GLOBS = ["**/api/permdock/route.{ts,tsx,js,jsx,mjs}"];
 const ENDPOINT = /\bendpoint\s*(?::|=)\s*\{?\s*['"`]/u;
 const NATIVE_IMPORT = /\bfrom\s*['"]permdock\/react-native['"]/u;
-const CLIENT_READS = new Set(["usePermission", "reference"]);
+const CLIENT_READS: ReadonlySet<string> = new Set([
+  "usePermission",
+  "reference",
+]);
 
 /** A grant the snapshot marks `portable: false`, so a client check needs the endpoint. */
 function serverOnly(policy: Policy, grant: Grant): boolean {

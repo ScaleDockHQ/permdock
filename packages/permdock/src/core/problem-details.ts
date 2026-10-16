@@ -24,7 +24,7 @@ export type DecisionProblem = {
 };
 
 /** Reasons that only arise once a matching grant was found, so they reveal nothing hidden. */
-const HOLDS_GRANT = new Set<string>([
+const HOLDS_GRANT: ReadonlySet<string> = new Set<string>([
   "insufficient-user-authentication",
   "limit",
   "limit-unavailable",

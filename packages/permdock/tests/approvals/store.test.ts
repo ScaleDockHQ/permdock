@@ -132,6 +132,28 @@ describe("memoryApprovalStore", () => {
     expect(store.expire({ epochMilliseconds: Date.now() })).toBe(0);
   });
 
+  it("reads its now option instead of the system clock", async () => {
+    const later = Date.parse(future) + 1000;
+    const store = memoryApprovalStore({
+      now: () => ({ epochMilliseconds: later }),
+    });
+    store.create(pending());
+    store.create(pending({ id: "apr_2", detail: "asked again" }));
+    expect((await store.get("pd1.token-1"))?.id).toBe("apr_2");
+
+    store.create(pending({ token: "pd1.token-2", expiresAt: past }));
+    expect(store.expire()).toBe(2);
+
+    const open = memoryApprovalStore({
+      now: () => ({ epochMilliseconds: later }),
+    });
+    open.create(pending({ expiresAt: new Date(later + 1000).toISOString() }));
+    expect(open.cancel?.({}, { by: "u_9" })).toBe(1);
+    expect((await open.get("pd1.token-1"))?.resolvedAt).toBe(
+      new Date(later).toISOString(),
+    );
+  });
+
   it("refuses resolve on an expired pending request", () => {
     const store = memoryApprovalStore();
     store.create(pending({ expiresAt: past }));

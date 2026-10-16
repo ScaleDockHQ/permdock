@@ -12,7 +12,7 @@ import type {
   ProviderOptionsBase,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "../client/types.ts";
 import type {
   ApprovalRequiredDecision,
@@ -98,7 +98,7 @@ export type {
   PermissionState,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 };
 
 export type { Accessor, PermissionBoundaryState };

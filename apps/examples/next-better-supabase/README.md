@@ -35,7 +35,7 @@ Where things live:
 ## Verify instant navigation
 
 ```bash
-pnpm --filter @permdock/example-next-better-supabase test:instant
+pnpm --filter @permdock/example-next-better-supabase test:e2e
 ```
 
 Needs Docker. Runs `serve` with `EXPOSE_TESTING_API=1` on `http://127.0.0.1:3589`, then runs `tests/instant/*.instant.ts` with `instant()` from `@next/playwright` at 1280 px and 390 px. The specs cover the initial load of `/en/acme/staff` and `/en/portal/acme/quotes` and the soft navigation from Staff to Quotes. `cold-then-warm.instant.ts` goes back from Quotes to Staff under the lock and expects the staff read time from the first visit. Under the lock each spec expects the shell and the skeleton, and expects the RLS-read list to be absent. Install Chromium once with `pnpm --filter @permdock/example-next-better-supabase exec playwright install chromium`.

@@ -6,7 +6,7 @@
   "scripts": {
     "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
-    "start": "node --experimental-strip-types src/serve.ts",
+    "start": "node src/serve.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

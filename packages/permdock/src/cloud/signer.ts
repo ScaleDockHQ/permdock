@@ -7,7 +7,14 @@ import { cloudConnection, isCompactJws } from "./request.ts";
 
 type SignOptions = Parameters<TokenSigner["sign"]>[1];
 
-const REGISTERED = new Set(["iss", "aud", "exp", "iat", "nbf", "jti"]);
+const REGISTERED: ReadonlySet<string> = new Set([
+  "iss",
+  "aud",
+  "exp",
+  "iat",
+  "nbf",
+  "jti",
+]);
 
 /**
  * The Cloud's own outputs and access tokens; a client key that could mint

@@ -14,7 +14,7 @@ import {
   type Subject,
   anonymousSubject,
 } from "./subject.ts";
-import { nowSeconds } from "./time.ts";
+import { epochSeconds, nowSeconds } from "./time.ts";
 
 /**
  * Who may redeem a capability: anyone holding it, any signed-in principal,
@@ -95,7 +95,7 @@ export type LinkPolicy = {
 
 export type LinkPolicyViolation = "lifetime" | "redeemer" | "once";
 
-export type SignCapabilityOptions = {
+export type CapabilityOptions = {
   readonly audience?: string | readonly string[];
   /** `iat`; the clock when absent. */
   readonly issuedAt?: Instant;
@@ -319,7 +319,7 @@ export function capabilityOf(input: CapabilityInput): Capability {
 export function signCapability(
   input: CapabilityInput,
   signer: TokenSigner,
-  options: SignCapabilityOptions = {},
+  options: CapabilityOptions = {},
 ): Promise<string> {
   const capability = capabilityOf(input);
   const issuedAt = nowSeconds(options.issuedAt);
@@ -366,7 +366,7 @@ function holdsScope(
 export function redeemerAllows(
   redeemer: CapabilityRedeemer | undefined,
   viewer: Subject | undefined,
-  now: number = Date.now() / 1000,
+  now: number = epochSeconds(),
 ): boolean {
   if (redeemer === undefined || redeemer === "anyone") {
     return true;

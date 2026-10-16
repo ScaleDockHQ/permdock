@@ -36,7 +36,7 @@ type Model = {
   readonly denies: boolean;
 };
 
-const MATCHER_TERMS = new Set([
+const MATCHER_TERMS: ReadonlySet<string> = new Set([
   "g(r.sub,p.sub)",
   "g(r.sub,p.sub,r.dom)",
   "r.obj==p.obj",

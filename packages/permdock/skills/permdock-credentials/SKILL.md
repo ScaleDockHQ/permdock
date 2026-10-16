@@ -30,7 +30,7 @@ Authentication is upstream: core never verifies a token. A `subjectFrom*` resolv
 
 ## Workflow
 
-1. **Verify access tokens.** Create one `createJwtSubjectResolver({ discovery, audience })` per issuer from `permdock/jwt` for the life of the process, because it caches Discovery and the JWKS; `subjectFromJwt(token, options)` caches nothing and suits a one-off check. Or use `subjectFromIntrospection` when the app already called introspection. -> [references/tokens-keys-links.md](references/tokens-keys-links.md)
+1. **Verify access tokens.** Create one `jwtSubjectResolver({ discovery, audience })` per issuer from `permdock/jwt` for the life of the process, because it caches Discovery and the JWKS; `subjectFromJwt(token, options)` caches nothing and suits a one-off check. Or use `subjectFromIntrospection` when the app already called introspection. -> [references/tokens-keys-links.md](references/tokens-keys-links.md)
    ✓ An ID token, a token for another audience and an expired token each resolve to the anonymous subject.
 2. **Issue API keys, when the product has them.** Guard the creation endpoint with its own permission, call `decideCredential(permdock, request, { settings })`, store the hash with the returned `Credential`, and show the key once. -> [references/tokens-keys-links.md](references/tokens-keys-links.md#api-keys-and-service-accounts)
    ✓ A service key wider than its creator is denied with `exceeds-creator`.

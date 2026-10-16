@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  useCallback,
   useEffect,
   useId,
   useRef,
@@ -55,69 +54,64 @@ function CtaGridPattern({
   const dimensionsRef = useRef({ width: 0, height: 0 })
   const [squares, setSquares] = useState<Array<Square>>([])
 
-  const getPos = useCallback(
-    (
-      seed: number,
-      containerWidth: number,
-      containerHeight: number
-    ): [number, number] => {
-      if (!containerWidth || !containerHeight) {
-        return [0, 0]
+  const getPos = (
+    seed: number,
+    containerWidth: number,
+    containerHeight: number
+  ): [number, number] => {
+    if (!containerWidth || !containerHeight) {
+      return [0, 0]
+    }
+
+    const cols = Math.max(1, Math.floor(containerWidth / width))
+    const rows = Math.max(1, Math.floor(containerHeight / height))
+
+    return [
+      Math.floor(pseudoRandom(seed) * cols),
+      Math.floor(pseudoRandom(seed + 0.5) * rows),
+    ]
+  }
+
+  const generateSquares = (
+    count: number,
+    containerWidth: number,
+    containerHeight: number
+  ) =>
+    Array.from({ length: count }, (_, index) => ({
+      id: index,
+      pos: getPos(index + 1, containerWidth, containerHeight),
+      iteration: 0,
+    }))
+
+  const updateSquarePosition = (squareId: number) => {
+    const { width: containerWidth, height: containerHeight } =
+      dimensionsRef.current
+
+    if (!containerWidth || !containerHeight) {
+      return
+    }
+
+    setSquares((currentSquares) => {
+      const current = currentSquares[squareId]
+      if (!current || current.id !== squareId) {
+        return currentSquares
       }
 
-      const cols = Math.max(1, Math.floor(containerWidth / width))
-      const rows = Math.max(1, Math.floor(containerHeight / height))
-
-      return [
-        Math.floor(pseudoRandom(seed) * cols),
-        Math.floor(pseudoRandom(seed + 0.5) * rows),
-      ]
-    },
-    [height, width]
-  )
-
-  const generateSquares = useCallback(
-    (count: number, containerWidth: number, containerHeight: number) =>
-      Array.from({ length: count }, (_, index) => ({
-        id: index,
-        pos: getPos(index + 1, containerWidth, containerHeight),
-        iteration: 0,
-      })),
-    [getPos]
-  )
-
-  const updateSquarePosition = useCallback(
-    (squareId: number) => {
-      const { width: containerWidth, height: containerHeight } =
-        dimensionsRef.current
-
-      if (!containerWidth || !containerHeight) {
-        return
+      const nextSquares = currentSquares.slice()
+      const nextIteration = current.iteration + 1
+      nextSquares[squareId] = {
+        ...current,
+        pos: getPos(
+          (squareId + 1) * 97 + nextIteration * 13,
+          containerWidth,
+          containerHeight
+        ),
+        iteration: nextIteration,
       }
 
-      setSquares((currentSquares) => {
-        const current = currentSquares[squareId]
-        if (!current || current.id !== squareId) {
-          return currentSquares
-        }
-
-        const nextSquares = currentSquares.slice()
-        const nextIteration = current.iteration + 1
-        nextSquares[squareId] = {
-          ...current,
-          pos: getPos(
-            (squareId + 1) * 97 + nextIteration * 13,
-            containerWidth,
-            containerHeight
-          ),
-          iteration: nextIteration,
-        }
-
-        return nextSquares
-      })
-    },
-    [getPos]
-  )
+      return nextSquares
+    })
+  }
 
   useEffect(() => {
     const element = containerRef.current

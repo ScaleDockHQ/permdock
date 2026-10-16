@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { branchClauses, compileGrants } from "../../src/cli/sql/compile.ts";
+import { branchClauses } from "../../src/cli/sql/clauses.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { compileConditionSql } from "../../src/cli/sql/conditions.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {

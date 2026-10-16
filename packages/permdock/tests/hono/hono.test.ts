@@ -240,3 +240,25 @@ describe("permdock/hono", () => {
     expect(body.type).toBe("https://permdock.com/problems/invalid-signature");
   });
 });
+
+describe("permdock/hono getPermDock", () => {
+  it("builds the request's instance outside the middleware", async () => {
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const app = new Hono().get("/", async (c) => {
+      const permdock = await getPermDock(c);
+      return c.json({
+        id: permdock.subject.principal?.id,
+        own: permdock.can(permissions.post.update, ownPost),
+        other: permdock.can(permissions.post.update, otherPost),
+      });
+    });
+    const response = await app.request("/");
+    expect(await response.json()).toEqual({
+      id: "u1",
+      own: true,
+      other: false,
+    });
+  });
+});

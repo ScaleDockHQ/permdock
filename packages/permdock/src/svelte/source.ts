@@ -35,7 +35,7 @@ export type {
   PermissionState,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "./types.ts";
 
 export type { PermissionBoundaryState } from "../client/boundary.ts";

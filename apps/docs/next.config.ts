@@ -6,6 +6,7 @@ import { createMDX } from "fumadocs-mdx/next";
 
 import { createNextConfig, sentryBuildOptions } from "@permdock/next-config";
 
+import { env } from "./env.ts";
 import { docsContentRoute } from "./lib/shared";
 
 const withMDX = createMDX();
@@ -38,7 +39,10 @@ const retiredResearch = {
 } as const;
 
 const config: NextConfig = {
-  ...createNextConfig(),
+  ...createNextConfig({
+    nodeEnv: env.NODE_ENV,
+    exposeTestingApi: env.EXPOSE_TESTING_API === "1",
+  }),
   assetPrefix: "/docs",
   transpilePackages: ["@permdock/ui"],
   redirects() {
@@ -91,5 +95,5 @@ const config: NextConfig = {
 
 export default withSentryConfig(
   withBotId(withMDX(config)),
-  sentryBuildOptions(),
+  sentryBuildOptions(env),
 );

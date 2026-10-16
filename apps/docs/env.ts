@@ -6,6 +6,12 @@ const url = v.pipe(v.string(), v.url());
 
 export const env = createEnv({
   extends: [vercel()],
+  server: {
+    EXPOSE_TESTING_API: v.optional(v.picklist(["1"])),
+    SENTRY_ORG: v.optional(v.string()),
+    SENTRY_PROJECT: v.optional(v.string()),
+    SENTRY_AUTH_TOKEN: v.optional(v.string()),
+  },
   shared: {
     NODE_ENV: v.optional(
       v.picklist(["development", "test", "production"]),

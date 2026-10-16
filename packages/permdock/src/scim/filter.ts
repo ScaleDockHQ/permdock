@@ -1,6 +1,6 @@
 import type { DirectoryGroup, DirectoryUser, ScimFilter } from "./types.ts";
 
-const COMPARE = new Set(["eq", "ne", "co", "sw"]);
+const COMPARE: ReadonlySet<string> = new Set(["eq", "ne", "co", "sw"]);
 
 function skipSpace(input: string, index: number): number {
   let cursor = index;

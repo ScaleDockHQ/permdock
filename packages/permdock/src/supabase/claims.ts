@@ -92,7 +92,7 @@ export type SupabaseClaimsOptions<TenantClaim extends string = "tenant_id"> = {
 type Path = readonly PropertyKey[];
 type Issues = StandardSchemaV1.Issue[];
 
-const KNOWN = new Set([
+const KNOWN: ReadonlySet<string> = new Set([
   "user_role",
   "roles",
   "memberships",

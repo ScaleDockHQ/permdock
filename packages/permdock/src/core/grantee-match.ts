@@ -6,6 +6,7 @@ import { compact } from "./compact.ts";
 import { inheritCondition, relationCondition } from "./grantee-conditions.ts";
 import { type Grantee, type GranteeMatch, flattenGrantee } from "./grantee.ts";
 import { type Scope, activeFor, scopeList } from "./scopes.ts";
+import { isoAt } from "./time.ts";
 
 export function combineWhere(
   left: Condition | undefined,
@@ -111,7 +112,7 @@ function matchOne(
       }
       const where = relationCondition(grantee, resource, scopes, {
         resources,
-        now: { date: new Date(now * 1000).toISOString() },
+        now: { date: isoAt(now * 1000) },
       });
       if (where === undefined && resource !== undefined) {
         return { matched: false, reason: "condition" };

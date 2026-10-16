@@ -5,10 +5,10 @@ Owning pages: [JWT adapter](https://permdock.com/docs/adapters/jwt), [authentica
 ## Access tokens — `permdock/jwt`
 
 ```ts
-import { createJwtSubjectResolver } from "permdock/jwt";
+import { jwtSubjectResolver } from "permdock/jwt";
 
 // One resolver per issuer for the life of the process: it caches Discovery and the JWKS.
-const resolve = createJwtSubjectResolver({
+const resolve = jwtSubjectResolver({
   discovery: "https://issuer.example.com",
   audience: "https://api.example.com",
 });

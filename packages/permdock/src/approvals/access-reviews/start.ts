@@ -26,7 +26,7 @@ export type StartAccessReviewInput = {
   readonly dueAt: string;
 };
 
-export type StartAccessReviewOptions = {
+export type AccessReviewOptions = {
   readonly reviews: AccessReviewStore;
   /**
    * Replaces the membership listing. The Supabase recipe passes the rows of
@@ -92,7 +92,7 @@ function enumerable(grant: Grant): boolean {
 async function fromMembers(
   tenant: string,
   keys: readonly Permission[],
-  options: StartAccessReviewOptions,
+  options: AccessReviewOptions,
 ): Promise<{
   readonly holders: readonly AccessReviewHolder[];
   readonly complete: boolean;
@@ -176,7 +176,7 @@ function itemsFrom(
 export async function startAccessReview(
   permdock: PermDock,
   input: StartAccessReviewInput,
-  options: StartAccessReviewOptions,
+  options: AccessReviewOptions,
 ): Promise<AccessReview> {
   const principal = permdock.subject.principal;
   const tenant = principal?.tenant;

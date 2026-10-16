@@ -11,6 +11,7 @@ import type {
 import type { ApprovalPolicySource, Policy, Subject } from "../../index.ts";
 
 import { approvalPoliciesFor } from "../../core/approval-policies.ts";
+import { isoAt, isoNow, nowMillis } from "../../core/time.ts";
 
 function sampleApproval(token: string): ApprovalRequest {
   return {
@@ -25,8 +26,8 @@ function sampleApproval(token: string): ApprovalRequest {
       actor: { id: "agent-1", kind: "eve" },
     },
     detail: "post.delete requires human approval.",
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    createdAt: isoNow(),
+    expiresAt: isoAt(nowMillis() + 60 * 60 * 1000),
     status: "pending",
   };
 }
@@ -155,7 +156,7 @@ export function testApprovalStore(
     ).rejects.toThrow(/not pending/);
     await store.create(sampleApproval("stale-token"));
     const expired = await store.expire({
-      epochMilliseconds: Date.now() + 2 * 60 * 60 * 1000,
+      epochMilliseconds: nowMillis() + 2 * 60 * 60 * 1000,
     });
     expect(expired).toBeGreaterThanOrEqual(1);
   });
@@ -168,7 +169,7 @@ export function testApprovalStore(
         store.create({
           ...sampleApproval(token),
           subject: { principal: { id: "u_pager", roles: ["member"] } },
-          createdAt: new Date(base + index * 1000).toISOString(),
+          createdAt: isoAt(base + index * 1000),
         }),
       ),
     );
@@ -327,7 +328,7 @@ export function testApprovalStore(
     ).rejects.toThrow(/eligible/u);
     await store.create({
       ...sampleApproval("waited-escalation"),
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      createdAt: isoAt(nowMillis() - 2 * 60 * 60 * 1000),
       approvers: { by: admin, escalation },
     });
     const resolved = await store.resolve("waited-escalation", {
@@ -517,7 +518,7 @@ export function testApprovalDelegationSource(
   },
 ): void {
   it("answers with active plain delegations for the delegate", async () => {
-    const at = options.at ?? new Date().toISOString();
+    const at = options.at ?? isoNow();
     const entries = await source.delegationsFor({
       delegate: options.delegate,
       ...(options.tenant === undefined ? {} : { tenant: options.tenant }),
@@ -563,7 +564,7 @@ export function testIdempotencyStore(store: IdempotencyStore): void {
       headers: [["content-type", "application/json"]],
       body: '{"status":"approved"}',
     };
-    const later = Date.now() + 60 * 60 * 1000;
+    const later = nowMillis() + 60 * 60 * 1000;
     expect(await store.get(key)).toBeUndefined();
     await store.set(key, response, later);
     expect(await store.get(key)).toEqual(response);

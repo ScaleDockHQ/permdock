@@ -9,6 +9,7 @@ import type { Permission } from "../core/permission-types.ts";
 
 import { type Credential, parseCredential } from "../core/credential.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { isoAt } from "../core/time.ts";
 import { parseSupabaseManifest } from "../supabase/manifest.ts";
 
 /** The roles a tenant key holds in its tenant: a list, or one per key. */
@@ -51,7 +52,7 @@ export type KeyRecord = {
 const EPOCH = "1970-01-01T00:00:00.000Z";
 
 const rfc3339Of = (instant: Temporal.Instant): string =>
-  new Date(instant.epochMilliseconds).toISOString();
+  isoAt(instant.epochMilliseconds);
 
 /** When a key stops verifying: its expiry, or the end of a rotated key's grace period. */
 function endOf(key: ApiKey): Temporal.Instant | undefined {

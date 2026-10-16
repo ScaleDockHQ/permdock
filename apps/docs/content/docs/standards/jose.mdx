@@ -38,15 +38,15 @@ Core stays free of all of it. `permdock` core has one runtime dependency, `@stan
 
 ### What PermDock consumes
 
-| Input                             | Format                                                                                                  | Where                                        |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Bearer or DPoP-bound access token | Compact JWS, `typ: at+jwt` or `JWT`; optionally a nested JWS inside a JWE (`cty: JWT`)                  | `subjectFromJwt`, `createJwtSubjectResolver` |
-| DPoP proof                        | Compact JWS, `typ: dpop+jwt`, header `jwk`, claims `htm`, `htu`, `iat`, `jti`, `ath`                    | `verifyDpopProof`                            |
-| Key set                           | JWK Set from `jwks`, or from `jwks_uri` after Discovery                                                 | The JWKS cache                               |
-| Sender binding                    | `cnf.jkt` (DPoP), `cnf.x5t#S256` (mTLS), `cnf.jwk`, `cnf.kid`                                           | `Binding` on the subject                     |
-| Security Event Tokens             | Compact JWS, `typ: secevent+jwt` (RFC 8417) for SSF and CAEP; `typ: logout+jwt` for Back-Channel Logout | `permdock/ssf`                               |
-| GNAP `access` claim               | Registered claim on an RFC 9767 JWT                                                                     | `delegation.access`                          |
-| Introspection response            | JSON, not JOSE; the RFC 9767 shape                                                                      | `subjectFromIntrospection`                   |
+| Input                             | Format                                                                                                  | Where                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Bearer or DPoP-bound access token | Compact JWS, `typ: at+jwt` or `JWT`; optionally a nested JWS inside a JWE (`cty: JWT`)                  | `subjectFromJwt`, `jwtSubjectResolver` |
+| DPoP proof                        | Compact JWS, `typ: dpop+jwt`, header `jwk`, claims `htm`, `htu`, `iat`, `jti`, `ath`                    | `verifyDpopProof`                      |
+| Key set                           | JWK Set from `jwks`, or from `jwks_uri` after Discovery                                                 | The JWKS cache                         |
+| Sender binding                    | `cnf.jkt` (DPoP), `cnf.x5t#S256` (mTLS), `cnf.jwk`, `cnf.kid`                                           | `Binding` on the subject               |
+| Security Event Tokens             | Compact JWS, `typ: secevent+jwt` (RFC 8417) for SSF and CAEP; `typ: logout+jwt` for Back-Channel Logout | `permdock/ssf`                         |
+| GNAP `access` claim               | Registered claim on an RFC 9767 JWT                                                                     | `delegation.access`                    |
+| Introspection response            | JSON, not JOSE; the RFC 9767 shape                                                                      | `subjectFromIntrospection`             |
 
 ### The RFC 8725 / rfc8725bis checklist
 

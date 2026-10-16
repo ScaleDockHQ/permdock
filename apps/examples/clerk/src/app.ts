@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createClerkSubjectResolver } from "permdock/clerk";
+import { clerkSubjectResolver } from "permdock/clerk";
 import { createPermDock } from "permdock/hono";
 
 import { ownPost, permissions } from "./permissions.ts";
@@ -14,7 +14,7 @@ const authObject = {
   has: () => false,
 };
 
-const clerkSubject = createClerkSubjectResolver({
+const clerkSubject = clerkSubjectResolver({
   permissions: { "org:invoices:create": permissions.post.list },
   memberships: "all",
   cache: { ttl: 10 },

@@ -16,10 +16,7 @@ import { verifyDpopProof } from "../../src/jwt/dpop.ts";
 import { memoryReplayStore } from "../../src/jwt/index.ts";
 import { subjectFromIntrospection } from "../../src/jwt/introspection.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
-import {
-  createJwtSubjectResolver,
-  subjectFromJwt,
-} from "../../src/jwt/subject.ts";
+import { jwtSubjectResolver, subjectFromJwt } from "../../src/jwt/subject.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
 import { memberUser, policy } from "../fixtures/quick-start.ts";
@@ -296,8 +293,8 @@ describe("joseTokenVerifier", () => {
   });
 });
 
-describe("createJwtSubjectResolver conformance", () => {
-  const resolver = createJwtSubjectResolver({
+describe("jwtSubjectResolver conformance", () => {
+  const resolver = jwtSubjectResolver({
     jwks: PUBLIC_JWKS,
     issuer: ISSUER,
     audience: AUDIENCE,
@@ -378,7 +375,7 @@ describe("subjectFromJwt", () => {
     expect(denied.principal).toBeNull();
     expect(events[0]?.cause).toBe("malformed");
 
-    const resolver = createJwtSubjectResolver({
+    const resolver = jwtSubjectResolver({
       jwks: PUBLIC_JWKS,
       issuer: ISSUER,
       audience: AUDIENCE,
@@ -401,7 +398,7 @@ describe("subjectFromJwt", () => {
     expect(subject.principal?.id).toBe("u_1");
     expect(subject.principal?.claims).toBeUndefined();
     expect(() =>
-      createJwtSubjectResolver({
+      jwtSubjectResolver({
         jwks: PUBLIC_JWKS,
         issuer: ISSUER,
         claims: { id: "__proto__.id" },
@@ -567,7 +564,7 @@ describe("configuration and remaining causes", () => {
       }),
     ).toThrow(/https/);
     expect(() =>
-      createJwtSubjectResolver({
+      jwtSubjectResolver({
         jwks: PUBLIC_JWKS,
         issuer: ISSUER,
         profile: "fapi2",
@@ -575,18 +572,18 @@ describe("configuration and remaining causes", () => {
       }),
     ).toThrow(/sender constraint/);
     expect(() =>
-      createJwtSubjectResolver({
+      jwtSubjectResolver({
         jwks: PUBLIC_JWKS,
       }),
     ).toThrow(/issuer is required/);
     expect(() =>
-      createJwtSubjectResolver({
+      jwtSubjectResolver({
         jwks: PUBLIC_JWKS,
         issuer: ISSUER,
       }),
     ).toThrow(/audience is required/);
     expect(() =>
-      createJwtSubjectResolver({
+      jwtSubjectResolver({
         jwks: PUBLIC_JWKS,
         issuer: ISSUER,
         audience: false,

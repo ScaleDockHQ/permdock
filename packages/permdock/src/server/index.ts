@@ -51,7 +51,7 @@ export type {
   RunTicketFailureCause,
   RunTicketInput,
   RunTicketSubjectOptions,
-  SignRunTicketOptions,
+  RunTicketOptions,
 } from "./run-ticket.ts";
 export {
   signSupportSession,

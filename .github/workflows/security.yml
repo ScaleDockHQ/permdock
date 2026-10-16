@@ -97,8 +97,11 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Verifies the lockfile's packages; nothing needs to be installed.
       - uses: $/.github/actions/setup
         if: steps.lockfile.outputs.changed == 'true'
+        with:
+          install: "false"
 
       - name: pnpm audit signatures
         if: steps.lockfile.outputs.changed == 'true'

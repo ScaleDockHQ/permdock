@@ -15,11 +15,12 @@ import {
   scopeIdOf,
   tenantOf,
 } from "./scopes.ts";
+import { epochSeconds } from "./time.ts";
 
 export { activeFor };
 
 export function nowSeconds(now?: number): number {
-  return now ?? Date.now() / 1000;
+  return now ?? epochSeconds();
 }
 
 export function isMembershipExpired(

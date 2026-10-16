@@ -1,5 +1,5 @@
 import type {
-  DefinePermissionsOptions,
+  PermissionsOptions,
   Permission,
   PermissionTree,
   RegistryTree,
@@ -30,7 +30,7 @@ import {
 
 type BuildContext = {
   readonly former: ReadonlyMap<string, readonly string[]>;
-  readonly x: DefinePermissionsOptions<unknown, unknown>["x"];
+  readonly x: PermissionsOptions<unknown, unknown>["x"];
 };
 
 function materialiseResource(

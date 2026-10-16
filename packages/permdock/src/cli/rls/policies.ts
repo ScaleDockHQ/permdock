@@ -1,12 +1,8 @@
+import type { CompiledBranch, CompiledPolicy } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { sole } from "../../core/compact.ts";
-import {
-  type CompiledBranch,
-  type CompiledPolicy,
-  branchClauses,
-  wrapSql,
-} from "../sql/compile.ts";
+import { branchClauses, wrapSql } from "../sql/clauses.ts";
 import { qualified } from "../sql/quote.ts";
 import { subjectClaimJsonSql } from "../sql/subject.ts";
 

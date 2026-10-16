@@ -18,7 +18,7 @@ import {
 import { applyApprovalVerdict } from "../approvals/store.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { compact, isRecord } from "../core/compact.ts";
-import { dateAt } from "../core/time.ts";
+import { dateAt, isoNow } from "../core/time.ts";
 import { callRpc } from "./postgrest.ts";
 import { PERMDOCK_SCHEMA } from "./sources.ts";
 
@@ -168,7 +168,7 @@ export function supabaseApprovalStore(
         p_filter: filterOf(filter),
         p_by: meta.by,
         p_note: meta.note ?? null,
-        p_now: new Date().toISOString(),
+        p_now: isoNow(),
       });
       return typeof count === "number" ? count : 0;
     },

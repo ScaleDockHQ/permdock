@@ -28,14 +28,17 @@ export type DecisionDescription = {
   readonly plans?: readonly string[];
 };
 
-const TENANT_REASONS = new Set([
+const TENANT_REASONS: ReadonlySet<string> = new Set([
   "tenant-mismatch",
   "no-membership",
   "expired-membership",
   "scope",
 ]);
 
-const DELEGATION_REASONS = new Set(["not-delegated", "no-delegation"]);
+const DELEGATION_REASONS: ReadonlySet<string> = new Set([
+  "not-delegated",
+  "no-delegation",
+]);
 
 function labelGrantee(grantee: Grantee): string {
   switch (grantee.kind) {

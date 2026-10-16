@@ -20,6 +20,7 @@ export function preset(ctx: CliContext): Command {
       },
     },
     async run({ args: parsed }) {
+      // Lazy: the implementation loads only when this command runs, not for --help.
       const { runPreset } = await import("../init.ts");
       ctx.report(runPreset(parsed._[0], parsed._[1], ctx.json));
     },

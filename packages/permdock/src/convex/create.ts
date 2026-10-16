@@ -2,7 +2,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type {
-  ConvexCtxLike,
+  ConvexContextLike,
   ConvexHandler,
   ConvexPermDock,
   ConvexPermDockContext,
@@ -95,7 +95,7 @@ export function createPermDock<
     const definition = {
       args: {},
       handler: (
-        ctx: ConvexCtxLike,
+        ctx: ConvexContextLike,
         args: Record<string, never>,
       ): Promise<unknown> => handler(ctx as TCtx, args),
     };

@@ -43,9 +43,9 @@ flowchart LR
 ### Discovery in `permdock/jwt`
 
 ```ts
-import { createJwtSubjectResolver } from "permdock/jwt";
+import { jwtSubjectResolver } from "permdock/jwt";
 
-const resolve = createJwtSubjectResolver({
+const resolve = jwtSubjectResolver({
   discovery: "https://login.example.com", // fetches /.well-known/openid-configuration, then RFC 8414
   audience: "https://api.example.com",
   algorithms: ["ES256", "PS256", "Ed25519"],

@@ -37,6 +37,8 @@ export type ExpressPermDockRequest<
 };
 
 export type ExpressPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
+  /** The `PermDock` for one request, for code the middleware does not run before. */
+  readonly getPermDock: (req: Request) => Promise<PermDock<V>>;
   readonly middleware: () => RequestHandler;
   readonly protect: (
     permission: Permission | null,
@@ -114,6 +116,7 @@ export function createPermDock<
     rebind,
     scopeOf,
     handlerScope,
+    getPermDock,
     guard: runGuard,
   } = bindKernel(policy, options, "express", toRequest);
 
@@ -159,6 +162,7 @@ export function createPermDock<
   };
 
   return {
+    getPermDock,
     middleware,
     protect,
     errorHandler,

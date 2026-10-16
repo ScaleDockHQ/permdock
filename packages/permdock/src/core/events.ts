@@ -16,6 +16,7 @@ import { eventInstant } from "./event-time.ts";
 import { freezeDeep } from "./freeze.ts";
 import { getResource } from "./permission-registry.ts";
 import { isThenable } from "./thenable.ts";
+import { isoNow } from "./time.ts";
 import { toWireDelegation } from "./wire-delegation.ts";
 import { wireDenials } from "./wire-denial.ts";
 
@@ -150,7 +151,7 @@ export function finish(
   const event: DecisionEvent = freezeDeep(
     compact<DecisionEvent>({
       type: "decision" as const,
-      at: new Date().toISOString(),
+      at: isoNow(),
       outcome: decision.outcome,
       permission: permission.key,
       scope: permission.scope,

@@ -4,6 +4,7 @@ import type { CustomRole, Principal, Subject } from "./subject.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
 import { compact } from "./compact.ts";
+import { byCodePoint } from "./compare.ts";
 import {
   type CustomGrant,
   ceilingGrants,
@@ -329,7 +330,7 @@ function assignableCustomRoles(
     }
   }
   return {
-    roles: [...out.values()].toSorted((a, b) => a.key.localeCompare(b.key)),
+    roles: [...out.values()].toSorted((a, b) => byCodePoint(a.key, b.key)),
     inert: [...inert].filter((name) => !out.has(name)).toSorted(),
   };
 }

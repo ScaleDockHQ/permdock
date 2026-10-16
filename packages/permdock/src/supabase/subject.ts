@@ -24,7 +24,7 @@ import {
 import { validateRecord } from "../core/thenable.ts";
 import { supabaseTenantClaim } from "./budget.ts";
 
-const REGISTERED = new Set([
+const REGISTERED: ReadonlySet<string> = new Set([
   "sub",
   "role",
   "iss",

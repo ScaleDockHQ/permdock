@@ -5,11 +5,11 @@
 
 ## Context
 
-The standard `installCommand` is `pnpm install --frozen-lockfile --filter '{.}...'`. Vercel's bundled pnpm fails the root `devEngines` check for pnpm 12.8.1, and Turborepo spawns `pnpm` for every task during the build.
+The standard `installCommand` is `pnpm install --frozen-lockfile --filter '{.}...'`. Vercel's bundled pnpm fails the root `devEngines` pnpm check, and Turborepo spawns `pnpm` for every task during the build.
 
 ## Decision
 
-`installCommand` activates pnpm 12.8.1 with Corepack before the filtered install, and adds `--include-workspace-root`. `buildCommand` puts a Corepack `pnpm` shim first on `PATH`, then runs `turbo run build --filter=<service>`.
+`installCommand` activates the `devEngines` pnpm version (`vercel.json` names it) with Corepack before the filtered install, and adds `--include-workspace-root`. `buildCommand` puts a Corepack `pnpm` shim first on `PATH`, then runs `turbo run build --filter=<service>`.
 
 ## Consequences
 

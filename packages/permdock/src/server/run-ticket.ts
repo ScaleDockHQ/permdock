@@ -16,9 +16,10 @@ import type { Instant } from "../core/time.ts";
 
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { isId } from "../core/ids.ts";
 import { isForbiddenKey, ownRecord } from "../core/paths.ts";
 import { anonymousSubject } from "../core/subject.ts";
-import { nowSeconds } from "../core/time.ts";
+import { epochSeconds, nowSeconds } from "../core/time.ts";
 import {
   fromWireDelegation,
   toWireDelegation,
@@ -87,7 +88,7 @@ export type RunTicketInput = {
   readonly expiresAt?: Instant;
 };
 
-export type SignRunTicketOptions = {
+export type RunTicketOptions = {
   readonly audience?: string | readonly string[];
   readonly now?: Instant;
 };
@@ -144,17 +145,10 @@ export type RunPrincipal = Principal & { readonly runTicket: RunTicket };
 type RunBody = Omit<RunTicket, "iss" | "aud" | "jti" | "iat" | "exp">;
 
 const RUN_KINDS: readonly RunKind[] = ["automation", "job", "caller"];
-const MAX_ID = 256;
 const MAX_ACT_DEPTH = 8;
 const MAX_JSON_DEPTH = 16;
 const MAX_JSON_ENTRIES = 256;
 const MAX_TOOLS = 64;
-
-function isId(value: unknown): value is string {
-  return (
-    typeof value === "string" && value.length > 0 && value.length <= MAX_ID
-  );
-}
 
 function isRunKind(value: unknown): value is RunKind {
   return RUN_KINDS.some((kind) => kind === value);
@@ -438,7 +432,7 @@ function invalid(message: string): never {
 export function signRunTicket(
   input: RunTicketInput,
   signer: TokenSigner,
-  options: SignRunTicketOptions = {},
+  options: RunTicketOptions = {},
 ): Promise<string> {
   const issuedAt = nowSeconds(options.now);
   const expiresAt = expiryOf(input, issuedAt);
@@ -642,7 +636,7 @@ export async function subjectFromRunTicket(
   if (ticket === undefined) {
     return deny("invalid-claims");
   }
-  if (ticket.exp <= Date.now() / 1000) {
+  if (ticket.exp <= epochSeconds()) {
     return deny("expired");
   }
   const automation = await checkAutomation(ticket, options.automations);

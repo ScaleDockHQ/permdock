@@ -1,6 +1,6 @@
 import type { Permission, PermissionTree } from "./permission-types.ts";
 import type {
-  DefinePolicyOptions,
+  PolicyOptions,
   DelegationInput,
   DelegationTarget,
   PolicyDelegation,
@@ -9,6 +9,7 @@ import type {
 import type { Principal } from "./subject.ts";
 
 import { compact } from "./compact.ts";
+import { byCodePoint } from "./compare.ts";
 import { flattenPermissions } from "./grant-builders.ts";
 import { asGrantee, flattenGrantee } from "./grantee.ts";
 import { annotationsFor } from "./permission-leaf.ts";
@@ -115,7 +116,7 @@ function isScopeToken(value: string): boolean {
 }
 
 export function normalizeOAuthScopes(
-  input: DefinePolicyOptions<unknown, Principal>["oauthScopes"],
+  input: PolicyOptions<unknown, Principal>["oauthScopes"],
   tree: PermissionTree,
 ): readonly PolicyOAuthScope[] {
   if (input === undefined) {
@@ -148,7 +149,7 @@ export function normalizeOAuthScopes(
       throw new Error(`PermDock: oauthScopes '${scope}' covers no permission`);
     }
     const sorted = [...leaves.values()].toSorted((a, b) =>
-      a.key.localeCompare(b.key),
+      byCodePoint(a.key, b.key),
     );
     return {
       scope,

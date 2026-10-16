@@ -16,6 +16,7 @@ import {
   ROLES_EXTENSION,
   USER_SCHEMA,
 } from "../../src/scim/types.ts";
+import { MAX_BODY_BYTES } from "../../src/server/body-text.ts";
 
 const TOKEN = "scim-secret";
 const TENANT = "o_acme";
@@ -387,6 +388,22 @@ describe("scimHandler writes", () => {
       await handle(call("/Users", { method: "POST", raw: "" })),
       400,
       "invalidSyntax",
+    );
+  });
+
+  it("refuses a body over 1 MiB with 413", async () => {
+    const { handle, store } = setup();
+    const request = call("/Users", {
+      method: "POST",
+      raw: JSON.stringify({
+        schemas: [USER_SCHEMA],
+        userName: "x".repeat(MAX_BODY_BYTES),
+      }),
+    });
+    const response = await handle(request);
+    expect(response.status).toBe(413);
+    await expect(store.findUsers(TENANT, undefined, {})).resolves.toMatchObject(
+      { totalResults: 0 },
     );
   });
 

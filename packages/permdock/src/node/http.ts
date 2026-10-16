@@ -99,8 +99,6 @@ export async function sendResponse(
   res.end(body);
 }
 
-export const fromResponse: typeof sendResponse = sendResponse;
-
 export function isServerResponse(value: unknown): value is ServerResponse {
   return (
     typeof value === "object" &&

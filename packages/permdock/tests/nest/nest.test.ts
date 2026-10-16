@@ -7,6 +7,7 @@ import { APP_GUARD, NestFactory } from "@nestjs/core";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createPermDock } from "../../src/nest/index.ts";
+import { listen as serve } from "../fakes/server.ts";
 import {
   memberUser,
   otherPost,
@@ -154,5 +155,30 @@ describe("permdock/nest", () => {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
     expect(body.evaluations[0]?.decision).toBe(true);
+  });
+});
+
+describe("permdock/nest getPermDock", () => {
+  it("builds the request's instance outside the guard", async () => {
+    const { getPermDock } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const request = await serve(async (req, res) => {
+      const permdock = await getPermDock(req);
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({
+          id: permdock.subject.principal?.id,
+          own: permdock.can(permissions.post.update, ownPost),
+          other: permdock.can(permissions.post.update, otherPost),
+        }),
+      );
+    });
+    const response = await request("/");
+    expect(await response.json()).toEqual({
+      id: "u1",
+      own: true,
+      other: false,
+    });
   });
 });

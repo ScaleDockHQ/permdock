@@ -16,6 +16,8 @@ import { problemType, statusProblem } from "../core/problem-types.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { sha256Digest } from "../core/sha256.ts";
 import { nowMillis } from "../core/time.ts";
+import { readBodyText } from "../server/body-text.ts";
+import { bodyTooLarge } from "../server/body.ts";
 import { hasCredentials } from "../server/http.ts";
 import {
   methodNotAllowed,
@@ -452,26 +454,20 @@ type NoteRead = {
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_NOTE_LENGTH = 2000;
 
-function tooLarge(): Response {
-  return problem(413, `request body exceeds ${String(MAX_BODY_BYTES)} bytes`);
-}
-
 /** An unreadable body is no note; an oversized body or note is refused, never truncated. */
 async function readNote(request: Request): Promise<NoteRead> {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     return { text: "" };
   }
-  const declared = Number(request.headers.get("content-length") ?? 0);
-  if (declared > MAX_BODY_BYTES) {
-    return { text: "", refusal: tooLarge() };
+  const read = await readBodyText(request, MAX_BODY_BYTES);
+  if (!read.ok) {
+    return read.cause === "too-large"
+      ? { text: "", refusal: bodyTooLarge(MAX_BODY_BYTES) }
+      : { text: "" };
   }
-  let text = "";
+  const { text } = read;
   try {
-    text = await request.text();
-    if (text.length > MAX_BODY_BYTES) {
-      return { text, refusal: tooLarge() };
-    }
     const body: unknown = JSON.parse(text);
     if (
       body !== null &&

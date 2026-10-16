@@ -5,6 +5,7 @@ import type { SupportSessionSource } from "../../server/index.ts";
 import type { ApprovalWaiter } from "../../workflow/index.ts";
 
 import { parseAutomation } from "../../core/automation.ts";
+import { nowMillis } from "../../core/time.ts";
 
 async function automationOf(
   source: AutomationSource,
@@ -215,7 +216,7 @@ export function testApprovalWaiter(
   if (options.expiry !== false) {
     it("ends a wait whose expiresAt has passed", async () => {
       const waiting = waiter.wait(await pending("expired"), {
-        expiresAt: { epochMilliseconds: Date.now() - 1000 },
+        expiresAt: { epochMilliseconds: nowMillis() - 1000 },
       });
       expect(await settlesWithin(waiting, timeout)).toBe(true);
       await expect(waiting).resolves.toBeUndefined();

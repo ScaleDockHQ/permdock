@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { site } from "@/lib/site";
+import { publishedPosts } from "@/lib/source";
 
 const routes = [
   "",
@@ -13,5 +14,8 @@ const routes = [
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return routes.map((path) => ({ url: `${site.url}${path}` }));
+  return [
+    ...routes.map((path) => ({ url: `${site.url}${path}` })),
+    ...publishedPosts().map((post) => ({ url: `${site.url}${post.url}` })),
+  ];
 }

@@ -83,6 +83,10 @@ export type OrpcPermDock<
   TCtx extends object = object,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
+  /** The `PermDock` for one procedure call, for code the middleware does not run before. */
+  readonly getPermDock: (
+    opts: OrpcMiddlewareOpts<TCtx>,
+  ) => Promise<PermDock<V>>;
   readonly middleware: () => OrpcMiddleware<TCtx, unknown, V>;
   readonly protect: (
     permission: Permission | null,
@@ -260,6 +264,16 @@ export function createPermDock<
     return bound as PermDock<V>;
   };
 
+  const getPermDock = async (
+    opts: OrpcMiddlewareOpts<TCtx>,
+  ): Promise<PermDock<V>> => {
+    const scope = await scopeOf(opts);
+    return (
+      boundFor(opts.context, scope) ??
+      issue(await kernel.getPermDock(bind(opts), scope), scope)
+    );
+  };
+
   // SAFETY: the function has oRPC's middleware call shape; its generics cannot be inferred from it.
   const middleware = (): OrpcMiddleware<TCtx, unknown, V> =>
     ((mwOptions, input) => {
@@ -399,6 +413,7 @@ export function createPermDock<
   };
 
   return {
+    getPermDock,
     middleware,
     protect,
     connection,

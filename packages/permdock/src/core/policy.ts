@@ -2,7 +2,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { PermissionTree, ResourceNode } from "./permission-types.ts";
 import type {
-  DefinePolicyOptions,
+  PolicyOptions,
   Grant,
   MembershipFixture,
   Policy,
@@ -196,7 +196,7 @@ export function definePolicy<
   const S extends PolicyScopesInput = PolicyScopesInput,
 >(
   permissions: Input,
-  options: DefinePolicyOptions<TUser, TPrincipal, S>,
+  options: PolicyOptions<TUser, TPrincipal, S>,
 ): Policy<TUser, TPrincipal, VocabularyFromInput<Input>> {
   // SAFETY: Input is a vocabulary or a tree; each branch builds the VocabularyFromInput shape.
   const vocabulary = (
