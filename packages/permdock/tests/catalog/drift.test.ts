@@ -32,9 +32,11 @@ const scan: ScanResult = {
   unparsed: [],
 };
 
-function build(actions: readonly string[], roles: readonly string[]) {
+function build(withVoid: boolean, roles: readonly string[]) {
   const tree = definePermissions({
-    invoice: resource({ actions: [...actions] }),
+    invoice: resource({
+      actions: withVoid ? ["read", "void"] : ["read"],
+    }),
   });
   const policy = definePolicy(tree, {
     hostable: [tree.invoice],
@@ -81,7 +83,7 @@ const document: PolicyDocument = {
 
 describe("hostedGrantFindings", () => {
   it("maps each drop reason the catalog caused onto a finding", () => {
-    const { rebuilt } = build(["read"], ["finance"]);
+    const { rebuilt } = build(false, ["finance"]);
     expect(hostedGrantFindings(rebuilt, document)).toEqual([
       {
         code: "permission-removed",
@@ -98,15 +100,15 @@ describe("hostedGrantFindings", () => {
   });
 
   it("has nothing to report without a document", () => {
-    const { rebuilt } = build(["read"], ["finance"]);
+    const { rebuilt } = build(false, ["finance"]);
     expect(hostedGrantFindings(rebuilt, null)).toEqual([]);
   });
 });
 
 describe("catalogDrift", () => {
   it("returns drift event data that parses as CatalogEventData", () => {
-    const before = build(["read", "void"], ["finance", "auditor"]);
-    const after = build(["read"], ["finance"]);
+    const before = build(true, ["finance", "auditor"]);
+    const after = build(false, ["finance"]);
     const data = catalogDrift({
       previous: before.catalog,
       next: after.catalog,
