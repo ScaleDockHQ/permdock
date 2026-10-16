@@ -2,11 +2,8 @@ import type { Policy, ResourceNode } from "../../index.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { flattenGrantee } from "../../core/grantee.ts";
-import {
-  type CompiledBranch,
-  branchClauses,
-  tableFor,
-} from "../sql/compile.ts";
+import { branchClauses } from "../sql/clauses.ts";
+import { type CompiledBranch, tableFor } from "../sql/compile.ts";
 import { graphSqlName } from "../sql/names.ts";
 import {
   qualified,

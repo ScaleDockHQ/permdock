@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import type { Instant } from "../../src/core/time.ts";
 
-import { branchClauses, compileGrants } from "../../src/cli/sql/compile.ts";
+import { branchClauses } from "../../src/cli/sql/clauses.ts";
+import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,

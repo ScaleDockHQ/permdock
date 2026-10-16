@@ -1,13 +1,9 @@
 import type { Policy } from "../../index.ts";
+import type { CompiledBranch } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { jsonSchemaOf } from "../catalog-doc.ts";
-import {
-  type CompiledBranch,
-  andSql,
-  branchClauses,
-  wrapSql,
-} from "../sql/compile.ts";
+import { andSql, branchClauses, wrapSql } from "../sql/clauses.ts";
 import {
   helperSchema,
   quoteIdent,
