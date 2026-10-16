@@ -102,7 +102,7 @@ const rows = await evaluateBatch(body.evaluations, semantic, (item) =>
 - Search endpoints return the permitted subset; an empty page is the denial. Resource search filters the rows `resources.<type>.list` yields in memory and returns each as a `{ type, id }` entity, reading `id` from the resource's `id` field and dropping rows without one. Subject search answers only for `subject.type` `user` (or no type). Pagination follows the AuthZEN `page` object: the request's `page.limit` (default 50, at most 200) and `page.token`, the response's offset `next_token` (empty on the last page), `count` and `total`.
 - Discovery at `/.well-known/authzen-configuration/<path>` names `<origin>/<path>` as `policy_decision_point` and lists every endpoint beneath it, so a path-qualified PDP identifier resolves to its own metadata.
 - Every response echoes the request's `X-Request-ID` header, on `permdock/authzen` and on `permdockHandler` alike.
-- Transport errors use RFC 9457 Problem Details (`400`, `401`, `413` for oversized batches).
+- Transport errors use RFC 9457 Problem Details (`400`, `401`, `413` for a batch over the limit or a body over 1 MiB, counted in bytes whatever `Content-Length` says).
 
 ## Why
 

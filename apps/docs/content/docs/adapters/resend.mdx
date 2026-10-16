@@ -63,7 +63,7 @@ export const POST = resendWebhook({
 });
 ```
 
-- **Verification.** `resend.webhooks.verify` checks the `svix-*` (or `webhook-*`) signature headers. A missing header answers 400 and a bad signature 403 Problem Details (no 401: a webhook has no scheme for the `WWW-Authenticate` header RFC 9110 requires with it), a body over 1 MB 413, and any method but POST 405.
+- **Verification.** `resend.webhooks.verify` checks the `svix-*` (or `webhook-*`) signature headers. A missing header answers 400 and a bad signature 403 Problem Details (no 401: a webhook has no scheme for the `WWW-Authenticate` header RFC 9110 requires with it), a body over 1,000,000 bytes 413, and any method but POST 405.
 - **Replays.** Each webhook id is claimed in the `ReplayStore` for 600 seconds. A repeat answers 200 and writes nothing.
 - **Events.** `email.delivered`, `email.bounced`, `email.complained`, `email.failed` and `email.suppressed` become `delivery` events with the delivery id, key and category from the tags, and `provider { name: 'resend', id }`. Opens, clicks, sends and mail without PermDock tags write nothing.
 - **Sink failures.** A sink that throws releases the claim and answers 503, so Resend retries.

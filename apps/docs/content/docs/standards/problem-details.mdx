@@ -25,7 +25,7 @@ Model readability is a design goal: an agent that receives a 403 should be able 
 
 `assert` runs layered unauthorized handlers and rethrows `PermDockDeniedError` or `PermDockApprovalRequiredError`; the [server kernel](/docs/adapters/server-kernel) converts those errors into `application/problem+json` with the status `protect` sends for the same decision: 401 for no subject or a missing step-up, 404 for a hidden row, 429 for an exhausted limit, 503 for an unavailable limit store, 403 otherwise.
 
-PermDock defines a `type` URI only where `about:blank` says too little: the nine types under [Problem types](#problem-types). Every other answer is `about:blank`, with the RFC 9110 reason phrase as `title` (RFC 9457 section 4.2.1). That covers 401 without a step-up, 404 for an unknown path, a missing row or a hidden one, 405 (sent with `Allow`), 409, 412, 413 for an oversized `evaluations` batch, and 500 when an approval store throws:
+PermDock defines a `type` URI only where `about:blank` says too little: the nine types under [Problem types](#problem-types). Every other answer is `about:blank`, with the RFC 9110 reason phrase as `title` (RFC 9457 section 4.2.1). That covers 401 without a step-up, 404 for an unknown path, a missing row or a hidden one, 405 (sent with `Allow`), 409, 412, 413 for an oversized `evaluations` batch or a request body over its byte cap, and 500 when an approval store throws:
 
 ```json
 {
