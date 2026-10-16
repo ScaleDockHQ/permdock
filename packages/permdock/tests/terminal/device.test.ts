@@ -156,6 +156,23 @@ describe("runDeviceFlow (RFC 8628)", () => {
     expect(http.calls).toHaveLength(1);
   });
 
+  it("returns null when the authorization response runs past 1 MiB", async () => {
+    const padded = { ...AUTHORIZATION, pad: "x".repeat(1_048_576) };
+    const huge = new Response(JSON.stringify(padded), {
+      headers: { "content-type": "application/json" },
+    });
+    const http = fakeFetch(() => huge);
+    const clock = fakeClock(0);
+    expect(
+      await runDeviceFlow(
+        DEVICE,
+        { fetch: http.fetch, sleep: clock.sleep, now: clock.instant },
+        () => undefined,
+      ),
+    ).toBeNull();
+    expect(http.calls).toHaveLength(1);
+  });
+
   it("fails closed when the network fails at any step", async () => {
     const clock = fakeClock(0);
     for (const failing of ["/device", "/token"]) {

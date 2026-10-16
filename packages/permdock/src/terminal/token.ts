@@ -8,6 +8,7 @@ import type {
 
 import { secondsAt } from "../core/time.ts";
 import { timeoutSignal } from "../core/timeout.ts";
+import { readBodyText } from "../server/body-text.ts";
 import {
   TERMINAL_TIMEOUT_MS,
   refreshCredential,
@@ -94,7 +95,8 @@ async function fromCiOidc(
         },
         signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
       });
-      const body: unknown = await response.json();
+      const text = await readBodyText(response);
+      const body: unknown = text.ok ? JSON.parse(text.text) : null;
       if (
         body !== null &&
         typeof body === "object" &&

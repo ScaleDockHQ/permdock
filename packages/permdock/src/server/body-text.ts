@@ -6,12 +6,12 @@ export type BodyText =
   | { readonly ok: false; readonly cause: "too-large" | "unreadable" };
 
 /**
- * The request body as UTF-8 text, read until `maxBytes` and no further. A
+ * The request or response body as UTF-8 text, read until `maxBytes` and no further. A
  * `Content-Length` above the cap is refused before the body is touched; a body
  * that runs past the cap whatever its header says is cancelled mid-stream.
  */
 export async function readBodyText(
-  request: Request,
+  request: Request | Response,
   maxBytes: number = MAX_BODY_BYTES,
 ): Promise<BodyText> {
   const declared = request.headers.get("content-length");
