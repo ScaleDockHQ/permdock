@@ -263,7 +263,9 @@ export type TokenSigner = {
         | "vnd.permdock.support-session+jwt"
         | "vnd.permdock.evidence+jwt"
         /** RFC 9068: the `PermDock-Approver` token `cloud().approvals.resolve` sends. */
-        | "at+jwt";
+        | "at+jwt"
+        /** RFC 8417: a Security Event Token from `signSet` in `permdock/ssf`. */
+        | "secevent+jwt";
       /** `aud`; a signer with no default audience refuses to sign without one. */
       readonly audience?: string | readonly string[];
       /** `exp`, a NumericDate; one hour after `iat` when absent. */

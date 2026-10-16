@@ -46,6 +46,50 @@ receiver.poll({ endpoint: "https://login.example.com/ssf/poll", every: "30s" });
 - `revocations` (optional, a `RevocationFeed`) ends and revalidates open streams and sockets. After the handler succeeds, a verified `session-revoked` (CAEP and Back-Channel Logout) publishes `session-revoked` for the principal and `subject.session`, which aborts that session's connections; `credential-change`, `assurance-level-change` and `token-claims-change` publish `changed` for the principal, which makes every connection it holds resolve its subject again. A failed handler publishes nothing, and a throwing feed never fails the delivery.
 - `approvals` (optional, an `ApprovalStore`) lets `session-revoked` (CAEP and Back-Channel Logout) call `cancelApprovals` for the principal and `subject.session`. Pending requests are marked `rejected` with `resolvedBy: 'system:ssf'`. The receiver emits an `approvals-cancelled` audit event with the count.
 
+### Transmitter
+
+A service that emits signals uses the same entry. Each builder returns a `SetEvent`; `signSet` signs it, and `pushSet` delivers it or `setPollHandler` serves it.
+
+```ts
+import {
+  caepEvents,
+  memorySetQueue,
+  pushSet,
+  setPollHandler,
+  signSet,
+} from "permdock/ssf";
+
+const set = await signSet(
+  caepEvents.sessionRevoked({
+    subject: { format: "iss_sub", iss: issuer, sub: user.id },
+    initiatingEntity: "admin",
+  }),
+  signer,
+  { audience: stream.aud },
+);
+
+const delivery = await pushSet(set, {
+  endpoint: stream.delivery.endpoint_url,
+  authorization: stream.delivery.authorization_header,
+});
+if (!delivery.ok && delivery.retry) {
+  await retryLater(set);
+}
+
+const queue = memorySetQueue();
+await queue.enqueue(stream.stream_id, jti, set);
+export const POST = setPollHandler({
+  queue,
+  authorize: (request) => streamForBearer(request.headers.get("authorization")),
+});
+```
+
+- `signSet(event, signer, { audience, jti?, txn?, issuedAt? })` writes `sub_id`, `events` with exactly one entry, and `txn`; `iss` is the signer's own. `cloudSigner` refuses `secevent+jwt`: a SET signed with the environment's keys would read as one from the Cloud.
+- `pushSet` never throws. A `2xx` is `{ ok: true }`; a `400` maps the receiver's RFC 8935 `err` (`invalid_request`, `invalid_key`, `invalid_issuer`, `invalid_audience`, `authentication_failed`, `access_denied`) to the kebab-case `cause`; `401` and `403` are `authentication-failed` and `access-denied`; a network failure, a timeout, a `429` or a `5xx` is `unavailable` with `retry: true`.
+- `setPollHandler` applies the request's `acks` and `setErrs` to the `SetQueue`, then answers `{ sets, moreAvailable? }` with up to `maxEvents` (default and cap 100). It answers at once whatever `returnImmediately` says. `authorize` returns the stream id the caller may poll, or `null` for `401`.
+- `SetQueue` is an [extension interface](/docs/concepts/extension-interfaces): `enqueue`, `pending`, `ack` and `fail`, each per stream. `memorySetQueue()` loses its SETs on restart; more than one instance needs a shared queue.
+- `streamVerificationEvent(stream, state)` is the SSF 1.0 verification event a transmitter sends when a receiver calls its verification endpoint. `SSF_PUSH_DELIVERY` and `SSF_POLL_DELIVERY` are the delivery method URNs.
+
 ### Shared replay store
 
 ```ts
@@ -134,6 +178,7 @@ None. The receiver is exercised against the recorded Entra, Okta and Auth0 SETs 
 ## Why
 
 - **Recorded SETs, not live transmitters.** The receiver's risk is shape drift: a transmitter that puts the subject somewhere new, or a session in a `complex` identifier, turns a revocation into a silently acknowledged unknown subject. Replaying each transmitter's shape as a committed fixture catches that on every `pnpm test` without tenants, secrets or network. The signature is re-created with a test key because the transmitters' keys are private; signature verification is covered by the `permdock/jwt` suites.
+- **One SSF implementation for both roles.** The transmitter's SETs are tested against this receiver in `tests/ssf/transmitter.test.ts`, push and poll, so a SET PermDock Cloud emits is one the receiver is known to accept.
 - **Keycloak waits.** Its transmitter is experimental and the only self-hostable one, so a container suite would test a moving target. Its SETs join the fixture file once the transmitter is stable.
 
 ## Related standards
@@ -148,4 +193,4 @@ None. The receiver is exercised against the recorded Entra, Okta and Auth0 SETs 
 
 `assurance-level-change` is invalidation only. The next `subjectFrom*` carries the new `acr` / `amr`; `assurance()` on the grant decides. The event never raises a policy.
 
-The receiver does not manage streams: creating the stream at the transmitter and `add_subject` stay in the IdP console. It also pushes nothing to clients; an `onEvent` handler that has a realtime channel sends `invalidate()` itself, and server-side streams and sockets end through `revocations`.
+The receiver does not manage streams: creating the stream at the transmitter and `add_subject` stay in the IdP console. The transmitter types the stream documents (`SsfTransmitterConfiguration`, `SsfStreamConfiguration`, `SsfStreamStatus`) and leaves the stream-management routes to the service that hosts them. It also pushes nothing to clients; an `onEvent` handler that has a realtime channel sends `invalidate()` itself, and server-side streams and sockets end through `revocations`.

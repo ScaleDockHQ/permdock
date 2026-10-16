@@ -151,3 +151,143 @@ export type SsfReceiver = {
 export type SsfPermDock = {
   readonly receiver: SsfReceiver;
 };
+
+/** One event of a SET: the event-type URI, the RFC 9493 subject and the event's own claims. */
+export type SetEvent = {
+  readonly type: string;
+  readonly subject: SetSubject;
+  readonly payload: Readonly<Record<string, unknown>>;
+};
+
+/** `initiating_entity` (CAEP 1.0 section 2). */
+export type CaepInitiatingEntity = "admin" | "user" | "policy" | "system";
+
+/** A reason as text, or a map of language tag to text (CAEP 1.0 section 2). */
+export type CaepReason = string | Readonly<Record<string, string>>;
+
+/** The CAEP 1.0 common claims every event builder accepts. */
+export type CaepCommon = {
+  readonly subject: SetSubject;
+  /** NumericDate seconds the event happened at; the signing time when absent. */
+  readonly eventTimestamp?: number;
+  readonly initiatingEntity?: CaepInitiatingEntity;
+  readonly reasonAdmin?: CaepReason;
+  readonly reasonUser?: CaepReason;
+};
+
+export type SignSetOptions = {
+  /** `aud`: the receiver the stream delivers to. */
+  readonly audience: string | readonly string[];
+  /** `jti`; a fresh UUID when absent. */
+  readonly jti?: string;
+  /** `txn` (RFC 8417 section 2.2): ties SETs from one transaction together. */
+  readonly txn?: string;
+  /** `iat`, NumericDate seconds; the signer's clock when absent. */
+  readonly issuedAt?: number;
+};
+
+/** Why `pushSet` did not deliver: the RFC 8935 `err` code in kebab case, or a transport failure. */
+export type SetDeliveryFailureCause =
+  | "invalid-request"
+  | "invalid-key"
+  | "invalid-issuer"
+  | "invalid-audience"
+  | "authentication-failed"
+  | "access-denied"
+  | "unavailable";
+
+export type SetDelivery =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly cause: SetDeliveryFailureCause;
+      readonly description?: string;
+      /** `true` when the same SET may be pushed again: a network failure, a timeout or a `5xx`. */
+      readonly retry: boolean;
+    };
+
+export type PushSetOptions = {
+  /** The receiver's RFC 8935 push endpoint, the stream's `delivery.endpoint_url`. */
+  readonly endpoint: string;
+  /** The `Authorization` header value, the stream's `delivery.authorization_header`. */
+  readonly authorization?: string;
+  readonly fetch?: typeof fetch;
+  readonly signal?: AbortSignal;
+};
+
+/** A receiver's report that one SET failed (RFC 8936 section 2.4 `setErrs`). */
+export type SetError = {
+  readonly err: string;
+  readonly description: string;
+};
+
+/**
+ * The SETs a transmitter holds for RFC 8936 poll delivery, per stream. A SET
+ * stays pending until the receiver acknowledges it or reports it failed.
+ */
+export type SetQueue = {
+  /** Names the implementation in errors and events. */
+  readonly name?: string;
+  enqueue(stream: string, jti: string, set: string): void | Promise<void>;
+  /** Up to `max` pending SETs, oldest first. */
+  pending(
+    stream: string,
+    max: number,
+  ):
+    | readonly { readonly jti: string; readonly set: string }[]
+    | Promise<readonly { readonly jti: string; readonly set: string }[]>;
+  ack(stream: string, jti: string): void | Promise<void>;
+  fail(stream: string, jti: string, error: SetError): void | Promise<void>;
+};
+
+export type SetPollHandlerOptions = {
+  readonly queue: SetQueue;
+  /** The stream id the request's credentials may poll, or `null` to refuse it with `401`. */
+  readonly authorize: (
+    request: Request,
+  ) => string | null | Promise<string | null>;
+  /** The largest `maxEvents` honoured; default 100. */
+  readonly maxEvents?: number;
+};
+
+/** SSF 1.0 section 7.1: the document at `/.well-known/ssf-configuration`. */
+export type SsfTransmitterConfiguration = {
+  readonly spec_version?: string;
+  readonly issuer: string;
+  readonly jwks_uri?: string;
+  readonly delivery_methods_supported?: readonly string[];
+  readonly configuration_endpoint?: string;
+  readonly status_endpoint?: string;
+  readonly add_subject_endpoint?: string;
+  readonly remove_subject_endpoint?: string;
+  readonly verification_endpoint?: string;
+  readonly critical_subject_members?: readonly string[];
+  readonly authorization_schemes?: readonly { readonly spec_urn: string }[];
+  readonly default_subjects?: "ALL" | "NONE";
+};
+
+/** SSF 1.0 section 8.1.1: one stream as the configuration endpoint returns it. */
+export type SsfStreamConfiguration = {
+  readonly stream_id: string;
+  readonly iss: string;
+  readonly aud: string | readonly string[];
+  readonly events_supported?: readonly string[];
+  readonly events_requested?: readonly string[];
+  readonly events_delivered?: readonly string[];
+  readonly delivery: {
+    /** `urn:ietf:rfc:8935` (push) or `urn:ietf:rfc:8936` (poll). */
+    readonly method: string;
+    readonly endpoint_url?: string;
+    readonly authorization_header?: string;
+  };
+  readonly min_verification_interval?: number;
+  readonly inactivity_timeout?: number;
+  readonly description?: string;
+};
+
+/** SSF 1.0 section 8.1.2: a stream's status. */
+export type SsfStreamStatus = {
+  readonly stream_id: string;
+  readonly status: "enabled" | "paused" | "disabled";
+  readonly reason?: string;
+};
