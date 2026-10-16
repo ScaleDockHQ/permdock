@@ -1073,6 +1073,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
       oxlint:
         specifier: 'catalog:'
         version: 1.88.0(oxlint-tsgolint@7.0.2004)
@@ -1082,6 +1085,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(@vitest/coverage-v8@5.0.5)(happy-dom@20.14.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
 
   apps/examples/better-auth:
     dependencies:
@@ -1326,6 +1332,9 @@ importers:
 
   apps/examples/eve-agent:
     dependencies:
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
       permdock:
         specifier: workspace:*
         version: link:../../../packages/permdock
@@ -1351,6 +1360,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(@vitest/coverage-v8@5.0.5)(happy-dom@20.14.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
 
   apps/examples/expo:
     dependencies:

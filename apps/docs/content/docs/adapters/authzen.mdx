@@ -110,7 +110,7 @@ An AuthZEN PEP is another party: a gateway, a service in another language, somet
 
 ## Example app
 
-`apps/examples/authzen-pdp`: `node:http` wrapper around the Fetch handler `permdockHandler()` returns, on `127.0.0.1:3470`. `GET /health`. `POST /access/v1/evaluation` with `Authorization: Bearer test` grants `post.update` on the member's own post and denies `post.publish`.
+`apps/examples/authzen-pdp`: `node:http` wrapper around the Fetch handler `permdockHandler()` returns, on `127.0.0.1:3470`. `GET /health`. `POST /access/v1/evaluation` with `Authorization: Bearer test` grants `post.update` on the member's own post and denies `post.publish`. `src/pep.ts` is the PEP half: `remotePdp` against that PDP, authenticated as the one caller `trustedPep` lets name the subject. `src/pep-cloud.ts` points the same PEP at the [hosted ADS](/docs/adapters/cloud#hosted-authorization-decision-service) with OAuth client credentials. `tests/parity.test.ts` runs the policy matrix locally, then every cell through the PEP; with the `PERMDOCK_CLOUD_*` variables set it also runs every cell through the hosted ADS and `testCloudApi` against the environment.
 
 ## Related standards
 

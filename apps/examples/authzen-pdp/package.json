@@ -7,6 +7,7 @@
     "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "node src/serve.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -18,8 +19,10 @@
     "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "jose": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
