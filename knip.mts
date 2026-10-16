@@ -21,12 +21,8 @@ const config: KnipConfig = {
       ignoreDependencies: ["shiki"],
     },
     "apps/marketing": {
-      // shadcn and ReUI registry code is vendored whole, used or not; the
-      // @permdock recipes are registry sources shadcn build reads.
-      entry: [
-        "components/{blocks,examples}/**/*.{ts,tsx}",
-        "registry/**/*.tsx",
-      ],
+      // The @permdock recipes are registry sources shadcn build reads.
+      entry: ["registry/**/*.tsx"],
       // The -native recipes import React Native Reusables, stubbed by registry/types.
       ignoreUnresolved: ["@/components/ui/button", "@/components/ui/text"],
     },

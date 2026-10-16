@@ -17,7 +17,7 @@ export type StepKind =
 
 /** The reference vocabulary for every kind. A real step overrides both strings
     with its own artifact; the pairing of label and summary is what to copy. */
-export const KIND_LABEL = {
+const KIND_LABEL = {
   thinking: { label: "Thinking", summary: "Thought for 8s" },
   searching_web: { label: "Searching the web", summary: "6 sources, 3 read" },
   browsing: {
@@ -172,7 +172,7 @@ export const START_AT = 2
 
 /** A run blocked on a person is not a working run. These two kinds render
     static: no spinner, no shimmer, and the composer offers Stop, not this. */
-export const BLOCKED_KINDS: StepKind[] = ["waiting_approval", "waiting_answer"]
+const BLOCKED_KINDS: StepKind[] = ["waiting_approval", "waiting_answer"]
 
 export function isBlocked(kind: StepKind) {
   return BLOCKED_KINDS.includes(kind)
