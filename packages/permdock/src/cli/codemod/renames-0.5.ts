@@ -448,6 +448,76 @@ const rows: readonly Rename[] = [
     entries: ["permdock", ...SERVER_ADAPTERS],
     kind: "method",
   },
+  // Repo standard 1.13 renames
+  {
+    from: "DefinePermissionsOptions",
+    to: "PermissionsOptions",
+    entries: ["permdock"],
+    kind: "type",
+  },
+  {
+    from: "SignCapabilityOptions",
+    to: "CapabilityOptions",
+    entries: ["permdock"],
+    kind: "type",
+  },
+  {
+    from: "SignRunTicketOptions",
+    to: "RunTicketOptions",
+    entries: ["permdock/server"],
+    kind: "type",
+  },
+  {
+    from: "StartAccessReviewOptions",
+    to: "AccessReviewOptions",
+    entries: ["permdock/approvals"],
+    kind: "type",
+  },
+  {
+    from: "StartAutomationOptions",
+    to: "AutomationOptions",
+    entries: ["permdock/workflow", "permdock/workflow-sdk"],
+    kind: "type",
+  },
+  {
+    from: "VerifyWebhookOptions",
+    to: "WebhookOptions",
+    entries: ["permdock/cloud"],
+    kind: "type",
+  },
+  {
+    from: "UseRolesOptions",
+    to: "RolesOptions",
+    entries: ["permdock/vue", "permdock/svelte", "permdock/solid"],
+    kind: "type",
+  },
+  {
+    from: "ConvexCtxLike",
+    to: "ConvexContextLike",
+    entries: ["permdock/convex"],
+    kind: "type",
+  },
+  {
+    from: "createJwtSubjectResolver",
+    to: "jwtSubjectResolver",
+    entries: ["permdock/jwt"],
+  },
+  {
+    from: "createClerkSubjectResolver",
+    to: "clerkSubjectResolver",
+    entries: ["permdock/clerk"],
+  },
+  {
+    from: "fromResponse",
+    to: "sendResponse",
+    entries: ["permdock/node"],
+  },
+  {
+    from: "fromResponse",
+    to: "send",
+    entries: ["permdock/node"],
+    kind: "method",
+  },
 ];
 
 /** Every 0.5.0 rename, one row per `from` and target. */

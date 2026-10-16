@@ -43,9 +43,9 @@ The profile also gives PermDock a concrete, externally defined bar for "high sec
 
 ```ts
 import { createPermDock } from "permdock/hono";
-import { createJwtSubjectResolver } from "permdock/jwt";
+import { jwtSubjectResolver } from "permdock/jwt";
 
-const resolve = createJwtSubjectResolver({
+const resolve = jwtSubjectResolver({
   jwks: new URL("https://as.bank.example/.well-known/jwks.json"),
   issuer: "https://as.bank.example",
   audience: "https://api.bank.example",

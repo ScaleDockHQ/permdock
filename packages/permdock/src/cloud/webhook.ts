@@ -94,7 +94,7 @@ export type PermDockCloudEvent =
       DeliveryEvent
     >;
 
-export type VerifyWebhookOptions = {
+export type WebhookOptions = {
   /**
    * A verifier to reuse across deliveries, so the JWKS is fetched once;
    * built from `jwks`, `secret`, `replay`, `tolerance` and `now` when absent.
@@ -135,9 +135,7 @@ export function parseCloudEvent(value: unknown): PermDockCloudEvent | null {
   return parseCoreCloudEvent(value) as PermDockCloudEvent | null;
 }
 
-function verifierFor(
-  options: VerifyWebhookOptions,
-): WebhookVerifier | undefined {
+function verifierFor(options: WebhookOptions): WebhookVerifier | undefined {
   if (options.verifier !== undefined) {
     return options.verifier;
   }
@@ -186,7 +184,7 @@ function eventsOf(body: string): readonly PermDockCloudEvent[] | null {
  */
 export async function verifyWebhook(
   request: Request,
-  options: VerifyWebhookOptions,
+  options: WebhookOptions,
 ): Promise<VerifiedWebhook> {
   const verifier = verifierFor(options);
   if (verifier === undefined) {

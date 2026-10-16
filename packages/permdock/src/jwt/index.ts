@@ -15,7 +15,7 @@ export { memoryReplayStore } from "../ssf/replay.ts";
 export type { ReplayStore } from "../ssf/types.ts";
 export { subjectFromIntrospection } from "./introspection.ts";
 export { joseTokenSigner } from "./signer.ts";
-export { createJwtSubjectResolver, subjectFromJwt } from "./subject.ts";
+export { jwtSubjectResolver, subjectFromJwt } from "./subject.ts";
 export type {
   DiscoveryInput,
   DpopProofResult,

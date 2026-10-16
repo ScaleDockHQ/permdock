@@ -16,7 +16,7 @@ export { startAccessReview } from "./access-reviews/start.ts";
 export type {
   AccessReviewHolder,
   StartAccessReviewInput,
-  StartAccessReviewOptions,
+  AccessReviewOptions,
 } from "./access-reviews/start.ts";
 export {
   memoryAccessReviewStore,

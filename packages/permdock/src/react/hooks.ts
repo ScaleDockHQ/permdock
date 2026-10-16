@@ -16,7 +16,7 @@ import type {
   PermissionState,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "./types.ts";
 
 import {
@@ -106,7 +106,7 @@ export function useMemberships(): readonly Membership[] {
   return useMemo(() => permdock.memberships(), [permdock]);
 }
 
-export function useRoles(options: UseRolesOptions = {}): {
+export function useRoles(options: RolesOptions = {}): {
   readonly roles: readonly Role[];
 } {
   const permdock = usePermDock();

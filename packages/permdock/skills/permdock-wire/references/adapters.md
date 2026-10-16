@@ -284,7 +284,7 @@ export const { getPermDock, protect, send, permdockHandler } = createPermDock(
 );
 ```
 
-Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Express and Nest reuse `toRequest` / `fromResponse`. The body is read only when consumed, so a body parser after `getPermDock(req)` still works. There is no error hook: wrap handlers that call `assert` and `send(res, problemFromError(error))` (from `permdock/server`) when it returns a `Response`.
+Converts `IncomingMessage` to Fetch, then delegates to `permdock/server`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. Express and Nest reuse `toRequest` / `sendResponse`. The body is read only when consumed, so a body parser after `getPermDock(req)` still works. There is no error hook: wrap handlers that call `assert` and `send(res, problemFromError(error))` (from `permdock/server`) when it returns a `Response`.
 
 ## tRPC — `permdock/trpc`
 
@@ -474,7 +474,7 @@ export const { getPermDock } = createPermDock(policy, {
 });
 ```
 
-Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API; create `createClerkSubjectResolver({ memberships: 'all', backend, cache: { ttl: 10 } })` once per process to cache each user's list (at most 30 seconds, so a removed membership grants until then). `o:` plans and features from `pla` and `fea` hold only in the session organization.
+Pass `auth()` or a verified session payload only. A plain `{ userId }` object is anonymous. `memberships: 'all'` loads organizations through the Clerk Backend API; create `clerkSubjectResolver({ memberships: 'all', backend, cache: { ttl: 10 } })` once per process to cache each user's list (at most 30 seconds, so a removed membership grants until then). `o:` plans and features from `pla` and `fea` hold only in the session organization.
 
 ## Supabase — `permdock/supabase`
 

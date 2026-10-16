@@ -1,6 +1,6 @@
 import type { Permission, PermissionTree } from "./permission-types.ts";
 import type {
-  DefinePolicyOptions,
+  PolicyOptions,
   DelegationInput,
   DelegationTarget,
   PolicyDelegation,
@@ -115,7 +115,7 @@ function isScopeToken(value: string): boolean {
 }
 
 export function normalizeOAuthScopes(
-  input: DefinePolicyOptions<unknown, Principal>["oauthScopes"],
+  input: PolicyOptions<unknown, Principal>["oauthScopes"],
   tree: PermissionTree,
 ): readonly PolicyOAuthScope[] {
   if (input === undefined) {

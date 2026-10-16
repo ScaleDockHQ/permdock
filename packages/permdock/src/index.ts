@@ -278,7 +278,7 @@ export { crud, readable, writable } from "./core/presets.ts";
 export type { MetaValue } from "./core/permissions.ts";
 export type {
   ActionMeta,
-  DefinePermissionsOptions,
+  PermissionsOptions,
   Permission,
   PermissionKind,
   PermissionTree,
@@ -479,7 +479,7 @@ export type {
   CapabilityRedeemer,
   LinkPolicy,
   LinkPolicyViolation,
-  SignCapabilityOptions,
+  CapabilityOptions,
 } from "./core/capability.ts";
 export {
   credentialDelegation,

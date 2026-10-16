@@ -4,7 +4,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 
-export type ConvexCtxLike = {
+export type ConvexContextLike = {
   readonly auth?: {
     readonly getUserIdentity?: () => Promise<unknown>;
   };
@@ -25,7 +25,7 @@ export type ConvexSubject<TCtx, TUser = unknown> = (
 export type ConvexQueryBuilder = (definition: {
   readonly args: Record<string, never>;
   readonly handler: (
-    ctx: ConvexCtxLike,
+    ctx: ConvexContextLike,
     args: Record<string, never>,
   ) => unknown;
 }) => unknown;

@@ -20,6 +20,6 @@ export { parseCloudEvent, verifyWebhook } from "./webhook.ts";
 export type {
   PermDockCloudEvent,
   VerifiedWebhook,
-  VerifyWebhookOptions,
+  WebhookOptions,
   WebhookFailureCause,
 } from "./webhook.ts";

@@ -88,7 +88,7 @@ export type RunTicketInput = {
   readonly expiresAt?: Instant;
 };
 
-export type SignRunTicketOptions = {
+export type RunTicketOptions = {
   readonly audience?: string | readonly string[];
   readonly now?: Instant;
 };
@@ -432,7 +432,7 @@ function invalid(message: string): never {
 export function signRunTicket(
   input: RunTicketInput,
   signer: TokenSigner,
-  options: SignRunTicketOptions = {},
+  options: RunTicketOptions = {},
 ): Promise<string> {
   const issuedAt = nowSeconds(options.now);
   const expiresAt = expiryOf(input, issuedAt);

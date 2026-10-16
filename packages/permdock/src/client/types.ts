@@ -60,7 +60,7 @@ export type TenantView = {
 
 export type FilterResult<T> = readonly T[] & { readonly partial: boolean };
 
-export type UseRolesOptions = {
+export type RolesOptions = {
   readonly tenant?: string;
   readonly team?: string;
 };

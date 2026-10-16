@@ -64,8 +64,6 @@ const config: KnipConfig = {
       entry: ["src/**/*.{ts,tsx}"],
     },
     "packages/permdock": {
-      // `fromResponse` is the documented alias of `sendResponse` in `permdock/node`.
-      ignoreIssues: { "src/node/http.ts": ["duplicates"] },
       entry: [
         "tests/cli/fixtures/*/permdock.config.ts",
         "tests/cli/fixtures/*/src/*.ts",

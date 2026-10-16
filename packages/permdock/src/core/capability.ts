@@ -95,7 +95,7 @@ export type LinkPolicy = {
 
 export type LinkPolicyViolation = "lifetime" | "redeemer" | "once";
 
-export type SignCapabilityOptions = {
+export type CapabilityOptions = {
   readonly audience?: string | readonly string[];
   /** `iat`; the clock when absent. */
   readonly issuedAt?: Instant;
@@ -319,7 +319,7 @@ export function capabilityOf(input: CapabilityInput): Capability {
 export function signCapability(
   input: CapabilityInput,
   signer: TokenSigner,
-  options: SignCapabilityOptions = {},
+  options: CapabilityOptions = {},
 ): Promise<string> {
   const capability = capabilityOf(input);
   const issuedAt = nowSeconds(options.issuedAt);

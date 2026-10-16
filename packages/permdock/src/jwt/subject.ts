@@ -136,7 +136,7 @@ export function subjectFromJwt(
   return resolveSubject(token, options, request);
 }
 
-export function createJwtSubjectResolver(
+export function jwtSubjectResolver(
   options: JwtSubjectOptions,
 ): (
   token: string | undefined | null,

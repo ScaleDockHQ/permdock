@@ -1,5 +1,5 @@
 import type {
-  DefinePermissionsOptions,
+  PermissionsOptions,
   InferPermissionTree,
   Permission,
   ResourceNode,
@@ -15,7 +15,7 @@ export type { MetaValue } from "./app-data.ts";
 
 export function definePermissions<const Input, PX = never, RX = never>(
   input: Input,
-  options?: DefinePermissionsOptions<PX, RX>,
+  options?: PermissionsOptions<PX, RX>,
 ): InferPermissionTree<Input, "", PX> & ResourceXTree<RX> {
   const registry = new Map<string, ResourceNode>();
   const leaves: Permission[] = [];

@@ -24,10 +24,7 @@ import type {
 
 import { subjectFromBetterAuth } from "../../src/better-auth/index.ts";
 import { subjectFromClerk } from "../../src/clerk/index.ts";
-import {
-  createJwtSubjectResolver,
-  subjectFromJwt,
-} from "../../src/jwt/index.ts";
+import { jwtSubjectResolver, subjectFromJwt } from "../../src/jwt/index.ts";
 import { subjectFromMcp } from "../../src/mcp/index.ts";
 import { subjectFromApiKey } from "../../src/server/index.ts";
 import { subjectFromSupabase } from "../../src/supabase/index.ts";
@@ -50,7 +47,7 @@ describe("SubjectResolver", () => {
   });
 
   it("is what a provider mapper becomes once its options are bound", () => {
-    const resolver = createJwtSubjectResolver(jwt);
+    const resolver = jwtSubjectResolver(jwt);
     expectTypeOf((token: Token) => resolver(token)).toExtend<
       SubjectResolver<Token, JwtPrincipal>
     >();
@@ -71,8 +68,8 @@ describe("SubjectResolver", () => {
     ).toExtend<SubjectResolver<McpAuthInfo | undefined, McpPrincipal>>();
   });
 
-  it("is not createJwtSubjectResolver's own shape, whose second argument is the Request", () => {
-    expectTypeOf(createJwtSubjectResolver(jwt)).not.toExtend<
+  it("is not jwtSubjectResolver's own shape, whose second argument is the Request", () => {
+    expectTypeOf(jwtSubjectResolver(jwt)).not.toExtend<
       SubjectResolver<Token, JwtPrincipal>
     >();
   });

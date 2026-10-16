@@ -2,7 +2,7 @@ import type { Decision, Denial } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type {
-  StartAutomationOptions,
+  AutomationOptions,
   StartAutomationResult,
   WorkflowPermDock,
 } from "../workflow/create.ts";
@@ -104,7 +104,7 @@ export async function startAutomation<TArgs extends unknown[], TRun>(
   run: (ticket: string, ...args: TArgs) => Promise<unknown>,
   id: string,
   args: TArgs,
-  options?: StartAutomationOptions,
+  options?: AutomationOptions,
 ): Promise<StartAutomationRunResult<TRun>> {
   const started = await workflow.start(id, options);
   if (started.outcome !== "started") {

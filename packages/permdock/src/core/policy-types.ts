@@ -506,7 +506,7 @@ export type PolicyAppDataSchemas = {
   readonly membership?: AppDataSchema<unknown>;
 };
 
-export type DefinePolicyOptions<
+export type PolicyOptions<
   TUser,
   TPrincipal extends Principal,
   S extends PolicyScopesInput = PolicyScopesInput,

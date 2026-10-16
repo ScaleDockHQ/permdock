@@ -23,7 +23,7 @@ export type {
   PermissionState,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "../client/types.ts";
 
 export type PermDockProviderProps = (

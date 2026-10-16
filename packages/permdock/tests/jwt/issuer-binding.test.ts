@@ -2,7 +2,7 @@ import { SignJWT, importJWK } from "jose";
 import { describe, expect, it } from "vitest";
 
 import { subjectFromIntrospection } from "../../src/jwt/introspection.ts";
-import { createJwtSubjectResolver } from "../../src/jwt/subject.ts";
+import { jwtSubjectResolver } from "../../src/jwt/subject.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 
 const PRIVATE_JWK = {
@@ -48,9 +48,7 @@ const discoveryFetch: typeof fetch = async (input) =>
 describe("issuer binding", () => {
   it("requires issuer with a remote jwks URL", () => {
     for (const jwks of [`${ISSUER}/jwks`, new URL(`${ISSUER}/jwks`)]) {
-      expect(() => createJwtSubjectResolver({ jwks })).toThrow(
-        /issuer is required/,
-      );
+      expect(() => jwtSubjectResolver({ jwks })).toThrow(/issuer is required/);
     }
   });
 

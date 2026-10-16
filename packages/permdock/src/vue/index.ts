@@ -30,5 +30,5 @@ export type {
   PermissionState,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "./types.ts";

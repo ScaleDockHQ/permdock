@@ -2,7 +2,7 @@
 "permdock": minor
 ---
 
-`subjectFromJwt` and `createJwtSubjectResolver` require `audience` when no `verifier` is passed. Without it, a token minted for another resource server at the same issuer was accepted. Pass `audience: false` to accept any audience on purpose.
+`subjectFromJwt` and `jwtSubjectResolver` require `audience` when no `verifier` is passed. Without it, a token minted for another resource server at the same issuer was accepted. Pass `audience: false` to accept any audience on purpose.
 
 | Before                                 | After                                                                       |
 | -------------------------------------- | --------------------------------------------------------------------------- |

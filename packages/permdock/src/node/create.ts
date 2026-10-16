@@ -14,12 +14,7 @@ import type {
 } from "../server/server-types.ts";
 
 import { bindKernel } from "../server/kit.ts";
-import {
-  fromResponse,
-  sendResponse,
-  toRequest,
-  type NodeRequest,
-} from "./http.ts";
+import { sendResponse, toRequest, type NodeRequest } from "./http.ts";
 
 export type NodePermDockOptions<TUser = unknown> = ServerAdapterOptions<
   NodeRequest,
@@ -48,7 +43,6 @@ export type NodePermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     res: ServerResponse,
   ) => Promise<void>;
   readonly toRequest: typeof toRequest;
-  readonly fromResponse: typeof fromResponse;
   readonly openapi: OpenApiHooks;
 };
 
@@ -107,7 +101,6 @@ export function createPermDock<
     send: sendResponse,
     permdockHandler,
     toRequest,
-    fromResponse,
     openapi: kernel.openapi,
   };
 }

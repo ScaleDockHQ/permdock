@@ -45,7 +45,7 @@ createServer(async (req, res) => {
 | `protect(permission, data?, options?)`           | Returns `(req) => Promise<Guard>`; same result shape as the kernel (`ok`, `permdock`, `decision`, `data` or `response`). The `tenant` option (`(req) => ...`) is resolved for each call. |
 | `send(res, response)`                            | Writes a Fetch `Response` to a `ServerResponse` (status, headers, body). Used for Problem Details and for the decision endpoint.                                                         |
 | `permdockHandler()`                              | `(req, res) => Promise<void>` implementing the AuthZEN-shaped decision endpoint for mounting under any path.                                                                             |
-| `toRequest(req)` / `fromResponse(res, response)` | Exported converters so other adapters and custom frameworks can reuse them.                                                                                                              |
+| `toRequest(req)` / `sendResponse(res, response)` | Exported converters so other adapters and custom frameworks can reuse them.                                                                                                              |
 
 ## Request lifecycle
 

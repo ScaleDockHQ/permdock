@@ -23,7 +23,7 @@ import type {
   PermissionState,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "./types.ts";
 
 import {
@@ -124,7 +124,7 @@ export function useMemberships(): ComputedRef<readonly Membership[]> {
 }
 
 export function useRoles(
-  options: MaybeRefOrGetter<UseRolesOptions> = {},
+  options: MaybeRefOrGetter<RolesOptions> = {},
 ): ComputedRef<{ readonly roles: readonly Role[] }> {
   const permdock = useTick(useStore());
   return computed(() => rolesView(permdock.value, toValue(options)));

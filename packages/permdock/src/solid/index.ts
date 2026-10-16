@@ -32,5 +32,5 @@ export type {
   SolidChild,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "./types.ts";

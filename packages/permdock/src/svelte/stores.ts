@@ -15,7 +15,7 @@ import type {
   PermissionState,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "./types.ts";
 
 import {
@@ -129,14 +129,14 @@ export function membershipsFor(
 }
 
 export function roles(
-  options: () => UseRolesOptions = () => ({}),
+  options: () => RolesOptions = () => ({}),
 ): Readable<{ readonly roles: readonly Role[] }> {
   return rolesFor(getStore(), options);
 }
 
 export function rolesFor(
   store: ClientStore,
-  options: () => UseRolesOptions = () => ({}),
+  options: () => RolesOptions = () => ({}),
 ): Readable<{ readonly roles: readonly Role[] }> {
   return fromStore(store, () => rolesView(store.get(), options()));
 }

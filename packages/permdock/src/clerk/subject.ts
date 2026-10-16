@@ -350,7 +350,7 @@ export function subjectFromClerk(
  * A resolver that keeps each user's `memberships: 'all'` list for
  * `cache.ttl` (at most 30 seconds), so a removed membership grants until then.
  */
-export function createClerkSubjectResolver(
+export function clerkSubjectResolver(
   options: ClerkSubjectResolverOptions = {},
 ): (authObject: unknown) => Promise<Subject<ClerkPrincipal>> {
   const { cache, ...rest } = options;

@@ -66,7 +66,7 @@ export type WorkflowPermDockOptions = PermDockOptions & {
   readonly onAuth?: (event: AuthEvent) => void;
 };
 
-export type StartAutomationOptions = {
+export type AutomationOptions = {
   /** The tenant the automation is read for. */
   readonly tenant?: string;
   /**
@@ -109,7 +109,7 @@ export type WorkflowPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    */
   readonly start: (
     id: string,
-    options?: StartAutomationOptions,
+    options?: AutomationOptions,
   ) => Promise<StartAutomationResult>;
   /**
    * The PermDock of a run, rebuilt from its ticket: the principal loaded
@@ -311,7 +311,7 @@ export function createPermDock<
 
   const start = async (
     id: string,
-    startOptions: StartAutomationOptions = {},
+    startOptions: AutomationOptions = {},
   ): Promise<StartAutomationResult> => {
     const automation = await readAutomation(
       automations,

@@ -12,7 +12,7 @@ import type {
   ProviderOptionsBase,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 } from "../client/types.ts";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
@@ -58,5 +58,5 @@ export type {
   PermissionState,
   SubjectView,
   TenantView,
-  UseRolesOptions,
+  RolesOptions,
 };

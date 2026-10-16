@@ -1,4 +1,4 @@
-export { createClerkSubjectResolver, subjectFromClerk } from "./subject.ts";
+export { clerkSubjectResolver, subjectFromClerk } from "./subject.ts";
 export type {
   ClerkAuthObject,
   ClerkBackend,

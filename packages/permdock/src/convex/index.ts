@@ -1,6 +1,6 @@
 export { ConvexError, createPermDock } from "./create.ts";
 export type {
-  ConvexCtxLike,
+  ConvexContextLike,
   ConvexErrorData,
   ConvexHandler,
   ConvexPermDock,
