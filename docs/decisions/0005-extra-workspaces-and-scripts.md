@@ -9,7 +9,7 @@ The standard workspace list is `apps/*`, `packages/*` and `tests/*`. PermDock ha
 
 ## Decision
 
-`pnpm-workspace.yaml` also lists `apps/examples/*` and `tests/types/*`. The root keeps the scripts the standard does not have: `authzen:vectors`, `bench`, `openapi:generate`, `permdock`, `standards:fixtures`, `test:e2e`, `test:integration` and `test:runtimes`. `test:e2e` runs the `instant()` navigation specs, which need a production build and Docker; `bench` runs Vitest benchmarks, which are not a gate.
+`pnpm-workspace.yaml` also lists `apps/examples/*` and `tests/types/*`. The root keeps the scripts the standard does not have: `authzen:vectors`, `bench`, `cli:startup`, `openapi:generate`, `permdock`, `standards:fixtures`, `test:e2e`, `test:integration` and `test:runtimes`. `test:e2e` runs the `instant()` navigation specs, which need a production build and Docker; `bench` runs Vitest benchmarks, which are not a gate. `cli:startup` times the built `permdock --help` against `--version` (`scripts/cli-startup.json`); the standard asks for the measurement but names no script.
 
 ## Consequences
 

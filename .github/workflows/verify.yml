@@ -66,9 +66,9 @@ jobs:
           # Includes the Nest adapter against Nest 11, the lowest peer version (tests/nest-11).
           - name: test
             run: pnpm exec turbo run test $AFFECTED
-          # Alone on its machine: its check-time ceiling flakes when other tasks share the CPU.
+          # Alone on its machine, one task at a time: the timing ceilings flake when tasks share the CPU.
           - name: perf
-            run: pnpm exec turbo run typecheck:perf
+            run: pnpm exec turbo run typecheck:perf cli:startup --concurrency=1
     steps:
       - uses: actions/checkout@v7
         with:
