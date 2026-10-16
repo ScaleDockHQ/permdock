@@ -86,12 +86,18 @@ export function userFromEntity(entity: AuthzenEntity | undefined): unknown {
   return Object.keys(result).length === 0 ? null : result;
 }
 
+function contextOrSubject(item: AuthzenItem, name: string): unknown {
+  const fromContext = isRecord(item.context) ? item.context[name] : undefined;
+  return (
+    fromContext ??
+    (isRecord(item.subject?.properties)
+      ? item.subject.properties[name]
+      : undefined)
+  );
+}
+
 export function actorOf(item: AuthzenItem): Actor | undefined {
-  const context = isRecord(item.context) ? item.context : {};
-  const fromSubject = isRecord(item.subject?.properties)
-    ? item.subject.properties["actor"]
-    : undefined;
-  const raw = context["actor"] ?? fromSubject;
+  const raw = contextOrSubject(item, "actor");
   if (!isRecord(raw) || typeof raw["id"] !== "string") {
     return undefined;
   }
@@ -100,11 +106,7 @@ export function actorOf(item: AuthzenItem): Actor | undefined {
 }
 
 export function delegationOf(item: AuthzenItem): Delegation | undefined {
-  const context = isRecord(item.context) ? item.context : {};
-  const fromSubject = isRecord(item.subject?.properties)
-    ? item.subject.properties["delegation"]
-    : undefined;
-  return fromWireDelegation(context["delegation"] ?? fromSubject);
+  return fromWireDelegation(contextOrSubject(item, "delegation"));
 }
 
 export function tenantOf(item: AuthzenItem): string | undefined {
