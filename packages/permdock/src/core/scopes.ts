@@ -32,7 +32,7 @@ export type ScopeNames<S> = [S] extends [PolicyScopesInput]
     : (keyof S & string) | "tenant" | "team"
   : string;
 
-const RESERVED = new Set(["global", "resource"]);
+const RESERVED: ReadonlySet<string> = new Set(["global", "resource"]);
 const NAME = /^[a-z][a-z0-9_]*$/u;
 
 /** A policy without `scopes` keeps the historical pair: `tenant`, and `team` inside it. */
@@ -203,7 +203,8 @@ export function tenantOf(
   return root === undefined ? undefined : scopeIdOf(membership, root);
 }
 
-function isId(value: unknown): value is string {
+/** A non-empty string. Unlike `isId` in `./ids.ts` it has no length cap: membership fields come from the app, not the wire. */
+function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value !== "";
 }
 
@@ -291,14 +292,10 @@ export function normalizeMembership(
     }
   }
   if (raw["keep"] !== undefined) {
-    if (
-      !Array.isArray(raw["keep"]) ||
-      !raw["keep"].every((key) => typeof key === "string" && key !== "")
-    ) {
+    if (!Array.isArray(raw["keep"]) || !raw["keep"].every(isNonEmptyString)) {
       return undefined;
     }
-    // SAFETY: every item was checked to be a non-empty string above.
-    extra.keep = Object.freeze([...(raw["keep"] as readonly string[])]);
+    extra.keep = Object.freeze([...raw["keep"]]);
   }
   const named = raw["scope"] !== undefined || raw["id"] !== undefined;
   const legacy = raw["tenant"] !== undefined || raw["team"] !== undefined;
@@ -310,7 +307,7 @@ export function normalizeMembership(
     // SAFETY: on is a non-null object checked above; resource and id are checked below.
     const target = on as Record<string, unknown>;
     const targetId = idText(target["id"]);
-    if (!isId(target["resource"]) || targetId === undefined) {
+    if (!isNonEmptyString(target["resource"]) || targetId === undefined) {
       return undefined;
     }
     return Object.freeze({

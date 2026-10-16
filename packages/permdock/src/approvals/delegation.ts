@@ -6,18 +6,11 @@ import type {
 } from "./types.ts";
 
 import { freezeDeep } from "../core/freeze.ts";
+import { isId } from "../core/ids.ts";
 import { ownRecord } from "../core/paths.ts";
 import { rootMembershipId } from "../core/scopes.ts";
 import { dateAt, type Instant } from "../core/time.ts";
 import { assertApprover } from "./store.ts";
-
-const MAX_ID = 256;
-
-function isId(value: unknown): value is string {
-  return (
-    typeof value === "string" && value.length > 0 && value.length <= MAX_ID
-  );
-}
 
 function isInstant(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
