@@ -31,6 +31,13 @@ export type {
   BetterSupabaseIdentityLink,
   PrincipalSourceOptions,
 } from "./principals.ts";
+export { subjectFromShareLink } from "./share-links.ts";
+export type {
+  ShareLinkResolver,
+  ShareLinkRow,
+  ShareLinkSubjectOptions,
+  ShareLinkTarget,
+} from "./share-links.ts";
 export { subscriberPolicy } from "./subscribers.ts";
 export type {
   SubscriberPolicyEvent,
