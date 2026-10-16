@@ -12,7 +12,7 @@ const config: NextConfig = {
     turbopackRustReactCompiler: true,
     // Pinned: the framework default may change between minors.
     instantInsights: { validationLevel: "warning" },
-    // Read at `next build`; only the `test:instant` build sets it.
+    // Read at `next build`; only the `test:e2e` build sets it.
     exposeTestingApiInProductionBuild:
       process.env["EXPOSE_TESTING_API"] === "1",
   },

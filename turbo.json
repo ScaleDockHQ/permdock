@@ -116,7 +116,11 @@
       "dependsOn": ["build", "^build"],
       "inputs": ["$TURBO_DEFAULT$"]
     },
-    "test:instant": {
+    "//#authzen:vectors": {
+      "inputs": ["scripts/fetch-authzen-vectors.ts"],
+      "outputs": ["packages/permdock/tests/testing/fixtures/authzen/**"]
+    },
+    "test:e2e": {
       "dependsOn": ["^build"],
       "cache": false,
       "env": ["DEMO_LATENCY_MS"],
