@@ -604,6 +604,7 @@
     "supabasePostgresQuery",
     "supabaseRls",
     "supabaseTenantClaim",
+    "tableApprovalDelegationSource",
     "tableMembershipSource"
   ],
   "./supabase/middleware": ["createPermDock"],
@@ -626,6 +627,7 @@
     "hookCan",
     "principalSource",
     "subjectFromBetterSupabase",
+    "subjectFromShareLink",
     "subscriberPolicy",
     "supportPolicy",
     "toolPolicy",

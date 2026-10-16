@@ -493,6 +493,7 @@ export function authorizationProvider(
           : { "ai-tool": holder(approver), ...options.approvers },
       schema: rls.schema,
       listed: helpers.has(IS_APPROVER),
+      covers: /\bp_requester\b/u.test(helpers.get(IS_APPROVER)?.args ?? ""),
       tenantScope,
       rootTenant,
       catalog,

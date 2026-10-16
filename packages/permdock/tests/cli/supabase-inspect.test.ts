@@ -329,6 +329,24 @@ describe("permdock supabase inspect", () => {
     expect(plain.rls.assignments).toBeUndefined();
   });
 
+  it("lists the four-argument approver check with rls.approvals.delegations", async () => {
+    const covered = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      `{ authorize: 'database', approvals: { delegations: true } }`,
+    );
+    const manifest: SupabaseHookManifest = JSON.parse(
+      (await run(["supabase", "inspect", "--json"], { cwd: covered.cwd }))
+        .stdout,
+    );
+    expect(manifest.rls.helpers).toContainEqual({
+      name: "permdock_is_approver",
+      args: "p_approvers jsonb, p_tenant text, p_requester text, p_resource text",
+      returns: "boolean",
+      execute: ["authenticated"],
+    });
+  });
+
   it("advertises rls.apiKeys and its ceiling helper", async () => {
     const keyed = await generate(
       `{ memberships: [${SOURCES}] }`,

@@ -214,6 +214,12 @@ create policy file_select_anon on public.file for select to anon using (
 
 A resource role with no memberships table (a role only links hold, such as `guest`) gets only the `anon` policy, with a warning, instead of failing generation. Revocation reaches the database within the exchanged token's `ttl`. [RLS](/docs/cli/rls) has the flags.
 
+## Row-backed links
+
+A link can also live as a database row instead of a signed token. better-supabase's share-links block stores a hashed token, the subject, a role and an optional expiry, and `subjectFromShareLink` in [`permdock/better-supabase`](/docs/adapters/better-supabase#share-links) turns a live row into the same link subject `subjectFromCapability` returns. The capability is built in memory and never signed. It expires at the earlier of the `ttl` and the row's own expiry. `can()`, the snapshot and `exchangeCapability` treat it like any other link.
+
+Revocation is the row: a revoked or expired row resolves to nothing, so the next request is anonymous. There is no `revoked` callback and no one-time use. A row has no issue time, so a `maxLifetime` rule refuses every row-backed link.
+
 ## Reserved: user-bound keys
 
 `holder: 'key'` stays reserved and the resolver refuses it. User-bound and service API keys shipped as opaque `pdk_` keys that the application looks up on every use, so revocation, a tightened tenant rule and the owner's current rights always apply ([API keys](/docs/concepts/credentials)); they are not capabilities and add no token format. `key` remains free for a stateless key, such as a calendar feed URL, should one ever be needed.
@@ -225,3 +231,5 @@ Share links are where most SaaS products leak: an unguessable URL with no expiry
 The capability is a signed token rather than a database lookup so a link works where the application has no session, and so the same object feeds `can()`, the snapshot and RLS. Signing reuses the `TokenSigner` and JWK Set every other PermDock output uses, and the dedicated `typ` means a capability is never accepted as an access token and an access token is never accepted as a capability. The link policy is read at resolution rather than trusted from the token, because a tenant that tightens its rules means the links already out there too, and it is a callback because only the application knows which scope instances a resource sits in. Revocation keys on the link id rather than the token's `jti` because a product revokes the link, whichever token it was sent as. One-time use keys on the `jti`, so reissuing a one-time link produces a fresh use.
 
 For RLS the server exchanges the capability for a short-lived `anon` token signed with the project's key instead of calling a security-definer RPC per resource. The generated policies then read one claim through one helper, stay uncorrelated, and let the same `where` conditions that apply in memory narrow the rows; the database never has to trust anything PermDock did not sign through the project's own key. Keeping `holder` in the v1 format now lets user-bound keys arrive without another wire change.
+
+A row-backed link resolves its token in one `security definer` function. That function reads only the link table and returns only the row the hash matches, so it reveals no more than a signed link would. The guest's reads of the resource itself still go through the exchanged token and the generated policies. Mapping the row to the same capability, instead of adding a second guest model, keeps one evaluation path: an app that already stores links in better-supabase gets PermDock's conditions, inheritance and RLS without reissuing them.

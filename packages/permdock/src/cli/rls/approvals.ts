@@ -2,6 +2,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsApprovalsAdopt } from "../types.ts";
 
 import { APPROVAL_REQUEST_SCHEMA } from "../approval-schema.ts";
+import { memberIdsHelper } from "../sql/names.ts";
 import {
   qualified,
   quoteIdent,
@@ -263,7 +264,7 @@ ${serverOnly(fn(APPROVAL_STORE.cancel), "jsonb, text, text, text")}
  * other grantee approvers need facts the database does not hold for every
  * membership source, so they match nobody.
  */
-export function isApproverSql(ctx: RlsSqlContext): string {
+function isApproverSql(ctx: RlsSqlContext): string {
   const fn = qualified(ctx, APPROVAL_STORE.isApprover);
   const root = ctx.scopes[0]?.name;
   const inTenant =
@@ -329,6 +330,226 @@ end;
 $$;
 revoke execute on function ${fn}(jsonb, text) from public, anon;
 grant execute on function ${fn}(jsonb, text) to authenticated;
+`;
+}
+
+/**
+ * Everything `rls.approvals` writes: the generated or adopted store, the
+ * approver check and, with `delegations: true`, the covers.
+ */
+export function approvalsSql(
+  ctx: RlsSqlContext,
+  approvals: boolean | RlsApprovalsAdopt | undefined,
+  jsonSchema: "auto" | boolean,
+): string | undefined {
+  if (approvals === undefined || approvals === false) {
+    return undefined;
+  }
+  if (approvals === true) {
+    return approvalStoreSql(ctx, jsonSchema) + isApproverSql(ctx);
+  }
+  const { table, delegations } = approvals;
+  if (delegations !== undefined && typeof delegations !== "boolean") {
+    throw new TypeError(
+      "PermDock CLI: rls.approvals.delegations must be a boolean",
+    );
+  }
+  let store: string;
+  if (table === undefined) {
+    const adoptOnly = (
+      ["token", "body", "open", "schema", "mirror"] as const
+    ).find((key) => approvals[key] !== undefined);
+    if (adoptOnly !== undefined) {
+      throw new Error(
+        `PermDock CLI: rls.approvals.${adoptOnly} adopts a table; set rls.approvals.table too`,
+      );
+    }
+    store = approvalStoreSql(ctx, jsonSchema);
+  } else {
+    store = adoptedApprovalStoreSql(ctx, { ...approvals, table }, jsonSchema);
+  }
+  return (
+    store +
+    isApproverSql(ctx) +
+    (delegations === true ? approvalDelegationsSql(ctx) : "")
+  );
+}
+
+/** The objects `rls.approvals.delegations` adds; `tableApprovalDelegationSource` reads the table. */
+const DELEGATIONS = {
+  table: "approval_delegations",
+  covers: "permdock_cover_approves",
+} as const;
+
+/**
+ * `rls.approvals.delegations`: one table of out-of-office covers that a
+ * user writes for themselves, and a four-argument `permdock_is_approver`
+ * that also answers for a delegate inside an active cover. One hop: a cover
+ * is checked against the delegator's own approver rights, never the
+ * delegator's covers. A delegator who is the requester never counts. A
+ * `holder()` approver through a cover needs `rls.mode: "database"`, where
+ * the `_for` helpers exist; in `jwt` mode only `user()` approvers pass.
+ */
+export function approvalDelegationsSql(ctx: RlsSqlContext): string {
+  const table = qualified(ctx, DELEGATIONS.table);
+  const fn = qualified(ctx, APPROVAL_STORE.isApprover);
+  const covers = qualified(ctx, DELEGATIONS.covers);
+  const user = ctx.dialect === "supabase" ? "uuid" : "text";
+  const me = `${subjectIdSql(ctx)}::text`;
+  // A column default may not hold a subquery.
+  const defaultMe = subjectIdSql(ctx).replace(/^\(select (.+)\)$/su, "$1");
+  const root = ctx.scopes[0]?.name;
+  const member = (tenant: string): string =>
+    root === undefined
+      ? "false"
+      : `${tenant} in (select m.id::text from ${qualified(ctx, memberIdsHelper(root))}() m(id))`;
+  const database = ctx.authorize === "database";
+  const holderGlobal = database
+    ? `coalesce(${qualified(ctx, PERMISSION_HELPERS.hasFor)}(p_delegator, p_approvers ->> 'permission'), false)`
+    : "false";
+  const holderTenant =
+    database && root !== undefined
+      ? `exists (
+          select 1
+          from ${qualified(ctx, checkName(`${permittedByPermissionHelper(root)}_for`))}(p_delegator, p_approvers ->> 'permission') i(id)
+          where i.id::text = p_tenant
+        )`
+      : "false";
+  const policy = (name: string): string =>
+    quoteIdent(`${DELEGATIONS.table}_${name}`);
+  const own = `delegator::text = ${me} and (tenant is null or ${member("tenant")})`;
+  return `
+-- approval delegations: out-of-office covers a user writes for themselves; tableApprovalDelegationSource and permdock_is_approver read them
+create table if not exists ${table} (
+  id text primary key default gen_random_uuid()::text,
+  delegator ${user} not null default (${defaultMe})::${user},
+  delegate ${user} not null,
+  tenant text,
+  permissions text[],
+  resources text[],
+  "from" timestamptz not null default now(),
+  "until" timestamptz not null,
+  created_at timestamptz not null default now(),
+  constraint ${quoteIdent(`${DELEGATIONS.table}_window`)} check ("from" < "until"),
+  constraint ${quoteIdent(`${DELEGATIONS.table}_distinct`)} check (delegator <> delegate)
+);
+create index if not exists ${quoteIdent(`${DELEGATIONS.table}_delegate`)} on ${table} (delegate, "until");
+alter table ${table} enable row level security;
+revoke all on table ${table} from anon, public;
+grant select, insert, update, delete on table ${table} to authenticated;
+drop policy if exists ${policy("read")} on ${table};
+create policy ${policy("read")} on ${table}
+  for select to authenticated
+  using (delegator::text = ${me} or delegate::text = ${me});
+drop policy if exists ${policy("insert")} on ${table};
+create policy ${policy("insert")} on ${table}
+  for insert to authenticated
+  with check (${own});
+drop policy if exists ${policy("update")} on ${table};
+create policy ${policy("update")} on ${table}
+  for update to authenticated
+  using (delegator::text = ${me})
+  with check (${own});
+drop policy if exists ${policy("delete")} on ${table};
+create policy ${policy("delete")} on ${table}
+  for delete to authenticated
+  using (delegator::text = ${me});
+
+-- approval delegations: whether a delegator's own rights match approvers.by; only permdock_is_approver calls it
+create or replace function ${covers}(p_delegator ${user}, p_approvers jsonb, p_tenant text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_item jsonb;
+begin
+  if p_delegator is null or p_approvers is null then
+    return false;
+  end if;
+  if jsonb_typeof(p_approvers) = 'array' then
+    if jsonb_array_length(p_approvers) = 0 then
+      return false;
+    end if;
+    for v_item in select value from jsonb_array_elements(p_approvers) loop
+      if not ${covers}(p_delegator, v_item, p_tenant) then
+        return false;
+      end if;
+    end loop;
+    return true;
+  end if;
+  if jsonb_typeof(p_approvers) <> 'object' then
+    return false;
+  end if;
+  case p_approvers ->> 'kind'
+    when 'user' then
+      return coalesce(p_approvers ->> 'id' = p_delegator::text, false);
+    when 'permission' then
+      if p_tenant is null then
+        return ${holderGlobal};
+      end if;
+      return ${holderTenant};
+    when 'any-of' then
+      if jsonb_typeof(p_approvers -> 'of') <> 'array' then
+        return false;
+      end if;
+      for v_item in select value from jsonb_array_elements(p_approvers -> 'of') loop
+        if ${covers}(p_delegator, v_item, p_tenant) then
+          return true;
+        end if;
+      end loop;
+      return false;
+    else
+      return false;
+  end case;
+end;
+$$;
+revoke execute on function ${covers}(${user}, jsonb, text) from public, anon, authenticated;
+
+-- approvers with covers: the signed-in user, or a delegate inside an active cover of a delegator who is not the requester
+create or replace function ${fn}(p_approvers jsonb, p_tenant text, p_requester text, p_resource text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_delegator ${user};
+  v_user text := ${me};
+begin
+  if ${fn}(p_approvers, p_tenant) then
+    return true;
+  end if;
+  if coalesce(v_user, '') = '' or coalesce(p_requester, '') = '' then
+    return false;
+  end if;
+  if p_tenant is not null and not (${member("p_tenant")}) then
+    return false;
+  end if;
+  for v_delegator in
+    select d.delegator
+    from ${table} d
+    where d.delegate::text = v_user
+      and d.delegator::text <> v_user
+      and d.delegator::text <> p_requester
+      and d."from" <= now()
+      and now() < d."until"
+      and (d.tenant is null or d.tenant = p_tenant)
+      and d.permissions is null
+      and (d.resources is null or p_resource = any (d.resources))
+  loop
+    if ${covers}(v_delegator, p_approvers, p_tenant) then
+      return true;
+    end if;
+  end loop;
+  return false;
+end;
+$$;
+revoke execute on function ${fn}(jsonb, text, text, text) from public, anon;
+grant execute on function ${fn}(jsonb, text, text, text) to authenticated;
 `;
 }
 
@@ -417,7 +638,7 @@ function mirrorSet(table: string, mirror: Mirror, body: string): string {
  */
 export function adoptedApprovalStoreSql(
   ctx: RlsSqlContext,
-  adopt: RlsApprovalsAdopt,
+  adopt: RlsApprovalsAdopt & { readonly table: string },
   jsonSchema: "auto" | boolean = false,
 ): string {
   const table = quoteQualified(adopt.table);

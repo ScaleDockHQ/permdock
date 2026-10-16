@@ -662,6 +662,38 @@ describe("authorizationProvider", () => {
       );
     });
 
+    it("passes {requester} and the kind's resource when the helper takes covers", () => {
+      const provider = authorizationProvider({
+        manifest: withRls({
+          helpers: [
+            ...supabaseHookManifestFixture.rls.helpers,
+            {
+              name: "permdock_is_approver",
+              args: "p_approvers jsonb, p_tenant text, p_requester text, p_resource text",
+              returns: "boolean",
+              execute: ["authenticated"],
+            },
+          ],
+        }),
+        catalog,
+        approvers: {
+          "invoice.send": holder(approve),
+          "support-session": user("u1"),
+        },
+      });
+      expect(provider.functions.isApprover).toBe(
+        "case {kind} " +
+          `when 'invoice.send' then permdock.permdock_is_approver('{"kind":"permission","permission":"invoice.approve"}'::jsonb, ({tenant})::text, ({requester})::text, 'invoice') ` +
+          `when 'support-session' then permdock.permdock_is_approver('{"kind":"user","id":"u1"}'::jsonb, ({tenant})::text, ({requester})::text, 'support-session') ` +
+          "else false end",
+      );
+      expect(provider.requires).toContainEqual({
+        function: "permdock.permdock_is_approver",
+        args: "jsonb, text, text, text",
+        role: "postgres",
+      });
+    });
+
     it("reports approvers SQL cannot check, empty kinds and no kinds", () => {
       const provider = authorizationProvider({
         manifest,

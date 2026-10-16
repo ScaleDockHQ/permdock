@@ -534,6 +534,23 @@ const handler = approvalsHandler(store, {
 
 `from` is inclusive and `until` is exclusive. Both are required: there is no open-ended delegation. `permissions` and `resources` narrow what the delegation covers; absent, it covers every request. `tenant` holds it to one tenant. A delegation whose delegator and delegate are the same person is dropped.
 
+On Supabase, `rls.approvals: { delegations: true }` writes an `approval_delegations` table that users fill with their own covers, and `tableApprovalDelegationSource({ query })` from `permdock/supabase` reads it. The same rows feed `permdock_is_approver` for an approval decided in SQL ([approval delegation with better-supabase](/docs/adapters/better-supabase#approval-delegation)). `query` runs one parameterised statement as a backend role, like `supabasePostgresQuery(ctx.postgresAdmin)`.
+
+```ts
+import {
+  supabasePostgresQuery,
+  tableApprovalDelegationSource,
+} from "permdock/supabase";
+
+approvalsHandler(store, {
+  approvalDelegations: tableApprovalDelegationSource({
+    query: supabasePostgresQuery(ctx.postgresAdmin),
+  }),
+  subjectFor,
+  permdockFor,
+});
+```
+
 Without both `approvalDelegations` and `subjectFor`, nobody matches through a delegation. If either throws, nobody matches, so it fails closed.
 
 The handler tries the caller as themselves first. Only an `approver-not-eligible` result continues to delegations. For each active match it builds the delegator's relation facts and permission facts, then runs the same approver check on the delegator's subject. The delegate is never the request's actor, and never its principal unless the grant sets `distinct: false`. The delegator is checked the same way, so a delegate cannot approve their own request through someone else's rights. One delegator counts once, whether they signed themselves or through a delegate.
