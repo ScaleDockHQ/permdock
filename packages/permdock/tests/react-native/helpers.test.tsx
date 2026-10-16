@@ -202,6 +202,58 @@ describe("parseLocalSnapshotManifest", () => {
     ).toBe(false);
     expect(parseLocalSnapshotManifest(null)).toBe(false);
   });
+
+  it("checks every custom-role table: rows, levels and includes", () => {
+    const good: Record<string, unknown> = JSON.parse(
+      JSON.stringify(localSnapshotManifest(policy)),
+    );
+    const grant = {
+      permission: "post.read",
+      effect: "allow",
+      role: null,
+      to: { kind: "role", role: "custom", scope: "global" },
+    };
+    const table = {
+      permissions: {
+        "post.read": { all: [grant], levels: { owner: [grant] } },
+        "post.update": { all: [{ ...grant, effect: "deny", role: "x" }] },
+      },
+      includes: { member: [{ ...grant, to: [] }] },
+    };
+    const withTable = (custom: unknown) =>
+      parseLocalSnapshotManifest({ ...good, custom: { global: custom } });
+
+    expect(withTable(table)).toBe(true);
+    expect(withTable({ ...table, includes: [] })).toBe(false);
+    expect(withTable({ ...table, permissions: [] })).toBe(false);
+    expect(
+      withTable({
+        ...table,
+        permissions: { "post.read": { all: [grant], levels: [] } },
+      }),
+    ).toBe(false);
+    expect(
+      withTable({
+        ...table,
+        permissions: { "post.read": { all: [{ ...grant, effect: "maybe" }] } },
+      }),
+    ).toBe(false);
+    expect(
+      withTable({
+        ...table,
+        permissions: { "post.read": { all: [{ ...grant, role: 1 }] } },
+      }),
+    ).toBe(false);
+    expect(
+      withTable({
+        ...table,
+        permissions: { "post.read": { all: [{ ...grant, to: "role" }] } },
+      }),
+    ).toBe(false);
+    expect(withTable({ ...table, permissions: { "post.read": null } })).toBe(
+      false,
+    );
+  });
 });
 
 function Guard(props: {
