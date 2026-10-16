@@ -1,5 +1,6 @@
 import type { GeneratedResource } from "../generate.ts";
 
+import { byCodePoint } from "../../core/compare.ts";
 import { emitPermissionsModule } from "../generate.ts";
 
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/u;
@@ -120,7 +121,7 @@ function resourcesOf(
   actions: ReadonlyMap<string, ReadonlySet<string>>,
 ): readonly GeneratedResource[] {
   return [...actions.entries()]
-    .toSorted(([a], [b]) => a.localeCompare(b))
+    .toSorted(([a], [b]) => byCodePoint(a, b))
     .map(([name, set]) => {
       const sorted = [...set].toSorted();
       return {
@@ -163,7 +164,7 @@ export function emitPolicyModule(input: {
   }
   const imports = `import { ${[...names].toSorted().join(", ")} } from 'permdock'`;
   const roles = input.roles
-    .toSorted((a, b) => a.name.localeCompare(b.name))
+    .toSorted((a, b) => byCodePoint(a.name, b.name))
     .map((role) => {
       const body = role.grants.map((grant) => `      ${renderGrant(grant)},`);
       return body.length === 0
