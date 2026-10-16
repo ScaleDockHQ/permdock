@@ -22,6 +22,7 @@
     "doctor": "turbo run doctor",
     "env:pull": "vercel env pull .env.local --environment=development --yes",
     "env:pull:production": "vercel env pull .env.production.local --environment=production --yes",
+    "fix": "oxfmt . && pnpm run lint:root --fix && turbo run lint -- --fix",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "gen:check": "turbo run gen:check",
@@ -76,7 +77,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.8.1",
+      "version": "12.14.0",
       "onFail": "error"
     },
     "runtime": {
@@ -87,7 +88,7 @@
   },
   "engines": {
     "node": "24.x",
-    "pnpm": "12.8.1"
+    "pnpm": "12.14.0"
   },
-  "packageManager": "pnpm@12.8.1"
+  "packageManager": "pnpm@12.14.0"
 }

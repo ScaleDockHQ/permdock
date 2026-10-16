@@ -10,7 +10,7 @@
       "passThroughEnv": ["PORT", "DOCS_ORIGIN"]
     },
     "test": {
-      "dependsOn": []
+      "dependsOn": ["^build"]
     },
     "typecheck": {
       "dependsOn": ["build", "^build"]

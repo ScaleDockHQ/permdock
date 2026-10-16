@@ -1,5 +1,4 @@
 pre-commit:
-  parallel: true
   jobs:
     - name: format
       glob: "*.{ts,tsx,mts,js,mjs,cjs,json,jsonc,md,mdx,css,yml,yaml}"
@@ -8,8 +7,6 @@ pre-commit:
         - "**/permissions.catalog.json"
       run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
-    - name: lint
-      run: pnpm exec turbo run lint lint:root --affected
 
 commit-msg:
   jobs:
@@ -21,4 +18,4 @@ pre-push:
     - name: affected
       env:
         TURBO_SCM_BASE: origin/main
-      run: pnpm exec turbo run lint typecheck test --affected
+      run: pnpm exec turbo run lint:root lint typecheck test --affected

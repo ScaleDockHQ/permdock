@@ -44,6 +44,7 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
      resource,
      crud,
    } from "permdock";
+
    import { Post } from "./schemas";
 
    export const permissions = definePermissions({
@@ -59,6 +60,7 @@ Three files and one guard: `src/permissions.ts` (definitions), `src/policy.ts` (
 
    ```ts
    import { definePolicy, role, allow, principal, relation } from "permdock";
+
    import { permissions, roles } from "./permissions";
 
    const member = role(roles.member, [

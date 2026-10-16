@@ -1,4 +1,4 @@
-# actionlint 1.7.12 rejects `$/` (rhysd/actionlint#711) and background steps (#693). Same-repo `uses` stays `$/` so zizmor's self-repository audit passes; zizmor parses background steps.
+# actionlint 1.7.12 rejects `$/` (rhysd/actionlint#711), parallel and background steps (#693), cache-mode and concurrency.queue. zizmor parses them.
 paths:
   .github/workflows/**/*.{yml,yaml}:
     ignore:
@@ -6,3 +6,5 @@ paths:
       - 'specifying action "\$/.+" in invalid format because ref is missing'
       - 'unexpected key "background" for step'
       - 'step must run script with "run" section or run action with "uses" section'
+      - 'unexpected key "cache-mode" for "(workflow|job)" section'
+      - 'unexpected key "queue" for "concurrency" section'

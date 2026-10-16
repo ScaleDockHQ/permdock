@@ -37,17 +37,7 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
         run: printf '%s\n' "$TITLE" | pnpm exec commitlint
 
-  verify:
-    name: Verify
-    permissions:
-      contents: read
-      id-token: write
-    uses: $/.github/workflows/verify.yml
-    with:
-      affected: ${{ github.event_name == 'pull_request' }}
-    secrets:
-      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
-
+  # Fills the Remote Cache first, so every later job restores the builds instead of repeating them.
   build:
     name: Production builds
     runs-on: ubuntu-latest
@@ -55,9 +45,15 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      integration: ${{ steps.affected.outputs.integration }}
+      runtimes: ${{ steps.affected.outputs.runtimes }}
     steps:
       - uses: actions/checkout@v7
         with:
+          # `turbo query affected` diffs against the merge base.
+          fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - uses: $/.github/actions/setup
@@ -74,14 +70,45 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  integration:
-    name: Integration (Postgres)
+      # Exit 0 means unaffected; 1 (affected) and 2 (error) both run the suite. Pushes to main run everything.
+      - name: Affected suites
+        id: affected
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          for suite in integration runtimes; do
+            run=true
+            if [ "$EVENT" = pull_request ] && pnpm exec turbo query affected --packages "@permdock/$suite" --exit-code >/dev/null; then
+              run=false
+            fi
+            echo "$suite=$run" | tee -a "$GITHUB_OUTPUT"
+          done
+
+  verify:
+    name: Verify
     needs: build
+    permissions:
+      contents: read
+      id-token: write
+    uses: $/.github/workflows/verify.yml
+    with:
+      affected: ${{ github.event_name == 'pull_request' }}
+    secrets:
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+
+  integration:
+    name: Integration (Postgres ${{ matrix.shard }}/3)
+    needs: build
+    if: needs.build.outputs.integration == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -97,11 +124,12 @@ jobs:
           path: packages
 
       - name: Integration
-        run: pnpm run test:integration
+        run: pnpm run test:integration --shard=${{ matrix.shard }}/3
 
   runtimes:
     name: Runtimes (Bun, Deno, workerd)
     needs: build
+    if: needs.build.outputs.runtimes == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -116,7 +144,7 @@ jobs:
         with:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
       - uses: actions/download-artifact@v8
         with:

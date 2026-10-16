@@ -94,9 +94,14 @@ describe("subjectFromShareLink", () => {
       },
     });
     const permdock = permdockFor(subject);
-    expect(permdock.can(permissions.quote.read, { id: "q_1" })).toBe(true);
-    expect(permdock.can(permissions.quote.read, { id: "q_2" })).toBe(false);
-    expect(permdock.can(permissions.quote.accept, { id: "q_1" })).toBe(false);
+    const granted = (
+      permission: (typeof permissions.quote)["read" | "accept"],
+      id: string,
+    ) =>
+      permdock.decide(permission, { id }, { now: NOW }).outcome === "granted";
+    expect(granted(permissions.quote.read, "q_1")).toBe(true);
+    expect(granted(permissions.quote.read, "q_2")).toBe(false);
+    expect(granted(permissions.quote.accept, "q_1")).toBe(false);
   });
 
   it("caps the subject at the link's own expiry and at 3600 seconds", async () => {

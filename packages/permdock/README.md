@@ -70,6 +70,7 @@ Server-only. Roles are data; conditions are a portable JSON tree.
 ```ts
 // src/policy.ts
 import { allow, definePolicy, principal, relation, role } from "permdock";
+
 import { permissions, roles } from "./permissions";
 
 const member = role(roles.member, [

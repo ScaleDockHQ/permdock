@@ -10,6 +10,8 @@ Shared Oxlint and Oxfmt baselines for every package and app in this repository. 
 Every workspace has its own `oxlint.config.ts` and a `lint` script, `oxlint --disable-nested-config`, that Turbo runs; the root config covers only the root tooling files (`pnpm run lint:root`). Oxlint merges configs through `extends`. That merge covers `rules`, `plugins`, `categories` and `overrides`, but a consumer's `ignorePatterns` replaces the inherited list, so spread the exported constant in front of your own patterns:
 
 ```ts
+import { defineConfig } from "oxlint";
+
 // oxlint.config.ts
 import {
   core,
@@ -17,7 +19,6 @@ import {
   test,
   ignorePatterns,
 } from "@permdock/ox-config/oxlint";
-import { defineConfig } from "oxlint";
 
 export default defineConfig({
   extends: [core, library, test],

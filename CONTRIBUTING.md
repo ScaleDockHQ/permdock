@@ -5,20 +5,20 @@ Thanks for contributing to PermDock. This repository is a pnpm 12 + Turborepo mo
 ## Requirements
 
 - Node.js 24 or later (24 LTS is what CI runs)
-- pnpm 12.8.1: `devEngines` in the root `package.json` fails any other version
+- pnpm 12.14.0: `devEngines` in the root `package.json` fails any other version
 - TypeScript 7 comes from the workspace catalog; nothing to install globally
 
 npm and Yarn are not supported. On Node.js 24, enable pnpm with Corepack:
 
 ```bash
 corepack enable
-corepack prepare pnpm@12.8.1 --activate
+corepack prepare pnpm@12.14.0 --activate
 ```
 
 Node.js 25 and later no longer bundle Corepack. Install pnpm with its standalone script instead:
 
 ```bash
-curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.8.1 sh -
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.14.0 sh -
 ```
 
 ## Setup
@@ -28,7 +28,7 @@ pnpm install
 pnpm run verify
 ```
 
-`pnpm install` runs `lefthook install` via the `prepare` script so Git hooks are set up locally.
+`pnpm install` runs `lefthook install` via the `prepare` script so Git hooks are set up locally. Pre-commit formats staged files; pre-push runs `lint:root`, `lint`, `typecheck` and `test` for the workspaces your branch changed.
 
 Useful scripts:
 
@@ -38,6 +38,7 @@ Useful scripts:
 | `pnpm run check:publish` | publint and arethetypeswrong on publishable packages |
 | `pnpm run format`        | Format with Oxfmt                                    |
 | `pnpm run lint`          | Lint with Oxlint                                     |
+| `pnpm run fix`           | Format, then apply Oxlint fixes                      |
 | `pnpm run dev:portless`  | Marketing and docs at `https://permdock.localhost`   |
 | `pnpm run build`         | `turbo run build`                                    |
 | `pnpm run test`          | `turbo run test`                                     |
@@ -70,6 +71,15 @@ docs: clarify fail-closed invariants
 - Adapter work follows [`.agents/rules/change-checklist.mdc`](./.agents/rules/change-checklist.mdc): docs page, `meta.json`, skill reference, example app, tests.
 - The PR description follows the template: What ships, Verify, Checklist.
 - Docs pages are Fumadocs MDX: frontmatter `title` and `description`, no `# h1`, and new pages must be listed in that folder's `meta.json`.
+
+## Agent workflow
+
+Coding agents follow [`.agents/rules/git-workflow.mdc`](./.agents/rules/git-workflow.mdc):
+
+- One branch and one pull request per chat or plan. Follow-ups and review fixes go onto the same branch.
+- The branch is `<type>/<short-topic>` from `origin/main`, where `<type>` is a commitlint type.
+- The pull request stays a draft until `pnpm verify` passes.
+- An agent never pushes to `main`, never merges without being asked, and never discards uncommitted work it did not make.
 
 ## Code of conduct
 

@@ -137,13 +137,13 @@ For Trigger.dev, Inngest, Temporal, Vercel Queues and pgmq: call `start` where t
 ### Workflow SDK: `permdock/workflow-sdk`
 
 ```ts
-import { createHook, sleep } from "workflow";
-import { resumeHook, start } from "workflow/api";
 import {
   authorizeHook,
   startAutomation,
   workflowSdkWaiter,
 } from "permdock/workflow-sdk";
+import { createHook, sleep } from "workflow";
+import { resumeHook, start } from "workflow/api";
 
 const waiter = workflowSdkWaiter({ createHook, resumeHook, sleep });
 

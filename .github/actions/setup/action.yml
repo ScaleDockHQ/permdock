@@ -7,7 +7,15 @@ inputs:
     required: false
     default: ""
   cache:
-    description: Cache the pnpm store.
+    description: Restore the pnpm store.
+    required: false
+    default: "true"
+  save-cache:
+    description: Save the pnpm store at the end of the job. Only the default branch writes it; other refs restore that entry.
+    required: false
+    default: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+  install:
+    description: Run `pnpm install`; false for jobs that need only pnpm.
     required: false
     default: "true"
 
@@ -17,13 +25,15 @@ runs:
     # Needs `id-token: write` on the calling job.
     - name: Turborepo Remote Cache
       if: inputs.turbo-team != ''
-      uses: vercel/setup-turborepo-remote-cache-action@v1.1.0
+      uses: vercel/setup-turborepo-remote-cache-action@49d7b1b46ba4c9251e1977986bfe18336feabc8f # v1.1.0
       with:
         team: ${{ inputs.turbo-team }}
 
-    - uses: pnpm/setup@v3
+    - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
       with:
         runtime: node
         node-version-file: .node-version
         cache: ${{ inputs.cache }}
+        save-cache: ${{ inputs.save-cache }}
+        install: ${{ inputs.install }}
         require-lockfile: true

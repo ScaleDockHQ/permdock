@@ -8,6 +8,7 @@ File: `src/permdock/server.ts`
 
 ```ts
 import { createPermDock } from "permdock/next";
+
 import { policy } from "../policy";
 
 export const {
@@ -426,9 +427,9 @@ An app that calls `permdockCloud.approvals.resolve` also passes `approver: { sig
 These entries fill the feature contracts `permdock/delivery`, `permdock/chat` and `permdock/workflow` with one vendor SDK each. None imports the SDK at runtime: pass in your own client or functions (`resend` 6, `chat` 4 and `workflow` are optional peers). Automations and chat bots are in the `permdock-agents` skill and approval prompts in the `permdock-approvals` skill; install each with `npx skills add ScaleDockHQ/PermDock --skill <name>`.
 
 ```ts
+import { chatSdkTransport } from "permdock/chat-sdk";
 import { createPermDock } from "permdock/delivery";
 import { resendTransport } from "permdock/resend";
-import { chatSdkTransport } from "permdock/chat-sdk";
 
 const delivery = createPermDock(policy, {
   transports: {

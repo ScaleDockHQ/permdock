@@ -9,7 +9,8 @@
     "pruneIncludesGlobalFiles": true,
     "githubActionsRemoteBaseRefFallback": true,
     "errorsOnlyShowHash": true,
-    "longerSignatureKey": true
+    "longerSignatureKey": true,
+    "strictTaskEntrypointSelection": true
   },
   "global": {
     "envMode": "strict",
