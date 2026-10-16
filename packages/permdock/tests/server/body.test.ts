@@ -6,6 +6,12 @@ import {
   readBodyText,
 } from "../../src/server/body.ts";
 
+type StreamRequestInit = RequestInit & { readonly duplex: "half" };
+
+function streamRequest(init: StreamRequestInit): Request {
+  return new Request("https://app.test/x", init);
+}
+
 function streamed(
   chunks: readonly Uint8Array[],
   headers: Record<string, string> = {},
@@ -25,7 +31,7 @@ function streamed(
     },
     { highWaterMark: 0 },
   );
-  const request = new Request("https://app.test/x", {
+  const request = streamRequest({
     method: "POST",
     headers,
     body,
@@ -110,11 +116,7 @@ describe("readBodyText", () => {
         controller.error(new Error("reset"));
       },
     });
-    const request = new Request("https://app.test/x", {
-      method: "POST",
-      body,
-      duplex: "half",
-    });
+    const request = streamRequest({ method: "POST", body, duplex: "half" });
     await expect(readBodyText(request)).resolves.toStrictEqual({
       ok: false,
       cause: "unreadable",
