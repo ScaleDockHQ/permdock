@@ -4,7 +4,8 @@
   "tags": ["app"],
   "tasks": {
     "build": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vercel.json"]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vercel.json"],
+      "env": ["$TURBO_EXTENDS$", "DOCS_ORIGIN", "EXPOSE_TESTING_API"]
     },
     "dev": {
       "passThroughEnv": ["PORT", "DOCS_ORIGIN"]

@@ -88,16 +88,7 @@
         "!.next/dev/**",
         ".source/**"
       ],
-      "env": [
-        "DEMO_LATENCY_MS",
-        "DOCS_ORIGIN",
-        "EXPOSE_TESTING_API",
-        "NEXT_PUBLIC_*",
-        "PERMDOCK_COLLECT",
-        "SENTRY_ORG",
-        "SENTRY_PROJECT",
-        "SESSION_SECRET"
-      ],
+      "env": ["NEXT_PUBLIC_*", "SENTRY_ORG", "SENTRY_PROJECT"],
       "passThroughEnv": ["SENTRY_AUTH_TOKEN"]
     },
     "typecheck": {

@@ -1,5 +1,15 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
-  "tags": ["example"]
+  "tags": ["example"],
+  "tasks": {
+    "build": {
+      "env": [
+        "$TURBO_EXTENDS$",
+        "DEMO_LATENCY_MS",
+        "EXPOSE_TESTING_API",
+        "SESSION_SECRET"
+      ]
+    }
+  }
 }

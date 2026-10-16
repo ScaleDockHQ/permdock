@@ -8,7 +8,8 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/vercel.json",
         "$TURBO_ROOT$/CHANGELOG.md"
-      ]
+      ],
+      "env": ["$TURBO_EXTENDS$", "EXPOSE_TESTING_API"]
     },
     "test": {
       "dependsOn": ["^build"]

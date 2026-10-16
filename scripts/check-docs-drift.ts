@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { writeRenamedSection } from "./docs-drift-renamed-section.ts";
 import { renameDrift } from "./docs-drift-renames.ts";
+import { rewriteDrift } from "./docs-drift-rewrites.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DOCS = join(ROOT, "apps", "docs", "content", "docs");
@@ -235,6 +236,7 @@ const problems = [
     codemodPage: CODEMOD_PAGE,
     exportsFile: EXPORTS,
   }),
+  ...rewriteDrift(ROOT),
 ];
 
 if (problems.length > 0) {
@@ -242,6 +244,6 @@ if (problems.length > 0) {
   process.exitCode = 1;
 } else {
   process.stdout.write(
-    "docs match the doctor checks, package entries, standards tests, names, exports and the 0.5 renames\n",
+    "docs match the doctor checks, package entries, standards tests, names, exports and the 0.5 renames; dev rewrites match vercel.json\n",
   );
 }
