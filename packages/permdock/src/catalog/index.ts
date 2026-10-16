@@ -1,3 +1,5 @@
+export { catalogDrift, hostedGrantFindings } from "./drift.ts";
+export type { CatalogDriftInput } from "./drift.ts";
 export { resourceSchemaFromJson } from "./json-schema-validator.ts";
 export { operationFindings } from "./operation-findings.ts";
 export { parseCatalog, rowConditionKeys } from "./parse.ts";
