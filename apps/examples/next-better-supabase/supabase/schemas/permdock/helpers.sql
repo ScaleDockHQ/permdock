@@ -341,7 +341,7 @@ language sql
 stable
 set search_path = ''
 as $$
-  select k.permission from unnest(array['quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[]) k(permission) order by 1
+  select k.permission from unnest(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[]) k(permission) order by 1
 $$;
 revoke execute on function "permdock".permdock_permission_keys() from public, anon;
 grant execute on function "permdock".permdock_permission_keys() to authenticated;
@@ -357,7 +357,7 @@ as $$
   from "permdock".role_permissions rp
   where rp.scope = p_scope
     and rp.effect = 'allow'
-    and rp.permission = any(array['quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])
+    and rp.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])
   order by 1
 $$;
 revoke execute on function "permdock".permdock_permission_keys(text) from public, anon;
@@ -410,7 +410,7 @@ set search_path = ''
 as $$
   select g.grant_key
   from pg_catalog.jsonb_array_elements_text(coalesce(
-    '{"customer":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]}},"organization":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]},"quotes.update":{"allow":["quotes.update"],"deny":[]},"staff.list":{"allow":["staff.list"],"deny":[]},"staff.read":{"allow":["staff.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
+    '{"customer":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]}},"organization":{"audit.revert":{"allow":["audit.revert"],"deny":[]},"audit.view":{"allow":["audit.view"],"deny":[]},"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]},"quotes.update":{"allow":["quotes.update"],"deny":[]},"staff.list":{"allow":["staff.list"],"deny":[]},"staff.read":{"allow":["staff.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
     '[]'::jsonb
   )) g(grant_key)
 $$;
@@ -464,6 +464,8 @@ begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.revert', 'organization', 'allow', 'audit.revert'),
+      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -531,6 +533,8 @@ begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.revert', 'organization', 'allow', 'audit.revert'),
+      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -876,6 +880,8 @@ begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.revert', 'organization', 'allow', 'audit.revert'),
+      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -941,6 +947,8 @@ begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.revert', 'organization', 'allow', 'audit.revert'),
+      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),

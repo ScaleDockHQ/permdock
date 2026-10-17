@@ -1,7 +1,7 @@
 -- better-supabase module: audit (0.8.0)
 -- @bs-module-test audit
 -- Managed by `better-supabase sql add`; re-running it overwrites this file.
--- Change it through `sql.modules` in better-supabase.config.ts and the module's SQL hooks.
+-- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 begin;
 create extension if not exists pgtap with schema extensions;

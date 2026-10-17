@@ -25,9 +25,22 @@ export default defineConfig({
       "utf8",
     ),
   }),
-  sql: {
-    testsDir: "supabase/tests",
-    modules: ["updated-at", "audit", "pgtap"],
+  sql: { testsDir: "supabase/tests" },
+  blocks: {
+    access: {
+      model: "provider",
+      // Memberships are service-only tables here, so no client assigns a role.
+      functions: { canAssign: "false" },
+    },
+    "updated-at": {},
+    audit: {
+      permissions: {
+        view: "audit.view",
+        viewAll: "audit.view",
+        revert: "audit.revert",
+      },
+    },
+    pgtap: {},
   },
   doctor: {
     // staff and quotes are read-only to clients: the API roles hold no write

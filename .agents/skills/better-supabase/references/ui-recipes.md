@@ -1922,14 +1922,1375 @@ export function SettingsLayout() {
 }
 ```
 
-## Planned
+## Members table
 
-These have no hook yet. Build them from the block's TypeScript client in a server action or loader until the hook ships.
+An organization's members with their roles, where a role change shows at once and a member can be removed. Both sides call `useMembers` from `better-supabase/blocks/organizations/react`; the [organizations block](https://bettersupabase.com/blocks/organizations) must be installed (`npx better-supabase sql add organizations`). Page: https://bettersupabase.com/recipes/members-table.
 
-| Recipe          | Block           | Waits for                                                                               |
-| --------------- | --------------- | --------------------------------------------------------------------------------------- |
-| Members table   | `organizations` | a client controller and React hook for the organizations block (plan 003, workstream 4) |
-| Invite dialog   | `invitations`   | a client controller and React hook for the invitations block (plan 003, workstream 4)   |
-| API keys table  | `api-keys`      | a client controller and React hook for the api-keys block (plan 003, workstream 4)      |
-| Audit log table | `audit`         | a client controller and React hook for the audit block (plan 003, workstream 4)         |
-| Tag input       | `tags`          | a client controller and React hook for the tags block (plan 003, workstream 4)          |
+Web, with shadcn components:
+
+```bash
+npx shadcn add avatar button select table
+```
+
+```tsx title="apps/examples/nextjs/src/features/organization/components/member-table.tsx"
+"use client";
+
+import { DbException } from "better-supabase";
+import { useMembers } from "better-supabase/blocks/organizations/react";
+import { UserMinusIcon } from "lucide-react";
+import { useExtracted, useFormatter } from "next-intl";
+import { toast } from "sonner";
+import * as v from "valibot";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { RoleBadge } from "@/features/user/components/role-badge";
+import { assignableRoles } from "@/features/user/user-permissions";
+import { Role } from "@/lib/claims";
+import { initials } from "@/lib/initials";
+import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { useErrorMessage } from "@/lib/use-error-message";
+
+import type { Member } from "../organization-queries";
+
+import { loadMembers, memberChanged } from "../organization-actions";
+import { useRoleLabel } from "../use-role-label";
+
+async function loadOrganizationMembers(): Promise<readonly Member[]> {
+  const result = await loadMembers({});
+  if (!result.ok) throw new DbException(result.error);
+  return result.data;
+}
+
+/**
+ * The organization's members. The server renders the rows; a role change
+ * shows at once and goes through `update_member_role` in the browser.
+ */
+export function MemberTable({
+  organizationId,
+  initial,
+  currentUserId,
+  myRole,
+  canUpdateRole,
+  canRemove,
+}: {
+  organizationId: string;
+  initial: readonly Member[];
+  currentUserId: string;
+  myRole: Role;
+  canUpdateRole: boolean;
+  canRemove: boolean;
+}) {
+  const t = useExtracted("organization");
+  const roleLabel = useRoleLabel();
+  const errorMessage = useErrorMessage();
+  const format = useFormatter();
+  const { members, pending, setRole, remove } = useMembers({
+    organizationId,
+    load: loadOrganizationMembers,
+    initial,
+    schema: blockConfig.organizations.api,
+    onChanged: async ({ userId }) => {
+      await memberChanged({ userId });
+    },
+  });
+  const assignable = assignableRoles(myRole);
+  const roleItems = assignable.map((role) => ({
+    value: role,
+    label: roleLabel(role),
+  }));
+  // Nobody changes their own role or an owner's here; ownership moves by transfer.
+  const editable = (member: Member) =>
+    member.userId !== currentUserId &&
+    member.role !== "owner" &&
+    assignable.includes(member.role);
+  const busy = (member: Member) => pending.includes(member.userId);
+
+  const changeRole = async (member: Member, role: Role) => {
+    const result = await setRole(member.userId, role);
+    if (result.ok) toast.success(t("Role updated"));
+    else toast.error(errorMessage(result.error));
+  };
+  const removeMember = async (member: Member) => {
+    const result = await remove(member.userId);
+    if (result.ok) toast.success(t("Member removed"));
+    else toast.error(errorMessage(result.error));
+  };
+
+  return (
+    <Table data-testid="members">
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t("Member")}</TableHead>
+          <TableHead>{t("Role")}</TableHead>
+          <TableHead className="hidden sm:table-cell">{t("Joined")}</TableHead>
+          <TableHead className="w-10" />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {(members ?? initial).map((member) => (
+          <TableRow
+            key={member.userId}
+            aria-busy={busy(member) ? true : undefined}
+            className={busy(member) ? "opacity-50" : undefined}
+          >
+            <TableCell>
+              <div className="flex items-center gap-3">
+                <Avatar className="size-8">
+                  {member.avatarUrl ? (
+                    <AvatarImage src={member.avatarUrl} alt="" />
+                  ) : null}
+                  <AvatarFallback>
+                    {initials(member.name, member.email)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="grid leading-tight">
+                  <span className="font-medium">
+                    {member.name ?? member.email}
+                    {member.userId === currentUserId ? (
+                      <span className="text-muted-foreground font-normal">
+                        {" "}
+                        ({t("you")})
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {member.email}
+                  </span>
+                </div>
+              </div>
+            </TableCell>
+            <TableCell>
+              {canUpdateRole && editable(member) ? (
+                <Select
+                  value={member.role}
+                  items={roleItems}
+                  disabled={busy(member)}
+                  onValueChange={(value) => {
+                    if (v.is(Role, value)) void changeRole(member, value);
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="w-32"
+                    aria-label={t("Role")}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <RoleBadge role={member.role} />
+              )}
+            </TableCell>
+            <TableCell className="text-muted-foreground hidden sm:table-cell">
+              {member.joinedAt
+                ? format.dateTime(new Date(member.joinedAt), {
+                    dateStyle: "medium",
+                  })
+                : "–"}
+            </TableCell>
+            <TableCell>
+              {canRemove && editable(member) ? (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={busy(member)}
+                  aria-label={t("Remove {name}", {
+                    name: member.name ?? member.email ?? "",
+                  })}
+                  onClick={() => {
+                    void removeMember(member);
+                  }}
+                >
+                  <UserMinusIcon />
+                </Button>
+              ) : null}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+```
+
+React Native, with `ActivityIndicator`, `Pressable`, `Text`, `View` from `react-native`:
+
+```tsx title="apps/examples/expo-powersync/src/components/members-table.tsx"
+import { useMembers } from "better-supabase/blocks/organizations/react";
+import { tenantOf, useAuth } from "better-supabase/react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
+
+import { API_SCHEMA } from "../lib/blocks";
+
+/**
+ * The active organization's members. Pressing a role switches it between
+ * member and admin at once; the organizations module refuses a role above
+ * the caller's, and the row shows the old role again.
+ */
+export function MembersTable() {
+  const auth = useAuth();
+  const { members, pending, error, setRole, remove } = useMembers({
+    organizationId: tenantOf(auth),
+    schema: API_SCHEMA,
+  });
+  if (members === undefined) return <ActivityIndicator />;
+  return (
+    <View style={{ gap: 4 }}>
+      <Text style={{ fontSize: 17, fontWeight: "600" }}>Members</Text>
+      {members.map((member) => {
+        const busy = pending.includes(member.userId);
+        const editable =
+          member.userId !== auth.user?.id && member.role !== "owner";
+        const next = member.role === "admin" ? "member" : "admin";
+        return (
+          <View
+            key={member.userId}
+            accessibilityState={{ busy }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              paddingVertical: 8,
+              opacity: busy ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ flex: 1 }} numberOfLines={1}>
+              {member.userId === auth.user?.id ? "You" : member.userId}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityHint={editable ? `Changes the role to ${next}` : ""}
+              disabled={!editable || busy}
+              onPress={() => void setRole(member.userId, next)}
+            >
+              <Text style={{ color: editable ? "#2563eb" : "#737373" }}>
+                {member.role}
+              </Text>
+            </Pressable>
+            {editable ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy}
+                onPress={() => void remove(member.userId)}
+              >
+                <Text style={{ color: "#b91c1c" }}>Remove</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        );
+      })}
+      {error ? <Text style={{ color: "#b91c1c" }}>{error.message}</Text> : null}
+    </View>
+  );
+}
+```
+
+## Invite dialog
+
+A form that invites a teammate by email with a role, then shows the token for the accept link. Both sides call `useInvitations` from `better-supabase/blocks/organizations/react`; the [invitations block](https://bettersupabase.com/blocks/invitations) must be installed (`npx better-supabase sql add invitations`). Page: https://bettersupabase.com/recipes/invite-dialog.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add button dialog field input select
+```
+
+```tsx title="apps/examples/nextjs/src/features/organization/components/invite-member-dialog.tsx"
+"use client";
+
+import { useInvitations } from "better-supabase/blocks/organizations/react";
+import { CopyIcon, UserPlusIcon } from "lucide-react";
+import { useExtracted } from "next-intl";
+import { type SubmitEvent, useId, useState } from "react";
+import { toast } from "sonner";
+import * as v from "valibot";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { assignableRoles } from "@/features/user/user-permissions";
+import { Role } from "@/lib/claims";
+import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { useErrorMessage } from "@/lib/use-error-message";
+
+import { invitationSent } from "../organization-actions";
+import { useInviteLink } from "../use-invite-link";
+import { useRoleLabel } from "../use-role-label";
+
+/**
+ * Invites a teammate through `invite_member` in the browser, then shows the
+ * accept link: the example has no mailer.
+ */
+export function InviteMemberDialog({
+  organizationId,
+  myRole,
+}: {
+  organizationId: string;
+  myRole: Role;
+}) {
+  const t = useExtracted("organization");
+  const fieldId = useId();
+  const roleLabel = useRoleLabel();
+  const errorMessage = useErrorMessage();
+  const inviteLink = useInviteLink();
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Role>("member");
+  const roles = assignableRoles(myRole).map((each) => ({
+    value: each,
+    label: roleLabel(each),
+  }));
+  // The server renders the pending list; `invitationSent` renders it again.
+  const { invite, inviting, sent, error, clear } = useInvitations({
+    organizationId,
+    schema: blockConfig.organizations.api,
+    onChanged: async ({ kind }) => {
+      if (kind === "invited") await invitationSent({});
+    },
+  });
+  const link = sent ? inviteLink(sent.token) : null;
+  const message =
+    error === undefined
+      ? null
+      : error.kind === "conflict"
+        ? t("That person is already a member or invited.")
+        : errorMessage(error);
+
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await invite({ email: email.trim().toLowerCase(), role });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setEmail("");
+        if (!next) clear();
+      }}
+    >
+      <DialogTrigger render={<Button size="sm" />}>
+        <UserPlusIcon />
+        {t("Invite")}
+      </DialogTrigger>
+      <DialogContent>
+        {link ? (
+          <div className="grid gap-6">
+            <DialogHeader>
+              <DialogTitle>{t("Invitation created")}</DialogTitle>
+              <DialogDescription>
+                {t("Send this link. It works once and expires in seven days.")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-2">
+              <Input
+                value={link}
+                readOnly
+                aria-label={t("Invitation link")}
+                data-testid="invite-link"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label={t("Copy link")}
+                onClick={() => {
+                  void navigator.clipboard
+                    .writeText(link)
+                    .then(() => toast.success(t("Link copied")));
+                }}
+              >
+                <CopyIcon />
+              </Button>
+            </div>
+            <DialogFooter>
+              <DialogClose render={<Button />}>{t("Done")}</DialogClose>
+            </DialogFooter>
+          </div>
+        ) : (
+          <form onSubmit={(event) => void submit(event)} className="grid gap-6">
+            <DialogHeader>
+              <DialogTitle>{t("Invite a teammate")}</DialogTitle>
+              <DialogDescription>
+                {t(
+                  "They join with the role you pick. You can't give a role above your own.",
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <FieldGroup>
+              <Field data-invalid={message ? true : undefined}>
+                <FieldLabel htmlFor={`${fieldId}-invite-email`}>
+                  {t("Email")}
+                </FieldLabel>
+                <Input
+                  id={`${fieldId}-invite-email`}
+                  name="email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                  }}
+                  required
+                  autoComplete="off"
+                />
+                {message ? <FieldError>{message}</FieldError> : null}
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`${fieldId}-invite-role`}>
+                  {t("Role")}
+                </FieldLabel>
+                <Select
+                  value={role}
+                  items={roles}
+                  onValueChange={(value) => {
+                    if (v.is(Role, value)) setRole(value);
+                  }}
+                >
+                  <SelectTrigger id={`${fieldId}-invite-role`} className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((each) => (
+                      <SelectItem key={each.value} value={each.value}>
+                        {each.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </FieldGroup>
+            <DialogFooter>
+              <DialogClose render={<Button type="button" variant="outline" />}>
+                {t("Cancel")}
+              </DialogClose>
+              <Button type="submit" disabled={inviting}>
+                {t("Send invitation")}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+React Native, with `Button`, `Modal`, `Pressable`, `Text`, `TextInput`, `View` from `react-native`:
+
+```tsx title="apps/examples/expo-powersync/src/components/invite-dialog.tsx"
+import { useInvitations } from "better-supabase/blocks/organizations/react";
+import { tenantOf, useAuth } from "better-supabase/react";
+import { useState } from "react";
+import { Button, Modal, Pressable, Text, TextInput, View } from "react-native";
+
+import { API_SCHEMA } from "../lib/blocks";
+
+const ROLES = ["member", "admin"] as const;
+
+/**
+ * A button that opens a form to invite a teammate by email with a role,
+ * then shows the token for the accept link (the example has no mailer).
+ */
+export function InviteDialog() {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<(typeof ROLES)[number]>("member");
+  const { invitations, invite, inviting, sent, error, clear } = useInvitations({
+    organizationId: tenantOf(useAuth()),
+    schema: API_SCHEMA,
+  });
+
+  const close = () => {
+    setOpen(false);
+    setEmail("");
+    clear();
+  };
+
+  return (
+    <View style={{ gap: 4 }}>
+      <Text style={{ fontSize: 17, fontWeight: "600" }}>
+        Pending invitations
+      </Text>
+      {invitations?.map((invitation) => (
+        <Text key={invitation.id}>
+          {invitation.email} ({invitation.role})
+        </Text>
+      ))}
+      <Button
+        title="Invite"
+        onPress={() => {
+          setOpen(true);
+        }}
+      />
+      <Modal visible={open} animationType="slide" onRequestClose={close}>
+        <View style={{ flex: 1, gap: 12, padding: 24 }}>
+          {sent ? (
+            <>
+              <Text style={{ fontSize: 17, fontWeight: "600" }}>
+                Invitation created
+              </Text>
+              <Text>Send this token in the accept link. It works once.</Text>
+              <Text selectable style={{ fontFamily: "monospace" }}>
+                {sent.token}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={{ fontSize: 17, fontWeight: "600" }}>
+                Invite a teammate
+              </Text>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="off"
+                style={{ borderWidth: 1, borderRadius: 8, padding: 8 }}
+              />
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {ROLES.map((each) => (
+                  <Pressable
+                    key={each}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: each === role }}
+                    onPress={() => {
+                      setRole(each);
+                    }}
+                    style={{
+                      borderWidth: 1,
+                      borderRadius: 16,
+                      paddingHorizontal: 12,
+                      paddingVertical: 4,
+                      backgroundColor: each === role ? "#e5e5e5" : undefined,
+                    }}
+                  >
+                    <Text>{each}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {error ? (
+                <Text style={{ color: "#b91c1c" }}>{error.message}</Text>
+              ) : null}
+              <Button
+                title="Send invitation"
+                disabled={inviting || !email.trim()}
+                onPress={() =>
+                  void invite({ email: email.trim().toLowerCase(), role })
+                }
+              />
+            </>
+          )}
+          <Button title={sent ? "Done" : "Cancel"} onPress={close} />
+        </View>
+      </Modal>
+    </View>
+  );
+}
+```
+
+## API keys table
+
+The organization's API keys, with a form that creates one and shows its token once, and a revoke button per key. Both sides call `useApiKeys` from `better-supabase/blocks/api-keys/react`; the [api-keys block](https://bettersupabase.com/blocks/api-keys) must be installed (`npx better-supabase sql add api-keys`). Page: https://bettersupabase.com/recipes/api-keys-table.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button dialog empty field input skeleton table
+```
+
+```tsx title="apps/examples/nextjs/src/features/api-keys/components/api-key-table.tsx"
+"use client";
+
+import { useApiKeys } from "better-supabase/blocks/api-keys/react";
+import { KeyRoundIcon } from "lucide-react";
+import { useExtracted, useFormatter } from "next-intl";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { useErrorMessage } from "@/lib/use-error-message";
+
+import { apiKeyCreated } from "../api-key-actions";
+import { CreateApiKeyDialog } from "./create-api-key-dialog";
+
+/**
+ * The organization's API keys through the browser client, with a button
+ * that creates one and shows its token once. Members without
+ * `api_keys.manage` create `personal` keys, which act as them.
+ */
+export function ApiKeyTable({
+  organizationId,
+  personal,
+}: {
+  organizationId: string;
+  personal: boolean;
+}) {
+  const t = useExtracted("apiKeys");
+  const errorMessage = useErrorMessage();
+  const format = useFormatter();
+  const { keys, created, creating, revoking, error, create, revoke, dismiss } =
+    useApiKeys({
+      organizationId,
+      schema: blockConfig["api-keys"].api,
+      onChanged: async ({ kind }) => {
+        if (kind === "created") await apiKeyCreated({});
+      },
+    });
+
+  const revokeKey = async (id: string) => {
+    const result = await revoke(id);
+    if (result.ok) toast.success(t("Key revoked"));
+    else toast.error(errorMessage(result.error));
+  };
+  const date = (value: Temporal.Instant | undefined) =>
+    value
+      ? format.dateTime(new Date(value.epochMilliseconds), {
+          dateStyle: "medium",
+        })
+      : "–";
+
+  const dialog = (
+    <CreateApiKeyDialog
+      token={created?.token}
+      creating={creating}
+      error={error}
+      onCreate={async (name) => {
+        await create({ name, personal });
+      }}
+      onClose={dismiss}
+    />
+  );
+  if (keys === undefined) {
+    return (
+      <div className="grid gap-4">
+        <div className="flex justify-end">{dialog}</div>
+        <Skeleton className="h-32" />
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-4">
+      <div className="flex justify-end">{dialog}</div>
+      {keys.length === 0 ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <KeyRoundIcon />
+            </EmptyMedia>
+            <EmptyTitle>{t("No API keys yet")}</EmptyTitle>
+            <EmptyDescription>
+              {t("Create one to call the API from a script.")}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <Table data-testid="api-keys">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("Name")}</TableHead>
+              <TableHead>{t("Key")}</TableHead>
+              <TableHead className="hidden md:table-cell">
+                {t("Created")}
+              </TableHead>
+              <TableHead className="hidden md:table-cell">
+                {t("Last used")}
+              </TableHead>
+              <TableHead className="w-24" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {keys.map((key) => (
+              <TableRow
+                key={key.id}
+                aria-busy={revoking.includes(key.id) ? true : undefined}
+                className={revoking.includes(key.id) ? "opacity-50" : undefined}
+              >
+                <TableCell className="font-medium">
+                  {key.name}{" "}
+                  {key.userId ? (
+                    <Badge variant="outline">{t("Personal")}</Badge>
+                  ) : null}
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {key.prefix}_{key.publicId}…
+                </TableCell>
+                <TableCell className="text-muted-foreground hidden md:table-cell">
+                  {date(key.createdAt)}
+                </TableCell>
+                <TableCell className="text-muted-foreground hidden md:table-cell">
+                  {date(key.lastUsedAt)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {key.state === "revoked" || key.state === "expired" ? (
+                    <Badge variant="secondary">{t("Revoked")}</Badge>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={revoking.includes(key.id)}
+                      onClick={() => {
+                        void revokeKey(key.id);
+                      }}
+                    >
+                      {t("Revoke")}
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+```
+
+React Native, with `ActivityIndicator`, `Button`, `Pressable`, `Text`, `TextInput`, `View` from `react-native`:
+
+```tsx title="apps/examples/expo-powersync/src/components/api-keys-table.tsx"
+import { useApiKeys } from "better-supabase/blocks/api-keys/react";
+import { tenantOf, useAuth } from "better-supabase/react";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Button,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+
+import { API_SCHEMA } from "../lib/blocks";
+
+/**
+ * The organization's API keys with a field that creates one, whose token
+ * shows only until it is dismissed, and a revoke button per key. Members
+ * who can't manage the organization's keys create personal ones.
+ */
+export function ApiKeysTable({ personal = false }: { personal?: boolean }) {
+  const [name, setName] = useState("");
+  const { keys, created, creating, revoking, error, create, revoke, dismiss } =
+    useApiKeys({ organizationId: tenantOf(useAuth()), schema: API_SCHEMA });
+
+  const submit = async () => {
+    if ((await create({ name: name.trim(), personal })).ok) setName("");
+  };
+
+  if (keys === undefined) return <ActivityIndicator />;
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={{ fontSize: 17, fontWeight: "600" }}>API keys</Text>
+      {keys.map((key) => {
+        const revoked = key.state === "revoked" || key.state === "expired";
+        return (
+          <View
+            key={key.id}
+            style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text>{key.name}</Text>
+              <Text style={{ color: "#737373", fontFamily: "monospace" }}>
+                {key.prefix}_{key.publicId}…
+              </Text>
+            </View>
+            {revoked ? (
+              <Text style={{ color: "#737373" }}>Revoked</Text>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                disabled={revoking.includes(key.id)}
+                onPress={() => void revoke(key.id)}
+              >
+                <Text style={{ color: "#b91c1c" }}>Revoke</Text>
+              </Pressable>
+            )}
+          </View>
+        );
+      })}
+      {created ? (
+        <View style={{ gap: 4, padding: 8, backgroundColor: "#f5f5f5" }}>
+          <Text>Copy the key now. It is not shown again.</Text>
+          <Text selectable style={{ fontFamily: "monospace" }}>
+            {created.token}
+          </Text>
+          <Button title="Done" onPress={dismiss} />
+        </View>
+      ) : null}
+      {error ? <Text style={{ color: "#b91c1c" }}>{error.message}</Text> : null}
+      <TextInput
+        value={name}
+        onChangeText={setName}
+        placeholder="Key name, such as CI"
+        maxLength={80}
+        style={{ borderWidth: 1, borderRadius: 8, padding: 8 }}
+      />
+      <Button
+        title="Create key"
+        disabled={creating || !name.trim()}
+        onPress={() => void submit()}
+      />
+    </View>
+  );
+}
+```
+
+## Audit log table
+
+The audit trail, newest first, with filters by actor and action and older pages on demand. Both sides call `useAuditLog` from `better-supabase/blocks/audit/react`; the [audit block](https://bettersupabase.com/blocks/audit) must be installed (`npx better-supabase sql add audit`). Page: https://bettersupabase.com/recipes/audit-log-table.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add button select skeleton table
+```
+
+```tsx title="apps/examples/nextjs/src/features/audit/components/audit-log-table.tsx"
+"use client";
+
+import { useAuditLog } from "better-supabase/blocks/audit/react";
+import { useExtracted, useFormatter } from "next-intl";
+
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { useErrorMessage } from "@/lib/use-error-message";
+
+const ALL = "all";
+
+/** The values a filter offers: those on the loaded page, and the one it has. */
+function choices(
+  values: readonly (string | undefined)[],
+  current: string | undefined,
+): readonly string[] {
+  return [
+    ...new Set([...values, current].filter((value) => value !== undefined)),
+  ].toSorted();
+}
+
+/**
+ * The organization's audit trail through the browser client, newest first,
+ * filtered by actor and action. The audit module's read policy decides
+ * which entries the caller sees.
+ */
+export function AuditLogTable({ organizationId }: { organizationId: string }) {
+  const t = useExtracted("audit");
+  const format = useFormatter();
+  const errorMessage = useErrorMessage();
+  const { entries, filters, hasMore, loading, error, setFilters, loadMore } =
+    useAuditLog({ organizationId, schema: blockConfig.audit.api });
+  const actors = new Map(
+    (entries ?? []).flatMap((entry) =>
+      entry.actorId ? [[entry.actorId, entry.actorLabel ?? entry.actorId]] : [],
+    ),
+  );
+  const actions = choices(
+    (entries ?? []).map((entry) => entry.eventType),
+    filters.eventType,
+  );
+  const actorItems = [
+    { value: ALL, label: t("Every actor") },
+    ...choices([...actors.keys()], filters.actorId).map((id) => ({
+      value: id,
+      label: actors.get(id) ?? id,
+    })),
+  ];
+  const actionItems = [
+    { value: ALL, label: t("Every action") },
+    ...actions.map((action) => ({ value: action, label: action })),
+  ];
+  const pick = (value: string | null): string | undefined =>
+    value === null || value === ALL ? undefined : value;
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap gap-2">
+        <Select
+          value={filters.actorId ?? ALL}
+          items={actorItems}
+          onValueChange={(value) => {
+            void setFilters({ ...filters, actorId: pick(value) });
+          }}
+        >
+          <SelectTrigger size="sm" className="w-48" aria-label={t("Actor")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {actorItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.eventType ?? ALL}
+          items={actionItems}
+          onValueChange={(value) => {
+            void setFilters({ ...filters, eventType: pick(value) });
+          }}
+        >
+          <SelectTrigger size="sm" className="w-56" aria-label={t("Action")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {actionItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {error ? (
+        <p className="text-destructive text-sm">{errorMessage(error)}</p>
+      ) : null}
+      {entries === undefined ? (
+        <Skeleton className="h-64" />
+      ) : entries.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          {t("Nothing recorded yet.")}
+        </p>
+      ) : (
+        <Table data-testid="audit-events">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("When")}</TableHead>
+              <TableHead>{t("Event")}</TableHead>
+              <TableHead className="hidden md:table-cell">
+                {t("Actor")}
+              </TableHead>
+              <TableHead className="hidden md:table-cell">
+                {t("Target")}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {entries.map((entry) => (
+              <TableRow key={entry.id}>
+                <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
+                  {format.dateTime(
+                    new Date(entry.occurredAt.epochMilliseconds),
+                    { dateStyle: "short", timeStyle: "short" },
+                  )}
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {entry.eventType ??
+                    `${entry.op ?? "change"} ${entry.table ?? ""}`.trim()}
+                </TableCell>
+                <TableCell className="hidden max-w-48 truncate md:table-cell">
+                  {entry.actorLabel ?? entry.actorId ?? "–"}
+                </TableCell>
+                <TableCell className="hidden max-w-48 truncate md:table-cell">
+                  {entry.targetLabel ?? entry.record ?? "–"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      {hasMore ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="justify-self-center"
+          disabled={loading}
+          onClick={() => {
+            void loadMore();
+          }}
+        >
+          {t("Load more")}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+```
+
+React Native, with `ActivityIndicator`, `Button`, `Pressable`, `Text`, `View` from `react-native`:
+
+```tsx title="apps/examples/expo-powersync/src/components/audit-log-table.tsx"
+import { useAuditLog } from "better-supabase/blocks/audit/react";
+import { tenantOf, useAuth } from "better-supabase/react";
+import { ActivityIndicator, Button, Pressable, Text, View } from "react-native";
+
+import { API_SCHEMA } from "../lib/blocks";
+
+/** A row of chips that filters by one value, or by none. */
+function Chips({
+  values,
+  selected,
+  onSelect,
+}: {
+  readonly values: readonly string[];
+  readonly selected: string | undefined;
+  readonly onSelect: (value: string | undefined) => void;
+}) {
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+      {[undefined, ...values].map((value) => (
+        <Pressable
+          key={value ?? "all"}
+          accessibilityRole="radio"
+          accessibilityState={{ checked: value === selected }}
+          onPress={() => {
+            onSelect(value);
+          }}
+          style={{
+            borderWidth: 1,
+            borderRadius: 16,
+            paddingHorizontal: 10,
+            paddingVertical: 2,
+            backgroundColor: value === selected ? "#e5e5e5" : undefined,
+          }}
+        >
+          <Text>{value ?? "All"}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * The organization's audit trail, newest first, filtered by actor and by
+ * action with the values on the loaded page. Members without `audit.read`
+ * get the module's error.
+ */
+export function AuditLogTable() {
+  const { entries, filters, hasMore, loading, error, setFilters, loadMore } =
+    useAuditLog({ organizationId: tenantOf(useAuth()), schema: API_SCHEMA });
+  const distinct = (values: readonly (string | undefined)[]) =>
+    [...new Set(values.filter((value) => value !== undefined))].toSorted();
+  const actors = distinct([
+    ...(entries ?? []).map((entry) => entry.actorId),
+    filters.actorId,
+  ]);
+  const actions = distinct([
+    ...(entries ?? []).map((entry) => entry.eventType),
+    filters.eventType,
+  ]);
+
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={{ fontSize: 17, fontWeight: "600" }}>Audit log</Text>
+      <Chips
+        values={actors}
+        selected={filters.actorId}
+        onSelect={(actorId) => void setFilters({ ...filters, actorId })}
+      />
+      <Chips
+        values={actions}
+        selected={filters.eventType}
+        onSelect={(eventType) => void setFilters({ ...filters, eventType })}
+      />
+      {error ? <Text style={{ color: "#b91c1c" }}>{error.message}</Text> : null}
+      {entries === undefined ? (
+        <ActivityIndicator />
+      ) : (
+        entries.map((entry) => (
+          <View key={entry.id} style={{ paddingVertical: 6 }}>
+            <Text style={{ fontFamily: "monospace" }}>
+              {entry.eventType ?? entry.op}
+            </Text>
+            <Text style={{ color: "#737373", fontSize: 12 }}>
+              {entry.occurredAt.toLocaleString()} by{" "}
+              {entry.actorLabel ?? entry.actorId ?? "the system"}
+            </Text>
+          </View>
+        ))
+      )}
+      {hasMore ? (
+        <Button
+          title="Load more"
+          disabled={loading}
+          onPress={() => void loadMore()}
+        />
+      ) : null}
+    </View>
+  );
+}
+```
+
+## Tag input
+
+A record's tags with suggestions, where typing a name adds a tag or creates it. Both sides call `useTagInput` from `better-supabase/blocks/tags/react`; the [tags block](https://bettersupabase.com/blocks/tags) must be installed (`npx better-supabase sql add tags`). Page: https://bettersupabase.com/recipes/tag-input.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add badge button input skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/customers/components/tag-input.tsx"
+"use client";
+
+import { useTagInput } from "better-supabase/blocks/tags/react";
+import { XIcon } from "lucide-react";
+import { useExtracted } from "next-intl";
+import { type SubmitEvent, useId, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { useErrorMessage } from "@/lib/use-error-message";
+
+/**
+ * A customer's tags. Typing a name adds the organization's tag with that
+ * name, or creates it for callers with `tags.manage`.
+ */
+export function TagInput({
+  organizationId,
+  customerId,
+}: {
+  organizationId: string;
+  customerId: string;
+}) {
+  const t = useExtracted("customers");
+  const listId = useId();
+  const errorMessage = useErrorMessage();
+  const [name, setName] = useState("");
+  const { tags, available, pending, error, create, remove } = useTagInput({
+    organizationId,
+    subjectType: "customer",
+    subjectId: customerId,
+    kind: "customer",
+    schema: blockConfig.tags.api,
+  });
+  const applied = new Set(tags?.map((tag) => tag.id));
+  const suggestions = available?.filter((tag) => !applied.has(tag.id)) ?? [];
+
+  const submit = async (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!name.trim()) return;
+    if ((await create(name)).ok) setName("");
+  };
+
+  if (tags === undefined) return <Skeleton className="h-16" />;
+  return (
+    <div className="space-y-3">
+      <ul className="flex flex-wrap gap-1.5" data-testid="tags">
+        {tags.length === 0 ? (
+          <li className="text-muted-foreground text-sm">{t("No tags yet.")}</li>
+        ) : null}
+        {tags.map((tag) => (
+          <li key={tag.id}>
+            <Badge
+              variant="secondary"
+              className={pending.includes(tag.id) ? "opacity-50" : undefined}
+            >
+              {tag.name}
+              <button
+                type="button"
+                aria-label={t("Remove {name}", { name: tag.name })}
+                disabled={pending.includes(tag.id)}
+                onClick={() => {
+                  void remove(tag.id);
+                }}
+              >
+                <XIcon className="size-3" />
+              </button>
+            </Badge>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={(event) => void submit(event)} className="flex gap-2">
+        <Input
+          value={name}
+          onChange={(event) => {
+            setName(event.target.value);
+          }}
+          list={listId}
+          maxLength={80}
+          placeholder={t("Add a tag")}
+          aria-label={t("Tag")}
+        />
+        <datalist id={listId}>
+          {suggestions.map((tag) => (
+            <option key={tag.id} value={tag.name}>
+              {tag.name}
+            </option>
+          ))}
+        </datalist>
+        <Button type="submit" variant="outline" disabled={!name.trim()}>
+          {t("Add")}
+        </Button>
+      </form>
+      {error ? (
+        <p className="text-destructive text-sm">{errorMessage(error)}</p>
+      ) : null}
+    </div>
+  );
+}
+```
+
+React Native, with `ActivityIndicator`, `Button`, `Pressable`, `Text`, `TextInput`, `View` from `react-native`:
+
+```tsx title="apps/examples/expo-powersync/src/components/tag-input.tsx"
+import { useTagInput } from "better-supabase/blocks/tags/react";
+import { tenantOf, useAuth } from "better-supabase/react";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Button,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+
+import { API_SCHEMA } from "../lib/blocks";
+
+/**
+ * A customer's tags as chips that remove themselves when pressed, the
+ * organization's other tags as suggestions, and a field that adds or
+ * creates one by name.
+ */
+export function TagInput({ customerId }: { readonly customerId: string }) {
+  const [name, setName] = useState("");
+  const { tags, available, pending, error, add, remove, create } = useTagInput({
+    organizationId: tenantOf(useAuth()),
+    subjectType: "customer",
+    subjectId: customerId,
+    kind: "customer",
+    schema: API_SCHEMA,
+  });
+  if (tags === undefined) return <ActivityIndicator />;
+  const applied = new Set(tags.map((tag) => tag.id));
+  const suggestions = (available ?? []).filter((tag) => !applied.has(tag.id));
+
+  const chip = (label: string, busy: boolean, onPress: () => void) => (
+    <Pressable
+      key={label}
+      accessibilityRole="button"
+      disabled={busy}
+      onPress={onPress}
+      style={{
+        borderWidth: 1,
+        borderRadius: 16,
+        paddingHorizontal: 10,
+        paddingVertical: 2,
+        opacity: busy ? 0.5 : 1,
+      }}
+    >
+      <Text>{label}</Text>
+    </Pressable>
+  );
+
+  return (
+    <View style={{ gap: 8 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {tags.length === 0 ? <Text>No tags yet.</Text> : null}
+        {tags.map((tag) =>
+          chip(`${tag.name} ×`, pending.includes(tag.id), () => {
+            void remove(tag.id);
+          }),
+        )}
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {suggestions.map((tag) =>
+          chip(`+ ${tag.name}`, pending.includes(tag.id), () => {
+            void add(tag.id);
+          }),
+        )}
+      </View>
+      {error ? <Text style={{ color: "#b91c1c" }}>{error.message}</Text> : null}
+      <TextInput
+        value={name}
+        onChangeText={setName}
+        placeholder="Add a tag"
+        maxLength={80}
+        style={{ borderWidth: 1, borderRadius: 8, padding: 8 }}
+      />
+      <Button
+        title="Add"
+        disabled={!name.trim()}
+        onPress={() =>
+          void create(name).then((result) => {
+            if (result.ok) setName("");
+          })
+        }
+      />
+    </View>
+  );
+}
+```

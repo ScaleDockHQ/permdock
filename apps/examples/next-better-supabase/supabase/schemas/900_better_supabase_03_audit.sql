@@ -1,8 +1,8 @@
 -- better-supabase module: audit (0.8.0)
--- @bs-module audit@6 managed
+-- @bs-module audit@8 managed
 -- Records inserts, updates and deletes with the actor and changed columns for tables you register, plus semantic events through audit_event(), with redaction, an append-only guard, a tenant read policy and per-tenant retention as options.
 -- Managed by `better-supabase sql add`; re-running it overwrites this file.
--- Change it through `sql.modules` in better-supabase.config.ts and the module's SQL hooks.
+-- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 create schema if not exists better_supabase;
 grant usage on schema better_supabase to anon, authenticated, service_role;
@@ -512,7 +512,7 @@ declare
 begin
   if restricted is not null or ip is not null or user_agent is not null or session_id is not null then
     raise exception 'audit_event got restricted details, and the audit module has no restricted table'
-      using errcode = '22023', hint = 'Set sql.modules.audit.options.restricted to true.';
+      using errcode = '22023', hint = 'Set blocks.audit.options.restricted to true.';
   end if;
   if not (coalesce(nullif((select auth.jwt()) ->> 'role', ''), session_user::text) in ('service_role', 'postgres', 'supabase_admin')) then
     actor_id := auth.uid();
@@ -586,7 +586,7 @@ grant execute on function better_supabase.audit_event(text, text, text, text, te
 -- audit_event for the app's own security definer functions: it honours
 -- actor_id, actor_kind, actor_label, scope and the request details from any
 -- caller, so only the owner, the service role and
--- sql.modules.audit.options.trustedRoles may execute it. A function owned by
+-- blocks.audit.options.trustedRoles may execute it. A function owned by
 -- postgres calls it on behalf of a client with the real actor context.
 drop function if exists better_supabase.audit_event_trusted(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text);
 drop function if exists better_supabase.audit_event_trusted(text, text, text, text, text, text, uuid, jsonb, text, jsonb, uuid, text, text, text, text, text, inet, text, text, text, text, uuid, uuid, text);
@@ -627,7 +627,7 @@ declare
 begin
   if restricted is not null or ip is not null or user_agent is not null or session_id is not null then
     raise exception 'audit_event got restricted details, and the audit module has no restricted table'
-      using errcode = '22023', hint = 'Set sql.modules.audit.options.restricted to true.';
+      using errcode = '22023', hint = 'Set blocks.audit.options.restricted to true.';
   end if;
   actor_id := coalesce(actor_id, auth.uid());
   if idempotency_key is not null then
@@ -713,13 +713,16 @@ drop trigger if exists "bs_audit_no_truncate" on "better_supabase"."audit_events
 create trigger "bs_audit_no_truncate" before truncate on "better_supabase"."audit_events"
   for each statement execute function better_supabase.audit_append_only();
 
+drop trigger if exists "bs_audit_chain" on "better_supabase"."audit_events";
+
 drop policy if exists bs_audit_read on "better_supabase"."audit_events";
 drop function if exists "better_supabase"."audit_read_tenants"();
 drop function if exists "better_supabase"."audit_reads_all"();
 
 -- Deletes up to batch entries older than older_than and returns how many.
 -- With an audit_retention(tenant) function, each tenant keeps its own
--- interval (a plan's days, say); null falls back to older_than. With
+-- interval (a plan's days, say); null falls back to the data-lifecycle
+-- retention policy, then older_than. Entries under a legal hold stay. With
 -- for_tenant, only entries of tenant (null: entries without one).
 -- Nightly with pg_cron or the jobs drain route:
 --   select better_supabase.purge_audit_log();
@@ -756,6 +759,7 @@ begin
       select t.v from t where t.v is not null
     loop
       exit when purged >= batch;
+      continue when false;
       -- Not a literal name, so plpgsql_check passes without the hook.
       execute format('select %s($1)', to_regprocedure('"public"."audit_retention"(uuid)')::oid::regproc)
         into v_older using v_tenant;
@@ -795,11 +799,11 @@ begin
         where l."occurred_at" < now() - older_than
           and (not for_tenant or l."organization_id" is not distinct from purge_audit_log.tenant)
         order by l."occurred_at"
-        limit batch
+        limit greatest(batch - purged, 0)
       )
       returning 1
     )
-    select count(*)::integer into purged from deleted;
+    select purged + count(*)::integer into purged from deleted;
   end if;
   perform set_config('better_supabase.audit_purge', 'off', true);
   return purged;
@@ -998,6 +1002,167 @@ $$;
 revoke execute on function "better_supabase"."count_audit_events"(uuid[], text[], uuid[], text[], text[], text[], text[], text, text[], text[], text[], timestamptz, timestamptz) from public, anon;
 revoke execute on function "better_supabase"."count_audit_events"(uuid[], text[], uuid[], text[], text[], text[], text[], text, text[], text[], text[], timestamptz, timestamptz) from authenticated;
 grant execute on function "better_supabase"."count_audit_events"(uuid[], text[], uuid[], text[], text[], text[], text[], text, text[], text[], text[], timestamptz, timestamptz) to service_role;
+
+-- The row changes the caller may revert, newest first, with their snapshots
+-- and the target's key columns.
+create or replace function "better_supabase"."audit_revert_source"(entries text[])
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  found_entries jsonb;
+begin
+  if cardinality(audit_revert_source.entries) > 1000 then
+    raise exception 'revert at most 1000 entries at once' using errcode = '22023', hint = 'AUDIT_REVERT_TOO_MANY';
+  end if;
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'id', l."id"::text,
+      'table', to_regclass(quote_ident(split_part(l."table_name", '.', 1)) || '.' || quote_ident(split_part(l."table_name", '.', 2)))::text,
+      'op', l."op",
+      'old', l."old_record",
+      'new', l."new_record",
+      'changed', to_jsonb(l."changed"),
+      'keys', to_jsonb(coalesce(
+        (select a.key_columns from better_supabase.audited_tables a where a.target = to_regclass(quote_ident(split_part(l."table_name", '.', 1)) || '.' || quote_ident(split_part(l."table_name", '.', 2)))),
+        (select array_agg(att.attname::text order by k.ord)
+         from pg_catalog.pg_index i
+         cross join lateral unnest(i.indkey) with ordinality k(attnum, ord)
+         join pg_catalog.pg_attribute att on att.attrelid = i.indrelid and att.attnum = k.attnum
+         where i.indrelid = to_regclass(quote_ident(split_part(l."table_name", '.', 1)) || '.' || quote_ident(split_part(l."table_name", '.', 2))) and i.indisprimary)
+      ))
+    ) order by l."occurred_at" desc, l."id" desc), '[]'::jsonb)
+  into found_entries
+  from "better_supabase"."audit_events" l
+  
+  where l."id"::text = any (audit_revert_source.entries)
+    and (coalesce(nullif((select auth.jwt()) ->> 'role', ''), session_user::text) in ('service_role', 'postgres', 'supabase_admin')
+      or (l."organization_id" is not null and coalesce(better_supabase.member_can(auth.uid(), l."organization_id", 'audit.revert'), false)));
+  if jsonb_array_length(found_entries) <> cardinality(array(select distinct e from unnest(audit_revert_source.entries) e)) then
+    raise exception 'an entry is missing or not yours to revert' using errcode = 'P0002', hint = 'AUDIT_ENTRY_NOT_FOUND';
+  end if;
+  return found_entries;
+end;
+$$;
+revoke execute on function "better_supabase"."audit_revert_source"(text[]) from public, anon;
+grant execute on function "better_supabase"."audit_revert_source"(text[]) to authenticated, service_role;
+
+-- The entries the caller wrote under one correlation id, for the undo of a revert.
+create or replace function "better_supabase"."audit_entries_correlated"(correlation text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(l."id"::text order by l."id"), '[]'::jsonb)
+  from "better_supabase"."audit_events" l
+  where l."correlation_id" = audit_entries_correlated.correlation
+    and l."actor_id" is not distinct from auth.uid();
+$$;
+revoke execute on function "better_supabase"."audit_entries_correlated"(text) from public, anon;
+grant execute on function "better_supabase"."audit_entries_correlated"(text) to authenticated, service_role;
+
+-- Writes the old values of row changes back as the caller, newest entry
+-- first, all or nothing.
+create or replace function "better_supabase"."revert_audit_entries"(entries text[])
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+#variable_conflict use_variable
+declare
+  entry jsonb;
+  target regclass;
+  v_old jsonb;
+  v_new jsonb;
+  current_row jsonb;
+  columns text[];
+  key_match text;
+  affected integer;
+  reverted integer := 0;
+  v_correlation text := 'revert:' || gen_random_uuid()::text;
+  v_previous text := current_setting('better_supabase.correlation_id', true);
+  undo_entries jsonb := null;
+begin
+  perform set_config('better_supabase.correlation_id', v_correlation, true);
+  for entry in select value from jsonb_array_elements("better_supabase"."audit_revert_source"(revert_audit_entries.entries)) loop
+    target := (entry ->> 'table')::regclass;
+    v_old := entry -> 'old';
+    v_new := entry -> 'new';
+    if target is null or entry ->> 'op' not in ('insert', 'update', 'delete') or jsonb_typeof(entry -> 'keys') <> 'array' then
+      raise exception 'the entry is not a row change of a table that still exists' using errcode = '22023', hint = 'AUDIT_ENTRY_NOT_REVERTIBLE';
+    end if;
+    select string_agg(format('t.%I::text is not distinct from %L', k, coalesce(v_new, v_old) ->> k), ' and ')
+    into key_match
+    from jsonb_array_elements_text(entry -> 'keys') k;
+    execute format('select to_jsonb(t) from %s t where %s', target, key_match) into current_row;
+    case entry ->> 'op'
+      when 'update' then
+        select array_agg(k) into columns
+        from jsonb_array_elements_text(coalesce(entry -> 'changed', (select jsonb_agg(n) from jsonb_object_keys(v_new) n))) k
+        where v_new ? k and v_old ? k;
+        if columns is null then
+          raise exception 'the entry changed no column it can restore' using errcode = '22023', hint = 'AUDIT_ENTRY_NOT_REVERTIBLE';
+        end if;
+        if exists (select 1 from unnest(columns) k where v_old -> k = '"[redacted]"'::jsonb or v_new -> k = '"[redacted]"'::jsonb) then
+          raise exception 'the entry holds redacted values' using errcode = '22023', hint = 'AUDIT_ENTRY_REDACTED';
+        end if;
+        if current_row is null or exists (
+          select 1 from unnest(columns) k where current_row -> k is distinct from v_new -> k
+        ) then
+          raise exception 'the row changed after this entry' using errcode = 'P0001', hint = 'ROW_CHANGED_SINCE';
+        end if;
+        execute format(
+          'update %s t set %s from jsonb_populate_record(null::%s, $1) o where %s',
+          target,
+          (select string_agg(format('%I = o.%I', k, k), ', ') from unnest(columns) k),
+          target,
+          key_match
+        ) using v_old;
+      when 'insert' then
+        if current_row is null or exists (
+          select 1 from jsonb_each(v_new) n
+          where n.value <> '"[redacted]"'::jsonb and current_row -> n.key is distinct from n.value
+        ) then
+          raise exception 'the row changed after this entry' using errcode = 'P0001', hint = 'ROW_CHANGED_SINCE';
+        end if;
+        execute format('delete from %s t where %s', target, key_match);
+      when 'delete' then
+        if current_row is not null then
+          raise exception 'a row with this key exists again' using errcode = 'P0001', hint = 'ROW_CHANGED_SINCE';
+        end if;
+        if exists (select 1 from jsonb_each(v_old) o where o.value = '"[redacted]"'::jsonb) then
+          raise exception 'the entry holds redacted values' using errcode = '22023', hint = 'AUDIT_ENTRY_REDACTED';
+        end if;
+        select array_agg(att.attname::text order by att.attnum) into columns
+        from pg_catalog.pg_attribute att
+        where att.attrelid = target and att.attnum > 0 and not att.attisdropped
+          and att.attgenerated = '' and v_old ? att.attname::text;
+        execute format(
+          'insert into %s (%s) overriding system value select %s from jsonb_populate_record(null::%s, $1) o',
+          target,
+          (select string_agg(format('%I', k), ', ') from unnest(columns) k),
+          (select string_agg(format('o.%I', k), ', ') from unnest(columns) k),
+          target
+        ) using v_old;
+    end case;
+    get diagnostics affected = row_count;
+    if affected <> 1 then
+      raise exception 'not allowed to change this row' using errcode = '42501', hint = 'AUDIT_REVERT_FORBIDDEN';
+    end if;
+    reverted := reverted + 1;
+  end loop;
+  perform set_config('better_supabase.correlation_id', coalesce(v_previous, ''), true);
+  undo_entries := "better_supabase"."audit_entries_correlated"(v_correlation);
+  return jsonb_build_object('reverted', reverted, 'entries', undo_entries);
+end;
+$$;
+revoke execute on function "better_supabase"."revert_audit_entries"(text[]) from public, anon;
+grant execute on function "better_supabase"."revert_audit_entries"(text[]) to authenticated, service_role;
 
 create schema if not exists better_supabase;
 create table if not exists better_supabase.modules (

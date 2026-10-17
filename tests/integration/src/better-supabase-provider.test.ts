@@ -22,6 +22,11 @@ const LITERALS: Readonly<Record<string, string>> = {
   user: "'00000000-0000-4000-8000-000000000001'::uuid",
   role: "'owner'",
   tenant: "'00000000-0000-4000-8000-000000000002'",
+  resource: "'organization'",
+  id: "'00000000-0000-4000-8000-000000000002'",
+  kind: "'ai-tool'",
+  subject: "'00000000-0000-4000-8000-000000000003'",
+  requester: "'00000000-0000-4000-8000-000000000001'",
 };
 
 describe("authorizationProvider against the example's migrations", () => {
@@ -77,6 +82,25 @@ describe("authorizationProvider against the example's migrations", () => {
           `${name} at ${scope}`,
         ).resolves.toBeDefined();
       }
+    }
+  });
+
+  it("runs permitted for a scope instance and for another resource", async () => {
+    const template = provider.functions.permitted;
+    expect(template).toBeDefined();
+    for (const resource of ["'organization'", "'customer'", "'quotes'"]) {
+      const sql = (template ?? "").replaceAll(
+        /\{(\w+)\}/gu,
+        (_: string, key: string) =>
+          key === "resource" ? resource : (LITERALS[key] ?? ""),
+      );
+      const { rows } = await db!.owner.query<{ permitted: boolean }>(
+        `select ${sql} as permitted`,
+      );
+      expect({ resource, permitted: rows[0]?.permitted }).toEqual({
+        resource,
+        permitted: false,
+      });
     }
   });
 

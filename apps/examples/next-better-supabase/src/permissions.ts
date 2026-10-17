@@ -40,6 +40,8 @@ export const permissions = definePermissions({
       customer: { field: "customer_id", memberOf: "customer" },
     },
   }),
+  // better-supabase's audit block checks these at the organization (`blocks.audit.permissions`).
+  audit: resource({ collection: ["view", "revert"] }),
 });
 
 export const roles = defineRoles({

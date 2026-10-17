@@ -3,7 +3,7 @@
 -- Rows and settings a schema diff doesn't capture. Run `better-supabase sql data`
 -- after the schema migration to put them in a migration.
 -- Managed by `better-supabase sql add`; re-running it overwrites this file.
--- Change it through `sql.modules` in better-supabase.config.ts and the module's SQL hooks.
+-- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 drop event trigger if exists bs_audit_forget_dropped;
 create event trigger bs_audit_forget_dropped on sql_drop
@@ -15,6 +15,6 @@ delete from better_supabase.audited_tables a
 where not exists (select 1 from pg_catalog.pg_class c where c.oid = a.target::oid);
 
 insert into better_supabase.modules (name, version, mode)
-values ('audit', 6, 'managed')
+values ('audit', 8, 'managed')
 on conflict (name) do update
   set version = excluded.version, mode = excluded.mode, updated_at = now();
