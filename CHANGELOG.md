@@ -2,6 +2,471 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 1.0.0 (2026-10-17)
+
+- A `deny` now applies to an update pair `{ current, next }` when either row matches it. `deny(permissions.invoice.update, { where: { locked: true } })` used to apply only when both rows were locked, so unlocking an invoice, or locking one, was granted in process and by `fromSnapshot` while the generated RLS refused it. A scoped deny likewise applies when the update moves the row into or out of its scope instance. Allows still need both rows to match, and `fromSnapshot` now also checks an update allow's `where` against the next row when the grant has no `check`, as `can` does.
+- A condition date compiles the same everywhere. The ORM compilers and generated RLS read `{ date }` with the evaluator's ISO 8601 parser: a date-time without a zone is UTC, and a string that is not ISO 8601 matches no row. Generated SQL writes an explicit UTC literal (`'2026-01-01T00:00:00.000Z'`), so the session `TimeZone` no longer shifts it.
+- A decision made under a support session carries `subject.supportSession: { id }`, the id its `access` events carry as `session.id`, and `permdock/otel` maps it to `permdock.support_session.id`. `decision-event-v1.json` accepts the new optional field.
+- A deny whose wire validity window is malformed now stays in force in `fromSnapshot` and in client `where()`. Before, the malformed window read as "never active" for every grant, which skipped the deny and let an allow through.
+- A feed key (`pdfeed_`) is bound to one resource and rotated instead of expiring. Credential v1 gains the `feed` kind and `on`. An older parser that rejects a feed record fails closed.
+- A membership whose `expiresAt` is not Unix seconds no longer lives forever. An RFC 3339 string (how a `timestamptz` arrives as JSON), a `Date` or an `Instant` is now converted to seconds, `null` still never expires, and any other value, `NaN` and `Infinity` included, fails closed: a membership from a subject or a `MembershipSource` is dropped, and one from a token's `memberships` claim is treated as expired.
+- An approval for a tool call now covers only the arguments the approver saw. A tool without a `data` loader decided with no data, so its approval token held key, subject and actor only, and approving `send_email({ to: 'boss@corp' })` also approved `send_email({ to: 'attacker@evil' })`. The agent kernel (AI SDK, OpenAI Agents, Claude Agent SDK, Eve, A2A) and `permdock/mcp` now pass the tool arguments as the new `args` decide option, and the token binds their digest for row and collection tools alike. A pending approval asked before the upgrade no longer matches its retry and is asked again.
+- An approver can cover another approver for a closed window. `approvalsHandler` takes `delegations` and `subjectFor`. The signature records the delegate as `by` and the delegator as `onBehalfOf` and `delegation`. Those fields are optional on approval request v1.
+- Breaking: `authorizationProvider` from `permdock/better-supabase` drops the `functions` option and never sets `canApprove`; `holdersOf` and `actorMayWrite` are set whenever the manifest lists their helpers, and `approver` becomes the `'ai-tool'` entry of `isApprover`. The provider adds `functions.permitted`, `operations` and `delegation.scopes`, and the new `authorizationHooks` fills better-supabase's `AuthorizationHooks`. `subjectFromShareLink` refuses a share link pinned to a version. These need better-supabase's `main` branch until its next release.
+- Breaking: `subjectFrom*` resolvers take the input first and return `Subject<<Source>Principal>`. In-process defaults are `memory<Interface>`, conformance runners `test<Interface>`, adapted sources `<origin><Interface>`, options take their interface's name, and failure results carry a `cause`. Run `permdock codemod 0.5` for the renames below; the call-shape changes in the second table need a manual edit.
+
+  | Old                                                           | New                                 |
+  | ------------------------------------------------------------- | ----------------------------------- |
+  | `subjectFromSession`                                          | `subjectFromEve`                    |
+  | `actorFromSession`                                            | `actorFromEve`                      |
+  | `CredentialPrincipal`                                         | `ApiKeyPrincipal`                   |
+  | `LinkPrincipal`                                               | `CapabilityPrincipal`               |
+  | `SsfSubjectMapper`                                            | `SsfSubjectResolver`                |
+  | `memorySettings`                                              | `memorySettingsSource`              |
+  | `memoryRelations`                                             | `memoryRelationSource`              |
+  | `MemoryRelationsData`                                         | `MemoryRelationSourceData`          |
+  | `memorySink`                                                  | `memoryDecisionSink`                |
+  | `MemorySink`                                                  | `MemoryDecisionSink`                |
+  | `MemorySinkOptions`                                           | `MemoryDecisionSinkOptions`         |
+  | `memoryApprovalPolicies`                                      | `memoryApprovalPolicySource`        |
+  | `memoryApprovalDelegations`                                   | `memoryApprovalDelegationSource`    |
+  | `memoryAccessReviews`                                         | `memoryAccessReviewStore`           |
+  | `MemoryAccessReviews`                                         | `MemoryAccessReviewStore`           |
+  | `memoryCredentials`                                           | `memoryCredentialStore`             |
+  | `MemoryCredentials`                                           | `MemoryCredentialStore`             |
+  | `memoryStorage`                                               | `memorySnapshotStorage`             |
+  | `RoleSource`                                                  | `CustomRoleSource`                  |
+  | `RoleSourceFactory`                                           | `CustomRoleSourceFactory`           |
+  | `memoryRoleSource`                                            | `memoryCustomRoleSource`            |
+  | `testRoleSource`                                              | `testCustomRoleSource`              |
+  | `betterAuthRoleSource`                                        | `betterAuthCustomRoleSource`        |
+  | `BetterAuthRoleSourceOptions`                                 | `BetterAuthCustomRoleSourceOptions` |
+  | `PermDockStorage`                                             | `SnapshotStorage`                   |
+  | `rlsParity`                                                   | `testRlsParity`                     |
+  | `ormParity`                                                   | `testOrmParity`                     |
+  | `fromStripeEntitlements`                                      | `stripeEntitlementSource`           |
+  | `fromTable`                                                   | `tableMembershipSource`             |
+  | `fromJunction`                                                | `junctionMembershipSource`          |
+  | `fromSupabasePostgres`                                        | `supabasePostgresQuery`             |
+  | `verifyWebBotAuth`                                            | `webBotAuthVerifier`                |
+  | `scimHandler` option `store`                                  | `directory`                         |
+  | `startAccessReview` option `store`                            | `reviews`                           |
+  | `approvalsHandler` and `matchDelegation` option `delegations` | `approvalDelegations`               |
+  | `decide`, `can` and `explain` option `source`                 | `call`                              |
+  | `LimitDetail` field `window`                                  | `per`                               |
+  | `testAuthZen`                                                 | `testAuthzen`                       |
+  | `TestAuthZenOptions`                                          | `TestAuthzenOptions`                |
+  | `AuthZenVectors`                                              | `AuthzenVectors`                    |
+  | `AuthZenEvaluationVector`                                     | `AuthzenEvaluationVector`           |
+  | `AuthZenEvaluationsVector`                                    | `AuthzenEvaluationsVector`          |
+  | `AuthZenSearchVector`                                         | `AuthzenSearchVector`               |
+  | `powersyncSource`                                             | `powerSyncSource`                   |
+  | `summariseSubject`                                            | `summarizeSubject`                  |
+  | `WebhookFailureReason`                                        | `WebhookFailureCause`               |
+  | `ApprovalResumeFailure`                                       | `ApprovalResumeFailureCause`        |
+
+  | Before                                                                  | After                                                                                         |
+  | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+  | `subjectFromApiKey(options)(key, { tenant })`                           | `subjectFromApiKey(key, { ...options, tenant })`                                              |
+  | `subjectFromBetterAuth(auth, session, options)`                         | `subjectFromBetterAuth(session, { auth, ...options })`                                        |
+  | `capabilitySubject(capability)` from `permdock`                         | `subjectFromCapability(token, options)` from `permdock/jwt`                                   |
+  | `credentialSubject(credential, options)` from `permdock`                | `subjectFromApiKey(key, options)` from `permdock/server`                                      |
+  | `MappedSubject` from `permdock/jwt`                                     | `Subject<JwtPrincipal>`; `subjectFromIntrospection` returns `Subject<IntrospectionPrincipal>` |
+  | `verifyWebBotAuth(request, options)`                                    | `webBotAuthVerifier(options)(request)`, or `webBotAuth: webBotAuthVerifier(options)`          |
+  | `verifyWebhook` failure `{ ok: false, reason, cause? }`                 | `{ ok: false, cause }`, where `cause` is a `WebhookFailureCause`                              |
+  | `inspectApproval` and `consumeApproval` failure `{ ok: false, detail }` | `{ ok: false, cause }`                                                                        |
+
+- Breaking: `subjectFromApiKey` loads a user key's owner through a `PrincipalSource` passed as `principals`, asked with the key's tenant, instead of an `owner(id)` callback.
+
+  | Before                         | After                               |
+  | ------------------------------ | ----------------------------------- |
+  | `subjectFromApiKey({ owner })` | `subjectFromApiKey({ principals })` |
+
+- Breaking: adapters use one name per meaning. `permdock/server` exports `createPermDock`; server adapters take `deniedResponse`; agent adapters take `deniedText` and `operations`; adapter type names start with the adapter. Run `permdock codemod 0.5` for the renames below. The call-shape changes in the second table need a manual edit.
+
+  | Old                           | New                                | Entries                                                                                                          |
+  | ----------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+  | `createServerKernel`          | `createPermDock`                   | `permdock/server`                                                                                                |
+  | `ServerKernel`                | `ServerPermDock`                   | `permdock/server`                                                                                                |
+  | `ServerKernelOptions`         | `ServerPermDockOptions`            | `permdock/server`                                                                                                |
+  | `createEvaluationsHandler`    | `evaluationsHandler`               | `permdock/server`                                                                                                |
+  | `createNativeStore`           | `nativeStore`                      | `permdock/react-native`                                                                                          |
+  | `permdock`                    | `getPermDock`                      | `permdock/server`, `node`, `terminal`, `openai`, `claude-agent`, `eve`                                           |
+  | `permdock`                    | `middleware`                       | `permdock/hono`, `express`, `elysia`, `trpc`, `orpc`                                                             |
+  | `load`                        | `data`                             | `permdock/authzen`                                                                                               |
+  | `loadData`                    | `data`                             | `permdock/nest`                                                                                                  |
+  | `onDenied`                    | `deniedResponse`                   | `permdock/server`, `hono`, `express`, `fastify`, `elysia`, `nest`, `node`, `trpc`, `orpc`, `supabase/middleware` |
+  | `onDenied`                    | `deniedText`                       | `permdock/ai-sdk`, `mcp`                                                                                         |
+  | `tools`                       | `operations`                       | `permdock/ai-sdk`, `openai`, `claude-agent`, `eve`                                                               |
+  | `OnDenied`                    | `DeniedResponse`                   | `permdock/server`                                                                                                |
+  | `OnDeniedEvent`               | `DeniedResponseEvent`              | `permdock/server`                                                                                                |
+  | `OnDeniedText`                | `DeniedText`                       | `permdock/ai-sdk`, `mcp`                                                                                         |
+  | `PermDockRequest`             | `ExpressPermDockRequest`           | `permdock/express`                                                                                               |
+  | `PermDockRequest`             | `FastifyPermDockRequest`           | `permdock/fastify`                                                                                               |
+  | `PermDockEnv`                 | `HonoPermDockEnv`                  | `permdock/hono`                                                                                                  |
+  | `ElysiaContext`               | `ElysiaPermDockContext`            | `permdock/elysia`                                                                                                |
+  | `ElysiaCtx`                   | `ElysiaRequestContext`             | `permdock/elysia`                                                                                                |
+  | `ConvexPermDockCtx`           | `ConvexPermDockContext`            | `permdock/convex`                                                                                                |
+  | `ServerPermDockProviderProps` | `NextPermDockProviderProps`        | `permdock/next`                                                                                                  |
+  | `NativePermDockProviderProps` | `ReactNativePermDockProviderProps` | `permdock/react-native`                                                                                          |
+  | `PermDockSvelteOptions`       | `SveltePermDockOptions`            | `permdock/svelte`                                                                                                |
+
+  | Before                                                           | After                                      |
+  | ---------------------------------------------------------------- | ------------------------------------------ |
+  | `app.register(permdock)` on `permdock/fastify`                   | `app.register(middleware())`               |
+  | `app.register(permdockHandler, opts)` on `permdock/fastify`      | `app.register(permdockHandler(), opts)`    |
+  | `permdockHandler(request)` on `permdock/trpc`, `orpc`, `authzen` | `permdockHandler()(request)`               |
+  | `decideCredential(permdock, request)` from `permdock`            | `permdock.decideCredential(request)`       |
+  | `permittedIds(permdock, permission, scope)` from `permdock`      | `permdock.permittedIds(permission, scope)` |
+  | `mayUse(permdock, permission)` from `permdock`                   | `permdock.mayUse(permission)`              |
+
+- Breaking: every event, webhook, problem, route and protocol field now follows its standard: CloudEvents types are `com.permdock.<family>.<operation>`, webhooks are Standard Webhooks over a CloudEvents batch, and the approvals API addresses a request by `id`. Every format keeps `v: 1` because nothing outside the PermDock repositories reads these formats yet.
+
+  CloudEvents types:
+
+  | Before                                              | After                                                                                                           |
+  | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+  | `dev.permdock.decision`                             | `com.permdock.decision`                                                                                         |
+  | `dev.permdock.approval` with `data.phase`           | `com.permdock.approval.requested`, `.resolved`, `.expired`, `.cancelled`                                        |
+  | `dev.permdock.directory`                            | `com.permdock.directory.created`, `.replaced`, `.patched`, `.deleted`                                           |
+  | `dev.permdock.membership`                           | `com.permdock.membership.added`, `.removed`, `.changed`                                                         |
+  | `dev.permdock.credential`                           | `com.permdock.credential.created`, `.used`, `.rotated`, `.revoked`                                              |
+  | `dev.permdock.catalog`                              | `com.permdock.catalog.published`, `.drifted`                                                                    |
+  | `dev.permdock.access.started`, `.ended`, `.revoked` | `com.permdock.support-session.started`, `.ended` (`revoked` is `ended` with `data.operation: 'revoked'`)        |
+  | none                                                | `com.permdock.automation.*` and `com.permdock.delivery.*`, in `RESERVED_CLOUD_EVENT_TYPES`; parsers refuse them |
+
+  Events and the envelope:
+
+  | Before                                               | After                                                                                     |
+  | ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+  | `toCloudEvent(event, { source? })`, any `source`     | `source` required and an absolute URI; `dataschema`, `traceparent` and `tracestate` added |
+  | Decision event `source`; `DecideOptions.source`      | `call`; `DecideOptions.call`                                                              |
+  | Event `expiresAt` in Unix seconds                    | RFC 3339 date-times                                                                       |
+  | Event `delegation: { scopes, authorizationDetails }` | `delegation: { scope, authorization_details }`                                            |
+  | Event `membership` in the internal shape             | The canonical membership `{ scope, id, roles, … }`                                        |
+
+  `parseSinkEvent`, `parseSinkEvents`, `parseCloudEventBatch`, `cloudEventType`, `CLOUDEVENTS_CONTENT_TYPE`, `CLOUDEVENTS_BATCH_CONTENT_TYPE`, `EVENT_SCHEMA_IDS`, `SINK_EVENT_SCHEMAS` and the `<FAMILY>_EVENT_SCHEMA` constants are new on `permdock`, with the schemas published at `https://permdock.com/schemas/<family>-event-v1.json`.
+
+  Webhooks:
+
+  | Before                                                                                | After                                                                                                                                  |
+  | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+  | A `vnd.permdock.evidence+jwt` JWS with an `events` claim, posted as `application/jwt` | `webhook-id`, `webhook-timestamp` and `webhook-signature` (`v1a` Ed25519, `v1` HMAC) over an `application/cloudevents-batch+json` body |
+  | `verifyWebhook(request, { jwks, audience, replay })`                                  | `verifyWebhook(request, { verifier })` or `{ jwks, secret, replay }`                                                                   |
+  | `verifyWebhook` reasons `unsigned`, `invalid-token`, `invalid-events`, `replayed`     | `unsigned`, `invalid-signature` (with `cause`), `invalid-events`, `replayed`                                                           |
+
+  `webhookSigner` and `webhookVerifier` on `permdock/server` sign and verify any body. `signDecisionBatch` keeps the JWS for offline evidence exports.
+
+  Approvals HTTP API and the Cloud store:
+
+  | Before                                              | After                                                                                                  |
+  | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+  | `GET /:token`                                       | `GET /:id` with a strong `ETag` and `If-None-Match`; no response carries `token`                       |
+  | `POST /:token/approve`, `POST /:token/reject`       | `POST /:id/approve`, `POST /:id/reject` with `If-Match` (`412`) and `Idempotency-Key` (`422` on reuse) |
+  | `signed` in the approve response                    | `GET /:id/signature` as `application/jwt`, linked with `Link: rel="alternate"`                         |
+  | Lists with `next` only                              | `next` and `Link: rel="next"`                                                                          |
+  | Cloud `GET /approvals/{token}`                      | `GET /approvals/by-token` with the `PermDock-Approval` header; `GET /approvals/{id}` is new            |
+  | Cloud `POST /approvals/{token}/resolve`, `/consume` | `POST /approvals/by-token/resolve`, `/by-token/consume` with the `PermDock-Approval` header            |
+  | `PermDock-Approval: <any string>`                   | One RFC 9651 sf-token; anything else reads as no token, and `approvalHeaders` throws on it             |
+
+  `memoryIdempotencyStore`, `IdempotencyStore` and `ApprovalView` are new on `permdock/approvals`. `testIdempotencyStore` in `permdock/testing` is the store's conformance runner.
+
+  Problem Details, AuthZEN, SCIM, SSF, OpenTelemetry, OCSF and Web Bot Auth:
+
+  | Before                                                                                                               | After                                                                                                                                           |
+  | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `type` `…/unauthenticated`, `…/not-found`, `…/method-not-allowed`, `…/conflict`, `…/payload-too-large`, `…/internal` | `about:blank` with the HTTP status title; `PROBLEM_EXAMPLES` on `permdock/testing` holds one body per remaining type                            |
+  | `…/step-up-required` without a `title`                                                                               | `title: "Step-up required"`                                                                                                                     |
+  | AuthZEN `context.delegation: { scopes, authorizationDetails }`                                                       | `{ scope, authorization_details }`                                                                                                              |
+  | AuthZEN `resource.id` always a row                                                                                   | `"*"` names the collection                                                                                                                      |
+  | AuthZEN results without reasons; `evaluations_semantic` and `X-Request-ID` on `permdock/authzen` only                | `context.reason_admin` and `context.reason_user`; `evaluations_semantic` and the `X-Request-ID` echo on `permdockHandler` too                   |
+  | SCIM extension `urn:permdock:scim:schemas:extension:roles:1.0`                                                       | `urn:ietf:params:scim:schemas:extension:permdock:2.0:Group`                                                                                     |
+  | SCIM without versioning; `scimType` on any error                                                                     | `meta.version` and `ETag`, `If-Match` (`412`), `If-None-Match` (`304`); `scimType` on `400` and `409` only                                      |
+  | SSF handler failure `400` with an `err` body                                                                         | `500` with an empty body; CAEP 1.0's eight events, RISC `account-disabled`, `account-purged`, `credential-compromise` and stream `verification` |
+  | OTel `permdock.*` attributes only; lists comma-joined                                                                | `user.id`, `user.roles`, `gen_ai.agent.id`, `gen_ai.request.model`, `error.type`; lists as arrays                                               |
+  | OCSF 1.3.0; `time: 0` for a bad `at`; status `Other` for `approval-required`                                         | OCSF 1.9.0; the event projects to `undefined`; status `Approval Required`                                                                       |
+  | `accessToOcsf` Account Change (3001), `OcsfAccountChange`                                                            | User Management (3007), `OcsfUserManagement`                                                                                                    |
+  | Web Bot Auth accepted any RFC 9421 signature                                                                         | `tag="web-bot-auth"`, a covered `@authority`, and a covered `signature-agent` when the header is sent                                           |
+
+- Breaking: every signed output is now a `vnd.permdock.<format>+jwt` with required `iss`, `aud`, `iat`, `exp` and `jti`, and the payload no longer repeats them. `joseTokenSigner` requires `issuer`, digests are `sha-256:` over RFC 8785 JSON, and every format keeps `v: 1` because nothing outside the PermDock repositories reads these formats yet.
+
+  | Before                                                                                                                            | After                                                                                                                                                                                                                  |
+  | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `typ: permdock-snapshot+jwt`, `permdock-approval+jwt`, `permdock-policy+jwt`, `permdock-capability+jwt`, `permdock-decisions+jwt` | `vnd.permdock.snapshot+jwt`, `vnd.permdock.approval+jwt`, `vnd.permdock.policy+jwt`, `vnd.permdock.capability+jwt`, `vnd.permdock.evidence+jwt`; `vnd.permdock.run+jwt` and `vnd.permdock.support-session+jwt` are new |
+  | `joseTokenSigner({ key, alg, kid })`                                                                                              | `joseTokenSigner({ key, alg, kid, issuer, audience? })`; `sign` takes `audience`, `expiresAt`, `issuedAt` and `jti`                                                                                                    |
+  | Snapshot `issuedAt`, `expiresAt` in Unix seconds                                                                                  | RFC 3339 date-times                                                                                                                                                                                                    |
+  | Snapshot and approval `delegation.scopes: ["a", "b"]`                                                                             | `delegation.scope: "a b"`, plus `authorization_details`                                                                                                                                                                |
+  | Policy document `id`, `issuedAt` inside the `policy` claim                                                                        | `jti` and `iat`                                                                                                                                                                                                        |
+  | Capability `id`, `expiresAt` inside the `capability` claim                                                                        | `sub` and `exp`; optional `cnf.jkt` binds the link to a DPoP key                                                                                                                                                       |
+  | Approval JWS `{ token, permission, resource, status }`                                                                            | `jti` (the request `id`), `act`, `token`, `resolved_by`, `approvals` and one `authorization_details` entry                                                                                                             |
+  | Approval `token`, catalog fingerprint, `payloadDigest`: `pd1.<hex>` or bare base64url                                             | `sha-256:<base64url>` over RFC 8785 JSON                                                                                                                                                                               |
+  | Supabase membership claims `expiresAt`, `grantedBy`, `managedBy`; break-glass `expiresAt`                                         | `expires_at`, `granted_by`, `managed_by`; `expires_at`                                                                                                                                                                 |
+
+  JSON Schemas for the snapshot, approval signature, capability, policy, evidence export and credential are at `schemas/<name>-v1.json`.
+
+- Breaking: options types drop their verb prefix, `Ctx` is spelled `Context`, the JWT and Clerk resolver factories lose `create` because they return a function, and `permdock/node` drops the `fromResponse` alias of `sendResponse`. Run `permdock codemod 0.5` to apply them.
+
+  | Old                          | New                    |
+  | ---------------------------- | ---------------------- |
+  | `DefinePermissionsOptions`   | `PermissionsOptions`   |
+  | `SignCapabilityOptions`      | `CapabilityOptions`    |
+  | `SignRunTicketOptions`       | `RunTicketOptions`     |
+  | `StartAccessReviewOptions`   | `AccessReviewOptions`  |
+  | `StartAutomationOptions`     | `AutomationOptions`    |
+  | `VerifyWebhookOptions`       | `WebhookOptions`       |
+  | `UseRolesOptions`            | `RolesOptions`         |
+  | `ConvexCtxLike`              | `ConvexContextLike`    |
+  | `createJwtSubjectResolver`   | `jwtSubjectResolver`   |
+  | `createClerkSubjectResolver` | `clerkSubjectResolver` |
+  | `fromResponse`               | `sendResponse`         |
+  | `fromResponse`               | `send`                 |
+
+- Breaking: the `permdock/cloud` client follows the settled Cloud contract (`schemas/cloud-api-v1.json`). For the PermDock-Cloud repository: the new `PermDock-Subject` header on `GET /v1/environments/:env/snapshot`, the `pushed-policy-v1`, `connector-v1`, `run-v1` and `support-session-v1` formats, and the approver token claims below.
+
+  | Before                                                                              | After                                                                                                                                                                                                                            |
+  | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `cloud().snapshots`                                                                 | `cloud().snapshotsFor(token)`: a `SnapshotSource` for the subject an `at+jwt` proves, sent as `PermDock-Subject`                                                                                                                 |
+  | `cloud().catalog.push(catalog)` resolves to `{ fingerprint }`                       | `CloudCatalogPush`: `{ version, fingerprint, findings }`, or `{ version, fingerprint, unchanged: true }` when the fingerprint is already published                                                                               |
+  | The policy `permdock cloud push` sends: `{ fingerprint, scopes?, grants }`          | `PushedPolicy` with `v: 1`, from `permdock/catalog`, validated by `schemas/pushed-policy-v1.json`                                                                                                                                |
+  | Approver token: `sub` and a `permdock_approval` detail with `id`, `status`, `etag?` | Also `roles`, `memberships` and `tenant`; the detail adds `permissions`, `relations` and `vouched`. `cloud({ approver: { permissions?, relations? } })` reads them, typically from `approverPermissions` and `approverRelations` |
+
+- Breaking: times follow one rule: NumericDate in JWT and SQL-read claims, RFC 3339 in JSON records and HTTP bodies, whole seconds for durations, and an `Instant` (`{ epochMilliseconds }`, such as a `Temporal.Instant`) for every runtime `now`. A duration that is not a positive integer throws at definition time, and a `now` that is not an `Instant` denies with `validation`.
+
+  | Before                                                                                                              | After                                       |
+  | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+  | Credential `createdAt`, `expiresAt`: Unix seconds                                                                   | RFC 3339                                    |
+  | `apiKeyVerifier` `touch(id, at)`: `at` in Unix seconds                                                              | `at: Instant`; `lastUsedAt(id)` is RFC 3339 |
+  | `approval.ttl`, `escalation.after`: `"30m"`                                                                         | `1800` (seconds)                            |
+  | `memoryApprovalStore({ ttl })`, `requestApproval` `ttl`: milliseconds                                               | seconds                                     |
+  | `DEFAULT_APPROVAL_TTL_MS` (3 600 000)                                                                               | `DEFAULT_APPROVAL_TTL` (3600)               |
+  | `limit: { per: "1h" }`                                                                                              | `limit: { per: 3600 }`                      |
+  | `breakGlass` / `supportAccess` `maxDuration`, `consent.durations`, `activate({ duration })`: `"4h"`                 | `14_400` (seconds)                          |
+  | `remotePdp` / Clerk resolver `cache.ttl`: `"5s"` or milliseconds                                                    | `5` (seconds, at most 30)                   |
+  | Connection `revalidate`: milliseconds                                                                               | seconds                                     |
+  | `validFrom`, `validUntil`: RFC 3339 or Unix seconds                                                                 | RFC 3339 or an `Instant`                    |
+  | Snapshot and catalog grant `validity`, `inactive-grant` detail: Unix seconds                                        | RFC 3339 (`WireValidity`)                   |
+  | `LimitDetail`: `{ count, window, resetsAt: number }`                                                                | `{ count, per, resetsAt: string }`          |
+  | `quota.resetsAt`: Unix seconds                                                                                      | RFC 3339                                    |
+  | `now` on `decide`, `can`, `simulate`, `compileWhere`, ORM `toWhere`, `rateLimitHeaders`, limit stores: Unix seconds | `Instant`                                   |
+  | `now` on approval helpers, stores, `approverRelations`, access reviews: `Date`                                      | `Instant`                                   |
+  | Terminal runtime `now` and `WebBotAuthOptions.now`: `() => number`                                                  | `() => Instant`                             |
+  | `buildLocalSnapshot(manifest, data, now)`, `signSaasToken({ now })`, `verifySaasToken(token, now)`: Unix seconds    | `Instant`                                   |
+  | `parseDuration`                                                                                                     | Removed                                     |
+
+- Core `createPermDock` is synchronous and returns a `PermDock`, never a Promise. Inputs that answer asynchronously go through the new `loadPermDock`, which takes the same arguments and returns `Promise<PermDock>`. `permdock/pdp` has the same pair. Passing a Promise-returning mapper or source to `createPermDock` throws and names `loadPermDock`, instead of handing back a value that might be a Promise.
+
+  | Before                                                                        | After                                                                 |
+  | ----------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+  | `const permdock = await createPermDock(policy, user)` with synchronous inputs | `const permdock = createPermDock(policy, user)`                       |
+  | `await createPermDock(policy, user, { memberships: dbSource })`               | `await loadPermDock(policy, user, { memberships: dbSource })`         |
+  | `createPermDock` from `permdock/pdp` (always async)                           | `createPermDock` (sync) or `loadPermDock` (async) from `permdock/pdp` |
+  | Adapter option `pdp: createPermDock` from `permdock/pdp`                      | `pdp: loadPermDock` from `permdock/pdp`                               |
+  | `permdock.derive(options)` returned `PermDock \| Promise<PermDock>`           | `permdock.derive(options)` always returns `Promise<PermDock>`         |
+
+  `await createPermDock(...)` on synchronous inputs still works at run time, but a type-aware linter flags it (`await-thenable`). Server and agent adapters build each request's instance with `loadPermDock`, so their sources may stay async.
+
+- Decision events carry an optional `model`: the agent model gate (`decideModel`, `permittedModels`) sets it to the model id, and any call can pass it through the new `DecideOptions.model`. `permdock/otel` sets `gen_ai.request.model` from it. The `permdock` entry now also exports `parseCloudEvent` and `parseCatalogEventData` next to `parseSinkEvents` and the event schemas, so a receiver validates events without its own schema.
+- Every subject provider takes one `claims` option, a `ClaimsMap`, for where values live in the verified claims. Each field is a dot path or a function over the claims; a function that throws reads as absent.
+
+  | Before                                                                  | After                                                                               |
+  | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+  | `JwtClaimPaths` (`permdock/jwt`)                                        | `ClaimsMap` (`permdock`)                                                            |
+  | `subjectFromSupabase(claims, { roles: "user_role", tenant: "org_id" })` | `subjectFromSupabase(claims, { claims: { roles: "user_role", tenant: "org_id" } })` |
+  | `subjectFromSupabase(claims, { memberships: "m", plans: "p" })`         | `subjectFromSupabase(claims, { claims: { memberships: "m", plans: "p" } })`         |
+  | `subjectFromClerk(auth, { globalRoles: "publicMetadata.staff" })`       | `subjectFromClerk(auth, { claims: { roles: "publicMetadata.staff" } })`             |
+  | `ClerkGlobalRoles`                                                      | `ClaimPath`                                                                         |
+
+  `subjectFromBetterSupabase` takes `claims` for roles, tenant and memberships and keeps its `plans` option, which decodes better-supabase's feature codes. `scimHandler` takes `claims: { tenant }` for a JWT that names its tenant elsewhere; the default is still `tenant`, then `tid`. The SQL side keeps one name per setting (`rls.tenantClaim`, `rls.roleClaim`), because the database reads a top-level claim by name.
+
+- Extension interfaces share one shape. Every interface takes an optional `name`, which `on('auth')` reports when that source throws (`{ reason: 'source-threw', source: 'memberships', name }`). Every `DirectoryStore` method may now answer with a value or a Promise, like the other interfaces.
+
+  `webBotAuthVerifier(options)` returns an object, like every other verifier:
+
+  | Before                                                | After                                                          |
+  | ----------------------------------------------------- | -------------------------------------------------------------- |
+  | `webBotAuthVerifier(options)(request)`                | `webBotAuthVerifier(options).verify(request)`                  |
+  | a hand-written `webBotAuth: async (request) => actor` | `webBotAuth: { verify: async (request) => actor }`             |
+  | `DirectoryStore` methods returned `Promise<T>`        | `T \| Promise<T>`; a caller that chains `.then` awaits instead |
+
+- Feature requests are free functions that take the instance first, so `createPermDock` no longer references their modules and an app that does not call them does not ship them. A plain `definePolicy` + `createPermDock` bundle drops from 54.3 KB to 46.7 KB gzip, and `permdock/react` from 21.8 KB to 19.4 KB (measured with esbuild, minified, tree-shaken).
+
+  | Before                                            | After                                              |
+  | ------------------------------------------------- | -------------------------------------------------- |
+  | `permdock.decideCredential(request, options)`     | `decideCredential(permdock, request, options)`     |
+  | `permdock.decideAutomation(request, options)`     | `decideAutomation(permdock, request, options)`     |
+  | `permdock.decideSupportSession(request, options)` | `decideSupportSession(permdock, request, options)` |
+  | `permdock.activate(input)`                        | `activate(permdock, input)`                        |
+  | `permdock.whoCan(permission, row)`                | `whoCan(permdock, permission, row)`                |
+  | `permdock.simulate({ arazzo, openapi })`          | `simulateArazzo(permdock, { arazzo, openapi })`    |
+
+  All seven are exported from `permdock`. On an instance built from a snapshot they deny with `unsupported` (`whoCan` lists nothing), as the methods did; on a `PdpPermDock` they use its local instance. `simulateArazzo` emits one `simulate` event per plan on a server instance.
+
+  Hosted grants are an opt-in feature too: `policies` takes `hostedPolicies(source)` instead of a bare `PolicySource`, so the merge code ships only with apps that import it.
+
+  | Before                                               | After                                                                |
+  | ---------------------------------------------------- | -------------------------------------------------------------------- |
+  | `createPermDock(policy, user, { policies: source })` | `createPermDock(policy, user, { policies: hostedPolicies(source) })` |
+
+  Approval policies follow the same pattern: `approvalPolicies` takes `approvalPolicies(source)`. `memoryApprovalPolicySource([...])` already is that feature, so it needs no wrapper.
+
+  | Before                           | After                                              |
+  | -------------------------------- | -------------------------------------------------- |
+  | `{ approvalPolicies: mySource }` | `{ approvalPolicies: approvalPolicies(mySource) }` |
+
+- Generated RLS quotes a role name that holds a comma, brace, quote, backslash or whitespace inside its array literal, so one role can never split into two, and compiles an empty `in` list to `false` and an empty `notIn` to `is not null`, the same answers as `can()`. Before, an empty list produced invalid SQL.
+- Grant limits are an opt-in feature: `limits` takes `limits(store)` instead of a bare `LimitStore`. The counting code ships only with apps that import `limits`, so a plain `definePolicy` + `createPermDock` bundle drops from 40.1 KB to 39.6 KB gzip, and `permdock/server` from 42.1 KB to 41.7 KB.
+
+  | Before                                              | After                                                       |
+  | --------------------------------------------------- | ----------------------------------------------------------- |
+  | `createPermDock(policy, user, { limits: store })`   | `createPermDock(policy, user, { limits: limits(store) })`   |
+  | `defineApp(policy, { limits: memoryLimitStore() })` | `defineApp(policy, { limits: limits(memoryLimitStore()) })` |
+
+  A grant with a `limit` and no `limits` still denies with `limit-unavailable`, `dev` still fills in `limits(memoryLimitStore())`, and `prod` still throws at startup.
+
+- Ids that an integrator supplies and core only compares for equality are open unions: the values PermDock sets still autocomplete, and an application's own id type-checks.
+
+  | Type                | Where                                                                       | Known values                                            |
+  | ------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------- |
+  | `ActorKind`         | `Actor.kind`, a policy delegation's `to.kind`                               | `mcp-client`, `oauth-client`, `support`, `ai-sdk`, …    |
+  | `AdapterId`         | `DecideOptions.adapter`, `DecisionEvent.adapter`, `ApprovalRequest.adapter` | every adapter entry                                     |
+  | `MembershipVia`     | `Membership.via`, `viaOnly`, membership and access events                   | `direct`, `contact`, `credential`, `support`, `scim`, … |
+  | `OpenUnion<"scim">` | `DirectoryEvent.source`                                                     | `scim`                                                  |
+
+  `directory-event-v1.json` now accepts any string `source`, so a directory sync other than SCIM can emit the same event. Unions that core interprets member by member stay closed: denial reasons, approval modes, condition operators, credential kinds, delivery channels and problem types.
+
+- New `permdock/chat-sdk` entry, with `chat` 4 as an optional peer. `chatSdkAuthor` turns a Chat SDK `Author` into a `ChatAuthor`, and is `null` for bots. `chatSdkTransport` is the chat channel of `permdock/delivery` and posts direct messages. `approvalCard` renders an approval prompt with a link to the approval page. `approvalActions` applies its approve and reject buttons as the clicking user through `ChatPermDock.resolveAction`.
+- New `permdock/chat` entry. `subjectFromChat` resolves a verified `ChatAuthor` through `principalByIdentity`, and an unlinked author is anonymous. `createPermDock` returns `ChatPermDock`: `protect(operation, handler)` decides each command as that principal and opens one approval request per command, and `resolveAction` applies an approve or reject verdict by request id. The requester never approves their own request.
+- New `permdock/delivery` entry. Its `createPermDock` returns a `DeliveryPermDock` whose `deliver` checks every recipient with `decideFor`, routes it to the email, chat or webhook transport, and writes one `com.permdock.delivery.*` event per recipient. It also adds `audience`, `subscribersFor`, `approvalPrompt` (ApprovalPrompt v1, with no token), `webhookTransport` (Standard Webhooks, CloudEvents) and `memoryDeliveryTransport`; `permdock/testing` adds `testDeliveryTransport`.
+- New `permdock/h3`, `permdock/sveltekit`, `permdock/astro`, `permdock/solid-start` and `permdock/tanstack-start` entries. Each `createPermDock` returns `middleware()`, `protect(permission | operation, data)`, `getPermDock`, `getSnapshot`, `connection` and `permdockHandler()`; the h3, SvelteKit, Astro and SolidStart adapters add `withPermDock(handler)`. A refusal or a thrown PermDock error is RFC 9457 Problem Details. h3, `@sveltejs/kit`, `astro`, `@solidjs/start` and `@tanstack/react-start` are optional peers.
+- New `permdock/resend` entry, with `resend` 6 as an optional peer. `resendTransport` is the email transport of `permdock/delivery`: it maps Resend errors to retryable or final failures and fans out through `batch.send`. `approvalEmail` renders an approval prompt that only links to the approval page. `resendWebhook` turns delivered, bounced, complained, failed and suppressed events into delivery events.
+- New `policyFromCatalog(catalog, pushed)` on `permdock/catalog` rebuilds an evaluable policy from `permissions.catalog.json` and the pushed policy, for a service with no application code; what only code can answer denies. `catalogDrift` and `hostedGrantFindings` compute the findings of `com.permdock.catalog.drifted`. The catalog now carries each resource's `parent`, its `links` and the vocabulary roles.
+- Option names match across adapters.
+
+  | Before                                                             | After                                           |
+  | ------------------------------------------------------------------ | ----------------------------------------------- |
+  | `permdock/workflow` `createPermDock(policy, { approvals: store })` | `createPermDock(policy, { store })`             |
+  | `permdock/chat` `createPermDock(policy, { approvals: store })`     | `createPermDock(policy, { store })`             |
+  | `customRoleSource({ rolesOf: (tenant) => … })`                     | `customRoleSource({ rolesFor: (tenant) => … })` |
+
+  `store` is the approval store option on every adapter, and the reader's method has the same name as `CustomRoleSource.rolesFor`.
+
+- Presets. `permdock/preset` resolves an archetype (`b2b`, `agent`, `marketplace`, `api`, `internal`, `consumer`) plus features, auth, backend, framework, agent runtimes, UI and Cloud services into a preset, encodes it as a versioned code (`p1…`) and generates the application's own files: `permissions.ts`, `policy.ts`, a `defineApp` in `permdock.ts`, framework and agent wiring, and `permdock.config.ts` for RLS. `permdock init --preset <code>` (or `--archetype`, `--framework`, `--feature`, `--agent`, `--ui`) writes them without overwriting existing files and prints the install and `shadcn` commands; `permdock preset decode|url <code>` reads a code.
+- Request bodies are read up to a byte cap and answered with `413` past it, whatever `Content-Length` says: 1 MiB for the AuthZEN endpoints, `evaluationsHandler`, `scimHandler`, the SSF receiver from `createReceiver` and `webhookVerifier`, 16 KiB for approval and access-review notes, 1,000,000 bytes for `resendWebhook`. Before, these handlers read the whole body first, and the Resend and approval caps counted characters.
+- Resuming an approval checks that the stored request belongs to the caller's principal, and a remote PDP answer of `approval-required` without a `token` now denies with `pdp-invalid-response`. Before, a remote PDP that omitted the token gave every caller the same empty token, so one approval could resume another subject's call.
+- Support sessions let a staff member view the app as one person: `permdock.decideSupportSession` requires a reason and, by default, an approval by someone else, and `signSupportSession` and `subjectFromSupportSession` from `permdock/server` carry the session with the staff member as a `support` actor. A support actor can never approve a request, and the tenant setting `supportSessions` only tightens.
+- The Resend and PermDock Cloud webhook receivers answer `400` for missing or malformed signature headers and `403` for a signature that does not verify. They answered `401` without the `WWW-Authenticate` header RFC 9110 section 15.5.2 requires; a webhook has no authentication scheme to name there.
+- The SSF push receiver answers a request that is not a `POST` with `405 Method Not Allowed` and `Allow: POST`, instead of `400 invalid_request`.
+- The SSF receiver refuses a SET without `exp` once its `iat` is older than `maxTokenAge` (default 86400 seconds), and keeps each replay key until the SET would no longer verify. Before, with a `clockTolerance` above zero, a captured SET without `exp` could be delivered again after its replay key expired.
+- The `@permdock` shadcn registry at `https://permdock.com/r`: `gated-button`, `approval-request-dialog`, `tenant-switcher`, `role-picker`, `custom-role-editor`, `upgrade-prompt`, and `gated-button-native` and `upgrade-prompt-native` for React Native Reusables. Each is markup over `useGate` and the other hooks, installed as your own code with `npx shadcn add`. `/r/preset-<code>.json` installs a preset's files and recipes in one command.
+- The `PermDock-Approver` token `cloud().approvals.resolve` sends is now bound to one verdict: it carries a `permdock_approval` `authorization_details` entry with the request `id`, the verdict `status` and, when the Cloud sends one, the request `etag`, plus a fresh `jti`. `resolve` reads the request through `GET /approvals/by-token` before it signs, and throws the Cloud's code (`approval-not-found` by default) when that read fails.
+- The `permdock-wire` skill now starts a new app from a preset with `permdock init`, adopts an existing app beside its own checks with `shadowMode` and `permdock scan --legacy`, and points to the `@permdock` recipes for gated UI. Its new `references/presets-and-recipes.md` sets out what the package owns and what the app owns.
+- The application's own data, `x`, now rides on approval requests, sink events and SCIM resources. It is plain JSON and is never read by a decision.
+
+  - `requestApproval(store, decision, { x })` stores it as `ApprovalRequest.x`, and `approval-request-v1.json` lists it.
+  - `decide(permission, row, { x })` puts it on the decision event. The other event builders (`membershipEvent`, `credentialEvent`, `accessEvent`, `automationEvent`, `supportSessionEvent`, `deliveryEvent`) take `x` too and throw when it is not plain JSON. A decision drops an invalid `x` instead of throwing.
+  - SCIM Users and Groups carry it in the `urn:ietf:params:scim:schemas:extension:permdock:2.0:AppData` extension (`DirectoryUser.x`, `DirectoryGroup.x`, `APP_DATA_EXTENSION`).
+
+  The formats stay `v1`: `x` is optional. The event schemas set `additionalProperties: false`, so each now lists `x`. A consumer that validates events against a copy of an older schema must refresh that copy before events with `x` arrive.
+
+- The approval store reaches an adapter only through the app or the adapter's own `store` option. Adapters no longer import a memory store for the `dev` profile, so every server, agent and UI adapter bundle is about 2.2 KB gzip smaller (`permdock/server` 41.7 KB to 39.5 KB, `permdock/ai-sdk` 38.6 KB to 36.4 KB, `permdock/next` 45.9 KB to 43.5 KB).
+
+  Under `profile: "dev"`, `defineApp` now fills in one memory `ApprovalStore` that every adapter of the app shares, instead of one store per adapter. A request opened through one adapter can be resolved and resumed through another. `prod` is unchanged.
+
+- Tools to adopt PermDock in an existing app. `shadowMode({ legacy, enforce, onMismatch })` is a `wrap` that asks the application's legacy check and PermDock on every check, returns the legacy answer unless the permission is in `enforce`, and reports each disagreement. `testLegacyParity(policy, legacy, cases)` in `permdock/testing` pins the intended answers. `permdock scan --legacy` lists the role comparisons, `hasRole`/`hasPermission` helpers, CASL abilities, Clerk `has()` calls and role claims left in the code.
+
+  `wrapPermDock` now keeps the instance's internals, so feature functions (`whoCan`, `decideCredential`) work on an instance wrapped by an adapter's `wrap` or `withOtel`.
+
+- With `rls.readOnlyActors`, `rls generate` now writes `permdock_actor_may_write()`, which is false for a read-only support or impersonation token, so hand-written write policies in `--helpers-only` mode can call it. `rls verify --introspect --helpers-only` reports each insert, update or delete that `authenticated` reaches without calling it. The Supabase manifest lists the function in `rls.helpers`.
+- With a `verifier` configured, the client store refuses an unsigned snapshot from `refresh` and turns `stale`. Before, a plain JSON body from `snapshotUrl` was applied without verification, which let a network attacker downgrade a signed endpoint.
+- `<Protected>`'s denied slot is `denied` in every UI kit, matching `<PermissionBoundary>`. In React, Vue and Solid, `fallback` means a loading or error state, so it read as the wrong thing.
+
+  | Before                                                                                   | After                                            |
+  | ---------------------------------------------------------------------------------------- | ------------------------------------------------ |
+  | `<Protected permission={…} fallback={<Locked />}>` (React, React Native, Next.js, Solid) | `<Protected permission={…} denied={<Locked />}>` |
+  | Vue `#fallback` slot, or `{ fallback: () => … }`                                         | `#denied` slot, or `{ denied: () => … }`         |
+  | Svelte `{#snippet fallback(decision)}`                                                   | `{#snippet denied(decision)}`                    |
+  | `PermDockProvider defaults={{ fallback }}` and the Vue, Svelte and Solid equivalents     | `defaults={{ denied }}`                          |
+  | `view.slot === "fallback"` (`viewFor`)                                                   | `view.slot === "denied"`                         |
+
+  `approval` still falls back to `denied`. `pending`, `deniedResponse`, `deniedText` and `onDenied` keep their names.
+
+- `ApprovalPolicySource` entries can match an operation's risk and effects from its `meta` as well as a permission key. `permdock rls generate` with `rls.approvals` emits `permdock_is_approver(p_approvers jsonb, p_tenant text)` for row-level policies on approval views.
+- `CatalogFindingCode` adds `operation-risk-raised` and `operation-approval-removed`, and `CatalogFinding` gains `operation`, `previous` and `risk`. `operationFindings(previous, next)` in `permdock/catalog` computes them, `permdock diff` lists them under `operations` without marking them breaking, and `catalog-event-v1.json` accepts them.
+- `accessReviewApplier` counts a permission the member still reaches behind an approval as held. Before, an `approval-required` re-check marked the revoked item applied while the member could still use the permission after an approval.
+- `assignableRoles`, `oauthScopes` permission lists and `permdock import` output sort keys by code point instead of `localeCompare`, so the order no longer depends on the ICU locale; mixed-case keys now list upper case first.
+- `authorizationProvider` from `permdock/better-supabase` takes `approvers`, keyed by request kind, and fills better-supabase's `isApprover` through `permdock_is_approver`. New `accessReviewApplier` applies an access review's revoked items through the organizations and invitations blocks, then marks each item applied.
+- `cloud({ approver: { signer, audience? } })` signs a `PermDock-Approver` header for each `approvals.resolve`: an RFC 9068 `at+jwt` with `sub` set to the approver's principal id, `aud` set to `<environment URL>/approvals` and a 60-second lifetime. `resolve` now throws `approver-unauthenticated` without a signer and `approver-not-eligible` for a verdict with an actor; a system rejection needs no signer. `TokenSigner` accepts `typ: "at+jwt"`, which `cloudSigner` refuses.
+- `com.permdock.automation.published`, `.changed`, `.revoked` and `.run` are no longer reserved: `automationEvent` builds the new `automation` sink event, published as `automation-event-v1.json`, and `WorkflowPermDock.start` writes a `run` event to `sink`. `supportSessionEvent` builds the `access` event of a support session, which gains optional `session` and `permissions` fields.
+- `createPermDock(policy, user)` always runs the policy's `subject` mapper on `user`. Before, a user object with an `id` and a `roles` or `memberships` array was taken as an already-mapped principal and skipped the mapper, so a mapper that narrows roles (for example, no roles until an email is verified) did not apply. A resolved `Subject` (`{ principal, context }`, as `subjectFrom*` helpers return) is still taken as is.
+- `defineApp(policy, options)` binds an app's sources, features and services (`memberships`, `customRoles`, `relations`, `entitlements`, `principals`, `settings`, `policies`, `approvalPolicies`, `limits`, `sink`, `store`) to a policy. Core `createPermDock` and every adapter read them, and an adapter's own options win key by key. `profile: "dev"` fills in a memory limit store and a memory approval store; `profile: "prod"` (the default) throws at startup when a grant needs a store or limits the app does not configure.
+
+  `permdock/eve` and `permdock/openai` no longer fall back to a memory approval store on their own: pass `store`, or use `defineApp` with `profile: "dev"`.
+
+- `defineOperations` binds named actions to permissions with typed `data`, a `results` filter and `meta`, and `permdock collect` writes them to the catalog as `operations` (doctor PD067). `PrincipalSource` with `memoryPrincipalSource` and `testPrincipalSource` loads principals by id or identity link. `permdock.decideEach` decides a list of rows in order, and `permdock.decideFor` decides for another principal from the new `principals` option without widening the caller or consuming a limit. A `kind: 'contact'` principal keeps only its `on` memberships, reads by default and writes only through a role with `for: ['contact']`; it never approves or creates keys. `permdock/server` adds `signRunTicket`, `parseRunTicket` and `subjectFromRunTicket` for `vnd.permdock.run+jwt` run tickets, which re-read the principal and the automation on every use. `createPermDock` takes a `settings` option (`SettingsSource`) that `permdock.decideCredential` reads when a call passes none.
+- `definePolicy` takes one mapper name, `subject`, as AuthZEN, JWT (`sub`) and the `subjectFrom*` helpers do. The `principal` alias is removed, and `subject` is required by the type.
+
+  | Before                                                  | After                                                 |
+  | ------------------------------------------------------- | ----------------------------------------------------- |
+  | `definePolicy(permissions, { principal: (user) => … })` | `definePolicy(permissions, { subject: (user) => … })` |
+
+- `memoryApprovalStore({ now })` takes a clock returning an `Instant`; `create`, `cancel`, and `consume` or `expire` without an `at` read it instead of the system clock.
+- `permdock casl import` and `permdock casbin import` turn rules kept in another library into a generated module with `permissions` and a `policy` of roles.
+
+  - `casl import --rules <file> --out <file>` reads each role's `ability.rules` or `packRules` output. Inverted rules become denies, `manage` and `all` expand, `fields` carry over, and the Mongo-query condition subset becomes `where`.
+  - `casbin import --model <file> --policy <file> --out <file>` reads an RBAC model, with or without domains, under the standard matcher. Role inheritance is flattened, deny rows become denies, and user-to-role lines become an `assignments` export.
+
+  Both report every rule they cannot translate. A deny is never dropped silently: a CASL deny keeps its effect without the condition, and `casbin import` exits 1 when a deny line did not import. `scan --legacy` points at `casl import` when it finds CASL abilities.
+
+- `permdock doctor` PD014 no longer reports the `jwks` option of `cloudApprovalWaiter`, `verifyWebhook` and `webhookVerifier`: it holds Standard Webhooks keys, not a token issuer's.
+- `permdock rls generate` in `database` mode writes `permitted_<scope>_users(p_permission, p_id)` for each scope whose memberships are in a table: the users who hold a permission key on one instance, through a membership there or a global role, with denies, custom roles, expiry and suspension applied as `permitted_<scope>_ids_by_permission_for` applies them. No client role may execute it; grant `execute` to the backend role that calls it. The Supabase manifest lists it in `rls.helpers`, and `supabase-manifest-v1.json` accepts the name, so a reader validating against the previous schema rejects a manifest that lists it.
+- `permdock rls generate` with `--seeds-out` and `--backfill-out` naming the same migrations directory gives each new file its own version: the seeds migration one second after the newest migration and the backfill one second after that. Both used to get the same version, which Supabase refuses.
+- `permdock rls import` reads the `where` of a membership subquery instead of dropping it. A subquery over a mapped membership table imports as `memberOf` only when it binds the user and the policy row, and its role literals become `roles`, so `exists (select 1 from org_members m where … and m.role = 'owner')` imports as owners, not as every member. A subquery with any other predicate stays `opaque`.
+- `permdock/a2a` answers a token that lacks a skill's scope with `403` and `WWW-Authenticate: Bearer error="insufficient_scope"`, as RFC 6750 section 3.1 requires. It answered `401`, which tells a client its token is missing or invalid.
+- `permdock/agent` adds `createPermDock`, which returns the agent contract the AI SDK, OpenAI Agents, Claude Agent SDK and Eve adapters now share: `decideOperation`, `allowedOperations`, `decideModel` and `permittedModels` over a new `models` option, `filterResults` by an operation's `results` permission, and `gatewayOptions` for AI Gateway attribution. `testAgentRuntime` from `permdock/testing` runs that contract against any implementation.
+- `permdock/authzen` answers `400` for a request without `Content-Type: application/json` and for a missing required entity or field, as AuthZEN 1.0 sections 10.1 and 10.1.1 require. Before, an evaluation without `subject`, `action` or `resource` answered `200` with `decision: false`, and an action search without a `resource` listed actions across every resource type. A numeric `resource.id` is now refused: the specification types it as a string.
+- `permdock/authzen` exports its batch helpers, `EVALUATIONS_SEMANTICS`, `evaluationsSemantic`, `evaluateBatch` and `mergeEvaluationItem`, with the `EvaluationsSemantic`, `AuthzenItem` and `AuthzenEntity` types. `permdock` exports `OPERATION_RISKS`, the risk levels lowest first, and `isOperationRisk`.
+- `permdock/better-supabase` adds `hookCan` and `handlerCan` for `better-supabase/workflow-sdk`, `supportPolicy` for `supportSessions`, `subscriberPolicy` for per-subscriber fan-out and `principalSource` for principals and identity links. `authorizationProvider({ functions: { holdersOf, actorMayWrite } })` fills `holdersOf` with `permitted_<scope>_users` and `actorMayWrite` with `permdock_actor_may_write()`; both are off by default until a better-supabase release accepts them.
+- `permdock/cloud` adds `cloudApprovalWaiter`, an `ApprovalWaiter` whose `webhook(request)` wakes parked runs on verified `com.permdock.approval.resolved`, `.expired` and `.cancelled` events. It also adds `cloudDeliveryTransport(channel)` for the Cloud's hosted sender, `cloudSigner()`, a `TokenSigner` over the environment key for run tickets and other app-issued tokens, and `cloud().catalog.push(catalog)`; `PermDockCloudEvent` now includes the automation and delivery families.
+- `permdock/hono`, `express`, `fastify`, `elysia` and `nest` return `getPermDock(request)`, and `permdock/trpc` and `orpc` return `getPermDock(opts)`: the `PermDock` for one request outside the middleware, as on `permdock/server` and `permdock/node`.
+- `permdock/openai`, `permdock/claude-agent` and `permdock/eve` take `unmapped`, `context`, `otel`, `wrap` and `deniedText` as `permdock/ai-sdk` does, and `permdock/ai-sdk` takes `otel`; `operations` accepts the map `defineOperations` returns. `permdock/mcp` takes `actor` and `delegation`, which replace the actor and delegation built from the verified `authInfo`.
+- `permdock/scim` exports `isDirectoryUniquenessError` and `isDirectoryNotFoundError`. Both match by `name` and `code`, so a custom `DirectoryStore` that throws the error from another copy of the module still maps to `409` or `404`.
+- `permdock/ssf` transmits as well as receives: `signSet` signs a Security Event Token, `pushSet` delivers it over RFC 8935 push, and `setPollHandler` serves RFC 8936 poll from a `SetQueue` (`memorySetQueue` in process). `caepEvents` and `riscEvents` build the CAEP and RISC events, and the stream configuration types are exported. `testSetQueue` in `permdock/testing` is the queue's conformance runner.
+- `permdock/terminal` reads device authorization, token and GitHub Actions OIDC responses through the 1 MiB body cap; a larger response yields no token instead of being buffered whole.
+- `permdock/testing` adds `testApprovalWaiter`, `testAutomationSource` and `testSupportSessionSource`, the conformance runners for an `ApprovalWaiter`, an `AutomationSource` and a `SupportSessionSource`.
+- `permdock/testing` adds `testDecisionProvider` and `testSnapshotStorage`, so every interface on the extension interfaces page has a `test<Interface>` runner. `testDecisionProvider` also checks that a provider denies when its transport fails.
+- `permdock/workflow-sdk` runs automations on the Workflow SDK: `workflowSdkWaiter` parks a run on a hook while an approval is pending, `startAutomation` starts a Workflow SDK run only after PermDock grants the start, and `authorizeHook` resumes a hook only for a caller with the permission.
+- `permdock/workflow` adds automations. `permdock.decideAutomation` checks a publisher may hand out an automation's operations and returns an `Automation` record; `createPermDock` from `permdock/workflow` starts runs as run tickets, rebuilds each step with the publisher's live rights narrowed to the automation, and waits on approvals through an `ApprovalWaiter` such as `pollingApprovalWaiter`. `openApproval` and `resumeApproval` split that wait into two steps for runners that park a run themselves.
+- `presetMatrix(preset)` in `permdock/preset` lists, per role and action, whether a preset's policy allows it (`allow`, `own`, `pro` or `none`) and whether it needs approval or carries a limit, from the same model the generated policy is written from. permdock.com/create shows it next to the generated files.
+- `rls generate --split` and `supabase hook generate` now write for Declarative Schemas 2.0 (pg-delta, `supabase db schema declarative sync`) unless `supabase/config.toml` sets `[experimental.pgdelta] enabled = false` or the project sets `supabase.schemas: 'migra' | 'migrations'` or `--schemas`. `--grants-out` is refused outside `migra`, and `helpers` without `seeds` and `--seeds-out` is refused under `migra`. Doctor PD068 fails when `config.toml` does not turn pg-delta on. PD069 warns about migra leftovers. The manifest's new `hook.schemas` field picks the better-supabase `grantsCommand`.
+- `rls generate` no longer lets a member of one organization read another organization's rows. A `memberOf` check over a membership table compared `m.<column> = "<row field>"` inside its subquery, and when the membership table had a column of the same name (`org_id`, `project_id`, `id`), Postgres compared the membership column with itself. The check is now `"<row field>" in (select m.<column> from <table> m where …)`, and the suspension check is `coalesce(<id> in (select s.<id> from <table> s where …), false)`. Regenerate and apply your RLS.
+- `rls migrate` and `rls import` read role checks, not only permission checks.
+
+  - `rls.roleValues` maps a role value the existing SQL compares against (a string literal or an enum label) to the PermDock role it is: `roleValues: { org_admin: 'owner' }`.
+  - `rls.migrate.helpers` takes a `role` form: `has_org_role(org_id, 'org_admin')` becomes `(org_id in (select permdock.member_organization_ids(array['owner'])))`. `rls generate` writes the overload `member_<scope>_ids(p_roles text[])` for each scope a `role` helper names, and a shim keeps unrewritten callers working. A role argument that is not a literal is skipped with `dynamic-role`; an unmapped, undeclared role with `unknown-role`.
+  - `rls import` reads `role = any(array[…])` and enum casts in membership subqueries, and writes the PermDock name for each mapped role value in `memberOf` conditions and the imported `role_permissions` rows.
+
+- `schemas/cloud-api-v1.json` is the OpenAPI document of the PermDock Cloud API, including the `client_credentials` grant for callers of the hosted decision service, and `schemas/connector-v1.json` describes a connector. `testCloudApi(baseUrl, keys, options)` in `permdock/testing` runs the conformance runners and the HTTP contract checks against one Cloud environment and validates every response body against `cloud-api-v1.json`.
+- `signSnapshot(snapshot, signer, { audience? })`, `snapshotFromClaims` and `signPolicyDocument(document, signer, { audience, expiresAt? })` are exported from `permdock`, and `signApproval(request, signer, { audience? })`, `approvalSignatureClaims`, `parseApprovalRequest` and `APPROVAL_REQUEST_SCHEMA` from `permdock/approvals`. `schemas/run-v1.json` and `schemas/support-session-v1.json` describe the run ticket and support-session tokens.
+- `startAccessReview` lists who holds a set of permissions, and a reviewer can keep or revoke each holding. PermDock records the decision. The application changes the role or membership, then marks the item applied.
+- `subjectFromJwt` and `jwtSubjectResolver` require `audience` when no `verifier` is passed. Without it, a token minted for another resource server at the same issuer was accepted. Pass `audience: false` to accept any audience on purpose.
+
+  | Before                                 | After                                                                       |
+  | -------------------------------------- | --------------------------------------------------------------------------- |
+  | `subjectFromJwt(token, { discovery })` | `subjectFromJwt(token, { discovery, audience: "https://api.example.com" })` |
+  | no audience check                      | `audience: false`                                                           |
+
+- `subjectFromJwt` no longer accepts a sender-constrained token as a bearer token. Without `sender`, a token whose `cnf` carries `jkt` needs a valid DPoP proof, and one whose `cnf` carries `x5t#S256` needs a matching `certificateThumbprint`. An explicit `sender: "none"` keeps the old behaviour for a gateway that verified the binding upstream.
+- `subjectFromSupabase`, `actorOf` and `supabaseClaims()` from `permdock/supabase` read the `act.kind: "agent"` claim better-supabase's `agentClaims` mints: the actor is `{ id, kind: "agent", tools }` and the token's `scope` becomes its delegation. Before, such a token was an invalid chain and mapped to the anonymous subject.
+- `useGate(permission, data?, { mode })` in `permdock/react` and `permdock/react-native` returns what a permission-gated control renders: `allowed`, `pending`, `hidden`, `disabled`, `needsApproval`, `upgrade` (the plans that would grant it) and a localised `reason`. `gateView` in `permdock/client` is the same computation without React.
+- better-supabase share links and approval covers, both needing better-supabase 0.9.0. The `better-supabase` peer range is now `>=0.6.0 <0.10.0`.
+
+  - `subjectFromShareLink(token, { shareLinks, links })` in `permdock/better-supabase` resolves a better-supabase share-link token into a link subject for `exchangeCapability`, so guest pages read under RLS. The link's `expiresAt` caps the capability, and a `maxLifetime` in the link policy fails closed for a share link without one.
+  - `rls.approvals: { delegations: true }` generates the `approval_delegations` table with owner-only policies, and a four-argument `permdock_is_approver(approvers, tenant, requester, resource)` that also passes for an active, one-hop cover. `rls.approvals.table` is now optional: without it, only the delegations are generated.
+  - `authorizationProvider` passes better-supabase's `{requester}` to the four-argument helper when the manifest lists it.
+  - `tableApprovalDelegationSource({ query })` in `permdock/supabase` reads the same table for `approvalsHandler`.
+
+  When both are installed, PermDock owns approval delegation: don't also configure better-supabase's `delegate_approval`.
+
 ## 0.4.0 (2026-10-12)
 
 - HTTP adapters take `onDenied` to replace a refusal's Problem Details or `Response`, `context` to merge server-derived values into `subject.context`, and `wrap` with the new `wrapPermDock` helper; MCP and the AI SDK take the same `context` and `wrap`, and an `onDenied` that replaces the refusal text only. Behaviour changes: a `protect` loader that throws now answers `403` with reason `validation` instead of throwing, and Next.js `requireAccess` now runs the factory's `onDenied` unless the call passes its own.
