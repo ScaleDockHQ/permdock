@@ -235,7 +235,8 @@ function copyAct(level: Record<string, unknown>): SupabaseActClaim {
 /**
  * The outer `act` level by its `kind`, the marker a support tool writes: none is an OAuth client
  * or agent chain, `support` a support session (with `session_id`), `impersonation` an admin acting
- * as the user. Any other `kind`, or a support level without `session_id`, is invalid.
+ * as the user, `agent` an agent run with the `tools` it may call. Any other `kind`, a support level
+ * without `session_id` and `tools` that are not strings are invalid.
  */
 function actingParty(
   outer: Record<string, unknown>,
@@ -290,6 +291,22 @@ function actingParty(
           chain,
         }),
       });
+    case "agent": {
+      const tools = Object.hasOwn(outer, "tools") ? outer["tools"] : undefined;
+      if (
+        tools !== undefined &&
+        !(
+          Array.isArray(tools) &&
+          tools.every((tool) => typeof tool === "string")
+        )
+      ) {
+        return INVALID_CHAIN;
+      }
+      return freezeDeep({
+        ok: true,
+        actor: compact<SupabaseActor>({ id, kind: "agent", tools, chain }),
+      });
+    }
     default:
       return INVALID_CHAIN;
   }
@@ -412,6 +429,39 @@ function extraClaims(claims: Record<string, unknown>): Record<string, unknown> {
   return extra;
 }
 
+function subjectActor(
+  actor: SupabaseActor,
+  options: SupabaseSubjectOptions,
+): Actor {
+  switch (actor.kind) {
+    case "support":
+      return {
+        id: actor.id,
+        kind: actor.kind,
+        sessionId: actor.sessionId,
+        readOnly: actor.readOnly,
+      };
+    case "oauth-client":
+      return compact<Actor>({
+        id: actor.id,
+        kind: actor.kind,
+        client: clientNameOf(options.clients, actor.id),
+      });
+    case "impersonation":
+      return { id: actor.id, kind: actor.kind };
+    case "agent":
+      return compact<Actor>({
+        id: actor.id,
+        kind: actor.kind,
+        tools: actor.tools,
+      });
+    default: {
+      const exhaustive: never = actor;
+      return exhaustive;
+    }
+  }
+}
+
 function mapClaims(
   claims: Record<string, unknown>,
   options: SupabaseSubjectOptions,
@@ -432,24 +482,8 @@ function mapClaims(
   if (options.anonymousSignIns === "deny" && claims["is_anonymous"] === true) {
     return anonymousSubject();
   }
-  const actor: Actor | undefined =
-    act.actor === undefined
-      ? undefined
-      : act.actor.kind === "support"
-        ? {
-            id: act.actor.id,
-            kind: act.actor.kind,
-            sessionId: act.actor.sessionId,
-            readOnly: act.actor.readOnly,
-          }
-        : compact<Actor>({
-            id: act.actor.id,
-            kind: act.actor.kind,
-            client:
-              act.actor.kind === "oauth-client"
-                ? clientNameOf(options.clients, act.actor.id)
-                : undefined,
-          });
+  const actor =
+    act.actor === undefined ? undefined : subjectActor(act.actor, options);
   const roleClaim = options.claims?.roles ?? "user_role";
   const tenantClaim = options.claims?.tenant ?? supabaseTenantClaim;
   const membershipsClaim = options.claims?.memberships ?? "memberships";
@@ -507,7 +541,7 @@ function mapClaims(
       principal,
       actor,
       delegation:
-        act.actor?.kind === "oauth-client"
+        act.actor?.kind === "oauth-client" || act.actor?.kind === "agent"
           ? subjectDelegation(claims, act.actor.chain)
           : undefined,
       context: {},
