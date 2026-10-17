@@ -1,5 +1,16 @@
+export { catalogDrift, hostedGrantFindings } from "./drift.ts";
+export type { CatalogDriftInput } from "./drift.ts";
+export { resourceSchemaFromJson } from "./json-schema-validator.ts";
 export { operationFindings } from "./operation-findings.ts";
 export { parseCatalog, rowConditionKeys } from "./parse.ts";
+export { policyFromCatalog } from "./policy-from-catalog.ts";
+export type { PolicyFromCatalogOptions } from "./policy-from-catalog.ts";
+export {
+  PUSHED_POLICY_SCHEMA,
+  parsePushedPolicy,
+  pushedPolicy,
+} from "./pushed-policy.ts";
+export type { PushedGrant, PushedPolicy } from "./pushed-policy.ts";
 export type {
   CatalogActivation,
   CatalogApproval,

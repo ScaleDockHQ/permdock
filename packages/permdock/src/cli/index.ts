@@ -1,11 +1,18 @@
 export { catalogPath } from "./catalog-path.ts";
 export { defineConfig } from "./config.ts";
 export { parseGrantsMarker, parseHookMarker } from "./sql/markers.ts";
+export { RUN_TICKET_SCHEMA, SUPPORT_SESSION_SCHEMA } from "./token-schemas.ts";
 export type {
   SupabaseGrantsMarker,
   SupabaseHookMarker,
 } from "./sql/markers.ts";
 export { run } from "./run.ts";
+export {
+  PUSHED_POLICY_SCHEMA,
+  parsePushedPolicy,
+  pushedPolicy,
+} from "../catalog/pushed-policy.ts";
+export type { PushedGrant, PushedPolicy } from "../catalog/pushed-policy.ts";
 export type {
   CatalogActivation,
   CatalogApproval,

@@ -43,6 +43,14 @@ export type {
   MatchDelegationOptions,
 } from "./delegation.ts";
 export { approvalsHandler } from "./handler.ts";
+export { parseApprovalRequest } from "./parse-request.ts";
+export { APPROVAL_REQUEST_SCHEMA } from "./request-schema.ts";
+export { approvalSignatureClaims, signApproval } from "./signature.ts";
+export type {
+  ApprovalSignatureClaims,
+  ApprovalSignatureEntry,
+  SignApprovalOptions,
+} from "./signature.ts";
 export type { ApprovalsHandlerOptions, ApprovalView } from "./handler.ts";
 export { memoryIdempotencyStore } from "./idempotency.ts";
 export type { IdempotencyStore, IdempotentResponse } from "./idempotency.ts";

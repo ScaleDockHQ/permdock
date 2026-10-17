@@ -441,8 +441,8 @@ catalogs:
       specifier: 1.1.3
       version: 1.1.3
     better-supabase:
-      specifier: 0.8.0
-      version: 0.8.0
+      specifier: file:.better-supabase/better-supabase.tgz
+      version: file:.better-supabase/better-supabase.tgz
     botid:
       specifier: 1.5.11
       version: 1.5.11
@@ -1073,6 +1073,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
       oxlint:
         specifier: 'catalog:'
         version: 1.88.0(oxlint-tsgolint@7.0.2004)
@@ -1082,6 +1085,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(@vitest/coverage-v8@5.0.5)(happy-dom@20.14.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
 
   apps/examples/better-auth:
     dependencies:
@@ -1326,6 +1332,9 @@ importers:
 
   apps/examples/eve-agent:
     dependencies:
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.12
       permdock:
         specifier: workspace:*
         version: link:../../../packages/permdock
@@ -1351,6 +1360,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(@vitest/coverage-v8@5.0.5)(happy-dom@20.14.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
 
   apps/examples/expo:
     dependencies:
@@ -1749,7 +1761,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: 0.8.0(bf5d675b6f4de5cdb4296102f2c69379)
+        version: file:.better-supabase/better-supabase.tgz(bf5d675b6f4de5cdb4296102f2c69379)
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -2853,7 +2865,7 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: 0.8.0(6e8915927281781d98c1ae22351a3fe5)
+        version: file:.better-supabase/better-supabase.tgz(6e8915927281781d98c1ae22351a3fe5)
       chat:
         specifier: 'catalog:'
         version: 4.42.0(ai@7.0.141(zod@4.6.7))(supports-color@7.2.0)(workflow@5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@7.2.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.1(@babel/core@8.0.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
@@ -3171,7 +3183,7 @@ importers:
         version: 7.0.141(zod@4.6.7)
       better-supabase:
         specifier: 'catalog:'
-        version: 0.8.0(16909b91f056c0e0b2713199a3702336)
+        version: file:.better-supabase/better-supabase.tgz(16909b91f056c0e0b2713199a3702336)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
@@ -8318,10 +8330,6 @@ packages:
   '@supabase/phoenix@0.4.5':
     resolution: {integrity: sha512-aAn9H9ovVyeApKy11OWOrrOGq8DV68yWeH4ud2lN9fzn4aO8Zb5GLL9m1pUg9nLqIcT+ZDfAcsZe0E/nqdv2lw==}
 
-  '@supabase/postgrest-js@2.117.2':
-    resolution: {integrity: sha512-V1Qhn+M8xzJqCasOxHZ2KG19Fj39PxU7weEAmOK65/KTsWCRXboB4hcQwFvxRvM7ZikeP9IZWNvQkfjvSxzYFw==}
-    engines: {node: '>=22.0.0'}
-
   '@supabase/postgrest-js@2.118.0':
     resolution: {integrity: sha512-JXy+37KPApHsyotaQACovv/Jy9E22rfiWLRuT+2UjoEAcAIelDFIrsF/FY47Dy19mO7lI0Tq+zDCX8oJ2Ozfiw==}
     engines: {node: '>=22.0.0'}
@@ -8338,28 +8346,6 @@ packages:
   '@supabase/realtime-js@2.118.0':
     resolution: {integrity: sha512-pzCIEWjqD5/xqEZQerpt+q9rsgYkcrkgCJgf0W2ULqC4fYUeB/p9CFa3t9vn+IVh6dMN9r4ZCE262lZvUC+Bfw==}
     engines: {node: '>=22.0.0'}
-
-  '@supabase/server@1.9.1':
-    resolution: {integrity: sha512-AW/8aZrX5nHP3OwYMamA1hxERuL+RO7yw0h3oUfdXYKIxkdoRVm0ELzzv8wLGCk97aeVjBQ4ixZ2h66jPCfJjA==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      '@nestjs/common': ^10.0.0 || ^11.0.0
-      '@supabase/supabase-js': ^2.0.0
-      elysia: ^1.4.0
-      h3: ^2.0.0
-      hono: ^4.0.0
-      pg: 8.23.1
-    peerDependenciesMeta:
-      '@nestjs/common':
-        optional: true
-      elysia:
-        optional: true
-      h3:
-        optional: true
-      hono:
-        optional: true
-      pg:
-        optional: true
 
   '@supabase/server@1.9.2':
     resolution: {integrity: sha512-zkvU157ivZ268Ffs+2aEaYvavfchZ8IiB/Rt5tW4JTfew2JeX0TN46Do3XD5U8ganGhfAJr3BUsMHswY56+iLA==}
@@ -10254,8 +10240,9 @@ packages:
   better-result@2.10.0:
     resolution: {integrity: sha512-oQhh0y1qo2/ZKdAAEvHZAqKKiHOFU5k/bW96fE2ScgQOVkJRiHwB+nOS1SgFsYqRlxMDWvefXi9Q3px7QvgNDw==}
 
-  better-supabase@0.8.0:
-    resolution: {integrity: sha512-1UlPuCA5z9mi9jR4Kd7upTpkKcIs9xXbzcKxuKtuinRkq6xvEZU0lFtQdleI405H/6PMVCPsmA9xmYvsVrMURw==}
+  better-supabase@file:.better-supabase/better-supabase.tgz:
+    resolution: {integrity: sha512-gF6HVl5stWMNfceud8AuC1QP7YOk0kDL+6ZHYmG7bzx7gNPedY7g+7eRsFBRmSxfVCciUsDrF5Ss38J0EvvOPQ==, tarball: file:.better-supabase/better-supabase.tgz}
+    version: 0.8.0
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -10294,6 +10281,7 @@ packages:
       temporal-polyfill: '>=1'
       vue: ^3.3
       workflow: '>=5.1 <6'
+      yjs: '>=13.6 <14'
     peerDependenciesMeta:
       '@ai-sdk/mcp':
         optional: true
@@ -10362,6 +10350,8 @@ packages:
       vue:
         optional: true
       workflow:
+        optional: true
+      yjs:
         optional: true
 
   big-integer@1.6.52:
@@ -22988,10 +22978,6 @@ snapshots:
 
   '@supabase/phoenix@0.4.5': {}
 
-  '@supabase/postgrest-js@2.117.2':
-    dependencies:
-      tslib: 2.8.1
-
   '@supabase/postgrest-js@2.118.0':
     dependencies:
       tslib: 2.8.1
@@ -23006,34 +22992,6 @@ snapshots:
     dependencies:
       '@supabase/phoenix': 0.4.5
       tslib: 2.8.1
-
-  '@supabase/server@1.9.1(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)':
-    dependencies:
-      '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
-      jose: 6.2.12
-    optionalDependencies:
-      '@nestjs/common': 11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
-      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2)
-      h3: 2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0)
-      hono: 4.13.13
-      pg: 8.23.1
-    transitivePeerDependencies:
-      - typescript
-
-  '@supabase/server@1.9.1(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)':
-    dependencies:
-      '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
-      jose: 6.2.12
-    optionalDependencies:
-      '@nestjs/common': 12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
-      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2)
-      h3: 2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0)
-      hono: 4.13.13
-      pg: 8.23.1
-    transitivePeerDependencies:
-      - typescript
 
   '@supabase/server@1.9.2(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)':
     dependencies:
@@ -25879,12 +25837,12 @@ snapshots:
 
   better-result@2.10.0: {}
 
-  better-supabase@0.8.0(16909b91f056c0e0b2713199a3702336):
+  better-supabase@file:.better-supabase/better-supabase.tgz(16909b91f056c0e0b2713199a3702336):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/postgrest-js': 2.117.2
-      '@supabase/server': 1.9.1(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.118.0
+      '@supabase/server': 1.9.2(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)
       '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
       '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
     optionalDependencies:
@@ -25915,12 +25873,12 @@ snapshots:
       - h3
       - typescript
 
-  better-supabase@0.8.0(6e8915927281781d98c1ae22351a3fe5):
+  better-supabase@file:.better-supabase/better-supabase.tgz(6e8915927281781d98c1ae22351a3fe5):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/postgrest-js': 2.117.2
-      '@supabase/server': 1.9.1(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.118.0
+      '@supabase/server': 1.9.2(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)
       '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
       '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
     optionalDependencies:
@@ -25951,12 +25909,12 @@ snapshots:
       - h3
       - typescript
 
-  better-supabase@0.8.0(bf5d675b6f4de5cdb4296102f2c69379):
+  better-supabase@file:.better-supabase/better-supabase.tgz(bf5d675b6f4de5cdb4296102f2c69379):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/postgrest-js': 2.117.2
-      '@supabase/server': 1.9.1(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.118.0
+      '@supabase/server': 1.9.2(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)
       '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
       '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
     optionalDependencies:

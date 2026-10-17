@@ -12,7 +12,7 @@ Typed permissions for TypeScript apps, APIs, databases and AI agents: one defini
 
 [**Docs**](https://permdock.com/docs) · [**npm package**](./packages/permdock/README.md) · [**Changelog**](./CHANGELOG.md) · [**Product brief**](./PRODUCT.md) · [**Roadmap**](./apps/docs/content/docs/roadmap.mdx) · [**Agent guide**](./AGENTS.md) · [**Contributing**](./CONTRIBUTING.md) · [**Report issue**](https://github.com/ScaleDockHQ/PermDock/issues)
 
-`permdock@0.1.0` is on npm: one package with core, every adapter, the `permdock` CLI and `permdock/testing`. Releases follow semver; the [roadmap](./apps/docs/content/docs/roadmap.mdx) says how versions are numbered.
+`permdock` is on npm (`packages/permdock/package.json` holds the version): one package with core, every adapter, the `permdock` CLI and `permdock/testing`. Releases follow semver; the [roadmap](./apps/docs/content/docs/roadmap.mdx) says how versions are numbered.
 
 ```bash
 pnpm add permdock

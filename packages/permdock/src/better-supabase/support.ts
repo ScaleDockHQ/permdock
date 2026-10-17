@@ -1,6 +1,6 @@
 import type {
+  SupportAuthorize,
   SupportAuthorizeInput,
-  SupportOptions,
 } from "better-supabase/server";
 
 import type { PermDockOptions } from "../core/permdock.ts";
@@ -83,9 +83,7 @@ function requestId(input: SupportAuthorizeInput): string {
  * distinct approver for its token. `readOnly: false` needs `writable`. A
  * throw is `false`.
  */
-export function supportPolicy(
-  options: SupportPolicyOptions,
-): NonNullable<SupportOptions["authorize"]> {
+export function supportPolicy(options: SupportPolicyOptions): SupportAuthorize {
   return async (input) => {
     try {
       const base = await loadPermDock(

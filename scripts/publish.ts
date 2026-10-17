@@ -95,6 +95,23 @@ function pack(): string {
   return join(destination, tarballs[0] ?? "");
 }
 
+// A `link:` or `file:` catalog entry points at a local checkout or tarball, so
+// the published manifest would name a dependency nobody can install (decision 0035).
+function linkedCatalogEntries(): string[] {
+  const workspace = readFileSync(join(ROOT, "pnpm-workspace.yaml"), "utf8");
+  return workspace
+    .split("\n")
+    .filter((line) => /^\s+[^#\s][^:]*:\s*["']?(?:link|file):/u.test(line))
+    .map((line) => line.trim());
+}
+
+const linked = linkedCatalogEntries();
+if (linked.length > 0) {
+  throw new Error(
+    `pnpm-workspace.yaml points the catalog at a local checkout; pin a published version before releasing:\n${linked.join("\n")}`,
+  );
+}
+
 // SAFETY: packages/permdock/package.json is the repository's own manifest
 const manifest = readJson(join(PACKAGE_DIR, "package.json")) as Manifest;
 const tag = distTag(manifest.version);

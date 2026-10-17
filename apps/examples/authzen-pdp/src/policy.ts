@@ -27,12 +27,16 @@ const admin = role("admin", [
   deny(permissions.post.publish, { where: { published: true } }),
 ]);
 
+export const roles = [member, admin];
+
+export const subjectOf = (
+  user: User | null,
+): { id: string; orgId: string; roles: readonly string[] } | null =>
+  user === null ? null : { id: user.id, orgId: user.orgId, roles: user.roles };
+
 export const policy = definePolicy(permissions, {
-  roles: [member, admin],
-  subject: (user: User | null) =>
-    user === null
-      ? null
-      : { id: user.id, orgId: user.orgId, roles: user.roles },
+  roles,
+  subject: subjectOf,
   validate: "boundary",
 });
 

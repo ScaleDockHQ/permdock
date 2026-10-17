@@ -79,6 +79,26 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
           id: { type: "string" },
           schema: {},
           definedIn: { type: "string" },
+          parent: {
+            type: "object",
+            required: ["field", "resource"],
+            properties: {
+              field: { type: "string" },
+              resource: { type: "string" },
+            },
+          },
+          links: {
+            type: "object",
+            additionalProperties: {
+              type: "object",
+              required: ["field", "resource"],
+              properties: {
+                field: { type: "string" },
+                resource: { type: "string" },
+              },
+            },
+          },
+          disclosure: { const: "hide" },
           relations: { type: "object" },
           version: { type: "string" },
           restricted: { type: "string" },

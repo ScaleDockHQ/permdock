@@ -19,6 +19,8 @@ Transmitters in production include Microsoft Entra, Okta and Auth0; Keycloak shi
 
 PermDock's client model is snapshot-based: `permdock.snapshot()` serialises roles and grants, the React and React Native adapters answer checks from it, and Next.js caches it with `"use cache: private"` and a tag. A snapshot is only as fresh as its TTL. Without SSF, revoking a user's session at the IdP leaves a stale snapshot granting UI access until the cache expires. With an SSF receiver, the IdP tells PermDock the moment something changes, and PermDock invalidates exactly that user's snapshot and client cache. The snapshot model moves from "stale for N minutes" to "stale until the IdP says so". See [snapshots](/docs/concepts/snapshots).
 
+The transmitter half exists because PermDock Cloud is an authority too: a role removed in its directory, or a snapshot invalidated by an administrator, has to reach every application that cached it. Shipping the signer, the push client and the poll endpoint in `permdock/ssf` keeps the Cloud's SETs identical to what the receiver tests accept, instead of a second implementation of the same RFCs.
+
 ## How PermDock uses it
 
 ```ts
@@ -47,7 +49,17 @@ What the [ssf adapter](/docs/adapters/ssf) does:
 - **Answers stream verification.** A `verification` event runs `onEvent.verification` with its `state` and is recorded on the audit path; it never touches a snapshot.
 - **Asks for a retry on its own failures.** A handler that throws gets `500` back to the transmitter, so RFC 8935 push redelivers; `400` stays for a SET that can never succeed.
 
-PermDock is only a receiver. It never transmits events and does not manage SSF streams beyond the configuration needed to verify incoming SETs. Invalidation is strictly per subject; there is no handler that invalidates everything for an issuer.
+Invalidation is strictly per subject; there is no handler that invalidates everything for an issuer.
+
+`permdock/ssf` also has the transmitter half, for a service that emits signals: PermDock Cloud, or an application that tells its own downstream services that a session ended.
+
+- **Builds events.** `caepEvents.sessionRevoked`, `credentialChange`, `tokenClaimsChange`, `assuranceLevelChange` and `deviceComplianceChange` (CAEP 1.0), and `riscEvents.accountDisabled`, `accountPurged` and `credentialCompromise` (RISC 1.0), each a `SetEvent` with the event-type URI, the `sub_id` and snake_case claims.
+- **Signs SETs.** `signSet(event, signer, { audience, jti?, txn? })` writes an RFC 8417 SET with `typ: secevent+jwt` and one event, as SSF 1.0 requires, through any `TokenSigner`.
+- **Pushes.** `pushSet(set, { endpoint, authorization })` is the RFC 8935 transmitter; it returns `{ ok: true }` or a `SetDeliveryFailureCause` mapped from the receiver's `err`, with `retry` set for a network failure or a `5xx`.
+- **Serves polls.** `setPollHandler({ queue, authorize })` is the RFC 8936 poll endpoint over a `SetQueue`; `memorySetQueue()` is the in-process default.
+- **Types the stream.** `SsfTransmitterConfiguration` (`/.well-known/ssf-configuration`), `SsfStreamConfiguration` and `SsfStreamStatus` follow SSF 1.0 sections 7 and 8.
+
+Stream management (create, update, delete, add and remove subjects) is an HTTP API the transmitter hosts; PermDock types its documents and does not ship those routes.
 
 Outside Next.js, the `revocations` option carries the signal to clients: the receiver publishes `session-revoked` or `changed` on a `RevocationFeed`, and open connections end or revalidate ([streams](/docs/concepts/streams)). An app without long-lived connections relies on the client's next revalidation.
 
@@ -81,6 +93,7 @@ CAEP does not replace the TTL; it shortens the window. Snapshots still expire so
 | RISC `account-disabled`, `account-purged`, `credential-compromise` | With `revocations` and `approvals` set, revoke every session of the principal and cancel its pending approvals                               |
 | SSF `verification` event                                           | `onEvent.verification({ state, jti, issuer })` and a `verification` audit event                                                              |
 | Subject identifier formats                                         | Adapter option mapping to the application's `principal.id`                                                                                   |
+| Transmitter role                                                   | `signSet`, `pushSet`, `setPollHandler` over a `SetQueue`, with `caepEvents` and `riscEvents`                                                 |
 | Unverifiable SET                                                   | Dropped and logged; no invalidation, no grant change                                                                                         |
 
 ## Sources

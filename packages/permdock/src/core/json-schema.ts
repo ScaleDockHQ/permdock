@@ -1,6 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { isRecord } from "./compact.ts";
+import { isForbiddenKey } from "./paths.ts";
 
 /**
  * The JSON Schema 2020-12 keywords the package's own schemas use;
@@ -21,16 +22,21 @@ export type JsonSchemaNode = {
   readonly enum?: readonly unknown[];
   readonly pattern?: string;
   readonly minLength?: number;
+  readonly maxLength?: number;
   readonly minimum?: number;
   readonly maximum?: number;
   readonly exclusiveMinimum?: number;
+  readonly exclusiveMaximum?: number;
   readonly minItems?: number;
+  readonly maxItems?: number;
   readonly uniqueItems?: boolean;
   readonly required?: readonly string[];
   readonly properties?: Readonly<Record<string, JsonSchemaNode>>;
   readonly additionalProperties?: JsonSchemaNode | false;
   readonly items?: JsonSchemaNode;
   readonly oneOf?: readonly JsonSchemaNode[];
+  readonly anyOf?: readonly JsonSchemaNode[];
+  readonly allOf?: readonly JsonSchemaNode[];
 };
 
 export type JsonSchemaType =
@@ -102,6 +108,15 @@ export function copyJson(
   } finally {
     ancestors.delete(value);
   }
+}
+
+/** JSON Schema counts string length in code points, not UTF-16 units. */
+function codePoints(value: string): number {
+  let count = 0;
+  for (const _ of value) {
+    count += 1;
+  }
+  return count;
 }
 
 function typeMatches(type: JsonSchemaType, value: unknown): boolean {
@@ -189,6 +204,13 @@ export function checkSchema(
         `Expected at least ${String(node.minLength)} characters`,
       );
     }
+    if (node.maxLength !== undefined && codePoints(value) > node.maxLength) {
+      issue(
+        issues,
+        path,
+        `Expected at most ${String(node.maxLength)} characters`,
+      );
+    }
   }
   if (typeof value === "number") {
     if (node.minimum !== undefined && value < node.minimum) {
@@ -204,6 +226,26 @@ export function checkSchema(
         `Expected more than ${String(node.exclusiveMinimum)}`,
       );
     }
+    if (node.exclusiveMaximum !== undefined && value >= node.exclusiveMaximum) {
+      issue(
+        issues,
+        path,
+        `Expected less than ${String(node.exclusiveMaximum)}`,
+      );
+    }
+  }
+  if (node.anyOf !== undefined) {
+    const matched = node.anyOf.some((option) => {
+      const scratch: Issues = [];
+      checkSchema(option, value, path, scratch, root);
+      return scratch.length === 0;
+    });
+    if (!matched) {
+      issue(issues, path, "Expected at least one matching form");
+    }
+  }
+  for (const option of node.allOf ?? []) {
+    checkSchema(option, value, path, issues, root);
   }
   if (node.oneOf !== undefined) {
     const matches = node.oneOf.filter((option) => {
@@ -218,6 +260,9 @@ export function checkSchema(
   if (Array.isArray(value)) {
     if (node.minItems !== undefined && value.length < node.minItems) {
       issue(issues, path, `Expected at least ${String(node.minItems)} items`);
+    }
+    if (node.maxItems !== undefined && value.length > node.maxItems) {
+      issue(issues, path, `Expected at most ${String(node.maxItems)} items`);
     }
     if (
       node.uniqueItems === true &&
@@ -260,4 +305,24 @@ export function checkSchema(
       );
     }
   }
+}
+
+/** The path of the first `__proto__`, `constructor` or `prototype` key in `value`, if any. */
+export function forbiddenKeyPath(
+  value: unknown,
+  path: Path = [],
+): Path | undefined {
+  if (value === null || typeof value !== "object") {
+    return undefined;
+  }
+  for (const [key, child] of Object.entries(value)) {
+    if (isForbiddenKey(key)) {
+      return [...path, key];
+    }
+    const found = forbiddenKeyPath(child, [...path, key]);
+    if (found !== undefined) {
+      return found;
+    }
+  }
+  return undefined;
 }

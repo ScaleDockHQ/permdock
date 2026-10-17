@@ -131,7 +131,7 @@ Every HTTP adapter and the [server kernel](/docs/adapters/server-kernel) take `p
 
 ## Example app
 
-None. The [authzen-pdp example](/docs/adapters/authzen) runs a second process that uses `remotePdp` against the PermDock PDP so both halves are exercised. `tests/integration/src/pdp` runs `openfga` against the `openfga/openfga` container and `spicedb` against the `authzed/spicedb` container with the same scenarios: a direct and a userset relation, `filter` and `where` from the listed ids, a local deny over a remote allow, a removed relation, and an unreachable server.
+The [authzen-pdp example](/docs/adapters/authzen): `src/pep.ts` uses `remotePdp` against the PermDock PDP in the same app, and `tests/parity.test.ts` asserts that every policy matrix cell decides the same through it, so both halves are exercised. `tests/integration/src/pdp` runs `openfga` against the `openfga/openfga` container and `spicedb` against the `authzed/spicedb` container with the same scenarios: a direct and a userset relation, `filter` and `where` from the listed ids, a local deny over a remote allow, a removed relation, and an unreachable server.
 
 ## Why
 

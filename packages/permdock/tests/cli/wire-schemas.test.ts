@@ -4,11 +4,27 @@ import { describe, expect, it } from "vitest";
 
 import type { ApprovalRequest } from "../../src/approvals/types.ts";
 import type { SinkEvent } from "../../src/core/event-types.ts";
+import type { PolicyDocument } from "../../src/core/hosted.ts";
 
+import { parseApprovalRequest } from "../../src/approvals/parse-request.ts";
 import { signApproval } from "../../src/approvals/signature.ts";
+import { validateOpenapi } from "../../src/cli/openapi/schema.ts";
+import {
+  RUN_TICKET_SCHEMA,
+  SUPPORT_SESSION_SCHEMA,
+} from "../../src/cli/token-schemas.ts";
+import { policyDocumentFromClaims } from "../../src/core/hosted.ts";
+import { signPolicyDocument } from "../../src/core/policy-sign.ts";
 import { signDecisionBatch } from "../../src/core/sink.ts";
-import { snapshotFromClaims } from "../../src/core/snapshot-sign.ts";
+import {
+  signSnapshot,
+  snapshotFromClaims,
+} from "../../src/core/snapshot-sign.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
+import { signRunTicket } from "../../src/server/run-ticket.ts";
+import { signSupportSession } from "../../src/server/support-session.ts";
+import { CONNECTOR_SCHEMA } from "../../src/testing/cloud-api/connector-schema.ts";
+import { CLOUD_API_DOCUMENT } from "../../src/testing/cloud-api/document.ts";
 import { jwtFixtureTokens } from "../../src/testing/jwt-fixtures.ts";
 
 const SCHEMAS = new URL("../../schemas/", import.meta.url);
@@ -33,7 +49,10 @@ const ajv = new Ajv2020({
   formats: { "date-time": true },
 });
 
-const files = readdirSync(SCHEMAS).filter((name) => name.endsWith(".json"));
+const OPENAPI_DOCUMENTS = new Set(["cloud-api-v1.json"]);
+const files = readdirSync(SCHEMAS).filter(
+  (name) => name.endsWith(".json") && !OPENAPI_DOCUMENTS.has(name),
+);
 
 function validator(name: string): (value: unknown) => readonly unknown[] {
   const check = ajv.getSchema(`https://permdock.com/schemas/${name}`);
@@ -163,16 +182,14 @@ describe("approval-signature-v1.json", () => {
   };
 
   it("accepts what signApproval signs and the checked-in fixtures", async () => {
-    const token = await signApproval(request, signer, undefined);
+    const token = await signApproval(request, signer);
     expect(check(claimsOf(token ?? ""))).toEqual([]);
     expect(check(signedOutput("vnd.permdock.approval+jwt"))).toEqual([]);
     expect(check(claimsOf(jwtFixtureTokens.approval))).toEqual([]);
   });
 
   it("rejects two authorization_details and a numeric approval time", async () => {
-    const claims = claimsOf(
-      (await signApproval(request, signer, undefined)) ?? "",
-    );
+    const claims = claimsOf((await signApproval(request, signer)) ?? "");
     const detail = { type: "invoice", actions: ["void"] };
     expect(
       check({ ...claims, authorization_details: [detail, detail] }),
@@ -299,5 +316,306 @@ describe("evidence-export-v1.json", () => {
         events: [{ id: "1", source: ISSUER, type: "t", data: {} }],
       }),
     ).not.toEqual([]);
+  });
+});
+
+describe("run-v1.json and support-session-v1.json", () => {
+  it("match the constants the CLI exports", () => {
+    expect(json(new URL("run-v1.json", SCHEMAS))).toEqual(RUN_TICKET_SCHEMA);
+    expect(json(new URL("support-session-v1.json", SCHEMAS))).toEqual(
+      SUPPORT_SESSION_SCHEMA,
+    );
+  });
+
+  it("accept what signRunTicket signs and reject a ticket with no delegation", async () => {
+    const check = validator("run-v1.json");
+    const claims = claimsOf(
+      await signRunTicket(
+        {
+          principal: "u_ann",
+          kind: "automation",
+          actor: { id: "auto_1", kind: "automation", act: { sub: "sched" } },
+          delegation: { scopes: ["doc:read"] },
+          automation: { id: "auto_1", version: 3 },
+          tenant: "o1",
+          trigger: { type: "doc.created" },
+          binding: { connector: "slack", tools: ["post-message"] },
+          expiresIn: 300,
+        },
+        signer,
+      ),
+    );
+    expect(check(claims)).toEqual([]);
+    const { scope: _scope, ...undelegated } = claims;
+    expect(check(undelegated)).not.toEqual([]);
+    expect(check({ ...claims, kind: "cron" })).not.toEqual([]);
+  });
+
+  it("accept what signSupportSession signs and reject a nested act", async () => {
+    const check = validator("support-session-v1.json");
+    const now = Date.now();
+    const claims = claimsOf(
+      await signSupportSession(
+        {
+          v: 1,
+          id: "ss_1",
+          principal: "u_customer",
+          actor: "u_staff",
+          tenant: "o_1",
+          reason: "Ticket 4411",
+          permissions: ["invoice.read"],
+          startedAt: new Date(now).toISOString(),
+          expiresAt: new Date(now + 3_600_000).toISOString(),
+          approvedBy: "u_lead",
+          reference: "4411",
+        },
+        signer,
+      ),
+    );
+    expect(check(claims)).toEqual([]);
+    expect(
+      check({ ...claims, act: { sub: "u_staff", kind: "support", act: {} } }),
+    ).not.toEqual([]);
+    expect(check({ ...claims, permissions: [] })).not.toEqual([]);
+  });
+});
+
+describe("signSnapshot and signPolicyDocument", () => {
+  const snapshot = json(
+    new URL("../../fixtures/snapshot.json", import.meta.url),
+  );
+
+  it("signSnapshot round-trips through snapshotFromClaims with the given audience", async () => {
+    const parsed = snapshotFromClaims(snapshot);
+    expect(parsed).toBeNull();
+    const source = snapshotFromClaims(claimsOf(jwtFixtureTokens.snapshot));
+    if (source === null) {
+      throw new Error("fixture snapshot did not parse");
+    }
+    const token = await signSnapshot(source, signer, {
+      audience: "https://cloud.example.com",
+    });
+    const claims = claimsOf(token);
+    expect(claims["aud"]).toBe("https://cloud.example.com");
+    expect(snapshotFromClaims(claims)).toEqual(source);
+    expect(snapshotFromClaims({ snapshot: { v: 2 } })).toBeNull();
+  });
+
+  it("signPolicyDocument writes policy-v1 claims that policyDocumentFromClaims reads back", async () => {
+    const check = validator("policy-v1.json");
+    const document: PolicyDocument = {
+      v: 1,
+      id: "pol_1",
+      fingerprint: "sha256:abc",
+      catalog: "sha256:def",
+      issuedAt: "2026-10-06T09:00:00.000Z",
+      grants: [
+        {
+          id: "g_1",
+          permission: "invoice.read",
+          to: { kind: "role", role: "viewer", scope: "global" },
+        },
+      ],
+    };
+    const token = await signPolicyDocument(document, signer, {
+      audience: "https://app.example.com/env/prod",
+      expiresAt: 1_791_277_200,
+    });
+    const claims = claimsOf(token);
+    expect(check(claims)).toEqual([]);
+    expect(claims).toMatchObject({
+      aud: "https://app.example.com/env/prod",
+      exp: 1_791_277_200,
+      jti: "pol_1",
+    });
+    expect(policyDocumentFromClaims(claims)).toEqual(document);
+  });
+});
+
+describe("parseApprovalRequest", () => {
+  const request = {
+    v: 1,
+    id: "apr_1",
+    token: "sha-256:47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU",
+    permission: "invoice.void",
+    scope: "invoice:void",
+    resource: { type: "invoice", id: "inv_1" },
+    subject: { principal: { id: "u1", roles: ["member"] } },
+    detail: "invoice.void requires human approval.",
+    createdAt: "2026-10-06T09:00:00Z",
+    expiresAt: "2026-10-06T10:00:00Z",
+    status: "pending",
+  };
+
+  it("returns a frozen copy of a valid request", () => {
+    const parsed = parseApprovalRequest(request);
+    expect(parsed).toEqual(request);
+    expect(Object.isFrozen(parsed)).toBe(true);
+  });
+
+  it("returns null for an invalid, unsafe or non-JSON request", () => {
+    expect(parseApprovalRequest({ ...request, status: "maybe" })).toBeNull();
+    expect(
+      parseApprovalRequest(JSON.parse(`{"v":1,"__proto__":{"x":1},"id":"a"}`)),
+    ).toBeNull();
+    expect(parseApprovalRequest({ ...request, at: () => 1 })).toBeNull();
+    expect(parseApprovalRequest("apr_1")).toBeNull();
+  });
+});
+
+describe("connector-v1.json", () => {
+  const check = validator("connector-v1.json");
+  const valid = [
+    {
+      kind: "webhook",
+      name: "Ops",
+      config: {
+        url: "https://ops.example.com/hook",
+        types: ["com.permdock.decision"],
+      },
+    },
+    {
+      kind: "otlp",
+      name: "Grafana",
+      config: { endpoint: "https://otlp.example.com", signals: ["logs"] },
+    },
+    {
+      kind: "siem",
+      name: "Splunk",
+      config: {
+        destination: "splunk-hec",
+        endpoint: "https://hec.example.com",
+      },
+    },
+    {
+      kind: "evidence",
+      name: "Auditor",
+      config: {
+        format: "jws",
+        destination: "https://drop.example.com",
+        schedule: "daily",
+      },
+    },
+    {
+      kind: "scim",
+      name: "Okta",
+      config: {
+        tenant: "o_acme",
+        target: "https://app.example.com/scim/v2",
+        groupRoles: { g_admins: "admin" },
+      },
+    },
+    {
+      kind: "caep-transmitter",
+      name: "Okta signals",
+      config: { issuer: "https://acme.okta.com", delivery: "push" },
+    },
+    {
+      kind: "federated-upstream",
+      name: "Clerk",
+      config: {
+        discovery: "https://clerk.example.com",
+        client_id: "c_1",
+        scopes: ["openid"],
+      },
+    },
+    {
+      kind: "chat",
+      name: "Slack",
+      config: { platform: "slack", workspace: "T123" },
+    },
+    { kind: "email", name: "Mail", config: { from: "approvals@example.com" } },
+    {
+      kind: "vercel-oidc",
+      name: "Vercel",
+      config: { team_id: "team_1", environment: "production" },
+    },
+  ];
+
+  it("accepts one connector of every kind", () => {
+    expect(valid.map((item) => check(item))).toEqual(valid.map(() => []));
+  });
+
+  it("rejects an unknown kind, a missing field, an extra field and http", () => {
+    expect(
+      check({ kind: "trusted-issuer", name: "x", config: {} }),
+    ).not.toEqual([]);
+    expect(check({ kind: "webhook", name: "x", config: {} })).not.toEqual([]);
+    expect(
+      check({
+        kind: "chat",
+        name: "x",
+        config: { platform: "slack", workspace: "T", token: "xoxb" },
+      }),
+    ).not.toEqual([]);
+    expect(
+      check({
+        kind: "webhook",
+        name: "x",
+        config: { url: "http://ops.example.com" },
+      }),
+    ).not.toEqual([]);
+  });
+});
+
+describe("cloud-api-v1.json", () => {
+  it("is CLOUD_API_DOCUMENT and connector-v1.json is CONNECTOR_SCHEMA", () => {
+    expect(json(new URL("cloud-api-v1.json", SCHEMAS))).toEqual(
+      CLOUD_API_DOCUMENT,
+    );
+    expect(json(new URL("connector-v1.json", SCHEMAS))).toEqual(
+      CONNECTOR_SCHEMA,
+    );
+  });
+
+  it("is a valid OpenAPI 3.1 document", () => {
+    expect(validateOpenapi(CLOUD_API_DOCUMENT)).toEqual({
+      ok: true,
+      version: "3.1",
+    });
+  });
+
+  it("compiles every response schema against the package schemas", () => {
+    const local = new Ajv2020({ strict: false });
+    for (const name of files) {
+      local.addSchema(json(new URL(name, SCHEMAS)));
+    }
+    local.addSchema({ ...CLOUD_API_DOCUMENT, $id: "cloud-api" });
+    // SAFETY: the document's paths are path items of operations, read for their response keys only.
+    const paths = CLOUD_API_DOCUMENT["paths"] as Record<
+      string,
+      Record<
+        string,
+        { responses?: Record<string, { content?: Record<string, unknown> }> }
+      >
+    >;
+    const compiled: string[] = [];
+    for (const [path, item] of Object.entries(paths)) {
+      for (const [method, operation] of Object.entries(item)) {
+        for (const [status, response] of Object.entries(
+          operation.responses ?? {},
+        )) {
+          for (const type of Object.keys(response.content ?? {})) {
+            const pointer = [
+              "paths",
+              path,
+              method,
+              "responses",
+              status,
+              "content",
+              type,
+              "schema",
+            ]
+              .map((part) => part.replaceAll("~", "~0").replaceAll("/", "~1"))
+              .join("/");
+            expect(local.getSchema(`cloud-api#/${pointer}`)).toBeTypeOf(
+              "function",
+            );
+            compiled.push(`${method} ${path} ${status}`);
+          }
+        }
+      }
+    }
+    expect(compiled.length).toBeGreaterThan(60);
   });
 });

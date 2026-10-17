@@ -298,7 +298,8 @@
     "./unplugin": {
       "types": "./dist/unplugin/index.d.ts",
       "default": "./dist/unplugin/index.js"
-    }
+    },
+    "./schemas/*": "./schemas/*"
   },
   "publishConfig": {
     "access": "public",

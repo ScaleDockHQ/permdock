@@ -1,0 +1,408 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/connector-v1.json",
+  "title": "PermDock Cloud connector",
+  "description": "A connector on PermDock Cloud's /connectors route, wire format v1: the closed list of kinds, one branch per kind. Trusted issuers have their own route (/trusted-issuers).",
+  "oneOf": [
+    {
+      "description": "CloudEvents batches signed with Standard Webhooks.",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "webhook"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "pattern": "^https://"
+            },
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true,
+              "description": "CloudEvents types to deliver; all when absent."
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "OTLP/HTTP log records and spans with the permdock.* attributes.",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "otlp"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["endpoint"],
+          "properties": {
+            "endpoint": {
+              "type": "string",
+              "pattern": "^https://"
+            },
+            "headers": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "signals": {
+              "type": "array",
+              "items": {
+                "enum": ["logs", "traces"]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "The OCSF projection posted to a SIEM ingest API.",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "siem"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["destination", "endpoint"],
+          "properties": {
+            "destination": {
+              "enum": [
+                "splunk-hec",
+                "sentinel",
+                "security-lake",
+                "google-secops",
+                "elastic",
+                "datadog"
+              ]
+            },
+            "endpoint": {
+              "type": "string",
+              "pattern": "^https://"
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "A scheduled decision-log export.",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "evidence"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["format", "destination"],
+          "properties": {
+            "format": {
+              "enum": ["jws", "ocsf", "csv"]
+            },
+            "destination": {
+              "type": "string",
+              "pattern": "^https://"
+            },
+            "schedule": {
+              "enum": ["hourly", "daily"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "A hosted SCIM 2.0 relay for one tenant, replayed to the application's scimHandler.",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "scim"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tenant", "target"],
+          "properties": {
+            "tenant": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "target": {
+              "type": "string",
+              "pattern": "^https://"
+            },
+            "groupRoles": {
+              "type": "object",
+              "description": "Group id to declared assignable role.",
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "An SSF transmitter whose SETs the Cloud receives (POST /ssf/receive/:connector, or poll).",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "caep-transmitter"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["issuer", "delivery"],
+          "properties": {
+            "issuer": {
+              "type": "string",
+              "pattern": "^https://"
+            },
+            "jwks_uri": {
+              "type": "string",
+              "pattern": "^https://"
+            },
+            "delivery": {
+              "enum": ["push", "poll"]
+            },
+            "poll_endpoint": {
+              "type": "string",
+              "pattern": "^https://"
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "An OIDC upstream the Cloud issuer federates to with authorization code plus PKCE.",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "federated-upstream"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["discovery", "client_id"],
+          "properties": {
+            "discovery": {
+              "type": "string",
+              "pattern": "^https://"
+            },
+            "client_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Approval cards through the Vercel Chat SDK.",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "chat"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["platform", "workspace"],
+          "properties": {
+            "platform": {
+              "enum": ["slack", "teams"]
+            },
+            "workspace": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "The Cloud's hosted email sender for approval and delivery messages.",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "email"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["from"],
+          "properties": {
+            "from": {
+              "type": "string",
+              "pattern": "^[^@\\s]+@[^@\\s]+$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Vercel OIDC federation tokens accepted as hosted ADS callers.",
+      "type": "object",
+      "required": ["kind", "name", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "const": "vercel-oidc"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["team_id"],
+          "properties": {
+            "team_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "project_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "environment": {
+              "enum": ["production", "preview", "development"]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

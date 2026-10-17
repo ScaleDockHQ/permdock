@@ -140,4 +140,18 @@ describe("Cloud-native directory mode", () => {
     const permdock = createPermDock(policy, subject);
     expect(permdock.can(permissions.doc.read, acmeDoc)).toBe(false);
   });
+
+  it("decides from memberships in the canonical scope form", async () => {
+    const token = await cloudToken({
+      tenant: "o_acme",
+      memberships: [
+        { scope: "tenant", id: "o_acme", roles: ["editor"] },
+        { scope: "tenant", id: "o_globex", roles: ["viewer"] },
+      ],
+    });
+    const permdock = createPermDock(policy, await subjectOf(token));
+    expect(permdock.subject.principal?.tenant).toBe("o_acme");
+    expect(permdock.can(permissions.doc.update, acmeDoc)).toBe(true);
+    expect(permdock.can(permissions.doc.update, globexDoc)).toBe(false);
+  });
 });

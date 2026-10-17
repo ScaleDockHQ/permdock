@@ -213,8 +213,9 @@ export type SupabaseSubjectOptions = {
 /**
  * Who acts for the user. `oauth-client`: a third-party app or an agent chain (`client_id`, or an
  * `act` without `kind`). `support`: a support session (`act.kind: "support"` with `session_id`).
- * `impersonation`: an admin acting as the user (`act.kind: "impersonation"`). `chain` is a copy of
- * the token's `act` claim when it has one.
+ * `impersonation`: an admin acting as the user (`act.kind: "impersonation"`). `agent`: an agent
+ * run better-supabase's `agentClaims` minted (`act.kind: "agent"`), with the `tools` it may call.
+ * `chain` is a copy of the token's `act` claim when it has one.
  */
 export type SupabaseActor =
   | {
@@ -234,6 +235,12 @@ export type SupabaseActor =
       readonly id: string;
       readonly kind: "impersonation";
       readonly reason?: string;
+      readonly chain: SupabaseActClaim;
+    }
+  | {
+      readonly id: string;
+      readonly kind: "agent";
+      readonly tools?: readonly string[];
       readonly chain: SupabaseActClaim;
     };
 

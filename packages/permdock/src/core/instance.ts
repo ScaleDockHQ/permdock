@@ -430,7 +430,11 @@ export function buildInstance(
         }),
       );
       if (options?.signer !== undefined) {
-        return signSnapshot(snapshot, options.signer, options.audience);
+        return signSnapshot(
+          snapshot,
+          options.signer,
+          compact({ audience: options.audience }),
+        );
       }
       return snapshot;
     }) as PermDock["snapshot"],

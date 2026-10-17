@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 
-import type { ReplayStore } from "../../ssf/index.ts";
+import type { ReplayStore, SetQueue } from "../../ssf/index.ts";
 
 import { nowMillis, nowSeconds } from "../../core/time.ts";
 import {
@@ -46,6 +46,39 @@ export function testReplayStore(store: ReplayStore): void {
     expect(await store.seen("claim-key")).toBe(true);
     await store.release("claim-key");
     expect(await store.claim("claim-key", expiresAt)).toBe(true);
+  });
+}
+
+export function testSetQueue(queue: SetQueue): void {
+  it("returns pending SETs oldest first, at most max, per stream", async () => {
+    await queue.enqueue("stream-a", "a1", "set-a1");
+    await queue.enqueue("stream-a", "a2", "set-a2");
+    await queue.enqueue("stream-b", "b1", "set-b1");
+    expect(await queue.pending("stream-a", 10)).toEqual([
+      { jti: "a1", set: "set-a1" },
+      { jti: "a2", set: "set-a2" },
+    ]);
+    expect(await queue.pending("stream-a", 1)).toEqual([
+      { jti: "a1", set: "set-a1" },
+    ]);
+    expect(await queue.pending("stream-b", 10)).toEqual([
+      { jti: "b1", set: "set-b1" },
+    ]);
+  });
+
+  it("keeps a SET pending until it is acknowledged or reported failed", async () => {
+    await queue.enqueue("stream-c", "c1", "set-c1");
+    await queue.enqueue("stream-c", "c2", "set-c2");
+    await queue.enqueue("stream-c", "c3", "set-c3");
+    await queue.ack("stream-c", "c1");
+    await queue.fail("stream-c", "c2", {
+      err: "invalid_key",
+      description: "unknown kid",
+    });
+    await queue.ack("stream-other", "c3");
+    expect(await queue.pending("stream-c", 10)).toEqual([
+      { jti: "c3", set: "set-c3" },
+    ]);
   });
 }
 

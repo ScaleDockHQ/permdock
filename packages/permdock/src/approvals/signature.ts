@@ -69,11 +69,20 @@ export function approvalSignatureClaims(
   });
 }
 
-/** Signs an approved request as a `vnd.permdock.approval+jwt`; `undefined` without a signer or for any other status. */
+export type SignApprovalOptions = {
+  /** `aud`: the resource server that verifies the signature. */
+  readonly audience?: string | readonly string[];
+};
+
+/**
+ * Signs an approved request as a `vnd.permdock.approval+jwt`: `jti` is the
+ * request id, `iat` its `resolvedAt` and `exp` its `expiresAt`. `undefined`
+ * without a signer or for any status but `approved`.
+ */
 export function signApproval(
   request: ApprovalRequest,
   signer: TokenSigner | undefined,
-  audience: string | readonly string[] | undefined,
+  options: SignApprovalOptions = {},
 ): Promise<string | undefined> {
   if (signer === undefined || request.status !== "approved") {
     return Promise.resolve(undefined);
@@ -82,7 +91,7 @@ export function signApproval(
     approvalSignatureClaims(request),
     compact<Parameters<TokenSigner["sign"]>[1]>({
       typ: "vnd.permdock.approval+jwt",
-      audience,
+      audience: options.audience,
       jti: request.id,
       issuedAt: secondsOf(request.resolvedAt),
       expiresAt: secondsOf(request.expiresAt),

@@ -546,6 +546,36 @@ function buildGrant(
   };
 }
 
+/** One hosted grant `mergeHostedGrants` would drop, with the permission key it names. */
+export type HostedGrantDrop = {
+  readonly grant: string;
+  readonly permission: string;
+  readonly reason: HostedGrantDropReason;
+};
+
+/** The grants of `document` that `policy` drops, in document order; `permdock/catalog` turns them into drift findings. */
+export function hostedGrantDrops(
+  policy: Policy,
+  document: PolicyDocument,
+): readonly HostedGrantDrop[] {
+  return document.grants.flatMap((raw): HostedGrantDrop[] => {
+    const result = buildGrant(policy, document, raw);
+    if (result.ok) {
+      return [];
+    }
+    return [
+      freezeDeep({
+        grant: isRecord(raw) && typeof raw.id === "string" ? raw.id : "",
+        permission:
+          isRecord(raw) && typeof raw.permission === "string"
+            ? raw.permission
+            : "",
+        reason: result.reason,
+      }),
+    ];
+  });
+}
+
 /**
  * The code policy plus the hosted grants that pass every rule. Hosted
  * allows OR with code allows and any deny still wins, so a hosted grant can

@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-14T01:05:29.577Z",
+  "generatedAt": "2026-10-17T00:26:00.321Z",
   "generator": "permdock@0.4.0",
-  "fingerprint": "sha-256:rq6xVNcSm8Wu0GTMxFGxfW0dk8a3yWJn97SVoemr7iY",
+  "fingerprint": "sha-256:I7BeIWTF8XmjqUUnob8t1UR4l5GUbDc4lWVJzCcKmEs",
   "resources": {
     "staff": {
       "id": "id",
@@ -106,9 +106,46 @@
           "memberOf": "customer"
         }
       }
+    },
+    "audit": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
     }
   },
   "permissions": [
+    {
+      "key": "audit.revert",
+      "scope": "audit:revert",
+      "resource": "audit",
+      "action": "revert",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 29,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "audit.view",
+      "scope": "audit:view",
+      "resource": "audit",
+      "action": "view",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 28,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    },
     {
       "key": "quotes.list",
       "scope": "quotes:list",
@@ -139,7 +176,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 39,
+          "line": 41,
           "call": "reference"
         }
       ],
@@ -160,7 +197,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 39,
+          "line": 41,
           "call": "reference"
         }
       ],
@@ -212,7 +249,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 34,
+          "line": 36,
           "call": "reference"
         }
       ],
@@ -233,7 +270,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 34,
+          "line": 36,
           "call": "reference"
         }
       ],
@@ -270,6 +307,28 @@
     }
   ],
   "grants": [
+    {
+      "permission": "audit.revert",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "audit.view",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
     {
       "permission": "quotes.list",
       "effect": "allow",

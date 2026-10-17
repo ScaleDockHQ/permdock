@@ -2,7 +2,7 @@
 -- @bs-module pgtap@1 managed
 -- tests.create_user, tests.authenticate_as and tests.rls_enabled for `supabase test db`. Written to supabase/tests, never to your schema.
 -- Managed by `better-supabase sql add`; re-running it overwrites this file.
--- Change it through `sql.modules` in better-supabase.config.ts and the module's SQL hooks.
+-- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 -- Runs first (000_) and commits, so later test files can use the helpers.
 create extension if not exists pgtap with schema extensions;

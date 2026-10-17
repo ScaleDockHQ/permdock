@@ -25,6 +25,7 @@ const CLOUD_ISSUED: ReadonlySet<string> = new Set([
   "vnd.permdock.snapshot+jwt",
   "vnd.permdock.evidence+jwt",
   "at+jwt",
+  "secevent+jwt",
 ]);
 
 function headerTyp(token: string): unknown {
@@ -43,7 +44,7 @@ function headerTyp(token: string): unknown {
  * KMS-held, for run tickets (`vnd.permdock.run+jwt`) and every other signed
  * output an app issues. The Cloud signs only what the app sends: it sets
  * `iss` to the environment URL and adds no claim. Policy documents,
- * snapshots, evidence exports and `at+jwt` access tokens are the Cloud's own
+ * snapshots, evidence exports, Security Event Tokens and `at+jwt` access tokens are the Cloud's own
  * outputs, so their `typ` values are refused here. Verify what it signs with
  * `joseTokenVerifier({ jwks: cloudEndpoints().jwks })`.
  */

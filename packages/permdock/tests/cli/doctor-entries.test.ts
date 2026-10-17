@@ -38,7 +38,7 @@ function entries(): readonly string[] {
     readFileSync(path.join(import.meta.dirname, "../../package.json"), "utf8"),
   ) as { readonly exports: Readonly<Record<string, unknown>> };
   return Object.keys(manifest.exports)
-    .filter((entry) => entry !== "./package.json")
+    .filter((entry) => entry !== "./package.json" && entry !== "./schemas/*")
     .map((entry) =>
       entry === "." ? "permdock" : `permdock/${entry.slice(2)}`,
     );

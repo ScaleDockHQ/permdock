@@ -1,9 +1,10 @@
 import type { EveApprovalContext, EvePrincipal } from "permdock/eve";
 
 import { defineOperations } from "permdock";
-import { memoryApprovalStore } from "permdock/approvals";
 import { createPermDock } from "permdock/eve";
 
+import { backend } from "./cloud.ts";
+import { env } from "./env.ts";
 import { ownPost, permissions } from "./permissions.ts";
 import { adminUser, memberUser, policy, userById } from "./policy.ts";
 
@@ -19,9 +20,12 @@ export const reviewer: EvePrincipal = {
   attributes: { roles: [...adminUser.roles] },
 };
 
+export const app = backend(env.cloud);
+
 export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
   subject: ({ session }) => userById(session?.auth?.initiator?.principalId),
-  store: memoryApprovalStore(),
+  store: app.store,
+  ...(app.sink === null ? {} : { sink: app.sink }),
   approvers: { roles: ["admin"] },
   delegation: () => ({
     scopes: [permissions.post.list.scope, permissions.post.delete.scope],

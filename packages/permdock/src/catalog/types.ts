@@ -65,6 +65,14 @@ export type CatalogResource = {
   readonly id: string;
   readonly schema: unknown;
   readonly definedIn?: string;
+  /** `resource(…, { parent })`: the row field that holds the parent row's id. */
+  readonly parent?: { readonly field: string; readonly resource: string };
+  /** `resource(…, { links })`: to-one links `through` walks; absent when none. */
+  readonly links?: Readonly<
+    Record<string, { readonly field: string; readonly resource: string }>
+  >;
+  /** `'hide'` answers a denied check on a loaded row as if the row did not exist; absent for `'reveal'`. */
+  readonly disclosure?: "hide";
   readonly relations?: Readonly<Record<string, ResourceRelation>>;
   /** The row field an `approval: { staleOn: 'resource-change' }` binds to. */
   readonly version?: string;

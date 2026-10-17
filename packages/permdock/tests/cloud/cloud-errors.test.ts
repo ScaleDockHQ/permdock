@@ -163,7 +163,9 @@ describe("cloud sink and snapshots over a failing API", () => {
 
   it("throws when the snapshot request fails", async () => {
     const { client: c } = client(() => new Response(null, { status: 503 }));
-    await expect(c.snapshots.get()).rejects.toThrow("snapshot request failed");
+    await expect(c.snapshotsFor("t").get()).rejects.toThrow(
+      "snapshot request failed",
+    );
   });
 });
 

@@ -87,6 +87,8 @@ export type {
   AuthzenVectors,
   TestAuthzenOptions,
 } from "./authzen.ts";
+export { testCloudApi } from "./cloud-api/index.ts";
+export type { CloudApiKeys, TestCloudApiOptions } from "./cloud-api/index.ts";
 export type { ApprovalStoreOptions } from "./conformance/approvals.ts";
 export {
   testAccessReviewStore,
@@ -100,6 +102,7 @@ export {
   testCredentialVerifier,
   testReplayStore,
   testRevocationFeed,
+  testSetQueue,
   testTokenSigner,
   testTokenVerifier,
 } from "./conformance/credentials.ts";

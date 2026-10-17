@@ -87,3 +87,6 @@ test-results/
 playwright-report/
 .preset-check/
 apps/marketing/public/r/
+
+# Packed by scripts/better-supabase-checkout.ts (decision 0035)
+/.better-supabase/

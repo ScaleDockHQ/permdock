@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`policyFromCatalog > decides every SaaS scenario as the code does, or stricter 1`] = `
+[
+  "team lead updates a team doc",
+]
+`;

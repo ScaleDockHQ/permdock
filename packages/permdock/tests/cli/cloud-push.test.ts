@@ -57,6 +57,7 @@ describe("pushedPolicy", () => {
       subject: () => null,
     });
     const pushed = pushedPolicy(policy);
+    expect(pushed.v).toBe(1);
     expect(pushed.fingerprint).toBe(policy.fingerprint);
     expect(pushed).not.toHaveProperty("scopes");
     const member = { kind: "role", role: "member", scope: "global" };
@@ -74,6 +75,7 @@ describe("pushedPolicy", () => {
         role: "member",
         to: member,
         portable: false,
+        closure: true,
       },
       {
         permission: "doc.list",

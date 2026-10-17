@@ -101,6 +101,40 @@ describe("actorOf and delegationOf", () => {
     expect(subject.delegation).toBeUndefined();
   });
 
+  it("reads an agent run from act.kind with its tools and the token's scopes", () => {
+    const act = {
+      kind: "agent",
+      sub: "agent-7",
+      tools: ["search_knowledge"],
+      act: { sub: "agent-runner" },
+    };
+    expect(actorOf({ sub, act })).toEqual({
+      ok: true,
+      actor: {
+        id: "agent-7",
+        kind: "agent",
+        tools: ["search_knowledge"],
+        chain: act,
+      },
+    });
+    const subject = subjectFromSupabase({ sub, act, scope: "posts:read" });
+    expect(subject.actor).toEqual({
+      id: "agent-7",
+      kind: "agent",
+      tools: ["search_knowledge"],
+    });
+    expect(subject.delegation).toEqual({ scopes: ["posts:read"], chain: act });
+  });
+
+  it("refuses an agent run whose tools are not strings", () => {
+    const act = { kind: "agent", sub: "agent-7", tools: [1] };
+    expect(actorOf({ sub, act })).toEqual({
+      ok: false,
+      reason: "invalid-chain",
+    });
+    expect(subjectFromSupabase({ sub, act }).principal).toBeNull();
+  });
+
   it("reads a 0.5.0 support token (session_id without kind) as support, as better-supabase does", () => {
     const subject = subjectFromSupabase({
       sub,

@@ -40,3 +40,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0032](./0032-no-actions-lock-yet.md)                  | No `actions.lock` until workflow lockfiles are generally available          |
 | [0033](./0033-next-tsconfig-react-jsx.md)              | `next.json` sets `jsx: "react-jsx"`                                         |
 | [0034](./0034-structural-instant-over-temporal.md)     | The runtime takes a structural `Instant`, not `Temporal`                    |
+| [0035](./0035-better-supabase-from-a-tarball.md)       | better-supabase installs from a tarball of the sibling checkout             |

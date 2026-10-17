@@ -33,10 +33,11 @@ import {
   subjectFromCapability,
 } from "../../src/jwt/index.ts";
 import { memoryDirectoryStore } from "../../src/scim/index.ts";
-import { memoryReplayStore } from "../../src/ssf/index.ts";
+import { memoryReplayStore, memorySetQueue } from "../../src/ssf/index.ts";
 import { testApprovalStore } from "../../src/testing/conformance/approvals.ts";
 import {
   testReplayStore,
+  testSetQueue,
   testRevocationFeed,
   testTokenSigner,
   testTokenVerifier,
@@ -623,6 +624,8 @@ describe("conformance runners", () => {
   });
 
   testReplayStore(memoryReplayStore());
+
+  testSetQueue(memorySetQueue());
 
   testRevocationFeed(memoryRevocationFeed());
 

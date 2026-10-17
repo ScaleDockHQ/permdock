@@ -35,5 +35,15 @@ runs:
         node-version-file: .node-version
         cache: ${{ inputs.cache }}
         save-cache: ${{ inputs.save-cache }}
-        install: ${{ inputs.install }}
-        require-lockfile: true
+        install: false
+
+    # The catalog installs the better-supabase tarball this packs (decision 0035).
+    - name: better-supabase checkout
+      if: inputs.install == 'true'
+      shell: bash
+      run: node scripts/better-supabase-checkout.ts
+
+    - name: Install
+      if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile

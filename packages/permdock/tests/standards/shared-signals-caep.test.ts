@@ -12,7 +12,13 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { accessEvent, toCloudEvent } from "../../src/core/sink.ts";
-import { createPermDock } from "../../src/ssf/index.ts";
+import { joseTokenSigner } from "../../src/jwt/signer.ts";
+import {
+  caepEvents,
+  createPermDock,
+  pushSet,
+  signSet,
+} from "../../src/ssf/index.ts";
 import { type OcsfClass, standardsFixture } from "./fixtures.ts";
 
 const ISSUER = "https://idp.example.com";
@@ -424,5 +430,50 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.9.0", () => {
         fixture.uid * 100 + Number(ocsf["activity_id"]),
       );
     }
+  });
+});
+
+describe("SSF 1.0 transmitter", () => {
+  it("signs every CAEP 1.0 core event the receiver dispatches, through signSet and pushSet", async () => {
+    const signer = joseTokenSigner({
+      key: privateJwk,
+      alg: "ES256",
+      kid: "tx-1",
+      issuer: ISSUER,
+    });
+    const subject = { format: "iss_sub", iss: ISSUER, sub: "u_1" };
+    const events = {
+      "session-revoked": caepEvents.sessionRevoked({ subject }),
+      "credential-change": caepEvents.credentialChange({
+        subject,
+        credentialType: "password",
+        changeType: "update",
+      }),
+      "assurance-level-change": caepEvents.assuranceLevelChange({
+        subject,
+        namespace: "NIST-AAL",
+        currentLevel: "nist-aal2",
+      }),
+      "token-claims-change": caepEvents.tokenClaimsChange({
+        subject,
+        claims: { role: "viewer" },
+      }),
+      "device-compliance-change": caepEvents.deviceComplianceChange({
+        subject,
+        previousStatus: "compliant",
+        currentStatus: "not-compliant",
+      }),
+    } satisfies Record<(typeof CAEP_EVENTS)[number], unknown>;
+    const seen: string[] = [];
+    const handle = receiver(seen);
+    for (const name of CAEP_EVENTS) {
+      const token = await signSet(events[name], signer, { audience: AUDIENCE });
+      const delivery = await pushSet(token, {
+        endpoint: AUDIENCE,
+        fetch: (input, init) => handle.push(new Request(input, init)),
+      });
+      expect(delivery).toEqual({ ok: true });
+    }
+    expect(seen).toEqual(CAEP_EVENTS.map((name) => `${name} u_1`));
   });
 });

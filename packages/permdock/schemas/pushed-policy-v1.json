@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/pushed-policy-v1.json",
+  "title": "PushedPolicy v1",
+  "type": "object",
+  "required": ["v", "fingerprint", "grants"],
+  "additionalProperties": false,
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "fingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "key"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "key": {
+            "type": "string"
+          },
+          "within": {
+            "type": "string"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "grants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["permission", "effect", "role", "to"],
+        "additionalProperties": false,
+        "properties": {
+          "permission": {
+            "type": "string",
+            "minLength": 1
+          },
+          "effect": {
+            "enum": ["allow", "deny"]
+          },
+          "role": {
+            "type": ["string", "null"]
+          },
+          "to": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["kind"]
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["kind"]
+                }
+              }
+            ]
+          },
+          "where": {
+            "type": "object",
+            "required": ["op"]
+          },
+          "check": {
+            "type": "object",
+            "required": ["op"]
+          },
+          "approval": {
+            "oneOf": [
+              {
+                "const": "human"
+              },
+              {
+                "type": "object"
+              }
+            ]
+          },
+          "scope": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": ["resource"],
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "portable": {
+            "const": false
+          },
+          "closure": {
+            "const": true
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "type": "object",
+            "required": ["count", "per"],
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "per": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "mode": {
+                "enum": ["hard", "soft"]
+              },
+              "alertAt": {
+                "type": "number"
+              }
+            }
+          },
+          "validity": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "until": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+              }
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "viaOnly": {
+            "type": "string"
+          },
+          "breakGlass": {
+            "type": "object",
+            "required": ["overrides", "reason", "obligations"],
+            "properties": {
+              "overrides": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "purpose": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "boolean"
+              },
+              "assurance": {
+                "type": "object"
+              },
+              "maxDuration": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "obligations": {
+                "type": "array",
+                "items": {
+                  "enum": ["notify", "review"]
+                }
+              }
+            }
+          },
+          "obligations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "name"],
+              "properties": {
+                "kind": {
+                  "const": "app"
+                },
+                "name": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,5 +1,18 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
-  "tags": ["example"]
+  "tags": ["example"],
+  "tasks": {
+    "test": {
+      "env": [
+        "$TURBO_EXTENDS$",
+        "PERMDOCK_CLOUD_URL",
+        "PERMDOCK_CLOUD_KEY",
+        "PERMDOCK_CLOUD_ENV",
+        "PERMDOCK_CLOUD_WEBHOOK_SECRET",
+        "PERMDOCK_CLOUD_APPROVER_JWK",
+        "PERMDOCK_CLOUD_APPROVER_ISSUER"
+      ]
+    }
+  }
 }

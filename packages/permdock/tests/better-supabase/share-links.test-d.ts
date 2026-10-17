@@ -1,5 +1,4 @@
-import type { AsyncResult } from "better-supabase";
-import type { Temporal } from "temporal-polyfill";
+import type { ShareLinks } from "better-supabase/blocks/share-links";
 
 import { describe, expectTypeOf, it } from "vitest";
 
@@ -12,19 +11,7 @@ import {
 } from "../../src/better-supabase/index.ts";
 import { permissions } from "../fixtures/vocabulary.ts";
 
-type ResolvedShareLink = {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly subjectType: string;
-  readonly subjectId: string;
-  readonly role: string;
-  readonly versionId?: string;
-  readonly expiresAt?: Temporal.Instant;
-};
-
-declare const shareLinks: {
-  resolve(token: string): AsyncResult<ResolvedShareLink | null>;
-};
+declare const shareLinks: ShareLinks;
 
 describe("subjectFromShareLink", () => {
   it("takes better-supabase's ShareLinks and resolves to a link subject", () => {

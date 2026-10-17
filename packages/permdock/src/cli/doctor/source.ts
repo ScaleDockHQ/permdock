@@ -409,6 +409,13 @@ function stringValue(node: OptionExpression | undefined): string | undefined {
     : undefined;
 }
 
+/** Their `jwks` holds Standard Webhooks `v1a` keys, not a token issuer's. */
+const WEBHOOK_VERIFIERS: ReadonlySet<string> = new Set([
+  "cloudApprovalWaiter",
+  "verifyWebhook",
+  "webhookVerifier",
+]);
+
 function isPermDockSpecifier(value: string): boolean {
   return value === "permdock" || value.startsWith("permdock/");
 }
@@ -432,9 +439,15 @@ function permdockOptionObjects(
       for (const specifier of node.specifiers) {
         if (specifier.type === "ImportNamespaceSpecifier") {
           namespaces.add(specifier.local.name);
+        } else if (specifier.type === "ImportDefaultSpecifier") {
+          functions.add(specifier.local.name);
         } else if (
-          specifier.type === "ImportDefaultSpecifier" ||
-          specifier.importKind !== "type"
+          specifier.importKind !== "type" &&
+          !WEBHOOK_VERIFIERS.has(
+            specifier.imported.type === "Identifier"
+              ? specifier.imported.name
+              : specifier.imported.value,
+          )
         ) {
           functions.add(specifier.local.name);
         }

@@ -1,3 +1,5 @@
+import type { JsonSchemaNode } from "../core/json-schema.ts";
+
 /** An RFC 3339 instant as `Temporal.Instant` prints it; pg_jsonschema asserts no `format`. */
 const INSTANT = String.raw`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$`;
 
@@ -8,7 +10,7 @@ const STRINGS = { type: "array", items: { type: "string" } } as const;
  * holds. Self-contained (`$defs`, no remote `$ref`) so `rls.jsonSchema` can
  * inline it into a pg_jsonschema check constraint.
  */
-export const APPROVAL_REQUEST_SCHEMA: Readonly<Record<string, unknown>> = {
+export const APPROVAL_REQUEST_SCHEMA: JsonSchemaNode = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://permdock.com/schemas/approval-request-v1.json",
   title: "PermDock approval request",

@@ -7,8 +7,10 @@ export const BACKCHANNEL_LOGOUT_EVENT =
 export const VERIFICATION_EVENT =
   "https://schemas.openid.net/secevent/ssf/event-type/verification";
 
-const CAEP_PREFIX = "https://schemas.openid.net/secevent/caep/event-type/";
-const RISC_PREFIX = "https://schemas.openid.net/secevent/risc/event-type/";
+export const CAEP_PREFIX =
+  "https://schemas.openid.net/secevent/caep/event-type/";
+export const RISC_PREFIX =
+  "https://schemas.openid.net/secevent/risc/event-type/";
 
 const CAEP_NAMES: readonly CaepEventName[] = [
   "session-revoked",

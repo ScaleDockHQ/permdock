@@ -1,7 +1,7 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsApprovalsAdopt } from "../types.ts";
 
-import { APPROVAL_REQUEST_SCHEMA } from "../approval-schema.ts";
+import { APPROVAL_REQUEST_SCHEMA } from "../../approvals/request-schema.ts";
 import { memberIdsHelper } from "../sql/names.ts";
 import {
   qualified,

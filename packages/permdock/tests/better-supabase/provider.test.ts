@@ -178,14 +178,10 @@ describe("authorizationProvider", () => {
     });
   });
 
-  it("fills holdersOf and actorMayWrite from the example's helpers on request", () => {
-    expect(
-      authorizationProvider({ manifest: exampleManifest }).functions,
-    ).not.toHaveProperty("holdersOf");
+  it("fills holdersOf and actorMayWrite from the example's helpers", () => {
     const provider = authorizationProvider({
       manifest: exampleManifest,
       catalog: exampleCatalog,
-      functions: { holdersOf: true, actorMayWrite: true },
     });
     expect(provider.functions).toMatchObject({
       holdersOf:
@@ -212,14 +208,10 @@ describe("authorizationProvider", () => {
     const provider = authorizationProvider({
       manifest: supabaseHookManifestFixture,
       catalog: emptyCatalog,
-      functions: { holdersOf: true, actorMayWrite: true },
     });
     expect(provider.functions).not.toHaveProperty("holdersOf");
     expect(provider.functions).not.toHaveProperty("actorMayWrite");
-    expect(provider.problems).toEqual([
-      expect.stringContaining("permitted_tenant_users"),
-      expect.stringContaining("permdock_actor_may_write"),
-    ]);
+    expect(provider).not.toHaveProperty("problems");
   });
 
   it("marks a key with row conditions as not complete in SQL", () => {
@@ -535,7 +527,7 @@ describe("authorizationProvider", () => {
     });
   });
 
-  it("lets an approver permission decide tool calls, never the requester", async () => {
+  it("turns an approver permission into the ai-tool isApprover branch", () => {
     const approver = {
       key: "tools.approve",
       scope: "tools:approve",
@@ -548,28 +540,11 @@ describe("authorizationProvider", () => {
       manifest: supabaseHookManifestFixture,
       approver,
     });
-    await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
-    expect(provider.functions.canApprove).toBe(
-      "{tenant} in (select permdock.permitted_tenant_ids_by_permission('tools.approve'))",
+    expect(provider.functions).not.toHaveProperty("canApprove");
+    expect(provider).not.toHaveProperty("approvals");
+    expect(provider.problems).toContainEqual(
+      expect.stringContaining("permdock.permdock_is_approver"),
     );
-    expect(provider.approvals).toEqual({ distinctApprover: true });
-    expect(provider.requires).toContainEqual({
-      function: "permdock.permitted_tenant_ids_by_permission",
-      args: "text",
-      role: "postgres",
-    });
-    expect(
-      authorizationProvider({
-        manifest: exampleManifest,
-        catalog: exampleCatalog,
-        approver,
-      }).problems,
-    ).toContainEqual(
-      expect.stringContaining("tools.approve is not in the catalog"),
-    );
-    expect(
-      authorizationProvider({ manifest: supabaseHookManifestFixture }),
-    ).not.toHaveProperty("approvals");
   });
 
   describe("approvers", () => {
@@ -717,7 +692,7 @@ describe("authorizationProvider", () => {
       expect(none.problems).toEqual([expect.stringContaining("no kind")]);
     });
 
-    it("falls back to canApprove without permdock_is_approver", () => {
+    it("sets no approver template without permdock_is_approver", () => {
       const provider = authorizationProvider({
         manifest: supabaseHookManifestFixture,
         catalog: { ...catalog, permissions: [] },
@@ -725,7 +700,7 @@ describe("authorizationProvider", () => {
         approvers: { "invoice.send": user("u1") },
       });
       expect(provider.functions).not.toHaveProperty("isApprover");
-      expect(provider.functions.canApprove).toBeDefined();
+      expect(provider.functions).not.toHaveProperty("canApprove");
       expect(provider.problems).toContainEqual(
         expect.stringContaining("permdock.permdock_is_approver"),
       );
@@ -767,5 +742,105 @@ describe("authorizationProvider", () => {
     expect(scoped("citext").problems).toContainEqual(
       expect.stringContaining("ids of type citext"),
     );
+  });
+
+  describe("permitted", () => {
+    it("checks a scope instance against its ids and other resources at the tenant", () => {
+      // SAFETY: the example catalog is a valid catalog document.
+      const catalog = structuredClone(exampleCatalog) as {
+        permissions: { key: string; rowConditions: boolean }[];
+      };
+      for (const permission of catalog.permissions) {
+        permission.rowConditions = true;
+      }
+      catalog.permissions[0]!.rowConditions = false;
+      const ids = (scope: string) =>
+        `select ids::text from permdock.permitted_${scope}_ids_by_permission({permission}) as ids`;
+      expect(
+        authorizationProvider({ manifest: exampleManifest, catalog }).functions
+          .permitted,
+      ).toBe(
+        `case when {resource} = 'organization' then {id} in (${ids("organization")}) ` +
+          `when {resource} = 'customer' then {id} in (${ids("customer")}) ` +
+          `else {permission} in ('${catalog.permissions[0]!.key}') and {tenant} in (${ids("organization")}) end`,
+      );
+    });
+
+    it("refuses other resources when no key is complete in SQL, and checks the tenant without a catalog", () => {
+      expect(
+        authorizationProvider({
+          manifest: supabaseHookManifestFixture,
+          catalog: emptyCatalog,
+        }).functions.permitted,
+      ).toContain("else false and {tenant} in (");
+      expect(
+        authorizationProvider({ manifest: supabaseHookManifestFixture })
+          .functions.permitted,
+      ).toContain(
+        "else {tenant} in (select ids::text from permdock.permitted_tenant_ids_by_permission({permission}) as ids) end",
+      );
+    });
+  });
+
+  it("lists the catalog's operations as tools, keeping a dotted name as written", async () => {
+    const leaf = (key: string) => {
+      const [resource = "", action = ""] = key.split(".");
+      return {
+        key,
+        scope: `${resource}:${action}`,
+        resource,
+        action,
+        arity: "collection",
+        meta: {},
+        usages: [],
+        rowConditions: false,
+      };
+    };
+    const catalog = {
+      ...emptyCatalog,
+      permissions: ["invoice.send", "http.call", "invoice.list"].map(leaf),
+      operations: [
+        {
+          name: "send_invoice",
+          permission: "invoice.send",
+          meta: { risk: "critical", effects: ["send", "spend", "write"] },
+        },
+        {
+          name: "workflow.node.http",
+          permission: "http.call",
+          meta: { title: "HTTP request" },
+        },
+        { name: "list_invoices", permission: "invoice.list", meta: {} },
+      ],
+    };
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog,
+    });
+    await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
+    const sent = {
+      permission: "invoice.send",
+      meta: { risk: "high", effects: ["external", "write"] },
+    };
+    expect(provider.operations).toEqual({
+      "ai.tool.send_invoice": sent,
+      "mcp.tool.send_invoice": sent,
+      "workflow.node.http": {
+        permission: "http.call",
+        meta: { title: "HTTP request" },
+      },
+      "ai.tool.list_invoices": { permission: "invoice.list" },
+      "mcp.tool.list_invoices": { permission: "invoice.list" },
+    });
+    expect(
+      authorizationProvider({ manifest: supabaseHookManifestFixture }),
+    ).not.toHaveProperty("operations");
+    expect(provider.delegation).toEqual({
+      scopes: {
+        "invoice:send": ["invoice.send"],
+        "http:call": ["http.call"],
+        "invoice:list": ["invoice.list"],
+      },
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ApprovalVerdict } from "../../src/approvals/types.ts";
+import type { CloudApproverOptions } from "../../src/cloud/types.ts";
 import type { TokenSigner } from "../../src/core/interfaces.ts";
 
 import { isApprovalError } from "../../src/approvals/errors.ts";
@@ -200,7 +201,13 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     expect(backend.sent[0]?.approver).toBeNull();
     const claims = await approverClaims(backend.resolves()[0]?.approver);
     expect(claims["authorization_details"]).toEqual([
-      { type: "permdock_approval", id: "apr_1", status: "approved" },
+      {
+        type: "permdock_approval",
+        id: "apr_1",
+        status: "approved",
+        permissions: [],
+        relations: [],
+      },
     ]);
   });
 
@@ -218,7 +225,13 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     });
     const claims = await approverClaims(backend.resolves()[0]?.approver);
     expect(claims["authorization_details"]).toEqual([
-      { type: "permdock_approval", id: "apr_1", status: "rejected" },
+      {
+        type: "permdock_approval",
+        id: "apr_1",
+        status: "rejected",
+        permissions: [],
+        relations: [],
+      },
     ]);
   });
 
@@ -237,6 +250,8 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
         type: "permdock_approval",
         id: "apr_1",
         status: "approved",
+        permissions: [],
+        relations: [],
         etag: '"sha-256:abc"',
       },
     ]);
@@ -414,5 +429,96 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
       tickets.sign({ sub: "u_9" }, { typ: "at+jwt" }),
     ).rejects.toThrow(/never signs at\+jwt/);
     expect(calls).toBe(0);
+  });
+});
+
+describe("approver facts on the PermDock-Approver token", () => {
+  const verdict: ApprovalVerdict = {
+    status: "approved",
+    by: { principal: { id: "u_2", roles: ["admin"] }, context: {} },
+    permissions: ["post.moderate"],
+    relations: ["owner"],
+  };
+
+  async function detailOf(
+    approver: CloudApproverOptions | undefined,
+    input: ApprovalVerdict = verdict,
+  ): Promise<unknown> {
+    const backend = recorder();
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: backend.fetch,
+      ...(approver === undefined ? {} : { approver }),
+    });
+    await client.approvals.resolve("opaque-token", input);
+    const claims = await approverClaims(backend.resolves()[0]?.approver);
+    // SAFETY: the token carries one authorization detail, asserted by the tests above.
+    return (claims["authorization_details"] as readonly unknown[])[0];
+  }
+
+  it("signs the verdict's permissions and relations when no reader is set", async () => {
+    expect(await detailOf({ signer })).toMatchObject({
+      permissions: ["post.moderate"],
+      relations: ["owner"],
+    });
+  });
+
+  it("signs what the readers return for the request the Cloud holds", async () => {
+    const seen: string[] = [];
+    expect(
+      await detailOf({
+        signer,
+        permissions: (request, by) => {
+          seen.push(`${request.id} ${by.principal?.id ?? ""}`);
+          return ["post.delete"];
+        },
+        relations: () => Promise.resolve(["editor"]),
+      }),
+    ).toMatchObject({ permissions: ["post.delete"], relations: ["editor"] });
+    expect(seen).toEqual(["apr_1 u_2"]);
+  });
+
+  it("signs no facts when a reader throws", async () => {
+    expect(
+      await detailOf({
+        signer,
+        permissions: () => {
+          throw new Error("directory down");
+        },
+        relations: () => Promise.reject(new Error("down")),
+      }),
+    ).toMatchObject({ permissions: [], relations: [] });
+  });
+
+  it("signs the approver's roles, memberships, tenant and vouched rule", async () => {
+    const backend = recorder();
+    const client = cloud({
+      url: CLOUD_URL,
+      key: KEY,
+      fetch: backend.fetch,
+      approver: { signer },
+    });
+    await client.approvals.resolve("opaque-token", {
+      status: "approved",
+      by: {
+        principal: {
+          id: "u_3",
+          roles: ["member"],
+          memberships: [{ scope: "tenant", id: "o_1", roles: ["admin"] }],
+          tenant: "o_1",
+        },
+        context: {},
+      },
+      vouched: "app-rule",
+    });
+    const claims = await approverClaims(backend.resolves()[0]?.approver);
+    expect(claims).toMatchObject({
+      sub: "u_3",
+      roles: ["member"],
+      memberships: [{ scope: "tenant", id: "o_1", roles: ["admin"] }],
+      tenant: "o_1",
+      authorization_details: [expect.objectContaining({ vouched: "app-rule" })],
+    });
   });
 });
