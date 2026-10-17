@@ -363,6 +363,13 @@ Authoring and export routes, used by the dashboard, scripts and the contract tes
 
 The Cloud runs the same `permdock/authzen` handler your app could run, against the policy `policyFromCatalog` rebuilds from what you publish with [`permdock cloud push`](/docs/cli/cloud). The base is the environment URL: `POST <env URL>/access/v1/evaluation`, `/access/v1/evaluations` and `/access/v1/search/*`, with metadata at `<env URL>/.well-known/authzen-configuration`. Grants that run application code (`check`, a non-portable `where`) are pushed as `closure: true` and deny in the hosted ADS, so it never grants what the embedded engine would refuse. Kong, Envoy, Tyk, Zuplo or a Go service calls `POST /access/v1/evaluation` and gets an AuthZEN answer whose `context` carries `outcome`, denial reasons and the approval `token` ([AuthZEN](/docs/standards/authzen)). Decision semantics are identical to the embedded engine because it is the same code; an `evaluations` batch of a policy matrix from `permdock/testing` is the parity test.
 
+`policyFromCatalog(catalog, pushed, { subject? })` from `permdock/catalog` is that rebuild, for any service that holds no application code. It throws `PermDockValidationError` when either input is malformed or the two disagree. What only code can answer fails closed:
+
+- An allow with a closure condition never grants, and a deny with one always applies.
+- A resource schema keyword outside the supported JSON Schema subset rejects every value.
+- A support role has no one who may consent.
+- Grant levels and OAuth scopes are not in a catalog, so the rebuilt policy has neither.
+
 Caller authentication is real authentication ([threat model](/docs/security/threat-model), invariant 9):
 
 - On Vercel, the caller presents its [OIDC token](https://vercel.com/docs/oidc); the ADS verifies it with `permdock/jwt` against Vercel's JWKS and maps `sub`, `project_id` and `environment` to a workload principal.
