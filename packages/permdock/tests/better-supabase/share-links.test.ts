@@ -186,6 +186,21 @@ describe("subjectFromShareLink", () => {
     ]);
   });
 
+  it("refuses a link pinned to a version", async () => {
+    const onAuth = vi.fn<(event: AuthEvent) => void>();
+    const subject = await subjectFromShareLink(
+      "tok",
+      options({
+        shareLinks: resolver({ ok: true, data: { ...row, versionId: "v_1" } }),
+        onAuth,
+      }),
+    );
+    expect(subject.principal).toBeNull();
+    expect(onAuth).toHaveBeenCalledWith(
+      expect.objectContaining({ cause: "share-link-pinned" }),
+    );
+  });
+
   it("is anonymous when resolve fails, throws or returns a malformed row", async () => {
     const onAuth = vi.fn<(event: AuthEvent) => void>();
     const failed = await subjectFromShareLink(

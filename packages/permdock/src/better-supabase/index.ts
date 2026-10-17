@@ -5,6 +5,8 @@ export type {
   AccessReviewApplyResult,
 } from "./access-reviews.ts";
 export type { ProviderApprovers } from "./approvers.ts";
+export { authorizationHooks } from "./hooks.ts";
+export type { AuthorizationHooksOptions } from "./hooks.ts";
 export { authorizationProvider } from "./provider.ts";
 export type { AuthorizationProviderOptions } from "./provider.ts";
 export { authorizer } from "./authorizer.ts";

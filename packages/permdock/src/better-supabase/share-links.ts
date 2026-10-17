@@ -21,6 +21,8 @@ export type ShareLinkRow = {
   readonly subjectType: string;
   readonly subjectId: string;
   readonly role: string;
+  /** Set on a link pinned to one version, which `subjectFromShareLink` refuses. */
+  readonly versionId?: string;
   readonly expiresAt?: Instant;
 };
 
@@ -88,6 +90,7 @@ function isRow(value: unknown): value is ShareLinkRow {
     isId(row["subjectType"]) &&
     isId(row["subjectId"]) &&
     typeof row["role"] === "string" &&
+    (row["versionId"] === undefined || typeof row["versionId"] === "string") &&
     (expiresAt === undefined ||
       (typeof expiresAt === "object" &&
         expiresAt !== null &&
@@ -102,7 +105,9 @@ function isRow(value: unknown): value is ShareLinkRow {
  * acts as, for `exchangeCapability` and `--capabilities` RLS. The row is
  * read on every call, so a revoked or expired link stops resolving at
  * once. An unknown token, subject type or role, a malformed row, a broken
- * link policy, a `resolve` error and a throw are the anonymous subject.
+ * link policy, a `resolve` error and a throw are the anonymous subject. So
+ * is a link pinned to a version: a capability grants the subject's current
+ * rows, so a pinned link reads through `versions.getShared(token)` instead.
  */
 export async function subjectFromShareLink(
   token: string | undefined | null,
@@ -140,6 +145,9 @@ export async function subjectFromShareLink(
     row = resolved.data;
   } catch {
     return deny("source-threw");
+  }
+  if (row.versionId !== undefined) {
+    return deny("invalid-token", "share-link-pinned");
   }
   const target = ownEntry(options.links, row.subjectType);
   if (target === undefined) {

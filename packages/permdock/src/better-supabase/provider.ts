@@ -1,6 +1,7 @@
 import type {
   AuthorizationFunctions,
   AuthorizationMembership,
+  AuthorizationOperation,
   AuthorizationPermission,
   AuthorizationProvider,
   AuthorizationRequirement,
@@ -9,6 +10,8 @@ import type {
 } from "better-supabase/config";
 
 import type { CatalogDocument } from "../catalog/types.ts";
+import type { OperationRisk } from "../core/operation-risks.ts";
+import type { OperationEffect } from "../core/operations.ts";
 import type { Permission } from "../core/permission-types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
@@ -40,54 +43,31 @@ export type AuthorizationProviderOptions = {
   /** The scope tenants are; defaults to the manifest's one root scope. */
   readonly scope?: string;
   /**
-   * The permission that lets a user decide a tool call waiting for approval
-   * in a tenant, for better-supabase's `canApprove`. The approver is never
-   * the user who asked (`approvals.distinctApprover`). Without it the chat's
-   * owner decides. With `approvers` it is the `'ai-tool'` entry unless
-   * `approvers` names one.
+   * The permission that lets a user decide a tool call waiting for
+   * approval: the `'ai-tool'` entry of `approvers` (`holder(approver)`)
+   * unless `approvers` names one. The requester is never their own approver.
    */
   readonly approver?: Permission;
   /**
-   * Who may approve each request kind, for better-supabase's `isApprover`
-   * (0.9): `'ai-tool'`, `'support-session'` or the approvals block's
+   * Who may approve each request kind, for better-supabase's `isApprover`:
+   * `'ai-tool'`, `'support-session'` or the approvals block's
    * `'<subject type>.<action>'`, each mapped to `user()`, `holder()` or
    * `anyOf()` approvers. A kind it does not name has no provider approver,
    * which for tool calls and support sessions means nobody but the service
-   * role. Needs `permdock_is_approver` from `rls.approvals`; with it
-   * `canApprove` is not set.
+   * role. Needs `permdock_is_approver` from `rls.approvals`.
    */
   readonly approvers?: ProviderApprovers;
-  /**
-   * Templates to fill that better-supabase 0.8.0's config schema refuses:
-   * `holdersOf` (a notification's permission audience, from
-   * `permitted_<scope>_users`) and `actorMayWrite` (from
-   * `permdock_actor_may_write()`). Set them once the installed
-   * better-supabase reads them.
-   */
-  readonly functions?: {
-    readonly holdersOf?: boolean;
-    readonly actorMayWrite?: boolean;
-  };
-};
-
-/**
- * `AuthorizationFunctions` plus the templates better-supabase reads after
- * 0.8.0: `holdersOf` for a notification's permission audience,
- * `actorMayWrite` for write functions and policies, and `isApprover` for
- * every request that waits on an approval.
- */
-type ProviderFunctions = AuthorizationFunctions & {
-  readonly holdersOf?: string;
-  readonly actorMayWrite?: string;
-  readonly isApprover?: string;
 };
 
 type DisabledRow = NonNullable<
   NonNullable<AuthorizationProvider["suspension"]>["user"]
 >;
 
-/** The templates that call one `rls generate` helper; `canApprove` comes from the `approver` option. */
-type Template = Exclude<keyof AuthorizationFunctions, "canApprove">;
+/** The templates that call one `rls generate` helper; the others are built below. */
+type Template = Exclude<
+  keyof AuthorizationFunctions,
+  "canApprove" | "isApprover" | "holdersOf" | "actorMayWrite" | "permitted"
+>;
 
 type TemplateEntry = {
   readonly helper: string;
@@ -388,6 +368,95 @@ function grantsCommandOf(
 }
 
 /**
+ * better-supabase's `permitted` template. An instance of a scope (`{resource}`
+ * names the scope) is checked against that scope's ids; any other resource
+ * at the tenant, and with a catalog only for a key without row conditions.
+ * Without a catalog better-supabase refuses every key anyway.
+ */
+function permittedTemplate(
+  schema: string,
+  scopes: readonly string[],
+  tenantScope: string,
+  catalog: CatalogDocument | undefined,
+): string {
+  const idsOf = (scope: string): string =>
+    `select ids::text from ${schema}.${sqlIdent(`permitted_${scope}_ids_by_permission`)}({permission}) as ids`;
+  const branches = scopes.map(
+    (scope) =>
+      `when {resource} = ${quoteSqlLiteral(scope)} then {id} in (${idsOf(scope)})`,
+  );
+  const atTenant = `{tenant} in (${idsOf(tenantScope)})`;
+  const complete = catalog?.permissions
+    .filter((permission) => !permission.rowConditions)
+    .map((permission) => quoteSqlLiteral(permission.key));
+  const otherwise =
+    complete === undefined
+      ? atTenant
+      : complete.length === 0
+        ? `false and ${atTenant}`
+        : `{permission} in (${complete.join(", ")}) and ${atTenant}`;
+  return `case ${branches.join(" ")} else ${otherwise} end`;
+}
+
+const RISKS: Readonly<
+  Record<
+    OperationRisk,
+    NonNullable<NonNullable<AuthorizationOperation["meta"]>["risk"]>
+  >
+> = { low: "low", medium: "medium", high: "high", critical: "high" };
+
+const EFFECTS: Readonly<
+  Record<
+    OperationEffect,
+    NonNullable<NonNullable<AuthorizationOperation["meta"]>["effects"]>[number]
+  >
+> = {
+  read: "read",
+  write: "write",
+  delete: "delete",
+  send: "external",
+  spend: "external",
+  external: "external",
+};
+
+/**
+ * The catalog's `defineOperations` entries as better-supabase operations. A
+ * name with a `.` is used as written (`workflow.node.http`); any other is
+ * the tool `ai.tool.<name>` and `mcp.tool.<name>`. `critical` risk is
+ * `high`, and `send` and `spend` effects are `external`.
+ */
+function operationsOf(
+  catalog: CatalogDocument,
+): Record<string, AuthorizationOperation> {
+  const operations: Record<string, AuthorizationOperation> = {};
+  for (const operation of catalog.operations ?? []) {
+    const effects = [
+      ...new Set(
+        (operation.meta.effects ?? []).map((effect) => EFFECTS[effect]),
+      ),
+    ];
+    const meta = {
+      ...(operation.meta.risk === undefined
+        ? {}
+        : { risk: RISKS[operation.meta.risk] }),
+      ...(effects.length > 0 ? { effects } : {}),
+      ...(operation.meta.title === undefined
+        ? {}
+        : { title: operation.meta.title }),
+    };
+    const entry: AuthorizationOperation = {
+      permission: operation.permission,
+      ...(Object.keys(meta).length > 0 ? { meta } : {}),
+    };
+    const names = operation.name.includes(".")
+      ? [operation.name]
+      : [`ai.tool.${operation.name}`, `mcp.tool.${operation.name}`];
+    for (const name of names) operations[name] = entry;
+  }
+  return operations;
+}
+
+/**
  * better-supabase's `authorization` config value, built from PermDock's
  * manifest and catalog: the scopes, the `rls generate` helpers as SQL
  * templates, the membership tables, suspension rows, the token hook and
@@ -402,7 +471,7 @@ function grantsCommandOf(
  */
 export function authorizationProvider(
   options: AuthorizationProviderOptions,
-): AuthorizationProvider & { readonly functions: ProviderFunctions } {
+): AuthorizationProvider {
   const manifest = parseSupabaseManifest(options.manifest);
   const catalog =
     options.catalog === undefined ? undefined : parseCatalog(options.catalog);
@@ -484,13 +553,14 @@ export function authorizationProvider(
   const users = rls.suspension?.users;
   const tenants = rls.suspension?.scopes?.[tenantScope];
   const approver = options.approver;
+  const approvers =
+    approver === undefined
+      ? options.approvers
+      : { "ai-tool": holder(approver), ...options.approvers };
   let isApprover: string | undefined;
-  if (options.approvers !== undefined) {
+  if (approvers !== undefined) {
     const built = isApproverTemplate({
-      approvers:
-        approver === undefined || Object.hasOwn(options.approvers, "ai-tool")
-          ? options.approvers
-          : { "ai-tool": holder(approver), ...options.approvers },
+      approvers,
       schema: rls.schema,
       listed: helpers.has(IS_APPROVER),
       covers: /\bp_requester\b/u.test(helpers.get(IS_APPROVER)?.args ?? ""),
@@ -502,63 +572,46 @@ export function authorizationProvider(
     isApprover = built.template;
     if (built.requires !== undefined) requires.push(built.requires);
   }
-  let canApprove: string | undefined;
-  if (approver !== undefined && isApprover === undefined) {
-    if (
-      catalog !== undefined &&
-      !catalog.permissions.some((permission) => permission.key === approver.key)
-    ) {
-      problems.push(
-        `The approver permission ${approver.key} is not in the catalog. Run \`permdock catalog\` after adding it to the policy.`,
-      );
-    }
-    const name = `permitted_${tenantScope}_ids_by_permission`;
-    canApprove = `{tenant} in (select ${schema}.${sqlIdent(name)}(${quoteSqlLiteral(approver.key)}))`;
-    requires.push({
-      function: `${schema}.${sqlIdent(name)}`,
-      args: "text",
-      role: "postgres",
-    });
-  }
   const holdersName = HOLDERS_OF.replace("{scope}", tenantScope);
   const holders = helpers.get(holdersName);
   let holdersOf: string | undefined;
-  if (options.functions?.holdersOf === true) {
-    if (holders === undefined) {
-      problems.push(
-        `holdersOf needs ${rls.schema}.${holdersName}, which \`permdock rls generate\` writes in rls.mode "database" for the scopes in rls.helpers.holders. Without it better-supabase refuses a notification's permission audience.`,
-      );
-    } else {
-      const fn = `${schema}.${sqlIdent(holders.name)}`;
-      holdersOf = `${fn}({permission}, {tenant})`;
-      requires.push({
-        function: fn,
-        args: argTypes(holders.args),
-        role: "postgres",
-      });
-    }
+  if (holders !== undefined) {
+    const fn = `${schema}.${sqlIdent(holders.name)}`;
+    holdersOf = `${fn}({permission}, {tenant})`;
+    requires.push({
+      function: fn,
+      args: argTypes(holders.args),
+      role: "postgres",
+    });
   }
   let actorMayWrite: string | undefined;
-  if (options.functions?.actorMayWrite === true) {
-    if (helpers.has(ACTOR_MAY_WRITE)) {
-      const fn = `${schema}.${sqlIdent(ACTOR_MAY_WRITE)}`;
-      actorMayWrite = `${fn}()`;
-      requires.push({ function: fn, role: "authenticated" });
-    } else {
-      problems.push(
-        `actorMayWrite needs ${rls.schema}.${ACTOR_MAY_WRITE}, which \`permdock rls generate\` writes with rls.readOnlyActors. Without it better-supabase's write functions use their built-in act check.`,
-      );
-    }
+  if (helpers.has(ACTOR_MAY_WRITE)) {
+    const fn = `${schema}.${sqlIdent(ACTOR_MAY_WRITE)}`;
+    actorMayWrite = `${fn}()`;
+    requires.push({ function: fn, role: "authenticated" });
   }
-  const functions: ProviderFunctions = {
+  const permitted = listed("idsWith", tenantScope)
+    ? permittedTemplate(
+        schema,
+        scopeNames.filter((scope) => listed("idsWith", scope)),
+        tenantScope,
+        catalog,
+      )
+    : undefined;
+  const functions: AuthorizationFunctions = {
     ...optional,
     idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,
     isPlatform: `${schema}.${TEMPLATES.isPlatform.sql}`,
-    ...(canApprove === undefined ? {} : { canApprove }),
     ...(holdersOf === undefined ? {} : { holdersOf }),
     ...(actorMayWrite === undefined ? {} : { actorMayWrite }),
     ...(isApprover === undefined ? {} : { isApprover }),
+    ...(permitted === undefined ? {} : { permitted }),
   };
+  const operations = catalog === undefined ? {} : operationsOf(catalog);
+  const delegated: Record<string, string[]> = {};
+  for (const permission of catalog?.permissions ?? []) {
+    (delegated[permission.scope] ??= []).push(permission.key);
+  }
   const scopes = rls.scopes.map((scope) => {
     const idType = ID_TYPES[scope.type.trim().toLowerCase()];
     if (idType === undefined) {
@@ -594,9 +647,10 @@ export function authorizationProvider(
         }
       : {}),
     ...(roleSources.length > 0 ? { roleSources } : {}),
-    ...(canApprove === undefined
-      ? {}
-      : { approvals: { distinctApprover: true } }),
+    ...(Object.keys(operations).length > 0 ? { operations } : {}),
+    ...(Object.keys(delegated).length > 0
+      ? { delegation: { scopes: delegated } }
+      : {}),
     decidingColumns: manifest.decidingColumns,
     tokenHook: tokenHookOf(manifest),
     ...(problems.length > 0 ? { problems } : {}),
