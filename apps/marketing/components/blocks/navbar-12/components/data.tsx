@@ -24,8 +24,8 @@ export type NavTopLevelItem = {
 };
 
 export const NAVBAR_TOP_LEVEL: NavTopLevelItem[] = [
-  { title: 'Create', href: '/create' },
   { title: 'Pricing', href: '/pricing' },
+  { title: 'Create', href: '/create' },
 ];
 
 export const NAVBAR_PRODUCTS: NavMegaMenuItem[] = [
