@@ -1,7 +1,7 @@
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CliIo } from "../../src/cli/types.ts";
 
@@ -23,6 +23,11 @@ function appCopy(): string {
     join(dir, "src/hostable-policy.ts"),
     `import { allow, definePolicy, role } from 'permdock';
 import { permissions } from './permissions.ts';
+
+// Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
+vi.mock("@napi-rs/keyring", () => {
+  throw new Error("@napi-rs/keyring is not installed");
+});
 
 export const policy = definePolicy(permissions, {
   roles: [

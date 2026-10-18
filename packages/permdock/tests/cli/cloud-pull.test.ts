@@ -1,6 +1,6 @@
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CatalogDocument } from "../../src/catalog/types.ts";
 import type { CliIo } from "../../src/cli/types.ts";
@@ -12,6 +12,11 @@ import { POLICY_NOT_PUBLISHED } from "../../src/testing/cloud-api/platform.ts";
 import { referenceCloud } from "../cloud/fixtures/reference-cloud.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
+
+// Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
+vi.mock("@napi-rs/keyring", () => {
+  throw new Error("@napi-rs/keyring is not installed");
+});
 
 afterEach(removeHookProjects);
 

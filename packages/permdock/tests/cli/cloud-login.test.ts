@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { CatalogDocument } from "../../src/catalog/types.ts";
 import type { CliIo } from "../../src/cli/types.ts";
@@ -15,6 +15,11 @@ import type { CliIo } from "../../src/cli/types.ts";
 import { run } from "../../src/cli/run.ts";
 import { referenceCloud } from "../cloud/fixtures/reference-cloud.ts";
 import { policy } from "../fixtures/named-scopes.ts";
+
+// Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
+vi.mock("@napi-rs/keyring", () => {
+  throw new Error("@napi-rs/keyring is not installed");
+});
 
 const FIXTURE = join(import.meta.dirname, "fixtures/mini-app");
 const TMP = join(import.meta.dirname, "../../tmp");

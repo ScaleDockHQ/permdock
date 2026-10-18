@@ -16,6 +16,11 @@ import {
 } from "../../src/index.ts";
 import { policy as namedScopes } from "../fixtures/named-scopes.ts";
 
+// Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
+vi.mock("@napi-rs/keyring", () => {
+  throw new Error("@napi-rs/keyring is not installed");
+});
+
 const FIXTURE = path.join(import.meta.dirname, "fixtures/mini-app");
 const TMP = path.join(import.meta.dirname, "../../tmp");
 const NOW = new Date("2026-10-01T00:00:00.000Z");
