@@ -11,6 +11,14 @@ const Cloud = z.object({
 
 export type CloudEnv = z.infer<typeof Cloud>;
 
+const Project = z.object({
+  url: Url,
+  project: z.string().min(1),
+  token: z.string().min(1),
+});
+
+export type ProjectEnv = z.infer<typeof Project>;
+
 const read = (name: string): string | null => {
   const value = process.env[name] ?? "";
   return value.trim() === "" ? null : value;
@@ -30,8 +38,23 @@ function cloudEnv(): CloudEnv | null {
   return Cloud.parse(raw);
 }
 
+/** `null` unless the project and its read-only token are set; the URL defaults to production. */
+function projectEnv(): ProjectEnv | null {
+  const raw = {
+    url: read("PERMDOCK_CLOUD_URL") ?? "https://permdock.com/api",
+    project: read("PERMDOCK_CLOUD_PROJECT"),
+    token: read("PERMDOCK_CLOUD_TOKEN"),
+  };
+  if (raw.project === null && raw.token === null) {
+    return null;
+  }
+  return Project.parse(raw);
+}
+
 export const env = {
   cloud: cloudEnv(),
+  /** The Cloud project whose pushed policy `serve-cloud.ts` serves. */
+  project: projectEnv(),
   /** The `client` key; with it the parity test also runs `testCloudApi`. */
   cloudKey: read("PERMDOCK_CLOUD_KEY"),
   /** A private JWK whose issuer the environment trusts, for the approver checks of `testCloudApi`. */

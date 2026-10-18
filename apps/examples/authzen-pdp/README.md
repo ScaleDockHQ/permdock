@@ -5,7 +5,8 @@ Both halves of AuthZEN: the PermDock PDP that `permdockHandler()` serves, and a 
 - `src/server.ts`: the PDP. `pnpm start` serves it on `127.0.0.1:3470` with `GET /health`. `POST /access/v1/evaluation` with `Authorization: Bearer test` grants `post.update` on the member's own post and denies `post.publish`. The `Bearer pep` caller is the one trusted PEP: only it may name the subject in the body.
 - `src/pep.ts`: the PEP. Every post permission goes to the PDP; the local roles still have to grant too.
 - `src/pep-cloud.ts`: the same PEP against the hosted ADS at `<PERMDOCK_CLOUD_URL>/v1/environments/<env>`, authenticated with OAuth client credentials.
-- `tests/parity.test.ts`: the policy matrix through `describePolicy`, then every cell through the PEP and the local PDP. With the `PERMDOCK_CLOUD_*` variables in `.env.example` set in the environment, every cell also runs through the hosted ADS, and `testCloudApi` checks the environment's HTTP API.
+- `src/policy-cloud.ts`: the policy `permdock cloud push` published, read from `GET <PERMDOCK_CLOUD_URL>/v1/projects/<PERMDOCK_CLOUD_PROJECT>/policy` with `PERMDOCK_CLOUD_TOKEN` and rebuilt with `policyFromCatalog`. `pnpm start:cloud` serves the PDP over it (`src/serve-cloud.ts`).
+- `tests/parity.test.ts`: the policy matrix through `describePolicy`, then every cell through the PEP and the local PDP. With the `PERMDOCK_CLOUD_*` variables in `.env.example` set in the environment, every cell also runs through the hosted ADS, and `testCloudApi` checks the environment's HTTP API. With `PERMDOCK_CLOUD_PROJECT` and `PERMDOCK_CLOUD_TOKEN` set, every cell also runs through the PDP over the project's pushed policy.
 
 ```ts
 import { createPermDock } from "permdock/authzen";
