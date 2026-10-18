@@ -550,3 +550,50 @@ describe("duration strings", () => {
     ]);
   });
 });
+
+describe("import bookkeeping", () => {
+  it("removes trailing specifiers and keeps a declaration with a default import", () => {
+    const result = apply(
+      [
+        'import { can, mayUse, permittedIds } from "permdock";',
+        'import permdockDefault, { mayUse as allowed } from "permdock";',
+        "export const a = [can, permdockDefault];",
+        "export const b = mayUse(permdock, p) && permittedIds(permdock, p, 'org');",
+        "export const c = allowed(permdock, p);",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n").slice(0, 2)).toEqual([
+      'import { can } from "permdock";',
+      'import permdockDefault, { mayUse as allowed } from "permdock";',
+    ]);
+  });
+
+  it("adds an import at the top of a file whose only permdock statement is a re-export", () => {
+    const result = apply(
+      [
+        'export { can } from "permdock";',
+        "export const holders = await permdock.whoCan(p, row);",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import { whoCan } from "permdock";',
+      'export { can } from "permdock";',
+      "export const holders = await whoCan(permdock, p, row);",
+    ]);
+  });
+
+  it("ignores awaits, spreads and receivers it cannot tie to PermDock", () => {
+    const source = [
+      'import { Protected, can } from "permdock/react";',
+      "export const a = await ready;",
+      "export const b = await load(can);",
+      "export const c = <Protected {...props} />;",
+      "export const d = getKit().activate(input);",
+    ].join("\n");
+    const result = transformSource("file.tsx", source, SET);
+    expect(result.source).toBe(source);
+    expect(result.followUps).toEqual([]);
+  });
+});
