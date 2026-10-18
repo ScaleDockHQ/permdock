@@ -6,6 +6,7 @@ import type { CommandResult } from "../shared/result.ts";
 import { CliError } from "../errors.ts";
 import { rel } from "../files.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
+import { PROP_RENAMES_0_5, TEMPLATE_HINTS_0_5 } from "./shapes-0.5.ts";
 import {
   type CodemodChange,
   type CodemodFollowUp,
@@ -18,6 +19,8 @@ const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
   "0.5": Object.freeze({
     renames: RENAMES_0_5,
     signatures: SIGNATURE_CHANGES_0_5,
+    props: PROP_RENAMES_0_5,
+    templates: TEMPLATE_HINTS_0_5,
   }),
 });
 

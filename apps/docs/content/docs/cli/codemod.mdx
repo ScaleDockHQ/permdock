@@ -40,6 +40,16 @@ The rename map is `packages/permdock/src/cli/codemod/renames-0.5.ts`; the [Namin
 
 A reference the import does not bind keeps its name: a parameter, a local variable, a destructured name, a property key or a member of another object. When the new name is already bound where a reference sits, or the file is a Vue or Svelte component whose template may read the import, the codemod writes `import { memoryDecisionSink as memorySink }` instead and leaves the references alone.
 
+## What it rewrites
+
+Some 0.5.0 changes move more than a name. The codemod rewrites these where the import binding shows the call is PermDock's; the rows live in `packages/permdock/src/cli/codemod/shapes-0.5.ts`.
+
+| Source                                                                    | Result                                               |
+| ------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `<Protected fallback={…}>` from `permdock/react`, `react-native`, `solid` | `<Protected denied={…}>`                             |
+| `h(Protected, props, { fallback })` from `permdock/vue`                   | `h(Protected, props, { denied: fallback })`          |
+| `<PermDockProvider defaults={{ fallback }}>`                              | `<PermDockProvider defaults={{ denied: fallback }}>` |
+
 ## What it reports
 
 These sites go under `Manual follow-ups` and are never rewritten:
@@ -47,6 +57,7 @@ These sites go under `Manual follow-ups` and are never rewritten:
 - **Call shapes.** A call to an import whose signature changed, such as `subjectFromApiKey(options)(key)`, now `subjectFromApiKey(key, options)`. An import of such a function that is never called is reported at the import.
 - **Members.** A member renamed on a value a factory returns, when the value is not a module-level `const` holding the factory's result: a parameter, `const { permdock } = …`, or a value passed between modules.
 - **Option keys.** An option key in any other object literal in a file that imports the entry, such as `{ source: 'mcp' }` for `call`; the codemod cannot tell which call the object reaches.
+- **Template slots.** A Vue `#fallback` slot or a Svelte `{#snippet fallback}` in a component that imports `Protected`, and a `PermDockProvider` whose `defaults` the codemod cannot read or whose import it cannot see.
 - **Parse failures.** A file the parser rejects is listed and left as it is.
 
 ## Why

@@ -1,12 +1,14 @@
 import { parseSync } from "oxc-parser";
 
 import type { Rename, SignatureChange } from "./renames-0.5.ts";
+import type { PropRename, TemplateHint } from "./shapes-0.5.ts";
 
 import {
   type Edit,
   type Estree,
   applyEdits,
   bindingsCached,
+  child,
   lineIndex,
   nameOf,
   nodes,
@@ -20,6 +22,8 @@ import {
 export type RenameSet = {
   readonly renames: readonly Rename[];
   readonly signatures: readonly SignatureChange[];
+  readonly props?: readonly PropRename[];
+  readonly templates?: readonly TemplateHint[];
 };
 
 /** One rewritten span. */
@@ -122,6 +126,7 @@ export function transformSource(
   const edits: Edit[] = [];
   const changes: CodemodChange[] = [];
   const followUps: CodemodFollowUp[] = [];
+  const components = new Set<string>();
   for (const segment of segmentsOf(file, source)) {
     const result = parseSync(`segment.${segment.lang}`, segment.code, {
       lang: segment.lang,
@@ -141,6 +146,9 @@ export function transformSource(
       continue;
     }
     transformProgram(ctx, segment);
+    for (const binding of ctx.bindings.values()) {
+      components.add(`${binding.entry} ${binding.imported}`);
+    }
     const at = (index: number) => position(lineAt, index + segment.offset);
     for (const item of ctx.edits) {
       edits.push({
@@ -160,6 +168,7 @@ export function transformSource(
       });
     }
   }
+  followUps.push(...templateHints(file, source, set, components, lineAt));
   return {
     source: applyEdits(source, edits),
     changes: changes.toSorted(byPosition),
@@ -172,6 +181,30 @@ function byPosition(
   b: CodemodChange | CodemodFollowUp,
 ): number {
   return a.line - b.line || a.column - b.column;
+}
+
+function templateHints(
+  file: string,
+  source: string,
+  set: RenameSet,
+  components: ReadonlySet<string>,
+  lineAt: ReturnType<typeof lineIndex>,
+): readonly CodemodFollowUp[] {
+  const hints = (set.templates ?? []).filter((hint) =>
+    hint.entries.some((entry) => components.has(`${entry} ${hint.component}`)),
+  );
+  if (hints.length === 0 || !/\.(?:vue|svelte)$/iu.test(file)) {
+    return [];
+  }
+  const markup = source.replaceAll(SCRIPT_BLOCK, (block) =>
+    " ".repeat(block.length),
+  );
+  return hints.flatMap((hint) =>
+    [...markup.matchAll(hint.pattern)].map((match) => {
+      const { line, column } = position(lineAt, match.index);
+      return { line, column, name: hint.name, message: hint.message };
+    }),
+  );
 }
 
 function segmentsOf(file: string, source: string): readonly Segment[] {
@@ -280,6 +313,10 @@ function transformProgram(ctx: Context, segment: Segment): void {
       case "CallExpression":
       case "NewExpression":
         visitCall(ctx, node, ancestors);
+        visitComponentArguments(ctx, node, ancestors);
+        break;
+      case "JSXOpeningElement":
+        visitElement(ctx, node, ancestors);
         break;
       case "ObjectExpression":
         reportOptions(ctx, node);
@@ -484,28 +521,162 @@ function renameOptions(
   rows: readonly Rename[],
 ): void {
   for (const property of nodes(object.properties)) {
-    const key = property.key;
-    const row = rows.find((item) => item.from === nameOf(key));
-    if (row === undefined || key === undefined || property.computed === true) {
+    const row = rows.find((item) => item.from === nameOf(property.key));
+    if (row !== undefined) {
+      renameKey(ctx, property, row.from, row.to);
+    }
+  }
+}
+
+function renameKeys(
+  ctx: Context,
+  object: Estree,
+  from: string,
+  to: string,
+): void {
+  for (const property of nodes(object.properties)) {
+    if (nameOf(property.key) === from) {
+      renameKey(ctx, property, from, to);
+    }
+  }
+}
+
+function renameKey(
+  ctx: Context,
+  property: Estree,
+  from: string,
+  to: string,
+): void {
+  const key = property.key;
+  if (
+    property.type !== "Property" ||
+    key === undefined ||
+    property.computed === true
+  ) {
+    return;
+  }
+  ctx.handledKeys.add(key);
+  if (property.shorthand === true) {
+    // An insertion before the value, so a renamed import in the value is rewritten on its own.
+    edit(ctx, { ...property, end: property.start }, `${to}: `, from, to);
+  } else {
+    replace(ctx, key, key.type === "Literal" ? JSON.stringify(to) : to, from);
+  }
+}
+
+function boundImport(
+  ctx: Context,
+  node: Estree | undefined,
+  ancestors: readonly Estree[],
+): ImportBinding | undefined {
+  const name = node?.name;
+  return (node?.type === "Identifier" || node?.type === "JSXIdentifier") &&
+    name !== undefined &&
+    isModuleBinding(ctx, name, ancestors)
+    ? ctx.bindings.get(name)
+    : undefined;
+}
+
+function propRows(
+  ctx: Context,
+  binding: ImportBinding | undefined,
+): readonly PropRename[] {
+  return binding === undefined
+    ? []
+    : (ctx.set.props ?? []).filter(
+        (row) =>
+          row.component === binding.imported &&
+          row.entries.includes(binding.entry),
+      );
+}
+
+function visitElement(
+  ctx: Context,
+  node: Estree,
+  ancestors: readonly Estree[],
+): void {
+  const tag = child(node, "name");
+  const binding = boundImport(ctx, tag, ancestors);
+  const rows = propRows(ctx, binding);
+  const named =
+    tag?.type === "JSXMemberExpression" ? child(tag, "property") : tag;
+  const unbound = (ctx.set.props ?? []).filter(
+    (row) =>
+      binding === undefined &&
+      row.within !== undefined &&
+      named?.type === "JSXIdentifier" &&
+      named.name === row.component,
+  );
+  for (const attribute of nodes(Reflect.get(node, "attributes"))) {
+    const name = child(attribute, "name");
+    if (attribute.type !== "JSXAttribute" || name?.type !== "JSXIdentifier") {
       continue;
     }
-    ctx.handledKeys.add(key);
-    if (property.shorthand === true) {
-      // An insertion before the value, so a renamed import in the value is rewritten on its own.
-      edit(
-        ctx,
-        { ...property, end: property.start },
-        `${row.to}: `,
-        row.from,
-        row.to,
-      );
-    } else {
-      replace(
-        ctx,
-        key,
-        key.type === "Literal" ? JSON.stringify(row.to) : row.to,
-        row.from,
-      );
+    for (const row of rows) {
+      if (row.within === undefined && name.name === row.from) {
+        replace(ctx, name, row.to, row.from);
+      } else if (row.within !== undefined && name.name === row.within) {
+        renameWithin(ctx, attribute, row);
+      }
+    }
+    for (const row of unbound) {
+      if (name.name === row.within && holdsKey(attribute, row.from)) {
+        ctx.followUps.push({
+          at: attribute.start,
+          name: row.from,
+          message: `\`${row.within}.${row.from}\` of \`<${row.component}>\` is \`${row.within}.${row.to}\``,
+        });
+      }
+    }
+  }
+}
+
+function attributeObject(attribute: Estree): Estree | undefined {
+  const value = child(attribute, "value");
+  const expression =
+    value?.type === "JSXExpressionContainer"
+      ? child(value, "expression")
+      : undefined;
+  return expression?.type === "ObjectExpression" ? expression : undefined;
+}
+
+function holdsKey(attribute: Estree, key: string): boolean {
+  const object = attributeObject(attribute);
+  return (
+    object === undefined ||
+    nodes(object.properties).some((property) => nameOf(property.key) === key)
+  );
+}
+
+function renameWithin(ctx: Context, attribute: Estree, row: PropRename): void {
+  const object = attributeObject(attribute);
+  if (object === undefined) {
+    ctx.followUps.push({
+      at: attribute.start,
+      name: row.from,
+      message: `\`${row.within}.${row.from}\` of \`<${row.component}>\` is \`${row.within}.${row.to}\``,
+    });
+    return;
+  }
+  renameKeys(ctx, object, row.from, row.to);
+}
+
+function visitComponentArguments(
+  ctx: Context,
+  node: Estree,
+  ancestors: readonly Estree[],
+): void {
+  const args = nodes(node.arguments);
+  for (const [index, argument] of args.entries()) {
+    const rows = propRows(ctx, boundImport(ctx, argument, ancestors)).filter(
+      (row) => row.within === undefined,
+    );
+    for (const row of rows) {
+      for (const later of args.slice(index + 1)) {
+        if (later.type === "ObjectExpression") {
+          renameKeys(ctx, later, row.from, row.to);
+        }
+      }
     }
   }
 }
