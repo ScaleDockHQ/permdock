@@ -111,6 +111,8 @@ export type CheckResult<V extends PolicyVocabulary = PolicyVocabulary> =
 export type CheckOptions = DecideToolOptions & {
   /** Decide with `call: 'simulate'` and skip the approval resume. */
   readonly simulate?: boolean;
+  /** The tool the call runs: an `agent` actor whose `tools` list omits it is denied `agent-tool-not-delegated`. */
+  readonly tool?: string;
 };
 
 export type ToolVerdict =

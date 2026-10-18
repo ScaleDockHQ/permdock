@@ -14,7 +14,7 @@ import type { Subject } from "./subject.ts";
 import { evaluateCondition } from "../conditions/evaluate.ts";
 import { requiresApproval } from "./approval-required.ts";
 import { compact } from "./compact.ts";
-import { coveredByDelegation } from "./delegation.ts";
+import { coveredByDelegation, readOnlyActorRefuses } from "./delegation.ts";
 import { grantCoversField } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import { matchGrantee } from "./grantee-match.ts";
@@ -446,8 +446,9 @@ export function evaluateSnapshot(
     });
   }
   if (
-    snapshot.delegated !== undefined &&
-    !snapshot.delegated.includes(permission.key)
+    (snapshot.delegated !== undefined &&
+      !snapshot.delegated.includes(permission.key)) ||
+    readOnlyActorRefuses(subject.actor, permission)
   ) {
     return done({
       outcome: "denied",

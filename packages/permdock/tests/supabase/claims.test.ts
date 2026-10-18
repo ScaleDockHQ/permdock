@@ -97,6 +97,18 @@ const invalid: readonly (readonly [string, unknown])[] = [
     },
   ],
   [
+    "act agent with session_id",
+    { sub, act: { sub: "a", kind: "agent", session_id: "s" } },
+  ],
+  [
+    "act agent empty tool name",
+    { sub, act: { sub: "a", kind: "agent", tools: [""] } },
+  ],
+  [
+    "act agent read_only string",
+    { sub, act: { sub: "a", kind: "agent", read_only: "true" } },
+  ],
+  [
     "act reason number",
     { sub, act: { sub: "a", kind: "impersonation", reason: 1 } },
   ],

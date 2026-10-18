@@ -101,12 +101,32 @@ describe("rls.actions", () => {
       ]),
     );
     expect(rows.some((row) => row.includes("quote.archive"))).toBe(false);
-    expect(warnings).toEqual(
-      expect.arrayContaining([
-        "no policy for admin/quote.send: action 'send' has no SQL command (rls.actions); seeded for permdock_has and permitted_<scope>_ids",
-        "skipped admin/quote.archive: a role_permissions row cannot carry validFrom / validUntil, so a time-bounded grant on an action with no SQL command is not seeded",
-      ]),
-    );
+    expect(warnings).toEqual([
+      "skipped admin/quote.archive: a role_permissions row cannot carry validFrom / validUntil, so a time-bounded grant on an action with no SQL command is not seeded",
+    ]);
+  });
+
+  it("compiles an unmapped verb as 'none', and a fully mapped config to the same output", () => {
+    const run = (actions: NonNullable<RlsSqlContext["actions"]>) => {
+      const warnings: string[] = [];
+      const compiled = compileGrants(
+        policy,
+        { ...base, actions },
+        undefined,
+        warnings,
+        false,
+      );
+      return { compiled, warnings };
+    };
+    const mapped = run({
+      view: "select",
+      send: "none",
+      approve: "none",
+      archive: "none",
+    });
+    const partial = run({ view: "select" });
+    expect(partial.compiled).toEqual(mapped.compiled);
+    expect(partial.warnings).toEqual(mapped.warnings);
   });
 
   it("seeds an unconditional allow under its own key and skips non-role grants", () => {

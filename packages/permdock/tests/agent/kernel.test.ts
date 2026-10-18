@@ -154,6 +154,48 @@ describe("createAgentKernel", () => {
     });
   });
 
+  it("denies an agent actor a tool its tools list does not name", async () => {
+    const kernel = (named: unknown) =>
+      createAgentKernel(policy, {
+        adapter: "test",
+        subject: () => memberUser,
+        actor: () => ({ id: "agent-7", kind: "agent", tools: named }),
+        delegation: () => ({
+          scopes: [permissions.post.list.scope, permissions.post.delete.scope],
+        }),
+        tools: tools(),
+      });
+    const listed = kernel(["list_posts"]);
+    expect((await listed.decideTool("list_posts", {}, {})).outcome).toBe(
+      "granted",
+    );
+    const refused = await listed.decideTool("delete_post", { id: "p1" }, {});
+    expect(refused.outcome).toBe("denied");
+    expect(
+      refused.decision?.outcome === "denied" && refused.decision.denials,
+    ).toEqual([{ role: null, reason: "agent-tool-not-delegated" }]);
+    expect([...(await listed.allowedToolNames({}))]).toEqual(["list_posts"]);
+
+    const none = kernel([]);
+    expect((await none.decideTool("list_posts", {}, {})).outcome).toBe(
+      "denied",
+    );
+    const malformed = kernel("list_posts");
+    expect((await malformed.decideTool("list_posts", {}, {})).outcome).toBe(
+      "denied",
+    );
+    const unrestricted = createAgentKernel(policy, {
+      adapter: "test",
+      subject: () => memberUser,
+      actor: () => ({ id: "agent-7", kind: "agent" }),
+      delegation: () => ({ scopes: [permissions.post.list.scope] }),
+      tools: tools(),
+    });
+    expect((await unrestricted.decideTool("list_posts", {}, {})).outcome).toBe(
+      "granted",
+    );
+  });
+
   it("lists tools that have any matching grant", async () => {
     const kernel = createAgentKernel(policy, {
       adapter: "test",

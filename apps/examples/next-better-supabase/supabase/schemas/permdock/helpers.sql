@@ -1267,7 +1267,7 @@ language sql
 stable
 set search_path = ''
 as $$
-  select not coalesce((((select auth.jwt()) -> 'act') ->> 'kind') = any(array['support', 'impersonation']::text[]) or ((((select auth.jwt()) -> 'act') ->> 'kind') is null and ((select auth.jwt()) -> 'act') ? 'session_id'), false) or coalesce((((select auth.jwt()) -> 'act') ->> 'read_only') = 'false', false)
+  select (not coalesce((((select auth.jwt()) -> 'act') ->> 'kind') = any(array['support', 'impersonation']::text[]) or ((((select auth.jwt()) -> 'act') ->> 'kind') is null and ((select auth.jwt()) -> 'act') ? 'session_id'), false) or coalesce((((select auth.jwt()) -> 'act') ->> 'read_only') = 'false', false)) and not coalesce((((select auth.jwt()) -> 'act') ->> 'kind') = 'agent' and (((select auth.jwt()) -> 'act') ->> 'read_only') = 'true', false)
 $$;
 revoke execute on function "permdock".permdock_actor_may_write() from public, anon;
 grant execute on function "permdock".permdock_actor_may_write() to authenticated;

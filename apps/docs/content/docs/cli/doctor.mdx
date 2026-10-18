@@ -105,6 +105,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD067` | An operation in the configured `operations` module whose `permission` or `results` key the permissions module does not declare                                                                                                                                                                             | error           |
 | `PD068` | PermDock writes files for pg-delta under the declarative schema directory, and `supabase/config.toml` does not set `[experimental.pgdelta] enabled = true`, so the Supabase CLI diffs them with migra                                                                                                      | error           |
 | `PD069` | Under pg-delta, `[db.migrations] schema_paths` is still set, or a numbered `NNN_permdock_*.sql` part from migra is still there                                                                                                                                                                             | warning         |
+| `PD070` | The policy declares `oauthScopes` and the catalog on disk lists none or another set, so better-supabase's SQL checks deny a token that holds only a coarse scope                                                                                                                                           | warning         |
+| `PD071` | An action verb whose name reads as a write (`create…`, `update…`, `approve…`, `markPaid`) has no `rls.actions` entry and no default, so it compiles to `'none'`                                                                                                                                            | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -409,6 +411,14 @@ With `rls.migrate.tables` set, the check replays the migration folders the way [
 ### PD067: an operation bound to an undeclared permission
 
 With `operations` set in `permdock.config.ts`, the check reads the `operations` the catalog would carry and reports each operation whose `permission` or `results` key is not a permission of the configured `permissions` module. `defineOperations` already throws for a permission outside the tree it is given, so this fires when the operations module builds on another tree than the one the config names, such as a stale copy or a merged tree.
+
+### PD070: oauthScopes missing from the catalog
+
+`authorizationProvider` in `permdock/better-supabase` builds better-supabase's `delegation.scopes` from the catalog, so a coarse scope the policy declares in `oauthScopes` reaches `member_can` and the other SQL checks only through `permissions.catalog.json`. The check loads the policy and, when it declares `oauthScopes`, warns when the catalog on disk lists none (a catalog written before PermDock carried them) or lists another set. Until then a token whose `scope` holds only `mcp:read` is denied in SQL while TypeScript grants it. Run `permdock collect` ([better-supabase](/docs/adapters/better-supabase#oauth-scopes)). `--only catalog` (or `--only better-supabase`) runs PD070.
+
+### PD071: write verbs without an rls.actions entry
+
+A verb with no `rls.actions` entry and no default compiles to `'none'`: no SQL policy, and its grants are still seeded for `permdock_has` ([action verbs](/docs/cli/rls#action-verbs)). That default never adds a write, but a verb that writes rows through the API role then has no policy that lets the write through. The check lists each unmapped verb that starts with `create`, `update`, `delete`, `remove`, `send`, `mark`, `cancel`, `approve`, `receive`, `fulfill`, `reimburse`, `withdraw`, `writeOff`, `confirm` or `pause`, followed by the end of the name, a capital, a digit, `_` or `-`, with the permissions that use it. Map each one on purpose, to a command or to `'none'`. `--only rls` runs PD071.
 
 ## Why
 

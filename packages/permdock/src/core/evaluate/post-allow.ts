@@ -5,6 +5,7 @@ import {
   coveredByDelegation,
   coversRequirements,
   delegatedPermissions,
+  readOnlyActorRefuses,
   requiresStandIn,
 } from "../delegation.ts";
 import { resourceIdOf } from "../resource-ref.ts";
@@ -38,7 +39,10 @@ export function delegatedAllows(state: EvaluationState): Allow[] | Decision {
     state.roles.matching,
     state.now,
   );
-  if (ceiling !== undefined && !ceiling.has(permission.key)) {
+  if (
+    (ceiling !== undefined && !ceiling.has(permission.key)) ||
+    readOnlyActorRefuses(subject.actor, permission)
+  ) {
     return deniedWithAlternatives(state, [
       { role: null, reason: "not-delegated" },
     ]);

@@ -194,6 +194,14 @@ export type CatalogDocument = {
   readonly delegations?: readonly CatalogDelegation[];
   /** The `defineOperations` map in definition order; present when the config names an `operations` module. */
   readonly operations?: readonly CatalogOperation[];
+  /** The policy's coarse OAuth scopes, sorted by scope; present when the policy declares any. */
+  readonly oauthScopes?: readonly CatalogOAuthScope[];
+};
+
+/** One `definePolicy({ oauthScopes })` entry: the coarse scope an authorization server issues and the permission keys it covers, sorted by code point. */
+export type CatalogOAuthScope = {
+  readonly scope: string;
+  readonly permissions: readonly string[];
 };
 
 /** One `defineOperations` entry: its name, the permission keys it is bound to, and its meta. */

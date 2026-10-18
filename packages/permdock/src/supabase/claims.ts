@@ -268,7 +268,7 @@ function checkPermDockClaims(
   );
 }
 
-/** The outer level's `kind`: none, `support` with a `session_id`, `impersonation`, or `agent` with optional `tools`. */
+/** The outer level's `kind`: none, `support` with a `session_id`, `impersonation`, or `agent` with optional `tools` and `read_only` and no `session_id`. */
 function checkActKind(
   level: Record<string, unknown>,
   path: Path,
@@ -284,7 +284,29 @@ function checkActKind(
     return;
   }
   if (kind === "agent") {
-    optional(level, "tools", path, issues, isStrings, "an array of strings");
+    if (own(level, "session_id") !== undefined) {
+      issue(
+        issues,
+        [...path, "session_id"],
+        "Expected no session_id on an agent level",
+      );
+    }
+    optional(
+      level,
+      "tools",
+      path,
+      issues,
+      (value) => isStrings(value) && value.every((tool) => tool !== ""),
+      "an array of non-empty strings",
+    );
+    optional(
+      level,
+      "read_only",
+      path,
+      issues,
+      (value) => typeof value === "boolean",
+      "a boolean",
+    );
     return;
   }
   if (kind !== "support") {

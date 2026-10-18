@@ -18,7 +18,7 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { DOCTOR_REPORT_SCHEMA } from "../version.ts";
 import { pd064 } from "./assignments.ts";
-import { pd002, pd003, pd004, pd067 } from "./catalog.ts";
+import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { pd044, pd065 } from "./next.ts";
@@ -34,6 +34,7 @@ import {
   pd032,
   pd034,
   pd037,
+  pd071,
 } from "./rls.ts";
 import { pd054 } from "./seeds.ts";
 import {
@@ -132,6 +133,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: pd067,
   },
   {
+    code: "PD070",
+    groups: ["catalog", "better-supabase"],
+    when: (config) => config.policy !== undefined,
+    run: pd070,
+  },
+  {
     code: "PD005",
     groups: ["skills"],
     run: (project) => pd005(project.cwd, project.files),
@@ -206,6 +213,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   { code: "PD025", groups: ["scopes"], run: pd025 },
   { code: "PD026", groups: ["ownership"], run: pd026 },
   { code: "PD027", groups: ["rls", "context-refs"], run: pd027 },
+  { code: "PD071", groups: ["rls"], run: pd071 },
   {
     code: "PD028",
     groups: ["attrs", "supabase"],

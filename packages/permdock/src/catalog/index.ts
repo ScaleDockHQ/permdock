@@ -18,6 +18,7 @@ export type {
   CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
+  CatalogOAuthScope,
   CatalogOperation,
   CatalogPermission,
   CatalogResource,

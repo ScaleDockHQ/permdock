@@ -27,12 +27,13 @@ An agent call has a principal (the user whose grants are evaluated), an actor (t
 1. Subject and actor come from the host session or verified transport auth, never from tool arguments, a task body, a header the client sets, or model output.
 2. An actor with no delegation is denied every check with `no-delegation`. Delegate explicit scopes, never the principal's whole role.
 3. Delegation only narrows. A policy delegation is a ceiling, a token delegation on the same call must also cover the permission, and a `deny` or an `approval` still applies.
-4. One permission per operation. An instance action loads its row through `data` from parsed input; a collection permission (`list`, `create`) on a handler that reads `args.id` is a bug. `meta` labels an operation and never decides.
-5. Tool lists are hints. `allowedOperations`, `capabilityMiddleware`, `guardTools`, MCP list filtering, the A2A extended card, `mayUse` and WebMCP registration hide tools; the server still decides each call.
-6. A trigger never grants. A run reads its principal's rights live on every step through `getPermDock(ticket)`; only the run ticket (`vnd.permdock.run+jwt`) travels between steps.
-7. An unlinked chat author is anonymous. A `ChatAuthor` comes only from a verified platform event and its user id, never an email or display name; an approval button carries the request id, never the token.
-8. A failed Web Bot Auth signature throws `InvalidSignatureError`; it never becomes an anonymous actor.
-9. Protocol rules come from the spec skills (`npx skills add ScaleDockHQ/scaledock-skills --skill <name>`): `mcp-authorization` for MCP auth, `a2a` for Agent Cards, `webmcp` for page tools, `web-bot-auth` for signatures, `owasp-agentic` for the threat checklist.
+4. An `agent` actor with a `tools` list calls only those tools: any other is denied with `agent-tool-not-delegated`. An actor with `readOnly: true` is denied every write with `not-delegated`.
+5. One permission per operation. An instance action loads its row through `data` from parsed input; a collection permission (`list`, `create`) on a handler that reads `args.id` is a bug. `meta` labels an operation and never decides.
+6. Tool lists are hints. `allowedOperations`, `capabilityMiddleware`, `guardTools`, MCP list filtering, the A2A extended card, `mayUse` and WebMCP registration hide tools; the server still decides each call.
+7. A trigger never grants. A run reads its principal's rights live on every step through `getPermDock(ticket)`; only the run ticket (`vnd.permdock.run+jwt`) travels between steps.
+8. An unlinked chat author is anonymous. A `ChatAuthor` comes only from a verified platform event and its user id, never an email or display name; an approval button carries the request id, never the token.
+9. A failed Web Bot Auth signature throws `InvalidSignatureError`; it never becomes an anonymous actor.
+10. Protocol rules come from the spec skills (`npx skills add ScaleDockHQ/scaledock-skills --skill <name>`): `mcp-authorization` for MCP auth, `a2a` for Agent Cards, `webmcp` for page tools, `web-bot-auth` for signatures, `owasp-agentic` for the threat checklist.
 
 ## Workflow
 

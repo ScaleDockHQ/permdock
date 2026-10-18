@@ -4,6 +4,7 @@ import type {
   Permission,
   PermissionTree,
   Policy,
+  PolicyOAuthScope,
   ResourceNode,
 } from "../index.ts";
 import type {
@@ -12,6 +13,7 @@ import type {
   CatalogDelegation,
   CatalogDocument,
   CatalogGrant,
+  CatalogOAuthScope,
   CatalogOperation,
   ScanResult,
 } from "./types.ts";
@@ -124,6 +126,9 @@ export function buildCatalog(
       ? {}
       : { delegations: catalogDelegations(policy) }),
     ...(operations === undefined ? {} : { operations }),
+    ...(policy?.oauthScopes === undefined || policy.oauthScopes.length === 0
+      ? {}
+      : { oauthScopes: catalogOAuthScopes(policy.oauthScopes) }),
   };
   const head = {
     $schema: CATALOG_SCHEMA,
@@ -240,6 +245,17 @@ export function catalogDelegations(
       const right = canonicalJson(b);
       return left < right ? -1 : left > right ? 1 : 0;
     });
+}
+
+export function catalogOAuthScopes(
+  declared: readonly PolicyOAuthScope[],
+): readonly CatalogOAuthScope[] {
+  return declared
+    .map((entry) => ({
+      scope: entry.scope,
+      permissions: [...new Set(entry.permissions)].toSorted(byCodePoint),
+    }))
+    .toSorted((a, b) => byCodePoint(a.scope, b.scope));
 }
 
 /** Per permission key, the distinct approvals the code allows require, in policy order. */

@@ -6,7 +6,7 @@ import type { CustomRole, Subject } from "./subject.ts";
 import { assignableIn } from "./assignable.ts";
 import { compact } from "./compact.ts";
 import { type CustomGrant, customGrantsFor } from "./custom-roles.ts";
-import { delegatedPermissions } from "./delegation.ts";
+import { delegatedPermissions, readOnlyActorRefuses } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames } from "./held-roles.ts";
 import { getResource } from "./permission-registry.ts";
@@ -50,6 +50,12 @@ export function snapshotOf(
     now,
   );
   const audiences = audiencesOf(policy, roles);
+  const delegated = delegatedPermissions(
+    policy.delegations,
+    subject,
+    new Set(roles),
+    now,
+  );
   return buildSnapshot(
     compact<Parameters<typeof buildSnapshot>[0]>({
       subject,
@@ -69,13 +75,21 @@ export function snapshotOf(
         options.customRoles,
         now,
         customGrants,
-      ).map((item) =>
-        periodBound(policy, item.grant)
-          ? Object.assign({}, item, {
-              grant: freezeDeep({ ...item.grant, portable: false }),
-            })
-          : item,
-      ),
+      )
+        // `delegated` already narrows a read-only actor; without it the client has no actor to check.
+        .filter(
+          (item) =>
+            delegated !== undefined ||
+            item.grant.effect === "deny" ||
+            !readOnlyActorRefuses(subject.actor, item.grant.permission),
+        )
+        .map((item) =>
+          periodBound(policy, item.grant)
+            ? Object.assign({}, item, {
+                grant: freezeDeep({ ...item.grant, portable: false }),
+              })
+            : item,
+        ),
       include: includePrefixes(options.include),
       tenants: options.tenants,
       simulated: options.simulated,
@@ -83,12 +97,7 @@ export function snapshotOf(
       vocabulary: policy.vocabulary,
       scopes: snapshotScopes(policy),
       idOf: (name: string) => getResource(policy.permissions, name)?.id,
-      delegated: delegatedPermissions(
-        policy.delegations,
-        subject,
-        new Set(roles),
-        now,
-      ),
+      delegated,
       assignable: (tenant: string) => {
         const found = assignableIn(
           policy,

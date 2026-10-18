@@ -8,6 +8,7 @@ import type { McpAuthInfo, McpPermDockOptions } from "./types.ts";
 
 import { refusalText } from "../agent/denied-text.ts";
 import { compact } from "../core/compact.ts";
+import { actorMayCallTool } from "../core/delegation.ts";
 import {
   challengeScope,
   hasScope,
@@ -133,10 +134,14 @@ async function recheck(
   call: McpCall,
   permission: Permission,
   approved: string | undefined,
+  tool: string | undefined,
 ): Promise<Checked> {
-  const rechecked = await checks.kernel.check(binding, args, call, {
-    simulate: true,
-  });
+  const rechecked = await checks.kernel.check(
+    binding,
+    args,
+    call,
+    compact({ simulate: true, tool }),
+  );
   if (!rechecked.ok) {
     return { ok: false, refusal: failedRefusal(permission, rechecked.failure) };
   }
@@ -170,6 +175,7 @@ async function decideCall(
   handlerContext: unknown,
   capabilities: (() => unknown) | undefined,
   completion?: { readonly approved: string | undefined },
+  tool?: string,
 ): Promise<Checked> {
   const authInfo = context.http?.authInfo;
   const refused = credentialRefusal(checks, permission, reach, authInfo);
@@ -189,13 +195,14 @@ async function decideCall(
       call,
       permission,
       completion.approved,
+      tool,
     );
   }
   const checked = await checks.kernel.check(
     binding,
     args,
     call,
-    compact({ resumeToken: approvalTokenOf(context) }),
+    compact({ resumeToken: approvalTokenOf(context), tool }),
   );
   if (!checked.ok) {
     return { ok: false, refusal: failedRefusal(permission, checked.failure) };
@@ -264,6 +271,7 @@ async function checkCall(
   handlerContext: unknown,
   capabilities: (() => unknown) | undefined,
   completion?: { readonly approved: string | undefined },
+  tool?: string,
 ): Promise<Checked> {
   const checked = await decideCall(
     checks,
@@ -275,6 +283,7 @@ async function checkCall(
     handlerContext,
     capabilities,
     completion,
+    tool,
   );
   const { deniedText } = checks.options;
   if (checked.ok || deniedText === undefined) {
@@ -300,7 +309,10 @@ async function checkCall(
   };
 }
 
-/** The keys a list shows: unguarded ones, and guarded ones the token reaches and the subject may use. */
+/**
+ * The keys a list shows: unguarded ones, and guarded ones the token reaches and the subject may use.
+ * With `tools`, a guarded key is also a tool name an `agent` actor's `tools` list must name.
+ */
 export async function visible(
   checks: McpChecks,
   context: Context,
@@ -309,6 +321,7 @@ export async function visible(
   declaredOf: (
     key: string,
   ) => readonly [string, ...string[]] | undefined = () => undefined,
+  tools = false,
 ): Promise<ReadonlySet<string>> {
   const authInfo = context.http?.authInfo;
   const shown = new Set<string>();
@@ -341,7 +354,10 @@ export async function visible(
     return shown;
   }
   for (const entry of guarded) {
-    if (permdock.mayUse(entry.permission)) {
+    if (
+      (!tools || actorMayCallTool(permdock.subject.actor, entry.key)) &&
+      permdock.mayUse(entry.permission)
+    ) {
       shown.add(entry.key);
     }
   }
@@ -353,6 +369,8 @@ export type GuardExtra = {
   readonly longRunning?: boolean;
   readonly capabilities?: () => unknown;
   readonly reach?: Reach;
+  /** The tool's current name, for an `agent` actor's `tools` list. */
+  readonly tool?: () => string;
 };
 
 /** `handler` behind the call check; a refusal goes to `onRefusal` instead. */
@@ -373,6 +391,7 @@ export function guard(
     const loader =
       load === undefined ? undefined : (): unknown => load(...args);
     const reach = extra.reach ?? reachOf(checks.policy, permission, undefined);
+    const tool = extra.tool?.();
     const checked = await checkCall(
       checks,
       permission,
@@ -382,6 +401,8 @@ export function guard(
       context,
       raw,
       extra.capabilities,
+      undefined,
+      tool,
     );
     let result: unknown;
     if (checked.ok) {
@@ -397,6 +418,7 @@ export function guard(
           raw,
           extra.capabilities,
           { approved: checked.approved },
+          tool,
         );
         if (!again.ok) {
           result = onRefusal(again.refusal);

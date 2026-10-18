@@ -314,5 +314,16 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
         },
       },
     },
+    oauthScopes: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["scope", "permissions"],
+        properties: {
+          scope: { type: "string", minLength: 1 },
+          permissions: strings,
+        },
+      },
+    },
   },
 });

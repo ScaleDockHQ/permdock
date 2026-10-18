@@ -1,7 +1,7 @@
 import type { DenialReason } from "./decision.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
 import type { Grant, PolicyDelegation } from "./policy-types.ts";
-import type { Delegation, GnapAccess, Subject } from "./subject.ts";
+import type { Actor, Delegation, GnapAccess, Subject } from "./subject.ts";
 
 import { matchGrantee } from "./grantee-match.ts";
 import { flattenGrantee } from "./grantee.ts";
@@ -74,6 +74,33 @@ export function coveredByDelegation(
     return undefined;
   }
   return "not-delegated";
+}
+
+/** A `readOnly` actor never uses a permission without `readOnlyHint`, delegated or not. */
+export function readOnlyActorRefuses(
+  actor: Actor | undefined,
+  permission: Permission,
+): boolean {
+  return actor?.readOnly === true && !annotationsFor(permission).readOnlyHint;
+}
+
+/**
+ * Whether an `agent` actor may call the tool `name`: its `tools` list names it.
+ * An agent without a `tools` list and any other actor kind are not restricted
+ * here; a `tools` value that is not a list of strings refuses every tool.
+ */
+export function actorMayCallTool(
+  actor: Actor | undefined,
+  name: string,
+): boolean {
+  if (actor?.kind !== "agent" || !Object.hasOwn(actor, "tools")) {
+    return true;
+  }
+  const tools = actor["tools"];
+  return (
+    Array.isArray(tools) &&
+    tools.some((tool: unknown) => typeof tool === "string" && tool === name)
+  );
 }
 
 export function coversRequirements(

@@ -843,4 +843,45 @@ describe("authorizationProvider", () => {
       },
     });
   });
+
+  it("merges the catalog's oauthScopes into delegation.scopes", async () => {
+    const leaf = (key: string) => {
+      const [resource = "", action = ""] = key.split(".");
+      return {
+        key,
+        scope: `${resource}:${action}`,
+        resource,
+        action,
+        arity: "collection",
+        meta: {},
+        usages: [],
+        rowConditions: false,
+      };
+    };
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog: {
+        ...emptyCatalog,
+        permissions: ["task.read", "task.update", "task.delete"].map(leaf),
+        oauthScopes: [
+          { scope: "mcp:read", permissions: ["task.read"] },
+          {
+            scope: "mcp:write",
+            permissions: ["task.update", "task.read", "task.gone"],
+          },
+          { scope: "task:read", permissions: ["task.update"] },
+        ],
+      },
+    });
+    await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
+    expect(provider.delegation).toEqual({
+      scopes: {
+        "mcp:read": ["task.read"],
+        "mcp:write": ["task.read", "task.update"],
+        "task:delete": ["task.delete"],
+        "task:read": ["task.read", "task.update"],
+        "task:update": ["task.update"],
+      },
+    });
+  });
 });

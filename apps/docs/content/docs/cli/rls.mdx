@@ -73,7 +73,7 @@ rls: {
 }
 ```
 
-`'none'` compiles no policy for the verb. Every granted action is seeded into `role_permissions` either way, so a hand-written policy or function can still ask `permdock_has` about it. A verb with no entry and no default, such as `publish`, compiles no policy.
+`'none'` compiles no policy for the verb. Every granted action is seeded into `role_permissions` either way, so a hand-written policy or function can still ask `permdock_has` about it. A verb with no entry and no default, such as `publish` or `export`, is `'none'` and adds no warning, so `rls.actions` lists only the verbs that map to a command. `permdock doctor` reports an unmapped verb whose name reads as a write, such as `markPaid` or `approve` ([PD071](/docs/cli/doctor#pd071-write-verbs-without-an-rlsactions-entry)).
 
 ### Role checks: per-statement helpers
 
@@ -348,7 +348,7 @@ With `--rbac`, the command prints a reminder to run `permdock supabase hook gene
 
 ### Read-only actors
 
-A token that acts for a user names the actor in its `act` claim: a support session (`act.kind: 'support'`) or an impersonation (`act.kind: 'impersonation'`). The helpers read memberships, not `act`, so to Postgres such a token is its user and writes what the user may write. `rls.readOnlyActors` adds one `RESTRICTIVE` policy per table and write command that the generated policies grant to `authenticated`, named `{table}_{op}_read_only_actors`. It refuses the write when `act.kind` is one of the listed kinds, unless `act.read_only` is `false`. Reads are never touched.
+A token that acts for a user names the actor in its `act` claim: a support session (`act.kind: 'support'`) or an impersonation (`act.kind: 'impersonation'`). The helpers read memberships, not `act`, so to Postgres such a token is its user and writes what the user may write. `rls.readOnlyActors` adds one `RESTRICTIVE` policy per table and write command that the generated policies grant to `authenticated`, named `{table}_{op}_read_only_actors`. It refuses the write when `act.kind` is one of the listed kinds, unless `act.read_only` is `false`. An agent (`act.kind: 'agent'`) is refused only when `act.read_only` is `true`, as better-supabase's `actor_may_write` reads it, unless `agent` is a listed kind. Reads are never touched.
 
 ```ts title="permdock.config.ts"
 rls: {
@@ -368,7 +368,7 @@ create policy "quotes_update_read_only_actors"
   with check (/* the same condition */);
 ```
 
-`true` lists `support` and `impersonation`; a list such as `['support']` names the kinds. With `support` listed, an `act` with a `session_id` and no `kind` (better-supabase 0.5.0 support tokens) counts as a support session. Another actor kind, such as an agent acting with delegated scopes, keeps the user's writes. An `insert` policy has only `with check`, a `delete` policy only `using`. `rls verify` checks the policies with the rest.
+`true` lists `support` and `impersonation`; a list such as `['support']` names the kinds. With `support` listed, an `act` with a `session_id` and no `kind` (better-supabase 0.5.0 support tokens) counts as a support session. Another actor kind, such as an agent acting with delegated scopes, keeps the user's writes, except an agent with `act.read_only: true`. An `insert` policy has only `with check`, a `delete` policy only `using`. `rls verify` checks the policies with the rest.
 
 `generate` also writes `permdock_actor_may_write()`, executable by `authenticated`, which is `false` for exactly the tokens these policies refuse. `--helpers-only` writes no policies, so it warns, and each hand-written write policy calls the function instead, either in its own expressions or in one restrictive policy per command:
 

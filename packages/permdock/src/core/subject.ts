@@ -153,7 +153,7 @@ export type Actor = {
   readonly id: string;
   readonly kind: ActorKind;
   readonly binding?: Binding;
-  /** `true` narrows every policy delegation to this actor to its read-only permissions (`readOnlyHint`). */
+  /** `true` denies every permission without `readOnlyHint` (`not-delegated`), with or without a policy delegation. */
   readonly readOnly?: boolean;
   /** The stable name the application gives this OAuth client (`ClientNames`), set by the subject resolver from the verified client id; policy delegations match it with `to: { kind, client }`. */
   readonly client?: string;

@@ -241,6 +241,8 @@ export type SupabaseActor =
       readonly id: string;
       readonly kind: "agent";
       readonly tools?: readonly string[];
+      /** `act.read_only`, default `false`: a read-only agent never writes. */
+      readonly readOnly: boolean;
       readonly chain: SupabaseActClaim;
     };
 

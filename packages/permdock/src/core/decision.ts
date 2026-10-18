@@ -21,6 +21,7 @@ export type DenialReason =
   | "anonymous"
   | "not-delegated"
   | "no-delegation"
+  | "agent-tool-not-delegated"
   | "insufficient-user-authentication"
   | "not-entitled"
   | "purpose"

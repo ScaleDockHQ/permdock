@@ -3,7 +3,7 @@ import type { Permission } from "./permission-types.ts";
 import type { SnapshotGrant } from "./snapshot-types.ts";
 import type { Delegation } from "./subject.ts";
 
-import { coveredByDelegation } from "./delegation.ts";
+import { coveredByDelegation, readOnlyActorRefuses } from "./delegation.ts";
 import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
 import { isMembershipExpired, nowSeconds } from "./tenancy.ts";
 import { isActive, readWireValidity } from "./validity.ts";
@@ -53,7 +53,10 @@ export function mayUse(permdock: PermDock, permission: Permission): boolean {
       return false;
     }
     const ceiling = snapshot.delegated;
-    if (ceiling !== undefined && !ceiling.includes(permission.key)) {
+    if (
+      (ceiling !== undefined && !ceiling.includes(permission.key)) ||
+      readOnlyActorRefuses(permdock.subject.actor, permission)
+    ) {
       return false;
     }
     if (
@@ -129,6 +132,7 @@ export function permittedIds(
     if (
       name === undefined ||
       (ceiling !== undefined && !ceiling.includes(permission.key)) ||
+      readOnlyActorRefuses(permdock.subject.actor, permission) ||
       !delegationMayCover(
         permission,
         permdock.subject.delegation,

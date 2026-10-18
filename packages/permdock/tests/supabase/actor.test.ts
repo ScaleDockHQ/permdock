@@ -114,6 +114,7 @@ describe("actorOf and delegationOf", () => {
         id: "agent-7",
         kind: "agent",
         tools: ["search_knowledge"],
+        readOnly: false,
         chain: act,
       },
     });
@@ -122,17 +123,33 @@ describe("actorOf and delegationOf", () => {
       id: "agent-7",
       kind: "agent",
       tools: ["search_knowledge"],
+      readOnly: false,
     });
     expect(subject.delegation).toEqual({ scopes: ["posts:read"], chain: act });
   });
 
-  it("refuses an agent run whose tools are not strings", () => {
-    const act = { kind: "agent", sub: "agent-7", tools: [1] };
+  it.each([
+    ["tools that are not strings", { tools: [1] }],
+    ["an empty tool name", { tools: ["search_knowledge", ""] }],
+    ["tools that are not an array", { tools: "search_knowledge" }],
+    ["a session_id", { session_id: "sess-1" }],
+    ["a read_only that is not a boolean", { read_only: "true" }],
+  ])("refuses an agent run with %s", (_, extra) => {
+    const act = { kind: "agent", sub: "agent-7", ...extra };
     expect(actorOf({ sub, act })).toEqual({
       ok: false,
       reason: "invalid-chain",
     });
     expect(subjectFromSupabase({ sub, act }).principal).toBeNull();
+  });
+
+  it("reads act.read_only on an agent run as readOnly", () => {
+    const act = { kind: "agent", sub: "agent-7", read_only: true };
+    expect(subjectFromSupabase({ sub, act }).actor).toEqual({
+      id: "agent-7",
+      kind: "agent",
+      readOnly: true,
+    });
   });
 
   it("reads a 0.5.0 support token (session_id without kind) as support, as better-supabase does", () => {
