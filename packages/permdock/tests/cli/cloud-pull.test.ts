@@ -231,6 +231,17 @@ describe("permdock rls generate --project", () => {
     );
   });
 
+  it("refuses --project with a --from policy module", async () => {
+    const reference = await cloud();
+    const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
+    const result = await run(
+      ["rls", "generate", "--project", "test", "--from", "./policy.ts"],
+      { cwd, io: io(reference, {}) },
+    );
+    expect(result.code).toBe(2);
+    expect(result.stdout).toContain("not both");
+  });
+
   it("refuses --project for another rls action", async () => {
     const reference = await cloud();
     const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);

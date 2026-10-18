@@ -135,8 +135,14 @@ export async function runRlsGenerate(
   if (isRefusal(options)) {
     return refused(options.refusal);
   }
-  if (input.project !== undefined && input.from !== undefined) {
-    return refused("rls generate takes --project or --from, not both");
+  if (
+    input.project !== undefined &&
+    input.from !== undefined &&
+    input.from !== "drizzle"
+  ) {
+    return refused(
+      "rls generate takes the policy from --project or from a --from module, not both",
+    );
   }
   let policy: Policy;
   if (input.project === undefined) {
