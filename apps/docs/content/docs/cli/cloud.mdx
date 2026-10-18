@@ -1,31 +1,57 @@
 ---
 title: cloud
-description: permdock cloud push publishes the catalog (permissions, hostable flags, roles, plans and relations) to a PermDock Cloud environment so its dashboard and hosted grants follow the code.
+description: permdock cloud push publishes the catalog, the code policy and the Supabase manifest to a PermDock Cloud project; permdock cloud pull writes the published catalog and manifest back, byte for byte.
 ---
 
-`permdock cloud push` builds the same catalog as [collect](/docs/cli/collect), with the policy's `hostable` flags, each permission's code `approvals`, and each role's `on` and `assignable`, and posts it to a PermDock Cloud environment. The Cloud reads it to offer only declared roles and plans, to hand out only `assignable` roles, to let an admin author hosted grants only on `hostable` permissions, and to serve the hosted AuthZEN endpoint for the published policy ([PermDock Cloud](/docs/adapters/cloud)).
+`permdock cloud push` builds the same catalog as [collect](/docs/cli/collect), with the policy's `hostable` flags, each permission's code `approvals`, and each role's `on` and `assignable`, and posts it with the code policy and `permdock.manifest.json` to a PermDock Cloud project. The Cloud reads it to offer only declared roles and plans, to hand out only `assignable` roles, to let an admin author hosted grants only on `hostable` permissions, and to serve the hosted AuthZEN endpoint for the published policy ([PermDock Cloud](/docs/adapters/cloud)).
+
+`permdock cloud pull` reads what the last push sent and writes `permissions.catalog.json` and `permdock.manifest.json` as `collect` and `supabase inspect --out` write them, so `authorizationProvider({ manifest, catalog })` and every other reader of those files see the same bytes.
+
+A project is one Cloud environment and has the same id: `--project` and `--environment` name the same thing.
 
 ## Usage
 
 ```bash
-permdock cloud push                         # PERMDOCK_CLOUD_URL, PERMDOCK_CLOUD_KEY from the environment
+permdock cloud push                         # PERMDOCK_CLOUD_KEY, or a login from permdock login --write
 permdock cloud push --environment preview   # overrides PERMDOCK_CLOUD_ENV, then VERCEL_ENV, then production
-permdock cloud push --url http://localhost:4000
+permdock cloud push --manifest supabase/permdock.manifest.json
 permdock cloud push --dry-run --json        # print the fingerprint and summary; no network
+permdock cloud pull --project prj_123       # with a login from permdock login
+permdock cloud pull                         # in CI with PERMDOCK_CLOUD_TOKEN: the token's one project
 ```
 
-| Flag            | Meaning                                                                                                                                                              |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--url`         | Base URL of the Cloud API; defaults to `PERMDOCK_CLOUD_URL`                                                                                                          |
-| `--environment` | The environment name; defaults to `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`                                                                         |
-| `--dry-run`     | Build the catalog and print its fingerprint without posting it                                                                                                       |
-| `--json`        | Print `{ fingerprint, permissions, hostable, roles, plans, grants, environment, status }`; `hostable` is the list of hostable permission keys, the others are counts |
+| Flag            | Meaning                                                                                                                                                                                |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--url`         | Base URL of the Cloud API; defaults to `PERMDOCK_CLOUD_URL`, then `https://permdock.com/api`                                                                                           |
+| `--environment` | `push`: the environment; defaults to `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`                                                                                        |
+| `--project`     | The project id, the same id as its environment; `pull` needs it unless `PERMDOCK_CLOUD_TOKEN` names one project                                                                        |
+| `--manifest`    | `push`: the manifest to send (default `permdock.manifest.json`, sent when present); `pull`: where to write it                                                                          |
+| `--dry-run`     | `push`: build the catalog and print its fingerprint without posting it                                                                                                                 |
+| `--json`        | `push`: `{ fingerprint, permissions, hostable, roles, plans, grants, manifest, environment, status }`; `pull`: `{ project, version, fingerprint, permdockVersion, catalog, manifest }` |
 
-The request is `POST /v1/environments/:env/catalog` with `authorization: Bearer <PERMDOCK_CLOUD_KEY>` and the body `{ fingerprint, catalog, policy }`. `fingerprint` is `catalogFingerprint(catalog)` from `permdock` and equals the catalog's own `fingerprint` field ([wire formats](/docs/concepts/wire-formats) "Catalog"): the clock, the CLI version and call sites never change it, so two runs over the same contract produce the same value. The Cloud recomputes it and rejects a mismatch. A hosted policy document names the catalog it was authored against in its `catalog` field ([wire formats](/docs/concepts/wire-formats)).
+## Push
 
-`policy` is present when `permdock.config.ts` names one: `{ fingerprint, scopes, grants }`, where `fingerprint` is the code policy's, `scopes` is its tenant and team keys, and each grant has the snapshot grant shape (`permission` key, `effect`, `role`, `to`, `where`, `check`, `approval`, `scope`, `fields`) plus `limit`. It is what the hosted AuthZEN endpoint evaluates. A closure grant travels as `portable: false` without its function, and the hosted endpoint denies it, so a permission that depends on a closure should be decided in the application.
+The request is `POST /v1/environments/:env/catalog` with the body `{ fingerprint, catalog, policy?, manifest?, permdockVersion }`. The bearer is `PERMDOCK_CLOUD_KEY` when it is set, otherwise the stored login, which must hold `catalog:write` ([login](/docs/cli/login)).
 
-Exit codes follow the shared contract: `0` pushed (or `--dry-run`), `1` the Cloud was unreachable or answered with a non-2xx status, `2` a missing URL or key or an unreadable definition module.
+- `fingerprint` is `catalogFingerprint(catalog)` from `permdock` and equals the catalog's own `fingerprint` field ([wire formats](/docs/concepts/wire-formats#catalog)). The clock, the CLI version and call sites never change it, so two runs over the same contract produce the same value. The Cloud recomputes it and rejects a mismatch.
+- `policy` is present when `permdock.config.ts` names one. It is a PushedPolicy, `{ v: 1, fingerprint, scopes?, grants }` ([wire formats](/docs/concepts/wire-formats#pushed-policy)): `fingerprint` is the code policy's, `scopes` its declared scope keys, and each grant has the snapshot grant shape plus `limit`, `validity` and the grant's metadata. A grant whose condition is a closure travels as `closure: true` without its function, and the hosted endpoint denies it, so a permission that depends on a closure should be decided in the application.
+- `manifest` is `permdock.manifest.json` or the `--manifest` file, checked with `parseSupabaseManifest` before anything is sent. An explicit `--manifest` that does not exist is a usage error.
+- `permdockVersion` is the version of the CLI that pushed. `cloud pull` warns when it differs from its own.
+
+A hosted policy document names the catalog it was authored against in its `catalog` field ([wire formats](/docs/concepts/wire-formats#policy-document)).
+
+## Pull
+
+`cloud pull` calls `GET /v1/projects/:id/policy` ([projects API](/docs/adapters/cloud#projects-read-api)) and then:
+
+1. Checks the catalog with `parseCatalog` and the manifest with `parseSupabaseManifest`.
+2. Writes the catalog to the path `collect` uses: `collect.out`, then `catalog.out`, then `permissions.catalog.json`.
+3. Writes the manifest to `--manifest` or `permdock.manifest.json`. A push without a manifest leaves the file alone and prints a warning.
+4. Reads the catalog file back and requires `catalogFingerprint` of it to equal the response `fingerprint` and the catalog's own `fingerprint`. On a mismatch it restores both files to their previous bytes and exits `1`.
+
+The bearer is `PERMDOCK_CLOUD_TOKEN` when it is set, otherwise the stored login. With the token and no `--project`, `cloud pull` reads `GET /v1/projects` and uses its one project. A project with nothing pushed answers `404` with the `https://permdock.com/problems/policy-not-published` problem, and `cloud pull` exits `1`.
+
+Exit codes follow the shared contract: `0` pushed, pulled or `--dry-run`; `1` the Cloud was unreachable, answered with a non-2xx status, or sent bytes that failed the fingerprint check; `2` no key, token or login, a conflicting `--project` and `--environment`, or an unreadable definition module or manifest.
 
 ## In CI
 
@@ -33,14 +59,26 @@ Exit codes follow the shared contract: `0` pushed (or `--dry-run`), `1` the Clou
 - run: pnpm exec permdock collect --check
 - run: pnpm exec permdock cloud push
   env:
-    PERMDOCK_CLOUD_URL: ${{ secrets.PERMDOCK_CLOUD_URL }}
     PERMDOCK_CLOUD_KEY: ${{ secrets.PERMDOCK_CLOUD_KEY }}
 ```
 
 Push after the deploy that ships the code, so hosted grants authored against the new catalog never reach an instance that runs the old policy.
 
+A job that only reads, such as a repository that consumes another team's published policy, pulls with a read-only token:
+
+```yaml
+- run: pnpm exec permdock cloud pull
+  env:
+    PERMDOCK_CLOUD_TOKEN: ${{ secrets.PERMDOCK_CLOUD_TOKEN }}
+- run: pnpm exec permdock rls generate --project production --check
+  env:
+    PERMDOCK_CLOUD_TOKEN: ${{ secrets.PERMDOCK_CLOUD_TOKEN }}
+```
+
 ## Why
 
 Publishing is a CLI command, not a build hook. `createPermDockPlugin` and `createPermDockUnplugin` stay collect-only because a build that needs a secret and the network fails on forks, in preview builds without credentials and in offline CI, and a catalog published mid-build can describe code that never deploys. A command in the deploy step runs once, with the key the deploy already holds.
 
-The key is read only from `PERMDOCK_CLOUD_KEY`, never from a flag, so it does not end up in shell history or CI logs. The CLI sends only the catalog: no subject, no grant and no decision, so a leaked push key can describe the application but cannot authorize anything.
+Keys and tokens are read only from `PERMDOCK_CLOUD_KEY` and `PERMDOCK_CLOUD_TOKEN`, never from a flag, so they do not end up in shell history or CI logs. A push sends the catalog, the code grants and the manifest: no subject and no decision. A leaked push key can change what the Cloud publishes for its environment, but it cannot authenticate anyone or decide anything inside the application. `PERMDOCK_CLOUD_TOKEN` is read-only and pinned to one environment, so a leaked CI token reads one project's policy and nothing else.
+
+`cloud pull` writes with the same functions as the offline commands instead of copying the response text, and checks the fingerprint after writing, so a file on disk is either the published catalog or the file that was there before.

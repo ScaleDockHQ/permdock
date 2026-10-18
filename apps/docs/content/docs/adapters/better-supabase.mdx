@@ -91,7 +91,7 @@ permdock rls generate $SPLIT --seeds-out -                    # the schema files
 supabase db schema declarative sync --no-apply -f permdock    # their migration
 permdock rls generate $SPLIT --seeds-out supabase/migrations/ # the role_permissions seeds, after it
 permdock supabase inspect --out
-permdock catalog --out permissions.catalog.json
+permdock collect
 ```
 
 That is Declarative Schemas 2.0, the default: `supabase/config.toml` needs `[experimental.pgdelta]` with `enabled = true`. A project on `supabase db diff` sets `supabase.schemas: 'migra'`, and one without declarative schemas sets `supabase.schemas: 'migrations'` ([schema workflow](/docs/cli/rls#schema-workflow)); the manifest records which, and better-supabase's doctor names the matching grants command.

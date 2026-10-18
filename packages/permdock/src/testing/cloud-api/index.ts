@@ -22,7 +22,13 @@ import {
   testPolicySource,
   testSnapshotSource,
 } from "../conformance/runtime-stores.ts";
+import {
+  type TestCloudPlatformOptions,
+  testCloudPlatform,
+} from "./platform-checks.ts";
 import { cloudApiValidator } from "./validate.ts";
+
+export type { TestCloudPlatformOptions };
 
 export type CloudApiKeys = {
   /** The `client` key the application deploys (`PERMDOCK_CLOUD_KEY`). */
@@ -47,6 +53,8 @@ export type TestCloudApiOptions = {
     readonly vectors: AuthzenVectors;
     readonly headers?: Readonly<Record<string, string>>;
   };
+  /** The platform issuer and project read API at `baseUrl`; skipped without it. */
+  readonly platform?: TestCloudPlatformOptions;
 };
 
 const REFUSED_TYPES = [
@@ -85,6 +93,8 @@ function sample(
     ...overrides,
   };
 }
+
+const METADATA = "/.well-known/oauth-authorization-server";
 
 function trimSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
@@ -125,7 +135,11 @@ export function testCloudApi(
   ): Promise<Response> => {
     const request = new Request(input, init);
     const response = await fetchFn(request);
-    const path = new URL(request.url).pathname.slice(prefix.length);
+    const { pathname } = new URL(request.url);
+    const path =
+      pathname === `${METADATA}${prefix}`
+        ? METADATA
+        : pathname.slice(prefix.length);
     checks.push(
       check(request.method, path, response.clone()).then((found) => {
         problems.push(...found);
@@ -209,6 +223,15 @@ export function testCloudApi(
         ? {}
         : { headers: options.authzen.headers }),
     });
+  }
+
+  if (options.platform !== undefined) {
+    testCloudPlatform(
+      url,
+      options.environment ?? "production",
+      options.platform,
+      recording,
+    );
   }
 
   it("answers 401 Problem Details without a key", async () => {

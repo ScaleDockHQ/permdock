@@ -7,6 +7,7 @@
     "doctor": "permdock doctor",
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "node src/serve.ts",
+    "start:cloud": "node src/serve-cloud.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

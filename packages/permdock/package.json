@@ -394,6 +394,7 @@
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:peers",
     "@modelcontextprotocol/server": "catalog:peers",
+    "@napi-rs/keyring": "catalog:peers",
     "@nestjs/common": "catalog:peers",
     "@nestjs/core": "catalog:peers",
     "@nestjs/platform-express": "catalog:peers",
@@ -437,6 +438,9 @@
       "optional": true
     },
     "@modelcontextprotocol/server": {
+      "optional": true
+    },
+    "@napi-rs/keyring": {
       "optional": true
     },
     "@nestjs/common": {

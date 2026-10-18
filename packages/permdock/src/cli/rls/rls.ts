@@ -54,6 +54,8 @@ export type RlsRunInput = {
   readonly dialect: string | undefined;
   readonly out: string | undefined;
   readonly from: string | undefined;
+  /** `generate --project`: the policy comes from the Cloud project instead of a module. */
+  readonly project?: string | undefined;
   readonly sql: string | undefined;
   readonly db: string | undefined;
   readonly fixtures: string | undefined;
@@ -143,6 +145,8 @@ function generateInput(
     io: input.io,
     ...(input.out === undefined ? {} : { out: input.out }),
     ...(input.from === undefined ? {} : { from: input.from }),
+    ...(input.project === undefined ? {} : { project: input.project }),
+    json: input.json,
     ...(input.memberships === undefined
       ? {}
       : { memberships: input.memberships }),
@@ -323,6 +327,9 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
   const badSchemas = schemasRefusal(`rls ${action}`, input.schemas);
   if (badSchemas !== undefined) {
     return { code: 2, output: badSchemas };
+  }
+  if (input.project !== undefined && action !== "generate") {
+    return { code: 2, output: "--project applies to rls generate only" };
   }
   switch (action) {
     case "generate": {

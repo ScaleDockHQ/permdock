@@ -34,14 +34,14 @@ export function CloudCta() {
                 href={site.cloud.api}
                 className="text-foreground underline-offset-4 hover:underline"
               >
-                api.permdock.com
+                permdock.com/api
               </Link>
               . Read-only MCP at{" "}
               <Link
                 href={site.cloud.mcp}
                 className="text-foreground underline-offset-4 hover:underline"
               >
-                mcp.permdock.com
+                permdock.com/mcp
               </Link>
               . The in-process defaults stay in the MIT package either way.
             </p>

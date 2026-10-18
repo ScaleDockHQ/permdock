@@ -14,6 +14,8 @@ export type CommandName =
   | "rls"
   | "arazzo"
   | "cloud"
+  | "login"
+  | "logout"
   | "supabase"
   | "powersync"
   | "codemod"
@@ -40,7 +42,10 @@ export const COMMAND_DESCRIPTIONS: Readonly<Record<CommandName, string>> = {
   rls: "Generate, import, verify or migrate Postgres RLS policies from the policy",
   arazzo: "Resolve every Arazzo step to x-permdock-permissions",
   cloud:
-    "Publish the catalog, hostable flags and role assignability to a PermDock Cloud environment",
+    "Publish the catalog and policy to a PermDock Cloud project, or pull the published catalog and manifest",
+  login:
+    "Log in to PermDock Cloud with the device flow (RFC 8628) or a loopback redirect (RFC 8252)",
+  logout: "Revoke and delete the stored PermDock Cloud login",
   supabase:
     "Generate the Supabase Custom Access Token Hook, or inspect its manifest",
   powersync:
@@ -70,6 +75,8 @@ export const commands: Readonly<
   rls: async () => (await import("./rls.ts")).rls,
   arazzo: async () => (await import("./arazzo.ts")).arazzo,
   cloud: async () => (await import("./cloud.ts")).cloud,
+  login: async () => (await import("./login.ts")).login,
+  logout: async () => (await import("./login.ts")).logout,
   supabase: async () => (await import("./supabase.ts")).supabase,
   powersync: async () => (await import("./powersync.ts")).powersync,
   codemod: async () => (await import("./codemod.ts")).codemod,

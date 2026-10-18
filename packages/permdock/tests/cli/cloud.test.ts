@@ -1,7 +1,7 @@
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CliIo } from "../../src/cli/types.ts";
 
@@ -11,6 +11,11 @@ import { catalogFingerprint } from "../../src/index.ts";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
 const TMP = join(HERE, "../../tmp");
+
+// Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
+vi.mock("@napi-rs/keyring", () => {
+  throw new Error("@napi-rs/keyring is not installed");
+});
 
 const temps: string[] = [];
 
@@ -174,7 +179,13 @@ describe("permdock cloud push", () => {
     const cwd = appCopy();
     const missing = await run(["cloud", "push"], {
       cwd,
-      io: io({ PERMDOCK_CLOUD_URL: "https://cloud.permdock.test" }),
+      io: io(
+        {
+          PERMDOCK_CLOUD_URL: "https://cloud.permdock.test",
+          XDG_CONFIG_HOME: join(cwd, "..", "no-login"),
+        },
+        () => Promise.resolve(new Response(null, { status: 404 })),
+      ),
     });
     expect(missing.code).toBe(2);
     expect(missing.stdout).toContain("PERMDOCK_CLOUD_KEY");
@@ -193,7 +204,7 @@ describe("permdock cloud push", () => {
   });
 
   it("prints usage for an unknown cloud action", async () => {
-    const result = await run(["cloud", "pull"], { io: io({}) });
+    const result = await run(["cloud", "rotate"], { io: io({}) });
     expect(result.code).toBe(2);
     expect(result.stdout).toContain("cloud push");
   });

@@ -93,6 +93,14 @@ async function register(mutation?: ReferenceCloudMutation): Promise<void> {
     approver: reference.approver,
     subject: reference.subject,
     verifier: reference.verifier,
+    platform: {
+      token: reference.platform.token,
+      unpublished: {
+        project: reference.platform.unpublished,
+        token: reference.platform.login,
+      },
+      registration: true,
+    },
   });
 }
 
@@ -108,9 +116,18 @@ const MUTATIONS: readonly (readonly [ReferenceCloudMutation, RegExp])[] = [
   ["signs-own-types", /refuses to sign/u],
   ["no-idempotency", /Idempotency-Key/u],
   ["replay-subject", /fresh subject token/u],
-  ["json-errors", /shapes cloud-api-v1.json documents|401 Problem Details/u],
+  [
+    "json-errors",
+    /shapes cloud-api-v1.json documents|401 Problem Details without a key/u,
+  ],
   ["drops-reason", /422 with a reason/u],
   ["catalog-always-new", /answers unchanged/u],
+  ["no-ratelimit", /RateLimit fields/u],
+  ["token-writes", /read-only token/u],
+  [
+    "policy-404-plain",
+    /policy-not-published|shapes cloud-api-v1.json documents/u,
+  ],
 ];
 
 for (const [mutation, pattern] of MUTATIONS) {

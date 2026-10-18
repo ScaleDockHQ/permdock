@@ -1,19 +1,21 @@
-Publish the catalog, hostable flags and role assignability to a PermDock Cloud environment (permdock cloud)
+Publish the catalog and policy to a PermDock Cloud project, or pull the published catalog and manifest (permdock cloud)
 
 USAGE permdock cloud [OPTIONS] [ACTION]
 
 ARGUMENTS
 
-  ACTION    push
+  ACTION    push | pull
 
 OPTIONS
 
-          --cwd=<dir>    Run as if started in this directory                  
-      --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})
-               --json    Machine-readable output                              
-            -y, --yes    Never prompt; take the answer the flags give         
-              --color    Styled output on a colour terminal (Default: true)   
-           --no-color    Plain output                                         
-            --dry-run    Print the payload; send nothing                      
-          --url=<url>    Cloud API base URL                                   
-  --environment=<env>    Target environment                                   
+          --cwd=<dir>    Run as if started in this directory                            
+      --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})          
+               --json    Machine-readable output                                        
+            -y, --yes    Never prompt; take the answer the flags give                   
+              --color    Styled output on a colour terminal (Default: true)             
+           --no-color    Plain output                                                   
+            --dry-run    Print the payload; send nothing                                
+          --url=<url>    Cloud API base URL                                             
+  --environment=<env>    Target environment                                             
+       --project=<id>    Cloud project id (the same id as its environment)              
+    --manifest=<file>    Manifest file to send or write (default permdock.manifest.json)

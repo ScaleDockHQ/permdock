@@ -1,6 +1,6 @@
 # Portless
 
-`pnpm dev:portless` runs marketing at `https://permdock.localhost` and docs at `https://docs.permdock.localhost`. Marketing proxies `/docs`, `/mcp`, `/llms.txt` and the other docs routes, so `https://permdock.localhost/docs` is the URL to check. In a git worktree, Portless prefixes the branch: `https://<branch>.permdock.localhost`.
+`pnpm dev:portless` runs marketing at `https://permdock.localhost` and docs at `https://docs.permdock.localhost`. Marketing proxies `/docs` (including the docs MCP at `/docs/mcp`), `/llms.txt` and the other docs routes, so `https://permdock.localhost/docs` is the URL to check. In a git worktree, Portless prefixes the branch: `https://<branch>.permdock.localhost`.
 
 - Check for a running server before starting one: `pnpm exec portless list`. Reuse a PermDock route if it is there.
 - The proxy is shared by every repository on the machine. Never run `portless proxy stop`, `portless clean` or `portless prune`, and never kill a process you did not start. Routes from other projects, such as `app.localhost` or `api.localhost`, belong to other repositories.

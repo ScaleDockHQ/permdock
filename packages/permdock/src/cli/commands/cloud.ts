@@ -16,7 +16,11 @@ export function cloud(ctx: CliContext): Command {
     },
     args: {
       ...globalArgs,
-      action: { type: "positional", required: false, description: "push" },
+      action: {
+        type: "positional",
+        required: false,
+        description: "push | pull",
+      },
       "dry-run": {
         type: "boolean",
         description: "Print the payload; send nothing",
@@ -31,17 +35,30 @@ export function cloud(ctx: CliContext): Command {
         description: "Target environment",
         valueHint: "env",
       },
+      project: {
+        type: "string",
+        description: "Cloud project id (the same id as its environment)",
+        valueHint: "id",
+      },
+      manifest: {
+        type: "string",
+        description:
+          "Manifest file to send or write (default permdock.manifest.json)",
+        valueHint: "file",
+      },
     },
     async run({ args: parsed }) {
       // Lazy: the implementation loads only when this command runs, not for --help.
       const result = await (
-        await import("../cloud.ts")
+        await import("../cloud/push.ts")
       ).runCloud({
         cwd: ctx.cwd,
         config: ctx.config,
         rest: parsed._,
         url: stringArg(parsed.url),
         environment: stringArg(parsed.environment),
+        project: stringArg(parsed.project),
+        manifest: stringArg(parsed.manifest),
         dryRun: parsed["dry-run"] === true,
         json: ctx.json,
         env: ctx.io.env ?? process.env,

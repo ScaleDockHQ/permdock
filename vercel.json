@@ -57,12 +57,6 @@
       }
     },
     {
-      "source": "/mcp",
-      "destination": {
-        "service": "docs"
-      }
-    },
-    {
       "source": "/devtools",
       "destination": {
         "service": "docs"

@@ -11,6 +11,7 @@ import { type Scope, scopeList } from "../../core/scopes.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
 import { requirePolicy } from "../load.ts";
+import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import {
   driftOf,
   pgDeltaPath,
@@ -69,8 +70,6 @@ budget, the claims the hook writes, the membership sources and the columns that 
 --out writes it as JSON, to permdock.manifest.json without a path; --check exits 1 when that
 file differs.
 `;
-
-const MANIFEST_FILE = "permdock.manifest.json";
 
 /** `supabase.hook.out`, else pg-delta's per-schema path under pg-delta, else `supabase/permdock-hook.sql`. */
 export function hookOut(
@@ -212,7 +211,7 @@ function manifestFile(
 ): { readonly code: 0 | 1; readonly output: string } {
   const path = resolve(cwd, rel);
   if (!check) {
-    writeFileEnsuringDir(path, `${JSON.stringify(manifest, null, 2)}\n`);
+    writeFileEnsuringDir(path, formatManifestJson(manifest));
     return { code: 0, output: `wrote ${rel}` };
   }
   if (!existsSync(path)) {

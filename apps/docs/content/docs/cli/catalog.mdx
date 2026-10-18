@@ -3,7 +3,7 @@ title: catalog
 description: Export the permission catalog as JSON, JSON Schema or Markdown, and the shape of the catalog document.
 ---
 
-`permdock catalog` turns the merged permission definition into documents that people, CI and agents read without running the app. It is the read-only sibling of [collect](/docs/cli/collect): `collect` scans source and writes `permissions.catalog.json`; `catalog` renders that catalog (or the runtime definition directly) in the requested format.
+`permdock catalog` turns the merged permission definition into documents that people, CI and agents read without running the app. [collect](/docs/cli/collect) scans source and writes `permissions.catalog.json`; `catalog` builds the same catalog, or reads the runtime definition with `--from`, and renders it in the requested format.
 
 ## Usage
 
@@ -70,7 +70,7 @@ Notes on the shape:
 - `permissions` is a flat array sorted by `key`; nesting (`billing.invoice.pay`) is expressed in the dotted key, and `resource` holds the dotted resource path.
 - `arity` is `instance` or `collection`.
 - `meta` is whatever the definition attached to the action (`title`, `description`, `tags`, or any JSON); it is what MCP tool descriptions and Markdown output use.
-- `schema` is a JSON Schema document; the `target` (`draft-2020-12`, `openapi-3.0`) is selectable with `--schema-target`.
+- `schema` is a JSON Schema document (draft 2020-12).
 - Without a configured `policy`, the catalog has no grants, role details or conditions. With one, `grants` lists every code grant with its portable conditions, approval, fields and validity, in a canonical order ([wire formats](/docs/concepts/wire-formats#catalog)); closures are marked `portable: false` and never serialised. [diff](/docs/cli/diff) compares that section between two versions.
 - The `$schema` URL is the published JSON Schema of the catalog format, which is the same document `--format schema` emits, so agents can validate a catalog offline. The exact hostname is fixed when the docs site launches.
 
@@ -109,7 +109,7 @@ The reader, the `$schema` file and `--format schema` come from one schema consta
 
 - [openapi](/docs/cli/openapi) reads the catalog to emit `securitySchemes` scopes and `x-permdock-permissions`.
 - The MCP adapter uses `meta` for tool descriptions and `arity` to decide whether a `data` loader is required.
-- The docs MCP server (`search`, `list_pages` and `get_page` at `/mcp`) and `llms.txt` expose the Markdown output so agents can ask "which permissions exist?".
+- The docs MCP server (`search`, `list_pages` and `get_page` at `/docs/mcp`) and `llms.txt` expose the Markdown output so agents can ask "which permissions exist?".
 - `permdock/testing` compares a policy matrix against the catalog to find permissions with no test.
 
 ## Related

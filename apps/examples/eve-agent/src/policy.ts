@@ -34,6 +34,7 @@ export const policy = definePolicy(permissions, {
       ? null
       : { id: user.id, orgId: user.orgId, roles: user.roles },
   validate: "boundary",
+  hostable: [permissions.post.publish],
 });
 
 export const memberUser: User = { id: "u1", orgId: "o1", roles: ["member"] };

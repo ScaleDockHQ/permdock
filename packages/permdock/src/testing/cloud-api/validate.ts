@@ -3,7 +3,10 @@ import type { ValidateFunction } from "ajv/dist/2020.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
 
 import { APPROVAL_REQUEST_SCHEMA } from "../../approvals/request-schema.ts";
+import { PUSHED_POLICY_SCHEMA } from "../../catalog/pushed-policy.ts";
+import { catalogSchema } from "../../catalog/schema.ts";
 import { isRecord } from "../../core/compact.ts";
+import { supabaseManifestSchema } from "../../supabase/manifest-schema.ts";
 import { CONNECTOR_SCHEMA } from "./connector-schema.ts";
 import { CLOUD_API_DOCUMENT } from "./document.ts";
 
@@ -79,6 +82,9 @@ export function cloudApiValidator(): CloudApiResponseCheck {
   });
   ajv.addSchema(APPROVAL_REQUEST_SCHEMA);
   ajv.addSchema(CONNECTOR_SCHEMA);
+  ajv.addSchema(catalogSchema);
+  ajv.addSchema(PUSHED_POLICY_SCHEMA);
+  ajv.addSchema(supabaseManifestSchema);
   ajv.addSchema({ ...CLOUD_API_DOCUMENT, $id: DOCUMENT_ID });
   // SAFETY: CLOUD_API_DOCUMENT is this module's own OpenAPI document; every path item maps methods to operations.
   const routes = routesOf(CLOUD_API_DOCUMENT["paths"] as PathItems);
