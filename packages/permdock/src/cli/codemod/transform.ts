@@ -1,12 +1,11 @@
 import { parseSync } from "oxc-parser";
 
-import type { Rename, SignatureChange } from "./renames-0.5.ts";
+import type { Rename } from "./renames-0.5.ts";
 
 import {
   type Edit,
   type Estree,
   applyEdits,
-  bindingsCached,
   lineIndex,
   nameOf,
   nodes,
@@ -15,28 +14,39 @@ import {
   scopeBindings,
   walk,
 } from "./ast.ts";
+import {
+  type CodemodChange,
+  type CodemodFollowUp,
+  type Context,
+  type ImportBinding,
+  type RenameSet,
+  SCRIPT_BLOCK,
+  declaredBetween,
+  edit,
+  importedCallee,
+  isModuleBinding,
+  isPermDockSpecifier,
+  listOf,
+  renameKey,
+  renameOf,
+  replace,
+} from "./context.ts";
+import { finishImports, removableBindings } from "./imports.ts";
+import {
+  awaitRow,
+  reportUnawaited,
+  templateHints,
+  visitAwait,
+  visitComponentArguments,
+  visitElement,
+  visitFunctionCall,
+  visitMethodCall,
+  visitWraps,
+  reportWraps,
+  visitDurations,
+} from "./shapes.ts";
 
-/** One version's rename map: what the codemod rewrites and what it only reports. */
-export type RenameSet = {
-  readonly renames: readonly Rename[];
-  readonly signatures: readonly SignatureChange[];
-};
-
-/** One rewritten span. */
-export type CodemodChange = {
-  readonly line: number;
-  readonly column: number;
-  readonly from: string;
-  readonly to: string;
-};
-
-/** A site the codemod found and left alone because the change needs a person. */
-export type CodemodFollowUp = {
-  readonly line: number;
-  readonly column: number;
-  readonly name: string;
-  readonly message: string;
-};
+export type { CodemodChange, CodemodFollowUp, RenameSet } from "./context.ts";
 
 export type TransformResult = {
   readonly source: string;
@@ -57,61 +67,6 @@ type Segment = {
   readonly keepLocals: boolean;
 };
 
-type Note = {
-  readonly at: number;
-  readonly name: string;
-  readonly message: string;
-};
-
-/** A binding an `import { … } from 'permdock…'` declares at module level. */
-type ImportBinding = {
-  readonly entry: string;
-  readonly imported: string;
-  readonly spec: Estree;
-  readonly rename: Rename | undefined;
-};
-
-type Reference = {
-  readonly node: Estree;
-  readonly place: "reference" | "shorthand" | "export";
-  readonly parent: Estree;
-};
-
-type Context = {
-  readonly program: Estree;
-  readonly set: RenameSet;
-  readonly edits: Edit[];
-  readonly changes: {
-    readonly at: number;
-    readonly from: string;
-    readonly to: string;
-  }[];
-  readonly followUps: Note[];
-  readonly bindings: ReadonlyMap<string, ImportBinding>;
-  readonly namespaces: ReadonlyMap<string, string>;
-  readonly moduleNames: ReadonlySet<string>;
-  /** Unaliased renamed imports, by local name. */
-  readonly renamedLocals: ReadonlyMap<string, Rename>;
-  /** Renamed imports that keep their local name through `to as from`. */
-  readonly kept: Set<string>;
-  readonly references: Reference[];
-  readonly optionRows: readonly Rename[];
-  readonly methodRows: readonly Rename[];
-  /** Module-level constants holding a factory result, to the entry the factory came from. */
-  readonly factories: ReadonlyMap<string, string>;
-  readonly handledKeys: Set<Estree>;
-  readonly scopes: WeakMap<Estree, ReadonlySet<string> | null>;
-};
-
-const SCRIPT_BLOCK = /<script\b([^>]*)>([\s\S]*?)<\/script>/gu;
-
-function isPermDockSpecifier(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    (value === "permdock" || value.startsWith("permdock/"))
-  );
-}
-
 /** Applies `set` to one file's source; `file` picks the parser by extension. */
 export function transformSource(
   file: string,
@@ -122,6 +77,7 @@ export function transformSource(
   const edits: Edit[] = [];
   const changes: CodemodChange[] = [];
   const followUps: CodemodFollowUp[] = [];
+  const components = new Set<string>();
   for (const segment of segmentsOf(file, source)) {
     const result = parseSync(`segment.${segment.lang}`, segment.code, {
       lang: segment.lang,
@@ -135,12 +91,19 @@ export function transformSource(
     if (error !== undefined) {
       return { source, changes: [], followUps: [], error: error.message };
     }
-    // SAFETY: Estree is an all-optional view of the Oxc program, whose nodes all carry `start` and `end`.
-    const ctx = contextFor(result.program as unknown as Estree, set);
+    const ctx = contextFor(
+      // SAFETY: Estree is an all-optional view of the Oxc program, whose nodes all carry `start` and `end`.
+      result.program as unknown as Estree,
+      set,
+      segment,
+    );
     if (ctx === undefined) {
       continue;
     }
     transformProgram(ctx, segment);
+    for (const binding of ctx.bindings.values()) {
+      components.add(`${binding.entry} ${binding.imported}`);
+    }
     const at = (index: number) => position(lineAt, index + segment.offset);
     for (const item of ctx.edits) {
       edits.push({
@@ -160,6 +123,7 @@ export function transformSource(
       });
     }
   }
+  followUps.push(...templateHints(file, source, set, components, lineAt));
   return {
     source: applyEdits(source, edits),
     changes: changes.toSorted(byPosition),
@@ -198,7 +162,11 @@ function segmentsOf(file: string, source: string): readonly Segment[] {
 }
 
 /** The module's `permdock` imports, or `undefined` when it has none. */
-function contextFor(program: Estree, set: RenameSet): Context | undefined {
+function contextFor(
+  program: Estree,
+  set: RenameSet,
+  segment: Segment,
+): Context | undefined {
   const bindings = new Map<string, ImportBinding>();
   const namespaces = new Map<string, string>();
   const entries = new Set<string>();
@@ -219,7 +187,13 @@ function contextFor(program: Estree, set: RenameSet): Context | undefined {
       const imported = nameOf(spec.imported);
       if (spec.type === "ImportSpecifier" && imported !== undefined) {
         const rename = renameOf(set, imported, entry);
-        bindings.set(local, { entry, imported, spec, rename });
+        bindings.set(local, {
+          entry,
+          imported,
+          spec,
+          declaration: statement,
+          rename,
+        });
       }
     }
   }
@@ -236,6 +210,10 @@ function contextFor(program: Estree, set: RenameSet): Context | undefined {
     row.entries.some((entry) => entries.has(entry));
   return {
     program,
+    code: segment.code,
+    keepLocals: segment.keepLocals,
+    consumed: new Set(),
+    additions: new Map(),
     set,
     edits: [],
     changes: [],
@@ -280,38 +258,30 @@ function transformProgram(ctx: Context, segment: Segment): void {
       case "CallExpression":
       case "NewExpression":
         visitCall(ctx, node, ancestors);
+        visitComponentArguments(ctx, node, ancestors);
+        visitMethodCall(ctx, node, ancestors);
+        break;
+      case "JSXOpeningElement":
+        visitElement(ctx, node, ancestors);
+        break;
+      case "AwaitExpression":
+        visitAwait(ctx, node, ancestors);
         break;
       case "ObjectExpression":
         reportOptions(ctx, node);
+        reportWraps(ctx, node, ancestors);
+        visitDurations(ctx, node, ancestors);
         break;
       default:
         break;
     }
   });
-  rewriteImports(ctx);
+  const removed = removableBindings(ctx);
+  rewriteImports(ctx, removed);
   rewriteReferences(ctx);
   rewriteReexports(ctx);
-  reportUncalledSignatures(ctx);
-}
-
-function declaredBetween(
-  ctx: Context,
-  name: string,
-  ancestors: readonly Estree[],
-): boolean {
-  return ancestors.some(
-    (scope) =>
-      scope !== ctx.program &&
-      bindingsCached(scope, ctx.scopes)?.has(name) === true,
-  );
-}
-
-function isModuleBinding(
-  ctx: Context,
-  name: string,
-  ancestors: readonly Estree[],
-): boolean {
-  return ctx.moduleNames.has(name) && !declaredBetween(ctx, name, ancestors);
+  reportUncalledSignatures(ctx, removed);
+  finishImports(ctx, removed);
 }
 
 function visitIdentifier(
@@ -455,10 +425,20 @@ function visitCall(
   if (callee === undefined) {
     return;
   }
+  const pending = awaitRow(ctx, callee);
+  if (pending !== undefined && ancestors.at(-1)?.type !== "AwaitExpression") {
+    reportUnawaited(ctx, node, ancestors, pending);
+  }
   const renamed = renameOf(ctx.set, callee.imported, callee.entry)?.to;
   const names = new Set([callee.imported, renamed]);
+  const moved = visitFunctionCall(ctx, node, callee);
+  visitWraps(ctx, node, callee, ancestors);
   for (const signature of ctx.set.signatures) {
-    if (signature.entries.includes(callee.entry) && names.has(signature.name)) {
+    if (
+      !moved &&
+      signature.entries.includes(callee.entry) &&
+      names.has(signature.name)
+    ) {
       ctx.followUps.push({
         at: node.start,
         name: signature.name,
@@ -484,28 +464,9 @@ function renameOptions(
   rows: readonly Rename[],
 ): void {
   for (const property of nodes(object.properties)) {
-    const key = property.key;
-    const row = rows.find((item) => item.from === nameOf(key));
-    if (row === undefined || key === undefined || property.computed === true) {
-      continue;
-    }
-    ctx.handledKeys.add(key);
-    if (property.shorthand === true) {
-      // An insertion before the value, so a renamed import in the value is rewritten on its own.
-      edit(
-        ctx,
-        { ...property, end: property.start },
-        `${row.to}: `,
-        row.from,
-        row.to,
-      );
-    } else {
-      replace(
-        ctx,
-        key,
-        key.type === "Literal" ? JSON.stringify(row.to) : row.to,
-        row.from,
-      );
+    const row = rows.find((item) => item.from === nameOf(property.key));
+    if (row !== undefined) {
+      renameKey(ctx, property, row.from, row.to);
     }
   }
 }
@@ -532,38 +493,11 @@ function reportOptions(ctx: Context, node: Estree): void {
   }
 }
 
-/** The import a call's callee is bound to: a named import, or a member of a namespace import. */
-function importedCallee(
-  ctx: Context,
-  callee: Estree | undefined,
-  ancestors: readonly Estree[],
-): { readonly entry: string; readonly imported: string } | undefined {
-  if (callee?.type === "Identifier") {
-    const name = callee.name ?? "";
-    return isModuleBinding(ctx, name, ancestors)
-      ? ctx.bindings.get(name)
-      : undefined;
-  }
-  const object =
-    callee?.type === "MemberExpression" && callee.computed !== true
-      ? callee.object
-      : undefined;
-  const namespace =
-    object?.type === "Identifier" &&
-    isModuleBinding(ctx, object.name ?? "", ancestors)
-      ? ctx.namespaces.get(object.name ?? "")
-      : undefined;
-  const imported = callee?.property?.name;
-  return namespace === undefined || imported === undefined
-    ? undefined
-    : { entry: namespace, imported };
-}
-
-function rewriteImports(ctx: Context): void {
+function rewriteImports(ctx: Context, removed: ReadonlySet<string>): void {
   for (const [local, binding] of ctx.bindings) {
     const { rename, spec } = binding;
     const imported = spec.imported;
-    if (rename === undefined || imported === undefined) {
+    if (rename === undefined || imported === undefined || removed.has(local)) {
       continue;
     }
     if (local !== binding.imported) {
@@ -588,7 +522,11 @@ function rewriteReferences(ctx: Context): void {
   for (const { node, place, parent } of ctx.references) {
     const name = node.name ?? "";
     const rename = ctx.renamedLocals.get(name);
-    if (rename === undefined || ctx.kept.has(name)) {
+    if (
+      rename === undefined ||
+      ctx.kept.has(name) ||
+      ctx.consumed.has(node.start)
+    ) {
       continue;
     }
     if (
@@ -633,8 +571,14 @@ function rewriteReexports(ctx: Context): void {
   }
 }
 
-function reportUncalledSignatures(ctx: Context): void {
+function reportUncalledSignatures(
+  ctx: Context,
+  removed: ReadonlySet<string>,
+): void {
   for (const [local, binding] of ctx.bindings) {
+    if (removed.has(local)) {
+      continue;
+    }
     const names = new Set([binding.imported, binding.rename?.to]);
     for (const signature of ctx.set.signatures) {
       const imported =
@@ -651,42 +595,4 @@ function reportUncalledSignatures(ctx: Context): void {
       }
     }
   }
-}
-
-function edit(
-  ctx: Context,
-  node: Estree,
-  text: string,
-  from: string,
-  to: string,
-): void {
-  if (
-    ctx.edits.some((item) => item.start === node.start && item.end === node.end)
-  ) {
-    return;
-  }
-  ctx.edits.push({ start: node.start, end: node.end, text });
-  ctx.changes.push({ at: node.start, from, to });
-}
-
-function replace(ctx: Context, node: Estree, text: string, from: string): void {
-  edit(ctx, node, text, from, text.split(" as ")[0] ?? text);
-}
-
-function renameOf(
-  set: RenameSet,
-  name: string,
-  entry: string,
-): Rename | undefined {
-  return set.renames.find(
-    (row) =>
-      row.from === name &&
-      row.kind !== "option" &&
-      row.kind !== "method" &&
-      row.entries.includes(entry),
-  );
-}
-
-function listOf(items: readonly string[]): string {
-  return new Intl.ListFormat("en-GB", { type: "disjunction" }).format(items);
 }

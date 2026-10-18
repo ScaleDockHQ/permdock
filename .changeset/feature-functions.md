@@ -6,6 +6,7 @@ Feature requests are free functions that take the instance first, so `createPerm
 
 | Before                                            | After                                              |
 | ------------------------------------------------- | -------------------------------------------------- |
+| `permdock.decideRoleChange(change, options)`      | `decideRoleChange(permdock, change, options)`      |
 | `permdock.decideCredential(request, options)`     | `decideCredential(permdock, request, options)`     |
 | `permdock.decideAutomation(request, options)`     | `decideAutomation(permdock, request, options)`     |
 | `permdock.decideSupportSession(request, options)` | `decideSupportSession(permdock, request, options)` |

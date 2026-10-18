@@ -7,18 +7,37 @@ import { CliError } from "../errors.ts";
 import { rel } from "../files.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
 import {
+  AWAIT_RENAMES_0_5,
+  CALL_RENAMES_0_5,
+  DURATION_KEYS_0_5,
+  FUNCTION_METHODS_0_5,
+  METHOD_FUNCTIONS_0_5,
+  OPTION_WRAPS_0_5,
+  PROP_RENAMES_0_5,
+  TEMPLATE_HINTS_0_5,
+} from "./shapes-0.5.ts";
+import {
   type CodemodChange,
   type CodemodFollowUp,
   type RenameSet,
   transformSource,
 } from "./transform.ts";
 
+export const CODEMOD_0_5: RenameSet = Object.freeze({
+  renames: Object.freeze([...RENAMES_0_5, ...CALL_RENAMES_0_5]),
+  signatures: SIGNATURE_CHANGES_0_5,
+  props: PROP_RENAMES_0_5,
+  templates: TEMPLATE_HINTS_0_5,
+  awaits: AWAIT_RENAMES_0_5,
+  methodFunctions: METHOD_FUNCTIONS_0_5,
+  functionMethods: FUNCTION_METHODS_0_5,
+  wraps: OPTION_WRAPS_0_5,
+  durations: DURATION_KEYS_0_5,
+});
+
 /** Each codemod version and the rename map it applies. */
 const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
-  "0.5": Object.freeze({
-    renames: RENAMES_0_5,
-    signatures: SIGNATURE_CHANGES_0_5,
-  }),
+  "0.5": CODEMOD_0_5,
 });
 
 const EXTENSIONS: ReadonlySet<string> = new Set([

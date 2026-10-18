@@ -2,7 +2,7 @@
 "permdock": minor
 ---
 
-Breaking: adapters use one name per meaning. `permdock/server` exports `createPermDock`; server adapters take `deniedResponse`; agent adapters take `deniedText` and `operations`; adapter type names start with the adapter. Run `permdock codemod 0.5` for the renames below. The call-shape changes in the second table need a manual edit.
+Breaking: adapters use one name per meaning. `permdock/server` exports `createPermDock`; server adapters take `deniedResponse`; agent adapters take `deniedText` and `operations`; adapter type names start with the adapter. Run `permdock codemod 0.5` for the renames below. The call-shape changes in the second table need a manual edit, except `permittedIds` and `mayUse`, which the codemod rewrites.
 
 | Old                           | New                                | Entries                                                                                                          |
 | ----------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -36,6 +36,5 @@ Breaking: adapters use one name per meaning. `permdock/server` exports `createPe
 | `app.register(permdock)` on `permdock/fastify`                   | `app.register(middleware())`               |
 | `app.register(permdockHandler, opts)` on `permdock/fastify`      | `app.register(permdockHandler(), opts)`    |
 | `permdockHandler(request)` on `permdock/trpc`, `orpc`, `authzen` | `permdockHandler()(request)`               |
-| `decideCredential(permdock, request)` from `permdock`            | `permdock.decideCredential(request)`       |
 | `permittedIds(permdock, permission, scope)` from `permdock`      | `permdock.permittedIds(permission, scope)` |
 | `mayUse(permdock, permission)` from `permdock`                   | `permdock.mayUse(permission)`              |
