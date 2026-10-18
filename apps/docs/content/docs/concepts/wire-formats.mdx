@@ -914,6 +914,47 @@ Output of `permdock collect` and `permdock catalog --format json`. The same list
 
 `POST /catalog` on PermDock Cloud answers `201 { version, fingerprint, findings }` for a new catalog version, where `findings` are the `CatalogFinding` items of a `com.permdock.catalog.drift` event, or `200 { version, fingerprint, unchanged: true }` when the fingerprint is already published. `cloud().catalog.push` returns it as `CloudCatalogPush` ([PermDock Cloud](/docs/adapters/cloud)).
 
+## Pushed policy
+
+The `policy` of a `permdock cloud push` body is a PushedPolicy v1, validated by `schemas/pushed-policy-v1.json` and built by `pushedPolicy(policy)`:
+
+```json
+{
+  "v": 1,
+  "fingerprint": "sha-256:…",
+  "scopes": [{ "name": "organization", "key": "organization_id" }],
+  "grants": [
+    {
+      "permission": "invoice.read",
+      "effect": "allow",
+      "role": "member",
+      "to": { "kind": "role", "role": "member", "scope": "organization" },
+      "where": {
+        "op": "eq",
+        "field": "ownerId",
+        "value": { "ref": "principal.id" }
+      }
+    },
+    {
+      "permission": "invoice.share",
+      "effect": "allow",
+      "role": "member",
+      "to": { "kind": "role", "role": "member", "scope": "global" },
+      "portable": false,
+      "closure": true
+    }
+  ]
+}
+```
+
+- `fingerprint` is the code policy's `fingerprint`; `scopes` appears only when the policy declares scopes.
+- Each grant carries the snapshot grant fields (`permission`, `effect`, `role`, `to`, `where`, `check`, `approval`, `scope`, `fields`) plus `limit`, `validity`, `name`, `purpose`, `requires`, `viaOnly`, `breakGlass`, `obligations` and `meta` when the grant has them.
+- `portable: false` marks a grant a snapshot cannot evaluate. `closure: true` marks one whose condition is code: the function never travels, and `policyFromCatalog(catalog, pushed)` turns it into an allow that never matches and a deny that always applies.
+
+## Project policy
+
+`GET /v1/projects/{id}/policy` on PermDock Cloud answers what the project's last push sent: `{ v: 1, project, version, fingerprint, permdockVersion, catalog, manifest?, policy? }`. `catalog` is a catalog-v1 document, `manifest` a Supabase hook manifest and `policy` a PushedPolicy, each with its JSON members in the order they were pushed, so `permdock cloud pull` writes the same bytes as `collect` and `supabase inspect --out`. `fingerprint` equals `catalogFingerprint(catalog)`. A project with nothing pushed answers `404` with the `policy-not-published` problem ([Problem Details](/docs/standards/problem-details)).
+
 ## Connector
 
 A PermDock Cloud connector is `{ id?, kind, name, config }`. The JSON Schema is `schemas/connector-v1.json`, one `oneOf` branch per `kind`, each `config` closed with `additionalProperties: false` and every URL `https://`:

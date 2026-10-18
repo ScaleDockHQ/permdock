@@ -25,7 +25,7 @@ Model readability is a design goal: an agent that receives a 403 should be able 
 
 `assert` runs layered unauthorized handlers and rethrows `PermDockDeniedError` or `PermDockApprovalRequiredError`; the [server kernel](/docs/adapters/server-kernel) converts those errors into `application/problem+json` with the status `protect` sends for the same decision: 401 for no subject or a missing step-up, 404 for a hidden row, 429 for an exhausted limit, 503 for an unavailable limit store, 403 otherwise.
 
-PermDock defines a `type` URI only where `about:blank` says too little: the nine types under [Problem types](#problem-types). Every other answer is `about:blank`, with the RFC 9110 reason phrase as `title` (RFC 9457 section 4.2.1). That covers 401 without a step-up, 404 for an unknown path, a missing row or a hidden one, 405 (sent with `Allow`), 409, 412, 413 for an oversized `evaluations` batch or a request body over its byte cap, and 500 when an approval store throws:
+PermDock defines a `type` URI only where `about:blank` says too little: the nine types under [Problem types](#problem-types) that the package emits, plus `policy-not-published` from PermDock Cloud. Every other answer is `about:blank`, with the RFC 9110 reason phrase as `title` (RFC 9457 section 4.2.1). That covers 401 without a step-up, 404 for an unknown path, a missing row or a hidden one, 405 (sent with `Allow`), 409, 412, 413 for an oversized `evaluations` batch or a request body over its byte cap, and 500 when an approval store throws:
 
 ```json
 {
@@ -287,11 +287,24 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
 }
 ```
 
+### policy-not-published
+
+404. The [projects read API](/docs/adapters/cloud#projects-read-api) of PermDock Cloud answers it for a project that exists but has no pushed catalog yet; the package never emits it. `permdock cloud pull` and `rls generate --project` print it and exit `1`.
+
+```json
+{
+  "type": "https://permdock.com/problems/policy-not-published",
+  "title": "Policy not published",
+  "status": 404,
+  "detail": "project prj_123 has no pushed catalog; run permdock cloud push"
+}
+```
+
 ## Mapping table
 
 | RFC 9457 member                                   | PermDock value                                                                                                                                                                      |
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `type`                                            | One of the nine URIs under [Problem types](#problem-types), or `about:blank`                                                                                                        |
+| `type`                                            | One of the URIs under [Problem types](#problem-types), or `about:blank`                                                                                                             |
 | `title`                                           | Fixed per type; for `about:blank`, the RFC 9110 reason phrase                                                                                                                       |
 | `status`                                          | Fixed per type: the number in each heading under [Problem types](#problem-types)                                                                                                    |
 | `detail`                                          | Model-readable sentence built from `Decision` reasons and `alternatives`                                                                                                            |

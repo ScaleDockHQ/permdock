@@ -809,6 +809,17 @@ PermDock's integration suite checks the split with `@pgkit/migra`, the engine `s
 5. If the linked project has drifted from the migrations, run `supabase db pull` first so they match it. Then run `supabase db schema declarative sync --no-apply -f permdock_pg_delta`. With the grants migrations from migra applied it finds no schema changes. A migration it does write holds a difference migra never diffed, such as a function privilege set by hand: review it before committing. The grants migrations stay in the history.
 6. Replace `supabase db diff` with `declarative sync` in the scripts and CI, and run `permdock doctor`.
 
+### Generate from a Cloud project
+
+`--project <id>` builds the policy from a PermDock Cloud project instead of `permdock.config.ts`. `rls generate` reads `GET /v1/projects/:id/policy` ([projects API](/docs/adapters/cloud#projects-read-api)) and passes its catalog and PushedPolicy to `policyFromCatalog(catalog, pushed)`; every other flag, the table mapping (`rls.tables` or `--from drizzle`) and every output path stay as they are. The policy the Cloud holds is what the last [cloud push](/docs/cli/cloud) sent, so the SQL matches what the pushing project generates locally.
+
+```bash
+permdock login && permdock rls generate --project prj_123 --target sql --out supabase/schemas/permdock.sql
+PERMDOCK_CLOUD_TOKEN=... permdock rls generate --project production --check
+```
+
+The bearer is `PERMDOCK_CLOUD_TOKEN` when it is set, otherwise the stored [login](/docs/cli/login). A grant whose condition is a closure arrives as `closure: true`: the rebuilt allow never matches and the rebuilt deny always applies, so the generated SQL is never more permissive than the code. A project whose push carried no policy exits `1` with the `https://permdock.com/problems/policy-not-published` problem. `--project` with a `--from` policy module, or with an action other than `generate`, is a usage error.
+
 ### Helpers only
 
 `--helpers-only` (or `rls.helpersOnly: true`) writes the helpers, their `role_permissions` seeds and the scaffold, and no table policies, grants or `enable row level security`. Add `rls.rowHelpers: true` (or a list of resources) for `permitted_<resource>_rows('<permission>')`, the rows one permission reaches with every graph and `requires` rule applied, so the hand-written policies call it instead of restating closure walks and link hops ([row helpers](/docs/adapters/rls#row-helpers)). It is for a project whose policies stay hand-written and call `permdock_has`, `permitted_<scope>_ids` and `member_<scope>_ids` directly, usually after [`migrate`](#migrate) has moved them off a home-grown set of helpers. It needs `--target sql` and combines with `--split helpers` (a `policies` part is an error). With `--fields views` it also writes the [field views](/docs/adapters/rls#field-security), in the output or the `helpers` part, so a portal role whose grants list `fields` reads its columns through `<table>_visible` while the row policies stay hand-written; `--revoke-columns` is refused, because the table grants are yours, so revoke the restricted columns from client roles in them. With `rls.readOnlyActors`, call `permdock_actor_may_write()` from each hand-written write policy ([read-only actors](#read-only-actors)). `verify --introspect` then checks the helpers and the hand-written policies' keys instead of the generated policies.
