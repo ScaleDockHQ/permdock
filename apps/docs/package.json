@@ -17,7 +17,6 @@
   "dependencies": {
     "@ai-sdk/otel": "catalog:",
     "@ai-sdk/react": "catalog:",
-    "@fumadocs/local-md": "catalog:",
     "@modelcontextprotocol/server": "catalog:",
     "@permdock/next-config": "workspace:*",
     "@permdock/ui": "workspace:*",

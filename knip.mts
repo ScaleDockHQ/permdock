@@ -17,7 +17,7 @@ const config: KnipConfig = {
       ignoreDependencies: ["supports-color"],
     },
     "apps/docs": {
-      // `@fumadocs/local-md` loads shiki at runtime; it must be a direct dependency to be externalised.
+      // `@permdock/ui` code blocks import shiki, which Next.js externalises; it must resolve from the app.
       ignoreDependencies: ["shiki"],
     },
     "apps/marketing": {

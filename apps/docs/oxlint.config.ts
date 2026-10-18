@@ -23,10 +23,10 @@ export default defineConfig({
       },
     },
     {
-      files: ["lib/changelog.ts"],
+      files: ["markdown.d.ts"],
       rules: {
-        // Turbopack leaves `import.meta.dirname` undefined; `import.meta.url` survives bundling (1 finding).
-        "unicorn/prefer-import-meta-properties": "off",
+        // A wildcard ambient module declaration only works in a script file (1 finding).
+        "import/unambiguous": "off",
       },
     },
   ],

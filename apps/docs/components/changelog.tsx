@@ -1,21 +1,21 @@
-import { DocsBody, DocsPage } from "fumadocs-ui/layouts/docs/page";
-import { notFound } from "next/navigation";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+} from "fumadocs-ui/layouts/docs/page";
 
 import { getMDXComponents } from "@/components/mdx";
-import { loadChangelog } from "@/lib/changelog";
+import { ChangelogBody, changelogToc } from "@/lib/changelog";
 
-export async function Changelog() {
-  "use cache";
-
-  const page = await loadChangelog();
-  if (!page) notFound();
-
-  const renderer = await page.data.load();
-  const { body, toc } = await renderer.render(getMDXComponents());
-
+export function Changelog() {
   return (
-    <DocsPage toc={toc}>
-      <DocsBody>{body}</DocsBody>
+    <DocsPage toc={changelogToc}>
+      <DocsTitle>Changelog</DocsTitle>
+      <DocsDescription>Every PermDock release, newest first.</DocsDescription>
+      <DocsBody className="[&>h1:first-child]:hidden">
+        <ChangelogBody components={getMDXComponents()} />
+      </DocsBody>
     </DocsPage>
   );
 }

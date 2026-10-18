@@ -1,26 +1,14 @@
-import { localMd } from "@fumadocs/local-md";
-import { loader } from "fumadocs-core/source";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import * as v from "valibot";
+import type { TOCItemType } from "fumadocs-core/toc";
 
+// The bundler compiles the root changelog into the build. A path resolved at
+// runtime from `import.meta.url` points into `.next/server` and finds nothing,
+// and a content collection rooted at the repository watches every workspace.
+import ChangelogMarkdown, { toc } from "../../../CHANGELOG.md";
 import { docsRoute } from "./shared";
 
 export const changelogRoute = `${docsRoute}/changelog`;
 
-const changelogMd = localMd({
-  dir: path.join(path.dirname(fileURLToPath(import.meta.url)), "../../.."),
-  include: ["CHANGELOG.md"],
-  frontmatterSchema: v.object({
-    title: v.optional(v.string(), "Changelog"),
-    description: v.optional(v.string()),
-  }),
-});
+export const ChangelogBody = ChangelogMarkdown;
 
-export async function loadChangelog() {
-  const source = loader({
-    baseUrl: docsRoute,
-    source: await changelogMd.staticSource(),
-  });
-  return source.getPages().at(0);
-}
+/** The release headings; the file's own H1 repeats the page title. */
+export const changelogToc: TOCItemType[] = toc.filter((item) => item.depth > 1);
