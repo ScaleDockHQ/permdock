@@ -1,6 +1,7 @@
 import type { Rename, SignatureChange } from "./renames-0.5.ts";
 import type {
   AwaitRename,
+  DurationKeys,
   FunctionToMethod,
   MethodToFunction,
   OptionWrap,
@@ -28,6 +29,7 @@ export type RenameSet = {
   readonly methodFunctions?: readonly MethodToFunction[];
   readonly functionMethods?: readonly FunctionToMethod[];
   readonly wraps?: readonly OptionWrap[];
+  readonly durations?: DurationKeys;
 };
 
 /** One rewritten span. */

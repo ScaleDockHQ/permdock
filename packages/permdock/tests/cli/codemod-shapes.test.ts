@@ -497,3 +497,56 @@ describe("feature options", () => {
     ]);
   });
 });
+
+describe("duration strings", () => {
+  it("turns duration strings into seconds inside a call to a PermDock import", () => {
+    const result = apply(
+      [
+        'import { definePolicy } from "permdock";',
+        "export const policy = definePolicy({",
+        "  approval: { ttl: '30m', escalation: { after: \"2h\" } },",
+        "  activation: { maxDuration: '4h' },",
+        "  consent: { durations: ['1d', '1w', 3600] },",
+        "  limit: { per: '1h', count: 5 },",
+        "  label: { ttl: 'soon' },",
+        "});",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n").slice(2, 7)).toEqual([
+      "  approval: { ttl: 1800, escalation: { after: 7200 } },",
+      "  activation: { maxDuration: 14400 },",
+      "  consent: { durations: [86400, 604800, 3600] },",
+      "  limit: { per: 3600, count: 5 },",
+      "  label: { ttl: 'soon' },",
+    ]);
+    expect(result.changes.map((item) => [item.from, item.to])).toEqual([
+      ["30m", "1800"],
+      ["2h", "7200"],
+      ["4h", "14400"],
+      ["1d", "86400"],
+      ["1w", "604800"],
+      ["1h", "3600"],
+    ]);
+  });
+
+  it("reports a duration string outside a PermDock call and leaves other calls alone", () => {
+    const result = apply(
+      [
+        'import { definePolicy } from "permdock";',
+        'import { cache } from "./cache";',
+        "export const approval = { ttl: '30m' };",
+        "export const store = cache({ ttl: '5m' });",
+        "export const zero = definePolicy({ ttl: '0s' });",
+      ],
+      "file.ts",
+    );
+    expect(result.changes).toEqual([]);
+    expect(result.followUps.map((item) => [item.line, item.message])).toEqual([
+      [
+        3,
+        'duration `"30m"` is `1800` (seconds) when this object reaches PermDock',
+      ],
+    ]);
+  });
+});

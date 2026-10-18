@@ -476,3 +476,84 @@ export function reportWraps(
     }
   }
 }
+
+const UNIT_SECONDS: Readonly<Record<string, number>> = Object.freeze({
+  s: 1,
+  m: 60,
+  h: 3600,
+  d: 86_400,
+  w: 604_800,
+});
+
+function seconds(value: Estree | undefined): number | undefined {
+  if (value?.type !== "Literal" || typeof value.value !== "string") {
+    return undefined;
+  }
+  const match = /^\s*(\d+)([smhdw])\s*$/u.exec(value.value);
+  const amount = Number(match?.[1]);
+  const unit = UNIT_SECONDS[match?.[2] ?? ""];
+  return unit === undefined || !(amount > 0) ? undefined : amount * unit;
+}
+
+function insidePermDockCall(
+  ctx: Context,
+  object: Estree,
+  ancestors: readonly Estree[],
+): boolean {
+  const chain = [...ancestors, object];
+  return ancestors.some(
+    (node, index) =>
+      (node.type === "CallExpression" || node.type === "NewExpression") &&
+      nodes(node.arguments).includes(chain[index + 1] ?? node) &&
+      importedCallee(ctx, node.callee, ancestors.slice(0, index)) !== undefined,
+  );
+}
+
+export function visitDurations(
+  ctx: Context,
+  node: Estree,
+  ancestors: readonly Estree[],
+): void {
+  const keys = ctx.set.durations;
+  if (keys === undefined) {
+    return;
+  }
+  const rewrite = insidePermDockCall(ctx, node, ancestors);
+  const parent = ancestors.at(-1);
+  if (!rewrite && nodes(parent?.arguments).includes(node)) {
+    return;
+  }
+  for (const property of nodes(node.properties)) {
+    const key = nameOf(property.key);
+    const value = child(property, "value");
+    const literals =
+      key !== undefined && keys.keys.includes(key)
+        ? [value]
+        : key !== undefined &&
+            keys.lists.includes(key) &&
+            value?.type === "ArrayExpression"
+          ? nodes(value.elements)
+          : [];
+    for (const literal of literals) {
+      const total = seconds(literal);
+      if (literal === undefined || total === undefined) {
+        continue;
+      }
+      const text = String(literal.value);
+      if (rewrite) {
+        ctx.edits.push({
+          start: literal.start,
+          end: literal.end,
+          text: String(total),
+        });
+        ctx.changes.push({ at: literal.start, from: text, to: String(total) });
+      } else {
+        ctx.followUps.push({
+          at: literal.start,
+          name: key ?? text,
+          message: `duration \`"${text}"\` is \`${total}\` (seconds) when this object reaches PermDock`,
+        });
+      }
+    }
+  }
+}

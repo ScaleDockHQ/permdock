@@ -43,6 +43,7 @@ import {
   visitMethodCall,
   visitWraps,
   reportWraps,
+  visitDurations,
 } from "./shapes.ts";
 
 export type { CodemodChange, CodemodFollowUp, RenameSet } from "./context.ts";
@@ -269,6 +270,7 @@ function transformProgram(ctx: Context, segment: Segment): void {
       case "ObjectExpression":
         reportOptions(ctx, node);
         reportWraps(ctx, node, ancestors);
+        visitDurations(ctx, node, ancestors);
         break;
       default:
         break;

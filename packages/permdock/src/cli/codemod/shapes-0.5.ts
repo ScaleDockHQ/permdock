@@ -46,6 +46,11 @@ export type OptionWrap = {
   readonly reportElsewhere: boolean;
 };
 
+export type DurationKeys = {
+  readonly keys: readonly string[];
+  readonly lists: readonly string[];
+};
+
 const JSX_KITS = [
   "permdock/react",
   "permdock/react-native",
@@ -163,3 +168,8 @@ export const OPTION_WRAPS_0_5: readonly OptionWrap[] = Object.freeze([
     reportElsewhere: false,
   },
 ]);
+
+export const DURATION_KEYS_0_5: DurationKeys = Object.freeze({
+  keys: ["ttl", "after", "per", "window", "maxDuration", "duration"],
+  lists: ["durations"],
+});
