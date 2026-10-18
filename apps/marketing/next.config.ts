@@ -45,7 +45,6 @@ export default function nextConfig(phase: string): NextConfig {
           { source: "/docs/:path*", destination: `${docsOrigin}/docs/:path*` },
           { source: "/docs.md", destination: `${docsOrigin}/docs.md` },
           { source: "/api/search", destination: `${docsOrigin}/api/search` },
-          { source: "/mcp", destination: `${docsOrigin}/mcp` },
           { source: "/devtools", destination: `${docsOrigin}/devtools` },
           { source: "/llms.txt", destination: `${docsOrigin}/llms.txt` },
           {

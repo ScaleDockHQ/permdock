@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "permdock-docs": {
-      "url": "https://permdock.com/mcp"
+      "url": "https://permdock.com/docs/mcp"
     },
     "vercel": {
       "url": "https://mcp.vercel.com"

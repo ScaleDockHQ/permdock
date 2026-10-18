@@ -2,7 +2,7 @@
   "servers": {
     "permdock-docs": {
       "type": "http",
-      "url": "https://permdock.com/mcp"
+      "url": "https://permdock.com/docs/mcp"
     },
     "vercel": {
       "type": "http",

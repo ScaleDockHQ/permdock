@@ -3,7 +3,7 @@ title: For AI agents
 description: How a coding agent should install, wire, check and audit PermDock, and how PermDock's errors and denials are written for models.
 ---
 
-PermDock's second audience is the coding agent working in a TypeScript repository. Every page, skill, error message and CLI report is written so that an agent can wire PermDock end-to-end, verify its work and explain a denial without reading library source. This page is the entry point for that agent. The `permdock` skill and the `permdock-*` skills ship in the `permdock` package. Point an MCP client at `https://permdock.com/mcp` for search and page-fetch; [agent docs standards](/docs/standards/agent-docs-standards#docs-mcp) has install links for Cursor and VS Code and the Claude Code command.
+PermDock's second audience is the coding agent working in a TypeScript repository. Every page, skill, error message and CLI report is written so that an agent can wire PermDock end-to-end, verify its work and explain a denial without reading library source. This page is the entry point for that agent. The `permdock` skill and the `permdock-*` skills ship in the `permdock` package. Point an MCP client at `https://permdock.com/docs/mcp` for search and page-fetch; [agent docs standards](/docs/standards/agent-docs-standards#docs-mcp) has install links for Cursor and VS Code and the Claude Code command.
 
 ## Start here
 
@@ -28,9 +28,9 @@ The same skills ship inside the `permdock` npm package and can be installed with
 | `.agents/rules/*.mdc`                          | repository root, linked into `.cursor/rules` and `.claude/rules` | Maintainer rules attached by path: invariants, naming, docs, "when you change X also update Y", testing, prose |
 | `llms.txt`, `llms-full.txt`                    | docs site root, and under `/docs`                                | Index and full text of the docs for context loading                                                            |
 | `.md` per page                                 | append `.md` to any docs URL                                     | Read one page as Markdown without HTML                                                                         |
-| Docs MCP server                                | `POST /mcp` (`search`, `list_pages`, `get_page`)                 | Search and read docs from inside an MCP-capable agent                                                          |
+| Docs MCP server                                | `POST /docs/mcp` (`search`, `list_pages`, `get_page`)            | Search and read docs from inside an MCP-capable agent                                                          |
 | Docs WebMCP tools                              | every docs page (`search_docs`, `read_page`, `open_page`)        | Search and read docs from the browser's own agent; experimental, Chrome 149+ behind a flag                     |
-| Cloud MCP server                               | `https://mcp.permdock.com`                                       | Read-only evidence, catalog and pending approvals; never resolves an approval                                  |
+| Cloud MCP server                               | `https://permdock.com/mcp`                                       | Read-only evidence, catalog and pending approvals; never resolves an approval                                  |
 | `permissions.catalog.json` and its JSON Schema | app repository, `permdock catalog --format schema`               | Know which permissions exist, their arity, scopes and metadata                                                 |
 | `permdock doctor --json`                       | app repository                                                   | Machine-readable findings with stable codes and fixes                                                          |
 | Example apps                                   | `apps/examples/<adapter>`                                        | Working code for every adapter, each checked by `permdock doctor`                                              |

@@ -324,7 +324,7 @@ npx skills add ScaleDockHQ/PermDock   # the permdock, permdock-wire, permdock-au
 permdock skills                       # the same skills, offline, from node_modules/permdock/skills
 ```
 
-Claude Code users can add the plugin marketplace instead: `/plugin marketplace add ScaleDockHQ/permdock`. Every docs page is served as Markdown, with `llms.txt`, `llms-full.txt` and a docs MCP server at `https://permdock.com/mcp`. Read [for AI agents](https://permdock.com/docs/for-ai-agents).
+Claude Code users can add the plugin marketplace instead: `/plugin marketplace add ScaleDockHQ/permdock`. Every docs page is served as Markdown, with `llms.txt`, `llms-full.txt` and a docs MCP server at `https://permdock.com/docs/mcp`. Read [for AI agents](https://permdock.com/docs/for-ai-agents).
 
 ## License
 

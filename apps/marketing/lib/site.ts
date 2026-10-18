@@ -29,8 +29,8 @@ export const site = {
   docs: "/docs",
   cloud: {
     app: "https://app.permdock.com",
-    api: "https://api.permdock.com",
-    mcp: "https://mcp.permdock.com",
+    api: "https://permdock.com/api",
+    mcp: "https://permdock.com/mcp",
   },
 } as const;
 

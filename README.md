@@ -75,7 +75,7 @@ Every entry has a page under [`apps/docs/content/docs/adapters`](./apps/docs/con
 
 - Consumers: `npx skills add ScaleDockHQ/PermDock` installs the `permdock` skill, `permdock-wire`, `permdock-audit` and the topic skills. Claude Code can add the marketplace in [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json) with `/plugin marketplace add ScaleDockHQ/permdock`.
 - Maintainers: [`AGENTS.md`](./AGENTS.md) (imported by `CLAUDE.md`) is the entry point, and the topic rules in [`.agents/rules`](./.agents/rules) attach by path in Cursor and Claude Code.
-- Every docs page is served as Markdown, with `llms.txt`, `llms-full.txt` and a public docs MCP server at `https://permdock.com/mcp`. Read [For AI agents](./apps/docs/content/docs/for-ai-agents.mdx).
+- Every docs page is served as Markdown, with `llms.txt`, `llms-full.txt` and a public docs MCP server at `https://permdock.com/docs/mcp`. Read [For AI agents](./apps/docs/content/docs/for-ai-agents.mdx).
 
 ## Develop locally
 
@@ -108,7 +108,7 @@ No environment variables are needed for build, verify or test; `.env.example` li
 | --------- | ------------------------------------------------------------------------------- |
 | Marketing | `https://permdock.localhost`                                                    |
 | Docs      | `https://permdock.localhost/docs` (served by `https://docs.permdock.localhost`) |
-| Docs MCP  | `https://permdock.localhost/mcp`                                                |
+| Docs MCP  | `https://permdock.localhost/docs/mcp`                                           |
 
 In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`. Without Portless, `pnpm dev:marketing` serves `http://localhost:3000` with docs on `:3001`.
 
@@ -156,7 +156,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 
 ## Deploy
 
-The marketing and docs apps deploy as two Vercel Services of one project, declared in `vercel.json`, at `https://permdock.com`. Marketing owns `/` and docs owns `/docs`, `/mcp` and the `llms` routes on the same origin. Only `main` deploys (`git.deploymentEnabled`); other branches, including `changeset-release/*`, do not. Each service builds only when `turbo query affected` reports it changed. Functions run in `fra1`, and Ask AI reaches the AI Gateway through Vercel OIDC, with no API key. Route ownership and the build commands are in [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc); the exceptions to the repo standard are in [`docs/decisions`](./docs/decisions/README.md).
+The marketing and docs apps deploy as two Vercel Services of one project, declared in `vercel.json`, at `https://permdock.com`. Marketing owns `/` and docs owns `/docs` (with the docs MCP at `/docs/mcp`) and the `llms` routes on the same origin. Only `main` deploys (`git.deploymentEnabled`); other branches, including `changeset-release/*`, do not. Each service builds only when `turbo query affected` reports it changed. Functions run in `fra1`, and Ask AI reaches the AI Gateway through Vercel OIDC, with no API key. Route ownership and the build commands are in [`.agents/rules/deployment.mdc`](./.agents/rules/deployment.mdc); the exceptions to the repo standard are in [`docs/decisions`](./docs/decisions/README.md).
 
 ## Contributing
 

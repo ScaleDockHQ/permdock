@@ -58,7 +58,7 @@ Plain and technical, written for an engineer or a coding agent about to wire it 
 
 ## Business model
 
-The library is and stays MIT. PermDock Cloud is an optional hosted service built on the same public interfaces, in the separate `PermDock-Cloud` repository: dashboard [app.permdock.com](https://app.permdock.com), API [api.permdock.com](https://api.permdock.com), read-only MCP [mcp.permdock.com](https://mcp.permdock.com). It is never on the decision path: every decision runs in the application's process, and a Cloud outage never changes an outcome.
+The library is and stays MIT. PermDock Cloud is an optional hosted service built on the same public interfaces, in the separate `PermDock-Cloud` repository: dashboard [app.permdock.com](https://app.permdock.com), API [permdock.com/api](https://permdock.com/api), read-only MCP [permdock.com/mcp](https://permdock.com/mcp). It is never on the decision path: every decision runs in the application's process, and a Cloud outage never changes an outcome.
 
 What the Cloud sells:
 

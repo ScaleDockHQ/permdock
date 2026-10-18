@@ -88,7 +88,7 @@ describe("renderLlmsIndex", () => {
 
   it("points at the full text, the MCP server and the skills", () => {
     expect(index).toContain(`(${siteUrl}/llms-full.txt)`);
-    expect(index).toContain(`\`${siteUrl}/mcp\``);
+    expect(index).toContain(`\`${siteUrl}/docs/mcp\``);
     expect(index).toContain("npx skills add ScaleDockHQ/PermDock");
   });
 

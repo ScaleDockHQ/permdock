@@ -121,7 +121,7 @@ export function renderLlmsIndex(
     "Every link below is the page as Markdown; append `.md` to any docs URL for the same.",
     "",
     `- [Full text](${options.siteUrl}/llms-full.txt): every page in one file`,
-    `- Docs MCP server: \`${options.siteUrl}/mcp\` with the \`search\`, \`list_pages\` and \`get_page\` tools`,
+    `- Docs MCP server: \`${options.siteUrl}/docs/mcp\` with the \`search\`, \`list_pages\` and \`get_page\` tools`,
     "- Agent Skills: `npx skills add ScaleDockHQ/PermDock`",
     ...renderNodes(lead, 3, options),
   ];

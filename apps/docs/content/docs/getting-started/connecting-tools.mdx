@@ -7,19 +7,19 @@ These docs are readable by agents in three forms: a remote MCP server, Markdown 
 
 ## Docs MCP server
 
-`https://permdock.com/mcp` is a Streamable HTTP MCP server named `permdock-docs`. Its tools search the docs and read pages; they are read-only, take no subject, token or policy, and need no authentication, so there is no OAuth consent step.
+`https://permdock.com/docs/mcp` is a Streamable HTTP MCP server named `permdock-docs`. Its tools search the docs and read pages; they are read-only, take no subject, token or policy, and need no authentication, so there is no OAuth consent step.
 
 | Client      | Install                                                                                                                                                    |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cursor      | [Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=permdock-docs&config=eyJ1cmwiOiJodHRwczovL3Blcm1kb2NrLmNvbS9tY3AifQ==)                 |
+| Cursor      | [Add to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=permdock-docs&config=eyJ1cmwiOiJodHRwczovL3Blcm1kb2NrLmNvbS9kb2NzL21jcCJ9)             |
 | VS Code     | [Add to VS Code](vscode:mcp/install?%7B%22name%22%3A%22permdock-docs%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fpermdock.com%2Fmcp%22%7D) |
-| Claude Code | `claude mcp add --transport http permdock-docs https://permdock.com/mcp`                                                                                   |
-| Other       | A remote server entry with `url` set to `https://permdock.com/mcp`                                                                                         |
+| Claude Code | `claude mcp add --transport http permdock-docs https://permdock.com/docs/mcp`                                                                              |
+| Other       | A remote server entry with `url` set to `https://permdock.com/docs/mcp`                                                                                    |
 
 ```json title=".cursor/mcp.json"
 {
   "mcpServers": {
-    "permdock-docs": { "url": "https://permdock.com/mcp" }
+    "permdock-docs": { "url": "https://permdock.com/docs/mcp" }
   }
 }
 ```
