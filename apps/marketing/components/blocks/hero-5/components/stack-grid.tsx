@@ -145,12 +145,12 @@ function Tile({
         initial={{ opacity: 0, scale: 0.86 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{
-          opacity: { duration: 0.5, delay: index * 0.06 },
+          opacity: { duration: 0.3, delay: Math.min(index, 5) * 0.05 },
           scale: {
             type: "spring",
-            stiffness: 240,
-            damping: 22,
-            delay: index * 0.06,
+            visualDuration: 0.25,
+            bounce: 0,
+            delay: Math.min(index, 5) * 0.05,
           },
         }}
       >
@@ -160,12 +160,12 @@ function Tile({
           animate={lifted ? { y: 0 } : { y: [0, -6, 0] }}
           transition={
             lifted
-              ? { type: "spring", stiffness: 210, damping: 26 }
+              ? { type: "spring", visualDuration: 0.25, bounce: 0 }
               : {
+                  // Each tile has its own period, so the floats never line up.
                   duration: tile.period,
                   ease: "easeInOut",
                   repeat: Infinity,
-                  delay: index * 0.24,
                 }
           }
         >
@@ -223,7 +223,7 @@ function Callout({ tile }: { tile: StackTile }) {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 6 }}
-      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
     >
       <line
         x1={cx}

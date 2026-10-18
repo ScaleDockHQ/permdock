@@ -16,6 +16,12 @@ Colours are shadcn/ui CSS variables in OKLCH, neutral base, with a `.dark` overr
 | Lines and focus  | `border-border`, `ring-ring` (every element gets `outline-ring/50`)         |
 | Charts           | `chart-1` to `chart-5`                                                      |
 
+Colour beyond the neutral tokens comes from three places, and only these:
+
+- **Block stages.** The home hero (`hero-5`) and the closing call to action (`cta-5`) are dark stages with the block's own fixed palette in both themes. The hero section carries `dark`, so tokens inside it resolve to their dark values.
+- **Categorical tints.** A feature card's `IconTile variant="soft"` takes one palette text class with its `dark:` pair (`text-blue-600 dark:text-blue-400`); the tile derives its fill and border from `currentColor`.
+- **Outcomes.** `granted`, `approval-required` and `denied` render as ReUI `Badge` `success-light`, `warning-light` and `destructive-light`.
+
 Radius derives from `--radius: 0.625rem`: `rounded-sm` to `rounded-4xl` step by 2 or 4 px. In the docs app the shadcn utilities read the Fumadocs neutral `--color-fd-*` variables, so `packages/ui` components match Fumadocs. In light mode `fd-muted-foreground` is darkened to `hsl(0 0% 40%)` for 4.5:1 on the sidebar greys and `fd-card` is white so syntax colours in code blocks and type tables keep 4.5:1; code blocks use the `github-light-high-contrast` Shiki theme.
 
 ## Type
@@ -24,7 +30,7 @@ Inter is `--font-sans` and Geist Mono is `--font-mono`, both loaded with `next/f
 
 | Role                    | Classes                                                               |
 | ----------------------- | --------------------------------------------------------------------- |
-| Home hero `h1`          | `text-4xl sm:text-5xl lg:text-6xl font-semibold text-balance`         |
+| Home hero `h1`          | `text-4xl @xl:text-5xl font-semibold tracking-tight text-balance`     |
 | Page hero `h1`          | `text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight`       |
 | Section `h2`            | `text-2xl sm:text-3xl font-semibold tracking-tight text-balance`      |
 | Eyebrow                 | `text-xs font-semibold tracking-wide uppercase text-muted-foreground` |
@@ -36,7 +42,7 @@ Inter is `--font-sans` and Geist Mono is `--font-mono`, both loaded with `next/f
 - `packages/ui/src/components` holds shadcn/ui (`base-vega`, Base UI primitives) and the AI Elements. `packages/ui/src/reui` holds ReUI. Import each file on its own path (`@permdock/ui/components/button`); there is no barrel.
 - Add a primitive with the shadcn CLI from `packages/ui`, and keep the vendored file as published. Changes go in a wrapper in the app.
 - A link that looks like a button is `ButtonLink` (`apps/marketing/components/site/button-link.tsx`): a server-rendered `SiteLink` with `buttonVariants`. `Button` is for actions; `Button render={<SiteLink />}` ships Base UI's button to the client for a plain link.
-- `apps/marketing/components/blocks` and `components/examples` are ReUI blocks, installed as published. `components/sections` composes them into pages; `components/site` is the chrome.
+- `apps/marketing/components/blocks` and `components/examples` are ReUI blocks, installed with the shadcn CLI and adapted in data, copy and props only; structure and classes stay as published. `components/sections` composes them into pages; `components/site` is the chrome.
 - Docs pages use Fumadocs UI (`@fumadocs/base-ui`) and the MDX components in `apps/docs/components/mdx.tsx`.
 
 ## Overlays
@@ -56,8 +62,8 @@ Menus, selects and tooltips use the `packages/ui` Base UI components, which hand
 
 ## Reject these
 
-- Raw colours, hex values or Tailwind palette classes in app code.
-- Edits inside vendored `packages/ui` or `components/blocks` files.
+- Raw colours, hex values or Tailwind palette classes in app code, outside the block stages and categorical tints above.
+- Edits inside vendored `packages/ui` files, or structural edits inside `components/blocks`.
 - A `next/link` between marketing and docs (use `SiteLink`, `docs/decisions/0012-cross-zone-links.md`).
 - Gradients on text, glow shadows, glassmorphism and decorative emoji.
 - An animation without a reduced-motion fallback, or one longer than 700 ms.
