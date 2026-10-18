@@ -46,6 +46,22 @@ describe("parseChangelog", () => {
     expect(releases[2]?.version).toBe("0.0.1");
   });
 
+  test("reads @changesets/changelog-github bullets as hash and plain text", () => {
+    const releases = parseChangelog(
+      `## 0.4.0
+
+### Minor Changes
+
+- [#149](https://github.com/ScaleDockHQ/permdock/pull/149) [\`4fb331c\`](https://github.com/ScaleDockHQ/permdock/commit/4fb331c92bd4ba157e09dfb5d4785ac107b78d4a) Thanks [@martijn00](https://github.com/martijn00)! - \`permdock/better-supabase\` adds [authorizer](https://permdock.com/docs).
+`,
+      "permdock",
+    );
+    expect(releases[0]?.changes[0]).toEqual({
+      hash: "4fb331c",
+      text: "`permdock/better-supabase` adds authorizer.",
+    });
+  });
+
   test("parses the real package changelogs, none before the first release", () => {
     const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
     const path = join(root, "packages/permdock/CHANGELOG.md");
