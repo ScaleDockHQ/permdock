@@ -55,6 +55,7 @@ Some 0.5.0 changes move more than a name. The codemod rewrites these where the i
 | `permdock.decideRoleChange(change)`, and `decideCredential`, `decideAutomation`, `decideSupportSession`, `whoCan` on any receiver | `decideRoleChange(permdock, change)`, imported from `permdock`                                                                              |
 | `permdock.simulate({ arazzo, openapi })`                                                                                          | `simulateArazzo(permdock, { arazzo, openapi })`                                                                                             |
 | `permdock.activate(input)` on a receiver named like `permdock` or a module-level factory result                                   | `activate(permdock, input)`                                                                                                                 |
+| `permittedIds(permdock, permission, scope)`, `mayUse(permdock, permission)`                                                       | `permdock.permittedIds(permission, scope)`, `permdock.mayUse(permission)`; the import goes once nothing reads it                            |
 
 ## What it reports
 

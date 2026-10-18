@@ -387,3 +387,50 @@ describe("feature functions", () => {
     ]);
   });
 });
+
+describe("instance listing methods", () => {
+  it("turns permittedIds and mayUse calls into instance methods and drops the import", () => {
+    const result = apply(
+      [
+        'import { mayUse, permittedIds } from "permdock";',
+        "export const ids = permittedIds(permdock, permissions.doc.read, 'project', { conditioned: true });",
+        "export const ok = mayUse(await load(), permissions.doc.read);",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      "export const ids = permdock.permittedIds(permissions.doc.read, 'project', { conditioned: true });",
+      "export const ok = (await load()).mayUse(permissions.doc.read);",
+    ]);
+    expect(result.followUps).toEqual([]);
+  });
+
+  it("keeps the import and reports it when the function is also read as a value", () => {
+    const result = apply(
+      [
+        'import { can, mayUse } from "permdock";',
+        "export const ok = mayUse(ctx.permdock, p);",
+        "export const check = [mayUse, can];",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import { can, mayUse } from "permdock";',
+      "export const ok = ctx.permdock.mayUse(p);",
+      "export const check = [mayUse, can];",
+    ]);
+    expect(result.followUps.map((item) => item.message)).toEqual([
+      "`mayUse` is imported; `mayUse(permdock, permission)` is now `permdock.mayUse(permission)`",
+    ]);
+  });
+
+  it("leaves decideCredential, still a function that takes the instance, alone", () => {
+    const source = [
+      'import { decideCredential } from "permdock";',
+      "export const decision = await decideCredential(permdock, request);",
+    ].join("\n");
+    const result = transformSource("file.ts", source, SET);
+    expect(result.source).toBe(source);
+    expect(result.followUps).toEqual([]);
+  });
+});

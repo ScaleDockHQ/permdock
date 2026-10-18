@@ -39,6 +39,7 @@ import {
   visitAwait,
   visitComponentArguments,
   visitElement,
+  visitFunctionCall,
   visitMethodCall,
 } from "./shapes.ts";
 
@@ -274,7 +275,7 @@ function transformProgram(ctx: Context, segment: Segment): void {
   rewriteImports(ctx, removed);
   rewriteReferences(ctx);
   rewriteReexports(ctx);
-  reportUncalledSignatures(ctx);
+  reportUncalledSignatures(ctx, removed);
   finishImports(ctx, removed);
 }
 
@@ -425,8 +426,13 @@ function visitCall(
   }
   const renamed = renameOf(ctx.set, callee.imported, callee.entry)?.to;
   const names = new Set([callee.imported, renamed]);
+  const moved = visitFunctionCall(ctx, node, callee);
   for (const signature of ctx.set.signatures) {
-    if (signature.entries.includes(callee.entry) && names.has(signature.name)) {
+    if (
+      !moved &&
+      signature.entries.includes(callee.entry) &&
+      names.has(signature.name)
+    ) {
       ctx.followUps.push({
         at: node.start,
         name: signature.name,
@@ -559,8 +565,14 @@ function rewriteReexports(ctx: Context): void {
   }
 }
 
-function reportUncalledSignatures(ctx: Context): void {
+function reportUncalledSignatures(
+  ctx: Context,
+  removed: ReadonlySet<string>,
+): void {
   for (const [local, binding] of ctx.bindings) {
+    if (removed.has(local)) {
+      continue;
+    }
     const names = new Set([binding.imported, binding.rename?.to]);
     for (const signature of ctx.set.signatures) {
       const imported =

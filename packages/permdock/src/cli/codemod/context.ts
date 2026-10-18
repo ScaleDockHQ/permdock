@@ -1,6 +1,7 @@
 import type { Rename, SignatureChange } from "./renames-0.5.ts";
 import type {
   AwaitRename,
+  FunctionToMethod,
   MethodToFunction,
   PropRename,
   TemplateHint,
@@ -24,6 +25,7 @@ export type RenameSet = {
   readonly templates?: readonly TemplateHint[];
   readonly awaits?: readonly AwaitRename[];
   readonly methodFunctions?: readonly MethodToFunction[];
+  readonly functionMethods?: readonly FunctionToMethod[];
 };
 
 /** One rewritten span. */

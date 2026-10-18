@@ -6,6 +6,7 @@ import type {
 } from "./context.ts";
 import type {
   AwaitRename,
+  FunctionToMethod,
   MethodToFunction,
   PropRename,
 } from "./shapes-0.5.ts";
@@ -326,4 +327,52 @@ export function visitMethodCall(
     },
   );
   ctx.changes.push({ at: node.start, from: row.method, to: row.to });
+}
+
+const PLAIN_RECEIVERS: ReadonlySet<string> = new Set([
+  "Identifier",
+  "MemberExpression",
+  "CallExpression",
+  "ThisExpression",
+]);
+
+export function visitFunctionCall(
+  ctx: Context,
+  node: Estree,
+  callee: { readonly entry: string; readonly imported: string },
+): boolean {
+  const row = (ctx.set.functionMethods ?? []).find(
+    (item: FunctionToMethod) =>
+      item.name === callee.imported && item.entry === callee.entry,
+  );
+  const args = nodes(node.arguments);
+  const [receiver, next] = args;
+  if (
+    row === undefined ||
+    node.type !== "CallExpression" ||
+    node.callee === undefined ||
+    receiver === undefined ||
+    receiver.type === "SpreadElement" ||
+    Reflect.get(node, "optional") === true
+  ) {
+    return false;
+  }
+  const plain = PLAIN_RECEIVERS.has(receiver.type);
+  ctx.edits.push(
+    {
+      start: node.callee.start,
+      end: receiver.start,
+      text: plain ? "" : "(",
+    },
+    {
+      start: receiver.end,
+      end: next?.start ?? node.end - 1,
+      text: `${plain ? "" : ")"}.${row.method}(`,
+    },
+  );
+  if (node.callee.type === "Identifier") {
+    ctx.consumed.add(node.callee.start);
+  }
+  ctx.changes.push({ at: node.start, from: row.name, to: row.method });
+  return true;
 }

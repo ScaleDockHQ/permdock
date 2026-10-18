@@ -30,6 +30,12 @@ export type MethodToFunction = {
   readonly argument?: string;
 };
 
+export type FunctionToMethod = {
+  readonly name: string;
+  readonly entry: string;
+  readonly method: string;
+};
+
 const JSX_KITS = [
   "permdock/react",
   "permdock/react-native",
@@ -115,3 +121,8 @@ export const METHOD_FUNCTIONS_0_5: readonly MethodToFunction[] = Object.freeze(
       },
     ]),
 );
+
+export const FUNCTION_METHODS_0_5: readonly FunctionToMethod[] = Object.freeze([
+  { name: "permittedIds", entry: "permdock", method: "permittedIds" },
+  { name: "mayUse", entry: "permdock", method: "mayUse" },
+]);
