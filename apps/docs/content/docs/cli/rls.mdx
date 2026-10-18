@@ -368,7 +368,7 @@ create policy "quotes_update_read_only_actors"
   with check (/* the same condition */);
 ```
 
-`true` lists `support` and `impersonation`; a list such as `['support']` names the kinds. With `support` listed, an `act` with a `session_id` and no `kind` (better-supabase 0.5.0 support tokens) counts as a support session. Another actor kind, such as an agent acting with delegated scopes, keeps the user's writes. An `insert` policy has only `with check`, a `delete` policy only `using`. `rls verify` checks the policies with the rest.
+`true` lists `support` and `impersonation`; a list such as `['support']` names the kinds. With `support` listed, an `act` with a `session_id` and no `kind` (better-supabase 0.5.0 support tokens) counts as a support session. Another actor kind, such as an agent acting with delegated scopes, keeps the user's writes, except an agent with `act.read_only: true`. An `insert` policy has only `with check`, a `delete` policy only `using`. `rls verify` checks the policies with the rest.
 
 `generate` also writes `permdock_actor_may_write()`, executable by `authenticated`, which is `false` for exactly the tokens these policies refuse. `--helpers-only` writes no policies, so it warns, and each hand-written write policy calls the function instead, either in its own expressions or in one restrictive policy per command:
 

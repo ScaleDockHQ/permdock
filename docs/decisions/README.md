@@ -41,3 +41,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0033](./0033-next-tsconfig-react-jsx.md)              | `next.json` sets `jsx: "react-jsx"`                                         |
 | [0034](./0034-structural-instant-over-temporal.md)     | The runtime takes a structural `Instant`, not `Temporal`                    |
 | [0035](./0035-better-supabase-from-a-tarball.md)       | better-supabase installs from a tarball of the sibling checkout             |
+| [0036](./0036-org-and-row-access-on-one-resource.md)   | Proposed: org-level and per-row access on one resource, not two             |
