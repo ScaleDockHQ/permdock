@@ -31,7 +31,7 @@ export function website(): JsonLdNode {
   };
 }
 
-export function sourceCode(version: string | undefined): JsonLdNode {
+export function sourceCode(version?: string): JsonLdNode {
   return {
     "@type": "SoftwareSourceCode",
     name: "permdock",

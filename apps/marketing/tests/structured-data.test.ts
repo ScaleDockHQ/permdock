@@ -31,7 +31,7 @@ describe("structured data", () => {
   });
 
   test("source code omits the version when no release is known", () => {
-    expect(sourceCode(undefined)).not.toHaveProperty("version");
+    expect(sourceCode()).not.toHaveProperty("version");
     expect(sourceCode("1.2.0")).toHaveProperty("version", "1.2.0");
   });
 
