@@ -66,7 +66,7 @@ import {
 - `approvers` maps each better-supabase request kind to `user()`, `holder()` or `anyOf()` approvers and fills `isApprover`, which better-supabase asks for every request that waits on an approval ([Approvers](#approvers)). It needs `permdock_is_approver`, which `rls.approvals` writes; without it `isApprover` is unset and `problems` names the helper. The provider never sets `canApprove`.
 - `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
 - `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function, the claims it owns and the `grantsCommand` that restores the hook's grants for the manifest's `hook.schemas`: `permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook` under pg-delta, the `--grants-out` command under migra. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
-- `authorizer({ policy, subject?, operations?, options? })` returns better-supabase's `Authorizer` (`apiVersion: 1`, `name: "PermDock"`) for its `authorizer` server option. It decides every `permission` a resource, action, route guard or MCP tool declares ([Authorizer](#authorizer)). Needs better-supabase 0.8.
+- `authorizer({ policy, subject?, operations?, options? })` returns better-supabase's `Authorizer` (`apiVersion: 1`, `name: "PermDock"`) for its `authorizer` server option. It decides every `permission` a resource, action, route guard or MCP tool declares ([Authorizer](#authorizer)).
 - `bucketPolicy(access, options)` and `topicPolicy(access, options)` return the `access` policy for `defineBucket` and `defineTopic`. `access` maps the operations (`read`, `list`, `write`, `delete` for a bucket; `receive`, `send` for a topic) to permissions, and `options` is `{ manifest, catalog, scope, segment? }` or `{ policy, schema?, scope, segment? }`. With `policy`, the `definePolicy` result the app already imports, nothing is read at runtime: the scopes, the permissions with row conditions and the scopes each permission is granted at come from the definitions, and `schema` names the helper schema (`rls.schema`, default `permdock`). The checks below are the same either way. They call `permitted_<scope>_ids_by_permission` and `permdock_has_permission`, which check role and scope only and subtract denies, so a permission the catalog marks `rowConditions: true` (or a conditioned grant in `policy`), or does not grant at `scope`, throws. `scope: "platform"` checks a permission granted globally.
 - `apiKeyVerifier({ keys, manifest?, serviceRoles?, allPermissions? })` is a `CredentialVerifier` over better-supabase's `createApiKeys()`, for [`subjectFromApiKey`](/docs/concepts/credentials#using-a-key). A personal key is a `user` credential acting as its user, a tenant key a `service` credential holding `serviceRoles` in its tenant, and the key's scopes are the credential's permissions. `serviceRoles` defaults to the manifest's `rls.apiKeys.serviceRoles`. A rotated key in its grace period verifies, and its credential's `expiresAt` is the end of the grace period when that comes before the key's own expiry. An invalid, revoked, expired or rate-limited key, and a failed lookup, verify to `null`.
 - `apiKeyClaimOptions(manifest)` returns the `claim` and `tenantClaim` options of better-supabase's `apiKeyClaims()` and `apiKeyResolver()`, from the manifest's `rls.apiKeys`, so a key's token carries the scopes ceiling, tenant and roles the helpers read. It throws when the manifest has no `rls.apiKeys`.
@@ -182,7 +182,7 @@ The same subject works in the [Hono](/docs/adapters/hono), [oRPC](/docs/adapters
 
 ## Authorizer
 
-better-supabase 0.8 asks an `Authorizer` to decide each `permission` that a resource, action, route guard or MCP tool declares. `authorizer({ policy })` answers with PermDock, in process, from the claims better-supabase has already verified:
+better-supabase asks an `Authorizer` to decide each `permission` that a resource, action, route guard or MCP tool declares. `authorizer({ policy })` answers with PermDock, in process, from the claims better-supabase has already verified:
 
 ```ts title="src/lib/supabase/server.ts"
 import { createNext } from "better-supabase/next";
@@ -285,7 +285,7 @@ const subject = subjectFromBetterSupabase(session, {
 
 ## MCP tools
 
-On better-supabase 0.8, give `createMcp` the [`authorizer`](#authorizer) and set `permission` on each tool: `tools/list` hides the tools the authorizer denies, and a call is checked after its arguments validate. `toolPolicy` is the route for 0.6 and 0.7 and for a permission checked on the row `data` returns.
+Give `createMcp` the [`authorizer`](#authorizer) and set `permission` on each tool: `tools/list` hides the tools the authorizer denies, and a call is checked after its arguments validate. `toolPolicy` is the route for a permission checked on the row `data` returns.
 
 `permdock/mcp` wraps the official MCP SDK's server, so it cannot wrap better-supabase's `createMcp`. With `createMcp`, put the permission in each tool's `meta` and spread `toolPolicy` into the options. A tool without a permission is hidden and refused, and a check that throws refuses:
 
@@ -389,7 +389,7 @@ const support = supportSessions({
 - An `approval-required` start passes once `approved(input, pending)` returns `{ approvedBy }` for `pending.token`, and `decideSupportSession` refuses an approver who is the admin. The token is bound to the admin, target, tenant, reason and mode, so a retried start gets the same token. `approval: false` skips approval.
 - `denied`, a missing approval and a throw are `false`.
 
-better-supabase 0.8.0 holds no approval of its own, so the app records approvals and looks them up in `approved`.
+`supportPolicy` holds no approval of its own, so the app records approvals and looks them up in `approved`.
 
 ## Approvers
 
@@ -437,7 +437,7 @@ export default {
 
 - `rls.approvals.delegations` writes `approval_delegations` in the helper schema. Each row is a cover: a delegator, a delegate, an optional `tenant`, optional `resources`, and a required `from` and `until` window. A signed-in user reads the covers they gave or received, and writes only their own, in a tenant they belong to.
 - It also writes a four-argument `permdock_is_approver(p_approvers, p_tenant, p_requester, p_resource)`. The check passes when the caller matches the approvers. It also passes for a delegate inside an active cover whose delegator matches them. The delegator must not be the requester, and the delegate must be a member of the tenant. The two-argument form keeps no covers.
-- Rerun `permdock supabase inspect --out`. `authorizationProvider` sees the four-argument helper in the manifest and passes `{requester}`, which better-supabase 0.9.0 or later fills for the approvals block, AI tool calls and support sessions.
+- Rerun `permdock supabase inspect --out`. `authorizationProvider` sees the four-argument helper in the manifest and passes `{requester}`, which better-supabase fills for the approvals block, AI tool calls and support sessions.
 - `tableApprovalDelegationSource({ query })` from `permdock/supabase` reads the same rows as `approvalDelegations` for [`approvalsHandler`](/docs/adapters/approvals#delegation), so an approval decided in process and one decided in SQL follow the same covers.
 - A cover is checked against the delegator's own rights, one hop: the delegator's covers are never followed. A `holder()` approver through a cover needs `rls.authorize: "database"`, where `permdock_has_permission_for` and `permitted_<scope>_ids_by_permission_for` exist. In `jwt` mode only `user()` approvers pass through a cover. A cover with `permissions` set matches only in `approvalsHandler`, because the SQL check has the request kind but not its permission.
 

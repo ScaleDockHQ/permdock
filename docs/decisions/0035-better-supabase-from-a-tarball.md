@@ -13,7 +13,16 @@ The catalog entry is `better-supabase: file:.better-supabase/better-supabase.tgz
 
 ## Consequences
 
-The lockfile pins the tarball's integrity, so CI packs the same commit the lockfile was written from; the script warns when the local checkout is at another commit. After changing the sibling, run `node scripts/better-supabase-checkout.ts --force` and `pnpm install`, then bump `COMMIT` once the change is pushed. Revert to a version pin, and drop the `allowAny` entry and the setup steps, when better-supabase releases these slots.
+The lockfile pins the tarball's integrity, so CI packs the same commit the lockfile was written from; the script warns when the local checkout is at another commit. After changing the sibling, run `node scripts/better-supabase-checkout.ts --force` and `pnpm install`, then bump `COMMIT` once the change is pushed.
+
+The `permdock` peer range is `>=0.9.0 <0.10.0` (2026-10-18), because the slots exist only from 0.9. The tarball still reports version 0.8.0, so `allowAny` stays. `tests/better-supabase/peer-floor.test.ts` checks that every name `src/better-supabase` imports exists in the installed package; until 0.9.0 is on npm that package is the tarball.
+
+When better-supabase 0.9.0 is on npm:
+
+1. Set the catalog entry to `better-supabase: 0.9.0`.
+2. Add `better-supabase-floor: npm:better-supabase@0.9.0` to the `permdock` dev dependencies, so the peer-floor test reads the lowest version of the range even after the dev pin moves on.
+3. Drop the `allowAny` entry, the `.github/actions/setup` and `vercel.json` steps and `scripts/better-supabase-checkout.ts`.
+4. Set this record to `superseded` with the date.
 
 ## Alternatives considered
 
