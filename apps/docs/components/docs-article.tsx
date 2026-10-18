@@ -10,9 +10,11 @@ import {
 import { createRelativeLink } from "fumadocs-ui/mdx";
 import { notFound } from "next/navigation";
 
+import { JsonLd } from "@/components/json-ld";
 import { getMDXComponents } from "@/components/mdx";
 import { gitConfig } from "@/lib/shared";
 import { getPageMarkdownUrl, source } from "@/lib/source";
+import { docsPageJsonLd } from "@/lib/structured-data";
 
 export async function DocsArticle({
   slug,
@@ -27,6 +29,7 @@ export async function DocsArticle({
 
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
+      <JsonLd data={docsPageJsonLd(page)} />
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">
         {page.data.description}

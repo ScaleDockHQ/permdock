@@ -28,6 +28,7 @@ export async function generateMetadata(
     title: page.data.title,
     description: page.data.description,
     alternates: {
+      canonical: page.url,
       types: { "text/markdown": `${page.url}.md` },
     },
     openGraph: {

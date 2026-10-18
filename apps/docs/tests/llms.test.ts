@@ -122,6 +122,28 @@ describe("renderLlmsIndex", () => {
     expect(index).not.toContain("Changelog");
   });
 
+  it("lists site pages in a Site section before Optional", () => {
+    const withSite = renderLlmsIndex(tree, {
+      siteUrl,
+      optional: ["Background"],
+      resolve: (url) => pages[url],
+      site: [
+        {
+          title: "Create",
+          url: `${siteUrl}/create`,
+          description: "Preset builder.",
+        },
+      ],
+    });
+    expect(withSite).toContain(
+      `## Site\n\n- [Create](${siteUrl}/create): Preset builder.\n`,
+    );
+    expect(withSite.indexOf("## Site")).toBeLessThan(
+      withSite.indexOf("## Optional"),
+    );
+    expect(index).not.toContain("## Site");
+  });
+
   it("puts the optional sections last", () => {
     expect(index.indexOf("## Optional")).toBeGreaterThan(
       index.indexOf("## Integrate"),
