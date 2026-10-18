@@ -6,6 +6,8 @@ import {
   CreateBuilder,
   CreateBuilderSkeleton,
 } from "@/components/create/builder";
+import { JsonLd } from "@/components/site/json-ld";
+import { breadcrumbs } from "@/lib/structured-data";
 import { Badge } from "@permdock/ui/reui/badge";
 
 export const metadata: Metadata = {
@@ -24,6 +26,7 @@ const steps = [
 export default function CreatePage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-12 md:px-8">
+      <JsonLd nodes={[breadcrumbs([{ name: "Create", path: "/create" }])]} />
       <header className="flex max-w-3xl flex-col gap-4">
         <Badge variant="info-light" radius="full" className="w-fit">
           Preset builder

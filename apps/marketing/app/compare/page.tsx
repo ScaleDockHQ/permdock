@@ -1,9 +1,11 @@
 import { GitCompareIcon, LibraryIcon, NetworkIcon } from "lucide-react";
 
 import { PageHero } from "@/components/sections/page-hero";
+import { JsonLd } from "@/components/site/json-ld";
 import { ScrollRegion } from "@/components/site/scroll-region";
 import { SiteLink } from "@/components/site/site-link";
 import { compareMatrix, compareRows } from "@/lib/compare";
+import { breadcrumbs } from "@/lib/structured-data";
 import { Button } from "@permdock/ui/components/button";
 import { Frame, FramePanel } from "@permdock/ui/reui/frame";
 
@@ -11,11 +13,13 @@ export const metadata = {
   title: "Compare",
   description:
     "PermDock next to permix, CASL, Kilpi, Better Auth access control, hosted PDPs, Cedar, OPA and the Zanzibar family.",
+  alternates: { canonical: "/compare" },
 };
 
 export default function ComparePage() {
   return (
     <>
+      <JsonLd nodes={[breadcrumbs([{ name: "Compare", path: "/compare" }])]} />
       <PageHero
         badge="Comparison"
         badgeHref="/docs/comparison"
