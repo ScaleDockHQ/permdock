@@ -36,7 +36,7 @@ export function NavbarActions() {
         </span>
         <ArrowRightIcon
           aria-hidden="true"
-          className="absolute right-2.5 translate-x-8 opacity-0 transition-all duration-300 group-hover/sliding:translate-x-0 group-hover/sliding:opacity-100"
+          className="absolute right-2.5 translate-x-8 opacity-0 transition-[translate,opacity] duration-300 group-hover/sliding:translate-x-0 group-hover/sliding:opacity-100"
         />
       </Button>
     </div>

@@ -72,7 +72,7 @@ const resourceLinks: readonly NavLink[] = [
   { href: "/docs", label: "Docs" },
   { href: "/docs/getting-started/quick-start", label: "Quick start" },
   { href: "/docs/changelog", label: "Changelog" },
-  { href: "/blog", label: "Blog" },
+  { href: "/docs/for-ai-agents", label: "For AI agents" },
   { href: "/devtools", label: "Decide explorer" },
   { href: site.github, label: "GitHub" },
 ];
