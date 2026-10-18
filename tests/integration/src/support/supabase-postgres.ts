@@ -2,8 +2,11 @@ import { setTimeout } from "node:timers/promises";
 import { Client } from "pg";
 import { GenericContainer, Wait } from "testcontainers";
 
-/** The Postgres image the Supabase CLI runs; supautils and pg_jsonschema ship in it. */
-const SUPABASE_POSTGRES_IMAGE = "public.ecr.aws/supabase/postgres:17.11.0.002";
+/**
+ * The Postgres image the Supabase CLI runs; supautils and pg_jsonschema ship in it.
+ * From GHCR: anonymous public.ecr.aws pulls hit its rate and data limits on GitHub runners.
+ */
+const SUPABASE_POSTGRES_IMAGE = "ghcr.io/supabase/postgres:17.11.0.002";
 
 const PASSWORD = "postgres";
 
