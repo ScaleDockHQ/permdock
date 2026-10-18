@@ -185,7 +185,7 @@ export async function projectPolicy(
     : { ok: true, value };
 }
 
-export async function listProjects(
+async function listProjects(
   request: CloudRequest,
 ): Promise<
   { readonly ok: true; readonly value: readonly ProjectSummary[] } | Failure

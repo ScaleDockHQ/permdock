@@ -14,16 +14,16 @@ const secrets = vi.hoisted(() => new Map<string, string>());
 vi.mock("@napi-rs/keyring", () => ({
   Entry: class {
     readonly #key: string;
-    constructor(service: string, account: string) {
+    public constructor(service: string, account: string) {
       this.#key = `${service}/${account}`;
     }
-    getPassword(): string | null {
+    public getPassword(): string | null {
       return secrets.get(this.#key) ?? null;
     }
-    setPassword(value: string): void {
+    public setPassword(value: string): void {
       secrets.set(this.#key, value);
     }
-    deletePassword(): boolean {
+    public deletePassword(): boolean {
       return secrets.delete(this.#key);
     }
   },

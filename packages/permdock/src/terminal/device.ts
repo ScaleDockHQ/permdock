@@ -66,7 +66,7 @@ function withoutTrailingSlash(url: string): string {
  * the issuer's path (section 3.1), then appended after it for servers that
  * predate the rule. An issuer without a path has one location.
  */
-export function metadataUrls(issuer: string): readonly string[] {
+function metadataUrls(issuer: string): readonly string[] {
   const parsed = new URL(issuer);
   const path = withoutTrailingSlash(parsed.pathname);
   const inserted = `${parsed.origin}/.well-known/oauth-authorization-server${path}`;

@@ -47,9 +47,7 @@ export function cliRuntime(io: CliIo, env: Env): TerminalRuntime {
  * `Entry` from the optional peer `@napi-rs/keyring` when the project installed
  * it; without it credentials go to the mode-0600 file.
  */
-export async function loadKeyring(): Promise<
-  TerminalStorageOptions["keyring"]
-> {
+async function loadKeyring(): Promise<TerminalStorageOptions["keyring"]> {
   let loaded: unknown;
   try {
     // Optional peer: a variable specifier so neither TypeScript nor the bundler requires it.
@@ -75,7 +73,7 @@ export async function credentialStorage(): Promise<TerminalStorageOptions> {
 }
 
 /** The git work tree `cwd` sits in, or `null` outside one. */
-export function repositoryRoot(cwd: string): string | null {
+function repositoryRoot(cwd: string): string | null {
   let dir = path.resolve(cwd);
   for (;;) {
     if (existsSync(path.join(dir, ".git"))) {
@@ -102,7 +100,7 @@ export function credentialsInsideRepository(
   return file.startsWith(`${root}${path.sep}`) ? file : null;
 }
 
-export function scopesOf(credential: StoredCredential): readonly string[] {
+function scopesOf(credential: StoredCredential): readonly string[] {
   return (credential.scope ?? "").split(" ").filter((scope) => scope !== "");
 }
 

@@ -6,7 +6,7 @@ import {
 } from "../../terminal/device.ts";
 
 /** The PermDock Cloud platform issuer and API base. */
-export const PLATFORM_ISSUER = "https://permdock.com/api";
+const PLATFORM_ISSUER = "https://permdock.com/api";
 
 /** The public OAuth client the `permdock` binary registers as. */
 export const CLI_CLIENT_ID = "permdock-cli";
