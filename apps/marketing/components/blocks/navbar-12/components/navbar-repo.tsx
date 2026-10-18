@@ -1,5 +1,7 @@
 'use client';
 
+import { usePathname } from "next/navigation"
+
 import { Item, ItemMedia } from "@permdock/ui/components/item"
 import {
   NavigationMenu,
@@ -12,7 +14,7 @@ import {
 } from "@permdock/ui/components/navigation-menu"
 import { Separator } from "@permdock/ui/components/separator"
 
-import { NAVBAR_COMPANIES, NAVBAR_PRODUCTS } from "./data"
+import { NAVBAR_COMPANIES, NAVBAR_PRODUCTS, NAVBAR_TOP_LEVEL } from "./data"
 
 // ── Brand ──
 
@@ -45,6 +47,7 @@ function NavbarBrand() {
 // ── Repo path breadcrumb + branch selector ──
 
 export function NavbarRepo() {
+  const pathname = usePathname()
   return (
     <div className="flex min-w-0 items-center gap-3">
       {/* Navigation */}
@@ -113,23 +116,21 @@ export function NavbarRepo() {
             </NavigationMenuContent>
           </NavigationMenuItem>
 
-          <NavigationMenuItem>
-            <NavigationMenuLink
-              render={<a href="/pricing" />}
-              className={navigationMenuTriggerStyle()}
-            >
-              Pricing
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-
-          <NavigationMenuItem>
-            <NavigationMenuLink
-              render={<a href="/create" />}
-              className={navigationMenuTriggerStyle()}
-            >
-              Create
-            </NavigationMenuLink>
-          </NavigationMenuItem>
+          {NAVBAR_TOP_LEVEL.map((item) => (
+            <NavigationMenuItem key={item.href}>
+              <NavigationMenuLink
+                render={
+                  <a
+                    href={item.href}
+                    aria-current={pathname === item.href ? 'page' : undefined}
+                  />
+                }
+                className={navigationMenuTriggerStyle()}
+              >
+                {item.title}
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+          ))}
         </NavigationMenuList>
       </NavigationMenu>
     </div>

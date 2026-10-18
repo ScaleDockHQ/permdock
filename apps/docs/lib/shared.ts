@@ -15,6 +15,49 @@ export const markdownHeaders = {
   "Cache-Control": publicCacheControl,
 } as const;
 
+/** Marketing pages and the changelog, which live outside the docs page tree. */
+export const siteLinks = [
+  {
+    title: "Home",
+    path: "/",
+    description: "What PermDock is, in one page.",
+  },
+  {
+    title: "Create",
+    path: "/create",
+    description:
+      "Preset builder: pick an archetype, features and a stack; get one install command.",
+  },
+  {
+    title: "Compare",
+    path: "/compare",
+    description:
+      "PermDock next to CASL, Kilpi, permix, Better Auth access control and hosted PDPs.",
+  },
+  {
+    title: "Cloud",
+    path: "/cloud",
+    description:
+      "Optional decision log, hosted AuthZEN ADS and approval inbox; never on the decision path.",
+  },
+  {
+    title: "Enterprise",
+    path: "/enterprise",
+    description:
+      "Fail-closed defaults, signed evidence, SCIM and self-hosting.",
+  },
+  {
+    title: "Pricing",
+    path: "/pricing",
+    description: "The MIT package is free; Cloud tiers are not announced.",
+  },
+  {
+    title: "Changelog",
+    path: `${docsRoute}/changelog`,
+    description: "Every release of permdock.",
+  },
+] as const;
+
 export const gitConfig = {
   user: "ScaleDockHQ",
   repo: "PermDock",

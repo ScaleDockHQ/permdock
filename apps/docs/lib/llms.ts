@@ -14,6 +14,14 @@ export type LlmsIndexOptions = {
   readonly resolve: (url: string) => LlmsPage | undefined;
   /** Separator names emitted as the llms.txt `## Optional` section. */
   readonly optional?: readonly string[];
+  /** Pages outside the docs tree, emitted as a `## Site` section before `## Optional`. */
+  readonly site?: readonly LlmsLink[];
+};
+
+export type LlmsLink = {
+  readonly title: string;
+  readonly url: string;
+  readonly description: string;
 };
 
 type Section = { readonly name: string; readonly nodes: PageTree.Node[] };
@@ -127,6 +135,17 @@ export function renderLlmsIndex(
     } else {
       lines.push("", `## ${section.name}`, "", ...body);
     }
+  }
+  const site = options.site ?? [];
+  if (site.length > 0) {
+    lines.push(
+      "",
+      "## Site",
+      "",
+      ...site.map(
+        (link) => `- [${link.title}](${link.url}): ${link.description}`,
+      ),
+    );
   }
   if (optionalLines.length > 0) lines.push("", "## Optional", ...optionalLines);
   return `${tidy(lines).join("\n")}\n`;

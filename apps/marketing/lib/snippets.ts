@@ -6,22 +6,6 @@ export type CodeSnippet = {
   readonly code: string;
 };
 
-export const heroSnippet: CodeSnippet = {
-  id: "hero",
-  label: "decide",
-  filename: "decide.ts",
-  language: "ts",
-  code: `import { createPermDock } from 'permdock'
-import { permissions, policy } from './policy'
-
-const permdock = createPermDock(policy, user)
-
-permdock.can(permissions.post.update, post)
-permdock.decide(permissions.post.delete, post)
-// { outcome: 'granted' | 'denied' | 'approval-required', ... }
-`,
-};
-
 export const surfaceSnippets: readonly CodeSnippet[] = [
   {
     id: "next",

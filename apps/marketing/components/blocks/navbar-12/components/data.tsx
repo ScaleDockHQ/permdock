@@ -2,13 +2,13 @@ import type { ReactNode } from 'react';
 
 import {
   BookOpenIcon,
+  BotIcon,
   CloudIcon,
   GitCompareIcon,
   LandmarkIcon,
-  NewspaperIcon,
+  ScanSearchIcon,
   ScrollTextIcon,
   ShieldIcon,
-  SparklesIcon,
 } from 'lucide-react';
 
 export type NavMegaMenuItem = {
@@ -17,6 +17,16 @@ export type NavMegaMenuItem = {
   href: string;
   icon: ReactNode;
 };
+
+export type NavTopLevelItem = {
+  title: string;
+  href: '/create' | '/pricing';
+};
+
+export const NAVBAR_TOP_LEVEL: NavTopLevelItem[] = [
+  { title: 'Create', href: '/create' },
+  { title: 'Pricing', href: '/pricing' },
+];
 
 export const NAVBAR_PRODUCTS: NavMegaMenuItem[] = [
   {
@@ -38,10 +48,10 @@ export const NAVBAR_PRODUCTS: NavMegaMenuItem[] = [
     icon: <LandmarkIcon aria-hidden="true" />,
   },
   {
-    title: 'Pricing',
-    description: 'MIT core is free. Cloud tiers to be announced.',
-    href: '/pricing',
-    icon: <SparklesIcon aria-hidden="true" />,
+    title: 'Decide explorer',
+    description: 'Run a policy against a subject in the browser.',
+    href: '/devtools',
+    icon: <ScanSearchIcon aria-hidden="true" />,
   },
 ];
 
@@ -55,19 +65,19 @@ export const NAVBAR_COMPANIES: NavMegaMenuItem[] = [
   {
     title: 'Changelog',
     description: 'What shipped in the packages.',
-    href: '/changelog',
+    href: '/docs/changelog',
     icon: <ScrollTextIcon aria-hidden="true" />,
-  },
-  {
-    title: 'Blog',
-    description: 'Product notes and launch posts.',
-    href: '/blog',
-    icon: <NewspaperIcon aria-hidden="true" />,
   },
   {
     title: 'Security',
     description: 'Threat model and secure-by-default invariants.',
     href: '/docs/security/threat-model',
     icon: <ShieldIcon aria-hidden="true" />,
+  },
+  {
+    title: 'For AI agents',
+    description: 'llms.txt, Markdown pages and the docs MCP server.',
+    href: '/docs/for-ai-agents',
+    icon: <BotIcon aria-hidden="true" />,
   },
 ];

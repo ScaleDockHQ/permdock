@@ -1,8 +1,10 @@
 import { LandmarkIcon, MailIcon, ShieldCheckIcon } from "lucide-react";
 
 import { PageHero } from "@/components/sections/page-hero";
+import { JsonLd } from "@/components/site/json-ld";
 import { invariants } from "@/lib/invariants";
 import { site } from "@/lib/site";
+import { breadcrumbs } from "@/lib/structured-data";
 import { Button } from "@permdock/ui/components/button";
 import {
   Item,
@@ -17,11 +19,15 @@ export const metadata = {
   title: "Enterprise",
   description:
     "Fail-closed defaults, signed evidence, SCIM, CAEP/SSF, FAPI 2.0 and self-hosting.",
+  alternates: { canonical: "/enterprise" },
 };
 
 export default function EnterprisePage() {
   return (
     <>
+      <JsonLd
+        nodes={[breadcrumbs([{ name: "Enterprise", path: "/enterprise" }])]}
+      />
       <PageHero
         badge="Enterprise"
         title="Fail-closed defaults you can take to a review"

@@ -1,13 +1,16 @@
 import { ButtonLink } from "@/components/site/button-link";
+import { JsonLd } from "@/components/site/json-ld";
 import { ScrollRegion } from "@/components/site/scroll-region";
 import { compareMatrix } from "@/lib/compare";
 import { site } from "@/lib/site";
+import { breadcrumbs } from "@/lib/structured-data";
 import { Frame, FramePanel } from "@permdock/ui/reui/frame";
 
 export const metadata = {
   title: "Pricing",
   description:
     "The MIT package is free. Cloud tiers are placeholders until pricing is announced.",
+  alternates: { canonical: "/pricing" },
 };
 
 const tiers = [
@@ -40,6 +43,7 @@ const tiers = [
 export default function PricingPage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-16 md:px-8">
+      <JsonLd nodes={[breadcrumbs([{ name: "Pricing", path: "/pricing" }])]} />
       <div className="mb-12 max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           Pricing

@@ -4,18 +4,22 @@ import { AgentRunDemo, McpRunDemo } from "@/components/sections/activity-demos";
 import { CloudCta } from "@/components/sections/cloud-cta";
 import { PageHero } from "@/components/sections/page-hero";
 import { Section } from "@/components/sections/section";
+import { JsonLd } from "@/components/site/json-ld";
 import { ScrollRegion } from "@/components/site/scroll-region";
 import { site } from "@/lib/site";
+import { breadcrumbs } from "@/lib/structured-data";
 
 export const metadata = {
   title: "Cloud",
   description:
     "Optional decision log, hosted AuthZEN ADS, approval inbox and SCIM relay. Never on the decision path.",
+  alternates: { canonical: "/cloud" },
 };
 
 export default function CloudPage() {
   return (
     <>
+      <JsonLd nodes={[breadcrumbs([{ name: "Cloud", path: "/cloud" }])]} />
       <PageHero
         badge="Optional"
         badgeHref="/docs/adapters/cloud"

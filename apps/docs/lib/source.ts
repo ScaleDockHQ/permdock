@@ -6,7 +6,12 @@ import { defineDocs } from "fumadocs-mdx/macro";
 import { env } from "@/env";
 
 import { compactMarkdownTables, renderLlmsIndex } from "./llms";
-import { docsContentRoute, docsImageRoute, docsRoute } from "./shared";
+import {
+  docsContentRoute,
+  docsImageRoute,
+  docsRoute,
+  siteLinks,
+} from "./shared";
 
 const docs = defineDocs({
   dir: "content/docs",
@@ -76,6 +81,11 @@ export function renderDocsLlmsIndex(): string {
   return renderLlmsIndex(source.getPageTree(), {
     siteUrl: env.NEXT_PUBLIC_SITE_URL,
     optional: ["Background"],
+    site: siteLinks.map(({ title, path, description }) => ({
+      title,
+      url: `${env.NEXT_PUBLIC_SITE_URL}${path}`,
+      description,
+    })),
     resolve(url) {
       const page = pages.get(url);
       return page

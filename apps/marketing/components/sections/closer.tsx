@@ -1,77 +1,12 @@
-import {
-  ArrowRightIcon,
-  BookOpenIcon,
-  PuzzleIcon,
-  ShieldIcon,
-} from "lucide-react";
-
-import { ButtonLink } from "@/components/site/button-link";
-import { site } from "@/lib/site";
-import { Item, ItemMedia } from "@permdock/ui/components/item";
-import { Badge } from "@permdock/ui/reui/badge";
-import { Frame, FramePanel } from "@permdock/ui/reui/frame";
-
-const proof = [
-  {
-    title: "MIT, in-process",
-    description: "Every decision runs in your process. No network to can().",
-    icon: <ShieldIcon aria-hidden="true" />,
-  },
-  {
-    title: "Typed references",
-    description: "permissions.post.update, never a string key in the API.",
-    icon: <PuzzleIcon aria-hidden="true" />,
-  },
-  {
-    title: "Docs-first",
-    description: "The product plan is the docs tree, not a slide deck.",
-    icon: <BookOpenIcon aria-hidden="true" />,
-  },
-] as const;
+import { Cta } from "@/components/blocks/cta-5/components/cta";
 
 export function Closer() {
   return (
-    <section className="mx-auto flex w-full max-w-4xl flex-col gap-10 px-6 py-16 md:px-8">
-      <div className="mx-auto flex max-w-2xl flex-col items-center gap-5 text-center">
-        <Badge variant="secondary" size="lg" className="w-fit">
-          Open source
-        </Badge>
-        <h2 className="text-3xl font-semibold tracking-tight text-balance text-foreground sm:text-4xl">
-          Ship the check with the feature
-        </h2>
-        <p className="max-w-xl text-base leading-7 text-muted-foreground">
-          Install the package, define the resource you already have, and put
-          decide() on the route, the tool, and the query.
-        </p>
-      </div>
-      <Frame className="w-full">
-        <div className="grid gap-1 md:grid-cols-3">
-          {proof.map((point) => (
-            <FramePanel key={point.title} className="flex flex-col gap-4">
-              <Item className="flex size-10 items-center justify-center bg-muted p-0">
-                <ItemMedia variant="icon" className="size-auto">
-                  {point.icon}
-                </ItemMedia>
-              </Item>
-              <div className="flex flex-col gap-1.5">
-                <h3 className="text-base font-semibold">{point.title}</h3>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {point.description}
-                </p>
-              </div>
-            </FramePanel>
-          ))}
-        </div>
-      </Frame>
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <ButtonLink href={site.getStarted} size="lg">
-          Get started
-          <ArrowRightIcon aria-hidden="true" />
-        </ButtonLink>
-        <ButtonLink variant="outline" href={site.docs} size="lg">
-          View documentation
-        </ButtonLink>
-      </div>
+    <section
+      aria-label="Get started"
+      className="mx-auto w-full max-w-6xl px-6 py-16 md:px-8"
+    >
+      <Cta />
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import { Analytics } from "@vercel/analytics/next";
@@ -28,12 +28,37 @@ export const rootMetadata: Metadata = {
     template: `%s | ${site.name}`,
   },
   description: site.tagline,
+  applicationName: site.name,
+  keywords: [
+    "TypeScript authorization",
+    "permissions",
+    "RBAC",
+    "ABAC",
+    "row-level security",
+    "AI agent permissions",
+    "MCP authorization",
+  ],
   openGraph: {
     title: site.name,
     description: site.tagline,
     siteName: site.name,
     type: "website",
+    locale: "en_GB",
+    url: "/",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: site.name,
+    description: site.tagline,
+  },
+};
+
+export const rootViewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+  colorScheme: "light dark",
 };
 
 export function RootDocument({ children }: { children: ReactNode }) {

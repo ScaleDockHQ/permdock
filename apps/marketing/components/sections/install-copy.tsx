@@ -32,7 +32,7 @@ export function InstallCopy({ command }: { readonly command: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-1.5 font-mono text-sm hover:bg-muted"
+      className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-1.5 font-mono text-sm text-foreground transition-colors hover:bg-muted"
     >
       {command}
       {copied ? (
@@ -40,6 +40,9 @@ export function InstallCopy({ command }: { readonly command: string }) {
       ) : (
         <CopyIcon aria-hidden="true" className="size-3.5" />
       )}
+      <span className="sr-only" aria-live="polite">
+        {copied ? "Copied" : ""}
+      </span>
     </button>
   );
 }

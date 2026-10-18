@@ -13,6 +13,20 @@ export type ChangelogRelease = {
 const heading = /^## (?<version>[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)$/u;
 const kindHeading = /^### (?<kind>Major|Minor|Patch) Changes$/u;
 const changeLine = /^- (?:(?<hash>[0-9a-f]{7,40}): )?(?<text>.+)$/u;
+// `@changesets/changelog-github` prefixes each bullet with the PR, the commit and a thank-you.
+const githubPrefix =
+  /^(?:\[#\d+\]\([^)]*\) )?\[`(?<hash>[0-9a-f]{7,40})`\]\([^)]*\)(?: Thanks (?:\[@[^\]]+\]\([^)]*\)(?:, )?)+!)? - /u;
+const markdownLink = /\[(?<label>[^\]]+)\]\([^)]*\)/gu;
+
+function toChange(text: string, lineHash: string | undefined): ChangelogChange {
+  const prefix = githubPrefix.exec(text);
+  const hash = prefix?.groups?.["hash"] ?? lineHash;
+  const body = (prefix ? text.slice(prefix[0].length) : text).replaceAll(
+    markdownLink,
+    "$<label>",
+  );
+  return hash === undefined ? { text: body } : { text: body, hash };
+}
 
 export function parseChangelog(
   markdown: string,
@@ -53,12 +67,9 @@ export function parseChangelog(
     }
     const changeMatch = changeLine.exec(line);
     if (changeMatch?.groups?.["text"] !== undefined && kind !== undefined) {
-      const hash = changeMatch.groups["hash"];
-      if (hash === undefined) {
-        changes.push({ text: changeMatch.groups["text"] });
-      } else {
-        changes.push({ text: changeMatch.groups["text"], hash });
-      }
+      changes.push(
+        toChange(changeMatch.groups["text"], changeMatch.groups["hash"]),
+      );
     }
   }
   flush();

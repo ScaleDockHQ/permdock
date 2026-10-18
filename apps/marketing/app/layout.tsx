@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 
-import { RootDocument, rootMetadata } from "@/components/site/root-document";
+import {
+  RootDocument,
+  rootMetadata,
+  rootViewport,
+} from "@/components/site/root-document";
 
 import "./globals.css";
 
@@ -8,6 +12,7 @@ import "./globals.css";
 export const ensureStatic = "navigation";
 
 export const metadata = rootMetadata;
+export const viewport = rootViewport;
 
 export default function Layout({ children }: { children: ReactNode }) {
   return <RootDocument>{children}</RootDocument>;
