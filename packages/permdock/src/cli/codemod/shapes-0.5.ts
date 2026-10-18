@@ -1,3 +1,5 @@
+import type { Rename } from "./renames-0.5.ts";
+
 export type PropRename = {
   readonly component: string;
   readonly entries: readonly string[];
@@ -12,6 +14,12 @@ export type TemplateHint = {
   readonly pattern: RegExp;
   readonly name: string;
   readonly message: string;
+};
+
+export type AwaitRename = {
+  readonly name: string;
+  readonly entries: readonly string[];
+  readonly to: string;
 };
 
 const JSX_KITS = [
@@ -52,4 +60,12 @@ export const TEMPLATE_HINTS_0_5: readonly TemplateHint[] = Object.freeze([
     message:
       "the `<Protected>` snippet `fallback` is `denied`: `{#snippet denied(decision)}`",
   },
+]);
+
+export const AWAIT_RENAMES_0_5: readonly AwaitRename[] = Object.freeze([
+  { name: "createPermDock", entries: ["permdock"], to: "loadPermDock" },
+]);
+
+export const CALL_RENAMES_0_5: readonly Rename[] = Object.freeze([
+  { from: "createPermDock", to: "loadPermDock", entries: ["permdock/pdp"] },
 ]);

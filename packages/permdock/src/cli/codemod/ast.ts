@@ -267,7 +267,7 @@ export function applyEdits(source: string, edits: readonly Edit[]): string {
   return out;
 }
 
-type LineAt = (index: number) => {
+export type LineAt = (index: number) => {
   readonly line: number;
   readonly lineStart: number;
 };

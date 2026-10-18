@@ -1,23 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { RenameSet } from "../../src/cli/codemod/transform.ts";
-
-import {
-  RENAMES_0_5,
-  SIGNATURE_CHANGES_0_5,
-} from "../../src/cli/codemod/renames-0.5.ts";
-import {
-  PROP_RENAMES_0_5,
-  TEMPLATE_HINTS_0_5,
-} from "../../src/cli/codemod/shapes-0.5.ts";
+import { CODEMOD_0_5 as SET } from "../../src/cli/codemod/codemod.ts";
 import { transformSource } from "../../src/cli/codemod/transform.ts";
-
-const SET: RenameSet = {
-  renames: RENAMES_0_5,
-  signatures: SIGNATURE_CHANGES_0_5,
-  props: PROP_RENAMES_0_5,
-  templates: TEMPLATE_HINTS_0_5,
-};
 
 function apply(lines: readonly string[], file = "file.tsx") {
   return transformSource(file, lines.join("\n"), SET);
@@ -137,5 +121,138 @@ describe("the denied slot", () => {
       SET,
     );
     expect(vue.followUps).toEqual([]);
+  });
+});
+
+describe("awaited createPermDock", () => {
+  it("calls loadPermDock where the instance is awaited and drops the unused import", () => {
+    const result = apply(
+      [
+        'import { createPermDock } from "permdock";',
+        'import { policy } from "./policy";',
+        "export async function load(user: User) {",
+        "  return await createPermDock(policy, user, { memberships });",
+        "}",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import { loadPermDock } from "permdock";',
+      'import { policy } from "./policy";',
+      "export async function load(user: User) {",
+      "  return await loadPermDock(policy, user, { memberships });",
+      "}",
+    ]);
+    expect(result.changes).toEqual([
+      { line: 4, column: 16, from: "createPermDock", to: "loadPermDock" },
+    ]);
+  });
+
+  it("keeps createPermDock for synchronous calls and adds loadPermDock beside it", () => {
+    const result = apply(
+      [
+        "import { createPermDock, definePolicy } from 'permdock';",
+        "export const a = createPermDock(policy, user);",
+        "export const b = await createPermDock(policy, user, options);",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      "import { createPermDock, definePolicy, loadPermDock } from 'permdock';",
+      "export const a = createPermDock(policy, user);",
+      "export const b = await loadPermDock(policy, user, options);",
+    ]);
+  });
+
+  it("removes a middle specifier and reuses an existing loadPermDock import", () => {
+    const result = apply(
+      [
+        'import { can, createPermDock, loadPermDock as load } from "permdock";',
+        "export const b = await createPermDock(policy, user);",
+        "export const c = can;",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import { can, loadPermDock as load } from "permdock";',
+      "export const b = await load(policy, user);",
+      "export const c = can;",
+    ]);
+  });
+
+  it("rewrites a namespace call and reports a captured name", () => {
+    const result = apply(
+      [
+        'import * as pd from "permdock";',
+        'import { createPermDock } from "permdock";',
+        "export const a = await pd.createPermDock(policy, user);",
+        "export async function b(loadPermDock: unknown) {",
+        "  return await createPermDock(policy, user);",
+        "}",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")[2]).toBe(
+      "export const a = await pd.loadPermDock(policy, user);",
+    );
+    expect(result.source.split("\n")[4]).toBe(
+      "  return await createPermDock(policy, user);",
+    );
+    expect(result.followUps.map((item) => item.message)).toEqual([
+      "`createPermDock` is `loadPermDock` from `permdock` here; `loadPermDock` is already bound in this scope",
+    ]);
+  });
+
+  it("reports a returned or chained createPermDock call", () => {
+    const result = apply(
+      [
+        'import { createPermDock } from "permdock";',
+        "export const a = (user: User) => createPermDock(policy, user);",
+        "export function b(user: User) { return createPermDock(policy, user); }",
+        "createPermDock(policy, null).then(use);",
+      ],
+      "file.ts",
+    );
+    expect(result.changes).toEqual([]);
+    expect(result.followUps.map((item) => item.line)).toEqual([2, 3, 4]);
+    expect(result.followUps[0]?.message).toBe(
+      "`createPermDock` returns the instance, never a Promise; call `loadPermDock` when a source answers asynchronously",
+    );
+  });
+
+  it("renames createPermDock from permdock/pdp, which was always async", () => {
+    const result = apply(
+      [
+        'import { createPermDock } from "permdock/pdp";',
+        'import { createPermDock as server } from "permdock/server";',
+        "export const handler = server(policy, { pdp: createPermDock });",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import { loadPermDock } from "permdock/pdp";',
+      'import { createPermDock as server } from "permdock/server";',
+      "export const handler = server(policy, { pdp: loadPermDock });",
+    ]);
+  });
+
+  it("imports loadPermDock on its own line when only a type import names the entry", () => {
+    const result = apply(
+      [
+        'import type { PermDock } from "permdock";',
+        'import * as core from "permdock";',
+        "const { createPermDock } = core;",
+        'import { createPermDock as make } from "permdock";',
+        "export const a: PermDock = await make(policy, user);",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import type { PermDock } from "permdock";',
+      'import * as core from "permdock";',
+      "const { createPermDock } = core;",
+      'import { loadPermDock } from "permdock";',
+      "export const a: PermDock = await loadPermDock(policy, user);",
+    ]);
   });
 });

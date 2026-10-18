@@ -44,11 +44,13 @@ A reference the import does not bind keeps its name: a parameter, a local variab
 
 Some 0.5.0 changes move more than a name. The codemod rewrites these where the import binding shows the call is PermDock's; the rows live in `packages/permdock/src/cli/codemod/shapes-0.5.ts`.
 
-| Source                                                                    | Result                                               |
-| ------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `<Protected fallback={…}>` from `permdock/react`, `react-native`, `solid` | `<Protected denied={…}>`                             |
-| `h(Protected, props, { fallback })` from `permdock/vue`                   | `h(Protected, props, { denied: fallback })`          |
-| `<PermDockProvider defaults={{ fallback }}>`                              | `<PermDockProvider defaults={{ denied: fallback }}>` |
+| Source                                                                    | Result                                                                                                                                      |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<Protected fallback={…}>` from `permdock/react`, `react-native`, `solid` | `<Protected denied={…}>`                                                                                                                    |
+| `h(Protected, props, { fallback })` from `permdock/vue`                   | `h(Protected, props, { denied: fallback })`                                                                                                 |
+| `<PermDockProvider defaults={{ fallback }}>`                              | `<PermDockProvider defaults={{ denied: fallback }}>`                                                                                        |
+| `await createPermDock(policy, user, options)` from `permdock`             | `await loadPermDock(policy, user, options)`, imported beside the others, and `createPermDock` dropped from the import once nothing reads it |
+| `createPermDock` from `permdock/pdp`                                      | `loadPermDock`, which keeps its always-async behaviour                                                                                      |
 
 ## What it reports
 
@@ -57,6 +59,7 @@ These sites go under `Manual follow-ups` and are never rewritten:
 - **Call shapes.** A call to an import whose signature changed, such as `subjectFromApiKey(options)(key)`, now `subjectFromApiKey(key, options)`. An import of such a function that is never called is reported at the import.
 - **Members.** A member renamed on a value a factory returns, when the value is not a module-level `const` holding the factory's result: a parameter, `const { permdock } = …`, or a value passed between modules.
 - **Option keys.** An option key in any other object literal in a file that imports the entry, such as `{ source: 'mcp' }` for `call`; the codemod cannot tell which call the object reaches.
+- **Synchronous `createPermDock`.** A core `createPermDock(…)` call that is returned or chained with `.then` without `await`: it now returns the instance, so a source that answers asynchronously needs `loadPermDock`.
 - **Template slots.** A Vue `#fallback` slot or a Svelte `{#snippet fallback}` in a component that imports `Protected`, and a `PermDockProvider` whose `defaults` the codemod cannot read or whose import it cannot see.
 - **Parse failures.** A file the parser rejects is listed and left as it is.
 
