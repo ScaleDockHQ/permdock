@@ -1,5 +1,10 @@
 import type { Rename, SignatureChange } from "./renames-0.5.ts";
-import type { AwaitRename, PropRename, TemplateHint } from "./shapes-0.5.ts";
+import type {
+  AwaitRename,
+  MethodToFunction,
+  PropRename,
+  TemplateHint,
+} from "./shapes-0.5.ts";
 
 import {
   type Edit,
@@ -18,6 +23,7 @@ export type RenameSet = {
   readonly props?: readonly PropRename[];
   readonly templates?: readonly TemplateHint[];
   readonly awaits?: readonly AwaitRename[];
+  readonly methodFunctions?: readonly MethodToFunction[];
 };
 
 /** One rewritten span. */

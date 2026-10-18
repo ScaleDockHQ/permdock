@@ -39,6 +39,7 @@ import {
   visitAwait,
   visitComponentArguments,
   visitElement,
+  visitMethodCall,
 } from "./shapes.ts";
 
 export type { CodemodChange, CodemodFollowUp, RenameSet } from "./context.ts";
@@ -254,6 +255,7 @@ function transformProgram(ctx: Context, segment: Segment): void {
       case "NewExpression":
         visitCall(ctx, node, ancestors);
         visitComponentArguments(ctx, node, ancestors);
+        visitMethodCall(ctx, node, ancestors);
         break;
       case "JSXOpeningElement":
         visitElement(ctx, node, ancestors);

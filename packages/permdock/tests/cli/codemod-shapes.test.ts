@@ -276,3 +276,114 @@ describe("the custom role reader", () => {
     expect(result.followUps).toEqual([]);
   });
 });
+
+describe("feature functions", () => {
+  it("turns instance feature methods into functions that take the instance first", () => {
+    const result = apply(
+      [
+        'import { createPermDock } from "permdock";',
+        "export async function run(permdock: PermDock, ctx: Ctx) {",
+        "  const change = permdock.decideRoleChange({ role: 'admin' }, { trusted: true });",
+        "  const holders = await ctx.permdock.whoCan(permissions.doc.read, row);",
+        "  const key = await permdock.tenant(t).decideCredential(request);",
+        "  return [change, holders, key];",
+        "}",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import { createPermDock, decideRoleChange, whoCan, decideCredential } from "permdock";',
+      "export async function run(permdock: PermDock, ctx: Ctx) {",
+      "  const change = decideRoleChange(permdock, { role: 'admin' }, { trusted: true });",
+      "  const holders = await whoCan(ctx.permdock, permissions.doc.read, row);",
+      "  const key = await decideCredential(permdock.tenant(t), request);",
+      "  return [change, holders, key];",
+      "}",
+    ]);
+    expect(
+      result.changes.map((item) => [item.line, item.from, item.to]),
+    ).toEqual([
+      [3, "decideRoleChange", "decideRoleChange"],
+      [4, "whoCan", "whoCan"],
+      [5, "decideCredential", "decideCredential"],
+    ]);
+  });
+
+  it("rewrites simulate only for an Arazzo plan and activate only on an instance", () => {
+    const result = apply(
+      [
+        'import { definePolicy } from "permdock";',
+        "export const plan = permdock.simulate({ arazzo, openapi });",
+        "export const checks = permdock.simulate([[permissions.doc.read]]);",
+        "export const elevated = permdock.activate({ role: 'admin', duration: 3600 });",
+        "export const session = auth.activate();",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import { definePolicy, simulateArazzo, activate } from "permdock";',
+      "export const plan = simulateArazzo(permdock, { arazzo, openapi });",
+      "export const checks = permdock.simulate([[permissions.doc.read]]);",
+      "export const elevated = activate(permdock, { role: 'admin', duration: 3600 });",
+      "export const session = auth.activate();",
+    ]);
+  });
+
+  it("nests rewrites, keeps renamed arguments and reuses an imported function", () => {
+    const result = apply(
+      [
+        'import { whoCan as holders, memorySink } from "permdock";',
+        "export const a = permdock.whoCan(p, other.whoCan(q, memorySink));",
+        "export const b = holders;",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import { whoCan as holders, memoryDecisionSink } from "permdock";',
+      "export const a = holders(permdock, p, holders(other, q, memoryDecisionSink));",
+      "export const b = holders;",
+    ]);
+  });
+
+  it("reports an optional call and a captured name, and leaves a namespace call alone", () => {
+    const result = apply(
+      [
+        'import * as pd from "permdock";',
+        "export const a = permdock?.decideRoleChange(change);",
+        "export const b = pd.decideRoleChange(permdock, change);",
+        "export function c(decideRoleChange: unknown) { return permdock.decideRoleChange(change); }",
+      ],
+      "file.ts",
+    );
+    expect(result.changes).toEqual([]);
+    expect(result.followUps.map((item) => [item.line, item.message])).toEqual([
+      [
+        2,
+        "`permdock.decideRoleChange(…)` is `decideRoleChange(permdock, …)` from `permdock`",
+      ],
+      [
+        4,
+        "`permdock.decideRoleChange(…)` is `decideRoleChange(permdock, …)` from `permdock`; `decideRoleChange` is already bound in this scope",
+      ],
+    ]);
+  });
+
+  it("rewrites a call without further arguments and a multi-line call", () => {
+    const result = apply(
+      [
+        'import { can } from "permdock";',
+        "export const a = permdock.whoCan();",
+        "export const b = permdock.decideRoleChange(",
+        "  change,",
+        ");",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n").slice(1)).toEqual([
+      "export const a = whoCan(permdock);",
+      "export const b = decideRoleChange(permdock,",
+      "  change,",
+      ");",
+    ]);
+  });
+});

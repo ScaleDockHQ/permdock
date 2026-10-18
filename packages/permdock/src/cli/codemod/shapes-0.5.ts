@@ -22,6 +22,14 @@ export type AwaitRename = {
   readonly to: string;
 };
 
+export type MethodToFunction = {
+  readonly method: string;
+  readonly to: string;
+  readonly entry: string;
+  readonly anyReceiver: boolean;
+  readonly argument?: string;
+};
+
 const JSX_KITS = [
   "permdock/react",
   "permdock/react-native",
@@ -76,3 +84,34 @@ export const CALL_RENAMES_0_5: readonly Rename[] = Object.freeze([
     calls: ["customRoleSource"],
   },
 ]);
+
+export const METHOD_FUNCTIONS_0_5: readonly MethodToFunction[] = Object.freeze(
+  [
+    "decideRoleChange",
+    "decideCredential",
+    "decideAutomation",
+    "decideSupportSession",
+    "whoCan",
+  ]
+    .map((method): MethodToFunction => ({
+      method,
+      to: method,
+      entry: "permdock",
+      anyReceiver: true,
+    }))
+    .concat([
+      {
+        method: "simulate",
+        to: "simulateArazzo",
+        entry: "permdock",
+        anyReceiver: true,
+        argument: "arazzo",
+      },
+      {
+        method: "activate",
+        to: "activate",
+        entry: "permdock",
+        anyReceiver: false,
+      },
+    ]),
+);

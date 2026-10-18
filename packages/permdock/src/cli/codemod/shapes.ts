@@ -4,7 +4,11 @@ import type {
   ImportBinding,
   RenameSet,
 } from "./context.ts";
-import type { AwaitRename, PropRename } from "./shapes-0.5.ts";
+import type {
+  AwaitRename,
+  MethodToFunction,
+  PropRename,
+} from "./shapes-0.5.ts";
 
 import {
   type Estree,
@@ -19,6 +23,7 @@ import {
   SCRIPT_BLOCK,
   edit,
   importedCallee,
+  isModuleBinding,
   renameKeys,
   replace,
 } from "./context.ts";
@@ -227,4 +232,98 @@ export function visitComponentArguments(
       }
     }
   }
+}
+
+function methodRow(
+  ctx: Context,
+  node: Estree,
+  ancestors: readonly Estree[],
+): MethodToFunction | undefined {
+  const callee = node.callee;
+  const receiver = callee?.object;
+  const method = callee?.property?.name;
+  const first = nodes(node.arguments)[0];
+  return (ctx.set.methodFunctions ?? []).find(
+    (row) =>
+      callee?.type === "MemberExpression" &&
+      callee.computed !== true &&
+      row.method === method &&
+      (row.argument === undefined ||
+        (first?.type === "ObjectExpression" &&
+          nodes(first.properties).some(
+            (property) => nameOf(property.key) === row.argument,
+          ))) &&
+      (row.anyReceiver || holdsInstance(ctx, receiver, ancestors)),
+  );
+}
+
+function holdsInstance(
+  ctx: Context,
+  receiver: Estree | undefined,
+  ancestors: readonly Estree[],
+): boolean {
+  const name = receiver?.type === "Identifier" ? receiver.name : undefined;
+  if (name === undefined) {
+    return false;
+  }
+  return (
+    /permdock/iu.test(name) ||
+    (isModuleBinding(ctx, name, ancestors) && ctx.factories.has(name))
+  );
+}
+
+export function visitMethodCall(
+  ctx: Context,
+  node: Estree,
+  ancestors: readonly Estree[],
+): void {
+  const row =
+    node.type === "CallExpression"
+      ? methodRow(ctx, node, ancestors)
+      : undefined;
+  const receiver = node.callee?.object;
+  if (row === undefined || receiver === undefined) {
+    return;
+  }
+  const name = receiver.type === "Identifier" ? receiver.name : undefined;
+  if (name !== undefined && ctx.namespaces.has(name)) {
+    return;
+  }
+  const open = ctx.code.indexOf("(", receiver.end);
+  const between = ctx.code.slice(receiver.end, open);
+  const optional =
+    Reflect.get(node, "optional") === true ||
+    Reflect.get(node.callee ?? node, "optional") === true;
+  if (
+    optional ||
+    receiver.type === "SequenceExpression" ||
+    !/^\s*\.\s*\w+\s*$/u.test(between)
+  ) {
+    ctx.followUps.push({
+      at: node.start,
+      name: row.method,
+      message: `\`permdock.${row.method}(…)\` is \`${row.to}(permdock, …)\` from \`${row.entry}\``,
+    });
+    return;
+  }
+  const local = importedLocal(ctx, row.to, row.entry, ancestors);
+  if (local === undefined) {
+    ctx.followUps.push({
+      at: node.start,
+      name: row.method,
+      message: `\`permdock.${row.method}(…)\` is \`${row.to}(permdock, …)\` from \`${row.entry}\`; \`${row.to}\` is already bound in this scope`,
+    });
+    return;
+  }
+  const separator = nodes(node.arguments).length === 0 ? "" : ",";
+  const space = /\s/u.test(ctx.code[open + 1] ?? "") ? "" : " ";
+  ctx.edits.push(
+    { start: receiver.start, end: receiver.start, text: `${local}(` },
+    {
+      start: receiver.end,
+      end: open + 1,
+      text: separator === "" ? "" : `${separator}${space}`,
+    },
+  );
+  ctx.changes.push({ at: node.start, from: row.method, to: row.to });
 }
