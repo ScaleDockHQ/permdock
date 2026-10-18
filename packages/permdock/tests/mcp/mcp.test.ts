@@ -843,6 +843,29 @@ describe("actorKind", () => {
     });
   });
 
+  it("refuses and hides a tool an agent actor's tools list does not name", async () => {
+    const session = { authInfo: auth(["post:update"]) };
+    const call = { name: "update_post", arguments: { id: "p1" } };
+    const agent = (tools: readonly string[]) =>
+      connect(
+        updateServer(undefined, {
+          actor: () => ({ id: "agent-7", kind: "agent", tools }),
+        }),
+        session,
+      );
+    const named = await agent(["update_post"]);
+    expect((await named.client.callTool(call)).isError).not.toBe(true);
+    const other = await agent(["search_knowledge"]);
+    expect(await other.client.callTool(call)).toMatchObject({
+      isError: true,
+      structuredContent: {
+        outcome: "denied",
+        denials: [{ reason: "agent-tool-not-delegated" }],
+      },
+    });
+    expect((await other.client.listTools()).tools).toEqual([]);
+  });
+
   it("gives an MCP token the same actor as subjectFromSupabase when set to oauth-client", () => {
     const viaMcp = subjectFromMcp(
       auth(["post:update"], { sub: "u1", roles: ["member"] }),

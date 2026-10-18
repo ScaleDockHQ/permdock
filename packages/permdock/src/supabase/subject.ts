@@ -232,11 +232,19 @@ function copyAct(level: Record<string, unknown>): SupabaseActClaim {
   return Object.fromEntries(entries) as SupabaseActClaim;
 }
 
+function isToolList(value: unknown): value is readonly string[] {
+  return (
+    Array.isArray(value) &&
+    value.every((tool) => typeof tool === "string" && tool !== "")
+  );
+}
+
 /**
  * The outer `act` level by its `kind`, the marker a support tool writes: none is an OAuth client
  * or agent chain, `support` a support session (with `session_id`), `impersonation` an admin acting
  * as the user, `agent` an agent run with the `tools` it may call. Any other `kind`, a support level
- * without `session_id` and `tools` that are not strings are invalid.
+ * without `session_id`, and an agent level with `session_id`, `tools` that are not non-empty
+ * strings or a `read_only` that is not a boolean are invalid, as better-supabase reads them.
  */
 function actingParty(
   outer: Record<string, unknown>,
@@ -293,18 +301,25 @@ function actingParty(
       });
     case "agent": {
       const tools = Object.hasOwn(outer, "tools") ? outer["tools"] : undefined;
+      const readOnly = Object.hasOwn(outer, "read_only")
+        ? outer["read_only"]
+        : false;
       if (
-        tools !== undefined &&
-        !(
-          Array.isArray(tools) &&
-          tools.every((tool) => typeof tool === "string")
-        )
+        Object.hasOwn(outer, "session_id") ||
+        (tools !== undefined && !isToolList(tools)) ||
+        typeof readOnly !== "boolean"
       ) {
         return INVALID_CHAIN;
       }
       return freezeDeep({
         ok: true,
-        actor: compact<SupabaseActor>({ id, kind: "agent", tools, chain }),
+        actor: compact<SupabaseActor>({
+          id,
+          kind: "agent",
+          tools,
+          readOnly,
+          chain,
+        }),
       });
     }
     default:
@@ -454,6 +469,7 @@ function subjectActor(
         id: actor.id,
         kind: actor.kind,
         tools: actor.tools,
+        readOnly: actor.readOnly,
       });
     default: {
       const exhaustive: never = actor;

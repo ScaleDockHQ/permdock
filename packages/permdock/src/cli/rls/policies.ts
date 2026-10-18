@@ -251,14 +251,18 @@ export const ACTOR_MAY_WRITE = "permdock_actor_may_write";
 
 /**
  * True unless the token's `act` claim (`act`, as SQL `jsonb`) is a session
- * of one of `kinds` that is not `read_only: false`.
+ * of one of `kinds` that is not `read_only: false`, or an agent with
+ * `read_only: true` (agents default to writable, as better-supabase reads them).
  */
 function readOnlyActorPasses(act: string, kinds: readonly string[]): string {
   const list = `array[${kinds.map((kind) => `'${kind}'`).join(", ")}]::text[]`;
   const session = kinds.includes("support")
     ? `(${act} ->> 'kind') = any(${list}) or ((${act} ->> 'kind') is null and ${act} ? 'session_id')`
     : `(${act} ->> 'kind') = any(${list})`;
-  return `not coalesce(${session}, false) or coalesce((${act} ->> 'read_only') = 'false', false)`;
+  const passes = `(not coalesce(${session}, false) or coalesce((${act} ->> 'read_only') = 'false', false))`;
+  return kinds.includes("agent")
+    ? passes
+    : `${passes} and not coalesce((${act} ->> 'kind') = 'agent' and (${act} ->> 'read_only') = 'true', false)`;
 }
 
 /**

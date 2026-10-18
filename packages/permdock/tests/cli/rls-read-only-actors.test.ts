@@ -14,6 +14,7 @@ import { project, removeProjects } from "./doctor-kit.ts";
 afterAll(removeProjects);
 
 const ACT = "((select auth.jwt()) -> 'act')";
+const READ_ONLY_AGENT = ` and not coalesce((${ACT} ->> 'kind') = 'agent' and (${ACT} ->> 'read_only') = 'true', false)`;
 
 const allow = (
   table: string,
@@ -42,7 +43,7 @@ describe("rls.readOnlyActors", () => {
       ACT,
       ["support", "impersonation"],
     );
-    const passes = `not coalesce((${ACT} ->> 'kind') = any(array['support', 'impersonation']::text[]) or ((${ACT} ->> 'kind') is null and ${ACT} ? 'session_id'), false) or coalesce((${ACT} ->> 'read_only') = 'false', false)`;
+    const passes = `(not coalesce((${ACT} ->> 'kind') = any(array['support', 'impersonation']::text[]) or ((${ACT} ->> 'kind') is null and ${ACT} ? 'session_id'), false) or coalesce((${ACT} ->> 'read_only') = 'false', false))${READ_ONLY_AGENT}`;
     expect(policies).toEqual([
       {
         name: "quotes_insert_read_only_actors",
@@ -77,7 +78,20 @@ describe("rls.readOnlyActors", () => {
       "impersonation",
     ]);
     expect(policy?.using).toBe(
-      `not coalesce((${ACT} ->> 'kind') = any(array['impersonation']::text[]), false) or coalesce((${ACT} ->> 'read_only') = 'false', false)`,
+      `(not coalesce((${ACT} ->> 'kind') = any(array['impersonation']::text[]), false) or coalesce((${ACT} ->> 'read_only') = 'false', false))${READ_ONLY_AGENT}`,
+    );
+  });
+
+  it("refuses an agent only with read_only true, unless agent is a listed kind", () => {
+    const [policy] = readOnlyActorPolicies([allow("quotes", "delete")], ACT, [
+      "support",
+    ]);
+    expect(policy?.using).toContain(READ_ONLY_AGENT);
+    const [listed] = readOnlyActorPolicies([allow("quotes", "delete")], ACT, [
+      "agent",
+    ]);
+    expect(listed?.using).toBe(
+      `(not coalesce((${ACT} ->> 'kind') = any(array['agent']::text[]), false) or coalesce((${ACT} ->> 'read_only') = 'false', false))`,
     );
   });
 
@@ -135,7 +149,7 @@ language sql
 stable
 set search_path = ''
 as $$
-  select not coalesce((${ACT} ->> 'kind') = any(array['support']::text[]) or ((${ACT} ->> 'kind') is null and ${ACT} ? 'session_id'), false) or coalesce((${ACT} ->> 'read_only') = 'false', false)
+  select (not coalesce((${ACT} ->> 'kind') = any(array['support']::text[]) or ((${ACT} ->> 'kind') is null and ${ACT} ? 'session_id'), false) or coalesce((${ACT} ->> 'read_only') = 'false', false))${READ_ONLY_AGENT}
 $$;
 revoke execute on function "permdock".permdock_actor_may_write() from public, anon;
 grant execute on function "permdock".permdock_actor_may_write() to authenticated;`,

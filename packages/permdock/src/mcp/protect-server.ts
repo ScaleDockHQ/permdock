@@ -137,6 +137,7 @@ export function protectServer(
         permissionOf,
         entries.map(keyOf),
         remember ? toolDeclared : undefined,
+        remember,
       );
       const kept = entries.filter((entry) => shown.has(keyOf(entry)));
       if (remember) {
@@ -219,6 +220,7 @@ export function protectServer(
       toolPermission,
       [...tools.keys()],
       toolDeclared,
+      true,
     );
     const after = [...shown].toSorted().join(",");
     if (after === before) {
@@ -235,6 +237,7 @@ export function protectServer(
   };
 
   const guardTool = (
+    tool: () => string,
     permission: Permission,
     reach: Reach,
     load: ((args: unknown) => unknown) | undefined,
@@ -248,7 +251,7 @@ export function protectServer(
       handler,
       (params) => (params.length >= 2 ? [params[0]] : [undefined]),
       toolRefusal,
-      { after: announce, longRunning, capabilities, reach },
+      { after: announce, longRunning, capabilities, reach, tool },
     );
 
   // SAFETY: the SDK overloads are generic over schemas; the wrapper forwards the same arguments.
@@ -278,6 +281,7 @@ export function protectServer(
   };
   /** With `enforce: 'procedure'` the handler runs undecided: the procedure it calls decides. */
   const wrapTool = (
+    tool: () => string,
     permission: Permission,
     reach: Reach,
     load: ((args: unknown) => unknown) | undefined,
@@ -285,7 +289,7 @@ export function protectServer(
     longRunning: boolean,
   ): Handler =>
     enforcement === undefined
-      ? guardTool(permission, reach, load, handler, longRunning)
+      ? guardTool(tool, permission, reach, load, handler, longRunning)
       : async (...params: unknown[]): Promise<unknown> => {
           const result: unknown = await handler(...params);
           await announce(contextOf(params.at(-1)));
@@ -313,6 +317,8 @@ export function protectServer(
       rawScopes === undefined ? enforcement?.oauthScopesFor?.(name) : rawScopes,
     );
     const reach = reachOf(checks.policy, permission, declared);
+    let current = name;
+    const tool = (): string => current;
     // SAFETY: GuardedMcpServer types annotations as ToolHints and scopeChallenge as its handler.
     const registered = originalTool(
       name,
@@ -328,16 +334,16 @@ export function protectServer(
           reach.challenge,
         ),
       },
-      wrapTool(permission, reach, load, handler, longRunning),
+      wrapTool(tool, permission, reach, load, handler, longRunning),
     );
     tools.set(name, permission);
     if (declared !== undefined) {
       toolScopes.set(name, declared);
     }
-    let current = name;
     guardUpdates(
       registered,
-      (callback) => wrapTool(permission, reach, load, callback, longRunning),
+      (callback) =>
+        wrapTool(tool, permission, reach, load, callback, longRunning),
       (from, to) => {
         tools.delete(from);
         toolScopes.delete(from);

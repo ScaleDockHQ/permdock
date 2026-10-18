@@ -348,7 +348,7 @@ With `--rbac`, the command prints a reminder to run `permdock supabase hook gene
 
 ### Read-only actors
 
-A token that acts for a user names the actor in its `act` claim: a support session (`act.kind: 'support'`) or an impersonation (`act.kind: 'impersonation'`). The helpers read memberships, not `act`, so to Postgres such a token is its user and writes what the user may write. `rls.readOnlyActors` adds one `RESTRICTIVE` policy per table and write command that the generated policies grant to `authenticated`, named `{table}_{op}_read_only_actors`. It refuses the write when `act.kind` is one of the listed kinds, unless `act.read_only` is `false`. Reads are never touched.
+A token that acts for a user names the actor in its `act` claim: a support session (`act.kind: 'support'`) or an impersonation (`act.kind: 'impersonation'`). The helpers read memberships, not `act`, so to Postgres such a token is its user and writes what the user may write. `rls.readOnlyActors` adds one `RESTRICTIVE` policy per table and write command that the generated policies grant to `authenticated`, named `{table}_{op}_read_only_actors`. It refuses the write when `act.kind` is one of the listed kinds, unless `act.read_only` is `false`. An agent (`act.kind: 'agent'`) is refused only when `act.read_only` is `true`, as better-supabase's `actor_may_write` reads it, unless `agent` is a listed kind. Reads are never touched.
 
 ```ts title="permdock.config.ts"
 rls: {

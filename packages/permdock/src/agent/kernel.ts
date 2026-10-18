@@ -18,6 +18,7 @@ import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { withApp } from "../core/app.ts";
 import { resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
+import { actorMayCallTool } from "../core/delegation.ts";
 import {
   buildReportingInstance,
   requestContext,
@@ -176,11 +177,29 @@ export function createAgentKernel<
       readonly resume: boolean;
       readonly call: "adapter" | "simulate";
       readonly decideOptions: DecideToolOptions;
+      readonly tool?: string;
     },
   ): Promise<CheckResult<V>> => {
     let permdock: PermDock<V> | undefined;
     try {
       permdock = await instance(context);
+      if (
+        how.tool !== undefined &&
+        !actorMayCallTool(permdock.subject.actor, how.tool)
+      ) {
+        const refused: Decision = {
+          outcome: "denied",
+          denials: [{ role: null, reason: "agent-tool-not-delegated" }],
+          alternatives: [],
+        };
+        return {
+          ok: true,
+          permdock,
+          data: undefined,
+          raw: refused,
+          decision: refused,
+        };
+      }
       let data: unknown;
       if (binding.data !== undefined) {
         try {
@@ -241,11 +260,17 @@ export function createAgentKernel<
     context: TContext,
     checkOptions: CheckOptions = {},
   ): Promise<CheckResult<V>> =>
-    run(binding, args, context, {
-      resume: checkOptions.simulate !== true,
-      call: checkOptions.simulate === true ? "simulate" : "adapter",
-      decideOptions: checkOptions,
-    });
+    run(
+      binding,
+      args,
+      context,
+      compact({
+        resume: checkOptions.simulate !== true,
+        call: checkOptions.simulate === true ? "simulate" : "adapter",
+        decideOptions: checkOptions,
+        tool: checkOptions.tool,
+      }),
+    );
 
   const verdictOf = (
     checked: CheckResult<V>,
@@ -319,7 +344,10 @@ export function createAgentKernel<
     context: TContext,
     decideOptions: DecideToolOptions = {},
   ): Promise<ToolVerdict> => {
-    const checked = await check(binding, args, context, decideOptions);
+    const checked = await check(binding, args, context, {
+      ...decideOptions,
+      tool: toolName,
+    });
     return relabel(verdictOf(checked, binding, toolName), checked.permdock);
   };
 
@@ -408,7 +436,10 @@ export function createAgentKernel<
     const permdock = await instance(context);
     const allowed = new Set<string>();
     for (const [name, binding] of Object.entries(tools)) {
-      if (permdock.mayUse(binding.permission)) {
+      if (
+        actorMayCallTool(permdock.subject.actor, name) &&
+        permdock.mayUse(binding.permission)
+      ) {
         allowed.add(name);
       }
     }

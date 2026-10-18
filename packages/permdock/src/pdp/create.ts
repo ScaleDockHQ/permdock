@@ -105,6 +105,7 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case "validation":
       case "not-delegated":
       case "no-delegation":
+      case "agent-tool-not-delegated":
       case "condition":
       case "deny":
       case "closure-error":

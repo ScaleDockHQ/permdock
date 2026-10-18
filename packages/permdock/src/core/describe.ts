@@ -38,6 +38,7 @@ const TENANT_REASONS: ReadonlySet<string> = new Set([
 const DELEGATION_REASONS: ReadonlySet<string> = new Set([
   "not-delegated",
   "no-delegation",
+  "agent-tool-not-delegated",
 ]);
 
 function labelGrantee(grantee: Grantee): string {

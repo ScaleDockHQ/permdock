@@ -332,6 +332,24 @@ describe("read-only actors", () => {
     );
   });
 
+  it("refuses writes to a read-only agent that only a token delegation covers", async () => {
+    const plain = definePolicy(permissions, { roles: policy.roles, subject });
+    const agent = (readOnly: boolean) =>
+      createPermDock(plain, member, {
+        actor: { id: "agent-7", kind: "agent", readOnly },
+        delegation: { scopes: ["post:read", "post:update"] },
+      });
+    expect(outcome(agent(false), permissions.post.update, post)).toBe(
+      "granted",
+    );
+    expect(outcome(agent(true), permissions.post.read, post)).toBe("granted");
+    expect(outcome(agent(true), permissions.post.update, post)).toBe(
+      "not-delegated",
+    );
+    const client = fromSnapshot(unsigned(agent(true)));
+    expect(client.can(permissions.post.update, post)).toBe(false);
+  });
+
   it("uses every delegated permission when writable", async () => {
     const permdock = createPermDock(supportPolicy, member, {
       actor: support(false),
