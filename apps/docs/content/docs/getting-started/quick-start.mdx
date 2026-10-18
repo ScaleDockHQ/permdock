@@ -83,11 +83,11 @@ export const policy = definePolicy(
 ## 3. Create a PermDock and check
 
 ```ts
-import { createPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { policy } from "./policy";
 import { permissions } from "./permissions";
 
-const permdock = createPermDock(policy, user); // synchronous; loadPermDock when a source answers with a Promise
+const permdock = await getPermDock(policy, user); // getPermDockSync when every input answers synchronously
 
 permdock.can(permissions.post.update, post); // boolean
 permdock.can(permissions.post.create); // collection action: no instance, enforced by the type
@@ -105,7 +105,7 @@ switch (decision.outcome) {
 permdock.assert(permissions.post.update, post); // returns the granted Decision or throws PermDockDeniedError / PermDockApprovalRequiredError
 ```
 
-`createPermDock` returns a frozen, request-scoped `PermDock`. Create one per request (or per user session in the browser); never share a mutable global. `decide` is the full answer, `can` is the boolean shortcut, `assert` is for handlers that must stop on denial. See [decisions](/docs/concepts/decisions) and [errors](/docs/concepts/errors).
+`getPermDock` returns a frozen, request-scoped `PermDock`. Create one per request (or per user session in the browser); never share a mutable global. `decide` is the full answer, `can` is the boolean shortcut, `assert` is for handlers that must stop on denial. See [decisions](/docs/concepts/decisions) and [errors](/docs/concepts/errors).
 
 ## 4. Guard React UI
 

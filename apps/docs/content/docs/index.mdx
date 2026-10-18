@@ -19,7 +19,7 @@ import {
   role,
   allow,
   principal,
-  createPermDock,
+  getPermDock,
 } from "permdock";
 
 export const permissions = definePermissions({
@@ -42,7 +42,7 @@ export const policy = definePolicy(
   },
 );
 
-const permdock = createPermDock(policy, user);
+const permdock = await getPermDock(policy, user);
 permdock.can(permissions.post.update, post); // boolean
 permdock.decide(permissions.post.delete, post); // { outcome: 'granted' | 'denied' | 'approval-required', ... }
 ```

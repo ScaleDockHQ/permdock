@@ -63,9 +63,9 @@ type Binding = {
 Field names follow one rule: where a specification names the concept, PermDock uses that name or maps to it exactly once, in the "Spec names" table on [naming](/docs/getting-started/naming). `id`, `issuer`, `expiresAt`, `actor`, `delegation.scopes` and `authorizationDetails` are the camelCase spellings of `sub`, `iss`, `exp`, `act`, `scope` and `authorization_details`; `assurance` and `binding` carry the claims' own member names inside.
 
 ```ts
-const permdock = createPermDock(policy, user); // human or service: principal only
-const permdock = createPermDock(policy, user, { actor, delegation }); // agent on behalf of user
-const permdock = await loadPermDock(policy, user, {
+const permdock = await getPermDock(policy, user); // human or service: principal only
+const permdock = await getPermDock(policy, user, { actor, delegation }); // agent on behalf of user
+const permdock = await getPermDock(policy, user, {
   tenant,
   memberships,
   customRoles,
@@ -88,7 +88,7 @@ definePolicy(permissions, {
 
 - Its fields are the values that `subject.<field>` references read in [conditions](/docs/concepts/conditions). Nothing else about the user is visible to the policy.
 - `roles` selects which global `role()` grants apply. `memberships` selects scoped roles: each entry names a tenant, a team inside a tenant, or one resource, and the roles held there; `tenant` is the active tenant this request is about. A membership with a role name the policy never declared is resolved as a tenant-defined custom role through the `CustomRoleSource`, or dropped. Full rules on [tenants, teams and scoped roles](/docs/concepts/tenancy).
-- It is computed once per `createPermDock`, frozen, and included in the snapshot so the client evaluates the same conditions against the same values.
+- It is computed once per `getPermDock`, frozen, and included in the snapshot so the client evaluates the same conditions against the same values.
 - It is never taken from a model, a tool argument or a request body. Adapters derive it from verified auth material (session cookie, bearer token `authInfo`, provider session) through a `subjectFrom<Source>` function; what counts as verified is defined in [Authentication and PermDock](/docs/concepts/authentication). See also the [threat model](/docs/security/threat-model).
 
 The `principal` may be a service account. A cron job or a backend-to-backend call has a principal with roles and no actor.
@@ -101,7 +101,7 @@ When `subject` returns `null` the principal is anonymous. Anonymous has no roles
 
 ## Context
 
-`context` is for relations you need in conditions but that are not on the user record: team memberships, org settings, a feature flag. It is loaded once per `createPermDock`, which makes `createPermDock` async only when the policy declares it:
+`context` is for relations you need in conditions but that are not on the user record: team memberships, org settings, a feature flag. It is loaded once per instance. A policy that declares it needs `getPermDock`; `getPermDockSync` throws on it:
 
 ```ts
 definePolicy(permissions, {
@@ -182,7 +182,7 @@ You write the principal mapping once; the adapter fills `actor` and `delegation`
 
 ### Service principals
 
-A backend job or a partner service is a principal with roles of its own, created with `createPermDock(policy, serviceUser)` and no actor. Do not model it as an actor without a principal: actors never hold grants, so such a subject is denied everything. If a service calls on behalf of a user, the user is the principal and the service is the actor with a delegation.
+A backend job or a partner service is a principal with roles of its own, created with `getPermDock(policy, serviceUser)` and no actor. Do not model it as an actor without a principal: actors never hold grants, so such a subject is denied everything. If a service calls on behalf of a user, the user is the principal and the service is the actor with a delegation.
 
 ## Workload principals
 

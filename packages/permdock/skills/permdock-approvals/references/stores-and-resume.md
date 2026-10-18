@@ -37,9 +37,9 @@ The store's `ttl` is the window a request stays open when the call sets none; `r
 ## Approval policies as data
 
 ```ts
-import { memoryApprovalPolicySource } from "permdock";
+import { getPermDock, memoryApprovalPolicySource } from "permdock";
 
-const permdock = createPermDock(policy, user, {
+const permdock = await getPermDock(policy, user, {
   approvalPolicies: memoryApprovalPolicySource([
     {
       permission: "expense.pay",

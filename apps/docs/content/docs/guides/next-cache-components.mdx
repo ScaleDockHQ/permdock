@@ -162,7 +162,9 @@ export default async function Settings({ params }) {
   if (org === null) {
     notFound();
   }
-  await requireAccess({ permission: permissions.org.update, tenant: org.id });
+  await requirePermission(permissions.org.update, undefined, {
+    tenant: org.id,
+  });
   return <SettingsForm org={org} />;
 }
 ```
@@ -171,22 +173,20 @@ Three rules:
 
 - The slug lookup reads no session. Every user resolves `acme` to the same id, so it is a shared `'use cache'` entry, and a rename busts it with `updateTag('org-slug:<old>')` plus `org:<id>`.
 - The private cache takes the id, never the slug, and never calls `notFound()`. An unknown slug never enters it: the layout gets `emptySnapshot()` and the page, outside any cache, calls `notFound()`.
-- A known org the user does not belong to gets a snapshot with no membership in it: every tenant-scoped check is denied and `requireAccess` calls `forbidden()`. If the existence of an org is itself private, check `snapshot.tenants.includes(org.id)` and call `notFound()` instead, so a non-member cannot tell `403` from `404`.
+- A known org the user does not belong to gets a snapshot with no membership in it: every tenant-scoped check is denied and `requirePermission` calls `forbidden()`. If the existence of an org is itself private, check `snapshot.tenants.includes(org.id)` and call `notFound()` instead, so a non-member cannot tell `403` from `404`.
 
-`requireAccess` and `getPermDock({ tenant })` take the id, never the slug: the token's memberships and the RLS helpers compare ids, and a slug can change.
+`requirePermission` and `getPermDock({ tenant })` take the id, never the slug: the token's memberships and the RLS helpers compare ids, and a slug can change.
 
 ## Snapshot-only mode
 
 An app whose client checks are all portable needs no decision route. `endpoint: false` on `createPermDock` from `permdock/next` (or on its `PermDockProvider`) says so:
 
 ```ts
-export const { PermDockProvider, getPermDock, requireAccess } = createPermDock(
-  policy,
-  {
+export const { PermDockProvider, getPermDock, requirePermission } =
+  createPermDock(policy, {
     subject,
     endpoint: false,
-  },
-);
+  });
 ```
 
 The client never fetches. A check the snapshot cannot answer (a closure, a graph relation, a `period` grant, or a key outside `include`) is `denied` with reason `server-only` and `status: 'server-only'`, and the provider logs the first such permission once with `console.info`. Those checks belong on the server: `getPermission` in a Server Component, or `permdock.can(p, row)` while building a cached list. `permdock doctor` PD044 warns when `usePermission` reads such a grant and the app has neither a `permdockHandler` route nor an `endpoint`.
@@ -333,7 +333,7 @@ The private cache and the proxy both verify the session on every prefetch. With 
 
 ## The proxy is a hint
 
-`mayAccess(policy, claims, permission, { tenant })` in `proxy.ts` redirects only when the verified claims provably lack the page's permission. It answers `true` whenever custom roles, plans, missing memberships or row conditions could still grant access. Pages and Server Actions enforce regardless: a request that skips the proxy renders the page's forbidden state (`<Protected fallback>`) and gets a denied Server Action, never data. `requireAccess({ permission, tenant })` from `permdock/next` is the page-level alternative: it calls `forbidden()`, or `unauthorized()` for a signed-out user, when `experimental.authInterrupts` is on ([Next.js adapter](/docs/adapters/next)).
+`mayAccess(policy, claims, permission, { tenant })` in `proxy.ts` redirects only when the verified claims provably lack the page's permission. It answers `true` whenever custom roles, plans, missing memberships or row conditions could still grant access. Pages and Server Actions enforce regardless: a request that skips the proxy renders the page's forbidden state (`<Protected fallback>`) and gets a denied Server Action, never data. `requirePermission(permission, undefined, { tenant })` from `permdock/next` is the page-level alternative: it calls `forbidden()`, or `unauthorized()` for a signed-out user, when `experimental.authInterrupts` is on ([Next.js adapter](/docs/adapters/next)).
 
 ## Testing it
 

@@ -1,6 +1,6 @@
 ---
 name: permdock-data
-description: Enforces PermDock permissions in database queries and Postgres row-level security. Use when listing rows with permdock.where() and filter(), compiling conditions with toWhere from permdock/drizzle, permdock/prisma or permdock/kysely, guarding Convex functions with permdock/convex, generating or verifying RLS with permdock rls generate, verify or migrate, modelling folders, sub-teams or reporting lines with parent and relation() through a RelationSource, loadRelations or whoCan, or proving query and database parity with testOrmParity and testRlsParity. Also for doctor PD027, PD028, PD031 and PD032.
+description: Enforces PermDock permissions in database queries and Postgres row-level security. Use when listing rows with permdock.where() and filter(), compiling conditions with toWhere from permdock/drizzle, permdock/prisma or permdock/kysely, guarding Convex functions with permdock/convex, generating or verifying RLS with permdock rls generate, verify or migrate, modelling folders, sub-teams or reporting lines with parent and relation() through a RelationSource, prefetchRelations or whoCan, or proving query and database parity with testOrmParity and testRlsParity. Also for doctor PD027, PD028, PD031 and PD032.
 license: MIT
 metadata:
   author: ScaleDockHQ
@@ -32,7 +32,7 @@ The same portable conditions decide `can()` in memory, narrow list queries throu
 
 1. **Narrow list queries.** Compile `permdock.where(permission)` with the ORM's `toWhere`, then run `filter` and `pick` on the rows. -> [references/queries-and-rls.md](references/queries-and-rls.md)
    ✓ A user with no grant gets an empty list, and the query compiles without `non-portable-condition`.
-2. **Model hierarchies, when the product has them.** Give the resource a `parent`, declare the relations principals hold, add `restricted` where rows must not inherit, and grant with `relation(resource, name, { through: 'parent' })`. Pass a `RelationSource` as `relations` and call `loadRelations` before `can` / `filter` when it is async. Use `whoCan` for share dialogs. -> [references/relationships.md](references/relationships.md)
+2. **Model hierarchies, when the product has them.** Give the resource a `parent`, declare the relations principals hold, add `restricted` where rows must not inherit, and grant with `relation(resource, name, { through: 'parent' })`. Pass a `RelationSource` as `relations` and call `prefetchRelations` before `can` / `filter` when it is async. Use `whoCan` for share dialogs. -> [references/relationships.md](references/relationships.md)
    ✓ `permdock doctor --only graph` is clean, and a viewer of a parent folder can read a child document.
 3. **Generate or adopt RLS.** Run `permdock rls generate` from the policy, or keep SQL as the authority with `sqlFunction` twins and `rls.functions`, or move hand-written helpers with `permdock rls migrate`. -> [references/queries-and-rls.md](references/queries-and-rls.md#generate-and-verify-rls)
    ✓ `permdock rls generate --check` passes in CI.
@@ -53,5 +53,5 @@ The same portable conditions decide `can()` in memory, narrow list queries throu
 ## Reference index
 
 - [references/queries-and-rls.md](references/queries-and-rls.md): `toWhere` per ORM, `checkRow`, `withSubject`, Convex, `rls generate` / `import` / `verify` / `migrate` flags and config, field views, SQL as the authority.
-- [references/relationships.md](references/relationships.md): `parent`, relation kinds, `restricted`, `links`, `relation(..., { through })`, `RelationSource`, `loadRelations`, `whoCan`, the closure table and `--tree`.
+- [references/relationships.md](references/relationships.md): `parent`, relation kinds, `restricted`, `links`, `relation(..., { through })`, `RelationSource`, `prefetchRelations`, `whoCan`, the closure table and `--tree`.
 - Docs: [conditions](https://permdock.com/docs/concepts/conditions), [relationships](https://permdock.com/docs/concepts/relationships), [RLS adapter](https://permdock.com/docs/adapters/rls), [`permdock rls`](https://permdock.com/docs/cli/rls), [Postgres RLS](https://permdock.com/docs/standards/postgres-rls).

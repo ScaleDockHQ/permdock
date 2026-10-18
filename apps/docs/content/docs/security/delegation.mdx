@@ -8,7 +8,7 @@ A PermDock subject has two halves. `principal` is the human or service whose gra
 ## The three parts
 
 ```ts
-const permdock = createPermDock(policy, user, {
+const permdock = await getPermDock(policy, user, {
   actor: { id: "https://agent.example/cimd.json", kind: "mcp-client" },
   delegation: {
     scopes: ["post:read", "post:update"],
@@ -23,7 +23,7 @@ const permdock = createPermDock(policy, user, {
 | `actor`      | The adapter, from `authInfo.clientId`, runtime context, signature or Agent Card                      | Who is making the call                                        | Trusted after the runtime verified it; never from prompt content |
 | `delegation` | The adapter, from token scopes, `authorization_details`, a GNAP `access` array or a delegation chain | What the principal allowed the actor to do                    | Trusted after token verification; intersected, never added to    |
 
-A call with no `actor` is a human call and behaves exactly as `createPermDock(policy, user)`. A call with an `actor` and no `delegation` (or a `delegation` with no `scopes`, `authorizationDetails` or `access`) has no delegated authority unless a [policy delegation](#policy-delegations) covers the actor: every check is `denied` with reason `no-delegation`, and the snapshot carries an empty `scopes` list so a client ceiling agrees. Token-based adapters supply the token's scopes; in-process agent adapters take a `delegation` option from the application and apply none by default.
+A call with no `actor` is a human call and behaves exactly as `getPermDock(policy, user)`. A call with an `actor` and no `delegation` (or a `delegation` with no `scopes`, `authorizationDetails` or `access`) has no delegated authority unless a [policy delegation](#policy-delegations) covers the actor: every check is `denied` with reason `no-delegation`, and the snapshot carries an empty `scopes` list so a client ceiling agrees. Token-based adapters supply the token's scopes; in-process agent adapters take a `delegation` option from the application and apply none by default.
 
 ## Attenuation invariants
 

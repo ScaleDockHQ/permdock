@@ -33,7 +33,7 @@ flowchart LR
   OP -->|"/.well-known/openid-configuration"| Discovery[Discovery document]
   Discovery -->|jwks_uri, issuer| JwtAdapter[permdock/jwt]
   RP -->|access token| JwtAdapter
-  JwtAdapter -->|Subject| Core[createPermDock decide]
+  JwtAdapter -->|Subject| Core[getPermDock decide]
   OP -->|logout_token| Ssf[permdock/ssf]
   Ssf -->|invalidate| Snapshot[snapshot]
 ```

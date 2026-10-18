@@ -49,7 +49,7 @@ Add `requires: permissions.file.read` to a graph grant to count a share only whe
 
 ## Load
 
-Pass `relations: memoryRelationSource(permissions, { rows, edges })` in tests, or a `RelationSource` (`ancestors`, `related`) over the app's tables, to `createPermDock`. Evaluation stays synchronous; with an async source, call `await permdock.loadRelations(permission, rows)` before `can` or `filter`. Without a source, or with one that threw, graph checks deny with `relation-unavailable`; a chain past `depth` denies with `relation-depth`. Answers are cached per instance, never at module level.
+Pass `relations: memoryRelationSource(permissions, { rows, edges })` in tests, or a `RelationSource` (`ancestors`, `related`) over the app's tables, to `createPermDock`. Evaluation stays synchronous; with an async source, call `await permdock.prefetchRelations(permission, rows)` before `can` or `filter`. Without a source, or with one that threw, graph checks deny with `relation-unavailable`; a chain past `depth` denies with `relation-depth`. Answers are cached per instance, never at module level.
 
 ## Share dialogs
 

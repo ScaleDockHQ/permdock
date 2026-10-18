@@ -148,12 +148,12 @@ A custom resolve path calls `resolveApproval(store, token, verdict, { relations,
 
 ## Approval policies as data
 
-`approvalPolicies` on `createPermDock` takes `approvalPolicies(source)` for any `ApprovalPolicySource` (a `memoryApprovalPolicySource` is accepted as is), on the core factory and on every adapter that builds an instance (`permdock/next`, `permdock/server` and the HTTP adapters, `permdock/supabase/middleware`, `permdock/mcp`, `permdock/a2a`, `permdock/authzen`, `permdock/terminal` and the agent adapters `ai-sdk`, `claude-agent`, `eve` and `openai`), for approval rules an organisation configures at runtime, such as "payments over 1000 need finance". An entry adds stages to a matching allow; it never grants, never removes a code requirement and never lowers a quorum.
+`approvalPolicies` on `getPermDock` and `createPermDock` takes `approvalPolicies(source)` for any `ApprovalPolicySource` (a `memoryApprovalPolicySource` is accepted as is), in core and on every adapter that builds an instance (`permdock/next`, `permdock/server` and the HTTP adapters, `permdock/supabase/middleware`, `permdock/mcp`, `permdock/a2a`, `permdock/authzen`, `permdock/terminal` and the agent adapters `ai-sdk`, `claude-agent`, `eve` and `openai`), for approval rules an organisation configures at runtime, such as "payments over 1000 need finance". An entry adds stages to a matching allow; it never grants, never removes a code requirement and never lowers a quorum.
 
 ```ts
-import { memoryApprovalPolicySource } from "permdock";
+import { getPermDock, memoryApprovalPolicySource } from "permdock";
 
-const permdock = createPermDock(policy, user, {
+const permdock = await getPermDock(policy, user, {
   approvalPolicies: memoryApprovalPolicySource([
     {
       permission: "expense.pay", // a key; a former key from renamed resolves
@@ -508,6 +508,7 @@ Other surfaces implement the same three steps (send, wait, resolve with a verifi
 A delegate may approve whatever the delegator could approve, inside a time window. PermDock records the approval as the delegate's, acting for the delegator. There is one hop: a delegate's own delegations are never followed.
 
 ```ts
+import { getPermDockSync } from "permdock";
 import {
   approvalsHandler,
   memoryApprovalDelegationSource,
@@ -524,9 +525,9 @@ const handler = approvalsHandler(store, {
     },
   ]),
   subjectFor: (principalId) => loadSubject(principalId),
-  approverRelations: (approver, request) => loadRelations(approver, request),
+  approverRelations: (approver, request) => relationsFor(approver, request),
   permdockFor: (approver, request) =>
-    createPermDock(policy, approver, {
+    getPermDockSync(policy, approver, {
       tenant: request.subject.principal?.tenant,
     }),
 });

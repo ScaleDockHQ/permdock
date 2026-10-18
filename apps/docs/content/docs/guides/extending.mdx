@@ -149,7 +149,7 @@ const { protect } = createPermDock(policy, {
 - A status below 300, a throw or an invalid return keeps the default response and reports through `on('error')`. The handler behind the guard never runs.
 - A failed guard returns `{ ok: false, response, decision }`, so a framework that builds its own answer can read the decision.
 
-On Next.js the factory's `onDenied` throws instead, and also runs before `requireAccess` interrupts, unless the call passes its own ([Next.js](/docs/adapters/next)). On MCP and the agent adapters, `deniedText` receives `{ decision, permission, text }` and may return replacement text only; `isError`, `structuredContent` and the approval shape stay as PermDock built them ([MCP](/docs/adapters/mcp), [AI SDK](/docs/adapters/ai-sdk)).
+On Next.js the factory's `onDenied` throws instead, and also runs before `requirePermission` interrupts, unless the call passes its own ([Next.js](/docs/adapters/next)). On MCP and the agent adapters, `deniedText` receives `{ decision, permission, text }` and may return replacement text only; `isError`, `structuredContent` and the approval shape stay as PermDock built them ([MCP](/docs/adapters/mcp), [AI SDK](/docs/adapters/ai-sdk)).
 
 ## Wrapping an instance
 

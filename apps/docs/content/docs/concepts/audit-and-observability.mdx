@@ -8,7 +8,7 @@ An authorization library that cannot tell you what it decided, for whom, and why
 ## on('decision')
 
 ```ts
-const permdock = createPermDock(policy, user, { actor, delegation });
+const permdock = await getPermDock(policy, user, { actor, delegation });
 
 permdock.on("decision", (event) => audit.write(event));
 ```
@@ -154,7 +154,7 @@ A "freeze this agent" button in the Cloud is those two operations plus a recomme
 ```ts
 import { withOtel } from "permdock/otel";
 
-const permdock = withOtel(createPermDock(policy, user), {
+const permdock = withOtel(await getPermDock(policy, user), {
   tracer,
   meter,
 });

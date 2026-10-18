@@ -167,14 +167,14 @@ With the provider set, the entitlements module reads membership through `member_
 ## Server code
 
 ```ts title="src/lib/access.ts"
-import { createPermDock } from "permdock";
+import { getPermDockSync } from "permdock";
 import { subjectFromBetterSupabase } from "permdock/better-supabase";
 import { policy } from "../policy";
 import { bs } from "./supabase/server";
 
 export async function permdockFor() {
   const session = await bs.session();
-  return createPermDock(policy, subjectFromBetterSupabase(session));
+  return getPermDockSync(policy, subjectFromBetterSupabase(session));
 }
 ```
 
@@ -291,7 +291,7 @@ Give `createMcp` the [`authorizer`](#authorizer) and set `permission` on each to
 
 ```ts title="supabase/functions/mcp/index.ts"
 import { createMcp } from "better-supabase/mcp";
-import { createPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import {
   subjectFromBetterSupabase,
   subjectFromShareLink,
@@ -301,14 +301,14 @@ import { betterSupabase } from "../_shared/supabase.ts";
 import { permissions, policy } from "../_shared/policy.ts";
 
 type Auth = Parameters<typeof subjectFromBetterSupabase>[0];
-type Instance = Awaited<ReturnType<typeof createPermDock>>;
+type Instance = Awaited<ReturnType<typeof getPermDock>>;
 
 // One PermDock instance per request: `visible` runs once per tool.
 const instances = new WeakMap<object, Promise<Instance>>();
 function permdockFor(ctx: { auth: Auth }): Promise<Instance> {
   let permdock = instances.get(ctx.auth);
   if (!permdock) {
-    permdock = createPermDock(policy, subjectFromBetterSupabase(ctx.auth));
+    permdock = getPermDock(policy, subjectFromBetterSupabase(ctx.auth));
     instances.set(ctx.auth, permdock);
   }
   return permdock;
@@ -449,7 +449,7 @@ better-supabase's share-links block stores guest links: a hashed token, the subj
 
 ```ts title="app/q/[token]/page.tsx"
 import { subjectFromShareLink } from "permdock/better-supabase";
-import { createPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { exchangeCapability } from "permdock/supabase";
 
 const subject = await subjectFromShareLink(token, {
@@ -462,7 +462,7 @@ const subject = await subjectFromShareLink(token, {
   },
   ttl: 300,
 });
-const permdock = createPermDock(policy, subject);
+const permdock = await getPermDock(policy, subject);
 if (!permdock.can(permissions.quote.read, { id: quoteId }).granted) notFound();
 const db = await exchangeCapability(subject, { key, alg: "HS256", ttl: 300 });
 ```

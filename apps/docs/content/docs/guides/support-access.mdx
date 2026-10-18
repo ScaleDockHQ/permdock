@@ -69,7 +69,7 @@ PermDock keeps no support-session state. A session ends when its token stops ver
 ## Test it
 
 ```ts
-const permdock = createPermDock(policy, subjectFromSupabase(supportClaims), {
+const permdock = await getPermDock(policy, subjectFromSupabase(supportClaims), {
   tenant: organization,
 });
 expect(permdock.decide(permissions.quotes.update, quote)).toMatchObject({

@@ -97,7 +97,7 @@ A Cloud admin can write grants such as "the `pro` plan may read audit logs" with
 - A decision matched by a hosted grant records the document fingerprint and grant id in `matched.hosted`, so the decision log can answer which hosted grant allowed it.
 
 ```ts
-import { hostedPolicies } from "permdock";
+import { getPermDock, hostedPolicies } from "permdock";
 import { cloud, cloudEndpoints } from "permdock/cloud";
 import { joseTokenVerifier } from "permdock/jwt";
 
@@ -110,7 +110,7 @@ const permdockCloud = cloud({
 await permdockCloud.policies.refresh();
 setInterval(() => void permdockCloud.policies.refresh(), 60_000);
 
-const permdock = createPermDock(policy, user, {
+const permdock = await getPermDock(policy, user, {
   policies: hostedPolicies(permdockCloud.policies),
 });
 ```

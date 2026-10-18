@@ -170,7 +170,7 @@ One AST, several interpreters:
 | Prisma 8       | `toPredicate(...)` from `permdock/prisma`                     | A function of the model's field proxy                                                                                        |
 | Postgres RLS   | `permdock rls generate`                                       | `CREATE POLICY` statements, Drizzle `pgPolicy` entries or Prisma 8 `policy_*` blocks                                         |
 
-`related` needs the graph tables, not only the row. `permdock.where()` keeps it; Drizzle and Kysely compile it to a subquery when `options.relations` says where the tables are, and Prisma needs `resolveRelated` to replace it with ids first. Without either, the compilers refuse it with `non-portable-condition`. A relation with a `period` stays out of `where()` (`partial: true`); re-check those rows with `filter` after `loadRelations`, or let RLS enforce them ([relationships](/docs/concepts/relationships#snapshots-clients-and-where)).
+`related` needs the graph tables, not only the row. `permdock.where()` keeps it; Drizzle and Kysely compile it to a subquery when `options.relations` says where the tables are, and Prisma needs `resolveRelated` to replace it with ids first. Without either, the compilers refuse it with `non-portable-condition`. A relation with a `period` stays out of `where()` (`partial: true`); re-check those rows with `filter` after `prefetchRelations`, or let RLS enforce them ([relationships](/docs/concepts/relationships#snapshots-clients-and-where)).
 
 ```ts
 import { toWhere } from "permdock/drizzle";

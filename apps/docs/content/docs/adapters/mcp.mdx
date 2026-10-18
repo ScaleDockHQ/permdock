@@ -159,19 +159,19 @@ export { authed as GET, authed as POST };
 
   ```ts
   import { createMcp, defineTool } from "better-supabase/mcp";
-  import { createPermDock, isPermission } from "permdock";
+  import { getPermDock, isPermission } from "permdock";
   import { subjectFromBetterSupabase } from "permdock/better-supabase";
   import { betterSupabase } from "@/lib/supabase";
   import { policy, permissions } from "@/permissions";
 
-  type Instance = Awaited<ReturnType<typeof createPermDock>>;
+  type Instance = Awaited<ReturnType<typeof getPermDock>>;
 
   // One instance per request: `visible` runs once per tool.
   const instances = new WeakMap<object, Promise<Instance>>();
   const permdockFor = (ctx: { auth: object }) => {
     let instance = instances.get(ctx.auth);
     if (instance === undefined) {
-      instance = createPermDock(policy, subjectFromBetterSupabase(ctx.auth));
+      instance = getPermDock(policy, subjectFromBetterSupabase(ctx.auth));
       instances.set(ctx.auth, instance);
     }
     return instance;

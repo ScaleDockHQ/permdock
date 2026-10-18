@@ -16,7 +16,7 @@ flowchart LR
   Verifier -->|verified claims| Mapper[claim mapping]
   Verifier -->|failure cause| Anon[anonymous Subject]
   Mapper --> Subject["Subject: principal, actor, delegation, binding"]
-  Subject --> Core[createPermDock decide]
+  Subject --> Core[getPermDock decide]
   Core --> Denied["Decision denied"]
   Denied --> Bearer["WWW-Authenticate: Bearer error=..."]
 ```
