@@ -120,7 +120,7 @@ function isNode(value: unknown): value is Estree {
 }
 
 /** A child node under a field `Estree` types as something else (`value`, a type parameter's `name`). */
-function child(node: Estree, field: string): Estree | undefined {
+export function child(node: Estree, field: string): Estree | undefined {
   const value: unknown = Reflect.get(node, field);
   return isNode(value) ? value : undefined;
 }
@@ -267,7 +267,7 @@ export function applyEdits(source: string, edits: readonly Edit[]): string {
   return out;
 }
 
-type LineAt = (index: number) => {
+export type LineAt = (index: number) => {
   readonly line: number;
   readonly lineStart: number;
 };

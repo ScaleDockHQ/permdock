@@ -536,12 +536,6 @@ export const RENAMES_0_5: readonly Rename[] = Object.freeze(
 /** 0.5.0 changes the codemod lists as manual follow-ups. */
 export const SIGNATURE_CHANGES_0_5: readonly SignatureChange[] = Object.freeze([
   {
-    name: "decideCredential",
-    entries: ["permdock"],
-    before: "decideCredential(permdock, request)",
-    after: "permdock.decideCredential(request)",
-  },
-  {
     name: "permittedIds",
     entries: ["permdock"],
     before: "permittedIds(permdock, permission, scope)",
