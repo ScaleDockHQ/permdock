@@ -73,6 +73,7 @@ const SET: RenameSet = {
       entries: ["permdock/server"],
       before: "subjectFromApiKey(options)(key)",
       after: "subjectFromApiKey(key, options)",
+      shape: "curried",
     },
   ],
 };
@@ -285,7 +286,7 @@ describe("transformSource", () => {
       [
         'import { createPermDock } from "permdock/hono";',
         'import { decide } from "permdock";',
-        "const options = { source: 'mcp' };",
+        "decide(subject, permission, data, { source: 'mcp' });",
         "const { permdock, protect } = createPermDock(policy);",
         "app.use(kit.permdock());",
       ].join("\n"),
@@ -365,6 +366,50 @@ describe("transformSource", () => {
         message:
           "`subjectFromApiKey(options)(key)` is now `subjectFromApiKey(key, options)`",
       },
+    ]);
+  });
+
+  it("leaves a call already in the new shape alone", () => {
+    const source = [
+      'import { subjectFromApiKey } from "permdock/server";',
+      "const subject = await subjectFromApiKey(token, {",
+      "  permissions,",
+      "  verifier: apiKeyVerifier({ keys: connectServiceApiKeys(getAdmin()) }),",
+      "});",
+    ].join("\n");
+    expect(apply(source)).toEqual({ source, changes: [], followUps: [] });
+  });
+
+  it("reports a curried call whose options are not an object literal", () => {
+    const result = apply(
+      [
+        'import { subjectFromApiKey } from "permdock/server";',
+        "const subject = await subjectFromApiKey(options)(key);",
+        "const later = subjectFromApiKey(options);",
+      ].join("\n"),
+    );
+    expect(result.followUps.map((item) => [item.line, item.column])).toEqual([
+      [2, 23],
+    ]);
+  });
+
+  it("reports an option key only on an object that reaches a permdock call", () => {
+    const result = apply(
+      [
+        'import { createPermDock } from "permdock";',
+        "const permdock = createPermDock(policy);",
+        "await approvals.createRequest({ policy: { name }, quorum: requirement.quorum, requesterKind: check.actorKind, requirement: level, risk: 'medium', source: input.source, subjectId: input.subjectId ?? null });",
+        "await record({ check: input.check, requirement, source: input.source, subjectId: input.subjectId, subjectType: input.subjectType, ...extras });",
+        "const options = { source: 'mcp' };",
+        "permdock.decide(subject, permission, data, { source: 'mcp' });",
+        "createPermDock(policy, { nested: [{ source: 'mcp' }] });",
+        "permdock.decide(subject, permission, data, wrap({ source: 'mcp' }));",
+      ].join("\n"),
+    );
+    expect(result.source).not.toContain("call");
+    expect(result.followUps.map((item) => [item.line, item.name])).toEqual([
+      [6, "source"],
+      [7, "source"],
     ]);
   });
 
@@ -611,6 +656,28 @@ describe("permdock codemod", () => {
       "keys.ts:2:1  `subjectFromApiKey(options)(key)` is now `subjectFromApiKey(key, options)`",
     );
     expect(result.stdout).toContain("broken.ts:1:1  not parsed");
+  });
+
+  it("lists no follow-ups for code already in the 0.5 shape", async () => {
+    const dir = project({
+      "auth.ts": [
+        'import { subjectFromApiKey } from "permdock/server";',
+        "const subject = await subjectFromApiKey(token, {",
+        "  permissions,",
+        "  verifier: apiKeyVerifier({ keys: connectServiceApiKeys(getAdmin()) }),",
+        "});",
+        "",
+      ].join("\n"),
+      "approvals.ts": [
+        'import { createPermDock } from "permdock";',
+        "await approvals.createRequest({ policy: { name }, quorum: requirement.quorum, requesterKind: check.actorKind, requirement: level, risk: 'medium', source: input.source, subjectId: input.subjectId ?? null });",
+        "await record({ check: input.check, requirement, source: input.source, subjectId: input.subjectId, subjectType: input.subjectType, ...extras });",
+        "",
+      ].join("\n"),
+    });
+    const result = await run(["codemod", "0.5", "--dry-run", "--cwd", dir]);
+    expect(result.code).toBe(0);
+    expect(result.stdout).not.toContain("Manual follow-ups");
   });
 
   it("refuses an unknown version and names the supported one", async () => {

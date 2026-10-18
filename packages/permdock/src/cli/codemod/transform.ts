@@ -34,6 +34,7 @@ import {
 import { finishImports, removableBindings } from "./imports.ts";
 import {
   awaitRow,
+  holdsInstance,
   reportUnawaited,
   templateHints,
   visitAwait,
@@ -232,6 +233,7 @@ function contextFor(
     ),
     factories: factoryValues(program, bindings),
     handledKeys: new Set(),
+    newShapes: new Set(),
     scopes: new WeakMap(),
   };
 }
@@ -268,7 +270,7 @@ function transformProgram(ctx: Context, segment: Segment): void {
         visitAwait(ctx, node, ancestors);
         break;
       case "ObjectExpression":
-        reportOptions(ctx, node);
+        reportOptions(ctx, node, ancestors);
         reportWraps(ctx, node, ancestors);
         visitDurations(ctx, node, ancestors);
         break;
@@ -439,6 +441,10 @@ function visitCall(
       signature.entries.includes(callee.entry) &&
       names.has(signature.name)
     ) {
+      if (signature.shape === "curried" && !isCurried(node, ancestors)) {
+        ctx.newShapes.add(signature.name);
+        continue;
+      }
       ctx.followUps.push({
         at: node.start,
         name: signature.name,
@@ -458,6 +464,17 @@ function visitCall(
   }
 }
 
+/** `f(options)(key)`, or `f({ … })` whose result is kept for a later call. */
+function isCurried(node: Estree, ancestors: readonly Estree[]): boolean {
+  const args = nodes(node.arguments);
+  const parent = ancestors.at(-1);
+  return (
+    args.length === 1 &&
+    (args[0]?.type === "ObjectExpression" ||
+      (parent?.type === "CallExpression" && parent.callee === node))
+  );
+}
+
 function renameOptions(
   ctx: Context,
   object: Estree,
@@ -473,16 +490,26 @@ function renameOptions(
 
 /**
  * Rows with `calls` are renamed at those calls and nowhere else: their old
- * key (`store`) is still a valid option on every other factory.
+ * key (`store`) is still a valid option on every other factory. Rows without
+ * `calls` are reported only on an object that reaches a permdock call.
  */
-function reportOptions(ctx: Context, node: Estree): void {
+function reportOptions(
+  ctx: Context,
+  node: Estree,
+  ancestors: readonly Estree[],
+): void {
+  const target = optionTarget(ctx, node, ancestors);
+  if (target === undefined) {
+    return;
+  }
+  const rows = ctx.optionRows.filter(
+    (row) =>
+      row.calls === undefined &&
+      (target.entry === undefined || row.entries.includes(target.entry)),
+  );
   for (const key of propertyKeys(node)) {
-    for (const row of ctx.optionRows) {
-      if (
-        row.calls === undefined &&
-        nameOf(key) === row.from &&
-        !ctx.handledKeys.has(key)
-      ) {
+    for (const row of rows) {
+      if (nameOf(key) === row.from && !ctx.handledKeys.has(key)) {
         ctx.followUps.push({
           at: key.start,
           name: row.from,
@@ -491,6 +518,71 @@ function reportOptions(ctx: Context, node: Estree): void {
       }
     }
   }
+}
+
+const PASS_THROUGH = new Set([
+  "ArrayExpression",
+  "ObjectExpression",
+  "ParenthesizedExpression",
+  "TSAsExpression",
+  "TSSatisfiesExpression",
+  "TSNonNullExpression",
+]);
+
+/**
+ * The permdock call an object literal is an argument of, directly or nested
+ * in another argument's object, array or property value. `entry` is unset
+ * for a method on a receiver named after PermDock, whose entry is unknown.
+ */
+function optionTarget(
+  ctx: Context,
+  node: Estree,
+  ancestors: readonly Estree[],
+): { readonly entry: string | undefined } | undefined {
+  let child = node;
+  for (let index = ancestors.length - 1; index >= 0; index -= 1) {
+    const parent = ancestors[index];
+    if (parent === undefined) {
+      return undefined;
+    }
+    if (parent.type === "CallExpression" || parent.type === "NewExpression") {
+      return nodes(parent.arguments).includes(child)
+        ? calleeTarget(ctx, parent.callee, ancestors)
+        : undefined;
+    }
+    const passes =
+      (parent.type === "Property" && parent.value === child) ||
+      PASS_THROUGH.has(parent.type);
+    if (!passes) {
+      return undefined;
+    }
+    child = parent;
+  }
+  return undefined;
+}
+
+function calleeTarget(
+  ctx: Context,
+  callee: Estree | undefined,
+  ancestors: readonly Estree[],
+): { readonly entry: string | undefined } | undefined {
+  const imported = importedCallee(ctx, callee, ancestors);
+  if (imported !== undefined) {
+    return { entry: imported.entry };
+  }
+  const receiver =
+    callee?.type === "MemberExpression" && callee.computed !== true
+      ? callee.object
+      : undefined;
+  if (!holdsInstance(ctx, receiver, ancestors)) {
+    return undefined;
+  }
+  const name = receiver?.name ?? "";
+  return {
+    entry: isModuleBinding(ctx, name, ancestors)
+      ? ctx.factories.get(name)
+      : undefined,
+  };
 }
 
 function rewriteImports(ctx: Context, removed: ReadonlySet<string>): void {
@@ -585,6 +677,7 @@ function reportUncalledSignatures(
         signature.entries.includes(binding.entry) && names.has(signature.name);
       if (
         imported &&
+        !ctx.newShapes.has(signature.name) &&
         !ctx.followUps.some((note) => note.name === signature.name)
       ) {
         ctx.followUps.push({

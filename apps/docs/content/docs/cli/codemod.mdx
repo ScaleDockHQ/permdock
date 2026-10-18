@@ -64,9 +64,9 @@ Some 0.5.0 changes move more than a name. The codemod rewrites these where the i
 
 These sites go under `Manual follow-ups` and are never rewritten:
 
-- **Call shapes.** A call to an import whose signature changed, such as `subjectFromApiKey(options)(key)`, now `subjectFromApiKey(key, options)`. An import of such a function that is never called is reported at the import.
+- **Call shapes.** A call to an import whose signature changed, such as `subjectFromApiKey(options)(key)`, now `subjectFromApiKey(key, options)`. For `subjectFromApiKey` only the old shape counts: one argument that is an object literal or whose result is called. A call already in the new shape is left alone. An import of such a function that is never called is reported at the import.
 - **Members.** A member renamed on a value a factory returns, when the value is not a module-level `const` holding the factory's result: a parameter, `const { permdock } = …`, or a value passed between modules.
-- **Option keys.** An option key in any other object literal in a file that imports the entry, such as `{ source: 'mcp' }` for `call`; the codemod cannot tell which call the object reaches.
+- **Option keys.** An option key in an object literal that reaches a PermDock call, such as `{ source: 'mcp' }` for `call`. The object reaches the call when it is an argument of a function imported from the entry, or of a method on a value named after PermDock or held in a module constant from a PermDock factory, directly or nested in that argument's objects and arrays. An object passed to the application's own functions is left alone.
 - **Unawaited core `createPermDock`.** A call returned or chained with `.then` without `await`. It still becomes `getPermDockSync`, which returns the instance; a source that answers asynchronously needs `getPermDock`.
 - **Feature methods it cannot move.** An optional call such as `permdock?.whoCan(…)`, a call with type arguments, or one where the function name is already bound in that scope.
 - **Approval policy options elsewhere.** An `approvalPolicies` key in an object literal that is not passed straight to `createPermDock`, `getPermDock` or `getPermDockSync`.

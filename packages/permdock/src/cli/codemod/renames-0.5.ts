@@ -28,6 +28,11 @@ export type SignatureChange = {
   readonly entries: readonly string[];
   readonly before: string;
   readonly after: string;
+  /**
+   * `curried`: only a call with one argument that is an object literal or
+   * whose result is called has the old shape; any other call is left alone.
+   */
+  readonly shape?: "curried";
 };
 
 const SERVER_ADAPTERS = [
@@ -569,6 +574,7 @@ export const SIGNATURE_CHANGES_0_5: readonly SignatureChange[] = Object.freeze([
     entries: ["permdock/server"],
     before: "subjectFromApiKey(options)(key)",
     after: "subjectFromApiKey(key, options)",
+    shape: "curried",
   },
   {
     name: "subjectFromBetterAuth",

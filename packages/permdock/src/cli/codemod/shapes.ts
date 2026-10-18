@@ -259,7 +259,7 @@ function methodRow(
   );
 }
 
-function holdsInstance(
+export function holdsInstance(
   ctx: Context,
   receiver: Estree | undefined,
   ancestors: readonly Estree[],

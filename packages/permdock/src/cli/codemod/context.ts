@@ -96,6 +96,8 @@ export type Context = {
   /** Module-level constants holding a factory result, to the entry the factory came from. */
   readonly factories: ReadonlyMap<string, string>;
   readonly handledKeys: Set<Estree>;
+  /** Signature changes called in their new shape, so the import is not reported as uncalled. */
+  readonly newShapes: Set<string>;
   readonly scopes: WeakMap<Estree, ReadonlySet<string> | null>;
 };
 
