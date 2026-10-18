@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.6 or later as a peer; `authorizer` needs 0.8, and share links and approval covers need 0.9. `authorizationHooks` and the provider's `permitted`, `operations`, `holdersOf`, `actorMayWrite` and `delegation` fields need better-supabase's `main` branch until its next release. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
+The entry needs `better-supabase` 0.9 as a peer (`>=0.9.0 <0.10.0`): `authorizationHooks` and the provider's `permitted`, `operations`, `holdersOf`, `actorMayWrite` and `delegation` fields exist only from 0.9. Until 0.9.0 is on npm, install better-supabase from its `main` branch. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
 ## Why
 
@@ -61,7 +61,7 @@ import {
 - `holdersOf` is `permitted_<scope>_users(permission, tenant)`, the user ids holding a permission in a tenant, for a notification's audience. `actorMayWrite` is `permdock_actor_may_write()`, which the inbox and workflow modules call before a write. Each is set when the manifest lists its helper, with the role that runs it in `requires`.
 - `permitted` answers better-supabase's `permitted(resource, id, permission)`: for a resource that names a scope, whether `id` is among `permitted_<scope>_ids_by_permission(permission)`; for any other resource, whether the key is granted in the tenant. That second branch only holds for a key the catalog marks `rowConditions: false`; a key with row conditions is `false` there, so its table policies decide.
 - `operations` lists each catalog [operation](/docs/concepts/operations) as better-supabase tools: a name without a dot becomes `ai.tool.<name>` and `mcp.tool.<name>`, and a dotted name is used as written. `risk: 'critical'` maps to `high`, and the effects `send` and `spend` to `external`.
-- `delegation.scopes` maps each catalog permission's `.scope` to its key, so an OAuth client or agent token granted `invoice:read` gets `invoice.read`. A scope the catalog does not list grants nothing.
+- `delegation.scopes` maps each catalog permission's `.scope` to its key, so an OAuth client or agent token granted `invoice:read` gets `invoice.read`. Each coarse scope in the catalog's `oauthScopes` maps to the keys it covers ([OAuth scopes](#oauth-scopes)). Keys are sorted by code point. A scope the catalog does not list grants nothing.
 - `approver` is a permission. It becomes the `'ai-tool'` entry of `approvers` unless `approvers` names one. A key the catalog lacks is a problem.
 - `approvers` maps each better-supabase request kind to `user()`, `holder()` or `anyOf()` approvers and fills `isApprover`, which better-supabase asks for every request that waits on an approval ([Approvers](#approvers)). It needs `permdock_is_approver`, which `rls.approvals` writes; without it `isApprover` is unset and `problems` names the helper. The provider never sets `canApprove`.
 - `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
@@ -567,7 +567,7 @@ export const server = createServer(betterSupabase, {
 ```
 
 - `automation.mayPublish` lets a user publish an automation only with every key it uses granted to them in its tenant. `automation.runAs` loads the publisher's current claims, or `service(tenant)` for an organization-owned automation, checks every key again, and adds `bs_permission_cap` with the automation's keys. A deleted or suspended publisher, a key they lost and a missing `service` run as no one.
-- `delegation.permissions` maps a token's OAuth scopes to the keys whose `.scope` they are. It reads no `authorization_details`.
+- `delegation.permissions` maps a token's OAuth scopes to the keys whose `.scope` they are or were renamed from, and to the keys a policy `oauthScopes` entry covers. It reads no `authorization_details`.
 - `approverOf` exists with `approvers`. It refuses the requester and claims whose `sub` is not the approver, then matches `user()` by id and `holder()` with `decide` in the request's tenant.
 - `identities.principalByIdentity` exists when `principals` has `principalByIdentity`; a contact maps to `{ kind: "contact" }`. `delivery.subscribers` and `delivery.audience` are `subscriberPolicy` and exist with `principals` and `events`.
 - `support.authorize` is `supportPolicy` and exists with `support`.
@@ -575,6 +575,31 @@ export const server = createServer(betterSupabase, {
 - Every hook builds the subject from the claims `claims` loads, never from the request, and fails closed: a throw, an unknown key and `approval-required` refuse.
 
 `tests/better-supabase/hooks.test.ts` runs `testAuthorizationHooks` from `better-supabase/testing` on them.
+
+## OAuth scopes
+
+better-supabase narrows a delegated token (one with `client_id` or an agent `act`) inside `member_can`, `member_can_while_deleting`, `platform_can` and `tenant_ids_with`: a permission passes only when one of the token's scopes maps to it through the provider's `delegation.scopes`. A policy's coarse [`oauthScopes`](/docs/standards/oauth-agent-delegation) reach that map through the catalog:
+
+```ts title="policy.ts"
+definePolicy(permissions, {
+  oauthScopes: {
+    "mcp:read": [permissions.task.read],
+    "mcp:write": [permissions.task.read, permissions.task.update],
+  },
+  // ...
+});
+```
+
+```json title="permissions.catalog.json"
+"oauthScopes": [
+  { "scope": "mcp:read", "permissions": ["task.read"] },
+  { "scope": "mcp:write", "permissions": ["task.read", "task.update"] }
+]
+```
+
+`authorizationProvider` merges each entry into `delegation.scopes` next to the per-permission scopes, so a token with `scope: "openid mcp:read"` passes `member_can('task.read')` and fails `member_can('task.update')`. A key the catalog does not list is dropped. Run `permdock collect` after changing `oauthScopes`; doctor [PD070](/docs/cli/doctor#pd070-oauthscopes-missing-from-the-catalog) warns when the catalog lacks them. `tests/integration/src/better-supabase-oauth-scopes.test.ts` runs that token through better-supabase's generated SQL.
+
+Only better-supabase's checks narrow by token scope. PermDock's own SQL helpers (`permitted_<scope>_ids`, `permdock_has`, the table policies) do not read the `scope` claim, so a delegated token that reaches the Data API keeps the user's row access there. The one delegated-token rule they compile is `deny(…, { to: actor("oauth-client") })`, which refuses a key to every token with `client_id` or `act`; use it for writes an OAuth client must never make through PostgREST. `permdock_api_key_allows` reads the backend-set `api_key.scopes` claim, which is a different ceiling. Narrowing the helpers by `scope` with the same map is planned ([roadmap](/docs/roadmap)), so a module check and a row policy agree about the same token.
 
 ## Agents and tool approval
 

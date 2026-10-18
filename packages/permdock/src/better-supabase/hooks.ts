@@ -21,6 +21,7 @@ import type { SupportPolicyOptions } from "./support.ts";
 import { asApprover } from "../core/approval-normalize.ts";
 import { flattenApprovers } from "../core/approvers.ts";
 import { isRecord } from "../core/compact.ts";
+import { scopesReaching } from "../core/oauth-scopes.ts";
 import { loadPermDock } from "../core/permdock.ts";
 import {
   findPermission,
@@ -135,7 +136,8 @@ function matches(
  * refuse. `automation` and `delegation` are always set; `identities`,
  * `delivery`, `approverOf`, `support` and `tickets` only with the options
  * they read. `delegation.permissions` maps each scope to the keys whose
- * `.scope` it is and reads no `authorization_details`.
+ * `.scope` it is, was renamed from, or that a policy `oauthScopes` entry
+ * covers, and reads no `authorization_details`.
  */
 export function authorizationHooks(
   options: AuthorizationHooksOptions,
@@ -211,7 +213,11 @@ export function authorizationHooks(
       try {
         const scopes = new Set(ref.scopes);
         return listPermissions(policy.permissions)
-          .filter((permission) => scopes.has(permission.scope))
+          .filter((permission) =>
+            scopesReaching(policy, permission).some((scope) =>
+              scopes.has(scope),
+            ),
+          )
           .map((permission) => permission.key);
       } catch {
         return [];

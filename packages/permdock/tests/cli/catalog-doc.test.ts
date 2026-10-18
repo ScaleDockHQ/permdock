@@ -307,6 +307,47 @@ describe("catalog approvals and roles", () => {
   });
 });
 
+describe("catalog oauthScopes", () => {
+  const tree = definePermissions({
+    task: resource({ actions: ["read", "update", "delete"] }),
+    note: resource({ actions: ["read"] }),
+  });
+  const scoped = definePolicy(tree, {
+    roles: [],
+    oauthScopes: {
+      "mcp:write": [tree.task.update, tree.task.read],
+      "mcp:read": [tree.task.read, tree.note],
+    },
+    subject: () => null,
+  });
+
+  it("lists each coarse scope with its keys, sorted by code point", () => {
+    const catalog = buildCatalog(tree, scan, "2026-10-18T00:00:00Z", scoped);
+    expect(catalog.oauthScopes).toEqual([
+      { scope: "mcp:read", permissions: ["note.read", "task.read"] },
+      { scope: "mcp:write", permissions: ["task.read", "task.update"] },
+    ]);
+    expect(() => parseCatalog(JSON.stringify(catalog))).not.toThrow();
+    expect(catalogFingerprint(catalog)).toBe(catalog.fingerprint);
+  });
+
+  it("omits oauthScopes when the policy declares none", () => {
+    const bare = definePolicy(tree, { roles: [], subject: () => null });
+    expect(
+      buildCatalog(tree, scan, "2026-10-18T00:00:00Z", bare),
+    ).not.toHaveProperty("oauthScopes");
+  });
+
+  it("rejects an entry without permissions", () => {
+    const catalog = buildCatalog(tree, scan, "2026-10-18T00:00:00Z", scoped);
+    expect(() =>
+      parseCatalog(
+        JSON.stringify({ ...catalog, oauthScopes: [{ scope: "mcp:read" }] }),
+      ),
+    ).toThrow("oauthScopes.0");
+  });
+});
+
 describe("catalog grants", () => {
   const Doc = z.object({ id: z.string(), ownerId: z.string() });
   const grantsPermissions = definePermissions({

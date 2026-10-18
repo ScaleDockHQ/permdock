@@ -193,6 +193,35 @@ describe("authorizationHooks", () => {
     ).toEqual([doc.read.key]);
   });
 
+  it("maps a coarse oauthScopes scope to the keys it covers", async () => {
+    const scoped = authorizationHooks({
+      ...base,
+      policy: definePolicy(
+        { permissions, roles },
+        {
+          scopes: { organization: { key: "organization_id" } },
+          oauthScopes: {
+            "mcp:read": [doc.read],
+            "mcp:write": [doc.read, doc.update],
+          },
+          // SAFETY: the hooks always pass a Subject, which this resolver returns unchanged.
+          subject: (subject: unknown) => subject as never,
+          roles: [],
+        },
+      ),
+    });
+    const ref = { userId: EDITOR, tenant: ORG, clientId: "c" };
+    expect(
+      await scoped.delegation!.permissions({
+        ...ref,
+        scopes: ["openid", "mcp:read"],
+      }),
+    ).toEqual([doc.read.key]);
+    expect(
+      await scoped.delegation!.permissions({ ...ref, scopes: ["mcp:write"] }),
+    ).toEqual([doc.read.key, doc.update.key]);
+  });
+
   describe("approverOf", () => {
     const request = {
       kind: "tool",

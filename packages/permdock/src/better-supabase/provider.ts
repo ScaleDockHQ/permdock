@@ -16,6 +16,7 @@ import type { Permission } from "../core/permission-types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { holder } from "../core/approvers.ts";
+import { byCodePoint } from "../core/compare.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import {
@@ -457,6 +458,36 @@ function operationsOf(
 }
 
 /**
+ * better-supabase's `delegation.scopes`: each permission's own scope, and
+ * each coarse scope the catalog's `oauthScopes` lists, to the permission keys
+ * it reaches, sorted by code point. A key the catalog does not list is
+ * dropped, so a stale `oauthScopes` entry grants nothing.
+ */
+function delegatedScopes(
+  catalog: CatalogDocument | undefined,
+): Record<string, string[]> {
+  const delegated: Record<string, Set<string>> = {};
+  const known = new Set<string>();
+  for (const permission of catalog?.permissions ?? []) {
+    known.add(permission.key);
+    (delegated[permission.scope] ??= new Set()).add(permission.key);
+  }
+  for (const entry of catalog?.oauthScopes ?? []) {
+    for (const key of entry.permissions) {
+      if (known.has(key)) (delegated[entry.scope] ??= new Set()).add(key);
+    }
+  }
+  return Object.fromEntries(
+    Object.keys(delegated)
+      .toSorted(byCodePoint)
+      .map((scope) => [
+        scope,
+        [...(delegated[scope] ?? [])].toSorted(byCodePoint),
+      ]),
+  );
+}
+
+/**
  * better-supabase's `authorization` config value, built from PermDock's
  * manifest and catalog: the scopes, the `rls generate` helpers as SQL
  * templates, the membership tables, suspension rows, the token hook and
@@ -608,10 +639,7 @@ export function authorizationProvider(
     ...(permitted === undefined ? {} : { permitted }),
   };
   const operations = catalog === undefined ? {} : operationsOf(catalog);
-  const delegated: Record<string, string[]> = {};
-  for (const permission of catalog?.permissions ?? []) {
-    (delegated[permission.scope] ??= []).push(permission.key);
-  }
+  const delegated = delegatedScopes(catalog);
   const scopes = rls.scopes.map((scope) => {
     const idType = ID_TYPES[scope.type.trim().toLowerCase()];
     if (idType === undefined) {

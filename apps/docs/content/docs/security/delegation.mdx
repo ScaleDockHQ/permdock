@@ -94,6 +94,7 @@ export const policy = definePolicy(permissions, {
 - When an instance is created, a token delegation's `scopes` keep their order and are followed by the scopes of every permission a held coarse scope covers, so `decide`, `snapshot`, `mayUse` and the client snapshot all read the same expanded list. A coarse scope only adds what it lists; the user's grants and policy delegations still decide.
 - `permdock/mcp` and `permdock/a2a` accept a coarse scope in their scope pre-check and list filter. Their `insufficient_scope` challenges, and the `WWW-Authenticate` challenge of the server kernel, name the first coarse scope (in declaration order) that covers the permission, because that is the scope the authorization server can issue; a permission no coarse scope covers is challenged with its own scope.
 - A key must be an RFC 6749 scope token that is not a permission's own scope, and must cover at least one declared permission; `definePolicy` throws otherwise. The mapping is part of the policy fingerprint.
+- `permdock collect` writes the mapping to the catalog as `oauthScopes`, one `{ scope, permissions }` entry per coarse scope with the keys sorted by code point. `authorizationProvider` in `permdock/better-supabase` reads it there, so better-supabase's SQL checks accept the coarse scope too ([OAuth scopes](/docs/adapters/better-supabase#oauth-scopes)). PermDock's own SQL helpers do not narrow by `scope`.
 
 ## Coverage check
 
