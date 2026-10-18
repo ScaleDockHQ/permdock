@@ -6,7 +6,7 @@ description: List who holds a set of permissions, have a named reviewer keep or 
 An access review asks a named reviewer to keep or revoke each holding of a set of permissions in one tenant, and stores the answer. The application changes the role or the membership at its source, then marks the item applied. PermDock does not revoke anything itself.
 
 ```ts
-import { createPermDock, holder } from "permdock";
+import { getPermDockSync, holder } from "permdock";
 import {
   memoryAccessReviewStore,
   startAccessReview,
@@ -25,7 +25,7 @@ const review = await startAccessReview(
   },
   {
     reviews,
-    permdockFor: (memberId) => createPermDock(policy, member(memberId)),
+    permdockFor: (memberId) => getPermDockSync(policy, member(memberId)),
   },
 );
 ```

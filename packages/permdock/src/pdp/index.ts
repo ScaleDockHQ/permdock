@@ -1,4 +1,4 @@
-export { createPermDock, loadPermDock } from "./create.ts";
+export { getPermDock, getPermDockSync } from "./create.ts";
 export { openfga, spicedb } from "./relations.ts";
 export { remotePdp } from "./remote.ts";
 export type {

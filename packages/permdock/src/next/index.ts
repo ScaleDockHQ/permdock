@@ -15,7 +15,7 @@ export type {
   NextPermDock,
   NextPermDockOptions,
   PermDockHandler,
-  RequireAccessInput,
+  PermissionRequirementOptions,
   NextPermDockProviderProps,
   ServerPermissionState,
 } from "./types.ts";

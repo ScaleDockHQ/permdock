@@ -15,7 +15,7 @@ import {
   authenticated,
   definePermissions,
   definePolicy,
-  loadPermDock,
+  getPermDock,
   resource,
 } from "../index.ts";
 
@@ -51,7 +51,7 @@ const policy = definePolicy(permissions, {
 });
 
 async function grantedDecision(): Promise<GrantedDecision> {
-  const permdock = await loadPermDock(policy, { id: "u_runner" });
+  const permdock = await getPermDock(policy, { id: "u_runner" });
   const decision = permdock.decide(
     permissions.notice.read,
     { id: "n_runner" },

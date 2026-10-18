@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock, type PermDock } from "permdock";
+import { getPermDockSync, type PermDock } from "permdock";
 import { run } from "permdock/cli";
 import { withSubject as drizzleWithSubject } from "permdock/drizzle";
 import { withSubject as kyselyWithSubject } from "permdock/kysely";
@@ -50,11 +50,11 @@ const reads = {
 type Reader = (permdock: PermDock, table: Table) => Promise<string[]>;
 
 async function permdockFor(sub: string): Promise<PermDock> {
-  return createPermDock(graphPolicy, { id: sub }, { relations });
+  return getPermDockSync(graphPolicy, { id: sub }, { relations });
 }
 
 async function inProcess(permdock: PermDock, table: Table): Promise<string[]> {
-  await permdock.loadRelations(reads[table], rows[table]);
+  await permdock.prefetchRelations(reads[table], rows[table]);
   // SAFETY: rows[table] holds the seeded rows for the resource reads[table] checks
   return rows[table]
     .filter((row) => permdock.can(reads[table], row as never))

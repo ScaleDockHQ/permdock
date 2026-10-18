@@ -10,7 +10,7 @@ import type { StructuralLogger } from "../../src/otel/types.ts";
 
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   deny,
@@ -57,7 +57,7 @@ const user = { id: "u_1" };
 
 describe("app obligations", () => {
   it("puts the declared obligations on a granted decision", async () => {
-    const permdock = createPermDock(policy, user);
+    const permdock = getPermDockSync(policy, user);
     const decision = permdock.decide(permissions.doc.export, { id: "d_1" });
     expect(decision.outcome).toBe("granted");
     expect(decision.outcome === "granted" && decision.obligations).toEqual([
@@ -69,7 +69,7 @@ describe("app obligations", () => {
   });
 
   it("emits the same obligations from a snapshot", async () => {
-    const permdock = createPermDock(policy, user);
+    const permdock = getPermDockSync(policy, user);
     const client = fromSnapshot(
       parseSnapshot(JSON.stringify(permdock.snapshot())),
     );
@@ -121,7 +121,7 @@ describe("app obligations", () => {
 
 describe("denied decisions", () => {
   it("name the permission that was checked, in process and from a snapshot", async () => {
-    const permdock = createPermDock(policy, user);
+    const permdock = getPermDockSync(policy, user);
     const decision = permdock.decide(permissions.doc.delete, { id: "d_1" });
     expect(decision).toMatchObject({
       outcome: "denied",
@@ -137,7 +137,7 @@ describe("denied decisions", () => {
   });
 
   it("type a named deny's detail", async () => {
-    const permdock = createPermDock(policy, user);
+    const permdock = getPermDockSync(policy, user);
     const decision = permdock.decide(permissions.doc.delete, { id: "d_1" });
     const named =
       decision.outcome === "denied"
@@ -162,7 +162,7 @@ describe("events and telemetry", () => {
         return undefined;
       },
     };
-    const permdock = createPermDock(policy, user, {
+    const permdock = getPermDockSync(policy, user, {
       sink: {
         write(batch) {
           for (const item of batch) {
@@ -199,7 +199,7 @@ describe("events and telemetry", () => {
 
 describe("describe", () => {
   it("labels the permission with meta.title when given the leaf", async () => {
-    const permdock = createPermDock(policy, user);
+    const permdock = getPermDockSync(policy, user);
     const decision: Decision = permdock.decide(permissions.doc.read, {
       id: "d_1",
     });

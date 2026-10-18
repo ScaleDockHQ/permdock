@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { audience, subscribersFor } from "../../src/delivery/index.ts";
 import {
   deliveryPermissions as p,
@@ -33,7 +33,7 @@ describe("audience", () => {
   });
 
   it("is empty for an anonymous sender", async () => {
-    const anonymous = createPermDock(deliveryPolicy, null, {
+    const anonymous = getPermDockSync(deliveryPolicy, null, {
       principals: deliveryPrincipals,
     });
     expect(

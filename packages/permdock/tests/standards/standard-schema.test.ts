@@ -8,7 +8,7 @@ import { jsonSchemaOf } from "../../src/cli/catalog-doc.ts";
 import { PermDockValidationError } from "../../src/core/errors.ts";
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   resource,
@@ -99,7 +99,7 @@ describe("Standard Schema", () => {
 
       it("hands the rule the validated value", async () => {
         const { permissions, policy } = setup(schema);
-        const permdock = createPermDock(policy, { id: "u1" });
+        const permdock = getPermDockSync(policy, { id: "u1" });
         const post = { id: "p1", title: "  Hello  " };
         expect(
           permdock.can(permissions.post.update, post, { trusted: false }),
@@ -111,7 +111,7 @@ describe("Standard Schema", () => {
 
       it("turns issues into a validation denial that carries them", async () => {
         const { permissions, policy } = setup(schema);
-        const permdock = createPermDock(policy, { id: "u1" });
+        const permdock = getPermDockSync(policy, { id: "u1" });
         const decision = permdock.decide(
           permissions.post.read,
           { id: "p1", title: 7 },
@@ -140,9 +140,9 @@ describe("Standard Schema", () => {
     const always = setup(handWritten(), "always");
     const never = setup(handWritten(), "never");
     const [b, a, n] = [
-      createPermDock(boundary.policy, { id: "u1" }),
-      createPermDock(always.policy, { id: "u1" }),
-      createPermDock(never.policy, { id: "u1" }),
+      getPermDockSync(boundary.policy, { id: "u1" }),
+      getPermDockSync(always.policy, { id: "u1" }),
+      getPermDockSync(never.policy, { id: "u1" }),
     ];
     expect(b.can(boundary.permissions.post.read, bad, { trusted: true })).toBe(
       true,
@@ -168,7 +168,7 @@ describe("Standard Schema", () => {
       },
     };
     const { permissions, policy } = setup(asyncSchema);
-    const permdock = createPermDock(policy, { id: "u1" });
+    const permdock = getPermDockSync(policy, { id: "u1" });
     const post = { id: "p1", title: "Hello" };
     expect(() =>
       permdock.decide(permissions.post.read, post, { trusted: false }),

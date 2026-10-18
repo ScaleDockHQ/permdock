@@ -2,7 +2,7 @@ import { createComponent } from "solid-js";
 import { renderToString } from "solid-js/web";
 import { describe, expect, it } from "vitest";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { useDescribe, usePermission } from "../../src/solid/hooks.ts";
 import { Protected } from "../../src/solid/protected.ts";
 import { PermDockProvider } from "../../src/solid/provider.ts";
@@ -16,7 +16,7 @@ import {
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = createPermDock(policy as never, memberUser);
+  const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");

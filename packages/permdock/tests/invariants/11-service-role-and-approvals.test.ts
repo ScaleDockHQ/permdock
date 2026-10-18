@@ -20,7 +20,7 @@ import { run } from "../../src/cli/run.ts";
 import {
   type Decision,
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   resource,
@@ -79,7 +79,7 @@ async function tokenFor(
   actor?: typeof agent,
   args?: unknown,
 ): Promise<string> {
-  const permdock = createPermDock(
+  const permdock = getPermDockSync(
     policy,
     user,
     actor === undefined ? {} : { actor, delegation },
@@ -207,7 +207,7 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
 
   it("refuses the actor and, by default, the principal as approver", async () => {
     const store = memoryApprovalStore();
-    const permdock = createPermDock(policy, alice, {
+    const permdock = getPermDockSync(policy, alice, {
       actor: agent,
       delegation,
     });
@@ -216,7 +216,7 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
       permission: permissions.post.delete,
       subject: permdock.subject,
     });
-    const asActor = createPermDock(policy, {
+    const asActor = getPermDockSync(policy, {
       id: agent.id,
       roles: ["member"],
     });
@@ -232,7 +232,7 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
         by: permdock.subject,
       }),
     ).rejects.toMatchObject({ code: "approver-is-principal" });
-    const other = createPermDock(policy, bob);
+    const other = getPermDockSync(policy, bob);
     await expect(
       resolveApproval(store, decision.token, {
         status: "approved",
@@ -243,7 +243,7 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
 
   it("lets the principal approve only when the grant sets distinct: false", async () => {
     const store = memoryApprovalStore();
-    const permdock = createPermDock(policy, alice);
+    const permdock = getPermDockSync(policy, alice);
     const decision = pending(permdock.decide(permissions.post.archive, p1));
     await requestApproval(store, decision, {
       permission: permissions.post.archive,
@@ -267,13 +267,13 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
 
   it("counts a quorum in distinct principals, so one approver cannot meet two", async () => {
     const store = memoryApprovalStore();
-    const permdock = createPermDock(policy, alice);
+    const permdock = getPermDockSync(policy, alice);
     const decision = pending(permdock.decide(permissions.post.purge, p1));
     await requestApproval(store, decision, {
       permission: permissions.post.purge,
       subject: permdock.subject,
     });
-    const asBob = createPermDock(policy, bob);
+    const asBob = getPermDockSync(policy, bob);
     const first = await resolveApproval(store, decision.token, {
       status: "approved",
       by: asBob.subject,
@@ -287,7 +287,7 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
       }),
     ).rejects.toMatchObject({ code: "approver-repeated" });
     expect((await store.get(decision.token))?.status).toBe("pending");
-    const asCarol = createPermDock(policy, carol);
+    const asCarol = getPermDockSync(policy, carol);
     const second = await resolveApproval(store, decision.token, {
       status: "approved",
       by: asCarol.subject,

@@ -4,7 +4,7 @@ import type { DecisionEvent } from "../../src/core/event-types.ts";
 
 import { PermDockDeniedError } from "../../src/core/errors.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { wireDenial } from "../../src/core/wire-denial.ts";
@@ -68,7 +68,7 @@ describe("outbound denials", () => {
   });
 
   it("keeps a thrown value out of the decision event", async () => {
-    const permdock = createPermDock(throwing, memberUser);
+    const permdock = getPermDockSync(throwing, memberUser);
     permdock.on("error", () => undefined);
     const events: DecisionEvent[] = [];
     permdock.on("decision", (event) => {
@@ -85,7 +85,7 @@ describe("outbound denials", () => {
   });
 
   it("keeps a thrown value out of the Problem Details body", async () => {
-    const permdock = createPermDock(throwing, memberUser);
+    const permdock = getPermDockSync(throwing, memberUser);
     permdock.on("error", () => undefined);
     const decision = permdock.decide(permissions.post.read, ownPost);
     if (decision.outcome !== "denied") {

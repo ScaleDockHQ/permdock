@@ -1,7 +1,7 @@
 import type { PermDock } from "permdock";
 
 import { Hono } from "hono";
-import { createPermDock } from "permdock";
+import { getPermDockSync } from "permdock";
 import {
   directoryMembershipSource,
   memoryDirectoryStore,
@@ -31,7 +31,7 @@ const scim = scimHandler({
 });
 
 export function permdockFor(userId: string): PermDock | Promise<PermDock> {
-  return createPermDock(
+  return getPermDockSync(
     policy,
     { id: userId },
     {

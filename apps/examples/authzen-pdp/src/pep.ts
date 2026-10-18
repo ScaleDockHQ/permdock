@@ -1,7 +1,7 @@
 import type { DecisionProvider } from "permdock";
 
 import { definePolicy } from "permdock";
-import { createPermDock, remotePdp } from "permdock/pdp";
+import { getPermDockSync, remotePdp } from "permdock/pdp";
 
 import { permissions } from "./permissions.ts";
 import { type User, roles, subjectOf } from "./policy.ts";
@@ -33,5 +33,5 @@ export function localPdp(options: {
 }
 
 export function pepFor(provider: DecisionProvider, user: User | null) {
-  return createPermDock(pepPolicy(provider), user);
+  return getPermDockSync(pepPolicy(provider), user);
 }

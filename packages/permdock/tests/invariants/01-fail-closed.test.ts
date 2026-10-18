@@ -5,7 +5,7 @@ import type { Principal } from "../../src/index.ts";
 
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   resource,
@@ -30,7 +30,7 @@ const foreign = definePermissions({
 
 describe("invariant 1: fail-closed", () => {
   it("denies a role the policy does not define", async () => {
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "u1",
       orgId: "o1",
       roles: ["superuser"],
@@ -45,7 +45,7 @@ describe("invariant 1: fail-closed", () => {
         throw new Error("token parse failed");
       },
     });
-    const permdock = createPermDock(throwing, { id: "u1" });
+    const permdock = getPermDockSync(throwing, { id: "u1" });
     expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
@@ -60,7 +60,7 @@ describe("invariant 1: fail-closed", () => {
       ],
       subject: (user: { id: string; roles: string[] }) => user,
     });
-    const permdock = createPermDock(throwing, {
+    const permdock = getPermDockSync(throwing, {
       id: "u1",
       roles: ["member"],
     });
@@ -70,7 +70,7 @@ describe("invariant 1: fail-closed", () => {
   });
 
   it("denies a row that fails the resource schema", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     const decision = permdock.decide(permissions.post.update, {
       ...ownPost,
       published: "yes",
@@ -80,7 +80,7 @@ describe("invariant 1: fail-closed", () => {
   });
 
   it("denies an actor that carries no delegation", async () => {
-    const permdock = createPermDock(policy, memberUser, {
+    const permdock = getPermDockSync(policy, memberUser, {
       actor: { id: "agent-1", kind: "agent" },
     });
     const decision = permdock.decide(permissions.post.read, ownPost);
@@ -93,7 +93,7 @@ describe("invariant 1: fail-closed", () => {
       { id: "admin-1", kind: "support", sessionId: "s-1", readOnly: true },
       { id: "admin-1", kind: "impersonation" },
     ]) {
-      const permdock = createPermDock(policy, memberUser, { actor });
+      const permdock = getPermDockSync(policy, memberUser, { actor });
       const decision = permdock.decide(permissions.post.read, ownPost);
       expect(reasonOf(decision)).toBe("no-delegation");
     }
@@ -109,17 +109,17 @@ describe("invariant 1: fail-closed", () => {
   });
 
   it("denies a permission from another catalogue", async () => {
-    const permdock = createPermDock(policy, adminUser);
+    const permdock = getPermDockSync(policy, adminUser);
     expect(permdock.can(foreign.note.read, { id: "n1" })).toBe(false);
   });
 
   it("denies an anonymous caller", async () => {
-    const permdock = createPermDock(policy, null);
+    const permdock = getPermDockSync(policy, null);
     expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
   });
 
   it("never throws from can() on hostile input", async () => {
-    const permdock = createPermDock(policy, adminUser);
+    const permdock = getPermDockSync(policy, adminUser);
     const hostile: unknown[] = [
       undefined,
       null,
@@ -176,7 +176,7 @@ describe("invariant 1: fail-closed", () => {
       permissions.post.publish,
     ];
     for (const user of users) {
-      const permdock = createPermDock(policy, user);
+      const permdock = getPermDockSync(policy, user);
       for (const leaf of leaves) {
         for (const row of rows) {
           const decision = permdock.decide(leaf, row);
@@ -204,7 +204,7 @@ describe("invariant 1: fail-closed", () => {
     });
     const NOW = { epochMilliseconds: Date.parse("2026-06-01T00:00:00Z") };
     const read = async (expiresAt: unknown): Promise<boolean> => {
-      const permdock = createPermDock(scoped, {
+      const permdock = getPermDockSync(scoped, {
         id: "u1",
         roles: [],
         tenant: "T",

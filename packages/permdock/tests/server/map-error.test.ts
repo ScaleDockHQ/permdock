@@ -4,7 +4,7 @@ import {
   PermDockRevokedError,
   PermDockValidationError,
 } from "../../src/core/errors.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { problemFromError } from "../../src/server/map-error.ts";
 import { InvalidSignatureError } from "../../src/server/web-bot-auth.ts";
 import {
@@ -26,7 +26,7 @@ async function thrown(work: () => Promise<unknown>): Promise<unknown> {
 
 describe("problemFromError", () => {
   it("maps a denial to a 403 problem", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     const error = await thrown(() =>
       Promise.resolve(permdock.assert(permissions.post.update, otherPost)),
     );
@@ -38,7 +38,7 @@ describe("problemFromError", () => {
   });
 
   it("maps an approval requirement to its approval problem", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     const error = await thrown(() =>
       Promise.resolve(permdock.assert(permissions.post.delete, ownPost)),
     );

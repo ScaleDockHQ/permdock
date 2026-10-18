@@ -7,7 +7,7 @@ import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   getResource,
@@ -83,8 +83,8 @@ const tables = {
 const relations = memoryRelationSource(permissions, { rows, tables });
 
 async function readable(user: string): Promise<readonly string[]> {
-  const permdock = createPermDock(policy, { id: user }, { relations });
-  await permdock.loadRelations(permissions.drive.read, rows.drive);
+  const permdock = getPermDockSync(policy, { id: user }, { relations });
+  await permdock.prefetchRelations(permissions.drive.read, rows.drive);
   return rows.drive
     .filter((row) => permdock.can(permissions.drive.read, row))
     .map((row) => row.id);

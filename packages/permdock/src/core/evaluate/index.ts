@@ -77,7 +77,7 @@ export function evaluate(
     return deniedNow(settled, {
       role: null,
       reason: "pdp-unavailable",
-      detail: "use permdock/pdp createPermDock",
+      detail: "use permdock/pdp getPermDock",
     });
   }
 

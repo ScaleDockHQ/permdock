@@ -210,8 +210,8 @@ export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";
 export {
-  createPermDock,
-  loadPermDock,
+  getPermDock,
+  getPermDockSync,
   parseSnapshot,
 } from "./core/permdock.ts";
 export { defineApp } from "./app/define-app.ts";

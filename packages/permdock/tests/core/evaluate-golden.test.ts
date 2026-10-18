@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Decision } from "../../src/index.ts";
 import type { SaasScenario } from "../../src/testing/saas/index.ts";
 
-import { createPermDock } from "../../src/index.ts";
+import { getPermDockSync } from "../../src/index.ts";
 import {
   saasFolderScenarios,
   saasPolicy,
@@ -24,7 +24,7 @@ function stable(decision: Decision): unknown {
 }
 
 async function explained(scenario: SaasScenario): Promise<unknown> {
-  const permdock = createPermDock(
+  const permdock = getPermDockSync(
     saasPolicy,
     saasUser(scenario),
     saasScenarioOptions(scenario),

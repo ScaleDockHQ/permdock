@@ -7,7 +7,7 @@ import type { Principal } from "../../src/core/subject.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryMembershipSource } from "../../src/core/memory-sources.ts";
 import { defineOperations } from "../../src/core/operations.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -104,7 +104,7 @@ export async function sender(
   if (principal === undefined) {
     throw new Error(`no fixture principal ${id}`);
   }
-  return createPermDock(deliveryPolicy, principal, {
+  return getPermDockSync(deliveryPolicy, principal, {
     memberships: deliveryMemberships,
     principals: deliveryPrincipals,
   });

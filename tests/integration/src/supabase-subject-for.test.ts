@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { countHolders, loadPermDock } from "permdock";
+import { countHolders, getPermDock } from "permdock";
 import { type SupabaseRpcClient, postgrestSources } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -173,7 +173,7 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
 
   it("builds a PermDock for a stored user from the record", async () => {
     const sources = postgrestSources(client());
-    const permdock = await loadPermDock(policy, await sources.subject(OWNER), {
+    const permdock = await getPermDock(policy, await sources.subject(OWNER), {
       customRoles: sources.customRoles({ id: OWNER }),
     });
     const asset = { id: "a", organization_id: "B", customer_id: "c" };

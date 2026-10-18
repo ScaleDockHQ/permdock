@@ -13,7 +13,7 @@ import {
 } from "../../src/core/hosted.ts";
 import { mayAccess } from "../../src/core/may-access.ts";
 import { memoryRelationSource } from "../../src/core/memory-relations.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -159,7 +159,7 @@ const source = memoryRelationSource(permissions, {
 });
 
 function permdock(id: string, relations: RelationSource | null = source) {
-  return createPermDock(
+  return getPermDockSync(
     policy,
     { id },
     relations === null ? {} : { relations },
@@ -252,13 +252,13 @@ describe("relationship graph", () => {
     };
     const vera = permdock("vera", slow);
     expect(vera.can(permissions.doc.read, doc("d1", "eng"))).toBe(false);
-    await vera.loadRelations(permissions.doc.read, [doc("d1", "eng")]);
+    await vera.prefetchRelations(permissions.doc.read, [doc("d1", "eng")]);
     expect(vera.can(permissions.doc.read, doc("d1", "eng"))).toBe(true);
     const rejecting = permdock("vera", {
       ancestors: () => Promise.reject(new Error("down")),
       related: () => Promise.reject(new Error("down")),
     });
-    await rejecting.loadRelations(permissions.doc.read, [doc("d1", "eng")]);
+    await rejecting.prefetchRelations(permissions.doc.read, [doc("d1", "eng")]);
     expect(rejecting.can(permissions.doc.read, doc("d1", "eng"))).toBe(false);
   });
 
@@ -357,14 +357,14 @@ describe("relationship graph", () => {
       ],
       subject: (user: { readonly id: string }) => ({ id: user.id, roles: [] }),
     });
-    const owner = createPermDock(guarded, { id: "owen" });
+    const owner = getPermDockSync(guarded, { id: "owen" });
     expect(
       owner.decide(permissions.doc.read, doc("d1", "eng", "owen")),
     ).toMatchObject({
       outcome: "denied",
       denials: [expect.objectContaining({ reason: "relation-unavailable" })],
     });
-    const loaded = createPermDock(
+    const loaded = getPermDockSync(
       guarded,
       { id: "owen" },
       { relations: source },
@@ -476,7 +476,7 @@ describe("relationship graph", () => {
       grants: [allow(permissions.folder.read, { to: viewerThrough })],
       subject: (user: { readonly id: string }) => ({ id: user.id, roles: [] }),
     });
-    const owner = createPermDock(
+    const owner = getPermDockSync(
       scoped,
       { id: "olga" },
       { relations: source, memberships },
@@ -509,7 +509,7 @@ describe("relationship graph", () => {
       folders[2],
     );
     expect(global.complete).toBe(false);
-    const unlisted = createPermDock(
+    const unlisted = getPermDockSync(
       scoped,
       { id: "olga" },
       { relations: source, memberships: { membershipsFor: () => [] } },
@@ -567,7 +567,7 @@ describe("hosted graph grants", () => {
       ["deep", "unknown-grantee"],
       ["sideways", "unknown-grantee"],
     ]);
-    const vera = createPermDock(
+    const vera = getPermDockSync(
       merged.policy,
       { id: "vera" },
       { relations: source },

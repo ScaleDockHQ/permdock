@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock, loadPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync, getPermDock } from "../../src/core/permdock.ts";
 import { getResource } from "../../src/core/permission-registry.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
@@ -35,7 +35,7 @@ describe("membership and role source edges", () => {
         ],
       }),
     });
-    const permdock = createPermDock(scoped, { id: "u1" }, { tenant: "o1" });
+    const permdock = getPermDockSync(scoped, { id: "u1" }, { tenant: "o1" });
     expect(
       permdock.can(tree.post.read, { id: "p1", orgId: "o1", teamId: "t1" }),
     ).toBe(true);
@@ -45,7 +45,7 @@ describe("membership and role source edges", () => {
         .team("t9")
         .can(tree.post.read, { id: "p1", orgId: "o1", teamId: "t1" }),
     ).toBe(false);
-    const delegated = createPermDock(policy, {
+    const delegated = getPermDockSync(policy, {
       principal: { id: "u1", roles: ["member"] },
       context: {},
       delegation: {
@@ -57,7 +57,7 @@ describe("membership and role source edges", () => {
       delegated.can(tree.post.read, { id: "p1", authorId: "u1", orgId: "o1" }),
     ).toBe(true);
     expect(delegated.can(tree.post.create)).toBe(false);
-    const emptyScopes = createPermDock(policy, {
+    const emptyScopes = getPermDockSync(policy, {
       principal: { id: "u1", roles: ["member"] },
       context: {},
       delegation: { scopes: [] },
@@ -94,7 +94,7 @@ describe("membership and role source edges", () => {
       membershipField(looping.get("post"), "org", looping),
     ).toBeUndefined();
 
-    const throwingSource = createPermDock(policy, memberPrincipal, {
+    const throwingSource = getPermDockSync(policy, memberPrincipal, {
       memberships: {
         membershipsFor(): never {
           throw new Error("boom");
@@ -107,7 +107,7 @@ describe("membership and role source edges", () => {
     });
     expect(auth[0]).toMatchObject({ reason: "source-threw" });
 
-    const asyncPermdock = await loadPermDock(
+    const asyncPermdock = await getPermDock(
       definePolicy(tree, {
         roles: [role("member", [allow(tree.post.read)])],
         subject: () => ({ id: "u1", roles: ["member"] }),
@@ -135,7 +135,7 @@ describe("membership and role source edges", () => {
       }),
     ).toBe(true);
 
-    const throwingRoles = createPermDock(
+    const throwingRoles = getPermDockSync(
       policy,
       {
         principal: {
@@ -159,7 +159,7 @@ describe("membership and role source edges", () => {
     });
     expect(roleAuth.length).toBeGreaterThan(0);
 
-    const anonymous = createPermDock(policy, null);
+    const anonymous = getPermDockSync(policy, null);
     expect(anonymous.tenant("o1").can(tree.post.read, { id: "p1" })).toBe(
       false,
     );
@@ -173,7 +173,7 @@ describe("membership and role source edges", () => {
   });
 
   it("resolves async custom roles and fails closed on a throwing subject or auth handler", async () => {
-    const asyncRoles = await loadPermDock(
+    const asyncRoles = await getPermDock(
       policy,
       {
         principal: {
@@ -194,7 +194,7 @@ describe("membership and role source edges", () => {
     expect(
       asyncRoles.can(tree.post.read, { id: "p1", authorId: "u1", orgId: "o1" }),
     ).toBe(true);
-    const throwingSubject = createPermDock(
+    const throwingSubject = getPermDockSync(
       definePolicy(tree, {
         roles: [role("member", [allow(tree.post.read)])],
         subject: () => {
@@ -205,7 +205,7 @@ describe("membership and role source edges", () => {
     );
     expect(throwingSubject.can(tree.post.read, { id: "p1" })).toBe(false);
     const authErrors: unknown[] = [];
-    const throwingAuth = createPermDock(policy, memberPrincipal, {
+    const throwingAuth = getPermDockSync(policy, memberPrincipal, {
       memberships: {
         membershipsFor(): never {
           throw new Error("boom");

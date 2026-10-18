@@ -63,7 +63,7 @@ export const snapshot = snapshotQuery(); // client: useQuery(api.permissions.sna
 
 1. A Convex function is invoked with an authenticated (or anonymous) caller.
 2. `withPermDock` calls `subject(ctx)`; identity comes from `ctx.auth`, roles from claims or a table lookup.
-3. `createPermDock(policy, subject)` produces `ctx.permdock`, frozen for this invocation.
+3. `getPermDock(policy, subject)` produces `ctx.permdock`, frozen for this invocation.
 4. The handler calls `assert` before writes and `filter` / `can` for reads; conditions evaluate against documents already loaded from `ctx.db`.
 5. `on('decision')` events are the app's to persist: a mutation can write them to an audit table through `ctx.db.insert`, while a query cannot write and logs instead.
 6. Client: `useQuery(api.permissions.snapshot)` re-runs reactively when the user's roles document changes, so `PermDockProvider` receives the new snapshot without `invalidate()`.

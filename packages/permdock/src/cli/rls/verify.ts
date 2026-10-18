@@ -4,7 +4,7 @@ import type { CliIo, PermDockConfig } from "../types.ts";
 import {
   findPermission,
   hasConditionOp,
-  loadPermDock,
+  getPermDock,
   memoryCustomRoleSource,
   type PermDock,
   type Permission,
@@ -126,7 +126,7 @@ export async function runRlsVerify(input: {
       continue;
     }
     const kind = grantKind(policy, fixture.action);
-    const permdock = await loadPermDock(
+    const permdock = await getPermDock(
       policy,
       fixtureSubject(fixture.subject),
       {

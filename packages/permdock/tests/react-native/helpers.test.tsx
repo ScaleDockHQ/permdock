@@ -8,7 +8,7 @@ import type { SnapshotStorage } from "../../src/react-native/types.ts";
 
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
 import { parseLocalSnapshotManifest } from "../../src/core/parse-local-manifest.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import {
   usePermissionGuard,
   useSnapshotReady,
@@ -276,7 +276,7 @@ function render(storage: SnapshotStorage, guard: ReactElement): string {
 describe("useSnapshotReady and usePermissionGuard", () => {
   it("allow only when every permission is allowed for the row", async () => {
     // SAFETY: memberUser is a quick-start user fixture; only the policy generic is erased.
-    const server = createPermDock(policy as never, memberUser);
+    const server = getPermDockSync(policy as never, memberUser);
     const storage = memorySnapshotStorage({
       [SNAPSHOT_KEY]: JSON.stringify(server.snapshot()),
     });

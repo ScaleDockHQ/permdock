@@ -13,7 +13,7 @@ import type {
 } from "../core/support-session.ts";
 
 import { canonicalJson } from "../core/canonical-json.ts";
-import { loadPermDock } from "../core/permdock.ts";
+import { getPermDock } from "../core/permdock.ts";
 import { sha256Digest } from "../core/sha256.ts";
 import { decideSupportSession } from "../core/support-session.ts";
 import {
@@ -86,7 +86,7 @@ function requestId(input: SupportAuthorizeInput): string {
 export function supportPolicy(options: SupportPolicyOptions): SupportAuthorize {
   return async (input) => {
     try {
-      const base = await loadPermDock(
+      const base = await getPermDock(
         options.policy,
         subjectFromBetterSupabase(
           { kind: "user", claims: input.admin.claims },

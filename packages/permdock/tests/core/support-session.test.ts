@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { memorySettingsSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import {
   type SupportSession,
   parseSupportSession,
@@ -227,7 +227,7 @@ describe("decideSupportSession", () => {
       ],
     });
     const nobody = permdockFor(userSubject("u_staff", []));
-    const member = createPermDock(policy, {
+    const member = getPermDockSync(policy, {
       principal: {
         id: "u_staff",
         kind: "user",
@@ -292,7 +292,7 @@ describe("decideSupportSession", () => {
   });
 
   it("reads the instance's settings option", async () => {
-    const instance = createPermDock(
+    const instance = getPermDockSync(
       policy,
       userSubject("u_staff", ["billing"]),
       {

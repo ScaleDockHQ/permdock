@@ -29,7 +29,7 @@ import { withApp } from "../core/app.ts";
 import { parseAutomation } from "../core/automation.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { loadPermDock as loadCorePermDock } from "../core/permdock.ts";
+import { getPermDock as getCorePermDock } from "../core/permdock.ts";
 import { findPermission } from "../core/permission-registry.ts";
 import { automationEvent } from "../core/sink.ts";
 import { isThenable } from "../core/thenable.ts";
@@ -228,7 +228,7 @@ export function createPermDock<
   } = options;
 
   const instanceFor = (subject: Subject): Promise<PermDock<V>> =>
-    loadCorePermDock(policy, subject, permdockOptions);
+    getCorePermDock(policy, subject, permdockOptions);
 
   const publisherCanAssign = async (
     automation: Automation,

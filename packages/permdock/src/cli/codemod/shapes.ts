@@ -127,7 +127,7 @@ export function reportUnawaited(
     ctx.followUps.push({
       at: node.start,
       name: row.name,
-      message: `\`${row.name}\` returns the instance, never a Promise; call \`${row.to}\` when a source answers asynchronously`,
+      message: `\`${row.name}\` without \`await\` is \`${row.sync}\`, which returns the instance, never a Promise; call \`${row.to}\` when a source answers asynchronously`,
     });
   }
 }
@@ -471,7 +471,7 @@ export function reportWraps(
       ctx.followUps.push({
         at: property.start,
         name: row.key,
-        message: `option \`${row.key}\` takes \`${row.wrapper}(source)\` from \`${row.entry}\` when this object reaches \`createPermDock\` or \`loadPermDock\``,
+        message: `option \`${row.key}\` takes \`${row.wrapper}(source)\` from \`${row.entry}\` when this object reaches \`getPermDock\` or \`getPermDockSync\``,
       });
     }
   }

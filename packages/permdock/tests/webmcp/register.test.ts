@@ -13,7 +13,7 @@ import type {
 } from "../../src/webmcp/types.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { definePermissions, resource } from "../../src/index.ts";
 import { registerTools } from "../../src/webmcp/register.ts";
 import {
@@ -24,7 +24,7 @@ import {
 } from "../fixtures/quick-start.ts";
 
 async function memberSnapshot(): Promise<Snapshot> {
-  const server = createPermDock(policy, memberUser);
+  const server = getPermDockSync(policy, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise || typeof snapshot === "string") {
     throw new Error("expected JSON snapshot");

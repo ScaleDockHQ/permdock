@@ -5,7 +5,7 @@ import type { Principal } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
+import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -43,7 +43,7 @@ const policy = definePolicy(permissions, {
 });
 
 async function actor(roles: readonly string[]): Promise<PermDock> {
-  return createPermDock(policy, { id: "u_actor", roles }, {});
+  return getPermDockSync(policy, { id: "u_actor", roles }, {});
 }
 
 const target: { id: string; roles: string[] } = {
@@ -214,7 +214,7 @@ describe("decideRoleChange: global roles", () => {
   });
 
   it("denies an anonymous actor", async () => {
-    const anonymous = createPermDock(policy, null, {});
+    const anonymous = getPermDockSync(policy, null, {});
     expect(
       reasons(
         decideRoleChange(anonymous, {
@@ -272,7 +272,7 @@ describe("decideRoleChange: global roles with an assigns graph", () => {
   });
 
   it("hands out exactly the roles the held global roles list", async () => {
-    const root = createPermDock(graph, { id: "u_actor", roles: ["root"] }, {});
+    const root = getPermDockSync(graph, { id: "u_actor", roles: ["root"] }, {});
     expect(decideRoleChange(root, change("assign", "agent"))).toMatchObject({
       outcome: "granted",
       role: "root",
@@ -286,7 +286,7 @@ describe("decideRoleChange: global roles with an assigns graph", () => {
   });
 
   it("answers no global roles on a snapshot", async () => {
-    const root = createPermDock(graph, { id: "u_actor", roles: ["root"] }, {});
+    const root = getPermDockSync(graph, { id: "u_actor", roles: ["root"] }, {});
     const snapshot = root.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");

@@ -6,7 +6,7 @@ import type { PermDockConfig } from "../types.ts";
 
 import {
   findPermission,
-  loadPermDock,
+  getPermDock,
   localSnapshotManifest,
   memoryCustomRoleSource,
   type Policy,
@@ -226,7 +226,7 @@ async function verifyStreams(input: {
       // A stream holds rows of every organization the user belongs to, so the
       // policy is asked with the row's own organization active.
       const tenant = rowValue(fixture.row, root);
-      const permdock = await loadPermDock(
+      const permdock = await getPermDock(
         input.policy,
         fixtureSubject({
           ...fixture.subject,

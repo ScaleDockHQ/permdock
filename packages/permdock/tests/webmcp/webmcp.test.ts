@@ -9,7 +9,7 @@ import type {
 
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot, fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { registerTools } from "../../src/webmcp/register.ts";
 import {
   adminUser,
@@ -21,7 +21,7 @@ import {
 } from "../fixtures/quick-start.ts";
 
 async function clientOf(user: User) {
-  const server = createPermDock(policy, user);
+  const server = getPermDockSync(policy, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise || typeof snapshot === "string") {
     throw new Error("expected JSON snapshot");
@@ -77,7 +77,7 @@ describe("registerTools", () => {
   });
 
   it("registers nothing for a simulated snapshot", async () => {
-    const server = createPermDock(policy, memberUser);
+    const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise || typeof snapshot === "string") {
       throw new Error("expected JSON snapshot");

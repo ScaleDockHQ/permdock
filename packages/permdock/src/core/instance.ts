@@ -340,7 +340,7 @@ export function buildInstance(
             : [];
       return leaves.filter((item) => canImpl(item, data, options) === true);
     },
-    async loadRelations(
+    async prefetchRelations(
       permission: Permission,
       rows: readonly unknown[],
     ): Promise<void> {

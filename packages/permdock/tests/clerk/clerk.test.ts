@@ -4,7 +4,7 @@ import { z } from "zod";
 import { subjectFromClerk } from "../../src/clerk/index.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { plan } from "../../src/core/grantee.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -271,9 +271,9 @@ describe("subjectFromClerk", () => {
       roles: ["org:member", "reporting"],
       entitlements: ["pro"],
     });
-    const inA = createPermDock(policy, subject);
+    const inA = getPermDockSync(policy, subject);
     expect(inA.can(tree.report.export, { id: "r1" })).toBe(true);
-    const inB = createPermDock(policy, subject, { tenant: "org_2" });
+    const inB = getPermDockSync(policy, subject, { tenant: "org_2" });
     expect(inB.can(tree.report.export, { id: "r1" })).toBe(false);
   });
 });

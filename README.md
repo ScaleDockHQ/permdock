@@ -19,7 +19,7 @@ pnpm add permdock
 ```
 
 ```ts
-import { allow, createPermDock, definePolicy, principal, role } from "permdock";
+import { allow, getPermDock, definePolicy, principal, role } from "permdock";
 
 const policy = definePolicy(
   { permissions, roles },
@@ -35,7 +35,7 @@ const policy = definePolicy(
   },
 );
 
-const permdock = createPermDock(policy, user);
+const permdock = await getPermDock(policy, user);
 permdock.decide(permissions.post.delete, post); // { outcome: 'approval-required', token, ... }
 ```
 
@@ -197,7 +197,7 @@ Read [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes start as an RFC 
 flowchart LR
   defs["permissions.ts<br/>definePermissions"] --> policy["policy.ts<br/>definePolicy, roles, grants"]
   subject["subjectFrom*<br/>verified session or token"] --> instance
-  policy --> instance["createPermDock<br/>frozen, request-scoped"]
+  policy --> instance["getPermDock<br/>frozen, request-scoped"]
   instance --> decision["Decision<br/>granted / denied / approval-required"]
   decision --> ui["UI snapshot<br/>Protected, hooks"]
   decision --> http["HTTP and RPC guards<br/>Problem Details"]

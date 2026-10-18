@@ -1,7 +1,7 @@
 import {
   allow,
   anyone,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePlans,
   definePolicy,
@@ -51,7 +51,7 @@ export const policy = definePolicy(
 );
 
 export async function check(): Promise<boolean> {
-  const permdock = createPermDock(policy, {
+  const permdock = getPermDockSync(policy, {
     id: "u1",
     roles: ["member"],
   });

@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   findPermission,
-  loadPermDock,
+  getPermDock,
   memoryCustomRoleSource,
   memoryRelationSource,
   validateCustomRole,
@@ -301,7 +301,7 @@ describe("CentraKit adoption shapes", () => {
       dropped: [{ permission: "customers.archive", reason: "outside-ceiling" }],
       renamed: [{ from: "system.billing.view", to: "platform.billing.view" }],
     });
-    const permdock = await loadPermDock(
+    const permdock = await getPermDock(
       policy,
       { id: TIER2, roles: ["tier2"] },
       { customRoles: memoryCustomRoleSource([tier2]) },
@@ -399,7 +399,7 @@ describe("CentraKit adoption shapes", () => {
       [MEMBER, ["member"]],
       [VIEWER, ["viewer"]],
     ] as const) {
-      const permdock = await loadPermDock(policy, staff(user, roles));
+      const permdock = await getPermDock(policy, staff(user, roles));
       const row = { id: BILL_A, organization_id: ORG_A };
       expect(permdock.can(permissions.billing.view, row)).toBe(
         (await users("billing.view", ORG_A)).includes(user),
@@ -443,7 +443,7 @@ describe("CentraKit adoption shapes", () => {
         ],
       },
     });
-    const requester = await loadPermDock(policy, staff(MEMBER, ["member"]));
+    const requester = await getPermDock(policy, staff(MEMBER, ["member"]));
     const decision = requester.decide(permissions.expenses.pay, expense);
     expect(decision.outcome).toBe("approval-required");
     if (decision.outcome !== "approval-required") {

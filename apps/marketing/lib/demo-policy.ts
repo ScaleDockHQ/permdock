@@ -1,6 +1,6 @@
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   describe,
@@ -79,7 +79,7 @@ const DEMO_OPTIONS: DecideOptions = {
 };
 
 function demoDock(roleName: DemoRole): PermDock {
-  const created = createPermDock(policy, {
+  const created = getPermDockSync(policy, {
     id: "demo-user",
     roles: [roleName],
   });

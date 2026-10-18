@@ -7,7 +7,7 @@ import { PermDockDeniedError } from "../../src/core/errors.ts";
 import { limits, memoryLimitStore } from "../../src/core/limits.ts";
 import {
   type PermDock,
-  createPermDock as createCorePermDock,
+  getPermDockSync as createCorePermDock,
 } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";

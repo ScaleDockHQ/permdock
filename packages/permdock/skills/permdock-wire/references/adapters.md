@@ -14,7 +14,7 @@ import { policy } from "../policy";
 export const {
   getPermDock,
   getPermission,
-  requireAccess,
+  requirePermission,
   PermDockProvider,
   permdockHandler,
 } = createPermDock(policy, {
@@ -22,7 +22,7 @@ export const {
 });
 ```
 
-Needs Next.js 16.3 or later. Guard with `getPermission(permissions.post.update, post)` or `assert`. For a page or Server Action that must stop on a denial, `await requireAccess({ permission, data, tenant })` calls `forbidden()` (or `unauthorized()` for a signed-out user); enable `experimental.authInterrupts` and add `app/forbidden.tsx` and `app/unauthorized.tsx`. When only part of a page is gated, let a Server Component `assert` inside `<PermissionBoundary denied={...} approval={...}>` from `permdock/next/client` (with a `Suspense` inside it); `usePermissionBoundary()` in the fallback gives the permission, the approval `token` and `retry()`. Client components use `permdock/react` inside the server `PermDockProvider`, which never awaits: it streams a `snapshotPromise`, and permission hooks answer `pending` until it lands (add `suspend` to make them suspend).
+Needs Next.js 16.3 or later. Guard with `getPermission(permissions.post.update, post)` or `assert`. For a page or Server Action that must stop on a denial, `await requirePermission(permission, data, { tenant })` calls `forbidden()` (or `unauthorized()` for a signed-out user); enable `experimental.authInterrupts` and add `app/forbidden.tsx` and `app/unauthorized.tsx`. When only part of a page is gated, let a Server Component `assert` inside `<PermissionBoundary denied={...} approval={...}>` from `permdock/next/client` (with a `Suspense` inside it); `usePermissionBoundary()` in the fallback gives the permission, the approval `token` and `retry()`. Client components use `permdock/react` inside the server `PermDockProvider`, which never awaits: it streams a `snapshotPromise`, and permission hooks answer `pending` until it lands (add `suspend` to make them suspend).
 
 With `cacheComponents`, when permission UI (nav items, row actions) must be prefetched, the app owns the cache directive and `getSnapshot` fills it. Without the factory, call `snapshotFor` and set `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub))` yourself. Never put `'use cache'` inside PermDock calls, and never read `headers()` / `cookies()` in a function you mean to cache outside `'use cache: private'`:
 
@@ -42,7 +42,7 @@ export async function loadSnapshot(org: string) {
 
 Hooks under a `snapshotPromise` never suspend: they deny with `status: 'pending'` until it resolves, so render a skeleton for `pending` (or `<Protected pending>`); pass `suspend` to the provider only when readers should wait inside a Suspense boundary.
 
-After a role change: `updateTag(snapshotTag(user))` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler (not `'max'`, which would keep serving the revoked grant). Pages whose permission UI must be instant export `instant = true`; a rarely visited admin page exports `prefetch = 'force-disabled'`. Resource links that should carry their gated actions use `<Link prefetch={true}>` with the check in a `'use cache: private'` function keyed on the resource id. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. With a slug in the URL (`[orgSlug]`), resolve it to the org id in a `'use cache'` lookup that reads no session, call `notFound()` for an unknown slug, and pass the id to `snapshotFor`, `requireAccess` and `getPermDock`. Export `const { POST, GET } = permdockHandler()` from `app/api/permdock/route.ts`, or pass `endpoint: false` when every client check is portable; then a closure grant read by `usePermission` is denied with reason `server-only` (`permdock doctor` PD044 warns). Guide: [Next.js Cache Components](https://permdock.com/docs/guides/next-cache-components).
+After a role change: `updateTag(snapshotTag(user))` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler (not `'max'`, which would keep serving the revoked grant). Pages whose permission UI must be instant export `instant = true`; a rarely visited admin page exports `prefetch = 'force-disabled'`. Resource links that should carry their gated actions use `<Link prefetch={true}>` with the check in a `'use cache: private'` function keyed on the resource id. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. With a slug in the URL (`[orgSlug]`), resolve it to the org id in a `'use cache'` lookup that reads no session, call `notFound()` for an unknown slug, and pass the id to `snapshotFor`, `requirePermission` and `getPermDock`. Export `const { POST, GET } = permdockHandler()` from `app/api/permdock/route.ts`, or pass `endpoint: false` when every client check is portable; then a closure grant read by `usePermission` is denied with reason `server-only` (`permdock doctor` PD044 warns). Guide: [Next.js Cache Components](https://permdock.com/docs/guides/next-cache-components).
 
 ## Hono — `permdock/hono`
 
@@ -61,7 +61,7 @@ app.delete(
 );
 ```
 
-Every HTTP adapter takes `tenant` (for example `(c) => c.req.param('org')`), resolved again on each `protect` where route params exist, plus `limits` (`limits(store)` over a `LimitStore`, for quota grants) and `pdp` (`loadPermDock` from `permdock/pdp`). A `protect` loader's result is validated against the resource schema; pass `{ trusted: true }` as the third argument only when the loader returns a row the server loaded itself. `assert` inside a handler becomes the same 403 Problem Details as a guard denial; no `onError` wiring is needed.
+Every HTTP adapter takes `tenant` (for example `(c) => c.req.param('org')`), resolved again on each `protect` where route params exist, plus `limits` (`limits(store)` over a `LimitStore`, for quota grants) and `pdp` (`getPermDock` from `permdock/pdp`). A `protect` loader's result is validated against the resource schema; pass `{ trusted: true }` as the third argument only when the loader returns a row the server loaded itself. `assert` inside a handler becomes the same 403 Problem Details as a guard denial; no `onError` wiring is needed.
 
 Streams and sockets: pass `revocations: memoryRevocationFeed()` (from `permdock`) and open a connection after `protect` succeeded. `sse` drops items the subscriber cannot read and ends with an `event: permdock` frame on revocation; await it last. `socket` closes a WebSocket with `1008`. Check inbound socket messages with `conn.check(permission, data)`, which validates the message data; a denial keeps the socket open.
 
@@ -371,7 +371,7 @@ HTTP adapters accept the same options as `otel`. `@opentelemetry/api` is optiona
 
 Every HTTP adapter, `permdock/mcp` and `permdock/ai-sdk` take three hooks ([extend PermDock](https://permdock.com/docs/guides/extending)):
 
-- `deniedResponse`: on HTTP, `({ decision, problem, request })` returns Problem Details with extra members, a `Response`, or `undefined`; a status below 300 or a throw keeps the default. On MCP and the agent adapters, `deniedText` returns replacement text only. On Next.js the factory `onDenied` throws or redirects, and also runs for `requireAccess`.
+- `deniedResponse`: on HTTP, `({ decision, problem, request })` returns Problem Details with extra members, a `Response`, or `undefined`; a status below 300 or a throw keeps the default. On MCP and the agent adapters, `deniedText` returns replacement text only. On Next.js the factory `onDenied` throws or redirects, and also runs for `requirePermission`.
 - `context`: returns plain JSON merged into `subject.context`. Return only server-derived values, never a header, body field or tool argument; it is visible in the snapshot.
 - `wrap`: wraps each instance after `otel`; `permdock/next` takes it too. Build it with `wrapPermDock(permdock, (inner) => ({ … }))` so `tenant()`, `team()` and `derive()` stay wrapped.
 
@@ -457,7 +457,7 @@ import {
 
 const session = await auth.api.getSession({ headers });
 const subject = await subjectFromBetterAuth(session, { auth });
-const permdock = await loadPermDock(policy, subject, {
+const permdock = await getPermDock(policy, subject, {
   customRoles: betterAuthCustomRoleSource(auth),
 });
 ```
@@ -563,7 +563,7 @@ pipeline([withClaims()], permdockHandler());
 ## Remote PDP — `permdock/pdp`
 
 ```ts
-import { createPermDock, remotePdp } from "permdock/pdp";
+import { getPermDock, remotePdp } from "permdock/pdp";
 
 const policy = definePolicy(permissions, {
   roles: [member],
@@ -573,11 +573,11 @@ const policy = definePolicy(permissions, {
   ],
 });
 
-const permdock = createPermDock(policy, user);
+const permdock = await getPermDock(policy, user);
 await permdock.can(permissions.post.read, post);
 ```
 
-Use `createPermDock` from `permdock/pdp` when `providers` is set. Core `can` / `decide` stay synchronous and deny delegated permissions with `pdp-unavailable`; on the PDP instance `filter` and `where` are async too.
+Use `getPermDock` from `permdock/pdp` when `providers` is set. Core `can` / `decide` stay synchronous and deny delegated permissions with `pdp-unavailable`; on the PDP instance `filter` and `where` are async too.
 
 For OpenFGA or SpiceDB, use `openfga({ url, storeId, map })` or `spicedb({ url, token, map })` as the provider. `map` is one `[permission, (subject, row) => tuple]` pair per delegated permission; `filter` and `where` then use `list-objects` / `LookupResources` ids, so the tuple ids must equal the resource's `id` field. The app writes the tuples.
 

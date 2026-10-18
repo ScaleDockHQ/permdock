@@ -4,7 +4,7 @@ import { describe, expect, inject, it } from "vitest";
 import type { AuthzenVectors } from "../../src/testing/authzen.ts";
 
 import { createPermDock } from "../../src/authzen/index.ts";
-import { createPermDock as createInstance } from "../../src/index.ts";
+import { getPermDockSync as createInstance } from "../../src/index.ts";
 import {
   authzenTodoData,
   authzenTodoPermissions,

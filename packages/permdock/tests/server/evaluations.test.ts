@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PermDock } from "../../src/core/permdock.ts";
 
-import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync as createCorePermDock } from "../../src/core/permdock.ts";
 import { evaluationsHandler } from "../../src/server/index.ts";
 import {
   InvalidSignatureError,

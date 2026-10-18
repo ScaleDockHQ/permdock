@@ -14,10 +14,10 @@ Audit needs the result, not just the attempt: permix's audit hook lacked the out
 ## API
 
 ```ts
-import { createPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { withOtel } from "permdock/otel";
 
-const permdock = withOtel(createPermDock(policy, user), {
+const permdock = withOtel(await getPermDock(policy, user), {
   tracer: "permdock", // tracer / meter name; default 'permdock'
   logger, // optional structural logger: { debug, info, warn, error }
   attributes: (event) => ({ "app.tenant": event.subject?.orgId }), // extra attributes per check

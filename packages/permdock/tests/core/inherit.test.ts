@@ -13,7 +13,7 @@ import {
   type RelationSource,
   allow,
   anyone,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   deny,
@@ -108,8 +108,8 @@ async function visible(
   user: User,
   source: RelationSource = relations,
 ): Promise<readonly string[]> {
-  const permdock = createPermDock(policy, user, { relations: source });
-  await permdock.loadRelations(node.read, nodes);
+  const permdock = getPermDockSync(policy, user, { relations: source });
+  await permdock.prefetchRelations(node.read, nodes);
   return nodes
     .filter((row) => permdock.can(node.read, row))
     .map((row) => row.id);
@@ -139,8 +139,8 @@ describe("inherit(): a permission held through a link to another row", () => {
   });
 
   it("chains through the parent and another inherit grant, ANDed with the grant's own where", async () => {
-    const permdock = createPermDock(policy, { id: "vera" }, { relations });
-    await permdock.loadRelations(node.delete, nodes);
+    const permdock = getPermDockSync(policy, { id: "vera" }, { relations });
+    await permdock.prefetchRelations(node.delete, nodes);
     expect(
       nodes
         .filter((row) => permdock.can(node.delete, row))
@@ -153,7 +153,7 @@ describe("inherit(): a permission held through a link to another row", () => {
       ancestors: (query) => relations.ancestors(query),
       related: (query) => relations.related(query),
     };
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       { id: "vera" },
       { relations: rowless },
@@ -181,12 +181,12 @@ describe("inherit(): a permission held through a link to another row", () => {
       }),
       failing(() => Promise.reject(new Error("down"))),
     ]) {
-      const permdock = createPermDock(
+      const permdock = getPermDockSync(
         policy,
         { id: "vera" },
         { relations: source },
       );
-      await permdock.loadRelations(node.read, nodes);
+      await permdock.prefetchRelations(node.read, nodes);
       const decision = permdock.decide(node.read, nodes[1]);
       expect(
         decision.outcome === "denied"
@@ -220,7 +220,7 @@ describe("inherit(): a permission held through a link to another row", () => {
   });
 
   it("is server-only in snapshots and left out of where()", async () => {
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       {
         id: "ana",

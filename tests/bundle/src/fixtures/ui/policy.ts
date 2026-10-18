@@ -2,7 +2,7 @@ import type { Snapshot } from "permdock";
 
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   resource,
@@ -24,7 +24,7 @@ const policy = definePolicy(permissions, {
 });
 
 export async function memberSnapshot(): Promise<Snapshot> {
-  const permdock = createPermDock(policy, { id: "u1" });
+  const permdock = getPermDockSync(policy, { id: "u1" });
   // SAFETY: without a signer, snapshot() returns the Snapshot object, not a signed string.
   return permdock.snapshot() as Snapshot;
 }

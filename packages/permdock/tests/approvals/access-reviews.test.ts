@@ -14,7 +14,7 @@ import {
 } from "../../src/approvals/index.ts";
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   holder,
@@ -78,7 +78,7 @@ describe("access reviews", () => {
   testAccessReviewStore(memoryAccessReviewStore());
 
   it("lists members a rowless decide confirms, and marks global roles incomplete", async () => {
-    const opener = createPermDock(policy, inTenant("ann", ["owner"]));
+    const opener = getPermDockSync(policy, inTenant("ann", ["owner"]));
     const store = memoryAccessReviewStore();
     const review = await startAccessReview(
       opener,
@@ -93,7 +93,7 @@ describe("access reviews", () => {
         memberships,
         policy,
         permdockFor: (id) =>
-          createPermDock(
+          getPermDockSync(
             policy,
             inTenant(id, id === "ann" ? ["owner"] : ["member"]),
           ),
@@ -111,7 +111,7 @@ describe("access reviews", () => {
   });
 
   it("uses a supplied holder list and refuses a reviewer deciding their own row", async () => {
-    const opener = createPermDock(policy, inTenant("ann", ["owner"]));
+    const opener = getPermDockSync(policy, inTenant("ann", ["owner"]));
     const store = memoryAccessReviewStore();
     const review = await startAccessReview(
       opener,
@@ -150,7 +150,7 @@ describe("access reviews", () => {
     expect(decision).toMatchObject({ status: "revoked", decidedBy: "ann" });
     const handler = accessReviewsHandler(store, {
       subject: () => inTenant("ann", ["owner"]),
-      permdockFor: (reviewer) => createPermDock(policy, reviewer),
+      permdockFor: (reviewer) => getPermDockSync(policy, reviewer),
     });
     const response = await handler(
       new Request(
@@ -177,7 +177,7 @@ describe("access reviews", () => {
   });
 
   it("hides a review from someone who is not a reviewer", async () => {
-    const opener = createPermDock(policy, inTenant("ann", ["owner"]));
+    const opener = getPermDockSync(policy, inTenant("ann", ["owner"]));
     const store = memoryAccessReviewStore();
     await startAccessReview(
       opener,
@@ -226,11 +226,11 @@ describe("access reviews", () => {
         }),
       ),
     ).toBe(false);
-    const opener = createPermDock(policy, inTenant("ann", ["owner"]));
+    const opener = getPermDockSync(policy, inTenant("ann", ["owner"]));
     const store = memoryAccessReviewStore();
     await expect(
       startAccessReview(
-        createPermDock(policy, { principal: null, context: {} }),
+        getPermDockSync(policy, { principal: null, context: {} }),
         {
           id: "none",
           permissions: [permissions.billing.view],
@@ -339,7 +339,7 @@ describe("access reviews", () => {
   });
 
   it("refuses a closed review, a stray item and a listing that throws", async () => {
-    const opener = createPermDock(policy, inTenant("ann", ["owner"]));
+    const opener = getPermDockSync(policy, inTenant("ann", ["owner"]));
     const store = memoryAccessReviewStore();
     const review = await startAccessReview(
       opener,
@@ -454,7 +454,7 @@ describe("access reviews", () => {
   });
 
   it("rejects an unknown route, a missing item and a store that throws", async () => {
-    const opener = createPermDock(policy, inTenant("ann", ["owner"]));
+    const opener = getPermDockSync(policy, inTenant("ann", ["owner"]));
     const store = memoryAccessReviewStore();
     await startAccessReview(
       opener,

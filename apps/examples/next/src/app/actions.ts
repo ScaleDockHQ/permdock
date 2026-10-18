@@ -13,7 +13,7 @@ import {
   setQuoteStatus,
   setStaffRole,
 } from "../lib/store.ts";
-import { requireAccess } from "../permdock/server.ts";
+import { requirePermission } from "../permdock/server.ts";
 import { permissions, roles } from "../permissions.ts";
 
 function isRole(value: string): value is RoleName {
@@ -29,9 +29,7 @@ export async function approveQuote(
     return;
   }
   // Denied: forbidden() or unauthorized(); the write below never runs.
-  await requireAccess({
-    permission: permissions.quote.approve,
-    data: quote,
+  await requirePermission(permissions.quote.approve, quote, {
     tenant: organization,
   });
   setQuoteStatus(quote.id, "approved");
@@ -46,9 +44,7 @@ export async function deleteQuote(
   if (quote === null) {
     return;
   }
-  await requireAccess({
-    permission: permissions.quote.delete,
-    data: quote,
+  await requirePermission(permissions.quote.delete, quote, {
     tenant: organization,
   });
   removeQuote(quote.id);
@@ -65,8 +61,7 @@ export async function changeRole(form: FormData): Promise<void> {
   const organization = field(form, "organization");
   const user = field(form, "user");
   const role = field(form, "role");
-  await requireAccess({
-    permission: permissions.member.manage,
+  await requirePermission(permissions.member.manage, undefined, {
     tenant: organization,
   });
   if (!isRole(role) || role === "contact") {

@@ -111,9 +111,9 @@ export const policy = definePolicy(
 ### 3. Decide
 
 ```ts
-import { createPermDock } from "permdock";
+import { getPermDock } from "permdock";
 
-const permdock = createPermDock(policy, user); // frozen, request-scoped, synchronous
+const permdock = await getPermDock(policy, user); // frozen, request-scoped; getPermDockSync when every input is synchronous
 permdock.can(permissions.post.update, post); // boolean
 permdock.decide(permissions.post.delete, post); // { outcome: 'granted' | 'denied' | 'approval-required', ... }
 permdock.explain(permissions.post.delete, post); // the decision plus a trace naming the deny that won
@@ -150,15 +150,13 @@ The same hook names exist in React Native, Vue, Svelte and Solid. Read [building
 // src/permdock/server.ts
 import { createPermDock } from "permdock/next";
 
-export const { getPermDock, requireAccess, permdockHandler } = createPermDock(
-  policy,
-  {
+export const { getPermDock, requirePermission, permdockHandler } =
+  createPermDock(policy, {
     subject: async () => getUser(await cookies()),
-  },
-);
+  });
 
 // in a page or Server Action
-await requireAccess({ permission: permissions.post.update, data: post }); // forbidden() / unauthorized() on a denial
+await requirePermission(permissions.post.update, post); // forbidden() / unauthorized() on a denial
 ```
 
 ### Hono

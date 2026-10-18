@@ -671,5 +671,7 @@ export const example: OxlintConfig = defineConfig({
     "typescript/no-unsafe-type-assertion": "off",
     // Example servers read PORT from the environment (25 findings).
     "node/no-process-env": "off",
+    // A check without a row passes `undefined` as `data` before its options (2 findings).
+    "eslint/no-undefined": "off",
   },
 });

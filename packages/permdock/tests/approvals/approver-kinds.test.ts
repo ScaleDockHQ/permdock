@@ -16,7 +16,7 @@ import {
   allOf,
   allow,
   anyOf,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   holder,
@@ -76,7 +76,7 @@ async function pending(): Promise<{
   readonly request: ApprovalRequest;
 }> {
   const store = memoryApprovalStore();
-  const permdock = createPermDock(policy, inTenant("cara", ["clerk"]));
+  const permdock = getPermDockSync(policy, inTenant("cara", ["clerk"]));
   const decision = permdock.decide(permissions.payment.send, {
     id: "p1",
     orgId: "o1",
@@ -107,7 +107,7 @@ describe("approver kinds", () => {
     const { request } = await pending();
     const dana = inTenant("dana", ["controller"]);
     expect(() => assertApprover(request, dana, false)).toThrow(/eligible/u);
-    const held = approverPermissions(request, createPermDock(policy, dana));
+    const held = approverPermissions(request, getPermDockSync(policy, dana));
     expect(held).toEqual(["payment.approve"]);
     expect(() =>
       assertApprover(
@@ -124,7 +124,7 @@ describe("approver kinds", () => {
   it("a custom role that grants the permission makes its holder an approver", async () => {
     const { request } = await pending();
     const erin = inTenant("erin", ["treasury"]);
-    const instance = createPermDock(policy, erin, {
+    const instance = getPermDockSync(policy, erin, {
       customRoles: memoryCustomRoleSource([
         {
           name: "treasury",
@@ -149,7 +149,7 @@ describe("approver kinds", () => {
       context: {},
     };
     expect(
-      approverPermissions(request, createPermDock(policy, elsewhere)),
+      approverPermissions(request, getPermDockSync(policy, elsewhere)),
     ).toEqual([]);
   });
 
@@ -157,7 +157,7 @@ describe("approver kinds", () => {
     const { store, request } = await pending();
     const handler = approvalsHandler(store, {
       subject: () => inTenant("dana", ["controller"]),
-      permdockFor: (approver) => createPermDock(policy, approver),
+      permdockFor: (approver) => getPermDockSync(policy, approver),
     });
     const response = await handler(
       new Request(
@@ -194,7 +194,7 @@ describe("approver kinds", () => {
   });
 
   it("describe names holders and any-of groups", async () => {
-    const permdock = createPermDock(policy, inTenant("cara", ["clerk"]));
+    const permdock = getPermDockSync(policy, inTenant("cara", ["clerk"]));
     expect(
       describeDecision(
         permdock.decide(permissions.payment.send, { id: "p1", orgId: "o1" }),
@@ -289,7 +289,7 @@ describe("escalation in data and per stage", () => {
         person === null ? null : { id: person.id },
     });
     const store = memoryApprovalStore();
-    const permdock = createPermDock(staged, inTenant("cara", ["clerk"]));
+    const permdock = getPermDockSync(staged, inTenant("cara", ["clerk"]));
     const decision = permdock.decide(permissions.payment.send, {
       id: "p1",
       orgId: "o1",

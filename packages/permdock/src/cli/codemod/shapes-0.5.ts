@@ -20,6 +20,8 @@ export type AwaitRename = {
   readonly name: string;
   readonly entries: readonly string[];
   readonly to: string;
+  /** What an unawaited call becomes. */
+  readonly sync: string;
 };
 
 export type MethodToFunction = {
@@ -92,11 +94,15 @@ export const TEMPLATE_HINTS_0_5: readonly TemplateHint[] = Object.freeze([
 ]);
 
 export const AWAIT_RENAMES_0_5: readonly AwaitRename[] = Object.freeze([
-  { name: "createPermDock", entries: ["permdock"], to: "loadPermDock" },
+  {
+    name: "createPermDock",
+    entries: ["permdock"],
+    to: "getPermDock",
+    sync: "getPermDockSync",
+  },
 ]);
 
 export const CALL_RENAMES_0_5: readonly Rename[] = Object.freeze([
-  { from: "createPermDock", to: "loadPermDock", entries: ["permdock/pdp"] },
   {
     from: "rolesOf",
     to: "rolesFor",
@@ -142,7 +148,11 @@ export const FUNCTION_METHODS_0_5: readonly FunctionToMethod[] = Object.freeze([
   { name: "mayUse", entry: "permdock", method: "mayUse" },
 ]);
 
-const INSTANCE_FACTORIES = ["createPermDock", "loadPermDock"] as const;
+const INSTANCE_FACTORIES = [
+  "createPermDock",
+  "getPermDock",
+  "getPermDockSync",
+] as const;
 
 export const OPTION_WRAPS_0_5: readonly OptionWrap[] = Object.freeze([
   {

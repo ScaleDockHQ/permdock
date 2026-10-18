@@ -14,7 +14,7 @@ import {
   actor,
   allow,
   breakGlass,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePlans,
   definePolicy,
@@ -183,7 +183,7 @@ describe("policyFromCatalog structure", () => {
     const hosted = policyFromCatalog(catalogOf(), unscoped);
     expect(hosted.scopes).toEqual([{ name: "organization", key: "orgId" }]);
     const principal = { id: "u1", plans: ["pro"] };
-    const permdock = createPermDock(hosted, principal);
+    const permdock = getPermDockSync(hosted, principal);
     expect(hosted.subject(principal)).toBe(principal);
     expect(
       permdock.can(

@@ -84,6 +84,7 @@ Issuing is application code. Guard it with its own permission (`quote.share` abo
 `subjectFromCapability(token, options)` from `permdock/jwt` verifies the token and returns the subject it acts as. Like every `subjectFrom*` resolver it never throws: any failure is the anonymous subject, reported through `onAuth`.
 
 ```ts
+import { getPermDock } from "permdock";
 import { subjectFromCapability } from "permdock/jwt";
 
 const subject = await subjectFromCapability(url.searchParams.get("token"), {
@@ -96,7 +97,7 @@ const subject = await subjectFromCapability(url.searchParams.get("token"), {
   replay, // a ReplayStore, required for once: true
   viewer: await session(), // the request's own verified subject, for redeemer checks
 });
-const permdock = createPermDock(policy, subject);
+const permdock = await getPermDock(policy, subject);
 permdock.can(permissions.quote.read, quote); // true for the linked, sent quote only
 ```
 

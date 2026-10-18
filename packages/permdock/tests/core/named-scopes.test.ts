@@ -8,7 +8,7 @@ import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
+import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -28,7 +28,7 @@ async function permdockFor(
   principal: Principal,
   options: { readonly tenant?: string } = {},
 ): Promise<PermDock> {
-  return createPermDock(policy, principal, {
+  return getPermDockSync(policy, principal, {
     customRoles: memoryCustomRoleSource(customRoles),
     ...options,
   });
@@ -234,7 +234,7 @@ describe("named scopes: the scenario", () => {
       personas.privateContact,
       personas.staffContact,
     ]) {
-      const permdock = createPermDock(policy, principal, {
+      const permdock = getPermDockSync(policy, principal, {
         memberships: {
           membershipsFor: () => active(principal.memberships),
         },
@@ -260,7 +260,7 @@ describe("named scopes: permissions a suspended organization keeps", () => {
 
   it("holds only the kept permissions through a suspended instance", async () => {
     for (const principal of [personas.owner, personas.privateContact]) {
-      const permdock = createPermDock(policy, principal, {
+      const permdock = getPermDockSync(policy, principal, {
         memberships: { membershipsFor: () => keep(principal.memberships) },
       });
       expect(readable(permdock, permissions.quote.read)).toEqual([]);
@@ -280,7 +280,7 @@ describe("named scopes: permissions a suspended organization keeps", () => {
         readable(permdock, permissions.invoice.read),
       );
     }
-    const owner = createPermDock(policy, personas.owner, {
+    const owner = getPermDockSync(policy, personas.owner, {
       memberships: { membershipsFor: () => keep(personas.owner.memberships) },
     });
     expect(owner.heldRoles()).toEqual([]);
@@ -293,7 +293,7 @@ describe("named scopes: permissions a suspended organization keeps", () => {
   });
 
   it("drops a membership whose keep is not a list of keys", async () => {
-    const permdock = createPermDock(policy, personas.privateContact, {
+    const permdock = getPermDockSync(policy, personas.privateContact, {
       memberships: {
         membershipsFor: () => {
           const out: Membership[] = [];

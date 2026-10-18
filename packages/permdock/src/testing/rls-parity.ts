@@ -9,7 +9,7 @@ import {
 import {
   type CustomRole,
   fromSnapshot,
-  loadPermDock,
+  getPermDock,
   type Membership,
   memoryCustomRoleSource,
   parseSnapshot,
@@ -263,7 +263,7 @@ export async function testRlsParity<TUser>(
 
   async function runCase(fixture: RlsParityFixture): Promise<RlsParityCase> {
     // SAFETY: TUser is erased at the policy boundary; toSubject builds the Subject createPermDock reads.
-    const permdock = await loadPermDock(
+    const permdock = await getPermDock(
       policy,
       toSubject(fixture.subject) as TUser,
       { customRoles: memoryCustomRoleSource(customRoles) },

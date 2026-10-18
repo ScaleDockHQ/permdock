@@ -365,7 +365,7 @@ export function credentialDelegation(
  * owner, passed live as `owner` (roles and memberships as of this request),
  * with the credential's delegation: every check is the owner's rights
  * intersected with the key's. One that names a `tenant` makes it the active
- * tenant, and `createPermDock` then keeps only the owner's memberships
+ * tenant, and `getPermDock` then keeps only the owner's memberships
  * inside it and no global role. A `service` credential is a `service`
  * principal whose only membership is `roles` in `tenant`. An owner whose id
  * is not the credential's `principal`, or who is not a user, is anonymous.

@@ -3,7 +3,7 @@ title: Apps and profiles
 description: defineApp binds the data sources, opt-in features and services an app wires once (memberships, custom roles, relations, hosted policies, approval policies, limits, sink, approval store) to a policy, so createPermDock and every adapter read them from one place; profile dev fills in in-process defaults and profile prod refuses to start when a grant needs a service the app lacks.
 ---
 
-`defineApp(policy, options)` returns the policy with the app's sources, features and services bound to it. Pass the result wherever a policy goes: core `createPermDock`, every adapter and the CLI. Each one reads the app definition, and its own options win key by key.
+`defineApp(policy, options)` returns the policy with the app's sources, features and services bound to it. Pass the result wherever a policy goes: core `getPermDock`, every adapter and the CLI. Each one reads the app definition, and its own options win key by key.
 
 ```ts
 // src/permdock.ts

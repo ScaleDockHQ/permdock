@@ -9,7 +9,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { createPermDock } from "../../src/pdp/index.ts";
+import { getPermDockSync } from "../../src/pdp/index.ts";
 
 const permissions = definePermissions({
   post: resource({ id: "id", actions: ["read"] }),
@@ -24,7 +24,7 @@ const policy = definePolicy(permissions, {
 
 describe("permdock/pdp derive", () => {
   it("keeps the PDP wrapper on a derived instance, sync and async", async () => {
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "u1",
       roles: ["member"],
     });

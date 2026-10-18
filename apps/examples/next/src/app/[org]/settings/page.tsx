@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card.tsx";
 
 import { organizations } from "../../../lib/store.ts";
-import { requireAccess } from "../../../permdock/server.ts";
+import { requirePermission } from "../../../permdock/server.ts";
 import { permissions } from "../../../permissions.ts";
 
 // A rarely visited admin page: never prefetched, and allowed to block, because
@@ -20,7 +20,9 @@ export default async function Settings(props: {
   readonly params: Promise<{ readonly org: string }>;
 }) {
   const { org } = await props.params;
-  await requireAccess({ permission: permissions.member.manage, tenant: org });
+  await requirePermission(permissions.member.manage, undefined, {
+    tenant: org,
+  });
   const organization = organizations.find((item) => item.id === org);
   return (
     <div data-testid="settings" className="flex flex-col gap-6">
@@ -32,8 +34,8 @@ export default async function Settings(props: {
         <CardHeader>
           <CardTitle>Organization</CardTitle>
           <CardDescription>
-            This page is never prefetched and checks access with requireAccess
-            before it renders.
+            This page is never prefetched and checks access with
+            requirePermission before it renders.
           </CardDescription>
         </CardHeader>
         <CardContent>

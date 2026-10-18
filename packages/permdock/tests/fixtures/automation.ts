@@ -4,7 +4,7 @@ import type { Principal, Subject } from "../../src/core/subject.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { actor } from "../../src/core/grantee.ts";
 import { defineOperations } from "../../src/core/operations.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -114,7 +114,7 @@ export function userSubject(
 }
 
 export function permdockFor(subject: Subject, using = policy): PermDock {
-  const instance = createPermDock(using, subject);
+  const instance = getPermDockSync(using, subject);
   if (instance instanceof Promise) {
     throw new TypeError("expected a synchronous instance");
   }

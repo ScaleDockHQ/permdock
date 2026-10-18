@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPermDock, signCapability } from "permdock";
+import { getPermDockSync, signCapability } from "permdock";
 import { run } from "permdock/cli";
 import { joseTokenSigner, subjectFromCapability } from "permdock/jwt";
 import { memoryReplayStore } from "permdock/ssf";
@@ -132,7 +132,7 @@ function allowed(
   permission: Permission<string, unknown, "instance">,
   list: readonly { readonly id: string }[],
 ): string[] {
-  const permdock = createPermDock(policy, subject);
+  const permdock = getPermDockSync(policy, subject);
   if (permdock instanceof Promise) {
     throw new TypeError("expected a synchronous instance");
   }

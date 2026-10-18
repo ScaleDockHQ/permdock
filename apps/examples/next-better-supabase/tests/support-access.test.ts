@@ -1,6 +1,6 @@
 import type { DecisionEvent } from "permdock";
 
-import { createPermDock, memoryDecisionSink } from "permdock";
+import { getPermDockSync, memoryDecisionSink } from "permdock";
 import { subjectFromSupabase } from "permdock/supabase";
 import { describe, expect, it } from "vitest";
 
@@ -34,7 +34,7 @@ const support = (extra: Record<string, unknown> = {}) =>
 
 function instance(claims: Record<string, unknown>) {
   const sink = memoryDecisionSink();
-  const permdock = createPermDock(policy, subjectFromSupabase(claims), {
+  const permdock = getPermDockSync(policy, subjectFromSupabase(claims), {
     tenant: organization,
     sink,
   });

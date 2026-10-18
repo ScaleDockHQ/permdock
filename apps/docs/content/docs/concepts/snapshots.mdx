@@ -10,7 +10,7 @@ This is the design response to permix's hydration, which collapsed function rule
 ## Producing a snapshot
 
 ```ts
-const permdock = createPermDock(policy, user);
+const permdock = await getPermDock(policy, user);
 
 const full = permdock.snapshot();
 const scoped = permdock.snapshot({

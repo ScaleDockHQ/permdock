@@ -9,7 +9,7 @@ import {
   resumeDecision,
 } from "../../src/approvals/index.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -56,7 +56,7 @@ async function run(
     | typeof permissions.invoice.pay
     | typeof permissions.invoice.void = permissions.invoice.pay,
 ): Promise<{ readonly decision: Decision; readonly resumed: Decision }> {
-  const permdock = createPermDock(policy, clerk);
+  const permdock = getPermDockSync(policy, clerk);
   const decision = permdock.decide(permission, row);
   const resumed = await resumeDecision({
     decision,
@@ -74,13 +74,13 @@ async function approve(
   store: ReturnType<typeof memoryApprovalStore>,
   token: string,
 ): Promise<void> {
-  const by = createPermDock(policy, manager);
+  const by = getPermDockSync(policy, manager);
   await resolveApproval(store, token, { status: "approved", by: by.subject });
 }
 
 describe("approvals that go stale on a resource change", () => {
   it("binds the token to the version field", async () => {
-    const permdock = createPermDock(policy, clerk);
+    const permdock = getPermDockSync(policy, clerk);
     const first = permdock.decide(permissions.invoice.pay, v1);
     const same = permdock.decide(permissions.invoice.pay, { ...v1 });
     const changed = permdock.decide(permissions.invoice.pay, v2);
@@ -92,7 +92,7 @@ describe("approvals that go stale on a resource change", () => {
   });
 
   it("leaves the token of an approval without staleOn unchanged by the row", async () => {
-    const permdock = createPermDock(policy, clerk);
+    const permdock = getPermDockSync(policy, clerk);
     const before = permdock.decide(permissions.invoice.void, v1);
     const after = permdock.decide(permissions.invoice.void, v2);
     expect(before.outcome === "approval-required" && before.token).toBe(

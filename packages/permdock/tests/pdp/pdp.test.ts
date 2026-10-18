@@ -4,12 +4,12 @@ import { z } from "zod";
 import type { DecisionProvider } from "../../src/core/interfaces.ts";
 
 import { allow, deny } from "../../src/core/grant-builders.ts";
-import { createPermDock as createCore } from "../../src/core/permdock.ts";
+import { getPermDockSync as createCore } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { createPermDock, remotePdp } from "../../src/pdp/index.ts";
+import { getPermDockSync, remotePdp } from "../../src/pdp/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 
 const Post = z.object({
@@ -56,7 +56,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("permdock/pdp", () => {
-  it("fails closed in core createPermDock for delegated permissions", async () => {
+  it("fails closed in core getPermDockSync for delegated permissions", async () => {
     const policy = policyWith([
       remotePdp({
         url: "https://pdp.example",
@@ -86,7 +86,7 @@ describe("permdock/pdp", () => {
         },
       }),
     ]);
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -104,7 +104,7 @@ describe("permdock/pdp", () => {
         fetch: async () => jsonResponse({ decision: true }),
       }),
     ]);
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -119,7 +119,7 @@ describe("permdock/pdp", () => {
         fetch: async () => jsonResponse({ decision: false }),
       }),
     ]);
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -144,7 +144,7 @@ describe("permdock/pdp", () => {
         }),
       ],
     });
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -168,7 +168,7 @@ describe("permdock/pdp", () => {
           }),
       }),
     ]);
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -207,7 +207,7 @@ describe("permdock/pdp", () => {
           fetch: item.fetch,
         }),
       ]);
-      const permdock = createPermDock(policy, {
+      const permdock = getPermDockSync(policy, {
         id: "user-1",
         roles: ["member"],
       });
@@ -230,7 +230,7 @@ describe("permdock/pdp", () => {
         },
       }),
     ]);
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -254,7 +254,7 @@ describe("permdock/pdp", () => {
         }),
       ],
     });
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       { id: "user-1", roles: ["member"] },
       {
@@ -293,7 +293,7 @@ describe("permdock/pdp", () => {
         }),
       ],
     });
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
       memberships: [
@@ -322,7 +322,7 @@ describe("permdock/pdp", () => {
         },
       }),
     ]);
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -339,7 +339,7 @@ describe("permdock/pdp", () => {
         fetch: async () => jsonResponse({ decision: true }),
       }),
     ]);
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -373,7 +373,7 @@ describe("permdock/pdp", () => {
         },
       }),
     ]);
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -409,7 +409,7 @@ describe("permdock/pdp", () => {
         fetch: async () => jsonResponse({ results: [{ id: "p1" }] }),
       }),
     ]);
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "user-1",
       roles: ["member"],
     });
@@ -435,7 +435,7 @@ describe("permdock/pdp", () => {
           },
         }),
       ]);
-      const permdock = createPermDock(policy, {
+      const permdock = getPermDockSync(policy, {
         id: "user-1",
         roles: ["member"],
       });

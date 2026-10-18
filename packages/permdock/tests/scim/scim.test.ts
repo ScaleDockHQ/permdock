@@ -5,7 +5,7 @@ import type { TokenVerifier } from "../../src/core/interfaces.ts";
 import type { RevocationEvent } from "../../src/core/revocations.ts";
 import type { DirectoryChange } from "../../src/scim/types.ts";
 
-import { createPermDock, loadPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync, getPermDock } from "../../src/core/permdock.ts";
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
 import { memoryDecisionSink } from "../../src/core/sink.ts";
 import {
@@ -318,7 +318,7 @@ describe("identity-provider memberships hold only assignable roles", () => {
       roles: ["editor", "owner"],
       meta: { created: "", lastModified: "" },
     });
-    const permdock = await loadPermDock(
+    const permdock = await getPermDock(
       policy,
       { id: "00u1" },
       { tenant: TENANT, memberships: directoryMembershipSource(store) },
@@ -330,7 +330,7 @@ describe("identity-provider memberships hold only assignable roles", () => {
   });
 
   it("keeps a non-assignable role on a membership the application wrote", async () => {
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       { id: "u_ada" },
       {
@@ -853,7 +853,7 @@ describe("scimHandler", () => {
     ).toBe(204);
   });
 
-  it("feeds memberships into createPermDock so deprovisioning denies", async () => {
+  it("feeds memberships into getPermDockSync so deprovisioning denies", async () => {
     const store = memoryDirectoryStore();
     const user = await store.putUser(TENANT, {
       id: "u_ada",
@@ -886,7 +886,7 @@ describe("scimHandler", () => {
       subject: (row: { readonly id: string } | null) =>
         row === null ? null : { id: row.id },
     });
-    const granted = await loadPermDock(
+    const granted = await getPermDock(
       policy,
       { id: "u_ada" },
       {
@@ -902,7 +902,7 @@ describe("scimHandler", () => {
     await store.patchUser(TENANT, user.id, [
       { op: "replace", path: "active", value: false },
     ]);
-    const denied = await loadPermDock(
+    const denied = await getPermDock(
       policy,
       { id: "u_ada" },
       {

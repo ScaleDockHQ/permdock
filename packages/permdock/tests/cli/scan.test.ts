@@ -58,6 +58,7 @@ export const x = p.post.read;
       "calls.ts": `import { permissions } from './p.ts';
 can(permissions.post.read);
 permdock.decide(permissions.post.read);
+await requirePermission(permissions.post.read, undefined, { tenant });
 allow(permissions.post.update);
 export const tools = { edit: permissions.post.update };
 other(permissions.post.delete);
@@ -67,6 +68,7 @@ other(permissions.post.delete);
     expect(result.usages["post.read"]?.map((item) => item.call)).toEqual([
       "can",
       "decide",
+      "requirePermission",
     ]);
     expect(result.usages["post.update"]?.map((item) => item.call)).toEqual([
       "allow",

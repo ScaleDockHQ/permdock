@@ -10,7 +10,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 
 import { isRecord } from "../core/compact.ts";
-import { loadPermDock } from "../core/permdock.ts";
+import { getPermDock } from "../core/permdock.ts";
 import { isPermission } from "../core/permission-registry.ts";
 import {
   type BetterSupabaseSubjectOptions,
@@ -113,7 +113,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
   ): Promise<PermDock> => {
     const session =
       claims === undefined ? null : { kind: "user" as const, claims };
-    const base = await loadPermDock(
+    const base = await getPermDock(
       options.policy,
       subjectFromBetterSupabase(session, options.subject),
       options.options,

@@ -16,7 +16,7 @@ import {
 import { eventInstant } from "../../src/core/event-time.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memorySettingsSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -64,7 +64,7 @@ const DAY = 86_400;
 const at = (offset: number): string => rfc3339(NOW_SECONDS + offset);
 
 function permdockFor(subject: Subject) {
-  const instance = createPermDock(policy, subject);
+  const instance = getPermDockSync(policy, subject);
   if (instance instanceof Promise) {
     throw new TypeError("expected a synchronous instance");
   }
@@ -495,9 +495,13 @@ describe("decideCredential", () => {
       o_1: { credentials: { maxTtl: 30 * DAY } },
     });
     const open = memorySettingsSource({});
-    const instance = createPermDock(policy, userSubject("u_1", ["developer"]), {
-      settings: capped,
-    });
+    const instance = getPermDockSync(
+      policy,
+      userSubject("u_1", ["developer"]),
+      {
+        settings: capped,
+      },
+    );
     expect(await decideCredential(instance, long, { now: NOW })).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
     });
@@ -708,7 +712,7 @@ describe("decideCredential: expired creator memberships", () => {
   });
 
   it("refuses a key in a tenant held only through an expired manageRoles membership", async () => {
-    const expiredAdmin = createPermDock(scoped, {
+    const expiredAdmin = getPermDockSync(scoped, {
       id: "u_alice",
       tenant: "T",
       memberships: [
@@ -770,7 +774,7 @@ describe("a user key held to one tenant", () => {
 
   it("narrows memberships read from a source and drops global roles", async () => {
     const subject = credentialSubject(heldKey, { permissions });
-    const permdock = createPermDock(policy, subject, {
+    const permdock = getPermDockSync(policy, subject, {
       memberships: {
         membershipsFor: () => [...(twoTenants.memberships ?? [])],
       },
@@ -793,7 +797,7 @@ describe("a user key held to one tenant", () => {
   it("holds no membership and answers for no tenant when asked for another", async () => {
     const subject = credentialSubject(heldKey, { permissions });
     const entitlementsFor = (): string[] => ["pro"];
-    const permdock = createPermDock(policy, subject, {
+    const permdock = getPermDockSync(policy, subject, {
       tenant: "o_1",
       memberships: {
         membershipsFor: () => [...(twoTenants.memberships ?? [])],
@@ -815,7 +819,7 @@ describe("a user key held to one tenant", () => {
       inHeld: false,
       where: { condition: { op: "or", conditions: [] }, partial: false },
     });
-    const same = createPermDock(policy, subject, {
+    const same = getPermDockSync(policy, subject, {
       tenant: "o_2",
       memberships: {
         membershipsFor: () => [...(twoTenants.memberships ?? [])],

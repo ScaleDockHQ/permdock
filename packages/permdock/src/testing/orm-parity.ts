@@ -1,5 +1,5 @@
 import {
-  loadPermDock,
+  getPermDock,
   type PermDockOptions,
   type Permission,
   type Policy,
@@ -76,13 +76,9 @@ export async function testOrmParity<TUser>(
   async function runCase(
     scenario: OrmParityScenario<TUser>,
   ): Promise<OrmParityCase> {
-    const permdock = await loadPermDock(
-      policy,
-      scenario.user,
-      scenario.options,
-    );
+    const permdock = await getPermDock(policy, scenario.user, scenario.options);
     if (scenario.options?.relations !== undefined) {
-      await permdock.loadRelations(scenario.permission, scenario.rows);
+      await permdock.prefetchRelations(scenario.permission, scenario.rows);
     }
     // SAFETY: scenario rows are object rows; the id field value stays unknown for sortedIds.
     const expected = sortedIds(

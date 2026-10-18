@@ -1,10 +1,10 @@
-import { createPermDock } from "permdock";
+import { getPermDockSync } from "permdock";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./app.tsx";
 import { memberUser, policy } from "./policy.ts";
 
-const permdock = createPermDock(policy, memberUser);
+const permdock = getPermDockSync(policy, memberUser);
 const snapshot = await Promise.resolve(permdock.snapshot());
 if (typeof snapshot === "string") {
   throw new TypeError("expected JSON snapshot");

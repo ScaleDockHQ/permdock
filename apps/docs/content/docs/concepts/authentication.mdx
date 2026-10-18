@@ -12,7 +12,7 @@ The rule that follows from this is the one every adapter and provider on this si
 ```mermaid
 flowchart LR
   Material["Verified material<br/>session, JWT claims, authInfo, signature"] --> Subject["subject<br/>principal + actor? + delegation?"]
-  Subject --> Factory["createPermDock(policy, subject)"]
+  Subject --> Factory["getPermDock(policy, subject)"]
   Factory --> Decide["decide / can / assert"]
   Bad["Unverifiable material"] -.->|anonymous, audit reason| Subject
 ```
@@ -88,7 +88,7 @@ Verification tells you a token is genuine. It does not tell you which claims ins
 
 - **`sub` is the principal id.** Nothing else (an `email`, a display name) identifies the principal, because those can change or be reused.
 - **Server-set claims are trusted; user-editable claims are never used for grants.** Supabase separates `app_metadata` (written by service code and Auth Hooks) from `user_metadata` (writable by the user through the client SDK). `subjectFromSupabase` reads roles and tenant from `app_metadata` or from a hook-injected top-level claim and never looks at `user_metadata`. The same split exists elsewhere under other names: Clerk public metadata set through the backend API versus anything the client can write; Better Auth `user.role` managed by the admin plugin versus profile fields.
-- **Roles from claims or roles from the database.** A role claim is cheap and offline-checkable but stale until the token is refreshed. A database lookup in the policy's `context` function is fresh but costs a query per `createPermDock`. Prefer claims when the token lifetime is short or a [Shared Signals receiver](/docs/adapters/ssf) invalidates on change; prefer `context` when role changes must take effect on the next request and tokens live for hours.
+- **Roles from claims or roles from the database.** A role claim is cheap and offline-checkable but stale until the token is refreshed. A database lookup in the policy's `context` function is fresh but costs a query per `getPermDock`. Prefer claims when the token lifetime is short or a [Shared Signals receiver](/docs/adapters/ssf) invalidates on change; prefer `context` when role changes must take effect on the next request and tokens live for hours.
 - **Tenant from claims.** A `tenant_id` or `orgId` that RLS also filters on belongs in the principal, sourced from a server-set claim, so the in-process condition and the generated `(select auth.jwt()) ->> 'tenant_id'` read the same value. With scoped roles the claim fills `principal.tenant` (the active tenant) and a membership; it is never defaulted when absent ([tenancy](/docs/concepts/tenancy)).
 - **Memberships are verified material too.** A team id, a resource share or a per-tenant role list comes from the provider's session, a server-set claim, a `MembershipSource` over your tables or the policy's own functions; never from a request body, a model argument, an unsigned header or a CLI flag. Team and group identifiers are ids (SCIM `value`, Entra object id), never display names.
 - **Unknown role names are dropped.** A claim naming a role the policy does not declare contributes nothing (fewer grants, never more) and is reported in development. On a membership the name is first offered to the tenant's `CustomRoleSource` as a custom role; if it resolves, the declared roles it includes apply.
@@ -204,7 +204,7 @@ CLIs, workers and agent runtimes are the place where verification is most tempti
 ## Example: a JWT into a decision
 
 ```ts
-import { createPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { subjectFromJwt } from "permdock/jwt";
 import { policy } from "./policy";
 import { permissions } from "./permissions";
@@ -234,14 +234,14 @@ const subject = await subjectFromJwt(token, {
 //   expiresAt: 1757164800,
 // }
 
-const permdock = createPermDock(policy, subject);
+const permdock = await getPermDock(policy, subject);
 const decision = permdock.decide(permissions.post.update, post);
 // granted: editor role allows it AND 'post:update' is in delegation.scopes
 // denied { reason: 'not-delegated' }: the role allows it but the token did not delegate it
 // denied { reason: 'anonymous' }: the token failed verification; the audit event carries the reason code
 ```
 
-`subjectFromJwt` returned a full `Subject`, so `createPermDock` takes it as the second argument with no third; the actor and delegation are already inside it. When verification fails, `subject.principal` is `null` and the same two lines produce a denial rather than an exception.
+`subjectFromJwt` returned a full `Subject`, so `getPermDock` takes it as the second argument with no third; the actor and delegation are already inside it. When verification fails, `subject.principal` is `null` and the same two lines produce a denial rather than an exception.
 
 ## Related
 

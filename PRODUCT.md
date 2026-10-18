@@ -26,7 +26,7 @@ This is the short product brief: what PermDock is, who it is for, the principles
 
 - **Typed references.** Permissions are frozen objects (`permissions.post.update`), never strings, in the public API. Go-to-definition works, renames are safe, and the runtime definition is the catalog ([permissions](./apps/docs/content/docs/concepts/permissions.mdx)).
 - **Policy as data.** Roles are arrays of `allow` and `deny` grants with a JSON condition tree. One condition evaluates in memory, in the browser, in Drizzle, Prisma or Kysely `where` clauses and in RLS; closures are a branded, server-only escape hatch ([policies](./apps/docs/content/docs/concepts/policies.mdx), [conditions](./apps/docs/content/docs/concepts/conditions.mdx)).
-- **Immutable and request-scoped.** `createPermDock` returns a frozen instance, safe in React Server Components, edge runtimes and concurrent requests.
+- **Immutable and request-scoped.** `getPermDock` returns a frozen instance, safe in React Server Components, edge runtimes and concurrent requests.
 - **Explainable.** `decide()` returns `granted`, `denied` or `approval-required` with the matched grant, denial reasons, permitted alternatives and a replay-safe token ([decisions](./apps/docs/content/docs/concepts/decisions.mdx)).
 - **Fail-closed.** A missing grant, an unknown role, invalid input or an unrecognised remote decision all deny, and any matching deny wins ([threat model](./apps/docs/content/docs/security/threat-model.mdx)).
 - **Authentication upstream.** PermDock consumes verified material only. `permdock/jwt` and the provider `subjectFrom*` helpers verify tokens; core never does ([authentication](./apps/docs/content/docs/concepts/authentication.mdx)).

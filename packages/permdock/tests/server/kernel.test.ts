@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PermDock } from "../../src/core/permdock.ts";
 import type { PdpFactory, PdpPermDock } from "../../src/pdp/types.ts";
 
-import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync as createCorePermDock } from "../../src/core/permdock.ts";
 import { tenantScope } from "../../src/server/create.ts";
 import { createPermDock } from "../../src/server/index.ts";
 import {

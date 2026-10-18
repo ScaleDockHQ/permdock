@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -37,7 +37,7 @@ async function visible(db: Postgres, user: string): Promise<readonly string[]> {
 }
 
 async function inProcess(user: RequiresUser): Promise<readonly string[]> {
-  const permdock = await loadPermDock(policy, user, {
+  const permdock = await getPermDock(policy, user, {
     relations,
     customRoles,
   });
@@ -188,7 +188,7 @@ describe("requires in RLS: a share counts only where the role permission is held
           },
           "select id from public.drive order by id",
         );
-        const permdock = await loadPermDock(
+        const permdock = await getPermDock(
           policy,
           {
             principal: { id: user.id, memberships: user.memberships },
@@ -197,7 +197,7 @@ describe("requires in RLS: a share counts only where the role permission is held
           },
           { relations, customRoles },
         );
-        await permdock.loadRelations(permissions.drive.read, drives);
+        await permdock.prefetchRelations(permissions.drive.read, drives);
         const want = drives
           .filter((row) => permdock.can(permissions.drive.read, row))
           .map((row) => row.id)

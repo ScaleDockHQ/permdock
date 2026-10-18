@@ -53,7 +53,7 @@ export type ServerAdapterOptions<TContext, TUser = unknown> = InstanceOptions &
 /** The services an adapter hands to its kernel unchanged. */
 export type ServerAdapterServices = {
   readonly store?: ApprovalStore;
-  /** `createPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
+  /** `getPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
   readonly pdp?: PdpFactory;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;

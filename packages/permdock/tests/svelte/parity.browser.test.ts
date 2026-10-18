@@ -5,14 +5,14 @@ import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { PermissionBoundaryState } from "../../src/svelte/runtime.ts";
 
 import { tenantView } from "../../src/client/views.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { createSvelteStore } from "../../src/svelte/context.ts";
 import { alice, policy as saasPolicy } from "../fixtures/saas.ts";
 import BoundaryHarness from "./BoundaryHarness.test.svelte";
 import { cell } from "./fixtures/cell.svelte.ts";
 
 async function saasSnapshot(): Promise<Snapshot> {
-  const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
+  const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
   // SAFETY: snapshot() returns a Snapshot without a signer.
   return server.snapshot({ tenants: "all" }) as Snapshot;
 }

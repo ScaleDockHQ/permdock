@@ -6,7 +6,7 @@ import { internalsOf } from "../../src/core/internals.ts";
 import {
   PermDockDeniedError,
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   resource,
@@ -45,7 +45,7 @@ describe("shadowMode", () => {
       onMismatch: (mismatch) => {
         mismatches.push(mismatch);
       },
-    })(createPermDock(policy, member));
+    })(getPermDockSync(policy, member));
     expect(permdock.can(permissions.post.update, { id: "p1" })).toBe(true);
     expect(permdock.can(permissions.post.list)).toBe(false);
     expect(permdock.can(permissions.post.read, { id: "p1" })).toBe(true);
@@ -71,14 +71,14 @@ describe("shadowMode", () => {
     const permdock = shadowMode({
       legacy: () => true,
       enforce: [permissions.post.update],
-    })(createPermDock(policy, member));
+    })(getPermDockSync(policy, member));
     expect(permdock.can(permissions.post.update, { id: "p1" })).toBe(false);
     expect(() =>
       permdock.assert(permissions.post.update, { id: "p1" }),
     ).toThrow(PermDockDeniedError);
     expect(
       shadowMode({ legacy: () => false, enforce: "all" })(
-        createPermDock(policy, member),
+        getPermDockSync(policy, member),
       ).decide(permissions.post.delete, { id: "p1" }).outcome,
     ).toBe("approval-required");
   });
@@ -94,7 +94,7 @@ describe("shadowMode", () => {
       onMismatch: () => {
         throw new Error("reporting never changes a decision");
       },
-    })(createPermDock(policy, member));
+    })(getPermDockSync(policy, member));
     expect(permdock.can(permissions.post.read, "boom")).toBe(false);
     expect(
       permdock.filter(permissions.post.read, [{ id: "a" }, { id: "b" }]),
@@ -109,7 +109,7 @@ describe("shadowMode", () => {
 
 describe("wrapPermDock", () => {
   it("keeps feature functions working on a wrapped instance", async () => {
-    const wrapped = wrapPermDock(createPermDock(policy, member), () => ({}));
+    const wrapped = wrapPermDock(getPermDockSync(policy, member), () => ({}));
     expect(internalsOf(wrapped)).toBeDefined();
     const listed = await whoCan(wrapped, permissions.post.read, { id: "p1" });
     expect(listed.permission).toBe("post.read");

@@ -18,7 +18,7 @@ import { canonicalJson } from "../../core/canonical-json.ts";
 import { secondsOf } from "../../core/time.ts";
 import {
   findPermission,
-  loadPermDock,
+  getPermDock,
   memoryCustomRoleSource,
   type Policy,
 } from "../../index.ts";
@@ -648,7 +648,7 @@ async function impactOf(input: {
     if (permission === undefined) {
       return "unknown";
     }
-    const permdock = await loadPermDock(
+    const permdock = await getPermDock(
       policy,
       fixtureSubject(fixture.subject),
       {

@@ -4,7 +4,7 @@ import {
   type Decision,
   fromSnapshot,
   listPermissions,
-  loadPermDock,
+  getPermDock,
   type PermDock,
   type PermDockOptions,
   type Policy,
@@ -146,7 +146,7 @@ export function describePolicy<TSubject>(
 
     beforeAll(async () => {
       for (const [name, user] of Object.entries(config.subjects)) {
-        permdocks.set(name, await loadPermDock(policy, user, config.options));
+        permdocks.set(name, await getPermDock(policy, user, config.options));
       }
     });
 
@@ -180,7 +180,7 @@ export function describePolicy<TSubject>(
             it(`${subjectName}`, async () => {
               const instance =
                 permdocks.get(subjectName) ??
-                (await loadPermDock(
+                (await getPermDock(
                   policy,
                   config.subjects[subjectName],
                   config.options,
@@ -210,7 +210,7 @@ export function describePolicy<TSubject>(
             it(`${fixtureName} / ${subjectName}`, async () => {
               const instance =
                 permdocks.get(subjectName) ??
-                (await loadPermDock(
+                (await getPermDock(
                   policy,
                   config.subjects[subjectName],
                   config.options,

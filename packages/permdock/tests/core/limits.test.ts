@@ -7,7 +7,7 @@ import type { Instant } from "../../src/core/time.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { limits, memoryLimitStore } from "../../src/core/limits.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -64,9 +64,9 @@ function policyFor(
 async function permdockFor(
   roles: readonly RoleBinding[],
   roleName: string,
-  options?: Parameters<typeof createPermDock>[2],
+  options?: Parameters<typeof getPermDockSync>[2],
 ) {
-  return createPermDock(
+  return getPermDockSync(
     policyFor(roles),
     { id: "u1", roles: [roleName] },
     options,

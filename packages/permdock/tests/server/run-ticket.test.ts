@@ -11,7 +11,7 @@ import type {
 } from "../../src/server/index.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -173,7 +173,7 @@ describe("RunTicket", () => {
         binding: { connector: "slack", tools: ["post-message"] },
       },
     });
-    const permdock = createPermDock(policy, subject);
+    const permdock = getPermDockSync(policy, subject);
     expect(permdock.can(permissions.doc.read, doc)).toBe(true);
     expect(permdock.can(permissions.doc.update, doc)).toBe(false);
   });
@@ -229,9 +229,9 @@ describe("RunTicket", () => {
     const { subject } = await resolve(plain);
     expect(subject.actor).toBeUndefined();
     expect(subject.principal?.tenant).toBeUndefined();
-    expect(createPermDock(policy, subject).can(permissions.doc.read, doc)).toBe(
-      false,
-    );
+    expect(
+      getPermDockSync(policy, subject).can(permissions.doc.read, doc),
+    ).toBe(false);
   });
 
   it("refuses an automation that is missing, revoked or changed", async () => {

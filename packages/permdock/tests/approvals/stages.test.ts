@@ -14,7 +14,7 @@ import { normalizeApproval } from "../../src/core/approval-normalize.ts";
 import { describe } from "../../src/core/describe.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { relation } from "../../src/core/grantee.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy, user } from "../../src/core/policy.ts";
@@ -36,7 +36,7 @@ function member(id: string): Subject {
 
 async function pendingPayment() {
   const store = memoryApprovalStore();
-  const permdock = createPermDock(policy, { id: "alice" });
+  const permdock = getPermDockSync(policy, { id: "alice" });
   const decision = permdock.decide(permissions.expense.pay, rows.expense[0]);
   if (decision.outcome !== "approval-required") {
     throw new Error(`expected approval-required, got ${decision.outcome}`);
@@ -292,7 +292,7 @@ group("approval modes and approver kinds", () => {
   });
 
   it("describes every stage's approvers", async () => {
-    const permdock = createPermDock(policy, { id: "alice" });
+    const permdock = getPermDockSync(policy, { id: "alice" });
     const decision = permdock.decide(permissions.expense.pay, rows.expense[0]);
     expect(describe(decision).detail).toBe(
       "expense.pay requires approval from manager and approver.",

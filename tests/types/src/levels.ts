@@ -2,7 +2,7 @@ import type { CustomRole, CustomRoleDropReason } from "permdock";
 
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   principal,
@@ -42,6 +42,6 @@ export const dropReason: CustomRoleDropReason = "unknown-level";
 
 export async function levels(): Promise<readonly string[]> {
   const result = validateCustomRole(jobPolicy, dispatcher);
-  const permdock = createPermDock(jobPolicy, { id: "u1" });
+  const permdock = getPermDockSync(jobPolicy, { id: "u1" });
   return result.ok ? permdock.assignableLevels(jobs.job.read) : [];
 }

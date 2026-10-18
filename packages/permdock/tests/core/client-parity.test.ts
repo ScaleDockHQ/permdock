@@ -6,7 +6,7 @@ import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -99,7 +99,7 @@ const dave: Principal = {
 };
 
 async function both(user: Principal, tenant: string) {
-  const server = createPermDock(policy, user, {
+  const server = getPermDockSync(policy, user, {
     tenant,
     customRoles: memoryCustomRoleSource([
       { tenant: "acme", name: "contractor", includes: ["viewer"] },
@@ -203,7 +203,7 @@ describe("client parity", () => {
   });
 
   it("reports only global roles when no tenant is active", async () => {
-    const server = createPermDock(policy, {
+    const server = getPermDockSync(policy, {
       ...alice,
       roles: ["support"],
     });
@@ -224,7 +224,7 @@ describe("where() tenant scope", () => {
   });
 
   it("returns nothing for tenant grants without an active tenant", async () => {
-    const server = createPermDock(policy, alice);
+    const server = getPermDockSync(policy, alice);
     expect(server.where(permissions.project.read).condition).toEqual({
       op: "or",
       conditions: [],
@@ -251,7 +251,7 @@ describe("where() tenant scope", () => {
         ],
       },
     );
-    const server = createPermDock(blocked, alice, { tenant: "acme" });
+    const server = getPermDockSync(blocked, alice, { tenant: "acme" });
     expect(server.can(permissions.project.read, acme)).toBe(false);
     expect(server.where(permissions.project.read).condition).toEqual({
       op: "or",

@@ -7,7 +7,7 @@ import type {
 } from "../../src/index.ts";
 
 import {
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   principal,
   resource,
@@ -33,7 +33,7 @@ describe("resource levels", () => {
   });
 
   it("assignableLevels returns level names", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     expectTypeOf(permdock.assignableLevels).returns.toEqualTypeOf<
       readonly string[]
     >();

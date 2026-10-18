@@ -17,7 +17,7 @@ import { buildCatalog } from "../../src/cli/catalog-doc.ts";
 import { findPermission } from "../../src/core/permission-registry.ts";
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   deny,
@@ -71,7 +71,7 @@ function leaf(policy: Policy, permission: Permission): Permission {
 }
 
 function outcome(policy: Policy, scenario: SaasScenario): string {
-  const permdock = createPermDock(
+  const permdock = getPermDockSync(
     policy,
     saasUser(scenario),
     saasScenarioOptions(scenario),
@@ -161,8 +161,8 @@ describe("policyFromCatalog", () => {
     });
     const hosted = rebuild(policy);
     const row = { id: "d1", ownerId: "u1" };
-    const code = createPermDock(policy, { id: "u1" });
-    const copy = createPermDock(hosted, { id: "u1" });
+    const code = getPermDockSync(policy, { id: "u1" });
+    const copy = getPermDockSync(hosted, { id: "u1" });
     expect(code.can(tree.doc.read, row)).toBe(true);
     expect(copy.can(leaf(hosted, tree.doc.read), row)).toBe(true);
     expect(
@@ -188,7 +188,7 @@ describe("policyFromCatalog", () => {
       }),
     });
     const hosted = rebuild(policy);
-    const copy = createPermDock(hosted, { id: "u1" });
+    const copy = getPermDockSync(hosted, { id: "u1" });
     const update = leaf(hosted, tree.doc.update);
     expect(copy.can(update, { id: "d1", title: "abc" })).toBe(true);
     expect(copy.can(update, { id: "d1", title: "abcd" })).toBe(false);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { OtelApi, StructuralLogger } from "../../src/otel/types.ts";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import {
   GENAI_SEMCONV_PIN,
   instrument,
@@ -157,7 +157,7 @@ describe("permdock/otel", () => {
         return undefined;
       },
     };
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, { logger });
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(lines).toHaveLength(1);
@@ -170,7 +170,7 @@ describe("permdock/otel", () => {
 
   it("records a span, counter and histogram per decide", async () => {
     const { api, spans, counters, histograms } = fakeApi();
-    const permdock = withOtel(createPermDock(policy, memberUser), {
+    const permdock = withOtel(getPermDockSync(policy, memberUser), {
       api,
       tracer: "permdock-test",
     });
@@ -201,7 +201,7 @@ describe("permdock/otel", () => {
 
   it("names the support session a decision ran under", async () => {
     const { api, spans } = fakeApi();
-    const permdock = createPermDock(policy, memberUser, {
+    const permdock = getPermDockSync(policy, memberUser, {
       actor: { id: "u_staff", kind: "support" },
       delegation: { scopes: ["post:read"] },
       context: { supportSession: { id: "ss_1", reason: "Ticket 4411" } },
@@ -216,7 +216,7 @@ describe("permdock/otel", () => {
       "gen_ai.tool.name": "update_post",
       "gen_ai.tool.call.id": "call-1",
     });
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, { api });
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(spans[0]?.attributes["gen_ai.tool.name"]).toBe("update_post");
@@ -225,7 +225,7 @@ describe("permdock/otel", () => {
 
   it("sets the user, agent and model semantic conventions with arrays as arrays", async () => {
     const { api, spans } = fakeApi({ "gen_ai.request.model": "gpt-5" });
-    const permdock = createPermDock(policy, memberUser, {
+    const permdock = getPermDockSync(policy, memberUser, {
       actor: { id: "assistant", kind: "agent" },
       delegation: { scopes: ["post:read", "post:update"] },
     });
@@ -243,7 +243,7 @@ describe("permdock/otel", () => {
 
   it("sets gen_ai.request.model from the decision's model ahead of the parent span", async () => {
     const { api, spans } = fakeApi({ "gen_ai.request.model": "gpt-5" });
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, { api });
     permdock.decide(permissions.post.read, ownPost, { model: "openai/o4" });
     expect(spans[0]?.attributes["gen_ai.request.model"]).toBe("openai/o4");
@@ -251,7 +251,7 @@ describe("permdock/otel", () => {
 
   it("leaves gen_ai.agent.id unset for a non-agent actor", async () => {
     const { api, spans } = fakeApi();
-    const permdock = createPermDock(policy, memberUser, {
+    const permdock = getPermDockSync(policy, memberUser, {
       actor: { id: "ops", kind: "service" },
     });
     instrument(permdock, { api });
@@ -262,7 +262,7 @@ describe("permdock/otel", () => {
 
   it("sets error.type only on a denial that counts as an error", async () => {
     const plain = fakeApi();
-    const quiet = createPermDock(policy, memberUser);
+    const quiet = getPermDockSync(policy, memberUser);
     instrument(quiet, { api: plain.api });
     quiet.decide(permissions.post.publish, ownPost);
     expect(plain.spans[0]?.attributes).not.toHaveProperty("error.type");
@@ -271,7 +271,7 @@ describe("permdock/otel", () => {
     });
 
     const strict = fakeApi();
-    const loud = createPermDock(policy, memberUser);
+    const loud = getPermDockSync(policy, memberUser);
     instrument(loud, { api: strict.api, errorOnDeny: true });
     const decision = loud.decide(permissions.post.publish, ownPost);
     expect(strict.spans[0]?.attributes["error.type"]).toBe(
@@ -281,7 +281,7 @@ describe("permdock/otel", () => {
 
   it("adds a denied event and leaves span status unset", async () => {
     const { api, spans } = fakeApi();
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, { api });
     permdock.decide(permissions.post.publish, ownPost);
     expect(spans[0]?.attributes["permdock.outcome"]).toBe("denied");
@@ -291,7 +291,7 @@ describe("permdock/otel", () => {
 
   it("puts the approval token on an approval-required span", async () => {
     const { api, spans } = fakeApi();
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, { api });
     const decision = permdock.decide(permissions.post.delete, ownPost);
     expect(decision.outcome).toBe("approval-required");
@@ -302,7 +302,7 @@ describe("permdock/otel", () => {
 
   it("marks denied spans ERROR when errorOnDeny is set", async () => {
     const { api, spans } = fakeApi();
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, { api, errorOnDeny: true });
     permdock.decide(permissions.post.publish, ownPost);
     expect(spans[0]?.status).toEqual({ code: 2 });
@@ -311,7 +311,7 @@ describe("permdock/otel", () => {
   it("redacts extra attributes and warns on unmatched paths", async () => {
     const warns: string[] = [];
     const { api, spans } = fakeApi();
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, {
       api,
       attributes: () => ({ "app.secret": "hidden", "app.ok": "yes" }),
@@ -333,7 +333,7 @@ describe("permdock/otel", () => {
 
   it("records filter totals on a single span", async () => {
     const { api, spans } = fakeApi();
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, { api });
     permdock.filter(permissions.post.update, [
       ownPost,
@@ -364,7 +364,7 @@ describe("permdock/otel", () => {
       },
     };
     try {
-      const permdock = createPermDock(policy, memberUser);
+      const permdock = getPermDockSync(policy, memberUser);
       instrument(permdock, {});
       expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
       expect(spans).toHaveLength(1);
@@ -375,14 +375,14 @@ describe("permdock/otel", () => {
   });
 
   it("does nothing when neither logger nor API is present", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     const off = instrument(permdock, {});
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     off();
   });
 
   it("never throws from a failing logger", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, {
       logger: {
         info() {
@@ -398,7 +398,7 @@ describe("permdock/otel", () => {
 
   it("times the span and histogram around the decision, in seconds", async () => {
     const { api, spans, histograms } = fakeApi();
-    const permdock = withOtel(createPermDock(policy, memberUser), {
+    const permdock = withOtel(getPermDockSync(policy, memberUser), {
       api,
     });
     permdock.can(permissions.post.update, ownPost);
@@ -413,7 +413,7 @@ describe("permdock/otel", () => {
 
   it("instruments instances derived through tenant() and team()", async () => {
     const { api, spans } = fakeApi();
-    const permdock = withOtel(createPermDock(policy, memberUser), {
+    const permdock = withOtel(getPermDockSync(policy, memberUser), {
       api,
     });
     permdock.tenant("acme").can(permissions.post.update, ownPost);
@@ -424,7 +424,7 @@ describe("permdock/otel", () => {
 
   it("instruments instances derived through derive()", async () => {
     const { api, spans } = fakeApi();
-    const permdock = withOtel(createPermDock(policy, memberUser), {
+    const permdock = withOtel(getPermDockSync(policy, memberUser), {
       api,
     });
     const derived = await permdock.derive({});

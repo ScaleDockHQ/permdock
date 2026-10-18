@@ -17,10 +17,10 @@ Sign in as:
 
 Where things live:
 
-- `src/permdock/server.ts`: `createPermDock` from `permdock/next` (`getPermDock`, `getPermission`, `requireAccess`, `permdockHandler`).
+- `src/permdock/server.ts`: `createPermDock` from `permdock/next` (`getPermDock`, `getPermission`, `requirePermission`, `permdockHandler`).
 - `src/lib/access.ts`: the app-owned caches. `loadSnapshot` and `quoteAccess` are `'use cache: private'`, so the gated nav and a quote's actions ride the prefetch.
-- `src/app/actions.ts`: Server Actions guarded by `requireAccess`, then `updateTag`.
-- `src/app/[org]/settings/page.tsx`: `prefetch = 'force-disabled'`, `instant = false` and `requireAccess` at the top.
+- `src/app/actions.ts`: Server Actions guarded by `requirePermission`, then `updateTag`.
+- `src/app/[org]/settings/page.tsx`: `prefetch = 'force-disabled'`, `instant = false` and `requirePermission` at the top.
 - `src/app/offline-badge.tsx`: `useOffline`; the snapshot keeps answering offline.
 - `src/app/[org]/access-summary.tsx`: `usePermission` in the static shell, without a Suspense boundary; it shows `pending` until the snapshot lands.
 - `src/components/ui`: shadcn/ui (`base-vega`, Tailwind CSS 4), vendored with `pnpm dlx shadcn@latest add <name>` from this folder.

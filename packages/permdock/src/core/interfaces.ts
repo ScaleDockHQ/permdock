@@ -38,7 +38,7 @@ export type CustomRoleSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
   /**
-   * The custom roles of one tenant. `createPermDock` passes `held`, the role
+   * The custom roles of one tenant. `getPermDock` passes `held`, the role
    * names the subject's live memberships hold there, declared or not, so a
    * source can skip its read when none of them is a custom role.
    */

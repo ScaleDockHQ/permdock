@@ -5,7 +5,7 @@ import type { Principal } from "../../src/core/subject.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { authenticated, plan } from "../../src/core/grantee.ts";
-import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
+import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -13,10 +13,10 @@ import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 
 async function both(
-  policy: Parameters<typeof createPermDock<Principal>>[0],
+  policy: Parameters<typeof getPermDockSync<Principal>>[0],
   user: Principal,
 ): Promise<readonly [PermDock, PermDock]> {
-  const server = createPermDock(policy, user);
+  const server = getPermDockSync(policy, user);
   const client = fromSnapshot(parseSnapshot(JSON.stringify(server.snapshot())));
   return [server, client];
 }

@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -42,7 +42,7 @@ async function inProcess(
   user: InheritUser,
   permission: typeof permissions.node.read | typeof permissions.node.share,
 ): Promise<readonly string[]> {
-  const permdock = await loadPermDock(policy, user, { relations });
+  const permdock = await getPermDock(policy, user, { relations });
   return readableIds(permdock, permission, nodes);
 }
 

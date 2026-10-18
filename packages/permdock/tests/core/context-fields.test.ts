@@ -4,7 +4,7 @@ import { z } from "zod";
 import { context } from "../../src/conditions/refs.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
-import { createPermDock, loadPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync, getPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -48,7 +48,7 @@ describe("async context", () => {
       subject: () => ({ id: "u1", roles: ["member"] }),
       context: async () => ({ teamIds: ["t1"] }),
     });
-    const created = loadPermDock(policy, { id: "u1" });
+    const created = getPermDock(policy, { id: "u1" });
     expect(created).toBeInstanceOf(Promise);
     const permdock = await created;
     expect(permdock.subject.context).toEqual({ teamIds: ["t1"] });
@@ -72,7 +72,7 @@ describe("async context", () => {
         throw new Error("sync-fail");
       },
     });
-    const syncPermdock = createPermDock(throwing, { id: "u1" });
+    const syncPermdock = getPermDockSync(throwing, { id: "u1" });
     const syncAuth: unknown[] = [];
     syncPermdock.on("auth", (event) => {
       syncAuth.push(event);
@@ -97,7 +97,7 @@ describe("async context", () => {
         throw new Error("async-fail");
       },
     });
-    const asyncPermdock = await loadPermDock(rejecting, { id: "u1" });
+    const asyncPermdock = await getPermDock(rejecting, { id: "u1" });
     expect(asyncPermdock.subject.context).toEqual({});
     expect(asyncPermdock.can(permissions.post.read, row)).toBe(false);
   });
@@ -109,7 +109,7 @@ describe("async context", () => {
       // SAFETY: a deliberately non-object context result, which the instance treats as empty.
       context: () => null as unknown as Record<string, unknown>,
     });
-    const permdock = createPermDock(policy, { id: "u1" });
+    const permdock = getPermDockSync(policy, { id: "u1" });
     expect(permdock.subject.context).toEqual({});
     // SAFETY: a deliberately null row, which pick() answers with an empty object.
     expect(
@@ -127,7 +127,7 @@ describe("async context", () => {
         __proto__: { polluted: true },
       }),
     });
-    const permdock = createPermDock(policy, { id: "u1" });
+    const permdock = getPermDockSync(policy, { id: "u1" });
     expect(permdock.subject.context).toEqual({ teamIds: ["t1"] });
     expect(permdock.subject.context).not.toHaveProperty("constructor");
   });
@@ -143,7 +143,7 @@ describe("schema-aware field-level grants", () => {
       ],
       subject: () => ({ id: "u1", roles: ["member"] }),
     });
-    const permdock = createPermDock(policy, { id: "u1" });
+    const permdock = getPermDockSync(policy, { id: "u1" });
     expect(permdock.can(permissions.post.read, row)).toBe(true);
     expect(permdock.can(permissions.post.read, row, { field: "title" })).toBe(
       true,
@@ -167,7 +167,7 @@ describe("schema-aware field-level grants", () => {
       ],
       subject: () => ({ id: "u1", roles: ["member"] }),
     });
-    const permdock = createPermDock(policy, { id: "u1" });
+    const permdock = getPermDockSync(policy, { id: "u1" });
     expect(permdock.can(permissions.post.read, row)).toBe(true);
     expect(permdock.can(permissions.post.read, row, { field: "secret" })).toBe(
       false,
@@ -185,7 +185,7 @@ describe("schema-aware field-level grants", () => {
       roles: [role("member", [allow(permissions.post.read, { fields: [] })])],
       subject: () => ({ id: "u1", roles: ["member"] }),
     });
-    const permdock = createPermDock(policy, { id: "u1" });
+    const permdock = getPermDockSync(policy, { id: "u1" });
     expect(permdock.can(permissions.post.read, row)).toBe(false);
     expect(permdock.pick(permissions.post.read, row)).toEqual({});
   });
@@ -197,7 +197,7 @@ describe("schema-aware field-level grants", () => {
       ],
       subject: () => ({ id: "u1", roles: ["member"] }),
     });
-    const server = createPermDock(policy, { id: "u1" });
+    const server = getPermDockSync(policy, { id: "u1" });
     const snapshot = unsigned(server.snapshot());
     expect(snapshot.grants[0]?.fields).toEqual(["title"]);
     const client = fromSnapshot(snapshot);

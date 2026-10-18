@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import {
   PermissionBoundary,
   usePermissionBoundary,
@@ -115,7 +115,7 @@ describe("permdock/solid parity", () => {
   });
 
   it("reads headers on every refresh and switches tenant when the prop changes", async () => {
-    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     // SAFETY: snapshot() returns a Snapshot without a signer.
     const snapshot = server.snapshot({ tenants: "all" }) as Snapshot;
     const [token, setToken] = createSignal("a");

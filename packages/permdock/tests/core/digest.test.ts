@@ -9,7 +9,7 @@ import {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
 } from "../../src/core/errors.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import {
   adminUser,
   memberUser,
@@ -62,7 +62,7 @@ describe("PermDock error digests", () => {
   });
 
   it("stamps a stable digest on the errors assert throws", async () => {
-    const member = createPermDock(policy, memberUser);
+    const member = getPermDockSync(policy, memberUser);
     const denied = thrown(() =>
       member.assert(permissions.post.update, otherPost),
     );
@@ -87,7 +87,7 @@ describe("PermDock error digests", () => {
     const again = thrown(() => member.assert(permissions.post.delete, ownPost));
     // SAFETY: the same call as above, which threw a PermDockApprovalRequiredError.
     expect((again as PermDockApprovalRequiredError).digest).toBe(error.digest);
-    const admin = createPermDock(policy, adminUser);
+    const admin = getPermDockSync(policy, adminUser);
     expect(thrown(() => admin.assert(permissions.post.delete, ownPost))).toBe(
       null,
     );

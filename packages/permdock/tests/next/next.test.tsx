@@ -86,7 +86,7 @@ describe("permdock/next", () => {
         "getPermission",
         "getSnapshot",
         "permdockHandler",
-        "requireAccess",
+        "requirePermission",
       ].toSorted(),
     );
 
@@ -160,14 +160,11 @@ describe("permdock/next", () => {
     expect(seen).toEqual(["denied"]);
   });
 
-  it("resolves requireAccess to the granted decision", async () => {
-    const { requireAccess } = createPermDock(policy, {
+  it("resolves requirePermission to the granted decision", async () => {
+    const { requirePermission } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const decision = await requireAccess({
-      permission: permissions.post.update,
-      data: ownPost,
-    });
+    const decision = await requirePermission(permissions.post.update, ownPost);
     expect(decision.outcome).toBe("granted");
   });
 
@@ -177,13 +174,10 @@ describe("permdock/next", () => {
     const anonymous = createPermDock(policy, { subject: () => null });
 
     await expect(
-      member.requireAccess({
-        permission: permissions.post.update,
-        data: otherPost,
-      }),
+      member.requirePermission(permissions.post.update, otherPost),
     ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;403" });
     await expect(
-      anonymous.requireAccess({ permission: permissions.post.read }),
+      anonymous.requirePermission(permissions.post.read),
     ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;401" });
     expect(seen).toEqual(["factory"]);
   });
@@ -193,9 +187,7 @@ describe("permdock/next", () => {
     const { seen } = member;
     const replaced = new Error("redirect");
     await expect(
-      member.requireAccess({
-        permission: permissions.post.update,
-        data: otherPost,
+      member.requirePermission(permissions.post.update, otherPost, {
         onDenied: () => {
           seen.push("call");
           throw replaced;
@@ -205,13 +197,13 @@ describe("permdock/next", () => {
     expect(seen).toEqual(["call"]);
   });
 
-  it("throws the approval error from requireAccess instead of forbidden", async () => {
-    const { requireAccess } = createPermDock(policy, {
+  it("throws the approval error from requirePermission instead of forbidden", async () => {
+    const { requirePermission } = createPermDock(policy, {
       subject: () => memberUser,
       store: memoryApprovalStore(),
     });
     await expect(
-      requireAccess({ permission: permissions.post.delete, data: ownPost }),
+      requirePermission(permissions.post.delete, ownPost),
     ).rejects.toBeInstanceOf(PermDockApprovalRequiredError);
   });
 
@@ -580,18 +572,16 @@ describe("permdock/next", () => {
     expect(order).toEqual(["otel", "wrap"]);
   });
 
-  it("checks requireAccess in the requested tenant", async () => {
+  it("checks requirePermission in the requested tenant", async () => {
     const tenants: (string | undefined)[] = [];
-    const { requireAccess } = createPermDock(policy, {
+    const { requirePermission } = createPermDock(policy, {
       subject: () => memberUser,
       tenant: () => {
         tenants.push("fallback");
         return "fallback";
       },
     });
-    const decision = await requireAccess({
-      permission: permissions.post.update,
-      data: ownPost,
+    const decision = await requirePermission(permissions.post.update, ownPost, {
       tenant: "acme",
     });
     expect(decision.outcome).toBe("granted");

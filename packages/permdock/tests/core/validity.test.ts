@@ -9,7 +9,7 @@ import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   deny,
@@ -57,7 +57,7 @@ const policy = definePolicy(permissions, {
 });
 
 async function contractor() {
-  return createPermDock(policy, { id: "u1", roles: ["contractor"] });
+  return getPermDockSync(policy, { id: "u1", roles: ["contractor"] });
 }
 
 describe("grant validity", () => {
@@ -284,7 +284,7 @@ describe("grant validity", () => {
       ],
       subject,
     });
-    const permdock = createPermDock(expired, {
+    const permdock = getPermDockSync(expired, {
       id: "u1",
       roles: ["contractor"],
     });

@@ -4,7 +4,7 @@ import type { CustomRoleSource } from "../../src/core/interfaces.ts";
 import type { CustomRole, Principal } from "../../src/index.ts";
 
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import {
   assets,
   customRoles,
@@ -45,7 +45,7 @@ describe("CustomRoleSource.rolesFor receives the held role names", () => {
         },
       ],
     };
-    createPermDock(policy, principal, { customRoles: source });
+    getPermDockSync(policy, principal, { customRoles: source });
     expect(calls).toEqual([
       ["T", ["member"]],
       ["B", ["contact"]],
@@ -64,11 +64,11 @@ describe("CustomRoleSource.rolesFor receives the held role names", () => {
         return customRoles.filter((role) => role.tenant === tenant);
       },
     };
-    const admin = createPermDock(policy, personas.admin, {
+    const admin = getPermDockSync(policy, personas.admin, {
       customRoles: source,
     });
     expect(admin.can(permissions.asset.delete, assets[0]!)).toBe(true);
-    const mechanic = createPermDock(policy, personas.mechanic, {
+    const mechanic = getPermDockSync(policy, personas.mechanic, {
       customRoles: source,
     });
     expect(reads).toEqual(["T"]);

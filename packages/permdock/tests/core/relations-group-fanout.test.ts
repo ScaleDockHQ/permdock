@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { memoryRelationSource } from "../../src/core/memory-relations.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { whoCan } from "../../src/index.ts";
 import { permissions, policy, rows } from "../fixtures/graph.ts";
 
@@ -46,12 +46,12 @@ function lattice(layers: number) {
 const rootDoc = rows.doc.find((row) => row.id === "root-doc");
 
 async function loaded(layers: number) {
-  const permdock = createPermDock(
+  const permdock = getPermDockSync(
     policy,
     { id: "nobody" },
     { relations: lattice(layers) },
   );
-  await permdock.loadRelations(permissions.doc.read, rows.doc);
+  await permdock.prefetchRelations(permissions.doc.read, rows.doc);
   return permdock;
 }
 

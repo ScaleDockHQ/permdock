@@ -7,7 +7,7 @@ import { allow } from "../../src/core/grant-builders.ts";
 import {
   type DecideOptions,
   type PermDock,
-  createPermDock,
+  getPermDockSync,
 } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -75,7 +75,7 @@ const users = {
 } satisfies Record<string, Principal>;
 
 async function both(user: Principal): Promise<readonly PermDock[]> {
-  const server = createPermDock(policy, user);
+  const server = getPermDockSync(policy, user);
   const client = fromSnapshot(parseSnapshot(JSON.stringify(server.snapshot())));
   return [server, client];
 }
@@ -131,7 +131,7 @@ describe("decide option scope", () => {
         }),
       ).toBe(true);
     }
-    const watcher = createPermDock(policy, users.watcher);
+    const watcher = getPermDockSync(policy, users.watcher);
     expect(watcher.can(permissions.ticket.list, { id: "t1" })).toBe(true);
     expect(
       watcher.can(

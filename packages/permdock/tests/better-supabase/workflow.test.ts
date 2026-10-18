@@ -8,7 +8,7 @@ import {
 } from "../../src/better-supabase/index.ts";
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   defineRoles,
@@ -55,7 +55,7 @@ const policy = definePolicy(
 );
 
 const member = () =>
-  createPermDock(
+  getPermDockSync(
     policy,
     subjectFromBetterSupabase({
       kind: "user",
@@ -67,7 +67,8 @@ const member = () =>
       },
     }),
   );
-const anonymous = () => createPermDock(policy, subjectFromBetterSupabase(null));
+const anonymous = () =>
+  getPermDockSync(policy, subjectFromBetterSupabase(null));
 
 describe("hookCan", () => {
   it("grants a member who holds the permission in the hook's tenant", async () => {

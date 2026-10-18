@@ -5,7 +5,7 @@ import type { Permission } from "../../src/index.ts";
 
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   resource,
 } from "../../src/index.ts";
@@ -18,7 +18,7 @@ import {
 
 describe("permission arity", () => {
   it("requires data for instance actions and allows an optional body for collection", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     expectTypeOf(permdock.can).toBeCallableWith(permissions.post.create);
     expectTypeOf(permdock.can).toBeCallableWith(
       permissions.post.create,
@@ -38,7 +38,7 @@ describe("permission arity", () => {
   });
 
   it("takes a permission held as Permission at run time, with data", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     const leaf: Permission = permissions.post.update;
     expectTypeOf(permdock.can(leaf, ownPost)).toEqualTypeOf<boolean>();
     expectTypeOf(permdock.can(leaf, undefined)).toEqualTypeOf<boolean>();
@@ -80,7 +80,7 @@ describe("identity by key", () => {
 
 describe("policy generics", () => {
   it("accepts a typed policy without a cast", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     expectTypeOf(permdock.can).toBeCallableWith(permissions.post.create);
     expectTypeOf<Parameters<(typeof policy)["subject"]>[0]>().toEqualTypeOf<{
       readonly id: string;

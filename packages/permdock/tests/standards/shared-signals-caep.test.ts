@@ -7,7 +7,7 @@ import type { DecisionEvent } from "../../src/core/event-types.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { accessToOcsf, toOcsf } from "../../src/core/ocsf.ts";
-import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync as createCorePermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";

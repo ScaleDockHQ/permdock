@@ -12,7 +12,7 @@ import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { JwtSubjectOptions } from "../../src/jwt/index.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -228,7 +228,7 @@ describe("Claims meet the policy", () => {
   it("undeclared role names grant nothing and are reported on auth", async () => {
     const events: AuthEvent[] = [];
     const subject = await mapped({ roles: ["superuser", "admin"] });
-    const permdock = createPermDock(policy, subject);
+    const permdock = getPermDockSync(policy, subject);
     permdock.on("auth", (event) => {
       // SAFETY: the auth channel carries AuthEvent payloads.
       events.push(event as AuthEvent);
@@ -244,7 +244,7 @@ describe("Claims meet the policy", () => {
       { org_id: "o_acme", groups: ["9f2c"] },
       { claims: { tenant: "org_id" }, groupRoles: { "9f2c": ["member"] } },
     );
-    const permdock = createPermDock(policy, subject);
+    const permdock = getPermDockSync(policy, subject);
     expect(
       permdock.can(permissions.project.read, { id: "p", orgId: "o_acme" }),
     ).toBe(true);

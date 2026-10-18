@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { principal } from "../../src/conditions/refs.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { memoryDecisionSink } from "../../src/core/sink.ts";
@@ -16,7 +16,7 @@ describe("instance edges", () => {
         throw new Error("sink");
       },
     };
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       { id: "u1" },
       {
@@ -96,13 +96,13 @@ describe("instance edges", () => {
         return Promise.reject(new Error("async-sink"));
       },
     };
-    const leakingAsync = createPermDock(
+    const leakingAsync = getPermDockSync(
       policy,
       { id: "u1" },
       { sink: thenableSink },
     );
     leakingAsync.can(tree.post.read, { id: "p1", authorId: "u1", orgId: "o1" });
-    const leaking = createPermDock(
+    const leaking = getPermDockSync(
       policy,
       { id: "u1" },
       { sink: throwingSink },
@@ -124,7 +124,7 @@ describe("instance edges", () => {
 
   it("filters out rows whose grant needs approval", async () => {
     expect(
-      createPermDock(
+      getPermDockSync(
         definePolicy(tree, {
           roles: [
             role("member", [

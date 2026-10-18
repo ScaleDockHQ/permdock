@@ -70,7 +70,6 @@ const allNames = entries.flatMap((item) =>
 
 /** Server and agent adapters and feature entries: the import path names the entry, the factory is always `createPermDock`. */
 const FACTORY_ENTRIES = [
-  ".",
   "./next",
   "./server",
   "./hono",
@@ -93,7 +92,6 @@ const FACTORY_ENTRIES = [
   "./supabase/middleware",
   "./ssf",
   "./convex",
-  "./pdp",
   "./h3",
   "./sveltekit",
   "./astro",
@@ -131,6 +129,17 @@ describe("invariant 14: the naming convention", () => {
       .filter((item) => item.values.includes("createPermDock"))
       .map((item) => item.entry);
     expect(withFactory.toSorted()).toEqual(FACTORY_ENTRIES.toSorted());
+  });
+
+  it("builds a core or PDP instance with getPermDock and getPermDockSync", () => {
+    const withGetters = entries
+      .filter(
+        (item) =>
+          item.values.includes("getPermDock") &&
+          item.values.includes("getPermDockSync"),
+      )
+      .map((item) => item.entry);
+    expect(withGetters.toSorted()).toEqual([".", "./pdp"]);
   });
 
   it("never exports a $-prefixed name, a bare Dock, an ability or a Can", () => {

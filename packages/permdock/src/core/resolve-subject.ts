@@ -93,7 +93,7 @@ function assemblePrincipal(
   let liveSession: true | undefined;
   try {
     if (user === null || user === undefined) {
-      // SAFETY: TUser is erased at the policy boundary; createPermDock types user as TUser.
+      // SAFETY: TUser is erased at the policy boundary; getPermDock types user as TUser.
       principal = policy.subject(user as never);
     } else if (isSubject(user)) {
       principal = user.principal;
@@ -104,7 +104,7 @@ function assemblePrincipal(
       expiresAt = user.expiresAt ?? expiresAt;
       liveSession = user.liveSession === true ? true : undefined;
     } else {
-      // SAFETY: TUser is erased at the policy boundary; createPermDock types user as TUser.
+      // SAFETY: TUser is erased at the policy boundary; getPermDock types user as TUser.
       principal = policy.subject(user as never);
     }
   } catch {
@@ -480,7 +480,7 @@ function resolveContext(
     return sanitizeContext(fallback);
   }
   try {
-    // SAFETY: TUser is erased at the policy boundary; createPermDock types user as TUser.
+    // SAFETY: TUser is erased at the policy boundary; getPermDock types user as TUser.
     const loaded = policy.context(user as never);
     if (isThenable(loaded)) {
       return loaded.then(

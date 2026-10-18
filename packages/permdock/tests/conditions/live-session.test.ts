@@ -9,7 +9,7 @@ import { run } from "../../src/cli/run.ts";
 import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { normalizeWhere } from "../../src/conditions/normalize.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { subjectFromSupabase } from "../../src/supabase/subject.ts";
 import { project, removeProjects } from "../cli/doctor-kit.ts";
@@ -116,7 +116,7 @@ describe("{ subject: { session: { live: true } } }", () => {
 
   it("denies a non-live session with reason condition, server and client alike", async () => {
     for (const live of [true, false]) {
-      const server = createPermDock(policy, subject(live));
+      const server = getPermDockSync(policy, subject(live));
       const client = fromSnapshot(
         parseSnapshot(JSON.stringify(server.snapshot())),
       );
@@ -133,8 +133,8 @@ describe("{ subject: { session: { live: true } } }", () => {
   });
 
   it("binds where() to a constant for ORM filters", async () => {
-    const live = createPermDock(policy, subject(true));
-    const stale = createPermDock(policy, subject(false));
+    const live = getPermDockSync(policy, subject(true));
+    const stale = getPermDockSync(policy, subject(false));
     expect(
       JSON.stringify(live.where(permissions.invoice.update)),
     ).not.toContain("liveSession");
@@ -166,8 +166,8 @@ describe("subjectFromSupabase liveSession", () => {
     ).toBeUndefined();
   });
 
-  it("carries through createPermDock", async () => {
-    const permdock = createPermDock(
+  it("carries through getPermDockSync", async () => {
+    const permdock = getPermDockSync(
       policy,
       subjectFromSupabase(claims, { liveSession: true }),
     );

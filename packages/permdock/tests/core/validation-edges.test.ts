@@ -6,7 +6,7 @@ import {
   PermDockValidationError,
 } from "../../src/core/errors.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -30,7 +30,7 @@ describe("validation edges", () => {
       subject: () => ({ id: "u1", roles: ["member"] }),
       validate: "never",
     });
-    const permdock = createPermDock(schemaPolicy, { id: "u1" });
+    const permdock = getPermDockSync(schemaPolicy, { id: "u1" });
     const closed = permdock.decide(tree.post.read, { id: "p1" });
     expect(closed.outcome).toBe("denied");
     expect(permdock.where(tree.post.read).partial).toBe(true);
@@ -64,7 +64,7 @@ describe("validation edges", () => {
       subject: () => ({ id: "u1", roles: ["member"] }),
       validate: "always",
     });
-    const validating = createPermDock(schemaed, { id: "u1" });
+    const validating = getPermDockSync(schemaed, { id: "u1" });
     expect(
       validating.decide(withSchema.post.read, { id: 1 }, { trusted: false })
         .outcome,
@@ -87,7 +87,7 @@ describe("validation edges", () => {
       roles: [role("member", [allow(withSchema.post.read)])],
       subject: () => ({ id: "u1", roles: [] }),
     });
-    const empty = createPermDock(noGrant, { id: "u1", roles: [] });
+    const empty = getPermDockSync(noGrant, { id: "u1", roles: [] });
     expect(() => empty.assert(withSchema.post.read, { id: "p1" })).toThrow(
       PermDockDeniedError,
     );
@@ -109,7 +109,7 @@ describe("validation edges", () => {
       subject: () => ({ id: "u1", roles: ["member"] }),
       validate: "always",
     });
-    const asyncPermdock = createPermDock(asyncPolicy, { id: "u1" });
+    const asyncPermdock = getPermDockSync(asyncPolicy, { id: "u1" });
     expect(
       asyncPermdock.can(
         asyncSchema.post.read,
@@ -120,7 +120,7 @@ describe("validation edges", () => {
   });
 
   it("skips validation for a resource without a schema", async () => {
-    const noSchema = createPermDock(
+    const noSchema = getPermDockSync(
       definePolicy(tree, {
         roles: [role("member", [allow(tree.post.read)])],
         subject: () => ({ id: "u1", roles: ["member"] }),

@@ -29,8 +29,7 @@ The result is a pre-flight for a whole workflow, not a single call: before an ag
 
 ```ts
 import { readFile } from "node:fs/promises";
-import { PermDockDeniedError, simulateArazzo } from "permdock";
-import { createPermDock } from "permdock/node";
+import { PermDockDeniedError, getPermDock, simulateArazzo } from "permdock";
 import { policy } from "./policy";
 
 const arazzo = JSON.parse(
@@ -38,7 +37,7 @@ const arazzo = JSON.parse(
 );
 const openapi = JSON.parse(await readFile("./openapi.json", "utf8")); // after the Overlay is applied
 
-const permdock = createPermDock(policy, user);
+const permdock = await getPermDock(policy, user);
 
 const plan = simulateArazzo(permdock, {
   arazzo,

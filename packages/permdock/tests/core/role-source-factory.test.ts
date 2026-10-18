@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CustomRoleSourceFactory } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
 import { customRoles, permissions, policy } from "../fixtures/named-scopes.ts";
 
@@ -38,7 +38,7 @@ const perUser: CustomRoleSourceFactory = (subject) => {
 describe("customRoles as a factory of the subject", () => {
   it("builds the source for the resolved subject", async () => {
     const seen: (string | undefined)[] = [];
-    const permdock = createPermDock(policy, staff("u1"), {
+    const permdock = getPermDockSync(policy, staff("u1"), {
       customRoles: (subject) => {
         seen.push(subject.principal?.id);
         return perUser(subject);
@@ -46,7 +46,7 @@ describe("customRoles as a factory of the subject", () => {
     });
     expect(seen).toEqual(["u1"]);
     expect(permdock.can(permissions.asset.read, asset)).toBe(true);
-    const other = createPermDock(policy, staff("u2"), {
+    const other = getPermDockSync(policy, staff("u2"), {
       customRoles: perUser,
     });
     expect(other.can(permissions.asset.read, asset)).toBe(false);
@@ -54,7 +54,7 @@ describe("customRoles as a factory of the subject", () => {
 
   it("reads no custom roles when the factory throws, and says so", async () => {
     const events: unknown[] = [];
-    const permdock = createPermDock(policy, staff("u1"), {
+    const permdock = getPermDockSync(policy, staff("u1"), {
       customRoles: () => {
         throw new Error("no store");
       },
@@ -88,7 +88,7 @@ describe("customRoles as a factory of the subject", () => {
   });
 
   it("derives with a factory too", async () => {
-    const permdock = createPermDock(policy, staff("u1"));
+    const permdock = getPermDockSync(policy, staff("u1"));
     const derived = await permdock.derive({ customRoles: perUser });
     expect(derived.can(permissions.asset.read, asset)).toBe(true);
   });

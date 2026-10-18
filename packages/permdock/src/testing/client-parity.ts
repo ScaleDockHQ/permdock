@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 
 import type { Permission, Policy, CustomRoleSource } from "../index.ts";
 
-import { fromSnapshot, loadPermDock, parseSnapshot } from "../index.ts";
+import { fromSnapshot, getPermDock, parseSnapshot } from "../index.ts";
 
 export type ClientParityCase = {
   readonly name: string;
@@ -27,7 +27,7 @@ async function outcomes(
   entry: ClientParityCase,
   options: ClientParityOptions,
 ): Promise<{ readonly server: boolean; readonly client: boolean }> {
-  const server = await loadPermDock(policy, entry.user, {
+  const server = await getPermDock(policy, entry.user, {
     ...(entry.tenant === undefined ? {} : { tenant: entry.tenant }),
     ...(options.customRoles === undefined
       ? {}
