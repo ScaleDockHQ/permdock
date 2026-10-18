@@ -1,19 +1,16 @@
 import type { NextConfig } from "next";
 
 import { withSentryConfig } from "@sentry/nextjs/config";
-import { createMDX } from "fumadocs-mdx/next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 import { createNextConfig, sentryBuildOptions } from "@permdock/next-config";
 
 import { env } from "./env.ts";
 
-const withMDX = createMDX();
-
 export default function nextConfig(phase: string): NextConfig {
   const docsOrigin = env.DOCS_ORIGIN;
   return withSentryConfig(
-    withMDX({
+    {
       ...createNextConfig({
         nodeEnv: env.NODE_ENV,
         exposeTestingApi: env.EXPOSE_TESTING_API === "1",
@@ -23,6 +20,11 @@ export default function nextConfig(phase: string): NextConfig {
         return [
           {
             source: "/changelog",
+            destination: "/docs/changelog",
+            permanent: true,
+          },
+          {
+            source: "/blog/:path*",
             destination: "/docs/changelog",
             permanent: true,
           },
@@ -61,7 +63,7 @@ export default function nextConfig(phase: string): NextConfig {
           },
         ];
       },
-    }),
+    },
     sentryBuildOptions(env),
   );
 }
