@@ -35,7 +35,7 @@ The same rule applies to the maintainer side: an agent contributing to PermDock 
 | `.md` per docs page            | Docs site, same path with `.md`                                                                             | Agents fetching one page as text                                                                                                                     |
 | Docs MCP server                | `POST /mcp` on the docs site; `server.json` in this repository                                              | Agents querying the docs through MCP tools                                                                                                           |
 | Docs WebMCP tools              | Every docs page, through `document.modelContext`                                                            | The browser's agent searching and reading the docs on the open page; [Docs WebMCP](#docs-webmcp)                                                     |
-| JSON Schema catalog            | `permdock catalog --format json-schema`                                                                     | Agents and tools reading the permission model without TypeScript                                                                                     |
+| JSON Schema catalog            | `permdock catalog --format schema`                                                                          | Agents and tools reading the permission model without TypeScript                                                                                     |
 
 ### Discovery and trust
 

@@ -21,7 +21,7 @@ flowchart LR
   subgraph outbound [Outbound: evidence, delivery, agents]
     Otel["OTLP: Datadog, Grafana Cloud, Honeycomb, Axiom, New Relic"]
     Siem["OCSF: Splunk, Sentinel, Security Lake, Google SecOps, Elastic"]
-    Hooks["Webhooks: CloudEvents, signed JWS batches"]
+    Hooks["Webhooks: Standard Webhooks-signed CloudEvents"]
     Compliance["Vanta, Drata, Secureframe"]
     Chat["Slack, Teams, Discord, email, PagerDuty"]
     Mcp["MCP server: read-only evidence and catalog"]
