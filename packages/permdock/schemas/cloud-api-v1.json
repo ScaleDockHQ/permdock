@@ -3,15 +3,655 @@
   "info": {
     "title": "PermDock Cloud API",
     "version": "1.0.0",
-    "description": "The routes permdock/cloud calls and the authoring, identity, ADS, SSF and SCIM routes a Cloud implementation serves. Errors are RFC 9457 Problem Details unless the route's own standard says otherwise."
+    "description": "The platform issuer and project read API the permdock CLI calls, the routes permdock/cloud calls, and the authoring, identity, ADS, SSF and SCIM routes a Cloud implementation serves. Errors are RFC 9457 Problem Details unless the route's own standard says otherwise."
   },
   "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
   "servers": [
     {
-      "url": "https://api.permdock.com"
+      "url": "https://permdock.com/api"
     }
   ],
   "paths": {
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "security": [],
+        "summary": "RFC 8414 metadata of the platform issuer. For the issuer https://permdock.com/api it is served at https://permdock.com/.well-known/oauth-authorization-server/api (section 3.1) and here.",
+        "responses": {
+          "200": {
+            "description": "The metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationServerMetadata"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/authorize": {
+      "get": {
+        "security": [],
+        "summary": "Authorization code with PKCE S256 for public clients, including the RFC 8252 loopback redirect http://127.0.0.1:{port}/callback",
+        "parameters": [
+          {
+            "name": "response_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "const": "S256"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the client with a code"
+          },
+          "400": {
+            "description": "invalid_request, including plain PKCE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/device_authorization": {
+      "post": {
+        "security": [
+          {
+            "publicClient": []
+          }
+        ],
+        "summary": "RFC 8628 device authorization for permdock login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["client_id"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "device_code",
+                    "user_code",
+                    "verification_uri",
+                    "expires_in"
+                  ],
+                  "properties": {
+                    "device_code": {
+                      "type": "string"
+                    },
+                    "user_code": {
+                      "type": "string"
+                    },
+                    "verification_uri": {
+                      "type": "string"
+                    },
+                    "verification_uri_complete": {
+                      "type": "string"
+                    },
+                    "expires_in": {
+                      "type": "integer"
+                    },
+                    "interval": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request or invalid_client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/token": {
+      "post": {
+        "security": [
+          {
+            "publicClient": []
+          }
+        ],
+        "summary": "authorization_code with code_verifier, device_code and refresh_token for public clients",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["grant_type"],
+                "properties": {
+                  "grant_type": {
+                    "enum": [
+                      "authorization_code",
+                      "urn:ietf:params:oauth:grant-type:device_code",
+                      "refresh_token"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An RFC 6749 or RFC 8628 error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/revoke": {
+      "post": {
+        "security": [
+          {
+            "publicClient": []
+          }
+        ],
+        "summary": "RFC 7009 revocation; permdock logout sends the refresh token. An unknown token also answers 200.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["token"],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "token_type_hint": {
+                    "enum": ["access_token", "refresh_token"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Revoked, or the token was not known"
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/register": {
+      "post": {
+        "security": [],
+        "summary": "RFC 7591 dynamic client registration for MCP clients of https://permdock.com/mcp: public clients with loopback or https redirect URIs",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["redirect_uris"],
+                "properties": {
+                  "redirect_uris": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "token_endpoint_auth_method": {
+                    "const": "none"
+                  },
+                  "client_name": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The registered client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientRegistration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_redirect_uri or invalid_client_metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects": {
+      "get": {
+        "security": [
+          {
+            "platform": ["projects:read"]
+          },
+          {
+            "cloudToken": []
+          }
+        ],
+        "summary": "The projects the token reads",
+        "responses": {
+          "200": {
+            "description": "The projects",
+            "headers": {
+              "RateLimit": {
+                "description": "Remaining quota per policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";r=59;t=30`)",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "The quota policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";q=60;w=60`)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["items"],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Project"
+                      }
+                    },
+                    "next": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; retry after Retry-After seconds",
+            "headers": {
+              "RateLimit": {
+                "description": "Remaining quota per policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";r=59;t=30`)",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "The quota policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";q=60;w=60`)",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Seconds to wait (RFC 9110)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "The project id, the same id as its environment",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "get": {
+        "security": [
+          {
+            "platform": ["projects:read"]
+          },
+          {
+            "cloudToken": []
+          }
+        ],
+        "summary": "One project",
+        "responses": {
+          "200": {
+            "description": "The project",
+            "headers": {
+              "RateLimit": {
+                "description": "Remaining quota per policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";r=59;t=30`)",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "The quota policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";q=60;w=60`)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such project",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; retry after Retry-After seconds",
+            "headers": {
+              "RateLimit": {
+                "description": "Remaining quota per policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";r=59;t=30`)",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "The quota policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";q=60;w=60`)",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Seconds to wait (RFC 9110)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{id}/policy": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "The project id, the same id as its environment",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "get": {
+        "security": [
+          {
+            "platform": ["policy:read"]
+          },
+          {
+            "cloudToken": []
+          }
+        ],
+        "summary": "The pushed catalog, manifest and policy, for permdock cloud pull and rls generate --project",
+        "responses": {
+          "200": {
+            "description": "The pushed policy",
+            "headers": {
+              "RateLimit": {
+                "description": "Remaining quota per policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";r=59;t=30`)",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "The quota policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";q=60;w=60`)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPolicy"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such project, or `type` https://permdock.com/problems/policy-not-published: nothing pushed yet",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; retry after Retry-After seconds",
+            "headers": {
+              "RateLimit": {
+                "description": "Remaining quota per policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";r=59;t=30`)",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "The quota policy, draft-ietf-httpapi-ratelimit-headers-11 (`\"read\";q=60;w=60`)",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Seconds to wait (RFC 9110)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/environments/{env}/approvals": {
       "post": {
         "security": [
@@ -753,6 +1393,9 @@
         "security": [
           {
             "client": []
+          },
+          {
+            "platform": ["catalog:write"]
           }
         ],
         "summary": "catalog.push and permdock cloud push",
@@ -772,7 +1415,14 @@
                     "type": "object"
                   },
                   "policy": {
-                    "type": "object"
+                    "$ref": "https://permdock.com/schemas/pushed-policy-v1.json"
+                  },
+                  "manifest": {
+                    "$ref": "https://permdock.com/schemas/supabase-manifest-v1.json"
+                  },
+                  "permdockVersion": {
+                    "type": "string",
+                    "description": "The permdock version that pushed"
                   }
                 }
               }
@@ -4461,6 +5111,9 @@
           },
           "refresh_token": {
             "type": "string"
+          },
+          "scope": {
+            "type": "string"
           }
         }
       },
@@ -4497,6 +5150,186 @@
           },
           "moreAvailable": {
             "type": "boolean"
+          }
+        }
+      },
+      "AuthorizationServerMetadata": {
+        "type": "object",
+        "description": "RFC 8414 metadata of the platform issuer",
+        "required": [
+          "issuer",
+          "authorization_endpoint",
+          "token_endpoint",
+          "device_authorization_endpoint",
+          "revocation_endpoint",
+          "registration_endpoint",
+          "scopes_supported",
+          "code_challenge_methods_supported"
+        ],
+        "properties": {
+          "issuer": {
+            "type": "string"
+          },
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "device_authorization_endpoint": {
+            "type": "string"
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "revocation_endpoint": {
+            "type": "string"
+          },
+          "registration_endpoint": {
+            "type": "string"
+          },
+          "scopes_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "contains": {
+              "const": "policy:read"
+            }
+          },
+          "code_challenge_methods_supported": {
+            "type": "array",
+            "items": {
+              "const": "S256"
+            },
+            "minItems": 1
+          },
+          "grant_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "response_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint_auth_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ClientRegistration": {
+        "type": "object",
+        "description": "RFC 7591 client information response",
+        "required": ["client_id", "redirect_uris"],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "client_id_issued_at": {
+            "type": "integer"
+          },
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint_auth_method": {
+            "type": "string"
+          },
+          "grant_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "client_name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "description": "A Cloud project. A project is one environment: `id` is the `{env}` of /v1/environments/{env}.",
+        "required": ["id", "name", "environment"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string",
+            "minLength": 1
+          },
+          "issuer": {
+            "type": "string",
+            "description": "The environment's own issuer for app tokens"
+          },
+          "catalog": {
+            "type": "object",
+            "required": ["version", "fingerprint"],
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "fingerprint": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ProjectPolicy": {
+        "type": "object",
+        "description": "What the project's last cloud push sent, with JSON member order kept as pushed, so permdock cloud pull writes the bytes the offline commands write.",
+        "required": [
+          "v",
+          "project",
+          "version",
+          "fingerprint",
+          "permdockVersion",
+          "catalog"
+        ],
+        "properties": {
+          "v": {
+            "const": 1
+          },
+          "project": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "catalogFingerprint(catalog); equals catalog.fingerprint"
+          },
+          "permdockVersion": {
+            "type": "string",
+            "description": "The permdock version that pushed"
+          },
+          "catalog": {
+            "$ref": "https://permdock.com/schemas/catalog-v1.json"
+          },
+          "manifest": {
+            "$ref": "https://permdock.com/schemas/supabase-manifest-v1.json"
+          },
+          "policy": {
+            "$ref": "https://permdock.com/schemas/pushed-policy-v1.json"
           }
         }
       }
@@ -4547,6 +5380,27 @@
         "type": "http",
         "scheme": "bearer",
         "description": "The SCIM connection's bearer"
+      },
+      "platform": {
+        "type": "oauth2",
+        "description": "A person's login at the platform issuer https://permdock.com/api: permdock login (device flow, RFC 8628, or the RFC 8252 loopback with PKCE) or an MCP client registered with RFC 7591.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://permdock.com/api/oauth/authorize",
+            "tokenUrl": "https://permdock.com/api/oauth/token",
+            "refreshUrl": "https://permdock.com/api/oauth/token",
+            "scopes": {
+              "projects:read": "List and read the projects the person belongs to",
+              "policy:read": "Read a project's pushed catalog, manifest and policy",
+              "catalog:write": "Push a catalog and policy with permdock cloud push"
+            }
+          }
+        }
+      },
+      "cloudToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "PERMDOCK_CLOUD_TOKEN: a read-only Cloud key pinned to one environment, for CI. It reads that project and its policy, and nothing else."
       }
     }
   }

@@ -8,6 +8,7 @@ import { isApprovalError } from "../../../src/approvals/errors.ts";
 import { memoryApprovalStore } from "../../../src/approvals/store.ts";
 import { APPROVAL_HEADER } from "../../../src/approvals/types.ts";
 import { catalogDrift } from "../../../src/catalog/drift.ts";
+import { pushedPolicy } from "../../../src/catalog/pushed-policy.ts";
 import { catalogFingerprint } from "../../../src/core/catalog-fingerprint.ts";
 import { isRecord } from "../../../src/core/compact.ts";
 import { mergeHostedGrants } from "../../../src/core/hosted.ts";
@@ -17,6 +18,12 @@ import { signSnapshot } from "../../../src/core/snapshot-sign.ts";
 import { joseTokenSigner } from "../../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../../src/jwt/verifier.ts";
 import { snapshotFixture } from "../../../src/testing/snapshot-fixture.ts";
+import {
+  type PushedEntry,
+  type ReferencePlatform,
+  type ReferencePlatformMutation,
+  referencePlatform,
+} from "./reference-platform.ts";
 
 /** One deliberate contract break; `testCloudApi` must reject each. */
 export type ReferenceCloudMutation =
@@ -29,7 +36,8 @@ export type ReferenceCloudMutation =
   | "replay-subject"
   | "json-errors"
   | "drops-reason"
-  | "catalog-always-new";
+  | "catalog-always-new"
+  | ReferencePlatformMutation;
 
 export type ReferenceCloud = {
   readonly url: string;
@@ -47,6 +55,7 @@ export type ReferenceCloud = {
   readonly subject: () => Promise<string>;
   readonly verifier: TokenVerifier;
   readonly catalog: CatalogDocument;
+  readonly platform: ReferencePlatform;
 };
 
 const URL_BASE = "https://cloud.permdock.test";
@@ -170,11 +179,7 @@ export async function referenceCloud(
   const versions = new Map<string, number>();
   const seen = new Set<string>();
   const deliveries = new Map<string, string>();
-  const catalogs: {
-    version: number;
-    fingerprint: string;
-    catalog: CatalogDocument;
-  }[] = [];
+  const catalogs: (PushedEntry & { readonly catalog: CatalogDocument })[] = [];
   const grants = new Map<string, HostedGrant>();
   let grantCount = 0;
   const errors = mutation === "json-errors";
@@ -416,6 +421,12 @@ export async function referenceCloud(
         previous?.fingerprint === body["fingerprint"] &&
         mutation !== "catalog-always-new"
       ) {
+        catalogs[catalogs.length - 1] = {
+          ...previous,
+          policy: body["policy"] ?? previous.policy,
+          manifest: body["manifest"] ?? previous.manifest,
+          permdockVersion: body["permdockVersion"] ?? previous.permdockVersion,
+        };
         return Response.json({
           version: previous.version,
           fingerprint: previous.fingerprint,
@@ -433,7 +444,14 @@ export async function referenceCloud(
               policy,
               document: document([...grants.values()]),
             }).findings ?? []);
-      catalogs.push({ version, fingerprint, catalog: pushed });
+      catalogs.push({
+        version,
+        fingerprint,
+        catalog: pushed,
+        policy: body["policy"],
+        manifest: body["manifest"],
+        permdockVersion: body["permdockVersion"],
+      });
       return Response.json({ version, fingerprint, findings }, { status: 201 });
     }
     if (route === "GET /catalog") {
@@ -532,12 +550,22 @@ export async function referenceCloud(
         ? "export"
         : "client";
 
+  const platform = referencePlatform({
+    base: URL_BASE,
+    environment: ENVIRONMENT,
+    latest: () => catalogs.at(-1),
+    mutation,
+  });
+
   const handle = async (
     input: Request | string | URL,
     init?: RequestInit,
   ): Promise<Response> => {
     const request = new Request(input, init);
     const { pathname } = new URL(request.url);
+    if (platform.handles(pathname)) {
+      return platform.handle(request);
+    }
     if (!pathname.startsWith(ISSUER.slice(URL_BASE.length))) {
       return fail(404, "Unknown environment");
     }
@@ -555,7 +583,17 @@ export async function referenceCloud(
       (name) => KEYS[name] === bearer,
     );
     const needed = kindOf(path);
-    if (kind === undefined && mutation !== "no-auth") {
+    const scope = platform.scopeOf(bearer ?? "");
+    if (scope === "read-only" && mutation !== "token-writes") {
+      return fail(403, "A read-only Cloud token");
+    }
+    const login =
+      scope !== null &&
+      (scope === "read-only" ||
+        (request.method === "POST" &&
+          path === "/catalog" &&
+          scope.split(" ").includes("catalog:write")));
+    if (kind === undefined && !login && mutation !== "no-auth") {
       return fail(401, "Missing or unknown key");
     }
     if (kind !== undefined && kind !== needed && mutation !== "any-key-kind") {
@@ -570,6 +608,8 @@ export async function referenceCloud(
     version: 1,
     fingerprint: catalogFingerprint(catalog),
     catalog,
+    policy: pushedPolicy(policy),
+    permdockVersion: "0.0.0-reference",
   });
 
   return {
@@ -593,5 +633,6 @@ export async function referenceCloud(
     },
     verifier,
     catalog,
+    platform,
   };
 }

@@ -1,4 +1,10 @@
 import { freezeDeep } from "../../core/freeze.ts";
+import {
+  PLATFORM_PATHS,
+  PLATFORM_SCHEMAS,
+  PLATFORM_SECURITY_SCHEMES,
+  PUSHED_POLICY,
+} from "./platform.ts";
 
 type Node = Readonly<Record<string, unknown>>;
 
@@ -286,6 +292,7 @@ const SCHEMAS: Readonly<Record<string, Node>> = {
       token_type: { const: "Bearer" },
       expires_in: { type: "integer", minimum: 1 },
       refresh_token: { type: "string" },
+      scope: { type: "string" },
     },
   },
   OAuthError: {
@@ -465,25 +472,41 @@ const RUNTIME: Readonly<Record<string, Node>> = {
     }),
   },
   [`${ENV}/catalog`]: {
-    post: client({
-      summary: "catalog.push and permdock cloud push",
-      requestBody: body({
-        type: "object",
-        required: ["fingerprint", "catalog"],
-        properties: {
-          fingerprint: { type: "string", minLength: 1 },
-          catalog: { type: "object" },
-          policy: { type: "object" },
+    post: {
+      ...client({
+        summary: "catalog.push and permdock cloud push",
+        requestBody: body({
+          type: "object",
+          required: ["fingerprint", "catalog"],
+          properties: {
+            fingerprint: { type: "string", minLength: 1 },
+            catalog: { type: "object" },
+            policy: { $ref: PUSHED_POLICY },
+            manifest: {
+              $ref: "https://permdock.com/schemas/supabase-manifest-v1.json",
+            },
+            permdockVersion: {
+              type: "string",
+              description: "The permdock version that pushed",
+            },
+          },
+        }),
+        responses: {
+          "200": json(
+            "The fingerprint is already published",
+            ref("CatalogPush"),
+          ),
+          "201": json(
+            "A new version and its drift findings",
+            ref("CatalogPush"),
+          ),
+          "400": problem(
+            "Not a catalog, or a fingerprint that does not match it",
+          ),
         },
       }),
-      responses: {
-        "200": json("The fingerprint is already published", ref("CatalogPush")),
-        "201": json("A new version and its drift findings", ref("CatalogPush")),
-        "400": problem(
-          "Not a catalog, or a fingerprint that does not match it",
-        ),
-      },
-    }),
+      security: [{ client: [] }, { platform: ["catalog:write"] }],
+    },
     get: client({
       summary: "The latest catalog",
       responses: {
@@ -972,11 +995,12 @@ export const CLOUD_API_DOCUMENT: Readonly<Record<string, unknown>> = freezeDeep(
       title: "PermDock Cloud API",
       version: "1.0.0",
       description:
-        "The routes permdock/cloud calls and the authoring, identity, ADS, SSF and SCIM routes a Cloud implementation serves. Errors are RFC 9457 Problem Details unless the route's own standard says otherwise.",
+        "The platform issuer and project read API the permdock CLI calls, the routes permdock/cloud calls, and the authoring, identity, ADS, SSF and SCIM routes a Cloud implementation serves. Errors are RFC 9457 Problem Details unless the route's own standard says otherwise.",
     },
     jsonSchemaDialect: "https://spec.openapis.org/oas/3.1/dialect/base",
-    servers: [{ url: "https://api.permdock.com" }],
+    servers: [{ url: "https://permdock.com/api" }],
     paths: withEnv({
+      ...PLATFORM_PATHS,
       ...APPROVALS,
       ...RUNTIME,
       ...AUTHORING,
@@ -1000,7 +1024,7 @@ export const CLOUD_API_DOCUMENT: Readonly<Record<string, unknown>> = freezeDeep(
           schema: { type: "string", minLength: 1 },
         },
       },
-      schemas: SCHEMAS,
+      schemas: { ...SCHEMAS, ...PLATFORM_SCHEMAS },
       securitySchemes: {
         client: bearer("The client key (PERMDOCK_CLOUD_KEY)"),
         admin: bearer("The admin key (PERMDOCK_CLOUD_ADMIN_KEY)"),
@@ -1024,6 +1048,7 @@ export const CLOUD_API_DOCUMENT: Readonly<Record<string, unknown>> = freezeDeep(
           "The caep-transmitter connector's stream credential",
         ),
         scimBearer: bearer("The SCIM connection's bearer"),
+        ...PLATFORM_SECURITY_SCHEMES,
       },
     },
   },
