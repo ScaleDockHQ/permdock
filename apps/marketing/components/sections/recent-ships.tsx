@@ -15,6 +15,19 @@ import {
 
 import { Section } from "./section";
 
+function InlineCode({ text }: { text: string }) {
+  return text.split("`").map((part, index) =>
+    index % 2 === 1 ? (
+      // oxlint-disable-next-line react/no-array-index-key -- segments of one fixed string
+      <code key={index} className="font-mono text-xs text-foreground">
+        {part}
+      </code>
+    ) : (
+      part
+    ),
+  );
+}
+
 export function RecentShips({
   releases,
 }: {
@@ -24,7 +37,7 @@ export function RecentShips({
     <Section
       id="ships"
       eyebrow="Recent ships"
-      title="What landed in 0.1.0"
+      title={`What landed in ${releases[0]?.version ?? "permdock"}`}
       description="Parsed from the package changelogs. The full log is in the docs."
     >
       <Timeline defaultValue={1} className="w-full">
@@ -44,10 +57,14 @@ export function RecentShips({
               </TimelineTitle>
               <TimelineIndicator />
             </TimelineHeader>
-            <TimelineContent className="space-y-2.5">
-              <ul className="list-disc space-y-1 pl-4 text-sm leading-6 text-muted-foreground">
+            <TimelineContent className="flex flex-col gap-2.5">
+              <ul className="flex list-disc flex-col gap-1 pl-4 text-sm leading-6 text-muted-foreground">
                 {release.changes.slice(0, 4).map((change) => (
-                  <li key={change.text}>{change.text}</li>
+                  <li key={change.text}>
+                    <span className="line-clamp-2">
+                      <InlineCode text={change.text} />
+                    </span>
+                  </li>
                 ))}
               </ul>
               <Badge variant="outline">{release.kind}</Badge>
