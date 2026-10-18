@@ -68,7 +68,7 @@ export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
 });
 ```
 
-Pass `approval` as the tool's `approval`. Default subject and actor read `session.auth.initiator` / `current`. `approval.request(ctx)` maps granted to Eve's `not-applicable` (continue), approval-required to `user-approval`, denied to `{ type: 'denied', reason }`; Eve's re-check of a call nobody approved is denied. `approval.response(ctx)` maps the responder through the same `subject`. Use a durable `store` when replicas share sessions ([Eve adapter](https://permdock.com/docs/adapters/eve)).
+Pass `approval` as the tool's `approval`. Default subject and actor read `session.auth.initiator` / `current`. `approval.request(ctx)` maps granted to Eve's `not-applicable` (continue), approval-required to `user-approval`, denied to `{ type: 'denied', reason }`; Eve's re-check of a call nobody approved is denied. `approval.response(ctx)` maps the responder through the same `subject`. Use a durable `store` when replicas share sessions ([Eve adapter](https://permdock.com/docs/adapters/eve)). With PermDock Cloud, pass `policies: hostedPolicies(cloud().policies)` and give `cloud()` a `verifier` for the environment JWK Set; hosted grants apply only to `hostable` permissions, so mark the ones the dashboard may extend.
 
 ## OpenAI Agents SDK — `permdock/openai`
 

@@ -1,10 +1,10 @@
-import type { DecisionSink } from "permdock";
+import type { DecisionSink, PolicySource } from "permdock";
 import type { ApprovalStore } from "permdock/approvals";
 import type { CloudApproverOptions } from "permdock/cloud";
 
 import { memoryApprovalStore } from "permdock/approvals";
-import { cloud, cloudApprovalWaiter } from "permdock/cloud";
-import { joseTokenSigner } from "permdock/jwt";
+import { cloud, cloudApprovalWaiter, cloudEndpoints } from "permdock/cloud";
+import { joseTokenSigner, joseTokenVerifier } from "permdock/jwt";
 import { memoryReplayStore } from "permdock/ssf";
 
 import type { CloudEnv } from "./env.ts";
@@ -18,6 +18,8 @@ export type Backend = {
   /** The `com.permdock.approval.*` webhook endpoint; `null` without the Cloud. */
   readonly webhook: ((request: Request) => Promise<Response>) | null;
   readonly inbox: string | null;
+  /** The environment's signed hosted grants; `null` without the Cloud. */
+  readonly policies: PolicySource | null;
 };
 
 function approverOf(env: CloudEnv): CloudApproverOptions | null {
@@ -48,14 +50,22 @@ export function backend(env: CloudEnv | null): Backend {
       sink: null,
       webhook: null,
       inbox: null,
+      policies: null,
     };
   }
   const approver = approverOf(env);
+  const environment =
+    env.environment === null ? {} : { environment: env.environment };
+  const endpoints = cloudEndpoints({ url: env.url, ...environment });
   const permdockCloud = cloud({
     url: env.url,
     key: env.key,
-    ...(env.environment === null ? {} : { environment: env.environment }),
+    ...environment,
     ...(approver === null ? {} : { approver }),
+    verifier: joseTokenVerifier({
+      ...endpoints,
+      algorithms: ["Ed25519", "ES256"],
+    }),
   });
   const waiter = cloudApprovalWaiter({
     store: permdockCloud.approvals,
@@ -68,5 +78,6 @@ export function backend(env: CloudEnv | null): Backend {
     sink: permdockCloud.sink,
     webhook: waiter.webhook,
     inbox: CLOUD_INBOX,
+    policies: permdockCloud.policies,
   };
 }

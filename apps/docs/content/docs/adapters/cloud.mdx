@@ -478,7 +478,7 @@ The Cloud has an Integrations page; what each connector speaks is fixed here and
 
 ## Example app
 
-`apps/examples/eve-agent` (also the Marketplace template) uses `cloud()` for approvals and decisions when `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are set. In `apps/examples/authzen-pdp`, `src/pep-cloud.ts` points the PEP at a hosted environment instead of the local PDP, and `tests/parity.test.ts` asserts identical decisions for the policy matrix and runs `testCloudApi` when the `PERMDOCK_CLOUD_*` variables are set.
+`apps/examples/eve-agent` (also the Marketplace template) uses `cloud()` for approvals and decisions when `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are set, applies hosted grants on its `hostable` `post.publish` through `hostedPolicies(cloud().policies)`, and its README runs `permdock cloud pull` with `PERMDOCK_CLOUD_TOKEN` in CI. In `apps/examples/authzen-pdp`, `src/pep-cloud.ts` points the PEP at a hosted environment instead of the local PDP, and `tests/parity.test.ts` asserts identical decisions for the policy matrix and runs `testCloudApi` when the `PERMDOCK_CLOUD_*` variables are set. Its `src/policy-cloud.ts` rebuilds a project's pushed policy from the [projects read API](#projects-read-api) with `policyFromCatalog`, `pnpm start:cloud` serves the PDP over it, and `tests/policy-cloud.test.ts` asserts it decides like the code policy.
 
 ## Why
 

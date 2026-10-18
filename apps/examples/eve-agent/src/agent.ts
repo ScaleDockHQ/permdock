@@ -1,6 +1,6 @@
 import type { EveApprovalContext, EvePrincipal } from "permdock/eve";
 
-import { defineOperations } from "permdock";
+import { defineOperations, hostedPolicies } from "permdock";
 import { createPermDock } from "permdock/eve";
 
 import { backend } from "./cloud.ts";
@@ -26,6 +26,7 @@ export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
   subject: ({ session }) => userById(session?.auth?.initiator?.principalId),
   store: app.store,
   ...(app.sink === null ? {} : { sink: app.sink }),
+  ...(app.policies === null ? {} : { policies: hostedPolicies(app.policies) }),
   approvers: { roles: ["admin"] },
   delegation: () => ({
     scopes: [permissions.post.list.scope, permissions.post.delete.scope],
