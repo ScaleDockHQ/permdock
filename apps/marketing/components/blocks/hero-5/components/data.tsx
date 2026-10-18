@@ -3,13 +3,6 @@ import { type ReactNode } from "react"
 import { AdapterLogo } from "@/components/sections/adapter-logos"
 
 /* -------------------------------------------------------------------------- */
-/*                              Conversion column                             */
-/* -------------------------------------------------------------------------- */
-
-/** All three rows carry the same mark, so the icon is rendered in the view. */
-export const HERO_ASSURANCES = ["MIT licence", "Runs in-process", "Fail-closed"]
-
-/* -------------------------------------------------------------------------- */
 /*                               Scene geometry                               */
 /* -------------------------------------------------------------------------- */
 
