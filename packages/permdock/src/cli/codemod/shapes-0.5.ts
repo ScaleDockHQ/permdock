@@ -68,4 +68,11 @@ export const AWAIT_RENAMES_0_5: readonly AwaitRename[] = Object.freeze([
 
 export const CALL_RENAMES_0_5: readonly Rename[] = Object.freeze([
   { from: "createPermDock", to: "loadPermDock", entries: ["permdock/pdp"] },
+  {
+    from: "rolesOf",
+    to: "rolesFor",
+    entries: ["permdock"],
+    kind: "option",
+    calls: ["customRoleSource"],
+  },
 ]);

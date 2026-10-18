@@ -256,3 +256,23 @@ describe("awaited createPermDock", () => {
     ]);
   });
 });
+
+describe("the custom role reader", () => {
+  it("renames rolesOf to rolesFor in a reader passed to customRoleSource", () => {
+    const result = apply(
+      [
+        'import { customRoleSource } from "permdock";',
+        "export const a = customRoleSource({ rolesOf: (tenant) => read(tenant) });",
+        "export const b = customRoleSource({ async rolesOf(tenant) { return read(tenant); } });",
+        "export const c = { rolesOf: 1 };",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n").slice(1)).toEqual([
+      "export const a = customRoleSource({ rolesFor: (tenant) => read(tenant) });",
+      "export const b = customRoleSource({ async rolesFor(tenant) { return read(tenant); } });",
+      "export const c = { rolesOf: 1 };",
+    ]);
+    expect(result.followUps).toEqual([]);
+  });
+});
