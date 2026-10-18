@@ -36,6 +36,8 @@ export type StoredCredential = {
   readonly refresh_token?: string;
   readonly expires_at?: number;
   readonly token_type?: string;
+  /** The granted scopes (RFC 6749 section 3.3), when the token response names them. */
+  readonly scope?: string;
 };
 
 export type DeviceFlowOptions = {

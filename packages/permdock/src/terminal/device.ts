@@ -37,7 +37,7 @@ async function readJson(
 }
 
 /** POSTs a form and reads a JSON object back; any network or parse failure is `null`. */
-async function postForm(
+export async function postForm(
   runtime: TerminalRuntime,
   url: string,
   fields: Record<string, string>,
@@ -57,6 +57,64 @@ async function postForm(
   }
 }
 
+function withoutTrailingSlash(url: string): string {
+  return url.replace(/\/+$/u, "");
+}
+
+/**
+ * Where RFC 8414 metadata may live: the well-known segment inserted before
+ * the issuer's path (section 3.1), then appended after it for servers that
+ * predate the rule. An issuer without a path has one location.
+ */
+export function metadataUrls(issuer: string): readonly string[] {
+  const parsed = new URL(issuer);
+  const path = withoutTrailingSlash(parsed.pathname);
+  const inserted = `${parsed.origin}/.well-known/oauth-authorization-server${path}`;
+  return path === ""
+    ? [inserted]
+    : [
+        inserted,
+        `${withoutTrailingSlash(issuer)}/.well-known/oauth-authorization-server`,
+      ];
+}
+
+/**
+ * The issuer's RFC 8414 metadata, or `null`. Metadata whose `issuer` is not
+ * the configured issuer is refused (section 3.3), so a mix-up never routes a
+ * credential to another server.
+ */
+export async function discoverAuthorizationServer(
+  issuer: string,
+  runtime: TerminalRuntime,
+): Promise<Record<string, unknown> | null> {
+  const fetchImpl = runtime.fetch ?? fetch;
+  let urls: readonly string[];
+  try {
+    urls = metadataUrls(issuer);
+  } catch {
+    return null;
+  }
+  for (const url of urls) {
+    let body: Record<string, unknown> | null;
+    try {
+      const response = await fetchImpl(url, {
+        signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
+      });
+      body = response.ok ? await readJson(response) : null;
+    } catch {
+      body = null;
+    }
+    if (body === null) {
+      continue;
+    }
+    return typeof body["issuer"] === "string" &&
+      withoutTrailingSlash(body["issuer"]) === withoutTrailingSlash(issuer)
+      ? body
+      : null;
+  }
+  return null;
+}
+
 async function discoverDeviceEndpoints(
   issuer: string,
   runtime: TerminalRuntime,
@@ -65,40 +123,23 @@ async function discoverDeviceEndpoints(
   readonly tokenEndpoint?: string;
   readonly revocationEndpoint?: string;
 }> {
-  const fetchImpl = runtime.fetch ?? fetch;
-  const url = issuer.endsWith("/")
-    ? `${issuer}.well-known/oauth-authorization-server`
-    : `${issuer}/.well-known/oauth-authorization-server`;
-  try {
-    const response = await fetchImpl(url, {
-      signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
-    });
-    const body = await readJson(response);
-    if (body === null) {
-      return {};
-    }
-    const discovered: {
-      readonly authorizationEndpoint?: string;
-      readonly tokenEndpoint?: string;
-      readonly revocationEndpoint?: string;
-    } = compact({
-      authorizationEndpoint:
-        typeof body["device_authorization_endpoint"] === "string"
-          ? body["device_authorization_endpoint"]
-          : undefined,
-      tokenEndpoint:
-        typeof body["token_endpoint"] === "string"
-          ? body["token_endpoint"]
-          : undefined,
-      revocationEndpoint:
-        typeof body["revocation_endpoint"] === "string"
-          ? body["revocation_endpoint"]
-          : undefined,
-    });
-    return discovered;
-  } catch {
+  const body = await discoverAuthorizationServer(issuer, runtime);
+  if (body === null) {
     return {};
   }
+  return compact({
+    authorizationEndpoint: stringField(body, "device_authorization_endpoint"),
+    tokenEndpoint: stringField(body, "token_endpoint"),
+    revocationEndpoint: stringField(body, "revocation_endpoint"),
+  });
+}
+
+export function stringField(
+  body: Readonly<Record<string, unknown>>,
+  name: string,
+): string | undefined {
+  const value = body[name];
+  return typeof value === "string" ? value : undefined;
 }
 
 function parseAuthorization(
@@ -130,7 +171,10 @@ type ParsedToken =
   | { readonly ok: true; readonly credential: StoredCredential }
   | { readonly ok: false; readonly error: string };
 
-function parseToken(body: Record<string, unknown>, now: number): ParsedToken {
+export function parseToken(
+  body: Record<string, unknown>,
+  now: number,
+): ParsedToken {
   if (typeof body["error"] === "string") {
     return { ok: false, error: body["error"] };
   }
@@ -151,6 +195,7 @@ function parseToken(body: Record<string, unknown>, now: number): ParsedToken {
           : undefined,
       token_type:
         typeof body["token_type"] === "string" ? body["token_type"] : undefined,
+      scope: stringField(body, "scope"),
     }),
   };
 }

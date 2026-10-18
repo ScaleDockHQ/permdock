@@ -4,6 +4,7 @@ import type { DeviceFlowOptions } from "../../src/terminal/types.ts";
 import type { FetchCall } from "../fakes/fetch.ts";
 
 import {
+  discoverAuthorizationServer,
   refreshCredential,
   revokeCredential,
   runDeviceFlow,
@@ -197,6 +198,7 @@ describe("runDeviceFlow (RFC 8628)", () => {
     const http = fakeFetch((call) => {
       if (call.url.endsWith("/.well-known/oauth-authorization-server")) {
         return json({
+          issuer: "https://id.example",
           device_authorization_endpoint: "https://id.example/da",
           token_endpoint: "https://id.example/t",
           revocation_endpoint: "https://id.example/r",
@@ -218,6 +220,49 @@ describe("runDeviceFlow (RFC 8628)", () => {
       "https://id.example/t",
     ]);
     expect(form(http.calls[1])["scope"]).toBe("");
+  });
+
+  it("finds a path issuer's metadata at the RFC 8414 §3.1 location, then the appended one", async () => {
+    const seen: string[] = [];
+    const http = fakeFetch((call) => {
+      seen.push(call.url);
+      return call.url ===
+        "https://permdock.example/api/.well-known/oauth-authorization-server"
+        ? json({
+            issuer: "https://permdock.example/api",
+            token_endpoint: "https://permdock.example/api/oauth/token",
+          })
+        : new Response(null, { status: 404 });
+    });
+    expect(
+      await discoverAuthorizationServer("https://permdock.example/api/", {
+        fetch: http.fetch,
+      }),
+    ).toMatchObject({
+      token_endpoint: "https://permdock.example/api/oauth/token",
+    });
+    expect(seen).toEqual([
+      "https://permdock.example/.well-known/oauth-authorization-server/api",
+      "https://permdock.example/api/.well-known/oauth-authorization-server",
+    ]);
+  });
+
+  it("refuses metadata whose issuer is another server (RFC 8414 §3.3)", async () => {
+    for (const issuer of ["https://evil.example", undefined]) {
+      const http = fakeFetch(() =>
+        json({ issuer, token_endpoint: "https://evil.example/t" }),
+      );
+      expect(
+        await discoverAuthorizationServer("https://id.example", {
+          fetch: http.fetch,
+        }),
+      ).toBeNull();
+    }
+    expect(
+      await discoverAuthorizationServer("not a url", {
+        fetch: fakeFetch(() => json({})).fetch,
+      }),
+    ).toBeNull();
   });
 
   it("returns null without endpoints or when discovery fails", async () => {
@@ -304,7 +349,10 @@ describe("refreshCredential (RFC 6749 §6)", () => {
   it("discovers the token endpoint from the issuer", async () => {
     const http = fakeFetch((call) =>
       call.url.includes(".well-known")
-        ? json({ token_endpoint: "https://id.example/t" })
+        ? json({
+            issuer: "https://id.example",
+            token_endpoint: "https://id.example/t",
+          })
         : json({ access_token: "at2" }),
     );
     expect(

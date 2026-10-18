@@ -53,6 +53,7 @@ function parseCredential(value: unknown): StoredCredential | null {
       typeof value["expires_at"] === "number" ? value["expires_at"] : undefined,
     token_type:
       typeof value["token_type"] === "string" ? value["token_type"] : undefined,
+    scope: typeof value["scope"] === "string" ? value["scope"] : undefined,
   });
 }
 
