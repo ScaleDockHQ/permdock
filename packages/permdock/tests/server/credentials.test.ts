@@ -9,7 +9,7 @@ import type { Subject } from "../../src/core/subject.ts";
 import { compact } from "../../src/core/compact.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memorySettingsSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { listPermissions } from "../../src/core/permission-registry.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -85,7 +85,7 @@ const owner = {
 };
 
 function permdockFor(subject: Subject) {
-  const instance = createPermDock(policy, subject);
+  const instance = getPermDockSync(policy, subject);
   if (instance instanceof Promise) {
     throw new TypeError("expected a synchronous instance");
   }
@@ -370,13 +370,13 @@ describe("subjectFromApiKey", () => {
     expect(asked).toEqual([["u_1", { tenant: "o_1" }]]);
   });
 
-  it("takes the owner rights from createPermDock memberships without an owner loader", async () => {
+  it("takes the owner rights from getPermDockSync memberships without an owner loader", async () => {
     const { store, key } = await issue();
     const subject = await resolve(key, {
       verifier: store,
       permissions,
     });
-    const permdock = createPermDock(policy, subject, {
+    const permdock = getPermDockSync(policy, subject, {
       tenant: "o_1",
       memberships: {
         membershipsFor: (principal) =>
@@ -619,7 +619,7 @@ describe("subjectFromApiKey: a key over many permissions", () => {
     expect(causes).toEqual([]);
     expect(subject.principal?.credential.permissions).toHaveLength(200);
     expect(subject.delegation?.scopes).toHaveLength(200);
-    const permdock = createPermDock(widePolicy, subject);
+    const permdock = getPermDockSync(widePolicy, subject);
     if (permdock instanceof Promise || held === undefined) {
       throw new TypeError("expected a synchronous instance and 204 leaves");
     }

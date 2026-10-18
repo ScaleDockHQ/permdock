@@ -16,7 +16,7 @@ import {
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -91,7 +91,7 @@ async function permdockFor(
   memberships: readonly Membership[],
   customRoles: readonly CustomRole[],
 ) {
-  return createPermDock(policy, subjectIn(memberships), {
+  return getPermDockSync(policy, subjectIn(memberships), {
     tenant: "acme",
     customRoles: memoryCustomRoleSource(customRoles),
   });
@@ -415,7 +415,7 @@ describe("assignableLevels", () => {
     expect(
       steward.assignableLevels(permissions.job.read, { scope: "global" }),
     ).toEqual([]);
-    const outside = createPermDock(
+    const outside = getPermDockSync(
       policy,
       { principal: { id: "u1" }, context: {} },
       {},
@@ -497,7 +497,7 @@ describe("deny with levels", () => {
       name: "reader",
       grants: [{ permission: "job.read", level: "team" }],
     });
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       denying,
       subjectIn([{ scope: "tenant", id: "acme", roles: ["reader"] }]),
       {

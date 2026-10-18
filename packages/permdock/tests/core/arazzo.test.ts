@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Decision } from "../../src/core/decision.ts";
 
 import { arazzoFindings, simulateArazzo } from "../../src/core/arazzo.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { adminUser, permissions, policy } from "../fixtures/quick-start.ts";
 
 const openapi = {
@@ -68,7 +68,7 @@ const reasonOf = (decision: Decision | undefined) =>
 
 describe("simulate Arazzo", () => {
   it("pre-flights a workflow and fails closed on holes", async () => {
-    const permdock = createPermDock(policy, adminUser);
+    const permdock = getPermDockSync(policy, adminUser);
     const plan = simulateArazzo(permdock, {
       arazzo,
       openapi,
@@ -115,7 +115,7 @@ describe("simulate Arazzo", () => {
   });
 
   it("marks expression parameters provisional", async () => {
-    const permdock = createPermDock(policy, adminUser);
+    const permdock = getPermDockSync(policy, adminUser);
     const plan = simulateArazzo(permdock, {
       arazzo: {
         ...arazzo,
@@ -138,7 +138,7 @@ describe("simulate Arazzo", () => {
   });
 
   it("denies parameters that are not objects instead of throwing", async () => {
-    const permdock = createPermDock(policy, adminUser);
+    const permdock = getPermDockSync(policy, adminUser);
     const plan = simulateArazzo(permdock, {
       arazzo: {
         ...arazzo,
@@ -161,7 +161,7 @@ describe("simulate Arazzo", () => {
   });
 
   it("denies AsyncAPI sources as unsupported", async () => {
-    const permdock = createPermDock(policy, adminUser);
+    const permdock = getPermDockSync(policy, adminUser);
     const plan = simulateArazzo(permdock, {
       arazzo: {
         ...arazzo,

@@ -12,7 +12,7 @@ import {
 } from "../../src/core/approval-policies.ts";
 import { describe as describeDecision } from "../../src/core/describe.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock, loadPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync, getPermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -45,7 +45,7 @@ async function decide(
   row: unknown,
   actor?: string,
 ): Promise<Decision> {
-  const permdock = await loadPermDock(policy, alice(actor), {
+  const permdock = await getPermDock(policy, alice(actor), {
     approvalPolicies: approvalPolicies(source),
   });
   return permdock.decide(permission, row);
@@ -293,7 +293,7 @@ describe("ApprovalPolicySource", () => {
 
   it("leaves a denial denied", async () => {
     const source = memoryApprovalPolicySource([overLimit]);
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       { principal: { id: "eve", memberships: [] }, context: {} },
       { approvalPolicies: source },
@@ -339,7 +339,7 @@ describe("ApprovalPolicySource", () => {
     };
     const big = { orgId: "o1", amount: 5000 };
     const decideCreate = async (entry: ApprovalPolicy): Promise<Decision> =>
-      createPermDock(ledgerPolicy, clerk, {
+      getPermDockSync(ledgerPolicy, clerk, {
         approvalPolicies: memoryApprovalPolicySource([entry]),
       }).decide(ledger.invoice.create, big);
 

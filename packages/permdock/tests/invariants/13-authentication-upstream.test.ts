@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   resource,
@@ -138,12 +138,12 @@ describe("invariant 13: authentication is upstream", () => {
   });
 
   it("treats a requested tenant with no membership as no tenant", async () => {
-    const permdock = createPermDock(policy, viewer, { tenant: "o9" });
+    const permdock = getPermDockSync(policy, viewer, { tenant: "o9" });
     expect(permdock.subject.principal?.tenant).toBeUndefined();
     expect(
       permdock.can(permissions.project.read, { id: "x", orgId: "o9" }),
     ).toBe(false);
-    const member = createPermDock(policy, viewer, { tenant: "o1" });
+    const member = getPermDockSync(policy, viewer, { tenant: "o1" });
     expect(member.subject.principal?.tenant).toBe("o1");
   });
 
@@ -200,7 +200,7 @@ describe("invariant 13: authentication is upstream", () => {
     // delegation plays no part; an actor from a header would have made it
     // `granted` through the delegation ceiling.
     expect(permdock.subject.actor).toBeUndefined();
-    const asAgent = createPermDock(delegating, viewer, {
+    const asAgent = getPermDockSync(delegating, viewer, {
       actor: { id: "agent", kind: "eve" },
       tenant: "o1",
     });

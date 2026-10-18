@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createPermDock } from "permdock";
+import { getPermDockSync } from "permdock";
 import { authorizeSql, subjectFromSupabase } from "permdock/supabase";
 
 import { ownPost, permissions } from "./permissions.ts";
@@ -13,7 +13,7 @@ const claims = {
 };
 
 function permdockForMember() {
-  const permdock = createPermDock(
+  const permdock = getPermDockSync(
     policy,
     subjectFromSupabase(claims, {
       claims: {

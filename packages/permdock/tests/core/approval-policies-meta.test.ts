@@ -7,7 +7,7 @@ import {
   validateApprovalPolicy,
 } from "../../src/core/approval-policies.ts";
 import { defineOperations } from "../../src/core/operations.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { permissions, policy, rows } from "../fixtures/expenses.ts";
 
 const [, small] = rows.expense;
@@ -39,7 +39,7 @@ const operations = defineOperations(permissions, {
 async function instance(
   entries: Parameters<typeof memoryApprovalPolicySource>[0],
 ) {
-  return createPermDock(policy, alice, {
+  return getPermDockSync(policy, alice, {
     approvalPolicies: memoryApprovalPolicySource(entries),
   });
 }

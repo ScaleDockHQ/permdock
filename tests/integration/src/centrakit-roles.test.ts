@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   composeMemberships,
-  loadPermDock,
+  getPermDock,
   memoryCustomRoleSource,
 } from "permdock";
 import { subjectFromSupabase } from "permdock/supabase";
@@ -344,7 +344,7 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     ]);
     const memberships = composeMemberships(sources(query));
     const dispatcher = async (user: string, tenant: string) =>
-      loadPermDock(
+      getPermDock(
         policy,
         { id: user, tenant },
         { memberships, customRoles, tenant },

@@ -395,7 +395,7 @@ export const {
   getPermDock,
   getPermission,
   getSnapshot,
-  requireAccess,
+  requirePermission,
   permdockHandler,
 } = createPermDock(app, { subject: currentUser });
 `,
@@ -459,14 +459,14 @@ app.patch(
       return [
         owned(
           `${ctx.src}/server.ts`,
-          `import { createPermDock } from "permdock";
+          `import { getPermDockSync } from "permdock";
 
 import { app } from "./permdock";
 import type { User } from "./policy";
 
 /** The request-scoped decision object for \`user\`; create one per request. */
 export function permdockFor(user: User | null) {
-  return createPermDock(app, user);
+  return getPermDockSync(app, user);
 }
 `,
         ),

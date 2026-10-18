@@ -2,7 +2,7 @@ import type { Client } from "pg";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import {
   type SqlQuery,
   junctionMembershipSource,
@@ -157,7 +157,7 @@ describe.each([
   it("reads the same memberships through the in-process source", async () => {
     const query: SqlQuery = (text, params) =>
       db!.admin.query(text, [...params]);
-    const permdock = await loadPermDock(
+    const permdock = await getPermDock(
       policy,
       { id: OWNER, kind: "user" },
       {
@@ -210,7 +210,7 @@ describe.each([
             memberships: "memberships",
           },
         }).principal;
-        const permdock = await loadPermDock(policy, principal);
+        const permdock = await getPermDock(policy, principal);
         for (const [permission, table] of [
           [permissions.quote.read, "quote"],
           [permissions.invoice.read, "invoice"],

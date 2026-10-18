@@ -12,7 +12,7 @@ import { toCloudEvent } from "../../src/core/sink.ts";
 import {
   type Decision,
   type DecisionSink,
-  createPermDock,
+  getPermDockSync,
 } from "../../src/index.ts";
 import {
   adminUser,
@@ -34,7 +34,7 @@ const cases = [
 async function outcomes(sink?: DecisionSink): Promise<string[]> {
   const result: string[] = [];
   for (const [user, leaf, row] of cases) {
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       user,
       sink === undefined ? {} : { sink },
@@ -96,7 +96,7 @@ describe("invariant 15: the Cloud is optional and never on the decision path", (
   });
 
   it("never trusts a stored approval for a token decide did not issue", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     const decision = pending(permdock.decide(permissions.post.delete, ownPost));
     const approved = (token: string): ApprovalRequest => ({
       v: 1,
@@ -130,7 +130,7 @@ describe("invariant 15: the Cloud is optional and never on the decision path", (
 
   it("recomputes the token when the row changes before resume", async () => {
     const store = memoryApprovalStore();
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     const first = pending(permdock.decide(permissions.post.delete, ownPost));
     const changed = pending(
       permdock.decide(permissions.post.delete, { ...ownPost, id: "p7" }),
@@ -150,7 +150,7 @@ describe("invariant 15: the Cloud is optional and never on the decision path", (
 
   it("a Cloud wake ends the wait but never grants", async () => {
     const store = memoryApprovalStore();
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     const decision = pending(permdock.decide(permissions.post.delete, ownPost));
     const resolved = toCloudEvent(
       {
@@ -203,7 +203,7 @@ describe("invariant 15: the Cloud is optional and never on the decision path", (
     const names = Object.keys(cloudEntry);
     expect(
       names.filter((name) =>
-        /^(subjectFrom|membership|decide|can$|createPermDock)/iu.test(name),
+        /^(subjectFrom|membership|decide|can$|getPermDockSync)/iu.test(name),
       ),
     ).toEqual([]);
   });

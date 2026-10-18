@@ -17,7 +17,7 @@ import {
 } from "../../src/cli/importers/casbin.ts";
 import { importCasl, runCaslImport } from "../../src/cli/importers/casl.ts";
 import { run } from "../../src/cli/run.ts";
-import { createPermDock } from "../../src/index.ts";
+import { getPermDockSync } from "../../src/index.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
@@ -140,7 +140,7 @@ describe("casl import", () => {
     expect(result.output).toContain("casl import: wrote 3 role(s)");
     const { permissions, policy } = await load(path.join(cwd, "src/policy.ts"));
     const post = permissions["post"] ?? {};
-    const editor = createPermDock(policy, { id: "u1", roles: ["editor"] });
+    const editor = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
     const own = {
       id: "p1",
       authorId: "u1",
@@ -158,9 +158,9 @@ describe("casl import", () => {
       editor.can(leaf(post, "delete"), locked),
       editor.can(leaf(post, "delete"), draft),
     ]).toEqual([true, true, true, false, true, false, false]);
-    const guest = createPermDock(policy, { id: "u3", roles: ["guest"] });
+    const guest = getPermDockSync(policy, { id: "u3", roles: ["guest"] });
     expect(guest.can(leaf(post, "read"), own)).toBe(false);
-    const admin = createPermDock(policy, { id: "u4", roles: ["admin"] });
+    const admin = getPermDockSync(policy, { id: "u4", roles: ["admin"] });
     expect(admin.can(leaf(post, "delete"), locked)).toBe(true);
   });
 
@@ -251,8 +251,8 @@ g, bob, viewer
       path.join(cwd, "src/policy.ts"),
     );
     const report = permissions["report"] ?? {};
-    const editor = createPermDock(policy, { id: "alice", roles: ["editor"] });
-    const viewer = createPermDock(policy, { id: "bob", roles: ["viewer"] });
+    const editor = getPermDockSync(policy, { id: "alice", roles: ["editor"] });
+    const viewer = getPermDockSync(policy, { id: "bob", roles: ["viewer"] });
     const row = { id: "r1" };
     expect([
       editor.can(leaf(report, "read"), row),
@@ -419,7 +419,7 @@ describe("casl conditions and rule shapes", () => {
       skipped: [],
     });
     const { permissions, policy } = await load(path.join(cwd, "policy.ts"));
-    const clerk = createPermDock(policy, { id: "u1", roles: ["clerk"] });
+    const clerk = getPermDockSync(policy, { id: "u1", roles: ["clerk"] });
     const invoice = permissions["invoice"] ?? {};
     expect(
       clerk.can(leaf(invoice, "read"), {

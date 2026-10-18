@@ -9,7 +9,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { createPermDock, remotePdp } from "../../src/pdp/index.ts";
+import { getPermDockSync, remotePdp } from "../../src/pdp/index.ts";
 import { fakeFetch, json } from "../fakes/fetch.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 
@@ -614,7 +614,7 @@ describe("remotePdp permitted", () => {
   });
 });
 
-describe("remotePdp through createPermDock", () => {
+describe("remotePdp through getPermDockSync", () => {
   it("denies a delegated permission when the PDP is down", async () => {
     const policy = definePolicy(permissions, {
       roles: [role("member", [allow(permissions.post.read)])],
@@ -631,7 +631,7 @@ describe("remotePdp through createPermDock", () => {
         }),
       ],
     });
-    const permdock = createPermDock(policy, { id: "u1" });
+    const permdock = getPermDockSync(policy, { id: "u1" });
     expect(
       reasonOf(await permdock.decide(permissions.post.read, { id: "p1" })),
     ).toBe("pdp-unavailable");

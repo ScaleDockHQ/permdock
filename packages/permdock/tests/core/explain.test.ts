@@ -4,7 +4,7 @@ import { z } from "zod";
 import {
   allow,
   breakGlass,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   deny,
@@ -41,7 +41,7 @@ const policy = definePolicy(permissions, {
 
 describe("explain", () => {
   it("names the deny that won and the allows it overrode", async () => {
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "u1",
       roles: ["editor"],
     });
@@ -62,7 +62,7 @@ describe("explain", () => {
   });
 
   it("lists every matching allow on a grant", async () => {
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "u1",
       roles: ["editor", "viewer"],
     });
@@ -80,7 +80,7 @@ describe("explain", () => {
   });
 
   it("records a grant whose role the subject does not hold", async () => {
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "u1",
       roles: ["viewer"],
     });
@@ -98,7 +98,7 @@ describe("explain", () => {
   });
 
   it("records why a grant was passed over", async () => {
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "u1",
       roles: ["auditor"],
     });
@@ -124,7 +124,7 @@ describe("explain", () => {
 
   it("attaches no trace to a plain decide and never emits one", async () => {
     const sink = memoryDecisionSink();
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       { id: "u1", roles: ["editor"] },
       { sink },
@@ -156,7 +156,7 @@ describe("explain", () => {
       subject,
     });
     // SAFETY: a ready Subject built by hand: break-glass engages on context.purpose.
-    const permdock = createPermDock(withOverride, {
+    const permdock = getPermDockSync(withOverride, {
       principal: { id: "u1", roles: ["editor"] },
       context: { purpose: ["incident"] },
     } as Subject);
@@ -167,7 +167,7 @@ describe("explain", () => {
   });
 
   it("explains a snapshot client the same way", async () => {
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       id: "u1",
       roles: ["editor"],
     });

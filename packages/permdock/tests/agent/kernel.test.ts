@@ -5,7 +5,7 @@ import { memoryApprovalStore } from "../../src/approvals/index.ts";
 import {
   allow,
   anyone,
-  createPermDock,
+  getPermDockSync,
   definePolicy,
   deny,
   role,
@@ -291,7 +291,7 @@ describe("createAgentKernel", () => {
   });
 
   it("hides tools outside the delegated scopes", async () => {
-    const delegated = createPermDock(policy, memberUser, {
+    const delegated = getPermDockSync(policy, memberUser, {
       delegation: { scopes: ["post:list"] },
     });
     expect(delegated.mayUse(permissions.post.list)).toBe(true);

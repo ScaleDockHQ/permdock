@@ -7,7 +7,7 @@ import { memoryAccessReviewStore } from "../../src/approvals/index.ts";
 import { accessReviewApplier } from "../../src/better-supabase/index.ts";
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   holder,
@@ -313,7 +313,7 @@ describe("accessReviewApplier", () => {
       reviews,
       policy,
       permdockFor: (id, tenant) =>
-        createPermDock(policy, {
+        getPermDockSync(policy, {
           principal: {
             id,
             tenant,
@@ -361,7 +361,7 @@ describe("accessReviewApplier", () => {
       reviews,
       policy,
       permdockFor: (id, tenant) =>
-        createPermDock(behindApproval, {
+        getPermDockSync(behindApproval, {
           principal: {
             id,
             tenant,
@@ -419,7 +419,7 @@ describe("accessReviewApplier", () => {
       reviews,
       policy,
       permdockFor: (id) =>
-        createPermDock(policy, { principal: { id }, context: {} }),
+        getPermDockSync(policy, { principal: { id }, context: {} }),
     })("r1");
     expect(result.failed).toEqual([
       {

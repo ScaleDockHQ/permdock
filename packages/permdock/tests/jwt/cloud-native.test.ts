@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -103,7 +103,7 @@ describe("Cloud-native directory mode", () => {
       ],
       entitlements: ["pro"],
     });
-    const permdock = createPermDock(policy, await subjectOf(token));
+    const permdock = getPermDockSync(policy, await subjectOf(token));
     expect(permdock.can(permissions.doc.update, acmeDoc)).toBe(true);
     expect(permdock.can(permissions.report.export, acmeDoc)).toBe(true);
     expect(permdock.can(permissions.doc.update, globexDoc)).toBe(false);
@@ -114,7 +114,7 @@ describe("Cloud-native directory mode", () => {
       tenant: "o_acme",
       memberships: [{ tenant: "o_acme", roles: ["superadmin"] }],
     });
-    const permdock = createPermDock(policy, await subjectOf(token));
+    const permdock = getPermDockSync(policy, await subjectOf(token));
     expect(permdock.can(permissions.doc.read, acmeDoc)).toBe(false);
   });
 
@@ -123,7 +123,7 @@ describe("Cloud-native directory mode", () => {
       tenant: "o_initech",
       memberships: [{ tenant: "o_acme", roles: ["editor"] }],
     });
-    const permdock = createPermDock(policy, await subjectOf(token));
+    const permdock = getPermDockSync(policy, await subjectOf(token));
     expect(permdock.subject.principal?.tenant).toBeUndefined();
   });
 
@@ -137,7 +137,7 @@ describe("Cloud-native directory mode", () => {
     );
     const subject = await subjectOf(token);
     expect(subject.principal).toBeNull();
-    const permdock = createPermDock(policy, subject);
+    const permdock = getPermDockSync(policy, subject);
     expect(permdock.can(permissions.doc.read, acmeDoc)).toBe(false);
   });
 
@@ -149,7 +149,7 @@ describe("Cloud-native directory mode", () => {
         { scope: "tenant", id: "o_globex", roles: ["viewer"] },
       ],
     });
-    const permdock = createPermDock(policy, await subjectOf(token));
+    const permdock = getPermDockSync(policy, await subjectOf(token));
     expect(permdock.subject.principal?.tenant).toBe("o_acme");
     expect(permdock.can(permissions.doc.update, acmeDoc)).toBe(true);
     expect(permdock.can(permissions.doc.update, globexDoc)).toBe(false);

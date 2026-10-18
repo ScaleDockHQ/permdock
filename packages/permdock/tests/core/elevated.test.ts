@@ -6,7 +6,7 @@ import type { Principal, Subject } from "../../src/core/subject.ts";
 import { breakGlass, supportAccess } from "../../src/core/elevated.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { accessToOcsf, toOcsf } from "../../src/core/ocsf.ts";
-import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
+import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -37,10 +37,10 @@ const scopes = { organization: { key: "org_id" } } as const;
 function permdockFor(
   principal: Principal | null,
   context: Record<string, unknown> = {},
-  options?: Parameters<typeof createPermDock>[2],
+  options?: Parameters<typeof getPermDockSync>[2],
 ): PermDock {
-  // SAFETY: a ready Subject with no async sources, so createPermDock returns the instance.
-  return createPermDock(
+  // SAFETY: a ready Subject with no async sources, so getPermDockSync returns the instance.
+  return getPermDockSync(
     policy,
     { principal, context } as Subject,
     options,
@@ -395,14 +395,14 @@ describe("purpose of use", () => {
   });
 
   it("applies only when context.purpose overlaps", () => {
-    // SAFETY: a ready Subject with no async sources, so createPermDock returns the instance.
-    const instance = createPermDock(purposePolicy, {
+    // SAFETY: a ready Subject with no async sources, so getPermDockSync returns the instance.
+    const instance = getPermDockSync(purposePolicy, {
       principal: { id: "u1" },
       context: { purpose: ["treatment"] },
     }) as PermDock;
     expect(instance.can(purposePermissions.note.read, { id: "n1" })).toBe(true);
-    // SAFETY: a ready Subject with no async sources, so createPermDock returns the instance.
-    const none = createPermDock(purposePolicy, {
+    // SAFETY: a ready Subject with no async sources, so getPermDockSync returns the instance.
+    const none = getPermDockSync(purposePolicy, {
       principal: { id: "u1" },
       context: {},
     }) as PermDock;
@@ -450,7 +450,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   };
 
   it("refuses a within that differs from the eligible membership", async () => {
-    const permdock = createPermDock(nested(false), {
+    const permdock = getPermDockSync(nested(false), {
       principal,
       context: {},
     });
@@ -467,7 +467,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   });
 
   it("mints the eligible membership ancestors when within is omitted", async () => {
-    const permdock = createPermDock(nested(false), {
+    const permdock = getPermDockSync(nested(false), {
       principal,
       context: {},
     });
@@ -483,11 +483,11 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   });
 
   it("binds the approval token to the ancestors", async () => {
-    const root = createPermDock(nested(true), {
+    const root = getPermDockSync(nested(true), {
       principal,
       context: {},
     });
-    const other = createPermDock(nested(true), {
+    const other = getPermDockSync(nested(true), {
       principal: {
         ...principal,
         memberships: [

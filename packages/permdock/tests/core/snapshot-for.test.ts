@@ -2,7 +2,7 @@ import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import {
-  createPermDock,
+  getPermDockSync,
   fromSnapshot,
   mayAccess,
   parseSnapshot,
@@ -43,8 +43,8 @@ function assertJson(value: unknown, path = "$"): void {
 }
 
 describe("snapshotFor", () => {
-  it("matches createPermDock().snapshot() for the same subject", async () => {
-    const permdock = createPermDock(policy, alice, { tenant: "acme" });
+  it("matches getPermDockSync().snapshot() for the same subject", async () => {
+    const permdock = getPermDockSync(policy, alice, { tenant: "acme" });
     // SAFETY: the instance has no signer, so snapshot() returned an unsigned Snapshot.
     const expected = permdock.snapshot() as { readonly issuedAt: string };
     const actual = snapshotFor(policy, alice, {

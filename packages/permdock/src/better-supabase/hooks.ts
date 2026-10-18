@@ -22,7 +22,7 @@ import { asApprover } from "../core/approval-normalize.ts";
 import { flattenApprovers } from "../core/approvers.ts";
 import { isRecord } from "../core/compact.ts";
 import { scopesReaching } from "../core/oauth-scopes.ts";
-import { loadPermDock } from "../core/permdock.ts";
+import { getPermDock } from "../core/permdock.ts";
 import {
   findPermission,
   listPermissions,
@@ -152,7 +152,7 @@ export function authorizationHooks(
       options.subject,
     );
     if (subject.principal === null) return null;
-    const permdock = await loadPermDock(policy, subject, {
+    const permdock = await getPermDock(policy, subject, {
       ...options.options,
       ...(tenant === null || tenant === undefined ? {} : { tenant }),
     });

@@ -6,7 +6,7 @@ import type { AuthEvent } from "../../src/core/event-types.ts";
 import {
   type ClientNames,
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   defineRoles,
@@ -284,7 +284,7 @@ describe("subjectFromSupabase", () => {
     const permdock = async (
       claims: Record<string, unknown>,
     ): Promise<boolean> =>
-      createPermDock(policy, subjectFromSupabase(claims)).can(
+      getPermDockSync(policy, subjectFromSupabase(claims)).can(
         permissions.invoice.read,
       );
     expect(await permdock(base)).toBe(true);
@@ -402,7 +402,7 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
       roles: [role("member", grants)],
       subject: (user: { readonly id: string }) => user,
     });
-    const decision = createPermDock(policy, subject).decide(
+    const decision = getPermDockSync(policy, subject).decide(
       permissions.invoice.read,
       invoice,
     );
@@ -424,15 +424,15 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
         },
       ],
     });
-    const permdock = createPermDock(policy, subjectFromSupabase(claims));
+    const permdock = getPermDockSync(policy, subjectFromSupabase(claims));
     expect(permdock.can(permissions.invoice.read, invoice)).toBe(true);
     expect(permdock.can(permissions.invoice.pay, invoice)).toBe(false);
-    const other = createPermDock(
+    const other = getPermDockSync(
       policy,
       subjectFromSupabase({ ...claims, client_id: "third-party" }),
     );
     expect(other.can(permissions.invoice.read, invoice)).toBe(false);
-    const scoped = createPermDock(
+    const scoped = getPermDockSync(
       policy,
       subjectFromSupabase({ ...claims, scope: "openid invoice.pay" }),
     );
@@ -452,7 +452,7 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
       ],
     });
     const decide = async (clientId: string, clients: ClientNames | undefined) =>
-      createPermDock(
+      getPermDockSync(
         named,
         subjectFromSupabase(
           { ...claims, client_id: clientId },

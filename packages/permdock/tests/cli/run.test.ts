@@ -257,11 +257,11 @@ describe("run", () => {
     const cwd = appCopy();
     writeFileSync(
       join(cwd, "src/layout.ts"),
-      `import { createPermDock } from 'permdock';
+      `import { getPermDockSync } from 'permdock';
 import { permissions } from './permissions.ts';
 import { policy } from './policy.ts';
 
-export const snapshot = createPermDock(policy, { subject: null }).snapshot({
+export const snapshot = getPermDockSync(policy, { subject: null }).snapshot({
   include: [permissions.post.read, permissions.post.update],
 });
 `,

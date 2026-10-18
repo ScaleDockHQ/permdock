@@ -12,7 +12,7 @@ import {
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -35,15 +35,15 @@ const at = (seconds: number): Instant => ({
 });
 
 async function permdockFor(
-  user: Parameters<typeof createPermDock>[1],
-  options?: Parameters<typeof createPermDock>[2],
+  user: Parameters<typeof getPermDockSync>[1],
+  options?: Parameters<typeof getPermDockSync>[2],
 ) {
-  return createPermDock(policy, user, options);
+  return getPermDockSync(policy, user, options);
 }
 
-describe("createPermDock", () => {
+describe("getPermDockSync", () => {
   it("is synchronous for the quick-start policy", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     expect(permdock).not.toBeInstanceOf(Promise);
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(permdock.can(permissions.post.create)).toBe(true);
@@ -99,7 +99,7 @@ describe("createPermDock", () => {
       ],
       subject: () => ({ id: "u_1", roles: ["clerk"] }),
     });
-    const permdock = createPermDock(payPolicy, { id: "u_1" });
+    const permdock = getPermDockSync(payPolicy, { id: "u_1" });
     const decision = permdock.decide(filing.filing.pay, undefined);
     expect(decision.outcome).toBe("approval-required");
     if (decision.outcome === "approval-required") {
@@ -203,7 +203,7 @@ describe("createPermDock", () => {
   });
 
   it("intersects GNAP access with principal grants", async () => {
-    const covered = createPermDock(policy, {
+    const covered = getPermDockSync(policy, {
       principal: { id: "u1", roles: ["admin"] },
       context: {},
       delegation: {
@@ -231,14 +231,14 @@ describe("createPermDock", () => {
     if (other.outcome === "denied") {
       expect(other.denials[0]?.reason).toBe("not-delegated");
     }
-    const stringRef = createPermDock(policy, {
+    const stringRef = getPermDockSync(policy, {
       principal: { id: "u1", roles: ["admin"] },
       context: {},
       delegation: { access: ["post:read"] },
     });
     expect(stringRef.can(permissions.post.read, ownPost)).toBe(true);
     expect(stringRef.can(permissions.post.publish, ownPost)).toBe(false);
-    const emptyAccess = createPermDock(policy, {
+    const emptyAccess = getPermDockSync(policy, {
       principal: { id: "u1", roles: ["admin"] },
       context: {},
       delegation: { access: [] },
@@ -251,7 +251,7 @@ describe("createPermDock", () => {
   });
 
   it("intersects delegation scopes", async () => {
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       principal: { id: "u1", roles: ["admin"] },
       context: {},
       delegation: { scopes: ["post:read"] },
@@ -267,7 +267,7 @@ describe("createPermDock", () => {
   it("denies an actor that arrives with no delegation", async () => {
     const agent = { id: "agent-1", kind: "ai-sdk" };
     for (const delegation of [undefined, {}]) {
-      const permdock = createPermDock(policy, {
+      const permdock = getPermDockSync(policy, {
         principal: { id: "u1", roles: ["admin"] },
         context: {},
         actor: agent,
@@ -286,7 +286,7 @@ describe("createPermDock", () => {
         ),
       ).toBe(false);
     }
-    const human = createPermDock(policy, {
+    const human = getPermDockSync(policy, {
       principal: { id: "u1", roles: ["admin"] },
       context: {},
     });
@@ -294,7 +294,7 @@ describe("createPermDock", () => {
   });
 
   it("binds an authorization details identifier to one resource", async () => {
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       principal: { id: "u1", roles: ["admin"] },
       context: {},
       delegation: {
@@ -328,7 +328,7 @@ describe("createPermDock", () => {
       ],
       subject: () => ({ id: "u1", roles: ["member"] }),
     });
-    const permdock = createPermDock(closurePolicy, memberUser);
+    const permdock = getPermDockSync(closurePolicy, memberUser);
     const errors: unknown[] = [];
     permdock.on("error", (error) => {
       errors.push(error);
@@ -350,7 +350,7 @@ describe("createPermDock", () => {
       ],
       subject: () => ({ id: "u1", roles: ["member"] }),
     });
-    const permdock = createPermDock(checked, memberUser);
+    const permdock = getPermDockSync(checked, memberUser);
     expect(permdock.can(permissions.post.create)).toBe(false);
     expect(
       permdock.can(permissions.post.create, { ...ownPost, authorId: "u1" }),
@@ -358,7 +358,7 @@ describe("createPermDock", () => {
   });
 
   it("bounds custom roles by the tenant ceiling", async () => {
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       {
         id: "u4",
@@ -372,7 +372,7 @@ describe("createPermDock", () => {
       },
     );
     expect(permdock.can(permissions.post.read, ownPost)).toBe(false);
-    const withMembership = createPermDock(
+    const withMembership = getPermDockSync(
       policy,
       {
         principal: {
@@ -420,7 +420,7 @@ describe("createPermDock", () => {
       ],
       subject: () => ({ id: "u1", roles: ["member"] }),
     });
-    const permdock = createPermDock(opaquePolicy, memberUser);
+    const permdock = getPermDockSync(opaquePolicy, memberUser);
     const decision = permdock.decide(permissions.post.read, ownPost);
     expect(decision.outcome).toBe("denied");
     if (decision.outcome === "denied") {
@@ -443,7 +443,7 @@ describe("createPermDock", () => {
       subject: (user: { readonly id: string } | null) =>
         user === null ? null : { id: user.id, roles: ["member"] },
     });
-    const permdock = createPermDock(fnPolicy, memberUser);
+    const permdock = getPermDockSync(fnPolicy, memberUser);
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(permdock.can(permissions.post.read, otherPost)).toBe(false);
     const snapshot = permdock.snapshot();
@@ -476,7 +476,7 @@ describe("createPermDock", () => {
         memberships: [{ tenant: "o1", roles: ["viewer"] }],
       }),
     });
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       scopedPolicy,
       { id: "u1" },
       { tenant: "o1" },
@@ -526,7 +526,7 @@ describe("decide alternatives", () => {
               ],
             },
     });
-    const permdock = createPermDock(tenancyPolicy, {
+    const permdock = getPermDockSync(tenancyPolicy, {
       id: "u1",
       tenant: "T",
     });

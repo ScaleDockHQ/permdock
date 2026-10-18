@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -208,7 +208,7 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
           memberships: "memberships",
         },
       }).principal;
-      const permdock = await loadPermDock(policy, principal);
+      const permdock = await getPermDock(policy, principal);
       for (const [permission, table] of [
         [permissions.quote.read, "quote"],
         [permissions.invoice.read, "invoice"],

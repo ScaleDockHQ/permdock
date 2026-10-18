@@ -4,7 +4,7 @@ import type { MembershipSource } from "../../src/core/interfaces.ts";
 
 import {
   countHolders,
-  createPermDock,
+  getPermDockSync,
   decideRoleChange,
 } from "../../src/index.ts";
 import { policy } from "../fixtures/named-scopes.ts";
@@ -55,7 +55,7 @@ describe("countHolders", () => {
       id: "T",
       role: "owner",
     });
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       principal: {
         id: "u1",
         memberships: [

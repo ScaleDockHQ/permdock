@@ -7,7 +7,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import {
-  loadPermDock as loadPdpPermDock,
+  getPermDock as loadPdpPermDock,
   remotePdp,
 } from "../../src/pdp/index.ts";
 import { createPermDock } from "../../src/server/index.ts";

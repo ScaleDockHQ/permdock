@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import { createPermDock } from "../../src/index.ts";
+import { getPermDockSync } from "../../src/index.ts";
 import {
   adminUser,
   memberUser,
@@ -51,23 +51,23 @@ function moduleState(file: string): string[] {
 
 describe("invariant 7: immutable, request-scoped instances", () => {
   it("freezes the instance and its subject", async () => {
-    const permdock = createPermDock(policy, memberUser);
+    const permdock = getPermDockSync(policy, memberUser);
     expect(Object.isFrozen(permdock)).toBe(true);
     expect(Object.isFrozen(permdock.subject)).toBe(true);
     expect(Object.isFrozen(permdock.subject.principal)).toBe(true);
   });
 
   it("keeps two instances apart", async () => {
-    const member = createPermDock(policy, memberUser);
-    const admin = createPermDock(policy, adminUser);
+    const member = getPermDockSync(policy, memberUser);
+    const admin = getPermDockSync(policy, adminUser);
     expect(member.can(permissions.post.update, otherPost)).toBe(false);
     expect(admin.can(permissions.post.update, otherPost)).toBe(true);
     expect(member.can(permissions.post.update, otherPost)).toBe(false);
   });
 
   it("delivers events only to the instance they were registered on", async () => {
-    const member = createPermDock(policy, memberUser);
-    const admin = createPermDock(policy, adminUser);
+    const member = getPermDockSync(policy, memberUser);
+    const admin = getPermDockSync(policy, adminUser);
     const onMember = vi.fn<(payload: unknown) => void>();
     const onAdmin = vi.fn<(payload: unknown) => void>();
     member.on("decision", onMember);
@@ -79,7 +79,7 @@ describe("invariant 7: immutable, request-scoped instances", () => {
 
   it("does not let a caller mutate the user it was built from", async () => {
     const user = { id: "u1", orgId: "o1", roles: ["member"] };
-    const permdock = createPermDock(policy, user);
+    const permdock = getPermDockSync(policy, user);
     user.roles.push("admin");
     expect(permdock.can(permissions.post.publish, otherPost)).toBe(false);
   });

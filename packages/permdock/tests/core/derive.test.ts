@@ -5,9 +5,9 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
 import {
-  createPermDock,
+  getPermDockSync,
   fromSnapshot,
-  loadPermDock,
+  getPermDock,
 } from "../../src/core/permdock.ts";
 import { permissions, policy, rows } from "../fixtures/expenses.ts";
 import {
@@ -29,7 +29,7 @@ const alice: Subject = {
 
 describe("permdock.derive", () => {
   it("adds approval policies and keeps the subject and tenant", async () => {
-    const permdock = createPermDock(policy, alice);
+    const permdock = getPermDockSync(policy, alice);
     expect(permdock.decide(permissions.expense.read, large).outcome).toBe(
       "granted",
     );
@@ -69,7 +69,7 @@ describe("permdock.derive", () => {
         return mechanic.filter((role) => role.tenant === tenant);
       },
     };
-    const permdock = createPermDock(scopedPolicy, subject);
+    const permdock = getPermDockSync(scopedPolicy, subject);
     const asset = { id: "a", organization_id: "T", customer_id: "c" };
     expect(permdock.tenant("T").can(scoped.asset.read, asset)).toBe(false);
     const derived = await permdock.tenant("T").derive({ customRoles: source });
@@ -80,7 +80,7 @@ describe("permdock.derive", () => {
   });
 
   it("returns a promise for an async source and keeps loaded roles otherwise", async () => {
-    const permdock = await loadPermDock(
+    const permdock = await getPermDock(
       scopedPolicy,
       {
         principal: {
@@ -111,7 +111,7 @@ describe("permdock.derive", () => {
 
 describe("derive on other instances", () => {
   it("returns a snapshot instance itself", async () => {
-    const permdock = createPermDock(policy, alice);
+    const permdock = getPermDockSync(policy, alice);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
@@ -124,7 +124,7 @@ describe("derive on other instances", () => {
 
   it("reads no custom roles from a source whose promise rejects", async () => {
     const events: unknown[] = [];
-    const permdock = createPermDock(scopedPolicy, {
+    const permdock = getPermDockSync(scopedPolicy, {
       principal: {
         id: "u1",
         memberships: [

@@ -5,7 +5,7 @@ import type { LimitStore } from "../../src/core/interfaces.ts";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { limits, memoryLimitStore } from "../../src/core/limits.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -33,7 +33,7 @@ const policy = definePolicy(permissions, {
 });
 
 function member(counter: LimitStore) {
-  return createPermDock(
+  return getPermDockSync(
     policy,
     { id: "u1", roles: ["member"] },
     { limits: limits(counter) },

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   membershipEvent,
@@ -25,7 +25,7 @@ const policy = definePolicy(permissions, {
 describe("x on sink events", () => {
   it("carries DecideOptions.x to the decision event and drops a value that is not plain JSON", () => {
     const events: unknown[] = [];
-    const permdock = createPermDock(policy, { id: "u1", roles: ["viewer"] });
+    const permdock = getPermDockSync(policy, { id: "u1", roles: ["viewer"] });
     permdock.on("decision", (event) => {
       events.push(event);
     });

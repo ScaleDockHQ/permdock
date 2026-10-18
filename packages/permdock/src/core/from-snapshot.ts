@@ -306,7 +306,7 @@ export function fromSnapshot(
       }
       return out;
     },
-    loadRelations() {
+    prefetchRelations() {
       // A snapshot carries no graph: graph grants go to the decision endpoint.
       return Promise.resolve();
     },

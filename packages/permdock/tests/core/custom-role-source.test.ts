@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CustomRole } from "../../src/index.ts";
 
 import { customRoleSource } from "../../src/core/custom-role-source.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { testCustomRoleSource } from "../../src/testing/conformance/identity.ts";
 import { customRoles, personas, policy } from "../fixtures/named-scopes.ts";
 
@@ -56,7 +56,7 @@ describe("customRoleSource", () => {
   });
 
   it("lets assignableRoles see a custom role nobody holds", async () => {
-    const admin = createPermDock(policy, personas.admin, {
+    const admin = getPermDockSync(policy, personas.admin, {
       customRoles: customRoleSource(reader()),
     });
     expect(admin.assignableRoles().map((leaf) => leaf.key)).toContain(
@@ -67,14 +67,14 @@ describe("customRoleSource", () => {
   it("skips the read with read 'held' while every held role is declared", async () => {
     const reads: string[] = [];
     const source = customRoleSource(reader(reads), { read: "held", policy });
-    const admin = createPermDock(policy, personas.admin, {
+    const admin = getPermDockSync(policy, personas.admin, {
       customRoles: source,
     });
     expect(reads).toEqual([]);
     expect(admin.assignableRoles().map((leaf) => leaf.key)).not.toContain(
       "mechanic",
     );
-    createPermDock(policy, personas.mechanic, { customRoles: source });
+    getPermDockSync(policy, personas.mechanic, { customRoles: source });
     expect(reads).toEqual(["T"]);
   });
 
@@ -91,19 +91,19 @@ describe("customRoleSource", () => {
       },
       { read: "held", policy },
     );
-    createPermDock(
+    getPermDockSync(
       policy,
       { principal: { id: "p1", roles: ["platform-admin"] }, context: {} },
       { customRoles: source },
     );
     expect(reads).toEqual([]);
-    createPermDock(
+    getPermDockSync(
       policy,
       { principal: { id: "p2", roles: ["auditor"] }, context: {} },
       { customRoles: source },
     );
     expect(reads).toEqual(["global"]);
-    createPermDock(policy, null, { customRoles: source });
+    getPermDockSync(policy, null, { customRoles: source });
     expect(reads).toEqual(["global"]);
     expect(await source.globalRoles?.()).toEqual([platform]);
   });

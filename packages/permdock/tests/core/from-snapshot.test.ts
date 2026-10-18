@@ -7,7 +7,7 @@ import {
   PermDockDeniedError,
 } from "../../src/core/errors.ts";
 import { emptySnapshot, fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
@@ -29,7 +29,7 @@ import {
 
 describe("fromSnapshot", () => {
   it("answers the same portable checks as the server instance", async () => {
-    const server = createPermDock(policy, memberUser);
+    const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -50,7 +50,7 @@ describe("fromSnapshot", () => {
   });
 
   it("keeps deny-overrides-allow for admin publish", async () => {
-    const server = createPermDock(policy, adminUser);
+    const server = getPermDockSync(policy, adminUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -64,7 +64,7 @@ describe("fromSnapshot", () => {
   });
 
   it("fails closed for anonymous and unknown include", async () => {
-    const server = createPermDock(policy, null);
+    const server = getPermDockSync(policy, null);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -77,7 +77,7 @@ describe("fromSnapshot", () => {
   });
 
   it("treats portable false and include misses as server-only denials", async () => {
-    const server = createPermDock(policy, memberUser);
+    const server = getPermDockSync(policy, memberUser);
     const full = server.snapshot();
     if (full instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -111,7 +111,7 @@ describe("fromSnapshot", () => {
   });
 
   it("throws the same assert errors as the server", async () => {
-    const server = createPermDock(policy, memberUser);
+    const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -123,7 +123,7 @@ describe("fromSnapshot", () => {
   });
 
   it("exposes snapshot tenants and derived tenant instances", async () => {
-    const server = createPermDock(policy, memberUser);
+    const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");
@@ -140,7 +140,7 @@ describe("fromSnapshot", () => {
   });
 
   it("intersects GNAP access on the snapshot subject", async () => {
-    const server = createPermDock(policy, {
+    const server = getPermDockSync(policy, {
       principal: { id: "u1", roles: ["admin"] },
       context: {},
       delegation: {
@@ -346,7 +346,7 @@ describe("fromSnapshot instance surface", () => {
 
   it("answers server-only questions with closed, non-granting results", async () => {
     const client = fromSnapshot(docSnapshot());
-    await expect(client.loadRelations(docs.doc.read, [row])).resolves.toBe(
+    await expect(client.prefetchRelations(docs.doc.read, [row])).resolves.toBe(
       undefined,
     );
     await expect(whoCan(client, docs.doc.read, row)).resolves.toEqual({

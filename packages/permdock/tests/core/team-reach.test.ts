@@ -5,7 +5,7 @@ import type { Membership } from "../../src/core/subject.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -61,7 +61,7 @@ const otherOrg = { id: "j3", orgId: "globex", teamId: "t1" };
 
 describe("organisation role with team reach", () => {
   it("reaches the rows of the principal's teams inside the active tenant", async () => {
-    const permdock = createPermDock(policy, subject, { tenant: "acme" });
+    const permdock = getPermDockSync(policy, subject, { tenant: "acme" });
     const outcomes = [inTeam, otherTeam, otherOrg].map((row) => [
       permdock.decide(permissions.job.read, row).outcome,
       permdock.decide(permissions.job.update, row).outcome,
@@ -74,7 +74,7 @@ describe("organisation role with team reach", () => {
   });
 
   it("needs the organisation role as well as the team", async () => {
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policy,
       {
         principal: {
@@ -93,7 +93,7 @@ describe("organisation role with team reach", () => {
   });
 
   it("carries teamIds into the snapshot, so the client agrees", async () => {
-    const permdock = createPermDock(policy, subject, { tenant: "acme" });
+    const permdock = getPermDockSync(policy, subject, { tenant: "acme" });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");

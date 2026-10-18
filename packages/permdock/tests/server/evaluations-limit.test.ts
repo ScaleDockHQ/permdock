@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync as createCorePermDock } from "../../src/core/permdock.ts";
 import { evaluationsHandler } from "../../src/server/index.ts";
 import { memberUser, policy } from "../fixtures/quick-start.ts";
 

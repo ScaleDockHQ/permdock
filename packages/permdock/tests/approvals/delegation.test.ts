@@ -15,7 +15,7 @@ import {
 import { approverRelationKey } from "../../src/approvals/types.ts";
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   holder,
@@ -105,7 +105,7 @@ async function pending(
   readonly request: ApprovalRequest;
 }> {
   const store = memoryApprovalStore();
-  const permdock = createPermDock(policy, inTenant("cara", ["clerk"]));
+  const permdock = getPermDockSync(policy, inTenant("cara", ["clerk"]));
   const decision = permdock.decide(leaf, { id: "p1", orgId: "o1" });
   if (decision.outcome !== "approval-required") {
     throw new Error(`expected approval-required, got ${decision.outcome}`);
@@ -265,7 +265,7 @@ describe("approver delegation", () => {
 
   it("uses the delegator's holder and relation facts", async () => {
     const store = memoryApprovalStore();
-    const payer = createPermDock(policy, inTenant("cara", ["payer"]));
+    const payer = getPermDockSync(policy, inTenant("cara", ["payer"]));
     const held = payer.decide(permissions.payment.send, {
       id: "p1",
       orgId: "o1",
@@ -291,7 +291,7 @@ describe("approver delegation", () => {
       subject: () => inTenant("erin"),
       approvalDelegations: source,
       subjectFor: () => inTenant("dana", ["controller"]),
-      permdockFor: (approver) => createPermDock(policy, approver),
+      permdockFor: (approver) => getPermDockSync(policy, approver),
     });
     const response = await handler(
       new Request(

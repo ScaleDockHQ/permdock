@@ -5,7 +5,7 @@ import type { SupportSession } from "../../src/core/support-session.ts";
 
 import { assertApprover } from "../../src/approvals/store.ts";
 import { parseSinkEvent } from "../../src/core/parse-sink-events.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
@@ -111,7 +111,7 @@ describe("support session tokens", () => {
     const token = await signSupportSession(sessionFrom(), signer);
     const subject = await subjectFromSupportSession(token, options);
     const sink = memoryDecisionSink();
-    const viewing = createPermDock(policy, subject, { sink });
+    const viewing = getPermDockSync(policy, subject, { sink });
     viewing.can(permissions.invoice.read, invoice);
     viewing.can(permissions.invoice.delete, invoice);
     const events = sink.events();
@@ -126,7 +126,7 @@ describe("support session tokens", () => {
 
   it("leave decisions without a support actor unstamped", async () => {
     const sink = memoryDecisionSink();
-    const forged = createPermDock(
+    const forged = getPermDockSync(
       policy,
       userSubject("u_customer", ["owner"], {
         context: { supportSession: { id: "ss_1" } },

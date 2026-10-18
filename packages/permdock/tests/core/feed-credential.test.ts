@@ -9,7 +9,7 @@ import {
   parseCredential,
 } from "../../src/core/credential.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -102,7 +102,7 @@ describe("feed credentials", () => {
   });
 
   it("acts as a feed principal on one resource and cannot create a key or approve", async () => {
-    const permdock = createPermDock(policy, owner());
+    const permdock = getPermDockSync(policy, owner());
     const decision = await decideCredential(permdock, {
       id: "cal-feed",
       kind: "feed",
@@ -132,7 +132,7 @@ describe("feed credentials", () => {
     expect(subject.delegation?.authorizationDetails).toEqual([
       { type: "calendar", actions: ["read"], identifier: "cal_1" },
     ]);
-    const asFeed = createPermDock(policy, subject);
+    const asFeed = getPermDockSync(policy, subject);
     const minted = await decideCredential(asFeed, {
       id: "other-feed",
       kind: "feed",
@@ -183,7 +183,7 @@ describe("feed credentials", () => {
   });
 
   it("refuses a feed role the resource does not declare and a permission the creator lacks", async () => {
-    const permdock = createPermDock(policy, owner());
+    const permdock = getPermDockSync(policy, owner());
     const undeclared = await decideCredential(permdock, {
       id: "cal-feed",
       kind: "feed",
@@ -205,7 +205,7 @@ describe("feed credentials", () => {
       },
       context: {},
     };
-    const lacking = await decideCredential(createPermDock(policy, member), {
+    const lacking = await decideCredential(getPermDockSync(policy, member), {
       id: "cal-feed",
       kind: "feed",
       on: { resource: permissions.calendar, id: "cal_1" },

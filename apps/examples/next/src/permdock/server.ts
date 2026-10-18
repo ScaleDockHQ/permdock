@@ -9,6 +9,6 @@ export const {
   getPermDock,
   getPermission,
   getSnapshot,
-  requireAccess,
+  requirePermission,
   permdockHandler,
 } = createPermDock(policy, { subject: currentUser });

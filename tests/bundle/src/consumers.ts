@@ -9,7 +9,7 @@ import { gzipSync } from "node:zlib";
  * packages external), then gzipped.
  */
 const CONSUMERS = {
-  "core definePolicy + createPermDock": `import { createPermDock, definePermissions, definePolicy } from 'permdock'; export { createPermDock, definePermissions, definePolicy };`,
+  "core definePolicy + getPermDockSync": `import { getPermDockSync, definePermissions, definePolicy } from 'permdock'; export { getPermDockSync, definePermissions, definePolicy };`,
   "react PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react';`,
   "react-native PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react-native';`,
   "react-native PermDockProvider + localSnapshot": `export { PermDockProvider, localSnapshot, usePermission } from 'permdock/react-native';`,

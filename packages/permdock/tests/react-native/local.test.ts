@@ -9,7 +9,7 @@ import { allow, deny } from "../../src/core/grant-builders.ts";
 import { authenticated, relation } from "../../src/core/grantee.ts";
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -248,7 +248,7 @@ async function serverSnapshot(
   user: Principal,
   tenant: string | undefined,
 ): Promise<Snapshot> {
-  const server = createPermDock(
+  const server = getPermDockSync(
     policy,
     { ...user, claims },
     {
@@ -302,7 +302,7 @@ describe("localSnapshot", () => {
 
   it("answers an anonymous user like the server", async () => {
     const server = fromSnapshot(
-      parseSnapshot(JSON.stringify(createPermDock(policy, null).snapshot())),
+      parseSnapshot(JSON.stringify(getPermDockSync(policy, null).snapshot())),
     );
     const device = fromSnapshot(
       buildLocalSnapshot(manifest, { principal: null }),

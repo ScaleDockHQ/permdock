@@ -12,7 +12,7 @@ import {
   decideCredential,
   definePermissions,
   definePolicy,
-  loadPermDock,
+  getPermDock,
   resource,
   role,
 } from "permdock";
@@ -136,7 +136,7 @@ async function repos(): Promise<readonly { id: string; orgId: string }[]> {
 
 async function permdockFor(key: string, tenant = "o_1") {
   const subject = await resolveKey(key, { tenant });
-  return loadPermDock(
+  return getPermDock(
     policy,
     subject,
     subject.principal?.kind === "service" ? {} : { memberships, tenant },
@@ -144,7 +144,7 @@ async function permdockFor(key: string, tenant = "o_1") {
 }
 
 async function creator(id: string) {
-  return loadPermDock(
+  return getPermDock(
     policy,
     { principal: { id, kind: "user" }, context: {} },
     { memberships, tenant: "o_1" },

@@ -2,7 +2,7 @@
 "permdock": major
 ---
 
-Feature requests are free functions that take the instance first, so `createPermDock` no longer references their modules and an app that does not call them does not ship them. A plain `definePolicy` + `createPermDock` bundle drops from 54.3 KB to 46.7 KB gzip, and `permdock/react` from 21.8 KB to 19.4 KB (measured with esbuild, minified, tree-shaken).
+Feature requests are free functions that take the instance first, so `getPermDock` no longer references their modules and an app that does not call them does not ship them. A plain `definePolicy` + `getPermDock` bundle drops from 54.3 KB to 46.7 KB gzip, and `permdock/react` from 21.8 KB to 19.4 KB (measured with esbuild, minified, tree-shaken).
 
 | Before                                            | After                                              |
 | ------------------------------------------------- | -------------------------------------------------- |
@@ -18,9 +18,9 @@ All seven are exported from `permdock`. On an instance built from a snapshot the
 
 Hosted grants are an opt-in feature too: `policies` takes `hostedPolicies(source)` instead of a bare `PolicySource`, so the merge code ships only with apps that import it.
 
-| Before                                               | After                                                                |
-| ---------------------------------------------------- | -------------------------------------------------------------------- |
-| `createPermDock(policy, user, { policies: source })` | `createPermDock(policy, user, { policies: hostedPolicies(source) })` |
+| Before                                               | After                                                             |
+| ---------------------------------------------------- | ----------------------------------------------------------------- |
+| `createPermDock(policy, user, { policies: source })` | `getPermDock(policy, user, { policies: hostedPolicies(source) })` |
 
 Approval policies follow the same pattern: `approvalPolicies` takes `approvalPolicies(source)`. `memoryApprovalPolicySource([...])` already is that feature, so it needs no wrapper.
 

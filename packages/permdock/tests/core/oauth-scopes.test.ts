@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   fromSnapshot,
@@ -49,7 +49,7 @@ const user = { id: "u1" };
 const agent = { id: "client-1", kind: "oauth-client" };
 
 async function withScopes(scopes: readonly string[]) {
-  return createPermDock(policy, user, {
+  return getPermDockSync(policy, user, {
     actor: agent,
     delegation: { scopes },
   });

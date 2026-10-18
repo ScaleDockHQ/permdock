@@ -345,7 +345,7 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * over an async `RelationSource`. It never grants; a failed load leaves
    * the checks denied with `relation-unavailable`.
    */
-  readonly loadRelations: (
+  readonly prefetchRelations: (
     permission: Permission,
     rows: readonly unknown[],
   ) => Promise<void>;
@@ -451,7 +451,7 @@ function instantiate(
         principals: options.principals,
         settings: options.settings,
         targets: (principal: Principal, tenant: string | undefined) =>
-          loadPermDock(
+          getPermDock(
             codePolicy,
             { principal, context: {} },
             compact<PermDockOptions>({
@@ -505,9 +505,9 @@ function create<
  * The instance for `user`, built synchronously. Every input must answer
  * synchronously: the subject mapper, `memberships`, `customRoles`,
  * `entitlements`, `approvalPolicies` and the freshness check. One that
- * answers with a Promise throws here; use `loadPermDock` for those.
+ * answers with a Promise throws here; use `getPermDock` for those.
  */
-export function createPermDock<
+export function getPermDockSync<
   TUser,
   TPrincipal extends Principal = Principal,
   V extends PolicyVocabulary = PolicyVocabulary,
@@ -521,14 +521,14 @@ export function createPermDock<
     // The sources already ran; keep their failure from surfacing as an unhandled rejection.
     created.then(undefined, () => undefined);
     throw new Error(
-      "PermDock: createPermDock got a Promise from the subject mapper or a source (memberships, customRoles, entitlements, approvalPolicies); use loadPermDock for asynchronous inputs",
+      "PermDock: getPermDockSync got a Promise from the subject mapper or a source (memberships, customRoles, entitlements, approvalPolicies); use getPermDock for asynchronous inputs",
     );
   }
   return created;
 }
 
-/** `createPermDock` for inputs that answer asynchronously: waits for every source, then builds the instance. */
-export function loadPermDock<
+/** The instance for `user`: waits for every source, then builds it. `getPermDockSync` is the synchronous twin. */
+export function getPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
   V extends PolicyVocabulary = PolicyVocabulary,

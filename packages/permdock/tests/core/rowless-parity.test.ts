@@ -4,7 +4,7 @@ import type { Membership } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
+import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -96,7 +96,7 @@ async function both(
   if (subject === undefined) {
     throw new Error(`unknown subject ${name}`);
   }
-  const live = createPermDock(
+  const live = getPermDockSync(
     policy,
     {
       principal: {

@@ -4,7 +4,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { toolPolicy } from "../../src/better-supabase/index.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { type PermDock, createPermDock } from "../../src/core/permdock.ts";
+import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -28,7 +28,7 @@ const policy = definePolicy(
 );
 
 const dock = (): PermDock => {
-  const instance = createPermDock(policy, {
+  const instance = getPermDockSync(policy, {
     principal: { id: "u_1", kind: "user", roles: ["support"] },
     context: {},
   });

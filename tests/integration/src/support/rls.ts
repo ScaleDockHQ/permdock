@@ -127,13 +127,13 @@ export async function askAs(
  */
 export async function readableIds<T extends { readonly id: string }, P>(
   permdock: {
-    readonly loadRelations: (permission: P, rows: readonly T[]) => unknown;
+    readonly prefetchRelations: (permission: P, rows: readonly T[]) => unknown;
     readonly can: (permission: P, row: T) => boolean;
   },
   permission: P,
   rows: readonly T[],
 ): Promise<string[]> {
-  await permdock.loadRelations(permission, rows);
+  await permdock.prefetchRelations(permission, rows);
   return rows
     .filter((row) => permdock.can(permission, row))
     .map((row) => row.id)

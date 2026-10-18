@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -54,8 +54,8 @@ async function inProcess(
   sub: string,
   table: Table,
 ): Promise<readonly string[]> {
-  const permdock = await loadPermDock(graphPolicy, { id: sub }, { relations });
-  await permdock.loadRelations(reads[table], rows[table]);
+  const permdock = await getPermDock(graphPolicy, { id: sub }, { relations });
+  await permdock.prefetchRelations(reads[table], rows[table]);
   // SAFETY: rows[table] holds the seeded rows for the resource reads[table] checks
   return rows[table]
     .filter((row) => permdock.can(reads[table], row as never))

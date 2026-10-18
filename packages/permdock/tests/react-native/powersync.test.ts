@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PowerSyncWatchable } from "../../src/react-native/powersync.ts";
 
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { powerSyncSource } from "../../src/react-native/powersync.ts";
 import { memorySnapshotStorage } from "../../src/react-native/storage.ts";
 import { connectSource, nativeStore } from "../../src/react-native/store.ts";
@@ -105,7 +105,7 @@ describe("powerSyncSource", () => {
 
   it("answers like the server for the same rows", async () => {
     // SAFETY: the quick-start user fixture; only the policy generic is erased.
-    const server = createPermDock(policy as never, {
+    const server = getPermDockSync(policy as never, {
       id: "u1",
       orgId: "o1",
       roles: ["member"],

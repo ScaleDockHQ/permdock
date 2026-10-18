@@ -2,7 +2,7 @@ import { get } from "svelte/store";
 import { describe, expect, it } from "vitest";
 
 import { approvalHeaders } from "../../src/client/headers.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { createSvelteStore } from "../../src/svelte/context.ts";
 import { viewFor, scopedFor } from "../../src/svelte/protected.ts";
 import {
@@ -34,7 +34,7 @@ import {
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = createPermDock(policy as never, memberUser);
+  const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");
@@ -93,7 +93,7 @@ describe("permdock/svelte", () => {
   });
 
   it("decides <Protected> for another tenant through viewFor", async () => {
-    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");

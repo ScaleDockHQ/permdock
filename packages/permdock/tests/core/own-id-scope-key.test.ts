@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
 import { compileGrants } from "../../src/cli/sql/compile.ts";
-import { createPermDock, fromSnapshot } from "../../src/core/permdock.ts";
+import { getPermDockSync, fromSnapshot } from "../../src/core/permdock.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
@@ -58,7 +58,7 @@ const admin = {
 
 describe("a resource whose own id is the scope instance", () => {
   it("checks the row's id against the membership in process and in a snapshot", async () => {
-    const permdock = createPermDock(policy, admin);
+    const permdock = getPermDockSync(policy, admin);
     expect(permdock.can(permissions.organization.update, { id: "T" })).toBe(
       true,
     );

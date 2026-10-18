@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Delegation } from "../../src/core/subject.ts";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { mapClaimsToSubject } from "../../src/jwt/map-claims.ts";
 import {
   adminUser,
@@ -19,7 +19,7 @@ async function asAgent(
   delegation: Delegation | undefined,
   user: typeof memberUser = memberUser,
 ) {
-  return createPermDock(policy, user, {
+  return getPermDockSync(policy, user, {
     actor: agent,
     ...(delegation === undefined ? {} : { delegation }),
   });
@@ -62,7 +62,7 @@ describe("two-principal subject: decision = principal grants intersected with de
   });
 
   it("a subject with no actor is a human call and is not narrowed", async () => {
-    const human = createPermDock(policy, memberUser);
+    const human = getPermDockSync(policy, memberUser);
     expect(human.can(permissions.post.read, ownPost)).toBe(true);
   });
 });

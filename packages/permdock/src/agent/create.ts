@@ -211,7 +211,7 @@ export function agentRuntime<
       if (results.kind !== "instance") {
         return permdock.can(results, undefined) ? [...rows] : [];
       }
-      await permdock.loadRelations(results, rows);
+      await permdock.prefetchRelations(results, rows);
       return permdock.filter(results, rows, { adapter, call: "filter" });
     } catch {
       return [];

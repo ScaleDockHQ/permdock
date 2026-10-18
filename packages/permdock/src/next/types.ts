@@ -47,12 +47,7 @@ export type GetSnapshotQuery = GetPermDockQuery & {
   readonly tags?: readonly string[];
 };
 
-export type RequireAccessInput = {
-  readonly permission: Permission;
-  /** The row for an instance permission; omit it for a collection permission. */
-  readonly data?: unknown;
-  /** The active tenant, as for `getPermDock({ tenant })`; defaults to the factory's `tenant`. */
-  readonly tenant?: string;
+export type PermissionRequirementOptions = GetPermDockQuery & {
   /**
    * Runs before the default interrupts; throw or redirect to replace them.
    * Defaults to the factory's `onDenied`.
@@ -122,8 +117,10 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * subject and `forbidden()` otherwise (`experimental.authInterrupts`);
    * approval-required and boundary validation throw as from `assert`.
    */
-  readonly requireAccess: (
-    input: RequireAccessInput,
+  readonly requirePermission: (
+    permission: Permission,
+    data?: unknown,
+    options?: PermissionRequirementOptions,
   ) => Promise<Extract<Decision, { readonly outcome: "granted" }>>;
   /** Never awaits: passes an unawaited snapshot to the client provider, whose hooks suspend. */
   readonly PermDockProvider: (props: NextPermDockProviderProps) => ReactElement;

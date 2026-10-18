@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { policy, tree } from "../fixtures/org-tree.ts";
 
 describe("snapshot edges", () => {
   it("snapshots tenant, team and resource grants and an anonymous subject", async () => {
-    const scopedSnap = createPermDock(
+    const scopedSnap = getPermDockSync(
       definePolicy(tree, {
         roles: [role("viewer", [allow(tree.post.read)], { on: "tenant" })],
         scopes: { tenant: { key: "orgId" } },
@@ -28,7 +28,7 @@ describe("snapshot edges", () => {
       throw new Error("json");
     }
     expect(snap.grants.some((grant) => grant.scope === "tenant")).toBe(true);
-    const anonymousSnap = createPermDock(policy, null).snapshot();
+    const anonymousSnap = getPermDockSync(policy, null).snapshot();
     if (anonymousSnap instanceof Promise) {
       throw new Error("json");
     }
@@ -49,7 +49,7 @@ describe("snapshot edges", () => {
         memberships: [{ tenant: "o1", team: "t1", roles: ["lead"] }],
       }),
     });
-    const teamPermdock = createPermDock(
+    const teamPermdock = getPermDockSync(
       teamPolicy,
       { id: "u1" },
       { tenant: "o1" },
@@ -60,7 +60,7 @@ describe("snapshot edges", () => {
     }
     expect(teamSnap.grants.some((grant) => grant.scope === "team")).toBe(true);
     expect(teamPermdock.snapshot({ include: [] })).toBeDefined();
-    const resourceSnap = createPermDock(
+    const resourceSnap = getPermDockSync(
       definePolicy(tree, {
         roles: [role("owner", [allow(tree.post.read)], { on: tree.post })],
         subject: () => ({

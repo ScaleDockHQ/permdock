@@ -1,6 +1,6 @@
 import type { EmailTransport, Recipient } from "permdock/delivery";
 
-import { createPermDock, memoryDecisionSink, whoCan } from "permdock";
+import { getPermDockSync, memoryDecisionSink, whoCan } from "permdock";
 import { memoryApprovalStore, requestApproval } from "permdock/approvals";
 import {
   approvalPrompt,
@@ -37,7 +37,7 @@ function toRecipient(principal: string): Recipient {
   return { principal, channel: "email", address: emails[principal] ?? "" };
 }
 
-const sender = createPermDock(policy, userById("u_billing"), {
+const sender = getPermDockSync(policy, userById("u_billing"), {
   memberships,
   principals,
 });

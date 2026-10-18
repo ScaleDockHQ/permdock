@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { sameId } from "../../src/core/ids.ts";
-import { createPermDock, fromSnapshot } from "../../src/core/permdock.ts";
+import { getPermDockSync, fromSnapshot } from "../../src/core/permdock.ts";
 import { normalizeMembership, scopeList } from "../../src/core/scopes.ts";
 import { permissions, policy } from "../fixtures/named-scopes.ts";
 
@@ -24,7 +24,7 @@ const contact = {
 
 describe("numeric scope ids", () => {
   it("matches a bigint key a client read as a number against the membership's text id", async () => {
-    const permdock = createPermDock(policy, contact);
+    const permdock = getPermDockSync(policy, contact);
     const asset = { id: "a", organization_id: "T", customer_id: 42 };
     expect(permdock.can(permissions.asset.read, asset, { trusted: true })).toBe(
       true,

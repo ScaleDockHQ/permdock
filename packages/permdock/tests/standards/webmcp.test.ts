@@ -7,7 +7,7 @@ import type {
 } from "../../src/webmcp/types.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { registerTools } from "../../src/webmcp/register.ts";
 import {
   adminUser,
@@ -20,7 +20,7 @@ import {
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/u;
 
 async function clientOf(user: User): Promise<WebMcpPermDock> {
-  const server = createPermDock(policy, user);
+  const server = getPermDockSync(policy, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise || typeof snapshot === "string") {
     throw new Error("expected JSON snapshot");
@@ -186,7 +186,7 @@ describe("WebMCP: agent-supplied arguments are untrusted", () => {
   });
 
   it("a simulated snapshot exposes no tools at all", async () => {
-    const server = createPermDock(policy, adminUser);
+    const server = getPermDockSync(policy, adminUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise || typeof snapshot === "string") {
       throw new Error("expected JSON snapshot");

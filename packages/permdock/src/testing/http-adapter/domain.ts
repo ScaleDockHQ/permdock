@@ -8,7 +8,7 @@ import {
   type CustomRoleSource,
   type Limits,
   limits,
-  loadPermDock,
+  getPermDock,
   memoryCustomRoleSource,
   memoryLimitStore,
   memoryRevocationFeed,
@@ -278,7 +278,7 @@ export async function approverSubject(
   user: string,
   tenant: string,
 ): Promise<Subject> {
-  const permdock = await loadPermDock(saasPolicy, saasPrincipal(user, tenant), {
+  const permdock = await getPermDock(saasPolicy, saasPrincipal(user, tenant), {
     tenant,
   });
   return permdock.subject;

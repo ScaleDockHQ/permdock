@@ -15,7 +15,7 @@ import type {
   NextPermDock,
   NextPermDockOptions,
   NextSubjectInput,
-  RequireAccessInput,
+  PermissionRequirementOptions,
   ServerPermissionState,
   NextPermDockProviderProps,
 } from "./types.ts";
@@ -222,11 +222,15 @@ export function createPermDock<
     return snapshot;
   };
 
-  const requireAccess = async (
-    input: RequireAccessInput,
+  const requirePermission = async (
+    permission: Permission,
+    data?: unknown,
+    requirement: PermissionRequirementOptions = {},
   ): Promise<GrantedDecision> => {
     const permdock = await getPermDock(
-      input.tenant === undefined ? undefined : { tenant: input.tenant },
+      requirement.tenant === undefined
+        ? undefined
+        : { tenant: requirement.tenant },
     );
     // SAFETY: assert's instance and collection overloads share one implementation that takes either kind.
     const assert = permdock.assert as (
@@ -234,8 +238,8 @@ export function createPermDock<
       row?: unknown,
       nextOptions?: DecideOptions,
     ) => GrantedDecision;
-    const handler = input.onDenied ?? options.onDenied;
-    return assert(input.permission, input.data, {
+    const handler = requirement.onDenied ?? options.onDenied;
+    return assert(permission, data, {
       onDenied: (decision) => {
         handler?.(decision);
         if (
@@ -291,7 +295,7 @@ export function createPermDock<
     getPermDock,
     getPermission,
     getSnapshot,
-    requireAccess,
+    requirePermission,
     PermDockProvider,
     permdockHandler,
   };

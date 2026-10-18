@@ -13,7 +13,7 @@ import type {
 import { deliveryEvent } from "../../src/core/delivery-event.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryMembershipSource } from "../../src/core/memory-sources.ts";
-import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync as createCorePermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";

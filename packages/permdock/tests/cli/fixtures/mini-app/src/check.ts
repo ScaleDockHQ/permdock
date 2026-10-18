@@ -1,9 +1,9 @@
-import { createPermDock } from "permdock";
+import { getPermDockSync } from "permdock";
 
 import { permissions } from "./permissions.ts";
 import { policy } from "./policy.ts";
 
-const permdock = createPermDock(policy, {
+const permdock = getPermDockSync(policy, {
   id: "u1",
   orgId: "o1",
   roles: ["member"],

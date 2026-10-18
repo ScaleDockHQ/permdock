@@ -16,7 +16,7 @@ import {
 } from "../../src/core/capability.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -71,7 +71,7 @@ const HOUR = 3600;
 const future = (): number => Math.floor(Date.now() / 1000) + HOUR;
 
 function permdockFor(capability: Capability) {
-  const permdock = createPermDock(policy, capabilitySubject(capability));
+  const permdock = getPermDockSync(policy, capabilitySubject(capability));
   if (permdock instanceof Promise) {
     throw new TypeError("expected a synchronous instance");
   }

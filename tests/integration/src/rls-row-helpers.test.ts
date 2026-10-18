@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -41,8 +41,8 @@ async function inProcess(
   table: "doc" | "folder" | "team",
   permission: (typeof checks)[number][1],
 ): Promise<readonly string[]> {
-  const permdock = await loadPermDock(graphPolicy, { id: sub }, { relations });
-  await permdock.loadRelations(permission, rows[table]);
+  const permdock = await getPermDock(graphPolicy, { id: sub }, { relations });
+  await permdock.prefetchRelations(permission, rows[table]);
   // SAFETY: rows[table] holds the seeded rows of the resource the permission names
   return rows[table]
     .filter((row) => permdock.can(permission, row as never))

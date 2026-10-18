@@ -12,7 +12,7 @@ import type { Subject } from "./subject.ts";
  * What a feature function needs from a server instance beyond its public
  * members: the policy, the environment it was built with and its caches.
  * Feature functions (`decideCredential(permdock, …)`, `whoCan(permdock, …)`)
- * read it, so `createPermDock` never references their modules and a
+ * read it, so `getPermDock` never references their modules and a
  * bundler drops every feature an app does not call.
  */
 export type InstanceInternals = {

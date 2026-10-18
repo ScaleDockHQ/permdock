@@ -31,7 +31,7 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
   /** Ends or revalidates open connections; never a decision input. */
   readonly revocations?: RevocationFeed;
   /**
-   * `createPermDock` from `permdock/pdp`: `protect` then decides delegated
+   * `getPermDock` from `permdock/pdp`: `protect` then decides delegated
    * permissions through the remote PDP. The instance handlers receive stays
    * synchronous and keeps denying delegated permissions (`pdp-unavailable`).
    */

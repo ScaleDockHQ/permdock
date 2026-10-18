@@ -4,7 +4,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -142,7 +142,7 @@ describe("tenancy", () => {
         ],
       },
     );
-    const permdock = createPermDock(policy, {
+    const permdock = getPermDockSync(policy, {
       principal: {
         id: "u1",
         memberships: [
@@ -203,7 +203,7 @@ describe("tenancy", () => {
       },
     );
     const docFor = (on: { resource: string; id: string }) => {
-      const permdock = createPermDock(policy, {
+      const permdock = getPermDockSync(policy, {
         principal: { id: "u1", memberships: [{ on, roles: ["editor"] }] },
         context: {},
       });

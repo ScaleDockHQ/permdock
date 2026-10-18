@@ -4,7 +4,7 @@ import type { Decision, Denial } from "../../src/core/decision.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { PermDockValidationError } from "../../src/core/errors.ts";
-import { createPermDock as createCorePermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync as createCorePermDock } from "../../src/core/permdock.ts";
 import {
   bearerChallenge,
   problemFromDecision,

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { useDescribe, usePermission } from "../../src/react/hooks.ts";
 import { Protected } from "../../src/react/protected.tsx";
 import { PermDockProvider } from "../../src/react/provider.tsx";
@@ -17,7 +17,7 @@ import {
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = createPermDock(policy as never, memberUser);
+  const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");

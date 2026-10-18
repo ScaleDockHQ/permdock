@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { SnapshotStorage } from "../../src/react-native/types.ts";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { PermDockProvider } from "../../src/react-native/provider.tsx";
 import {
   acceptStored,
@@ -29,7 +29,7 @@ import {
 
 async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
   // SAFETY: user is a quick-start user fixture; only the policy generic is erased.
-  const server = createPermDock(policy as never, user);
+  const server = getPermDockSync(policy as never, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");

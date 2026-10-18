@@ -10,7 +10,7 @@ import {
 
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import {
   PermissionBoundary,
   usePermissionBoundary,
@@ -28,7 +28,7 @@ import { alice, policy as saasPolicy } from "../fixtures/saas.ts";
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is a quick-start user fixture; only the policy generic is erased.
-  const server = createPermDock(policy as never, memberUser);
+  const server = getPermDockSync(policy as never, memberUser);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
   return server.snapshot() as Snapshot;
 }
@@ -111,7 +111,7 @@ describe("permdock/vue parity", () => {
   });
 
   it("switches tenant when the tenant ref changes", async () => {
-    const server = createPermDock(saasPolicy, alice, { tenant: "acme" });
+    const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     // SAFETY: snapshot() returns a Snapshot without a signer.
     const snapshot = server.snapshot({ tenants: "all" }) as Snapshot;
     const tenant = shallowRef<string | undefined>("acme");

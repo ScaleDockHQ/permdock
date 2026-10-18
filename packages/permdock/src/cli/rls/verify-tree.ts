@@ -11,7 +11,7 @@ import {
 import { isoAt, nowMillis } from "../../core/time.ts";
 import {
   listPermissions,
-  loadPermDock,
+  getPermDock,
   memoryRelationSource,
   type Policy,
   type ResourceNode,
@@ -480,7 +480,7 @@ export async function verifyTree(input: {
       rows[leaf.resource] !== undefined,
   );
   for (const subject of subjects) {
-    const permdock = await loadPermDock(
+    const permdock = await getPermDock(
       policy,
       { principal: { id: subject, roles: [] }, context: {} },
       { relations },

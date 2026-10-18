@@ -8,7 +8,7 @@ import type { JwtSubjectOptions } from "../../src/jwt/index.ts";
 import { compact } from "../../src/core/compact.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { assurance } from "../../src/core/grantee.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -413,7 +413,7 @@ describe("RFC 9470 OAuth 2.0 Step Up Authentication Challenge", () => {
       await token({ acr: "urn:example:loa:2", auth_time: NOW - 600 }),
       local(),
     );
-    const permdock = createPermDock(policy, subject);
+    const permdock = getPermDockSync(policy, subject);
     const decision = permdock.decide(
       permissions.payout.create,
       { id: "p1" },
@@ -446,7 +446,7 @@ describe("RFC 9470 OAuth 2.0 Step Up Authentication Challenge", () => {
       await token({ acr: "urn:example:loa:3", auth_time: NOW - 10 }),
       local(),
     );
-    const permdock = createPermDock(policy, subject);
+    const permdock = getPermDockSync(policy, subject);
     expect(
       permdock.decide(permissions.payout.create, { id: "p1" }, { now: at(NOW) })
         .outcome,

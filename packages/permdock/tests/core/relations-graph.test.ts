@@ -4,7 +4,7 @@ import { z } from "zod";
 import { allow } from "../../src/core/grant-builders.ts";
 import { relation } from "../../src/core/grantee.ts";
 import { memoryRelationSource } from "../../src/core/memory-relations.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -23,13 +23,13 @@ type User = Parameters<typeof policy.subject>[0];
 const docs = Object.fromEntries(rows.doc.map((row) => [row.id, row]));
 
 async function permdock(user: User | string) {
-  const instance = createPermDock(
+  const instance = getPermDockSync(
     policy,
     typeof user === "string" ? { id: user } : user,
     { relations },
   );
-  await instance.loadRelations(permissions.doc.read, rows.doc);
-  await instance.loadRelations(permissions.doc.review, rows.doc);
+  await instance.prefetchRelations(permissions.doc.read, rows.doc);
+  await instance.prefetchRelations(permissions.doc.review, rows.doc);
   return instance;
 }
 
@@ -117,14 +117,14 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const vera = createPermDock(
+    const vera = getPermDockSync(
       policy,
       { id: "vera" },
       {
         relations: edit,
       },
     );
-    await vera.loadRelations(permissions.doc.read, rows.doc);
+    await vera.prefetchRelations(permissions.doc.read, rows.doc);
     expect(vera.can(permissions.doc.read, docs["root-doc"])).toBe(false);
   });
 
@@ -142,14 +142,14 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const vera = createPermDock(
+    const vera = getPermDockSync(
       policy,
       { id: "vera" },
       {
         relations: odd,
       },
     );
-    await vera.loadRelations(permissions.doc.read, rows.doc);
+    await vera.prefetchRelations(permissions.doc.read, rows.doc);
     expect(vera.can(permissions.doc.read, docs["root-doc"])).toBe(false);
   });
 
@@ -171,14 +171,14 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const sam = createPermDock(
+    const sam = getPermDockSync(
       policy,
       { id: "sam" },
       {
         relations: cyclic,
       },
     );
-    await sam.loadRelations(permissions.doc.read, rows.doc);
+    await sam.prefetchRelations(permissions.doc.read, rows.doc);
     const decision = sam.decide(permissions.doc.read, docs["root-doc"]);
     expect(decision).toMatchObject({
       outcome: "denied",
@@ -189,7 +189,7 @@ describe("relationship graph: match, includes, groups, links", () => {
   });
 
   it("keeps a folder role to its own folder without a relation source", async () => {
-    const ada = createPermDock(policy, engAdmin);
+    const ada = getPermDockSync(policy, engAdmin);
     expect(ada.can(permissions.doc.read, docs["eng-doc"])).toBe(true);
     expect(ada.can(permissions.doc.read, docs["deep-doc"])).toBe(false);
     expect(

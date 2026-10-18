@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPermDock } from "permdock";
+import { getPermDock } from "permdock";
 import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -153,7 +153,7 @@ describe("ownership triggers in generated RLS", () => {
   it.each(Object.entries(LEDGER_MEMBERS))(
     "agrees with can() on a resource role with for (%s)",
     async (user, via) => {
-      const permdock = await loadPermDock(policy, {
+      const permdock = await getPermDock(policy, {
         id: user,
         memberships: [
           {

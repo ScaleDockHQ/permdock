@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { createAgentKernel } from "../../src/agent/kernel.ts";
 import { createClientStore } from "../../src/client/store.ts";
-import { createPermDock } from "../../src/index.ts";
+import { getPermDockSync } from "../../src/index.ts";
 import { createPermDock as createMcpPermDock } from "../../src/mcp/index.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
@@ -101,7 +101,7 @@ describe("invariant 9: boundary data is validated before a check", () => {
   });
 
   it("rejects a refreshed snapshot that is not a valid snapshot", async () => {
-    const server = createPermDock(policy, adminUser);
+    const server = getPermDockSync(policy, adminUser);
     const initial = server.snapshot();
     if (initial instanceof Promise) {
       throw new Error("expected a JSON snapshot");

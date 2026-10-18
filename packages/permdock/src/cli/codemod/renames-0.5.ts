@@ -518,6 +518,23 @@ const rows: readonly Rename[] = [
     entries: ["permdock/node"],
     kind: "method",
   },
+  // use* on the client, get* on the server
+  {
+    from: "createPermDock",
+    to: "getPermDockSync",
+    entries: ["permdock"],
+  },
+  {
+    from: "createPermDock",
+    to: "getPermDock",
+    entries: ["permdock/pdp"],
+  },
+  {
+    from: "loadRelations",
+    to: "prefetchRelations",
+    entries: ["permdock", "permdock/pdp"],
+    kind: "method",
+  },
 ];
 
 /** Every 0.5.0 rename, one row per `from` and target. */
@@ -600,5 +617,17 @@ export const SIGNATURE_CHANGES_0_5: readonly SignatureChange[] = Object.freeze([
     entries: ["permdock/approvals"],
     before: "consumeApproval(store, token).detail",
     after: "consumeApproval(store, token).cause",
+  },
+  {
+    name: "requireAccess",
+    entries: ["permdock/next"],
+    before: "requireAccess({ permission, data, tenant, onDenied })",
+    after: "requirePermission(permission, data, { tenant, onDenied })",
+  },
+  {
+    name: "RequireAccessInput",
+    entries: ["permdock/next"],
+    before: "RequireAccessInput",
+    after: "PermissionRequirementOptions",
   },
 ]);

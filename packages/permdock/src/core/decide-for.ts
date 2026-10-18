@@ -59,7 +59,7 @@ export async function decideForTarget(
       return deniedFor(permission, "tenant-mismatch");
     }
     if (row !== undefined) {
-      await target.loadRelations(permission, [row]);
+      await target.prefetchRelations(permission, [row]);
     }
     return target.decide(permission, row, PEEK);
   } catch {

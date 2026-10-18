@@ -5,7 +5,7 @@ import { createAgentKernel } from "../../src/agent/kernel.ts";
 import { PermDockValidationError } from "../../src/core/validation-error.ts";
 import {
   allow,
-  createPermDock,
+  getPermDockSync,
   definePermissions,
   definePolicy,
   deny,
@@ -69,7 +69,7 @@ describe("tool arguments are boundary data", () => {
   });
 
   it("matches a direct decide on untrusted data", async () => {
-    const permdock = createPermDock(policy, user);
+    const permdock = getPermDockSync(policy, user);
     const decision = permdock.decide(permissions.invoice.create, {
       id: "i1",
       amount: "50000",

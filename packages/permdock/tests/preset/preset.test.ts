@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Preset, PresetInput } from "../../src/preset/index.ts";
 
-import { createPermDock } from "../../src/index.ts";
+import { getPermDockSync } from "../../src/index.ts";
 import { DOMAINS } from "../../src/preset/domain.ts";
 import {
   ARCHETYPES,
@@ -151,10 +151,10 @@ describe("generated presets", () => {
       const preset = resolvePreset(input);
       const dir = path.join(OUT, name(preset), "src");
       const policyModule: {
-        readonly policy: Parameters<typeof createPermDock>[0];
+        readonly policy: Parameters<typeof getPermDockSync>[0];
         readonly demoUser: unknown;
       } = await import(path.join(dir, "policy.ts"));
-      const permdock = createPermDock(
+      const permdock = getPermDockSync(
         policyModule.policy,
         policyModule.demoUser,
       );
@@ -193,14 +193,14 @@ describe("presetMatrix", () => {
       const domain = DOMAINS[preset.archetype];
       const dir = path.join(OUT, name(preset), "src");
       const policyModule: {
-        readonly policy: Parameters<typeof createPermDock>[0];
+        readonly policy: Parameters<typeof getPermDockSync>[0];
         readonly demoUser: unknown;
       } = await import(path.join(dir, "policy.ts"));
       // The generated app: profile dev, so limits have a memory store.
       const appModule: {
-        readonly app: Parameters<typeof createPermDock>[0];
+        readonly app: Parameters<typeof getPermDockSync>[0];
       } = await import(path.join(dir, "permdock.ts"));
-      const permdock = createPermDock(appModule.app, policyModule.demoUser);
+      const permdock = getPermDockSync(appModule.app, policyModule.demoUser);
       // SAFETY: a permission tree maps each resource name to its permission leaves.
       const tree = permdock.permissions as Record<
         string,

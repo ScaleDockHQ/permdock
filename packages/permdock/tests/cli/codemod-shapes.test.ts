@@ -125,7 +125,7 @@ describe("the denied slot", () => {
 });
 
 describe("awaited createPermDock", () => {
-  it("calls loadPermDock where the instance is awaited and drops the unused import", () => {
+  it("calls getPermDock where the instance is awaited and drops the unused import", () => {
     const result = apply(
       [
         'import { createPermDock } from "permdock";',
@@ -137,18 +137,18 @@ describe("awaited createPermDock", () => {
       "file.ts",
     );
     expect(result.source.split("\n")).toEqual([
-      'import { loadPermDock } from "permdock";',
+      'import { getPermDock } from "permdock";',
       'import { policy } from "./policy";',
       "export async function load(user: User) {",
-      "  return await loadPermDock(policy, user, { memberships });",
+      "  return await getPermDock(policy, user, { memberships });",
       "}",
     ]);
     expect(result.changes).toEqual([
-      { line: 4, column: 16, from: "createPermDock", to: "loadPermDock" },
+      { line: 4, column: 16, from: "createPermDock", to: "getPermDock" },
     ]);
   });
 
-  it("keeps createPermDock for synchronous calls and adds loadPermDock beside it", () => {
+  it("renames synchronous calls to getPermDockSync and adds getPermDock beside it", () => {
     const result = apply(
       [
         "import { createPermDock, definePolicy } from 'permdock';",
@@ -158,23 +158,23 @@ describe("awaited createPermDock", () => {
       "file.ts",
     );
     expect(result.source.split("\n")).toEqual([
-      "import { createPermDock, definePolicy, loadPermDock } from 'permdock';",
-      "export const a = createPermDock(policy, user);",
-      "export const b = await loadPermDock(policy, user, options);",
+      "import { getPermDockSync, definePolicy, getPermDock } from 'permdock';",
+      "export const a = getPermDockSync(policy, user);",
+      "export const b = await getPermDock(policy, user, options);",
     ]);
   });
 
-  it("removes a middle specifier and reuses an existing loadPermDock import", () => {
+  it("removes a middle specifier and reuses an existing getPermDock import", () => {
     const result = apply(
       [
-        'import { can, createPermDock, loadPermDock as load } from "permdock";',
+        'import { can, createPermDock, getPermDock as load } from "permdock";',
         "export const b = await createPermDock(policy, user);",
         "export const c = can;",
       ],
       "file.ts",
     );
     expect(result.source.split("\n")).toEqual([
-      'import { can, loadPermDock as load } from "permdock";',
+      'import { can, getPermDock as load } from "permdock";',
       "export const b = await load(policy, user);",
       "export const c = can;",
     ]);
@@ -186,24 +186,24 @@ describe("awaited createPermDock", () => {
         'import * as pd from "permdock";',
         'import { createPermDock } from "permdock";',
         "export const a = await pd.createPermDock(policy, user);",
-        "export async function b(loadPermDock: unknown) {",
+        "export async function b(getPermDock: unknown) {",
         "  return await createPermDock(policy, user);",
         "}",
       ],
       "file.ts",
     );
     expect(result.source.split("\n")[2]).toBe(
-      "export const a = await pd.loadPermDock(policy, user);",
+      "export const a = await pd.getPermDock(policy, user);",
     );
     expect(result.source.split("\n")[4]).toBe(
-      "  return await createPermDock(policy, user);",
+      "  return await getPermDockSync(policy, user);",
     );
     expect(result.followUps.map((item) => item.message)).toEqual([
-      "`createPermDock` is `loadPermDock` from `permdock` here; `loadPermDock` is already bound in this scope",
+      "`createPermDock` is `getPermDock` from `permdock` here; `getPermDock` is already bound in this scope",
     ]);
   });
 
-  it("reports a returned or chained createPermDock call", () => {
+  it("renames a returned or chained createPermDock call to getPermDockSync and reports it", () => {
     const result = apply(
       [
         'import { createPermDock } from "permdock";',
@@ -213,14 +213,19 @@ describe("awaited createPermDock", () => {
       ],
       "file.ts",
     );
-    expect(result.changes).toEqual([]);
+    expect(result.source.split("\n")).toEqual([
+      'import { getPermDockSync } from "permdock";',
+      "export const a = (user: User) => getPermDockSync(policy, user);",
+      "export function b(user: User) { return getPermDockSync(policy, user); }",
+      "getPermDockSync(policy, null).then(use);",
+    ]);
     expect(result.followUps.map((item) => item.line)).toEqual([2, 3, 4]);
     expect(result.followUps[0]?.message).toBe(
-      "`createPermDock` returns the instance, never a Promise; call `loadPermDock` when a source answers asynchronously",
+      "`createPermDock` without `await` is `getPermDockSync`, which returns the instance, never a Promise; call `getPermDock` when a source answers asynchronously",
     );
   });
 
-  it("renames createPermDock from permdock/pdp, which was always async", () => {
+  it("renames createPermDock from permdock/pdp to getPermDock, since it was always async", () => {
     const result = apply(
       [
         'import { createPermDock } from "permdock/pdp";',
@@ -230,13 +235,13 @@ describe("awaited createPermDock", () => {
       "file.ts",
     );
     expect(result.source.split("\n")).toEqual([
-      'import { loadPermDock } from "permdock/pdp";',
+      'import { getPermDock } from "permdock/pdp";',
       'import { createPermDock as server } from "permdock/server";',
-      "export const handler = server(policy, { pdp: loadPermDock });",
+      "export const handler = server(policy, { pdp: getPermDock });",
     ]);
   });
 
-  it("imports loadPermDock on its own line when only a type import names the entry", () => {
+  it("imports getPermDock on its own line when only a type import names the entry", () => {
     const result = apply(
       [
         'import type { PermDock } from "permdock";',
@@ -251,8 +256,8 @@ describe("awaited createPermDock", () => {
       'import type { PermDock } from "permdock";',
       'import * as core from "permdock";',
       "const { createPermDock } = core;",
-      'import { loadPermDock } from "permdock";',
-      "export const a: PermDock = await loadPermDock(policy, user);",
+      'import { getPermDock } from "permdock";',
+      "export const a: PermDock = await getPermDock(policy, user);",
     ]);
   });
 });
@@ -281,7 +286,7 @@ describe("feature functions", () => {
   it("turns instance feature methods into functions that take the instance first", () => {
     const result = apply(
       [
-        'import { createPermDock } from "permdock";',
+        'import { definePolicy } from "permdock";',
         "export async function run(permdock: PermDock, ctx: Ctx) {",
         "  const change = permdock.decideRoleChange({ role: 'admin' }, { trusted: true });",
         "  const holders = await ctx.permdock.whoCan(permissions.doc.read, row);",
@@ -292,7 +297,7 @@ describe("feature functions", () => {
       "file.ts",
     );
     expect(result.source.split("\n")).toEqual([
-      'import { createPermDock, decideRoleChange, whoCan, decideCredential } from "permdock";',
+      'import { definePolicy, decideRoleChange, whoCan, decideCredential } from "permdock";',
       "export async function run(permdock: PermDock, ctx: Ctx) {",
       "  const change = decideRoleChange(permdock, { role: 'admin' }, { trusted: true });",
       "  const holders = await whoCan(ctx.permdock, permissions.doc.read, row);",
@@ -448,8 +453,8 @@ describe("feature options", () => {
       "file.ts",
     );
     expect(result.source.split("\n")).toEqual([
-      'import { createPermDock, approvalPolicies, hostedPolicies } from "permdock";',
-      "export const a = createPermDock(policy, user, {",
+      'import { getPermDockSync, approvalPolicies, hostedPolicies } from "permdock";',
+      "export const a = getPermDockSync(policy, user, {",
       "  approvalPolicies: approvalPolicies(tableApprovalPolicies(db)),",
       "  policies: hostedPolicies(policies),",
       "});",
@@ -459,15 +464,15 @@ describe("feature options", () => {
   it("leaves a memory source and an already wrapped source alone", () => {
     const result = apply(
       [
-        'import { approvalPolicies, loadPermDock, memoryApprovalPolicies } from "permdock";',
-        "export const a = await loadPermDock(policy, user, { approvalPolicies: memoryApprovalPolicies([]) });",
-        "export const b = await loadPermDock(policy, user, { approvalPolicies: approvalPolicies(source) });",
+        'import { approvalPolicies, getPermDock, memoryApprovalPolicies } from "permdock";',
+        "export const a = await getPermDock(policy, user, { approvalPolicies: memoryApprovalPolicies([]) });",
+        "export const b = await getPermDock(policy, user, { approvalPolicies: approvalPolicies(source) });",
       ],
       "file.ts",
     );
     expect(result.source.split("\n").slice(1)).toEqual([
-      "export const a = await loadPermDock(policy, user, { approvalPolicies: memoryApprovalPolicySource([]) });",
-      "export const b = await loadPermDock(policy, user, { approvalPolicies: approvalPolicies(source) });",
+      "export const a = await getPermDock(policy, user, { approvalPolicies: memoryApprovalPolicySource([]) });",
+      "export const b = await getPermDock(policy, user, { approvalPolicies: approvalPolicies(source) });",
     ]);
     expect(result.followUps).toEqual([]);
   });
@@ -483,7 +488,7 @@ describe("feature options", () => {
       "file.ts",
     );
     expect(result.source.split("\n")[2]).toBe(
-      "export const a = await loadPermDock(policy, user, { approvalPolicies });",
+      "export const a = await getPermDock(policy, user, { approvalPolicies });",
     );
     expect(result.followUps.map((item) => [item.line, item.message])).toEqual([
       [
@@ -492,7 +497,7 @@ describe("feature options", () => {
       ],
       [
         4,
-        "option `approvalPolicies` takes `approvalPolicies(source)` from `permdock` when this object reaches `createPermDock` or `loadPermDock`",
+        "option `approvalPolicies` takes `approvalPolicies(source)` from `permdock` when this object reaches `getPermDock` or `getPermDockSync`",
       ],
     ]);
   });

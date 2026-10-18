@@ -11,7 +11,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { createPermDock } from "../../src/index.ts";
+import { getPermDockSync } from "../../src/index.ts";
 import { verifyDpopProof } from "../../src/jwt/dpop.ts";
 import { memoryReplayStore } from "../../src/jwt/index.ts";
 import { subjectFromIntrospection } from "../../src/jwt/introspection.ts";
@@ -985,8 +985,8 @@ describe("subjectFromIntrospection", () => {
 });
 
 describe("signed snapshot", () => {
-  it("lets createPermDock emit a JWS that joseTokenVerifier accepts", async () => {
-    const permdock = createPermDock(policy, memberUser);
+  it("lets getPermDockSync emit a JWS that joseTokenVerifier accepts", async () => {
+    const permdock = getPermDockSync(policy, memberUser);
     const signer = joseTokenSigner({
       key: { ...PRIVATE_JWK },
       alg: "Ed25519",

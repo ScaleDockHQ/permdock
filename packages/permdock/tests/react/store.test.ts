@@ -6,7 +6,7 @@ import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import {
   memberUser,
   ownPost,
@@ -313,7 +313,7 @@ async function settle(): Promise<void> {
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const server = createPermDock(policy as never, memberUser);
+  const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
     throw new Error("expected JSON snapshot");

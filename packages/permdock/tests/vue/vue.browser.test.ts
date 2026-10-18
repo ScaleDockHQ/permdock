@@ -12,7 +12,7 @@ import {
 import type { Permission } from "../../src/core/permission-types.ts";
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { usePermDock } from "../../src/vue/composables.ts";
 import { permdockPlugin } from "../../src/vue/plugin.ts";
 import { Protected } from "../../src/vue/protected.ts";
@@ -27,7 +27,7 @@ import {
 
 async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
   // SAFETY: user is a quick-start user fixture; only the policy generic is erased.
-  const server = createPermDock(policy as never, user);
+  const server = getPermDockSync(policy as never, user);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
   return server.snapshot() as Snapshot;
 }

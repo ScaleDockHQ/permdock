@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { SaasScenario } from "../../../src/testing/saas/index.ts";
 
 import {
-  createPermDock,
+  getPermDockSync,
   fromSnapshot,
   memoryCustomRoleSource,
   limits,
@@ -32,7 +32,7 @@ import {
 import { reasonOf } from "../../fixtures/decisions.ts";
 
 async function instanceFor(user: string, tenant: string | undefined) {
-  return createPermDock(saasPolicy, saasPrincipal(user, tenant), {
+  return getPermDockSync(saasPolicy, saasPrincipal(user, tenant), {
     ...(tenant === undefined ? {} : { tenant }),
     customRoles: memoryCustomRoleSource(saasCustomRoles),
     limits: limits(memoryLimitStore()),
@@ -41,7 +41,7 @@ async function instanceFor(user: string, tenant: string | undefined) {
 }
 
 async function scenarioInstance(scenario: SaasScenario) {
-  return createPermDock(
+  return getPermDockSync(
     saasPolicy,
     saasUser(scenario),
     saasScenarioOptions(scenario),

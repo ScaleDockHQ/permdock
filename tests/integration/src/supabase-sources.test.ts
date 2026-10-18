@@ -9,7 +9,7 @@ import {
   claimsFirst,
   composeMemberships,
   definePolicy,
-  loadPermDock,
+  getPermDock,
   plan,
   role,
 } from "permdock";
@@ -298,7 +298,7 @@ describe("permdock supabase hook generate against Postgres", () => {
         subject: (user: Principal | null) => user,
       },
     );
-    const permdock = await loadPermDock(policy, principal, {
+    const permdock = await getPermDock(policy, principal, {
       memberships: claimsFirst(sources(query)),
       tenant: "O00",
     });
@@ -351,7 +351,7 @@ describe("permdock supabase hook generate against Postgres", () => {
     });
     const before = await mint(OWNER);
     const permdockFor = async (claims: Claims) =>
-      loadPermDock(
+      getPermDock(
         policy,
         // SAFETY: minted claims always carry a subject, so the principal is set
         subjectFromSupabase({ ...claims, tenant_id: "T" })
@@ -376,7 +376,7 @@ describe("permdock supabase hook generate against Postgres", () => {
     expect(
       (await permdockFor(after)).can(permissions.quote.delete, quote),
     ).toBe(true);
-    const seated = await loadPermDock(
+    const seated = await getPermDock(
       policy,
       // SAFETY: minted claims always carry a subject, so the principal is set
       subjectFromSupabase({ ...(await mint(SEATED)), tenant_id: "T" })

@@ -37,7 +37,7 @@ const layers = [
     icon: Lock,
     title: "Request-time checks for writes",
     description:
-      "Server Actions call requireAccess again; the snapshot only decides what the UI shows.",
+      "Server Actions call requirePermission again; the snapshot only decides what the UI shows.",
   },
 ];
 

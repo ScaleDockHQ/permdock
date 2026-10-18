@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { type SubjectRef, principal } from "../../src/conditions/refs.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -144,10 +144,10 @@ describe("verified_claims", () => {
     });
     const eu = { id: "a1", framework: "eidas" };
     expect(
-      createPermDock(policy, verified).can(permissions.account.open, eu),
+      getPermDockSync(policy, verified).can(permissions.account.open, eu),
     ).toBe(true);
     expect(
-      createPermDock(policy, plain).can(permissions.account.open, eu),
+      getPermDockSync(policy, plain).can(permissions.account.open, eu),
     ).toBe(false);
   });
 });

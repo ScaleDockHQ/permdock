@@ -80,7 +80,7 @@ export function snapshotFor<
   );
   if (isThenable(resolved)) {
     throw new TypeError(
-      "PermDock: snapshotFor() needs synchronous subject and context mappers. Resolve async data first and pass it as a Subject, or use createPermDock(...).snapshot().",
+      "PermDock: snapshotFor() needs synchronous subject and context mappers. Resolve async data first and pass it as a Subject, or use (await getPermDock(...)).snapshot().",
     );
   }
   const subject = withPlans(resolved, options.plans);

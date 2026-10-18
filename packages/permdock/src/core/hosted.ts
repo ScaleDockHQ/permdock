@@ -45,7 +45,7 @@ export type PolicyDocument = {
 };
 
 /**
- * The channel for hosted grants. `createPermDock` reads `current()` once;
+ * The channel for hosted grants. `getPermDock` reads `current()` once;
  * the application calls `refresh()` on its own schedule, never a check.
  */
 export type PolicySource = {

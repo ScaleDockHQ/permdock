@@ -6,7 +6,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
-import { createPermDock, openfga, spicedb } from "../../src/pdp/index.ts";
+import { getPermDockSync, openfga, spicedb } from "../../src/pdp/index.ts";
 
 const permissions = definePermissions({
   doc: resource(z.object({ id: z.string() }), {
@@ -87,7 +87,7 @@ describe("openfga", () => {
         ? json({ allowed: true })
         : json({ objects: ["document:d1", "document:d3"] }),
     );
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policyWith(
         openfga({
           url: "http://fga.test",
@@ -135,7 +135,7 @@ describe("openfga", () => {
     const fga = recorder(() =>
       json({ allowed: true, objects: ["document:d1"] }),
     );
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policyWith(
         openfga({
           url: "http://fga.test",
@@ -159,7 +159,7 @@ describe("openfga", () => {
       [json({ allowed: "yes" }), "pdp-invalid-response"],
     ];
     for (const [response, reason] of cases) {
-      const permdock = createPermDock(
+      const permdock = getPermDockSync(
         policyWith(
           openfga({
             url: "http://fga.test",
@@ -175,7 +175,7 @@ describe("openfga", () => {
         reason,
       );
     }
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policyWith(
         openfga({
           url: "http://fga.test",
@@ -190,7 +190,7 @@ describe("openfga", () => {
   });
 
   it("denies with pdp-invalid-response when the tuple callback throws", async () => {
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policyWith(
         openfga({
           url: "http://fga.test",
@@ -263,7 +263,7 @@ describe("spicedb", () => {
           .join("\n"),
       );
     };
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policyWith(
         spicedb({
           url: "http://spicedb.test",
@@ -303,7 +303,7 @@ describe("spicedb", () => {
       ["PERMISSIONSHIP_CONDITIONAL_PERMISSION", "pdp-denied"],
       ["PERMISSIONSHIP_UNSPECIFIED", "pdp-invalid-response"],
     ] as const) {
-      const permdock = createPermDock(
+      const permdock = getPermDockSync(
         policyWith(
           spicedb({
             url: "http://spicedb.test",
@@ -322,7 +322,7 @@ describe("spicedb", () => {
   });
 
   it("denies every row when the stream carries an error", async () => {
-    const permdock = createPermDock(
+    const permdock = getPermDockSync(
       policyWith(
         spicedb({
           url: "http://spicedb.test",

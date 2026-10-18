@@ -4,13 +4,13 @@ import type { Condition, RelatedCondition } from "../../src/conditions/ast.ts";
 import type { WhereResult } from "../../src/core/permdock.ts";
 
 import { resolveRelated } from "../../src/conditions/resolve-related.ts";
-import { createPermDock } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { permissions, policy, relations } from "../fixtures/graph.ts";
 
 type Query = { readonly sql: string; readonly values: readonly unknown[] };
 
 async function graphWhere(id: string): Promise<WhereResult> {
-  const permdock = createPermDock(policy, { id }, { relations });
+  const permdock = getPermDockSync(policy, { id }, { relations });
   return permdock.where(permissions.doc.read);
 }
 
