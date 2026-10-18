@@ -4,7 +4,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CliIo, PermDockConfig } from "../../src/cli/types.ts";
 
-import { pushedPolicy, runCloud } from "../../src/cli/cloud.ts";
+import { pushedPolicy, runCloud } from "../../src/cli/cloud/push.ts";
 import {
   allow,
   definePermissions,
@@ -223,15 +223,39 @@ export const permissions = definePermissions({
   });
 
   it.each([
-    [{ PERMDOCK_CLOUD_KEY: "key" }],
     [{ PERMDOCK_CLOUD_URL: "https://cloud.permdock.test" }],
-    [{ PERMDOCK_CLOUD_URL: "", PERMDOCK_CLOUD_KEY: "key" }],
-  ])("needs a URL and a key (%j)", async (env) => {
-    expect(await push(FIXTURE, { env })).toEqual({
+    [{ PERMDOCK_CLOUD_URL: "", PERMDOCK_CLOUD_KEY: "" }],
+  ])("needs a key or a login (%j)", async (env) => {
+    expect(
+      await push(FIXTURE, {
+        env: { ...env, XDG_CONFIG_HOME: tempDir() },
+        io: {
+          ...IO,
+          fetch: () => Promise.resolve(new Response(null, { status: 404 })),
+        },
+      }),
+    ).toEqual({
       code: 2,
       output:
-        "permdock cloud push needs PERMDOCK_CLOUD_URL (or --url) and PERMDOCK_CLOUD_KEY in the environment",
+        "permdock cloud push needs PERMDOCK_CLOUD_KEY in the environment, or a login from permdock login --write",
     });
+  });
+
+  it("pushes to the platform issuer without PERMDOCK_CLOUD_URL", async () => {
+    const urls: string[] = [];
+    const io: CliIo = {
+      ...IO,
+      fetch: (input) => {
+        urls.push(String(input));
+        return Promise.resolve(new Response(null, { status: 201 }));
+      },
+    };
+    expect(
+      (await push(FIXTURE, { env: { PERMDOCK_CLOUD_KEY: "key" }, io })).code,
+    ).toBe(0);
+    expect(urls).toEqual([
+      "https://permdock.com/api/v1/environments/production/catalog",
+    ]);
   });
 
   it("posts through the global fetch and omits the policy without one", async () => {
@@ -267,7 +291,11 @@ export const permissions = definePermissions({
       "https://cloud.permdock.test/v1/environments/a%20b/catalog",
     );
     expect(bodies).toEqual([
-      { fingerprint: expect.any(String), catalog: expect.any(Object) },
+      {
+        fingerprint: expect.any(String),
+        catalog: expect.any(Object),
+        permdockVersion: expect.stringMatching(/^\d+\.\d+\.\d+/u),
+      },
     ]);
   });
 
@@ -294,7 +322,7 @@ export const permissions = definePermissions({
     });
   });
 
-  it.each([[[]], [["pull"]]])("prints usage for %j", async (rest) => {
+  it.each([[[]], [["rotate"]]])("prints usage for %j", async (rest) => {
     expect((await push(FIXTURE, { rest })).code).toBe(2);
   });
 });

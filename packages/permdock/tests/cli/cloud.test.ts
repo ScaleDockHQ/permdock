@@ -174,7 +174,13 @@ describe("permdock cloud push", () => {
     const cwd = appCopy();
     const missing = await run(["cloud", "push"], {
       cwd,
-      io: io({ PERMDOCK_CLOUD_URL: "https://cloud.permdock.test" }),
+      io: io(
+        {
+          PERMDOCK_CLOUD_URL: "https://cloud.permdock.test",
+          XDG_CONFIG_HOME: join(cwd, "..", "no-login"),
+        },
+        () => Promise.resolve(new Response(null, { status: 404 })),
+      ),
     });
     expect(missing.code).toBe(2);
     expect(missing.stdout).toContain("PERMDOCK_CLOUD_KEY");
@@ -193,7 +199,7 @@ describe("permdock cloud push", () => {
   });
 
   it("prints usage for an unknown cloud action", async () => {
-    const result = await run(["cloud", "pull"], { io: io({}) });
+    const result = await run(["cloud", "rotate"], { io: io({}) });
     expect(result.code).toBe(2);
     expect(result.stdout).toContain("cloud push");
   });

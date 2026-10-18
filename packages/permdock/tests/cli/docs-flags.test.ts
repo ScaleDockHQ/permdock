@@ -26,8 +26,14 @@ const ctx: CliContext = {
   report: () => undefined,
 };
 
+/** Commands documented on another command's page. */
+const PAGE_OF: Readonly<Record<string, string>> = { logout: "login" };
+
 function page(name: string): string {
-  return readFileSync(path.join(CLI_DOCS, `${name}.mdx`), "utf8");
+  return readFileSync(
+    path.join(CLI_DOCS, `${PAGE_OF[name] ?? name}.mdx`),
+    "utf8",
+  );
 }
 
 /** How the docs write a flag: `--no-x` for a boolean that is on by default. */

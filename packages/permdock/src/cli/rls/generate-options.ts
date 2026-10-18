@@ -17,6 +17,9 @@ export type RlsGenerateInput = {
   readonly dialect: RlsDialect;
   readonly out?: string;
   readonly from?: string;
+  /** `--project`: rebuild the policy with `policyFromCatalog` from the Cloud project's pushed catalog and policy. */
+  readonly project?: string;
+  readonly json?: boolean;
   readonly memberships?: string;
   readonly rbac: boolean;
   readonly rbacSchema?: string;

@@ -37,6 +37,12 @@ export function rls(ctx: CliContext): Command {
         description: "Module exporting the policy, instead of the config",
         valueHint: "module",
       },
+      project: {
+        type: "string",
+        description:
+          "generate: rebuild the policy from a PermDock Cloud project's pushed catalog and policy",
+        valueHint: "id",
+      },
       sql: {
         type: "string",
         description: "import / migrate: SQL file or folder to read",
@@ -209,6 +215,7 @@ export function rls(ctx: CliContext): Command {
         dialect: parsed.dialect,
         out: stringArg(parsed.out),
         from: stringArg(parsed.from),
+        project: stringArg(parsed.project),
         sql: stringArg(parsed.sql),
         db: stringArg(parsed.db),
         fixtures: stringArg(parsed.fixtures),

@@ -421,10 +421,11 @@ export function policyFromCatalog<TUser = unknown>(
   const catalogRoles = new Map(
     (catalog.roles ?? []).map((role) => [role.key, role]),
   );
+  // The pushed grants keep the policy's role order, which generated SQL follows; the catalog sorts its roles.
   const roleNames = [
     ...new Set([
-      ...(catalog.roles ?? []).map((role) => role.key),
       ...grants.flatMap((grant) => (grant.role === null ? [] : [grant.role])),
+      ...(catalog.roles ?? []).map((role) => role.key),
     ]),
   ];
   const roles = roleNames.flatMap((name) => {

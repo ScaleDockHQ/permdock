@@ -4,10 +4,13 @@ import type { PermDockConfig } from "../types.ts";
 import type { RolePermission } from "./helpers.ts";
 import type { IndexTarget } from "./indexes.ts";
 
+import { policyFromCatalog } from "../../catalog/policy-from-catalog.ts";
 import { renamedKeys } from "../../core/permission-registry.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { dateAt } from "../../core/time.ts";
 import { type Policy, listPermissions } from "../../index.ts";
+import { POLICY_NOT_PUBLISHED } from "../../testing/cloud-api/platform.ts";
+import { fetchProjectPolicy } from "../cloud/pull.ts";
 import { cliErrorKind, describeError, exitCodeOf } from "../errors.ts";
 import { requirePolicy } from "../load.ts";
 import {
@@ -63,6 +66,64 @@ function loadPolicy(
   );
 }
 
+const PROJECT_COMMAND = "permdock rls generate";
+
+/**
+ * The policy `policyFromCatalog` rebuilds from the project's pushed catalog
+ * and policy; a project with no pushed policy fails with `policy-not-published`.
+ */
+async function projectPolicyOf(
+  input: RlsGenerateInput,
+  project: string,
+): Promise<Policy | GenerateOutcome> {
+  const fetched = await fetchProjectPolicy({
+    command: PROJECT_COMMAND,
+    url: undefined,
+    project,
+    json: input.json === true,
+    env: input.io.env ?? process.env,
+    io: input.io,
+  });
+  if (!fetched.ok) {
+    return { ...fetched.result, text: "" };
+  }
+  const { catalog, policy } = fetched.value;
+  if (policy === undefined) {
+    const detail = `project ${project} has a pushed catalog but no policy; push from a project whose permdock.config.ts names one`;
+    return {
+      code: 1,
+      output:
+        input.json === true
+          ? JSON.stringify(
+              {
+                type: POLICY_NOT_PUBLISHED,
+                title: "Policy not published",
+                detail,
+                command: PROJECT_COMMAND,
+                exitCode: 1,
+              },
+              null,
+              2,
+            )
+          : `${PROJECT_COMMAND}: ${detail}`,
+      text: "",
+    };
+  }
+  try {
+    return policyFromCatalog(catalog, policy);
+  } catch (cause) {
+    return {
+      code: 1,
+      output: `${PROJECT_COMMAND}: the pushed policy does not rebuild: ${describeError(cause)}`,
+      text: "",
+    };
+  }
+}
+
+function isOutcome(value: Policy | GenerateOutcome): value is GenerateOutcome {
+  return "text" in value && "code" in value;
+}
+
 function refused(output: string): GenerateOutcome {
   return { code: 2, output, text: "" };
 }
@@ -74,7 +135,19 @@ export async function runRlsGenerate(
   if (isRefusal(options)) {
     return refused(options.refusal);
   }
-  const policy = await loadPolicy(input.cwd, input.config, input.from);
+  if (input.project !== undefined && input.from !== undefined) {
+    return refused("rls generate takes --project or --from, not both");
+  }
+  let policy: Policy;
+  if (input.project === undefined) {
+    policy = await loadPolicy(input.cwd, input.config, input.from);
+  } else {
+    const loaded = await projectPolicyOf(input, input.project);
+    if (isOutcome(loaded)) {
+      return loaded;
+    }
+    policy = loaded;
+  }
   const built = buildContext(input, policy, options);
   if (isRefusal(built)) {
     return refused(built.refusal);
