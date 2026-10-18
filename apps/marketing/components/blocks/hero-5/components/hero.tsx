@@ -1,13 +1,11 @@
-import { ArrowRightIcon, CircleCheckIcon, WandSparklesIcon } from "lucide-react"
+import { ArrowRightIcon, WandSparklesIcon } from "lucide-react"
 
 import { InstallCopy } from "@/components/sections/install-copy"
 import { SiteLink } from "@/components/site/site-link"
 import { site } from "@/lib/site"
 import { Button } from "@permdock/ui/components/button"
-import { Separator } from "@permdock/ui/components/separator"
 import { Badge } from "@permdock/ui/reui/badge"
 
-import { HERO_ASSURANCES } from "./data"
 import { HeroDotField } from "./hero-dot-field"
 import { StackGrid } from "./stack-grid"
 
@@ -80,22 +78,6 @@ export function Hero({ version }: { version: string | undefined }) {
           </div>
 
           <InstallCopy command={site.install} />
-
-          <Separator className="w-full max-w-md bg-white/10" />
-
-          <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            {HERO_ASSURANCES.map((assurance) => (
-              <li key={assurance} className="flex items-center gap-1.5">
-                <CircleCheckIcon
-                  aria-hidden="true"
-                  className="size-4 shrink-0 text-[#00bc7d]"
-                />
-                <span className="text-sm leading-5 text-[#fafafa]">
-                  {assurance}
-                </span>
-              </li>
-            ))}
-          </ul>
         </div>
 
         {/* The grid is drawn on a fixed 624 x 600 canvas and scaled to whatever

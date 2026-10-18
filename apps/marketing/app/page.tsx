@@ -9,7 +9,6 @@ import { FaqSection } from "@/components/sections/faq";
 import { Features } from "@/components/sections/features";
 import { GetStarted } from "@/components/sections/get-started";
 import { PortableConditions } from "@/components/sections/portable";
-import { RecentShips } from "@/components/sections/recent-ships";
 import { SecureByDefault } from "@/components/sections/secure";
 import { Surfaces } from "@/components/sections/surfaces";
 import { WorksWith } from "@/components/sections/works-with";
@@ -28,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  const ships = loadRecentShips(3);
+  const ships = loadRecentShips(1);
   return (
     <>
       <JsonLd
@@ -47,7 +46,6 @@ export default function HomePage() {
       <AgentNative />
       <SecureByDefault />
       <WorksWith />
-      {ships.length > 0 ? <RecentShips releases={ships} /> : null}
       <GetStarted />
       <CloudBand />
       <FaqSection />
