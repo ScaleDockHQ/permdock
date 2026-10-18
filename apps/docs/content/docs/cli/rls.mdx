@@ -73,7 +73,7 @@ rls: {
 }
 ```
 
-`'none'` compiles no policy for the verb. Every granted action is seeded into `role_permissions` either way, so a hand-written policy or function can still ask `permdock_has` about it. A verb with no entry and no default, such as `publish`, compiles no policy.
+`'none'` compiles no policy for the verb. Every granted action is seeded into `role_permissions` either way, so a hand-written policy or function can still ask `permdock_has` about it. A verb with no entry and no default, such as `publish` or `export`, is `'none'` and adds no warning, so `rls.actions` lists only the verbs that map to a command. `permdock doctor` reports an unmapped verb whose name reads as a write, such as `markPaid` or `approve` ([PD071](/docs/cli/doctor#pd071-write-verbs-without-an-rlsactions-entry)).
 
 ### Role checks: per-statement helpers
 

@@ -155,7 +155,10 @@ function levelReachOf(
   );
 }
 
-/** The SQL command `action` compiles to: `rls.actions` first, then the six default verbs. */
+/**
+ * The SQL command `action` compiles to: `rls.actions` first, then the six default verbs.
+ * Any other verb is `undefined`, as `'none'` is: no policy, and its grants are still seeded.
+ */
 export function commandFor(
   action: string,
   actions?: RlsActions,
@@ -345,9 +348,6 @@ function prepare(
   const table = tableFor(grant.permission.resource, tables);
   if (command === undefined) {
     if (item.access.kind !== "role" && rowActions) {
-      warnings.push(
-        `no policy for ${label}/${grant.permission.key}: action '${grant.permission.action}' has no SQL command (rls.actions); only permitted_<resource>_rows answers it`,
-      );
       return {
         item,
         command: "none",
@@ -367,9 +367,6 @@ function prepare(
       );
       return undefined;
     }
-    warnings.push(
-      `no policy for ${label}/${grant.permission.key}: action '${grant.permission.action}' has no SQL command (rls.actions); seeded for permdock_has and permitted_<scope>_ids`,
-    );
     return {
       item,
       command: "none",

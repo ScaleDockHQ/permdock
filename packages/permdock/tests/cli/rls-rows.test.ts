@@ -95,9 +95,7 @@ describe("permitted_<resource>_rows", () => {
     expect(sql).toMatch(
       /permitted_note_rows\(p_permission text\)[^$]*\$\$\n {2}select "id"::text from "public"."note"\n {2}where false\n\$\$/u,
     );
-    expect(warnings.join("\n")).toContain(
-      "no policy for authenticated/doc.archive: action 'archive' has no SQL command (rls.actions); only permitted_<resource>_rows answers it",
-    );
+    expect(warnings.join("\n")).not.toContain("doc.archive");
   });
 
   it("writes a row-valued form that reads the row's columns instead of looking up its id", () => {

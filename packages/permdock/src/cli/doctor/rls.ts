@@ -5,7 +5,7 @@ import type { RlsActions } from "../types.ts";
 
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { scopeList } from "../../core/scopes.ts";
-import { type Policy, hasConditionOp } from "../../index.ts";
+import { type Policy, hasConditionOp, listPermissions } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { sqlFiles } from "../files.ts";
 import { graphPlan } from "../rls/graph.ts";
@@ -379,4 +379,65 @@ export async function pd037(
     }
   }
   return findings;
+}
+
+const WRITE_VERB_PREFIXES = [
+  "create",
+  "update",
+  "delete",
+  "remove",
+  "send",
+  "mark",
+  "cancel",
+  "approve",
+  "receive",
+  "fulfill",
+  "reimburse",
+  "withdraw",
+  "writeOff",
+  "confirm",
+  "pause",
+] as const;
+
+/** `verb` starts with a write prefix that ends at a word boundary: `markPaid`, not `market`. */
+function suggestsWrite(verb: string): boolean {
+  return WRITE_VERB_PREFIXES.some((prefix) => {
+    if (!verb.startsWith(prefix)) {
+      return false;
+    }
+    const next = verb.charAt(prefix.length);
+    return next === "" || /[A-Z0-9_-]/u.test(next);
+  });
+}
+
+export async function pd071(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  const rls = input.config.rls;
+  if (rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await policyOf(input);
+  if (policy === undefined) {
+    return [];
+  }
+  const byVerb = new Map<string, string[]>();
+  for (const leaf of listPermissions(policy.vocabulary.permissions)) {
+    if (
+      (rls.actions !== undefined && Object.hasOwn(rls.actions, leaf.action)) ||
+      commandFor(leaf.action) !== undefined ||
+      !suggestsWrite(leaf.action)
+    ) {
+      continue;
+    }
+    byVerb.set(leaf.action, [...(byVerb.get(leaf.action) ?? []), leaf.key]);
+  }
+  return [...byVerb.entries()]
+    .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([verb, keys]) => ({
+      code: "PD071",
+      severity: "warning" as const,
+      message: `action '${verb}' (${keys.toSorted().join(", ")}) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy`,
+      fix: `map it on purpose in rls.actions: ${verb}: "insert", "update", "delete" or "none"`,
+    }));
 }
