@@ -12,6 +12,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
 const TMP = join(HERE, "../../tmp");
 
+// Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
+vi.mock("@napi-rs/keyring", () => {
+  throw new Error("@napi-rs/keyring is not installed");
+});
+
 const temps: string[] = [];
 
 function appCopy(): string {
@@ -23,11 +28,6 @@ function appCopy(): string {
     join(dir, "src/hostable-policy.ts"),
     `import { allow, definePolicy, role } from 'permdock';
 import { permissions } from './permissions.ts';
-
-// Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
-vi.mock("@napi-rs/keyring", () => {
-  throw new Error("@napi-rs/keyring is not installed");
-});
 
 export const policy = definePolicy(permissions, {
   roles: [
