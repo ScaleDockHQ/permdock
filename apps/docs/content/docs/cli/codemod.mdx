@@ -56,6 +56,8 @@ Some 0.5.0 changes move more than a name. The codemod rewrites these where the i
 | `permdock.simulate({ arazzo, openapi })`                                                                                          | `simulateArazzo(permdock, { arazzo, openapi })`                                                                                             |
 | `permdock.activate(input)` on a receiver named like `permdock` or a module-level factory result                                   | `activate(permdock, input)`                                                                                                                 |
 | `permittedIds(permdock, permission, scope)`, `mayUse(permdock, permission)`                                                       | `permdock.permittedIds(permission, scope)`, `permdock.mayUse(permission)`; the import goes once nothing reads it                            |
+| `createPermDock(policy, user, { approvalPolicies: source })` from `permdock` or `permdock/pdp`                                    | `{ approvalPolicies: approvalPolicies(source) }`; a `memoryApprovalPolicySource([…])` value stays as it is                                  |
+| `createPermDock(policy, user, { policies: source })`                                                                              | `{ policies: hostedPolicies(source) }`                                                                                                      |
 
 ## What it reports
 
@@ -66,6 +68,7 @@ These sites go under `Manual follow-ups` and are never rewritten:
 - **Option keys.** An option key in any other object literal in a file that imports the entry, such as `{ source: 'mcp' }` for `call`; the codemod cannot tell which call the object reaches.
 - **Synchronous `createPermDock`.** A core `createPermDock(…)` call that is returned or chained with `.then` without `await`: it now returns the instance, so a source that answers asynchronously needs `loadPermDock`.
 - **Feature methods it cannot move.** An optional call such as `permdock?.whoCan(…)`, a call with type arguments, or one where the function name is already bound in that scope.
+- **Approval policy options elsewhere.** An `approvalPolicies` key in an object literal that is not passed straight to `createPermDock` or `loadPermDock`.
 - **Template slots.** A Vue `#fallback` slot or a Svelte `{#snippet fallback}` in a component that imports `Protected`, and a `PermDockProvider` whose `defaults` the codemod cannot read or whose import it cannot see.
 - **Parse failures.** A file the parser rejects is listed and left as it is.
 

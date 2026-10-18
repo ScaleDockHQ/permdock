@@ -8,6 +8,7 @@ import type {
   AwaitRename,
   FunctionToMethod,
   MethodToFunction,
+  OptionWrap,
   PropRename,
 } from "./shapes-0.5.ts";
 
@@ -375,4 +376,103 @@ export function visitFunctionCall(
   }
   ctx.changes.push({ at: node.start, from: row.name, to: row.method });
   return true;
+}
+
+function isWrapped(
+  ctx: Context,
+  row: OptionWrap,
+  value: Estree | undefined,
+  ancestors: readonly Estree[],
+): boolean {
+  const callee =
+    value?.type === "CallExpression"
+      ? importedCallee(ctx, value.callee, ancestors)
+      : undefined;
+  return (
+    callee !== undefined &&
+    callee.entry === row.entry &&
+    row.already.includes(callee.imported)
+  );
+}
+
+export function visitWraps(
+  ctx: Context,
+  node: Estree,
+  callee: { readonly entry: string; readonly imported: string },
+  ancestors: readonly Estree[],
+): void {
+  const rows = (ctx.set.wraps ?? []).filter(
+    (row) =>
+      row.entries.includes(callee.entry) && row.calls.includes(callee.imported),
+  );
+  for (const argument of nodes(node.arguments)) {
+    for (const property of argument.type === "ObjectExpression"
+      ? nodes(argument.properties)
+      : []) {
+      const row = rows.find((item) => item.key === nameOf(property.key));
+      if (row !== undefined && property.computed !== true) {
+        wrapOption(ctx, row, property, ancestors);
+      }
+    }
+  }
+}
+
+function wrapOption(
+  ctx: Context,
+  row: OptionWrap,
+  property: Estree,
+  ancestors: readonly Estree[],
+): void {
+  const value = child(property, "value");
+  if (property.key !== undefined) {
+    ctx.handledKeys.add(property.key);
+  }
+  if (value === undefined || isWrapped(ctx, row, value, ancestors)) {
+    return;
+  }
+  const local = importedLocal(ctx, row.wrapper, row.entry, ancestors);
+  if (local === undefined || property.type !== "Property") {
+    ctx.followUps.push({
+      at: property.start,
+      name: row.key,
+      message: `option \`${row.key}\` takes \`${row.wrapper}(source)\` from \`${row.entry}\`; \`${row.wrapper}\` is already bound in this scope`,
+    });
+    return;
+  }
+  ctx.edits.push(
+    property.shorthand === true
+      ? {
+          start: property.start,
+          end: property.start,
+          text: `${row.key}: ${local}(`,
+        }
+      : { start: value.start, end: value.start, text: `${local}(` },
+    { start: value.end, end: value.end, text: ")" },
+  );
+  ctx.changes.push({ at: value.start, from: row.key, to: row.wrapper });
+}
+
+export function reportWraps(
+  ctx: Context,
+  node: Estree,
+  ancestors: readonly Estree[],
+): void {
+  for (const property of nodes(node.properties)) {
+    const row = (ctx.set.wraps ?? []).find(
+      (item) => item.reportElsewhere && item.key === nameOf(property.key),
+    );
+    if (
+      row !== undefined &&
+      property.key !== undefined &&
+      property.computed !== true &&
+      !ctx.handledKeys.has(property.key) &&
+      !isWrapped(ctx, row, child(property, "value"), ancestors)
+    ) {
+      ctx.followUps.push({
+        at: property.start,
+        name: row.key,
+        message: `option \`${row.key}\` takes \`${row.wrapper}(source)\` from \`${row.entry}\` when this object reaches \`createPermDock\` or \`loadPermDock\``,
+      });
+    }
+  }
 }

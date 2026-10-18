@@ -11,6 +11,7 @@ import {
   CALL_RENAMES_0_5,
   FUNCTION_METHODS_0_5,
   METHOD_FUNCTIONS_0_5,
+  OPTION_WRAPS_0_5,
   PROP_RENAMES_0_5,
   TEMPLATE_HINTS_0_5,
 } from "./shapes-0.5.ts";
@@ -29,6 +30,7 @@ export const CODEMOD_0_5: RenameSet = Object.freeze({
   awaits: AWAIT_RENAMES_0_5,
   methodFunctions: METHOD_FUNCTIONS_0_5,
   functionMethods: FUNCTION_METHODS_0_5,
+  wraps: OPTION_WRAPS_0_5,
 });
 
 /** Each codemod version and the rename map it applies. */

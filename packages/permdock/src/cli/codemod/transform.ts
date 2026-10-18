@@ -41,6 +41,8 @@ import {
   visitElement,
   visitFunctionCall,
   visitMethodCall,
+  visitWraps,
+  reportWraps,
 } from "./shapes.ts";
 
 export type { CodemodChange, CodemodFollowUp, RenameSet } from "./context.ts";
@@ -266,6 +268,7 @@ function transformProgram(ctx: Context, segment: Segment): void {
         break;
       case "ObjectExpression":
         reportOptions(ctx, node);
+        reportWraps(ctx, node, ancestors);
         break;
       default:
         break;
@@ -427,6 +430,7 @@ function visitCall(
   const renamed = renameOf(ctx.set, callee.imported, callee.entry)?.to;
   const names = new Set([callee.imported, renamed]);
   const moved = visitFunctionCall(ctx, node, callee);
+  visitWraps(ctx, node, callee, ancestors);
   for (const signature of ctx.set.signatures) {
     if (
       !moved &&

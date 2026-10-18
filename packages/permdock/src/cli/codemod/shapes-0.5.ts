@@ -36,6 +36,16 @@ export type FunctionToMethod = {
   readonly method: string;
 };
 
+export type OptionWrap = {
+  readonly key: string;
+  readonly wrapper: string;
+  readonly entry: string;
+  readonly calls: readonly string[];
+  readonly entries: readonly string[];
+  readonly already: readonly string[];
+  readonly reportElsewhere: boolean;
+};
+
 const JSX_KITS = [
   "permdock/react",
   "permdock/react-native",
@@ -125,4 +135,31 @@ export const METHOD_FUNCTIONS_0_5: readonly MethodToFunction[] = Object.freeze(
 export const FUNCTION_METHODS_0_5: readonly FunctionToMethod[] = Object.freeze([
   { name: "permittedIds", entry: "permdock", method: "permittedIds" },
   { name: "mayUse", entry: "permdock", method: "mayUse" },
+]);
+
+const INSTANCE_FACTORIES = ["createPermDock", "loadPermDock"] as const;
+
+export const OPTION_WRAPS_0_5: readonly OptionWrap[] = Object.freeze([
+  {
+    key: "approvalPolicies",
+    wrapper: "approvalPolicies",
+    entry: "permdock",
+    calls: INSTANCE_FACTORIES,
+    entries: ["permdock", "permdock/pdp"],
+    already: [
+      "approvalPolicies",
+      "memoryApprovalPolicySource",
+      "memoryApprovalPolicies",
+    ],
+    reportElsewhere: true,
+  },
+  {
+    key: "policies",
+    wrapper: "hostedPolicies",
+    entry: "permdock",
+    calls: INSTANCE_FACTORIES,
+    entries: ["permdock", "permdock/pdp"],
+    already: ["hostedPolicies"],
+    reportElsewhere: false,
+  },
 ]);

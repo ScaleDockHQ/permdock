@@ -434,3 +434,66 @@ describe("instance listing methods", () => {
     expect(result.followUps).toEqual([]);
   });
 });
+
+describe("feature options", () => {
+  it("wraps approval policy and hosted grant sources passed to createPermDock", () => {
+    const result = apply(
+      [
+        'import { createPermDock } from "permdock";',
+        "export const a = createPermDock(policy, user, {",
+        "  approvalPolicies: tableApprovalPolicies(db),",
+        "  policies,",
+        "});",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")).toEqual([
+      'import { createPermDock, approvalPolicies, hostedPolicies } from "permdock";',
+      "export const a = createPermDock(policy, user, {",
+      "  approvalPolicies: approvalPolicies(tableApprovalPolicies(db)),",
+      "  policies: hostedPolicies(policies),",
+      "});",
+    ]);
+  });
+
+  it("leaves a memory source and an already wrapped source alone", () => {
+    const result = apply(
+      [
+        'import { approvalPolicies, loadPermDock, memoryApprovalPolicies } from "permdock";',
+        "export const a = await loadPermDock(policy, user, { approvalPolicies: memoryApprovalPolicies([]) });",
+        "export const b = await loadPermDock(policy, user, { approvalPolicies: approvalPolicies(source) });",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n").slice(1)).toEqual([
+      "export const a = await loadPermDock(policy, user, { approvalPolicies: memoryApprovalPolicySource([]) });",
+      "export const b = await loadPermDock(policy, user, { approvalPolicies: approvalPolicies(source) });",
+    ]);
+    expect(result.followUps).toEqual([]);
+  });
+
+  it("wraps at the permdock/pdp factory and reports options it cannot reach", () => {
+    const result = apply(
+      [
+        'import { createPermDock } from "permdock/pdp";',
+        "const approvalPolicies = source;",
+        "export const a = await createPermDock(policy, user, { approvalPolicies });",
+        "export const options = { approvalPolicies: source, policies: [] };",
+      ],
+      "file.ts",
+    );
+    expect(result.source.split("\n")[2]).toBe(
+      "export const a = await loadPermDock(policy, user, { approvalPolicies });",
+    );
+    expect(result.followUps.map((item) => [item.line, item.message])).toEqual([
+      [
+        3,
+        "option `approvalPolicies` takes `approvalPolicies(source)` from `permdock`; `approvalPolicies` is already bound in this scope",
+      ],
+      [
+        4,
+        "option `approvalPolicies` takes `approvalPolicies(source)` from `permdock` when this object reaches `createPermDock` or `loadPermDock`",
+      ],
+    ]);
+  });
+});

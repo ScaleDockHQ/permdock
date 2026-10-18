@@ -3,6 +3,7 @@ import type {
   AwaitRename,
   FunctionToMethod,
   MethodToFunction,
+  OptionWrap,
   PropRename,
   TemplateHint,
 } from "./shapes-0.5.ts";
@@ -26,6 +27,7 @@ export type RenameSet = {
   readonly awaits?: readonly AwaitRename[];
   readonly methodFunctions?: readonly MethodToFunction[];
   readonly functionMethods?: readonly FunctionToMethod[];
+  readonly wraps?: readonly OptionWrap[];
 };
 
 /** One rewritten span. */
