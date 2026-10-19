@@ -258,10 +258,21 @@ export async function runRlsGenerate(
         };
   }
   const written = writeOutputFiles(input.cwd, files);
-  const extra = warnings.length === 0 ? "" : `\n${warnings.join("\n")}`;
+  const notes = [
+    ...(written.wrote.length === 0
+      ? []
+      : [`wrote ${written.wrote.join(", ")}`]),
+    ...warnings,
+  ];
+  if (written.printed !== "") {
+    // Stdout carries only the printed SQL, so `--out -` pipes into a file.
+    for (const note of notes) {
+      input.io.stderr(note);
+    }
+  }
   return {
     code: 0,
-    output: `wrote ${written.wrote.join(", ")}${written.printed === "" ? "" : `\n${written.printed}`}${extra}`,
+    output: written.printed === "" ? notes.join("\n") : written.printed,
     text,
     ...extras,
   };

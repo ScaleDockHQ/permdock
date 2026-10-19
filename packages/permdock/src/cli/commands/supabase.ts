@@ -1,5 +1,5 @@
 import { type Leaf, defineLeaf } from "../core/command.ts";
-import { checkFlag, dbUrl, dbUrlFlags, given } from "../core/flags.ts";
+import { checkFlag, dbUrl, dbUrlFlags, fileOut, given } from "../core/flags.ts";
 
 export const hookGenerate: Leaf = defineLeaf({
   flags: {
@@ -33,7 +33,7 @@ export const hookGenerate: Leaf = defineLeaf({
     },
   },
   async run(ctx, { flags }) {
-    const out = given(flags.out);
+    const out = fileOut("supabase hook generate", flags.out);
     const db = await dbUrl(ctx, flags);
     const activeFrom = given(flags["active-from"]);
     const budget = given(flags.budget);
@@ -69,7 +69,8 @@ export const inspect: Leaf = defineLeaf({
     ...checkFlag,
   },
   async run(ctx, { flags }) {
-    const out = flags.out === "" ? true : flags.out;
+    const out =
+      flags.out === "" ? true : flags.out === "-" ? undefined : flags.out;
     // Lazy: the implementation loads only when this command runs, not for --help.
     const { runSupabase } = await import("../supabase-hook/supabase-hook.ts");
     return runSupabase({

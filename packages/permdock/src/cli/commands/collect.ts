@@ -1,6 +1,6 @@
 import { type Leaf, defineLeaf } from "../core/command.ts";
 import { CliError } from "../core/errors.ts";
-import { checkFlag, given } from "../core/flags.ts";
+import { checkFlag, fileOut } from "../core/flags.ts";
 
 export const collect: Leaf = defineLeaf({
   flags: {
@@ -22,7 +22,7 @@ export const collect: Leaf = defineLeaf({
     },
   },
   async run(ctx, { flags }) {
-    const out = given(flags.out);
+    const out = fileOut("collect", flags.out);
     const overrides = {
       ...(flags.src.length > 0 ? { srcPath: [...flags.src] } : {}),
       ...(out === undefined ? {} : { out }),

@@ -3,6 +3,7 @@ import {
   checkFlag,
   dbUrl,
   dbUrlFlags,
+  fileOut,
   given,
   policyFlag,
 } from "../core/flags.ts";
@@ -18,7 +19,7 @@ export const generate: Leaf = defineLeaf({
     ...policyFlag,
   },
   async run(ctx, { flags }) {
-    const out = given(flags.out);
+    const out = fileOut("powersync", flags.out);
     const from = given(flags.policy);
     // Lazy: the implementation loads only when this command runs, not for --help.
     const { runPowerSync } = await import("../powersync/powersync.ts");
@@ -49,7 +50,7 @@ export const verify: Leaf = defineLeaf({
     ...policyFlag,
   },
   async run(ctx, { flags }) {
-    const out = given(flags.out);
+    const out = fileOut("powersync", flags.out);
     const db = await dbUrl(ctx, flags, { required: true });
     const fixtures = given(flags.fixtures);
     const from = given(flags.policy);

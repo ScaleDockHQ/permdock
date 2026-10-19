@@ -10,6 +10,7 @@ import {
   dbUrl,
   dbUrlFlags,
   dryRunFlag,
+  fileOut,
   given,
   outFlag,
   policyFlag,
@@ -290,7 +291,7 @@ export const importPolicies: Leaf = defineLeaf({
       })),
       sql,
       db,
-      out: given(flags.out),
+      out: fileOut("rls import", flags.out),
       schema: flags.validator,
     });
   },

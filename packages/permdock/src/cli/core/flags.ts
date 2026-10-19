@@ -1,6 +1,7 @@
 import type { CliContext } from "./context.ts";
 
 import { secretInput } from "./credentials.ts";
+import { CliError } from "./errors.ts";
 
 /** The flag vocabulary shared with better-supabase: one spelling per meaning. */
 
@@ -103,4 +104,22 @@ export const DB_URL_ENV = ["DATABASE_URL", "SUPABASE_DB_URL"] as const;
 /** A string flag given with a value; a bare flag reads as `""`. */
 export function given(value: string | undefined): string | undefined {
   return value === undefined || value === "" ? undefined : value;
+}
+
+/**
+ * `--out` for a command that only writes a file: `-` is refused instead of
+ * creating a file named `-`.
+ */
+export function fileOut(
+  command: string,
+  value: string | undefined,
+): string | undefined {
+  if (value === "-") {
+    throw new CliError(
+      "usage",
+      `${command}: --out - is not supported; name a file.`,
+      { code: "invalid_value", extensions: { flag: "--out" } },
+    );
+  }
+  return given(value);
 }

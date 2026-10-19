@@ -105,6 +105,8 @@ describe("the CLI contract shared with better-supabase", () => {
 
   it.each([
     [["nope", "--json"], 2],
+    [["--json"], 2],
+    [["rls", "--json"], 2],
     [["preset", "decode", "--json"], 3],
   ])(
     "prints %j as an envelope better-supabase's schema accepts",

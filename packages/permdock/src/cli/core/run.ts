@@ -448,11 +448,13 @@ export async function run(
           {
             code: "usage",
             extensions: {
-              choices: group.children
-                .filter(
-                  (child) => child.kind === "group" || child.hidden !== true,
-                )
-                .map((child) => `permdock ${[...path, child.name].join(" ")}`),
+              choices: {
+                "<command>": group.children
+                  .filter(
+                    (child) => child.kind === "group" || child.hidden !== true,
+                  )
+                  .map((child) => child.name),
+              },
             },
           },
         ),

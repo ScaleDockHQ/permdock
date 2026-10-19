@@ -1,5 +1,5 @@
 import { type Leaf, defineLeaf } from "../core/command.ts";
-import { given, outFlag } from "../core/flags.ts";
+import { fileOut, given, outFlag } from "../core/flags.ts";
 
 export const caslImport: Leaf = defineLeaf({
   flags: {
@@ -17,7 +17,7 @@ export const caslImport: Leaf = defineLeaf({
     return runCaslImport({
       cwd: ctx.cwd,
       rules: given(flags.rules),
-      out: given(flags.out),
+      out: fileOut("casl import", flags.out),
       json: ctx.json,
     });
   },
