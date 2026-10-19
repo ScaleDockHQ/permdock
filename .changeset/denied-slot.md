@@ -1,5 +1,5 @@
 ---
-"permdock": major
+"permdock": minor
 ---
 
 `<Protected>`'s denied slot is `denied` in every UI kit, matching `<PermissionBoundary>`. In React, Vue and Solid, `fallback` means a loading or error state, so it read as the wrong thing.

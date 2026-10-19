@@ -1,5 +1,5 @@
 ---
-"permdock": major
+"permdock": minor
 ---
 
 Core and `permdock/pdp` replace `createPermDock` with `getPermDock`, which takes the same arguments and returns `Promise<PermDock>`, and `getPermDockSync`, which returns a `PermDock` and never a Promise. Passing a Promise-returning mapper or source to `getPermDockSync` throws and names `getPermDock`, instead of handing back a value that might be a Promise. Adapters keep `createPermDock`.

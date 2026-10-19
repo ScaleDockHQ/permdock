@@ -1,5 +1,5 @@
 ---
-"permdock": major
+"permdock": minor
 ---
 
 Feature requests are free functions that take the instance first, so `getPermDock` no longer references their modules and an app that does not call them does not ship them. A plain `definePolicy` + `getPermDock` bundle drops from 54.3 KB to 46.7 KB gzip, and `permdock/react` from 21.8 KB to 19.4 KB (measured with esbuild, minified, tree-shaken).

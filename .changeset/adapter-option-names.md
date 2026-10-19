@@ -1,5 +1,5 @@
 ---
-"permdock": major
+"permdock": minor
 ---
 
 Option names match across adapters.
