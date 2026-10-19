@@ -80,6 +80,7 @@ export const SECTIONS: readonly Section[] = [
           examples: [
             "permdock init --preset p1AQIDBAc",
             "permdock init --archetype b2b --framework hono --integration mcp",
+            "permdock init --archetype api --auth supabase --backend drizzle --service cloud-decision-log",
           ],
           docs: "init",
           effects: ["files"],

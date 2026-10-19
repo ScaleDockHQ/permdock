@@ -1,19 +1,44 @@
-import type { PresetInput } from "../../preset/index.ts";
+import type { EnumFlag } from "../core/command.ts";
 
 import {
-  AGENTS,
-  ARCHETYPES,
-  FEATURES,
-  FRAMEWORKS,
-  UI,
+  PRESET_DEFAULTS,
+  PRESET_FLAGS,
+  type Preset,
+  type PresetInput,
 } from "../../preset/index.ts";
-import { suggestion } from "../core/args.ts";
 import { type Leaf, defineLeaf } from "../core/command.ts";
-import { CliError } from "../core/errors.ts";
 import { dryRunFlag, forceFlag, given } from "../core/flags.ts";
 
-const AGENT_IDS: readonly string[] = AGENTS.map((choice) => choice.id);
-const UI_IDS: readonly string[] = UI.map((choice) => choice.id);
+function optionsOf(key: keyof Preset): string[] {
+  return PRESET_FLAGS[key].choices
+    .filter((item) => item.retired !== true)
+    .map((item) => item.id);
+}
+
+function one(
+  key: "archetype" | "auth" | "backend" | "framework",
+  description: string,
+): EnumFlag & { readonly default: string } {
+  return {
+    type: "enum",
+    options: optionsOf(key),
+    description: `Without --preset: ${description}`,
+    default: PRESET_DEFAULTS[key],
+  };
+}
+
+function many(
+  key: "features" | "integrations" | "services",
+  description: string,
+): EnumFlag & { readonly repeatable: true } {
+  return {
+    type: "enum",
+    options: optionsOf(key),
+    description: `Without --preset: ${description}`,
+    repeatable: true,
+    valueHint: "id",
+  };
+}
 
 export const init: Leaf = defineLeaf({
   flags: {
@@ -22,33 +47,16 @@ export const init: Leaf = defineLeaf({
       description: "A preset code from permdock.com/create",
       valueHint: "code",
     },
-    archetype: {
-      type: "string",
-      description:
-        "Without --preset: b2b, agent, marketplace, api, internal or consumer",
-      valueHint: "name",
-      complete: () => ARCHETYPES.map((choice) => choice.id),
-    },
-    framework: {
-      type: "string",
-      description: "Without --preset: next, hono, express or none",
-      valueHint: "name",
-      complete: () => FRAMEWORKS.map((choice) => choice.id),
-    },
-    feature: {
-      type: "string",
-      repeatable: true,
-      description: "Without --preset: a feature to add",
-      valueHint: "name",
-      complete: () => FEATURES.map((choice) => choice.id),
-    },
-    integration: {
-      type: "string",
-      repeatable: true,
-      description: "Without --preset: ai-sdk, mcp, shadcn or react-native",
-      valueHint: "name",
-      complete: () => [...AGENT_IDS, ...UI_IDS],
-    },
+    archetype: { ...one("archetype", "the kind of app"), valueHint: "id" },
+    framework: one("framework", "where requests arrive"),
+    auth: one("auth", "who signs users in"),
+    backend: one("backend", "where data lives"),
+    feature: many("features", "a feature beyond the archetype's"),
+    integration: many(
+      "integrations",
+      "an agent runtime or a set of UI recipes",
+    ),
+    service: many("services", "a PermDock Cloud service"),
     "out-dir": {
       type: "string",
       description: "Source directory the files go in (default src)",
@@ -58,35 +66,21 @@ export const init: Leaf = defineLeaf({
     ...forceFlag,
   },
   async run(ctx, { flags }) {
-    const agents: string[] = [];
-    const ui: string[] = [];
-    for (const id of flags.integration) {
-      if (AGENT_IDS.includes(id)) {
-        agents.push(id);
-      } else if (UI_IDS.includes(id)) {
-        ui.push(id);
-      } else {
-        throw new CliError(
-          "usage",
-          `init: unknown --integration '${id}'.${suggestion(id, [...AGENT_IDS, ...UI_IDS])}`,
-          { code: "invalid_value" },
-        );
-      }
-    }
     // Lazy: the implementation loads only when this command runs, not for --help.
     const [{ runInit }, { packageManagerOf }] = await Promise.all([
       import("../init.ts"),
       import("../core/peer.ts"),
     ]);
     const agent = await packageManagerOf(ctx.cwd);
-    const framework = given(flags.framework);
-    // SAFETY: runInit rejects every id outside the catalogue before it resolves the preset.
+    // SAFETY: every selection flag is an enum over its catalogue, so the parser already refused any other id.
     const selection = {
-      archetype: given(flags.archetype) ?? "b2b",
-      ...(framework === undefined ? {} : { framework }),
+      archetype: flags.archetype,
+      framework: flags.framework,
+      auth: flags.auth,
+      backend: flags.backend,
       features: flags.feature,
-      agents,
-      ui,
+      integrations: flags.integration,
+      services: flags.service,
     } as PresetInput;
     const outDir = given(flags["out-dir"]);
     return runInit({
@@ -95,7 +89,6 @@ export const init: Leaf = defineLeaf({
       ...(outDir === undefined ? {} : { src: outDir }),
       dryRun: flags["dry-run"],
       force: flags.force,
-      json: ctx.json,
       ...(agent === undefined ? {} : { agent }),
     });
   },
@@ -108,19 +101,19 @@ const presetCode = [
 export const presetDecode: Leaf = defineLeaf({
   positionals: presetCode,
   flags: {},
-  async run(ctx, { args }) {
+  async run(_ctx, { args }) {
     // Lazy: the implementation loads only when this command runs, not for --help.
     const { runPreset } = await import("../init.ts");
-    return runPreset("decode", args["code"], ctx.json);
+    return runPreset("decode", args["code"] ?? "");
   },
 });
 
 export const presetUrl: Leaf = defineLeaf({
   positionals: presetCode,
   flags: {},
-  async run(ctx, { args }) {
+  async run(_ctx, { args }) {
     // Lazy: the implementation loads only when this command runs, not for --help.
     const { runPreset } = await import("../init.ts");
-    return runPreset("url", args["code"], ctx.json);
+    return runPreset("url", args["code"] ?? "");
   },
 });

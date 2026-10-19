@@ -18,7 +18,6 @@ Breaking: the `permdock` CLI now shares better-supabase's CLI contract. Groups h
 | `--strict`                     | `--fail-on warning`                     | `usage`, `config`, `doctor`                                                                           |
 | `--write`                      | `--scope catalog:write`                 | `login`                                                                                               |
 | `--agent`                      | `--client`                              | `skills install`, `skills update`                                                                     |
-| `--agent`, `--ui`              | `--integration`                         | `init`                                                                                                |
 | `--src`                        | `--out-dir`                             | `init`                                                                                                |
 | `--rbac-scaffold`              | `--rbac supabase`                       | `rls generate`, `rls verify`, `rls migrate`                                                           |
 | `--write`, `--retire-out` only | writes by default; `--dry-run` previews | `rls migrate`                                                                                         |

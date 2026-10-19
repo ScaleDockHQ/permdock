@@ -3,14 +3,17 @@ permdock init: Write a preset's permissions, policy, app and wiring into the pro
 Usage  permdock init [flags]
 
 Flags
-  --preset <code>       A preset code from permdock.com/create
-  --archetype <name>    Without --preset: b2b, agent, marketplace, api, internal or consumer
-  --framework <name>    Without --preset: next, hono, express or none
-  --feature <name>      Without --preset: a feature to add (repeatable)
-  --integration <name>  Without --preset: ai-sdk, mcp, shadcn or react-native (repeatable)
-  --out-dir <dir>       Source directory the files go in (default src)
-  --dry-run             Print what would change; write nothing
-  --force               Overwrite files PermDock did not write or that changed by hand
+  --preset <code>                                 A preset code from permdock.com/create
+  --archetype <id>                                Without --preset: the kind of app (default b2b); one of b2b, agent, marketplace, api, internal, consumer
+  --framework <next|hono|express|none>            Without --preset: where requests arrive (default next)
+  --auth <custom|supabase|better-auth|clerk|jwt>  Without --preset: who signs users in (default custom)
+  --backend <memory|supabase|drizzle|prisma>      Without --preset: where data lives (default memory)
+  --feature <id>                                  Without --preset: a feature beyond the archetype's (repeatable); one of tenancy, custom-roles, approvals, operations, decision-log, limits, plans, ownership, api-keys, rls
+  --integration <id>                              Without --preset: an agent runtime or a set of UI recipes (repeatable); one of ai-sdk, mcp, shadcn, react-native
+  --service <id>                                  Without --preset: a PermDock Cloud service (repeatable); one of cloud-decision-log, cloud-approvals, cloud-snapshots, cloud-hosted-grants
+  --out-dir <dir>                                 Source directory the files go in (default src)
+  --dry-run                                       Print what would change; write nothing
+  --force                                         Overwrite files PermDock did not write or that changed by hand
 
 Global flags
   --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
@@ -18,6 +21,7 @@ Global flags
 Examples
   permdock init --preset p1AQIDBAc
   permdock init --archetype b2b --framework hono --integration mcp
+  permdock init --archetype api --auth supabase --backend drizzle --service cloud-decision-log
 
 Side effects  files
 Docs  https://permdock.com/docs/cli/init

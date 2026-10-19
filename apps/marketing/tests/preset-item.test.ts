@@ -16,14 +16,24 @@ const ORIGIN = "https://permdock.com";
 describe("presetItem", () => {
   it("builds a valid shadcn registry block that writes the preset's files", () => {
     const code = encodePreset(
-      resolvePreset({ archetype: "b2b", framework: "hono", ui: ["shadcn"] }),
+      resolvePreset({
+        archetype: "b2b",
+        framework: "hono",
+        backend: "prisma",
+        integrations: ["shadcn"],
+      }),
     );
     const item = presetItem(code, ORIGIN);
     expect(registryItemSchema.safeParse(item).success).toBe(true);
     expect(item).toMatchObject({
       name: `preset-${code}`,
       type: "registry:block",
-      dependencies: expect.arrayContaining(["permdock", "zod", "hono"]),
+      dependencies: expect.arrayContaining([
+        "permdock",
+        "zod",
+        "hono",
+        "@prisma/client",
+      ]),
       registryDependencies: expect.arrayContaining([
         `${ORIGIN}/r/gated-button.json`,
         `${ORIGIN}/r/tenant-switcher.json`,
@@ -31,7 +41,13 @@ describe("presetItem", () => {
     });
     // SAFETY: presetItem builds files as an array of { path, type, target, content }.
     const files = (item?.["files"] ?? []) as readonly { target: string }[];
-    expect(files.map((file) => file.target)).toContain("~/src/policy.ts");
+    expect(files.map((file) => file.target)).toEqual(
+      expect.arrayContaining([
+        "~/src/policy.ts",
+        "~/prisma/schema.prisma",
+        "~/permdock.config.ts",
+      ]),
+    );
   });
 
   it("refuses a code it cannot read", () => {
@@ -51,7 +67,7 @@ describe("registry.json", () => {
         resolvePreset({
           archetype: archetype.id,
           features: FEATURES.map((feature) => feature.id),
-          ui: ["shadcn", "react-native"],
+          integrations: ["shadcn", "react-native"],
         }),
       );
       for (const recipe of generated.recipes) {

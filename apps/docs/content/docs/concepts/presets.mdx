@@ -1,22 +1,23 @@
 ---
 title: Presets
-description: A preset is an archetype plus the features, auth, backend, framework, agent runtimes, UI and PermDock Cloud services an app needs, encoded as a short versioned code; permdock/preset generates the application's own files from it, the same in permdock init, the @permdock registry and the /create page.
+description: A preset is an archetype plus the features, auth, backend, framework, integrations and PermDock Cloud services an app needs, encoded as a short versioned code; permdock/preset generates the application's own files from it, the same in permdock init, the @permdock registry and the /create page.
 ---
 
 A preset describes a starting point: a SaaS archetype and the features and stack it runs on. [/create](https://permdock.com/create) builds one in the browser, `permdock init` writes it into a project, and the code that names it can be shared, opened and changed again.
 
-| Part      | Choices                                                                                                      |
-| --------- | ------------------------------------------------------------------------------------------------------------ |
-| Archetype | `b2b`, `agent`, `marketplace`, `api`, `internal`, `consumer`                                                 |
-| Features  | `tenancy`, `custom-roles`, `approvals`, `agents`, `audit`, `limits`, `plans`, `ownership`, `api-keys`, `rls` |
-| Auth      | `custom`, `supabase`, `better-auth`, `clerk`, `jwt`                                                          |
-| Backend   | `memory`, `supabase`, `drizzle`, `prisma`                                                                    |
-| Framework | `next`, `hono`, `express`, `none`                                                                            |
-| Agents    | `ai-sdk`, `mcp`                                                                                              |
-| UI        | `shadcn`, `react-native`                                                                                     |
-| Services  | `cloud-decision-log`, `cloud-approvals`, `cloud-snapshots`, `cloud-hosted-grants`                            |
+| Part         | Preset key     | `permdock init` flag | Choices                                                                                                                 |
+| ------------ | -------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Archetype    | `archetype`    | `--archetype`        | `b2b`, `agent`, `marketplace`, `api`, `internal`, `consumer`                                                            |
+| Features     | `features`     | `--feature`          | `tenancy`, `custom-roles`, `approvals`, `operations`, `decision-log`, `limits`, `plans`, `ownership`, `api-keys`, `rls` |
+| Auth         | `auth`         | `--auth`             | `custom`, `supabase`, `better-auth`, `clerk`, `jwt`                                                                     |
+| Backend      | `backend`      | `--backend`          | `memory`, `supabase`, `drizzle`, `prisma`                                                                               |
+| Framework    | `framework`    | `--framework`        | `next`, `hono`, `express`, `none`                                                                                       |
+| Integrations | `integrations` | `--integration`      | Agent runtimes `ai-sdk`, `mcp`; UI recipes `shadcn`, `react-native`                                                     |
+| Services     | `services`     | `--service`          | `cloud-decision-log`, `cloud-approvals`, `cloud-snapshots`, `cloud-hosted-grants`                                       |
 
-An archetype turns on the features it needs (`b2b` adds `tenancy`, `custom-roles` and `audit`); an agent runtime adds `agents`; `custom-roles` adds `tenancy`. Features are only ever added.
+The /create steps, the preset keys and the `permdock init` flags read one catalogue, so they offer the same ids. `PRESET_DEFAULTS` holds the defaults both start from: `b2b`, `custom` auth, the `memory` backend and `next`, with no integrations or services. `PRESET_FLAGS` maps each key to its flag, and `presetFlags(preset)` returns the flags that select a preset.
+
+An archetype turns on the features it needs (`b2b` adds `tenancy`, `custom-roles` and `decision-log`); an agent runtime adds `operations`; `custom-roles` adds `tenancy`. Features are only ever added.
 
 ## Codes
 
@@ -38,11 +39,14 @@ const { code, files, dependencies, recipes, docs } = generatePreset(preset);
 | `src/permissions.ts`                              | The archetype's resources with `crud()` or `readable()` and Zod schemas                                                                                                                                                                 |
 | `src/policy.ts`                                   | Roles and grants as data: `on`, `min` and `assigns` with `tenancy`; `where` on the owner field with `ownership`; `approval: "human"` on destructive actions with `approvals`; `limit` with `limits`; a `plan("pro")` grant with `plans` |
 | `src/permdock.ts`                                 | `defineApp` with the features and services the preset picked and `profile` from `NODE_ENV` ([apps and profiles](/docs/concepts/apps))                                                                                                   |
-| `src/data.ts`, `src/session.ts`                   | Row loaders and the signed-in user, to replace with your database and auth; the session returns `null` until wired, so every check fails closed                                                                                         |
+| `src/data.ts`                                     | Row loaders: demo rows in memory; Drizzle or Prisma queries with `toWhere()` lists on those backends, next to `src/schema.ts` and `src/db.ts` or `prisma/schema.prisma`                                                                 |
+| `src/session.ts`                                  | The caller: `currentUser()` returning `null` until wired with `custom` auth, so every check fails closed; `currentSubject()` through the provider's `subjectFrom*` otherwise, plus `src/auth.ts` for Better Auth                        |
 | Framework file                                    | `src/permdock/server.ts` (Next.js) or `src/server.ts` (Hono, Express, core)                                                                                                                                                             |
 | `src/operations.ts`, `src/agent.ts`, `src/mcp.ts` | With agent runtimes                                                                                                                                                                                                                     |
 | `src/keys.ts`                                     | With `api-keys`: a `decideCredential` call                                                                                                                                                                                              |
-| `permdock.config.ts`                              | With `rls`                                                                                                                                                                                                                              |
+| `permdock.config.ts`                              | Always: `permissions`, `policy`, `operations` with agent runtimes, and `rls` with that feature                                                                                                                                          |
+
+[permdock init](/docs/cli/init#generated-files) lists what each choice writes.
 
 Every generated file is the application's own code. The rules (role ceilings, holder counts, approval binding, limits, verification) are in the `permdock` package that these files call, so updating the package updates them.
 

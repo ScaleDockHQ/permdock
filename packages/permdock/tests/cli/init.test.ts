@@ -31,7 +31,7 @@ describe("permdock init", () => {
   it("writes a preset's files from a code and prints what to install", async () => {
     const cwd = project();
     const code = encodePreset(
-      resolvePreset({ archetype: "agent", agents: ["ai-sdk"], ui: ["shadcn"] }),
+      resolvePreset({ archetype: "agent", integrations: ["ai-sdk", "shadcn"] }),
     );
     writeFileSync(join(cwd, "bun.lock"), "");
     const result = await run(["init", "--preset", code], { cwd });
@@ -110,17 +110,64 @@ describe("permdock init output", () => {
     expect(report.dryRun).toBe(false);
     expect(existsSync(join(cwd, "app/server.ts"))).toBe(true);
   });
+
+  it("writes provider wiring and lists its packages in the next steps", async () => {
+    const cwd = project();
+    const result = await run(
+      [
+        "init",
+        "--archetype",
+        "b2b",
+        "--framework",
+        "hono",
+        "--auth",
+        "supabase",
+        "--backend",
+        "drizzle",
+        "--service",
+        "cloud-snapshots",
+        "--json",
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const envelope: {
+      readonly status: string;
+      readonly next: readonly { readonly command?: string }[];
+    } = JSON.parse(result.stdout);
+    expect(envelope.status).toBe("success");
+    expect(envelope.next[0]?.command).toMatch(
+      / permdock zod hono @supabase\/supabase-js drizzle-orm pg$/u,
+    );
+    expect(readFileSync(join(cwd, "src/session.ts"), "utf8")).toContain(
+      "subjectFromSupabase",
+    );
+    expect(readFileSync(join(cwd, "src/data.ts"), "utf8")).toContain(
+      "toWhere(permdock.where(",
+    );
+    expect(readFileSync(join(cwd, "src/permdock.ts"), "utf8")).toContain(
+      "permdockCloud.snapshotsFor(token)",
+    );
+    expect(existsSync(join(cwd, "permdock.config.ts"))).toBe(true);
+  });
 });
 
 describe("permdock preset", () => {
   it("prints a readable table without --json", async () => {
     const code = encodePreset(
-      resolvePreset({ archetype: "agent", agents: ["mcp"] }),
+      resolvePreset({
+        archetype: "agent",
+        auth: "clerk",
+        integrations: ["mcp"],
+      }),
     );
     const decoded = await run(["preset", "decode", code], { cwd: tmpdir() });
-    expect(decoded.stdout).toContain("archetype  agent");
-    expect(decoded.stdout).toContain("ui         none");
-    expect(decoded.stdout).toContain("agents     mcp");
+    expect(decoded.stdout).toContain("archetype    agent");
+    expect(decoded.stdout).toContain("auth         clerk");
+    expect(decoded.stdout).toContain("integrations mcp");
+    expect(decoded.stdout).toContain(
+      "permdock init --archetype agent --auth clerk --integration mcp",
+    );
   });
 
   it("decodes a code and prints its builder link", async () => {

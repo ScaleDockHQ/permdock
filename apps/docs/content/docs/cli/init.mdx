@@ -10,23 +10,47 @@ description: Write a preset's permissions, policy, app definition and framework 
 ```bash
 permdock init --preset p1AQIDBAc                  # a code from permdock.com/create
 permdock init --archetype b2b --framework hono     # or pick with flags
+permdock init --archetype api --auth supabase --backend drizzle --service cloud-decision-log
 permdock init --archetype agent --integration ai-sdk --integration mcp --integration shadcn
 permdock init --archetype consumer --dry-run       # print the plan, write nothing
 permdock init --preset p1AQIDBAc --out-dir app --force
 ```
 
-| Flag                   | Meaning                                                                                                              |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `--preset <code>`      | A preset code from [/create](https://permdock.com/create); the other selection flags are ignored                     |
-| `--archetype <name>`   | `b2b` (default), `agent`, `marketplace`, `api`, `internal` or `consumer`                                             |
-| `--framework <name>`   | `next` (default), `hono`, `express` or `none`                                                                        |
-| `--feature <name>`     | A feature to add beyond the archetype's, repeatable                                                                  |
-| `--integration <name>` | `ai-sdk` or `mcp` wire an agent adapter; `shadcn` or `react-native` print the `@permdock` recipes to add. Repeatable |
-| `--out-dir <dir>`      | The directory the files go in; default `src`                                                                         |
-| `--dry-run`            | List the files it would write; write nothing                                                                         |
-| `--force`              | Overwrite files that already exist                                                                                   |
+Each selection flag takes the ids of one step on [/create](https://permdock.com/create), and both read the same catalogue in `permdock/preset`. A value outside it exits `2` with the nearest id.
 
-The output ends with the preset's code and its [/create](https://permdock.com/create) link, so the same preset can be opened, changed and applied again. With `--json`, `data` is `{ preset, written, kept, dryRun, install, shadcn, docs }`.
+| Flag                 | Meaning                                                                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--preset <code>`    | A preset code from [/create](https://permdock.com/create); the other selection flags are ignored                                                                      |
+| `--archetype <id>`   | `b2b` (default), `agent`, `marketplace`, `api`, `internal` or `consumer`                                                                                              |
+| `--framework <id>`   | `next` (default), `hono`, `express` or `none`                                                                                                                         |
+| `--auth <id>`        | `custom` (default), `supabase`, `better-auth`, `clerk` or `jwt`                                                                                                       |
+| `--backend <id>`     | `memory` (default), `supabase`, `drizzle` or `prisma`                                                                                                                 |
+| `--feature <id>`     | A feature beyond the archetype's, repeatable: `tenancy`, `custom-roles`, `approvals`, `operations`, `decision-log`, `limits`, `plans`, `ownership`, `api-keys`, `rls` |
+| `--integration <id>` | `ai-sdk` or `mcp` wire an agent adapter; `shadcn` or `react-native` print the `@permdock` recipes to add. Repeatable                                                  |
+| `--service <id>`     | A PermDock Cloud service, repeatable: `cloud-decision-log`, `cloud-approvals`, `cloud-snapshots`, `cloud-hosted-grants`                                               |
+| `--out-dir <dir>`    | The directory the files go in; default `src`                                                                                                                          |
+| `--dry-run`          | List the files it would write; write nothing                                                                                                                          |
+| `--force`            | Overwrite files that already exist                                                                                                                                    |
+
+The output ends with the preset's code and its [/create](https://permdock.com/create) link, so the same preset can be opened, changed and applied again. With `--json`, `data` is `{ preset, written, kept, dryRun, install, shadcn, docs }` and `next` lists the install, `shadcn` and `permdock doctor` commands in order.
+
+## Generated files
+
+Every preset writes `permissions.ts`, `policy.ts`, `permdock.ts`, `data.ts`, `session.ts` and `permdock.config.ts`. The config names the permissions, the policy and, with `operations`, the operations file, so `permdock doctor` and `permdock check` run without flags. The other choices add or change these files:
+
+| Choice                                | What it writes                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `--auth custom`                       | `currentUser()` in `session.ts`, returning `null` until you read your session, so every check denies         |
+| `--auth supabase`, `clerk`, `jwt`     | `currentSubject()` in `session.ts` through `subjectFromSupabase`, `subjectFromClerk` or `jwtSubjectResolver` |
+| `--auth better-auth`                  | `auth.ts` with the `organization` plugin, and `currentSubject()` through `subjectFromBetterAuth`             |
+| `--backend supabase`                  | `postgrestSources()` as the app's `memberships` source in `permdock.ts`                                      |
+| `--backend drizzle`                   | `schema.ts` with one table per resource, `db.ts`, and loaders and `toWhere()` lists in `data.ts`             |
+| `--backend prisma`                    | `prisma/schema.prisma`, `prisma.config.ts`, `db.ts`, and loaders and `toWhere()` lists in `data.ts`          |
+| `--framework next`, `hono`, `express` | `server.ts` (`permdock/server.ts` on Next.js) calling the session function with the request                  |
+| `--integration ai-sdk`, `mcp`         | `operations.ts`, plus `agent.ts` or `mcp.ts`                                                                 |
+| `--service cloud-snapshots`           | `snapshotsFor(token)` in `permdock.ts`, reading signed snapshots from PermDock Cloud                         |
+| `--feature rls`                       | `rls` in `permdock.config.ts` for `permdock rls generate`                                                    |
+| `--feature api-keys`                  | `keys.ts` with `decideReadKey()`                                                                             |
 
 ## Side effects
 

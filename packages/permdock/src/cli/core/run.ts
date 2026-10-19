@@ -580,6 +580,7 @@ export async function run(
             envelope({
               status: "success",
               ...(data === undefined ? {} : { data }),
+              ...(result.next === undefined ? {} : { next: result.next }),
             }),
             null,
             2,

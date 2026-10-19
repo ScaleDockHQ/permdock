@@ -16,8 +16,8 @@ export type FeatureId =
   | "tenancy"
   | "custom-roles"
   | "approvals"
-  | "agents"
-  | "audit"
+  | "operations"
+  | "decision-log"
   | "limits"
   | "plans"
   | "ownership"
@@ -26,8 +26,9 @@ export type FeatureId =
 export type AuthId = "custom" | "supabase" | "better-auth" | "clerk" | "jwt";
 export type BackendId = "memory" | "supabase" | "drizzle" | "prisma";
 export type FrameworkId = "next" | "hono" | "express" | "none";
-export type AgentId = "ai-sdk" | "mcp";
-export type UiId = "shadcn" | "react-native";
+export type IntegrationId = "ai-sdk" | "mcp" | "shadcn" | "react-native";
+/** `agent`: an agent runtime adapter; `ui`: `@permdock` registry recipes. */
+export type IntegrationKind = "agent" | "ui";
 export type ServiceId =
   | "cloud-decision-log"
   | "cloud-approvals"
@@ -44,20 +45,25 @@ export type Choice<Id extends string> = {
   readonly retired?: true;
 };
 
+/** An integration choice: an agent runtime adapter or a set of UI recipes. */
+export type Integration = Choice<IntegrationId> & {
+  readonly kind: IntegrationKind;
+};
+
 export const ARCHETYPES: readonly Choice<ArchetypeId>[] = [
   {
     id: "b2b",
     title: "B2B SaaS",
     description:
       "Organisations with owner, admin, member and viewer roles, custom roles and a decision log.",
-    requires: ["tenancy", "custom-roles", "audit"],
+    requires: ["tenancy", "custom-roles", "decision-log"],
   },
   {
     id: "agent",
     title: "AI agent product",
     description:
       "Tools an agent calls on a user's behalf, with human approval on the ones that change data.",
-    requires: ["agents", "approvals", "audit"],
+    requires: ["operations", "approvals", "decision-log"],
   },
   {
     id: "marketplace",
@@ -70,15 +76,15 @@ export const ARCHETYPES: readonly Choice<ArchetypeId>[] = [
     id: "api",
     title: "API product",
     description:
-      "Projects reached through API keys and OAuth scopes, for developers and their integrations.",
-    requires: ["tenancy", "api-keys", "audit"],
+      "Projects reached through API keys, for developers and their integrations.",
+    requires: ["tenancy", "api-keys", "decision-log"],
   },
   {
     id: "internal",
     title: "Internal tool",
     description:
       "Support staff, leads and admins working tickets, with approval on destructive actions.",
-    requires: ["approvals", "audit"],
+    requires: ["approvals", "decision-log"],
   },
   {
     id: "consumer",
@@ -110,13 +116,13 @@ export const FEATURES: readonly Choice<FeatureId>[] = [
       "Destructive actions return approval-required until a person approves them.",
   },
   {
-    id: "agents",
-    title: "Agent tools",
+    id: "operations",
+    title: "Operations",
     description:
-      "Operations an agent may call, each bound to one permission and narrowed by delegation.",
+      "Tools an agent may call, each bound to one permission, in defineOperations.",
   },
   {
-    id: "audit",
+    id: "decision-log",
     title: "Decision log",
     description: "Every decision goes to a DecisionSink.",
   },
@@ -153,27 +159,31 @@ export const AUTH: readonly Choice<AuthId>[] = [
   {
     id: "custom",
     title: "Your own session",
-    description: "A function that returns the signed-in user.",
+    description:
+      "currentUser() in session.ts returns your signed-in user; until it does, every check denies.",
   },
   {
     id: "supabase",
     title: "Supabase Auth",
-    description: "subjectFromSupabase over the verified JWT claims.",
+    description:
+      "subjectFromSupabase over the claims supabase.auth.getClaims() verified.",
   },
   {
     id: "better-auth",
     title: "Better Auth",
-    description: "subjectFromBetterAuth over the session.",
+    description:
+      "subjectFromBetterAuth over the session auth.api.getSession() returns.",
   },
   {
     id: "clerk",
     title: "Clerk",
-    description: "subjectFromClerk over auth().",
+    description: "subjectFromClerk over Clerk's auth object.",
   },
   {
     id: "jwt",
     title: "Any OIDC provider",
-    description: "subjectFromJwt with OpenID Connect Discovery.",
+    description:
+      "subjectFromJwt verifies the bearer token through OpenID Connect Discovery.",
   },
 ];
 
@@ -181,22 +191,25 @@ export const BACKENDS: readonly Choice<BackendId>[] = [
   {
     id: "memory",
     title: "In memory",
-    description: "Memory sources and stores, for the first run.",
+    description: "Demo rows in a Map and memory sources, for the first run.",
   },
   {
     id: "supabase",
     title: "Supabase",
-    description: "Memberships and custom roles read through PostgREST.",
+    description:
+      "Memberships read through PostgREST with postgrestSources(), from the subject_for function.",
   },
   {
     id: "drizzle",
     title: "Drizzle",
-    description: "where() compiled to Drizzle filters.",
+    description:
+      "A Drizzle schema and client; rows load by id and lists filter with toWhere().",
   },
   {
     id: "prisma",
     title: "Prisma",
-    description: "where() compiled to Prisma filters.",
+    description:
+      "A Prisma schema and client; rows load by id and lists filter with toWhere().",
   },
 ];
 
@@ -219,35 +232,42 @@ export const FRAMEWORKS: readonly Choice<FrameworkId>[] = [
   {
     id: "none",
     title: "No HTTP framework",
-    description: "Core createPermDock only.",
+    description: "A per-request instance from core getPermDock.",
   },
 ];
 
-export const AGENTS: readonly Choice<AgentId>[] = [
+/**
+ * Agent runtimes and UI recipes. The preset code keeps one bitset per
+ * `kind`, each in this list's order, so a new entry goes after the last
+ * one of its kind.
+ */
+export const INTEGRATIONS: readonly Integration[] = [
   {
     id: "ai-sdk",
+    kind: "agent",
     title: "Vercel AI SDK",
     description: "toolApproval and needsApproval for AI SDK tools.",
-    requires: ["agents"],
+    requires: ["operations"],
   },
   {
     id: "mcp",
+    kind: "agent",
     title: "MCP server",
     description: "protectServer for an MCP server's tools.",
-    requires: ["agents"],
+    requires: ["operations"],
   },
-];
-
-export const UI: readonly Choice<UiId>[] = [
   {
     id: "shadcn",
+    kind: "ui",
     title: "shadcn/ui",
     description: "@permdock recipes built from your shadcn components.",
   },
   {
     id: "react-native",
+    kind: "ui",
     title: "React Native Reusables",
-    description: "@permdock -native recipes built from React Native Reusables.",
+    description:
+      "@permdock/*-native recipes built from React Native Reusables.",
   },
 ];
 
@@ -266,7 +286,8 @@ export const SERVICES: readonly Choice<ServiceId>[] = [
   {
     id: "cloud-snapshots",
     title: "Cloud snapshots",
-    description: "Signed snapshot distribution with CAEP invalidation.",
+    description:
+      "Signed snapshots served by PermDock Cloud, through permdockCloud.snapshotsFor().",
   },
   {
     id: "cloud-hosted-grants",
@@ -275,22 +296,42 @@ export const SERVICES: readonly Choice<ServiceId>[] = [
   },
 ];
 
-/** A complete preset: every choice `/create` offers, resolved. */
+/** A complete preset: every choice `/create` and `permdock init` offer, resolved. */
 export type Preset = {
   readonly archetype: ArchetypeId;
   readonly features: readonly FeatureId[];
   readonly auth: AuthId;
   readonly backend: BackendId;
   readonly framework: FrameworkId;
-  readonly agents: readonly AgentId[];
-  readonly ui: readonly UiId[];
+  readonly integrations: readonly IntegrationId[];
   readonly services: readonly ServiceId[];
 };
 
-/** What a person picks; `resolvePreset` fills in the rest. */
+/** What a person picks; `resolvePreset` fills in the rest from `PRESET_DEFAULTS`. */
 export type PresetInput = Partial<Preset> & {
   readonly archetype: ArchetypeId;
 };
+
+/** The choices a preset starts from, in `/create` and in `permdock init`. */
+export const PRESET_DEFAULTS: Preset = Object.freeze({
+  archetype: "b2b",
+  features: [],
+  auth: "custom",
+  backend: "memory",
+  framework: "next",
+  integrations: [],
+  services: [],
+});
+
+/** The integrations of one `kind` in `preset`, in catalogue order. */
+export function integrationsOf(
+  preset: Pick<Preset, "integrations">,
+  kind: IntegrationKind,
+): IntegrationId[] {
+  return INTEGRATIONS.filter(
+    (item) => item.kind === kind && preset.integrations.includes(item.id),
+  ).map((item) => item.id);
+}
 
 function requiredBy(
   choices: readonly Choice<string>[],
@@ -302,19 +343,19 @@ function requiredBy(
 }
 
 /**
- * The preset `input` describes, with every feature its archetype, agent
- * runtimes and other features require turned on, and lists in catalogue
- * order. Features are only ever added, so resolving twice is a no-op.
+ * The preset `input` describes, with every feature its archetype,
+ * integrations and other features require turned on, and lists in
+ * catalogue order. Features are only ever added, so resolving twice is a
+ * no-op.
  */
 export function resolvePreset(input: PresetInput): Preset {
-  const agents = AGENTS.map((agent) => agent.id).filter((id) =>
-    (input.agents ?? []).includes(id),
+  const integrations = INTEGRATIONS.map((item) => item.id).filter((id) =>
+    (input.integrations ?? PRESET_DEFAULTS.integrations).includes(id),
   );
-  const backend = input.backend ?? "memory";
   const features = new Set<FeatureId>([
-    ...(input.features ?? []),
+    ...(input.features ?? PRESET_DEFAULTS.features),
     ...requiredBy(ARCHETYPES, [input.archetype]),
-    ...requiredBy(AGENTS, agents),
+    ...requiredBy(INTEGRATIONS, integrations),
   ]);
   for (let added = true; added;) {
     added = false;
@@ -330,13 +371,12 @@ export function resolvePreset(input: PresetInput): Preset {
     features: FEATURES.map((feature) => feature.id).filter((id) =>
       features.has(id),
     ),
-    auth: input.auth ?? "custom",
-    backend,
-    framework: input.framework ?? "next",
-    agents,
-    ui: UI.map((ui) => ui.id).filter((id) => (input.ui ?? []).includes(id)),
+    auth: input.auth ?? PRESET_DEFAULTS.auth,
+    backend: input.backend ?? PRESET_DEFAULTS.backend,
+    framework: input.framework ?? PRESET_DEFAULTS.framework,
+    integrations,
     services: SERVICES.map((service) => service.id).filter((id) =>
-      (input.services ?? []).includes(id),
+      (input.services ?? PRESET_DEFAULTS.services).includes(id),
     ),
   });
 }

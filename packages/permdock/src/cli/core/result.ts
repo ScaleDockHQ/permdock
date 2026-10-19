@@ -27,6 +27,8 @@ export type CommandResult = {
   readonly code: ExitCode;
   readonly output: string;
   readonly data?: unknown;
+  /** The commands to run after a success, as the envelope's `next`. */
+  readonly next?: readonly NextStep[];
   readonly findings?: readonly Finding[];
   /** The command wrote its own NDJSON events on stdout; print nothing more. */
   readonly streamed?: boolean;

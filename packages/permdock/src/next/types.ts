@@ -8,6 +8,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
+import type { Subject } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
 
@@ -15,7 +16,8 @@ import type { OtelWrap } from "../otel/types.ts";
 export type NextSubjectInput = unknown;
 
 export type NextPermDockOptions<TUser = NextSubjectInput> = InstanceOptions & {
-  readonly subject: () => TUser | Promise<TUser>;
+  /** The user, or a full `Subject` (core then skips `policy.subject`). */
+  readonly subject: () => TUser | Subject | Promise<TUser | Subject>;
   readonly tenant?:
     | string
     | (() => string | undefined | Promise<string | undefined>);
