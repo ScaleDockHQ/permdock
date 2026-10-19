@@ -33,6 +33,7 @@ The same skills ship inside the `permdock` npm package and can be installed with
 | Cloud MCP server                               | `https://permdock.com/mcp`                                       | Read-only evidence, catalog and pending approvals; never resolves an approval                                  |
 | `permissions.catalog.json` and its JSON Schema | app repository, `permdock catalog --kind json-schema`            | Know which permissions exist, their arity, scopes and metadata                                                 |
 | `permdock doctor --json`                       | app repository                                                   | Machine-readable findings with stable codes and fixes                                                          |
+| `permdock --help --json`                       | any directory                                                    | Every command, flag, side effect and docs page as `cli-commands-v1`                                            |
 | Example apps                                   | `apps/examples/<adapter>`                                        | Working code for every adapter, each checked by `permdock doctor`                                              |
 
 Standards for these artifacts are on the [Agent docs standards](/docs/standards/agent-docs-standards) page.
@@ -135,7 +136,7 @@ PermDock assumes the reader of a denial may be a language model deciding what to
 - MCP refusals return `isError: true` with the `Decision` in `structuredContent`, and missing delegation produces a `scopeChallenge` naming the exact scope (`post:delete`) to request.
 - HTTP adapters emit RFC 9457 `application/problem+json` with `type`, `title`, `permission`, `denials` and `alternatives`; see [Errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
 - `PermDockValidationError` names the resource and the schema issues; `PermDockDeniedError` and `PermDockApprovalRequiredError` carry the `Decision`.
-- CLI reports use stable codes (`PD001`...) with a one-line fix each, and `--json` output carries a `$schema` URI naming its format.
+- CLI reports use stable codes (`PD001`...) with a one-line fix each. Under `--json`, and by default when an agent runs the CLI, every command prints one [`cli-result-v1`](/docs/concepts/wire-formats#cli-result) envelope: the report in `data`, a failure in `error`, and the commands that continue the run in `next`. Exit `3` means the run needs input, a login or the person's consent; ask the person, then run the `next` command. See [agent mode](/docs/cli/agent-mode).
 - `simulate([[permission, data], ...])` lets an agent pre-flight a whole plan and read every decision before acting; it is the in-process form of AuthZEN `evaluations`. `simulateArazzo(permdock, { arazzo, openapi })` does the same from an Arazzo workflow; a `provisional: true` step is not a final grant.
 
 ## Reading the docs

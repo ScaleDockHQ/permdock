@@ -6,7 +6,7 @@ For agents and humans changing this repository. Consumers get the `permdock` and
 
 ## Rules and conventions
 
-Conventions are rules: code in `architecture.mdc`, names in `naming.mdc`, prose in `writing.mdc`. Topic rules live in `.agents/rules/*.mdc`. Cursor loads them through the `.cursor/rules` symlink and Claude Code through the `.claude/rules/<name>.md` symlinks. Always-on rules load in every session, the others when you touch a file matching their globs; if your tool loads neither, read the rule for the area.
+Conventions are rules: code in `architecture.mdc`, names in `naming.mdc`, prose in `writing.mdc`. Topic rules live in `.agents/rules/*.mdc`. Cursor loads them through the `.cursor/rules` symlink and Claude Code through the `.claude/rules/<name>.md` symlinks. Always-on rules load in every session, the others for files matching their globs; if your tool loads neither, read the rule.
 
 | Rule                                   | Read it when                                                                |
 | -------------------------------------- | --------------------------------------------------------------------------- |
@@ -15,6 +15,7 @@ Conventions are rules: code in `architecture.mdc`, names in `naming.mdc`, prose 
 | `writing.mdc`                          | Always on: prose in docs, skills, changesets, comments, commits, PRs        |
 | `invariants.mdc`                       | Changing `packages/permdock/src`, `tests` or `apps/examples`                |
 | `naming.mdc`                           | Adding or renaming a public name, option, flag, denial reason or wire field |
+| `cli.mdc`                              | Changing `packages/permdock/src/cli`: manifest, effects, envelope, agents   |
 | `change-checklist.mdc`                 | Before opening a PR: what else to update when you change X                  |
 | `docs.mdc`                             | Editing `apps/docs/content/docs`                                            |
 | `testing.mdc`                          | Writing tests, runners, fixtures or examples                                |
@@ -119,7 +120,7 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 
 ## Agent workflow
 
-One branch and one PR per chat or plan, small conventional commits (lower-case subject, at most 150 characters), and never merge unless asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end as an update to the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question rather than carry it forward.
+One branch and one PR per chat or plan, small conventional commits, and never merge unless asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end on the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question rather than carry it forward.
 
 ## Deviations
 
@@ -134,7 +135,7 @@ Each is a record in `docs/decisions`:
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 150-character headers; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
 - 0029 no Turbopack cache in CI; 0030 `Vary` only on Markdown
-- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0035 better-supabase tarball
+- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0035 better-supabase tarball; 0037 shared CLI contract
 
 ## Pre-release pins
 
@@ -146,7 +147,7 @@ Each is a record in `docs/decisions`:
 
 ## Turbo agent guidance
 
-`turbo` appends a managed agent-guidance block below this section when it detects an agent. Commit it as written and leave it last; keep everything above it within 12 KB; the managed block does not count. Set `"agentGuidance": false` in `turbo.json` only to opt out on purpose.
+`turbo` appends a managed agent-guidance block below this section when it detects an agent. Commit it as written and leave it last; keep everything above it within 12 KB. Set `"agentGuidance": false` in `turbo.json` only to opt out on purpose.
 
 <!-- BEGIN:turborepo-agent-rules -->
 

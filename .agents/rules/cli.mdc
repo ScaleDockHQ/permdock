@@ -1,0 +1,43 @@
+---
+description: The permdock CLI contract shared with better-supabase - manifest, effects, flag vocabulary, result envelope, exit codes, agent mode, consent and completion
+globs: packages/permdock/src/cli/**,packages/permdock/tests/cli/**
+alwaysApply: false
+paths:
+  - "packages/permdock/src/cli/**"
+  - "packages/permdock/tests/cli/**"
+---
+
+# CLI
+
+The `permdock` binary follows the contract better-supabase's CLI defines (`docs/decisions/0037-cli-contract-shared-with-better-supabase.md`). Keep the names below identical in both repositories.
+
+## Layout
+
+- `src/cli/core/` holds the contract: `run`, `command`, `manifest`, `help`, `output`, `errors`, `io`, `agent`, `consent`, `completion`, `files`, `http`, `credentials`. `src/cli/project/` discovers the config, package manager and framework.
+- `core/manifest.ts` is static data and the only list of commands: name, group, summary, examples, docs page, `effects`, `config`, `findings`. It imports no command module; each leaf has a `load()` with a dynamic import, so `--help` and `--version` load none.
+- A command module in `commands/` declares its flags and positionals once, with a `description` for help. `run(argv, { cwd, io })` takes its environment, streams and `fetch` from `io`, so a test runs it without process globals.
+
+## Contract
+
+- **Exit codes**: `0` success, `1` failure or drift, `2` usage, `3` action required, `130` SIGINT or a cancelled prompt, `143` SIGTERM. Throw a `CliError` with a kind; never `process.exit`.
+- **Output**: stdout carries data only, stderr everything else. `--json` prints one `cli-result-v1` envelope (`status`, `data`, `error`, `next`); `--help --json` prints `cli-commands-v1`. A change to either shape updates `schemas/` and `tests/cli/cli-schemas.test.ts`.
+- **Problem `code`**: snake_case, shared with better-supabase where the meaning matches (`unknown_command`, `unknown_flag`, `invalid_value`, `command_moved`, `flag_renamed`, `missing_input`, `consent_required`, `auth_required`, `network_error`). `type` is `https://permdock.com/problems/cli-*`.
+- **Effects**: `files`, `rewrite`, `database:read`, `database:write`, `network`, `cloud:write`, `install`. A leaf lists every effect it may have; help prints them, and consent reads them.
+- **Writing files** goes through the `FilePlan` in `core/files.ts`: `--dry-run`, `--check`, `--force`, all or nothing. A `rewrite` refuses files with uncommitted changes unless `--force`.
+- **Agent mode** (`--agent`, `PERMDOCK_AGENT`, `detectAgent`): JSON by default, no prompts. Missing input returns `action_required` with `missing` and `next`. `rewrite`, `cloud:write` and `--force` over files need `--confirm <token>`; `--yes` never stands in. A leaf whose stdout is a script for the shell sets `shellOutput`.
+- **Secrets** are never echoed: a secret flag has a `--<name>-stdin` form and an env fallback, and `next` and the consent token use the stdin form.
+- **Completion**: candidates come from the manifest. A flag or positional with a fixed set of values that is not an `enum` gets a `complete` hook, lazy when it needs a heavy module.
+
+## Flag vocabulary
+
+`--out <file>` (`-` for stdout) and `--out-dir <dir>`; `--format` picks the renderer (`text`, `json`, `github`, `sarif`) and `--kind` the document; `--only` and `--ignore` narrow what runs; `--force` only overwrites; `--fail-on` sets the severity threshold; `--check` and `--dry-run` come from the `FilePlan`; `--db-url`; `--policy` and `--permissions` name modules. A new flag reuses one of these before it adds a word.
+
+## Renames
+
+A renamed flag or moved command gets a row in `core/renames.ts`, which feeds the `flag_renamed` and `command_moved` hints and the `permdock codemod` CLI-call rewrite, plus the CLI table under "Renamed in" on `getting-started/naming.mdx`. `pnpm docs:drift` checks that they agree.
+
+## Tests
+
+- `tests/cli/__snapshots__/help/<leaf>.txt` snapshots every leaf's help; `tests/cli/docs-flags.test.ts` checks each page lists its flags and no flag its commands do not take.
+- `tests/cli/completion.test.ts` snapshots the scripts and checks the candidates.
+- `scripts/cli-startup.ts` holds the startup budget, and `tests/cli/startup-imports.test.ts` fails when `--help` or `--version` reaches a command module.

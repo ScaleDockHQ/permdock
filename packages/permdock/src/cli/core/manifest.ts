@@ -572,7 +572,7 @@ export const SECTIONS: readonly Section[] = [
 ];
 
 /** The hidden leaf shells call for dynamic completion candidates. */
-export const COMPLETE_LEAF: LeafEntry = leaf(
+const COMPLETE_LEAF: LeafEntry = leaf(
   "__complete",
   "Print completion candidates for a partial command line",
   {

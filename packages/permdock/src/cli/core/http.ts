@@ -6,7 +6,7 @@ import { CliError, describeError } from "./errors.ts";
 import { cliVersion } from "./version.ts";
 
 /** `permdock-cli/<version> node/<version> <platform>`, sent on every request the CLI makes. */
-export function userAgent(): string {
+function userAgent(): string {
   return `permdock-cli/${cliVersion()} node/${process.versions.node} ${process.platform}`;
 }
 

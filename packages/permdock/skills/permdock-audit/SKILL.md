@@ -15,7 +15,7 @@ Read the app's `permissions.ts`, `policy.ts`, factory file and every adapter gua
 ## Inputs (find out, or ask before starting)
 
 - The scope: the whole app, or one pull request against its base branch.
-- Whether the `permdock` binary runs here (`permdock usage --json`, `permdock doctor --json`); otherwise walk the files and the catalog by hand.
+- Whether the `permdock` binary runs here (`permdock usage --json`, `permdock doctor --json`; the report is in the result's `data`); otherwise walk the files and the catalog by hand.
 - Which topic areas the app uses: agent runtimes, approvals, named scopes and custom roles, ORM queries or RLS, tokens, API keys or share links.
 
 ## Invariants
