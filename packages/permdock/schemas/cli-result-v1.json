@@ -70,7 +70,6 @@
             "config_not_found",
             "config_invalid",
             "dependency_missing",
-            "supabase_cli_missing",
             "database_unreachable",
             "network_error",
             "request_failed",

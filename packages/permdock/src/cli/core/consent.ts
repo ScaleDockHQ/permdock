@@ -71,14 +71,19 @@ export function replayArgv(
 }
 
 /**
- * A short token bound to the command line and the directory it runs in. Hex,
- * because a base64url token may start with `-` and parse as a flag.
+ * A short token bound to what the person agrees to, the directory and the
+ * command line. Hex, because a base64url token may start with `-` and parse
+ * as a flag. 16 characters, as better-supabase's.
  */
-export function consentToken(argv: readonly string[], cwd: string): string {
+export function consentToken(
+  reasons: readonly ConsentReason[],
+  argv: readonly string[],
+  cwd: string,
+): string {
   return createHash("sha256")
-    .update(JSON.stringify([cwd, ...argv]))
+    .update(JSON.stringify([reasons, cwd, ...argv]))
     .digest("hex")
-    .slice(0, 12);
+    .slice(0, 16);
 }
 
 const REASON_TEXT: Readonly<Record<ConsentReason, string>> = {

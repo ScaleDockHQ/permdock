@@ -88,16 +88,16 @@ The Next.js build hook `createPermDockPlugin` is documented on [Next.js plugin](
 
 All commands share one contract so CI steps can be written without parsing output.
 
-| Code  | Meaning                                                                                                                                     |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`   | Success; for `--check` and `verify`, no drift and no findings                                                                               |
-| `1`   | Findings: drift detected, parity failures, unused or ungranted permissions, doctor errors. Also a database or the Cloud that did not answer |
-| `2`   | Usage or configuration error: unknown flag, missing config, unreadable definition module, unsupported TypeScript version                    |
-| `3`   | Action required: the run needs input, a login or the person's consent; the JSON result lists the commands that continue it in `next`        |
-| `130` | Interrupted: Ctrl-C (SIGINT), or a cancelled prompt                                                                                         |
-| `143` | Terminated (SIGTERM)                                                                                                                        |
+| Code  | Meaning                                                                                                                                                                           |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`   | Success; for `--check` and `verify`, no drift and no findings                                                                                                                     |
+| `1`   | Findings: drift detected, parity failures, unused or ungranted permissions, doctor errors. Also a database or the Cloud that did not answer, and an unexpected error (`internal`) |
+| `2`   | Usage or configuration error: unknown flag, missing config, unreadable definition module, unsupported TypeScript version                                                          |
+| `3`   | Action required: the run needs input, a login or the person's consent; the JSON result lists the commands that continue it in `next`                                              |
+| `130` | Interrupted: Ctrl-C (SIGINT), or a cancelled prompt                                                                                                                               |
+| `143` | Terminated (SIGTERM)                                                                                                                                                              |
 
-Warnings never change the exit code unless `--fail-on warning` is passed.
+Warnings never change the exit code unless `--fail-on warning` is passed. [Errors](/docs/cli/errors) lists every problem code with its exit code.
 
 ## Output
 
@@ -111,11 +111,11 @@ stdout carries the command's data and nothing else; progress, warnings and logs 
 }
 ```
 
-`status` is `success`, `error` or `action_required`. A failure carries `error`, RFC 9457 Problem Details with `type`, `title`, `detail`, `command`, `exitCode` and a stable snake_case `code` such as `unknown_flag`, `missing_config`, `peer_missing`, `dirty_worktree`, `network_error` or `check_failed`; `type` is `https://permdock.com/problems/cli-usage` (exit `2`), `cli-unavailable` or `cli-failed` (exit `1`), `cli-action-required` (exit `3`) or `cli-cancelled` (exit `130`). `next` lists the commands that continue the run. The JSON Schema ships as `schemas/cli-result-v1.json` in the package, next to `catalog-v1.json` and `supabase-manifest-v1.json`.
+`status` is `success`, `error` or `action_required`. A failure carries `error`, RFC 9457 Problem Details with `type`, `title`, `detail`, `command`, `exitCode` and a stable snake_case `code` such as `unknown_flag`, `config_invalid`, `dependency_missing`, `dirty_worktree`, `network_error` or `check_failed`; `type` is the code's section on the [errors page](/docs/cli/errors), such as `https://permdock.com/docs/cli/errors#unknown_flag`. The codes match the better-supabase CLI's wherever both report the same condition. `next` lists the commands that continue the run. The JSON Schema ships as `schemas/cli-result-v1.json` in the package, next to `catalog-v1.json` and `supabase-manifest-v1.json`.
 
 `--format github` prints the findings of `doctor`, `usage`, `config`, `scan` and `arazzo check` as GitHub Actions annotations, and `--format sarif` as a SARIF 2.1.0 log for code scanning. Paths in reports are relative to `--cwd`. `collect --watch` prints one JSON line per rebuild under `--json`.
 
-`--help` (or `permdock help`) prints the command list; `permdock <command> --help` (or `permdock help <command>`) prints that command's flags, examples, side effects and docs page. `--help --json` prints the same in the `cli-commands-v1` format (`schemas/cli-commands-v1.json`), which an agent reads to learn the CLI without scraping text.
+`--help` (or `permdock help`) prints the command list; `permdock <command> --help` (or `permdock help <command>`) prints that command's flags, examples, side effects and docs page. `--help --json` prints the same in the `cli-commands-v1` format (`schemas/cli-commands-v1.json`): `name`, `version`, the global `options`, and `commands`, each with `name`, `path`, `description`, `docs`, `examples`, `effects`, `config`, `arguments` and `options`. `<command> --help --json` prints the same document with that command only. An agent reads it to learn the CLI without scraping text; the shape follows better-supabase's.
 
 When `--check` finds drift (`collect`, `catalog`, `openapi emit`, `rls generate`, `supabase hook generate`, `supabase inspect`, `powersync generate`), it prints each stale file's name followed by a unified diff from the file on disk to what the command would write, cut to the first 40 lines, so the CI log shows what changed without a local run.
 

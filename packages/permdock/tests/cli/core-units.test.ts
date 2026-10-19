@@ -300,7 +300,7 @@ describe("leaf help", () => {
 
   it("marks a secret flag without an environment variable", () => {
     expect(leafJson(["demo"], entry, leaf)).toMatchObject({
-      flags: expect.arrayContaining([
+      options: expect.arrayContaining([
         expect.objectContaining({
           name: "token",
           secret: true,
@@ -386,7 +386,11 @@ describe("run", () => {
   it("prints a leaf's help as JSON when asked", async () => {
     const result = await run(["rls", "generate", "--help", "--json"]);
     expect(result.code).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({ path: "rls generate" });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      $schema: "https://permdock.com/schemas/cli-commands-v1.json",
+      name: "permdock",
+      commands: [{ name: "generate", path: "rls generate" }],
+    });
   });
 
   it("refuses an unknown init integration and an unknown completion shell", async () => {

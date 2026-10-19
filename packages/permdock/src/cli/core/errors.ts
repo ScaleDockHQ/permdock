@@ -41,7 +41,6 @@ export type ProblemCode =
   | "config_not_found"
   | "config_invalid"
   | "dependency_missing"
-  | "supabase_cli_missing"
   | "database_unreachable"
   | "network_error"
   | "request_failed"
@@ -67,7 +66,6 @@ const CODES: {
   config_not_found: ["Config file not found", 2],
   config_invalid: ["Invalid config", 2],
   dependency_missing: ["Missing dependency", 1],
-  supabase_cli_missing: ["Supabase CLI not found", 1],
   database_unreachable: ["Database unreachable", 1],
   network_error: ["No response", 1],
   request_failed: ["Request failed", 1],

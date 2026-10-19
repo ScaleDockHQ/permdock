@@ -2,24 +2,32 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://permdock.com/schemas/cli-commands-v1.json",
   "title": "PermDock CLI commands v1",
-  "description": "What `permdock --help --json` prints: every command with its flags, positionals, side effects and docs page, read from the same manifest the parser uses. `permdock <command> --help --json` prints one `command`. Fields are only added within v1.",
+  "description": "What `permdock --help --json` prints: every command with its arguments, options, examples, side effects and docs page, read from the same manifest the parser uses. `permdock <command> --help --json` prints the same document with that command only. The shape follows better-supabase's `cli-commands-v1`; `docs`, `config` and the secret fields are PermDock's own. Fields are only added within v1.",
   "type": "object",
-  "required": ["$schema", "version", "globalFlags", "commands"],
+  "required": ["$schema", "name", "version", "options", "commands"],
   "properties": {
     "$schema": {
       "const": "https://permdock.com/schemas/cli-commands-v1.json"
+    },
+    "name": {
+      "const": "permdock"
     },
     "version": {
       "type": "string",
       "description": "The installed permdock version."
     },
-    "globalFlags": {
+    "options": {
+      "description": "The global options every command accepts.",
       "type": "array",
-      "items": { "$ref": "#/$defs/flag" }
+      "items": {
+        "$ref": "#/$defs/option"
+      }
     },
     "commands": {
       "type": "array",
-      "items": { "$ref": "#/$defs/command" }
+      "items": {
+        "$ref": "#/$defs/command"
+      }
     }
   },
   "additionalProperties": false,
@@ -27,22 +35,39 @@
     "command": {
       "type": "object",
       "required": [
+        "name",
         "path",
-        "summary",
+        "description",
         "docs",
+        "examples",
         "effects",
         "config",
-        "positionals",
-        "flags",
-        "examples"
+        "arguments",
+        "options"
       ],
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "The last word of `path`."
+        },
         "path": {
           "type": "string",
           "description": "The words after `permdock`, such as `rls generate`."
         },
-        "summary": { "type": "string" },
-        "docs": { "type": "string", "format": "uri" },
+        "description": {
+          "type": "string"
+        },
+        "docs": {
+          "type": "string",
+          "format": "uri"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Complete command lines, starting with `permdock`."
+        },
         "effects": {
           "type": "array",
           "uniqueItems": true,
@@ -63,29 +88,38 @@
           "type": "boolean",
           "description": "Whether the command reads permdock.config.ts."
         },
-        "positionals": {
+        "arguments": {
           "type": "array",
           "items": {
             "type": "object",
             "required": ["name", "description", "required", "variadic"],
             "properties": {
-              "name": { "type": "string" },
-              "description": { "type": "string" },
-              "required": { "type": "boolean" },
-              "variadic": { "type": "boolean" }
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "variadic": {
+                "type": "boolean"
+              }
             },
             "additionalProperties": false
           }
         },
-        "flags": {
+        "options": {
           "type": "array",
-          "items": { "$ref": "#/$defs/flag" }
-        },
-        "examples": { "type": "array", "items": { "type": "string" } }
+          "items": {
+            "$ref": "#/$defs/option"
+          }
+        }
       },
       "additionalProperties": false
     },
-    "flag": {
+    "option": {
       "type": "object",
       "required": ["name", "type", "description"],
       "properties": {
@@ -94,19 +128,45 @@
           "pattern": "^[a-z][a-z0-9-]*$",
           "description": "Written `--<name>` on the command line."
         },
-        "type": { "enum": ["boolean", "string", "enum"] },
-        "description": { "type": "string" },
-        "alias": { "type": "string", "pattern": "^[a-z]$" },
-        "options": { "type": "array", "items": { "type": "string" } },
-        "default": { "type": ["boolean", "string"] },
-        "repeatable": { "const": true },
-        "valueHint": { "type": "string" },
+        "type": {
+          "enum": ["boolean", "string", "enum"]
+        },
+        "description": {
+          "type": "string"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]$"
+          }
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "default": {
+          "type": ["boolean", "string"]
+        },
+        "list": {
+          "const": true,
+          "description": "Takes several values, repeated."
+        },
+        "valueHint": {
+          "type": "string"
+        },
         "secret": {
           "const": true,
           "description": "The value is a secret: pass it through stdin with `stdinFlag` or the `env` variable, never in argv."
         },
-        "stdinFlag": { "type": "string" },
-        "env": { "type": "string" }
+        "stdinFlag": {
+          "type": "string"
+        },
+        "env": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     }

@@ -1,0 +1,115 @@
+---
+title: Errors
+description: What each CLI problem code means, its exit code, and how to fix it.
+---
+
+Every error the CLI reports has a code. In a terminal it prints the message on stderr. With `--json`, `--format json` or in [agent mode](/docs/cli/agent-mode), the [result envelope](/docs/cli#json-output) on stdout holds RFC 9457 Problem Details under `error`, and its `type` links to the code's section on this page:
+
+```json
+{
+  "$schema": "https://permdock.com/schemas/cli-result-v1.json",
+  "status": "error",
+  "error": {
+    "type": "https://permdock.com/docs/cli/errors#unknown_command",
+    "title": "Unknown command",
+    "detail": "unknown command 'colect' for permdock. Did you mean 'collect'? Commands: …",
+    "code": "unknown_command",
+    "exitCode": 2
+  }
+}
+```
+
+The codes and their exit codes are the same as in the better-supabase CLI wherever both CLIs report the same condition. The exit code tells a script what to do next:
+
+| Exit code | Meaning                                                                                      |
+| --------- | -------------------------------------------------------------------------------------------- |
+| 0         | The command succeeded.                                                                       |
+| 1         | The command ran and failed, or found something (`--check` drift, doctor errors).             |
+| 2         | The command line, the config or the environment needs a change; a rerun fails the same way.  |
+| 3         | The user has to act first: give an input, consent to a change, commit their work, or log in. |
+| 130       | The run was interrupted (Ctrl-C) or a prompt was cancelled.                                  |
+| 143       | The process received SIGTERM.                                                                |
+
+## `usage`
+
+The command line is wrong in a way no more specific code names: an extra positional, or a bare group such as `permdock rls` under `--json`, which lists its subcommands in `choices`. The text output adds the command's usage. Exit code 2.
+
+## `unknown_command`
+
+The first argument is not a command. The message suggests the closest one and lists the rest. Run `permdock --help` for the tree. Exit code 2.
+
+## `unknown_flag`
+
+The command does not take the flag. The message suggests the closest flag it does take. Run `permdock <command> --help`. Exit code 2.
+
+## `invalid_value`
+
+A flag or environment variable has a value the CLI does not accept, such as `--format xml`, `--agent=maybe` or `PERMDOCK_AGENT=sometimes`. `flag` names the option when there is one. Exit code 2.
+
+## `command_moved`
+
+The command moved. `replacement` holds the new command line, which runs as written. Exit code 2.
+
+## `flag_renamed`
+
+The flag was renamed. `flag` is the old spelling and `replacement` the new one. The [naming page](/docs/getting-started/naming) lists every rename. Exit code 2.
+
+## `missing_value`
+
+A flag that reads a value got none, such as `--db-url-stdin` with empty stdin. `flag` names the option. Exit code 2.
+
+## `config_not_found`
+
+`--config` points at a file that does not exist. The path is relative to `--cwd`. Exit code 2.
+
+## `config_invalid`
+
+`permdock.config.ts`, a permissions module, a policy module or a fixtures file failed to load, or has a value the command cannot compile, such as a table name that is not an identifier. The message names the key or the file. Exit code 2.
+
+## `dependency_missing`
+
+The command needs an optional peer that is not installed. `package` names it and `next` holds the install command. Exit code 1.
+
+## `database_unreachable`
+
+The database behind `--db-url-stdin`, `SUPABASE_DB_URL` or `DATABASE_URL` did not answer. The message names the command, never the connection string. Exit code 1.
+
+## `network_error`
+
+PermDock Cloud or another HTTP endpoint the command calls did not answer. Exit code 1.
+
+## `request_failed`
+
+The endpoint answered with an error status or a body the CLI cannot read. `status` holds the HTTP status. A Cloud answer with its own Problem Details type, such as `https://permdock.com/problems/policy-not-published`, keeps that `type`. Exit code 1.
+
+## `auth_required`
+
+The command needs a PermDock Cloud credential and has none, or the credential was rejected. `next` holds `permdock login` and the CI alternative. Exit code 3.
+
+## `dirty_worktree`
+
+A command that rewrites files (`codemod`, `rls migrate`) found uncommitted changes in them. `files` lists them. Commit or stash first so `git diff` shows only the rewrite, or pass `--force`. Exit code 3.
+
+## `write_failed`
+
+A file plan could not write one of its files and rolled back the rest. Exit code 1.
+
+## `check_failed`
+
+`--check` found a generated file that is missing or out of date. Run the command without `--check` to write it. Exit code 1.
+
+## `input_required`
+
+The run needs a value it cannot prompt for. `missing` names the flags or positionals, `choices` the values they take when the set is known, and `next` the command line to run again with each placeholder filled in. Exit code 3.
+
+## `consent_required`
+
+The change needs the user's agreement first, for example overwriting a file that PermDock did not generate. `reasons` explains why and `token` is the consent token: rerun with `--confirm <token>` after the user agrees. The token is bound to the working directory and the exact command line. Exit code 3.
+
+## `cancelled`
+
+The user pressed Ctrl-C, answered no at a prompt, or the process received SIGTERM. Exit code 130, or 143 for SIGTERM.
+
+## `internal`
+
+An error the CLI did not expect. It is a bug in PermDock: rerun with `--debug` for the stack and open an issue with it. Exit code 1.

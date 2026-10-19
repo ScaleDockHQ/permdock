@@ -36,7 +36,7 @@ import {
   commandsJson,
   groupHelp,
   leafHelp,
-  leafJson,
+  leafDocument,
   rootHelp,
 } from "./help.ts";
 import { progressReporter } from "./io.ts";
@@ -404,7 +404,11 @@ export async function run(
     const leaf = await resolved.entry.load();
     if (helpJson) {
       writeOut(
-        JSON.stringify(leafJson(resolved.path, resolved.entry, leaf), null, 2),
+        JSON.stringify(
+          leafDocument(resolved.path, resolved.entry, leaf),
+          null,
+          2,
+        ),
       );
       return done(0);
     }
@@ -526,7 +530,7 @@ export async function run(
           ...(globals.cwd === undefined ? [] : ["--cwd", globals.cwd]),
           ...(globals.config === undefined ? [] : ["--config", globals.config]),
         ];
-        const token = consentToken(replay, cwd);
+        const token = consentToken(reasons, replay, cwd);
         if (globals.confirm !== token) {
           return fail(consentRequired(name, reasons, replay, token));
         }

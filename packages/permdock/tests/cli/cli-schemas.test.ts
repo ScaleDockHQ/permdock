@@ -103,6 +103,13 @@ describe("schemas/cli-commands-v1.json", () => {
     });
   });
 
+  it("validates one command's --help --json", async () => {
+    const { stdout } = await run(["skills", "install", "--help", "--json"]);
+    const parsed: unknown = JSON.parse(stdout);
+    commands(parsed);
+    expect(commands.errors ?? []).toEqual([]);
+  });
+
   it("is printed only when asked for, not by default in agent mode", async () => {
     for (const argv of [
       ["--help", "--agent", "yes"],

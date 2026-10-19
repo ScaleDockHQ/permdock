@@ -1097,7 +1097,7 @@ The `data` of `permdock supabase inspect --json`, and the file `inspect --out pe
 
 ## CLI result
 
-Every `permdock` run prints one envelope on stdout under `--json`, `--format json` or [agent mode](/docs/cli/agent-mode). Its JSON Schema is `schemas/cli-result-v1.json` in the `permdock` package. `status` is `success`, `error` or `action_required`; `data` is the command's report; `error` is Problem Details with a stable snake_case `code`; `next` lists the commands that move the run forward.
+Every `permdock` run prints one envelope on stdout under `--json`, `--format json` or [agent mode](/docs/cli/agent-mode). Its JSON Schema is `schemas/cli-result-v1.json` in the `permdock` package. `status` is `success`, `error` or `action_required`; `data` is the command's report; `error` is Problem Details with a stable snake_case `code` from the [errors page](/docs/cli/errors); `next` lists the commands that move the run forward.
 
 ```json
 {
@@ -1105,10 +1105,10 @@ Every `permdock` run prints one envelope on stdout under `--json`, `--format jso
   "status": "action_required",
   "error": {
     "reasons": ["rewrite"],
-    "token": "6f3a9c0e41b2",
-    "type": "https://permdock.com/problems/cli-action-required",
-    "title": "The command needs input, consent or a login to continue",
-    "detail": "permdock codemod edits files the project owns. Ask the person to agree, then run it again with --confirm 6f3a9c0e41b2",
+    "token": "6f3a9c0e41b27d58",
+    "type": "https://permdock.com/docs/cli/errors#consent_required",
+    "title": "Consent required",
+    "detail": "permdock codemod edits files the project owns. Ask the person to agree, then run it again with --confirm 6f3a9c0e41b27d58",
     "code": "consent_required",
     "command": "codemod",
     "exitCode": 3
@@ -1116,13 +1116,13 @@ Every `permdock` run prints one envelope on stdout under `--json`, `--format jso
   "next": [
     {
       "when": "after the person agrees",
-      "command": "permdock codemod 0.5 --confirm 6f3a9c0e41b2"
+      "command": "permdock codemod 0.5 --confirm 6f3a9c0e41b27d58"
     }
   ]
 }
 ```
 
-`permdock --help --json` prints the command list in the `cli-commands-v1` format (`schemas/cli-commands-v1.json`): every command's path, summary, docs page, side effects, positionals, flags and examples, from the manifest the parser reads. Both formats only add fields within v1.
+`permdock --help --json` prints the command list in the `cli-commands-v1` format (`schemas/cli-commands-v1.json`): every command's name, path, description, docs page, examples, side effects, arguments and options, from the manifest the parser reads. Both formats only add fields within v1.
 
 ## Problem Details
 

@@ -39,8 +39,8 @@ permdock codemod 0.5 --confirm 6f3a9c0e41b2   # run again after the person agree
 ## What changes
 
 - **Output.** stdout carries the envelope; `--format text` or `--no-json` brings text back. Progress and logs go to stderr without spinners.
-- **Prompts.** None. A command that would ask takes the answer its flags give, or stops with `missing_input`.
-- **Exit 3.** `status` is `action_required` and `error.code` is `missing_input`, `auth_required` or `consent_required`. `next` lists the commands that continue the run, each with the condition under which to run it.
+- **Prompts.** None. A command that would ask takes the answer its flags give, or stops with `input_required`.
+- **Exit 3.** `status` is `action_required` and `error.code` is `input_required`, `auth_required`, `consent_required` or `dirty_worktree`. `next` lists the commands that continue the run, each with the condition under which to run it.
 - **Completion.** `permdock completion` and the hidden `__complete` print text for the shell even in agent mode.
 
 ## Consent
@@ -55,7 +55,7 @@ An agent may not start three kinds of run without the person's go-ahead:
 
 The first run exits `3` with `consent_required`, the reasons and a token. The agent shows the person what will happen, and after they agree runs the command in `next`, which is the same command line with `--confirm <token>`. A run with `--dry-run` or `--check` writes nothing and needs no consent.
 
-The token is the first 12 hex characters of a SHA-256 of the working directory and the command line, `--confirm` left out. A token for one command line does not confirm another, and `--yes` does not stand in for it. A secret flag such as `--db-url` counts by its stdin form (`--db-url-stdin`), so the token never depends on the secret, and the line in `next` never prints it.
+The token is the first 16 hex characters of a SHA-256 of the consent reasons, the working directory and the command line, `--confirm` left out. A token for one command line does not confirm another, and `--yes` does not stand in for it. A secret flag such as `--db-url` counts by its stdin form (`--db-url-stdin`), so the token never depends on the secret, and the line in `next` never prints it.
 
 `auth_required` follows the same shape: a `401` or `403` from the Cloud exits `3` with `permdock login` in `next`.
 

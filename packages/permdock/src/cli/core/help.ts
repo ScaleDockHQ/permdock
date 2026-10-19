@@ -202,13 +202,13 @@ function flagJson(name: string, flag: Flag): Record<string, unknown> {
     name,
     type: flag.type,
     description: flag.description,
-    ...(flag.alias === undefined ? {} : { alias: flag.alias }),
-    ...(flag.type === "enum" ? { options: flag.options } : {}),
+    ...(flag.alias === undefined ? {} : { aliases: [flag.alias] }),
+    ...(flag.type === "enum" ? { choices: flag.options } : {}),
     ...(flag.type !== "string" && flag.default !== undefined
       ? { default: flag.default }
       : {}),
     ...(flag.type !== "boolean" && flag.repeatable === true
-      ? { repeatable: true }
+      ? { list: true }
       : {}),
     ...(flag.type === "string" && flag.valueHint !== undefined
       ? { valueHint: flag.valueHint }
@@ -236,20 +236,42 @@ export function leafJson(
   leaf: Leaf,
 ): Record<string, unknown> {
   return {
+    name: path.at(-1) ?? "",
     path: path.join(" "),
-    summary: entry.summary,
+    description: entry.summary,
     docs: `${DOCS_BASE}/${entry.docs}`,
+    examples: entry.examples,
     effects: entry.effects,
     config: entry.config,
-    positionals: (leaf.positionals ?? []).map((item) => ({
+    arguments: (leaf.positionals ?? []).map((item) => ({
       name: item.name,
       description: item.description,
       required: item.required === true,
       variadic: item.variadic === true,
     })),
-    flags: flagsJson(leaf.flags),
-    examples: entry.examples,
+    options: flagsJson(leaf.flags),
   };
+}
+
+function document(
+  commands: readonly Record<string, unknown>[],
+): Record<string, unknown> {
+  return {
+    $schema: CLI_COMMANDS_SCHEMA,
+    name: "permdock",
+    version: cliVersion(),
+    options: flagsJson(GLOBAL_FLAGS),
+    commands,
+  };
+}
+
+/** `<command> --help --json`: the `cli-commands-v1` document with that command only. */
+export function leafDocument(
+  path: readonly string[],
+  entry: LeafEntry,
+  leaf: Leaf,
+): Record<string, unknown> {
+  return document([leafJson(path, entry, leaf)]);
 }
 
 /** `--help --json`: the commands under `path` in the `cli-commands-v1` format. */
@@ -260,15 +282,11 @@ export async function commandsJson(
   const listed = leaves(group, path).filter(
     (item) => item.entry.hidden !== true,
   );
-  const commands = await Promise.all(
-    listed.map(async (item) =>
-      leafJson(item.path, item.entry, await item.entry.load()),
+  return document(
+    await Promise.all(
+      listed.map(async (item) =>
+        leafJson(item.path, item.entry, await item.entry.load()),
+      ),
     ),
   );
-  return {
-    $schema: CLI_COMMANDS_SCHEMA,
-    version: cliVersion(),
-    globalFlags: flagsJson(GLOBAL_FLAGS),
-    commands,
-  };
 }
