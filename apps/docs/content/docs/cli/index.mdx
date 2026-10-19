@@ -137,7 +137,7 @@ Each command declares what it may change, and `--help` prints it on the `Side ef
 
 A command names its main output `--out`, as better-supabase does; `--out -` writes it to stdout. A second file it can split off is a named output with its own flag (`--grants-out`, `--seeds-out`, `--backfill-out`, `--retire-out`), which writes nothing unless set.
 
-A command that writes files takes `--dry-run` to print the plan, or `--check` to compare with the files on disk, and writes nothing in either case. It never overwrites a file PermDock did not write unless `--force` is set. A `rewrite` command refuses a file with uncommitted changes in a git work tree (`dirty_worktree`, exit `2`) unless `--force` is set, so the edit can be reviewed and undone with git. In agent mode, `rewrite`, `cloud:write` and `--force` need the person's [consent](/docs/cli/agent-mode#consent).
+A command that writes files takes `--dry-run` to print the plan, or `--check` to compare with the files on disk, and writes nothing in either case. It never overwrites a file PermDock did not write unless `--force` is set. A `rewrite` command refuses a file with uncommitted changes in a git work tree (`dirty_worktree`, exit `3`) unless `--force` is set, so the edit can be reviewed and undone with git. In agent mode, `rewrite`, `cloud:write` and `--force` need the person's [consent](/docs/cli/agent-mode#consent).
 
 ## CI usage
 
