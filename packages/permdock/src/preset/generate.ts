@@ -1,25 +1,31 @@
 import type { FeatureId, Preset } from "./catalog.ts";
-import type {
-  DomainSpec,
-  GrantSpec,
-  ResourceSpec,
-  RoleSpec,
-} from "./domain.ts";
+import type { GrantSpec, RoleSpec } from "./domain.ts";
+import type { Context, GeneratedFile } from "./generate-shared.ts";
 
 import { encodePreset } from "./codec.ts";
 import { DOMAINS } from "./domain.ts";
+import {
+  authDependencies,
+  authDocs,
+  sessionCall,
+  sessionFiles,
+} from "./generate-auth.ts";
+import {
+  backendApp,
+  backendDependencies,
+  backendDocs,
+  backendFiles,
+} from "./generate-backend.ts";
+import {
+  env,
+  fieldsOf,
+  firstInstance,
+  ownedFile,
+  pascal,
+  quote,
+} from "./generate-shared.ts";
 
-/** One file the preset writes into the application, relative to its root. */
-export type GeneratedFile = {
-  readonly path: string;
-  readonly contents: string;
-  /**
-   * `owned`: the application's own code, edited freely and never
-   * rewritten by an update. Every generated file is owned; rules, checks and
-   * verification stay in the `permdock` package, which these files only call.
-   */
-  readonly kind: "owned";
-};
+export type { GeneratedFile } from "./generate-shared.ts";
 
 export type GeneratedPreset = {
   readonly code: string;
@@ -32,38 +38,7 @@ export type GeneratedPreset = {
   readonly docs: readonly string[];
 };
 
-type Context = {
-  readonly preset: Preset;
-  readonly domain: DomainSpec;
-  readonly has: (feature: FeatureId) => boolean;
-  /** The source directory, `src`. */
-  readonly src: string;
-};
-
 const LIMIT = "{ count: 100, per: 86_400 }";
-
-// Built from parts so this runtime chunk carries no `process.` token, which
-// the WinterTC check reads as a Node global; the generated file has it whole.
-const NODE_ENV = ["process", 'env["NODE_ENV"]'].join(".");
-
-function pascal(name: string): string {
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
-
-function quote(value: string): string {
-  return JSON.stringify(value);
-}
-
-function fieldsOf(ctx: Context, resource: ResourceSpec): [string, string][] {
-  const fields: [string, string][] = [
-    ["id", "z.string()"],
-    ...Object.entries(resource.fields),
-  ];
-  if (ctx.has("tenancy")) {
-    fields.push(["orgId", "z.string()"]);
-  }
-  return fields;
-}
 
 function permissionsFile(ctx: Context): string {
   const schemas = ctx.domain.resources.map((resource) => {
@@ -251,7 +226,7 @@ function appFile(ctx: Context): string {
       `import { joseTokenVerifier } from "permdock/jwt";`,
     );
   }
-  if (ctx.has("audit")) {
+  if (ctx.has("decision-log")) {
     if (services.includes("cloud-decision-log")) {
       lines.push("  sink: permdockCloud.sink,");
     } else {
@@ -288,97 +263,36 @@ function appFile(ctx: Context): string {
   const cloudCall = services.includes("cloud-hosted-grants")
     ? `cloud({\n  verifier: joseTokenVerifier({ jwks: cloudEndpoints().jwks }),\n})`
     : "cloud()";
-  const cloudLine = cloudServices
-    ? `\n// PERMDOCK_CLOUD_URL and PERMDOCK_CLOUD_KEY come from the environment.\nexport const permdockCloud = ${cloudCall};\n`
+  const snapshots = services.includes("cloud-snapshots")
+    ? `\n/** A client's signed snapshot, served by PermDock Cloud for the caller's token. */\nexport const snapshotsFor = (token: string) => permdockCloud.snapshotsFor(token);\n`
     : "";
+  const cloudLine = cloudServices
+    ? `\n// PERMDOCK_CLOUD_URL and PERMDOCK_CLOUD_KEY come from the environment.\nexport const permdockCloud = ${cloudCall};\n${snapshots}`
+    : "";
+  const backend = backendApp(ctx);
+  preamble.push(...backend.imports);
+  lines.unshift(...backend.options);
+  const sources =
+    backend.preamble.length === 0 ? "" : `\n${backend.preamble.join("\n")}\n`;
   return `import { ${[...valueImports].toSorted().join(", ")} } from "permdock";
 ${preamble.length === 0 ? "" : `${preamble.join("\n")}\n`}
 import { policy } from "./policy";
-${cloudLine}
+${cloudLine}${sources}
 /**
  * The app definition every adapter reads. Your own code: change sources,
  * features and services here; the rules stay in the permdock package.
  */
 export const app = defineApp(policy, {
-  profile: ${NODE_ENV} === "production" ? "prod" : "dev",
+  profile: ${env("NODE_ENV")} === "production" ? "prod" : "dev",
 ${lines.join("\n")}${lines.length === 0 ? "" : "\n"}});
 `;
-}
-
-function dataFile(ctx: Context): string {
-  const tenancy = ctx.has("tenancy");
-  const blocks = ctx.domain.resources.map((resource) => {
-    const type = pascal(resource.name);
-    const row = fieldsOf(ctx, resource)
-      .map(([name, kind]) => {
-        if (name === "id") {
-          return `id: "${resource.name}_1"`;
-        }
-        if (name === "orgId") {
-          return `orgId: "o1"`;
-        }
-        if (name === resource.owner) {
-          return `${name}: "u1"`;
-        }
-        return kind.startsWith("z.number") ? `${name}: 1` : `${name}: ""`;
-      })
-      .join(", ");
-    return `const ${resource.name}Rows = new Map<string, ${type}>([
-  ["${resource.name}_1", { ${row} }],
-]);
-
-/** Replace with your database read. */
-export function find${type}(id: string): ${type} | null {
-  return ${resource.name}Rows.get(id) ?? null;
-}`;
-  });
-  const types = ctx.domain.resources.map((resource) => pascal(resource.name));
-  return `import type { ${types.join(", ")} } from "./permissions";
-
-${tenancy ? "// Demo rows in organisation o1, owned by the demo user u1.\n" : "// Demo rows owned by the demo user u1.\n"}${blocks.join("\n\n")}
-`;
-}
-
-function sessionFile(ctx: Context): string {
-  const provider: Record<Preset["auth"], string> = {
-    custom: "your session",
-    supabase: "Supabase Auth (subjectFromSupabase, /docs/adapters/supabase)",
-    "better-auth":
-      "Better Auth (subjectFromBetterAuth, /docs/adapters/better-auth)",
-    clerk: "Clerk (subjectFromClerk, /docs/adapters/clerk)",
-    jwt: "your OIDC provider (subjectFromJwt, /docs/adapters/jwt)",
-  };
-  return `import type { User } from "./policy";
-
-/**
- * The signed-in user, read from ${provider[ctx.preset.auth]}.
- * It returns null until you wire it, so every check fails closed.
- */
-export async function currentUser(): Promise<User | null> {
-  return null;
-}
-`;
-}
-
-function firstInstance(ctx: Context): {
-  readonly resource: ResourceSpec;
-  readonly action: string;
-} {
-  const [resource] = ctx.domain.resources;
-  if (resource === undefined) {
-    throw new Error("PermDock: a preset domain declares at least one resource");
-  }
-  return { resource, action: "update" };
-}
-
-function ownedFile(path: string, contents: string): GeneratedFile {
-  return { path, contents, kind: "owned" };
 }
 
 function frameworkFiles(ctx: Context): GeneratedFile[] {
   const { resource, action } = firstInstance(ctx);
   const type = pascal(resource.name);
   const owned = ownedFile;
+  const { name: current } = sessionCall(ctx);
   switch (ctx.preset.framework) {
     case "next":
       return [
@@ -387,7 +301,7 @@ function frameworkFiles(ctx: Context): GeneratedFile[] {
           `import { createPermDock } from "permdock/next";
 
 import { app } from "../permdock";
-import { currentUser } from "../session";
+import { ${current} } from "../session";
 
 // Server-only: Server Components, Server Actions and Route Handlers import
 // from here; client components import hooks from permdock/react.
@@ -397,7 +311,7 @@ export const {
   getSnapshot,
   requirePermission,
   permdockHandler,
-} = createPermDock(app, { subject: currentUser });
+} = createPermDock(app, { subject: ${current} });
 `,
         ),
       ];
@@ -411,10 +325,10 @@ import { createPermDock } from "permdock/hono";
 import { find${type} } from "./data";
 import { app as permdockApp } from "./permdock";
 import { permissions } from "./permissions";
-import { currentUser } from "./session";
+import { ${current} } from "./session";
 
 const { protect } = createPermDock(permdockApp, {
-  subject: () => currentUser(),
+  subject: (c) => ${current}(c.req.raw),
 });
 
 export const app = new Hono();
@@ -432,15 +346,15 @@ app.patch(
         owned(
           `${ctx.src}/server.ts`,
           `import express from "express";
-import { createPermDock } from "permdock/express";
+import { createPermDock, toRequest } from "permdock/express";
 
 import { find${type} } from "./data";
 import { app as permdockApp } from "./permdock";
 import { permissions } from "./permissions";
-import { currentUser } from "./session";
+import { ${current} } from "./session";
 
 const { protect } = createPermDock(permdockApp, {
-  subject: () => currentUser(),
+  subject: (req) => ${current}(toRequest(req)),
 });
 
 export const app = express();
@@ -456,6 +370,23 @@ app.patch(
         ),
       ];
     case "none":
+      if (current === "currentSubject") {
+        return [
+          owned(
+            `${ctx.src}/server.ts`,
+            `import { getPermDock } from "permdock";
+
+import { app } from "./permdock";
+import { currentSubject } from "./session";
+
+/** The request-scoped decision object for the caller of \`request\`; create one per request. */
+export async function permdockFor(request: Request) {
+  return getPermDock(app, await currentSubject(request));
+}
+`,
+          ),
+        ];
+      }
       return [
         owned(
           `${ctx.src}/server.ts`,
@@ -512,7 +443,7 @@ ${entries.join("\n")}
 
 function agentFiles(ctx: Context): GeneratedFile[] {
   const files: GeneratedFile[] = [];
-  if (!ctx.has("agents")) {
+  if (!ctx.has("operations")) {
     return files;
   }
   files.push({
@@ -520,19 +451,25 @@ function agentFiles(ctx: Context): GeneratedFile[] {
     contents: operationsFile(ctx),
     kind: "owned",
   });
-  if (ctx.preset.agents.includes("ai-sdk")) {
+  if (ctx.preset.integrations.includes("ai-sdk")) {
+    const session = sessionCall(ctx);
+    const subject = session.takesRequest
+      ? `// Pass the incoming Request as the AI SDK runtimeContext.
+    subject: ({ runtimeContext }) =>
+      runtimeContext instanceof Request ? ${session.name}(runtimeContext) : null,`
+      : `subject: () => ${session.name}(),`;
     files.push({
       path: `${ctx.src}/agent.ts`,
       contents: `import { createPermDock } from "permdock/ai-sdk";
 
 import { operations } from "./operations";
 import { app } from "./permdock";
-import { currentUser } from "./session";
+import { ${session.name} } from "./session";
 
 // Pass toolApproval to the AI SDK's tool approval hook, or needsApproval to each tool.
 export const { toolApproval, needsApproval, capabilityMiddleware } =
   createPermDock(app, {
-    subject: () => currentUser(),
+    ${subject}
     actor: () => ({ id: "assistant", kind: "ai-sdk" }),
     operations,
   });
@@ -540,7 +477,7 @@ export const { toolApproval, needsApproval, capabilityMiddleware } =
       kind: "owned",
     });
   }
-  if (ctx.preset.agents.includes("mcp")) {
+  if (ctx.preset.integrations.includes("mcp")) {
     files.push({
       path: `${ctx.src}/mcp.ts`,
       contents: `import { createPermDock } from "permdock/mcp";
@@ -598,31 +535,37 @@ export function decideReadKey(permdock: PermDock, id: string) {
   ];
 }
 
-function configFile(ctx: Context): GeneratedFile[] {
+function rlsOption(ctx: Context): string | null {
   if (!ctx.has("rls")) {
-    return [];
+    return null;
   }
   const table = `{\n      table: "org_members",\n      tenant: "org_id",\n      user: "user_id",\n      role: "role",\n    }`;
   // Plain Postgres reads the user from a GUC set per transaction; Supabase reads auth.uid().
-  const rls =
-    ctx.preset.backend === "supabase"
-      ? `supabaseRls({${ctx.has("tenancy") ? `\n    memberships: ${table},\n  ` : ""}})`
-      : `{\n    dialect: "guc",${ctx.has("tenancy") ? `\n    memberships: { tenant: ${table} },` : ""}\n  }`;
-  return [
-    {
-      path: "permdock.config.ts",
-      contents: `import { defineConfig } from "permdock/cli";
-${ctx.preset.backend === "supabase" ? `import { supabaseRls } from "permdock/supabase";\n` : ""}
-// \`permdock rls generate\` writes RLS policies from the same policy as the app.
+  return ctx.preset.backend === "supabase"
+    ? `supabaseRls({${ctx.has("tenancy") ? `\n    memberships: ${table},\n  ` : ""}})`
+    : `{\n    dialect: "guc",${ctx.has("tenancy") ? `\n    memberships: { tenant: ${table} },` : ""}\n  }`;
+}
+
+function configFile(ctx: Context): GeneratedFile {
+  const rls = rlsOption(ctx);
+  const options = [
+    `  permissions: "./${ctx.src}/permissions.ts",`,
+    `  policy: "./${ctx.src}/policy.ts",`,
+    ...(ctx.has("operations")
+      ? [`  operations: "./${ctx.src}/operations.ts",`]
+      : []),
+    ...(rls === null ? [] : [`  rls: ${rls},`]),
+  ];
+  return ownedFile(
+    "permdock.config.ts",
+    `import { defineConfig } from "permdock/cli";
+${rls !== null && ctx.preset.backend === "supabase" ? `import { supabaseRls } from "permdock/supabase";\n` : ""}
+// The files permdock doctor, check and rls generate read.
 export default defineConfig({
-  permissions: "./${ctx.src}/permissions.ts",
-  policy: "./${ctx.src}/policy.ts",
-  rls: ${rls},
+${options.join("\n")}
 });
 `,
-      kind: "owned",
-    },
-  ];
+  );
 }
 
 /** The `@permdock` registry recipes for the preset's UI; native has the gate and the upgrade prompt. */
@@ -645,10 +588,10 @@ function recipesFor(ctx: Context): string[] {
     ...(ctx.has("plans") ? ["upgrade-prompt"] : []),
   ];
   return [
-    ...(ctx.preset.ui.includes("shadcn")
+    ...(ctx.preset.integrations.includes("shadcn")
       ? web.map((name) => `@permdock/${name}`)
       : []),
-    ...(ctx.preset.ui.includes("react-native")
+    ...(ctx.preset.integrations.includes("react-native")
       ? native.map((name) => `@permdock/${name}-native`)
       : []),
   ];
@@ -663,16 +606,17 @@ function dependenciesFor(ctx: Context): string[] {
     none: [],
   };
   deps.push(...framework[ctx.preset.framework]);
-  if (ctx.preset.agents.includes("ai-sdk")) {
+  if (ctx.preset.integrations.includes("ai-sdk")) {
     deps.push("ai");
   }
-  if (ctx.preset.agents.includes("mcp")) {
+  if (ctx.preset.integrations.includes("mcp")) {
     deps.push("@modelcontextprotocol/server");
   }
+  deps.push(...authDependencies(ctx), ...backendDependencies(ctx));
   if (ctx.preset.services.includes("cloud-hosted-grants")) {
     deps.push("jose");
   }
-  return deps;
+  return [...new Set(deps)];
 }
 
 function docsFor(ctx: Context): string[] {
@@ -681,8 +625,8 @@ function docsFor(ctx: Context): string[] {
     tenancy: "/docs/concepts/tenancy",
     "custom-roles": "/docs/concepts/custom-roles",
     approvals: "/docs/adapters/approvals",
-    agents: "/docs/concepts/operations",
-    audit: "/docs/concepts/audit-and-observability",
+    operations: "/docs/concepts/operations",
+    "decision-log": "/docs/concepts/audit-and-observability",
     "api-keys": "/docs/concepts/credentials",
     rls: "/docs/adapters/rls",
   };
@@ -695,7 +639,11 @@ function docsFor(ctx: Context): string[] {
   if (ctx.preset.framework !== "none") {
     docs.push(`/docs/adapters/${ctx.preset.framework}`);
   }
-  return docs;
+  docs.push(...authDocs(ctx), ...backendDocs(ctx));
+  if (ctx.preset.services.length > 0) {
+    docs.push("/docs/adapters/cloud");
+  }
+  return [...new Set(docs)];
 }
 
 /**
@@ -721,12 +669,12 @@ export function generatePreset(
       owned("permissions.ts", permissionsFile(ctx)),
       owned("policy.ts", policyFile(ctx)),
       owned("permdock.ts", appFile(ctx)),
-      owned("data.ts", dataFile(ctx)),
-      owned("session.ts", sessionFile(ctx)),
+      ...backendFiles(ctx),
+      ...sessionFiles(ctx),
       ...frameworkFiles(ctx),
       ...agentFiles(ctx),
       ...keysFile(ctx),
-      ...configFile(ctx),
+      configFile(ctx),
     ]),
     dependencies: Object.freeze(dependenciesFor(ctx)),
     recipes: Object.freeze(recipesFor(ctx)),

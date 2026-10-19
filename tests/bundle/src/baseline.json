@@ -55,11 +55,11 @@
   "./pdp": 112303,
   "./compile": 21769,
   "./catalog": 104614,
-  "./preset": 10698,
+  "./preset": 14730,
   "./testing": 317966,
   "./testing/saas": 146471,
   "./testing/saas/permissions": 137104,
-  "./cli": 648594,
+  "./cli": 652310,
   "./unplugin": 169884,
   "./next/plugin": 168958,
   "./next/client": 1433

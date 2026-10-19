@@ -26,28 +26,104 @@ const CASES: readonly PresetInput[] = [
   {
     archetype: "b2b",
     framework: "express",
+    auth: "supabase",
     backend: "supabase",
     features: ["rls", "plans", "limits"],
   },
   {
+    archetype: "b2b",
+    framework: "next",
+    auth: "supabase",
+    backend: "prisma",
+    integrations: ["ai-sdk"],
+  },
+  {
     archetype: "agent",
     framework: "none",
-    agents: ["ai-sdk", "mcp"],
+    auth: "jwt",
+    integrations: ["ai-sdk", "mcp"],
     services: ["cloud-decision-log", "cloud-approvals"],
+  },
+  {
+    archetype: "agent",
+    framework: "hono",
+    auth: "jwt",
+    integrations: ["ai-sdk"],
   },
   {
     archetype: "api",
     framework: "next",
-    services: ["cloud-hosted-grants"],
-    ui: ["shadcn", "react-native"],
+    auth: "clerk",
+    services: ["cloud-hosted-grants", "cloud-snapshots"],
+    integrations: ["shadcn", "react-native"],
   },
   {
     archetype: "marketplace",
     framework: "hono",
-    features: ["tenancy", "custom-roles", "audit", "rls"],
+    auth: "better-auth",
+    backend: "drizzle",
+    features: ["tenancy", "custom-roles", "decision-log", "rls"],
   },
-  { archetype: "consumer", framework: "express", agents: ["ai-sdk"] },
+  {
+    archetype: "consumer",
+    framework: "express",
+    auth: "clerk",
+    backend: "prisma",
+    integrations: ["ai-sdk"],
+  },
+  {
+    archetype: "b2b",
+    framework: "none",
+    auth: "better-auth",
+    backend: "drizzle",
+  },
 ];
+
+/** Type-only stand-ins for the provider packages that are not dev dependencies. */
+const STUBS: Readonly<Record<string, string>> = {
+  "better-auth": `export declare function betterAuth(options: unknown): {
+  readonly $context: Promise<Record<never, never>>;
+  readonly api: {
+    getSession(args: { readonly headers: Headers }): Promise<unknown>;
+    listOrganizations(args?: { readonly headers?: unknown }): Promise<unknown>;
+  };
+};`,
+  "better-auth/plugins": "export declare function organization(): unknown;",
+  "@clerk/nextjs/server": "export declare function auth(): Promise<unknown>;",
+  "@clerk/backend": `export declare function createClerkClient(options: {
+  readonly secretKey: string;
+  readonly publishableKey: string;
+}): { authenticateRequest(request: Request): Promise<{ toAuth(): unknown }> };`,
+  "@prisma/adapter-pg": `export declare class PrismaPg {
+  constructor(options: { readonly connectionString: string });
+}`,
+  "prisma/config": `export declare function defineConfig(config: unknown): unknown;
+export declare function env(name: string): string;`,
+};
+
+/** What `prisma generate` would write to src/generated/client.ts for `preset`. */
+function prismaClientStub(preset: Preset): string {
+  const types = DOMAINS[preset.archetype].resources.map((resource) => {
+    const type = resource.name.charAt(0).toUpperCase() + resource.name.slice(1);
+    return { name: resource.name, type };
+  });
+  return `import type { ${types.map(({ type }) => type).join(", ")} } from "../permissions";
+
+type Delegate<T> = {
+  findUnique(args: { readonly where: { readonly id: string } }): Promise<T | null>;
+  findMany(args: { readonly where: unknown }): Promise<T[]>;
+};
+
+export declare namespace Prisma {
+${types.map(({ type }) => `  type ${type}WhereInput = Record<string, unknown>;`).join("\n")}
+}
+
+export declare class PrismaClient {
+  constructor(options: { readonly adapter: unknown });
+${types.map(({ name: model, type }) => `  readonly ${model}: Delegate<${type}>;`).join("\n")}
+}
+`;
+}
 
 function name(preset: Preset): string {
   return encodePreset(preset).replaceAll(/[^\w]/gu, "_");
@@ -65,7 +141,22 @@ function writeCases(): readonly string[] {
       mkdirSync(path.dirname(target), { recursive: true });
       writeFileSync(target, file.contents);
     }
+    if (preset.backend === "prisma") {
+      const client = path.join(dir, "src", "generated", "client.ts");
+      mkdirSync(path.dirname(client), { recursive: true });
+      writeFileSync(client, prismaClientStub(preset));
+    }
     dirs.push(dir);
+  }
+  const stubPaths: Record<string, string[]> = {};
+  for (const [specifier, contents] of Object.entries(STUBS)) {
+    const file = path.join(
+      "stubs",
+      `${specifier.replaceAll(/[^\w]/gu, "_")}.ts`,
+    );
+    mkdirSync(path.join(OUT, "stubs"), { recursive: true });
+    writeFileSync(path.join(OUT, file), contents);
+    stubPaths[specifier] = [`./${file}`];
   }
   writeFileSync(
     path.join(OUT, "tsconfig.json"),
@@ -87,6 +178,7 @@ function writeCases(): readonly string[] {
           paths: {
             permdock: ["../src/index.ts"],
             "permdock/*": ["../src/*/index.ts"],
+            ...stubPaths,
           },
         },
         include: ["./**/*.ts"],
@@ -115,16 +207,27 @@ describe("preset codes", () => {
     expect(decodePreset("p1A")).toBeUndefined();
   });
 
+  it("decodes codes written before the integrations rename to the same choices", () => {
+    expect(decodePreset("p1AQAAAxwAAwAD")).toEqual(
+      resolvePreset({
+        archetype: "agent",
+        framework: "none",
+        integrations: ["ai-sdk", "mcp"],
+        services: ["cloud-decision-log", "cloud-approvals"],
+      }),
+    );
+  });
+
   it("turns on what an archetype, an agent runtime and a feature require", () => {
     const preset = resolvePreset({
       archetype: "consumer",
-      agents: ["mcp"],
+      integrations: ["mcp"],
       features: ["custom-roles"],
     });
     expect(preset.features).toEqual([
       "tenancy",
       "custom-roles",
-      "agents",
+      "operations",
       "limits",
       "plans",
       "ownership",
@@ -147,6 +250,8 @@ describe("generated presets", () => {
   it("produce a policy whose demo user is granted and an app that starts", async () => {
     vi.stubEnv("PERMDOCK_CLOUD_URL", "https://cloud.example.com");
     vi.stubEnv("PERMDOCK_CLOUD_KEY", "pdk_test_key");
+    vi.stubEnv("SUPABASE_URL", "https://project.supabase.co");
+    vi.stubEnv("SUPABASE_SECRET_KEY", "sb_secret_test");
     for (const input of CASES) {
       const preset = resolvePreset(input);
       const dir = path.join(OUT, name(preset), "src");
@@ -188,7 +293,12 @@ describe("generated presets", () => {
 describe("presetMatrix", () => {
   it("agrees with the generated policy on the demo user's collection actions", async () => {
     writeCases();
-    for (const input of CASES) {
+    vi.stubEnv("PERMDOCK_CLOUD_URL", "https://cloud.example.com");
+    vi.stubEnv("PERMDOCK_CLOUD_KEY", "pdk_test_key");
+    vi.stubEnv("SUPABASE_URL", "https://project.supabase.co");
+    vi.stubEnv("SUPABASE_SECRET_KEY", "sb_secret_test");
+    // Supabase memberships come from PostgREST, so those apps cannot decide offline.
+    for (const input of CASES.filter((item) => item.backend !== "supabase")) {
       const preset = resolvePreset(input);
       const domain = DOMAINS[preset.archetype];
       const dir = path.join(OUT, name(preset), "src");
@@ -236,5 +346,6 @@ describe("presetMatrix", () => {
         });
       }
     }
+    vi.unstubAllEnvs();
   }, 120_000);
 });

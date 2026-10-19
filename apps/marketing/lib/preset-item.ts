@@ -15,7 +15,7 @@ export function presetItem(
     name: `preset-${generated.code}`,
     type: "registry:block",
     title: `PermDock ${preset.archetype} preset`,
-    description: `The ${preset.archetype} preset (${preset.features.join(", ")}) on ${preset.framework}: permissions, policy, app definition and wiring. Rules stay in the permdock package.`,
+    description: `The ${preset.archetype} preset (${preset.features.join(", ")}) on ${preset.framework}, with ${preset.auth} auth and a ${preset.backend} backend: permissions, policy, app definition and wiring. Rules stay in the permdock package.`,
     dependencies: generated.dependencies,
     registryDependencies: generated.recipes.map(
       (recipe) => `${origin}/r/${recipe.replace("@permdock/", "")}.json`,
