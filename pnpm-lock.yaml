@@ -441,8 +441,8 @@ catalogs:
       specifier: 1.1.3
       version: 1.1.3
     better-supabase:
-      specifier: file:.better-supabase/better-supabase.tgz
-      version: file:.better-supabase/better-supabase.tgz
+      specifier: 0.9.0
+      version: 0.9.0
     botid:
       specifier: 1.5.11
       version: 1.5.11
@@ -1761,7 +1761,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: file:.better-supabase/better-supabase.tgz(7218100c1fe663e835575f625af7029d)
+        version: 0.9.0(7218100c1fe663e835575f625af7029d)
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -2862,7 +2862,10 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: file:.better-supabase/better-supabase.tgz(7fcceffb9a1457915bc1a8ee9ad35426)
+        version: 0.9.0(7fcceffb9a1457915bc1a8ee9ad35426)
+      better-supabase-floor:
+        specifier: npm:better-supabase@0.9.0
+        version: better-supabase@0.9.0(7fcceffb9a1457915bc1a8ee9ad35426)
       chat:
         specifier: 'catalog:'
         version: 4.42.0(ai@7.0.141(zod@4.6.7))(supports-color@7.2.0)(workflow@5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@7.2.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.1(@babel/core@8.0.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
@@ -3180,7 +3183,7 @@ importers:
         version: 7.0.141(zod@4.6.7)
       better-supabase:
         specifier: 'catalog:'
-        version: file:.better-supabase/better-supabase.tgz(2896eb7548811a4d2486d9c2b3cb810c)
+        version: 0.9.0(2896eb7548811a4d2486d9c2b3cb810c)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
@@ -10280,9 +10283,8 @@ packages:
   better-result@2.10.0:
     resolution: {integrity: sha512-oQhh0y1qo2/ZKdAAEvHZAqKKiHOFU5k/bW96fE2ScgQOVkJRiHwB+nOS1SgFsYqRlxMDWvefXi9Q3px7QvgNDw==}
 
-  better-supabase@file:.better-supabase/better-supabase.tgz:
-    resolution: {integrity: sha512-nkBLIuNZLWB4BckStJR4pXosicOq/d5A6AXCHTKwo45pRJajcFln58Yxp+V3ZlR/X38xWxr4vSaldsYi3gjDRg==, tarball: file:.better-supabase/better-supabase.tgz}
-    version: 0.8.0
+  better-supabase@0.9.0:
+    resolution: {integrity: sha512-UgKt/CuEFAsbLXY+BzIvwLRVOq4p3Dyw1cL3Lbx5z5jQUJ03v0aLp4IqL7CF338hiPHZ0YzfRJqub5/Wwn1qhg==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -26649,7 +26651,7 @@ snapshots:
 
   better-result@2.10.0: {}
 
-  better-supabase@file:.better-supabase/better-supabase.tgz(2896eb7548811a4d2486d9c2b3cb810c):
+  better-supabase@0.9.0(2896eb7548811a4d2486d9c2b3cb810c):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26694,7 +26696,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@file:.better-supabase/better-supabase.tgz(7218100c1fe663e835575f625af7029d):
+  better-supabase@0.9.0(7218100c1fe663e835575f625af7029d):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26740,7 +26742,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@file:.better-supabase/better-supabase.tgz(7fcceffb9a1457915bc1a8ee9ad35426):
+  better-supabase@0.9.0(7fcceffb9a1457915bc1a8ee9ad35426):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)

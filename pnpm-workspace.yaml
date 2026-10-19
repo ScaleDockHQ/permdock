@@ -156,7 +156,7 @@ catalog:
   "@ai-sdk/otel": 1.0.141
   dotenv-cli: 11.0.0
   portless: 0.15.8
-  better-supabase: file:.better-supabase/better-supabase.tgz
+  better-supabase: 0.9.0
   "@supabase/postgrest-typegen": 0.6.0
   supabase: 2.121.0
   server-only: 0.0.1
@@ -258,6 +258,9 @@ catalogMode: strict
 catalogPrune: true
 engineStrict: true
 minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  # Adopted the day it shipped; drop the entry after 2026-10-20 (decision 0038).
+  - better-supabase@0.9.0
 # Drops excludes the lockfile no longer resolves.
 minimumReleaseAgeExcludePrune: true
 # Transitive dependencies resolve only from the registry, never from git or tarball URLs.
@@ -278,9 +281,6 @@ trustPolicyExclude:
 trustPolicyExcludePrune: true
 
 peerDependencyRules:
-  # A `file:` tarball has no version to match; scripts/publish.ts refuses to publish while the catalog points at one (decision 0035).
-  allowAny:
-    - better-supabase
   allowedVersions:
     # Only its optional Nest integration needs the peer; tests/integration runs Nest 12.
     "@supabase/server>@nestjs/common": "12"

@@ -46,11 +46,7 @@ const EXTENSIONS: ReadonlySet<ProblemCode> = new Set([
 ]);
 
 /** Codes better-supabase adds after the pinned commit; each moves out of here once the pin includes it. */
-const PENDING_UPSTREAM: ReadonlySet<ProblemCode> = new Set([
-  "unknown_flag",
-  "invalid_value",
-  "flag_renamed",
-]);
+const PENDING_UPSTREAM: ReadonlySet<ProblemCode> = new Set<ProblemCode>();
 
 const shared = PROBLEM_CODES.filter((code) => upstreamCodes.has(code));
 
