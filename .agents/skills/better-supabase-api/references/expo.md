@@ -35,7 +35,7 @@ export default bs.middleware();
 
 ## Device: `better-supabase/client/native`
 
-```ts title="src/lib/supabase/native.ts"
+```ts title="src/lib/supabase/client.native.ts"
 import { createClient } from "@supabase/supabase-js";
 import {
   autoRefreshOnForeground,

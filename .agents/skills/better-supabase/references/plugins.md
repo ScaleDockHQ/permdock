@@ -64,7 +64,7 @@ or `bs.action({ tenant: (input) => input.organizationId })`, which take the
 resolver's path and get the same check. Never trust a tenant from
 `user_metadata`, and never use one from a request body outside those options. When the config
 has an `authorization` provider whose hook owns `memberships`, that hook
-writes the claim and the memberships: don't run `sql add tenant`, and follow
+writes the claim and the memberships: don't run `add tenant`, and follow
 the authorization providers reference of the `better-supabase-auth` skill
 (https://bettersupabase.com/docs/extending/authorization-providers.md).
 

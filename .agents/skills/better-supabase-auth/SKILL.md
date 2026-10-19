@@ -62,22 +62,29 @@ A token from the Supabase OAuth server carries `client_id` and `scope`; a
 token exchanged for an agent carries an RFC 8693 `act` chain. The session
 names who acts for the user:
 
-| Token                                            | `session.actor`                                | `session.delegation` |
-| ------------------------------------------------ | ---------------------------------------------- | -------------------- |
-| The user's own                                   | not set                                        | not set              |
-| `client_id: "c1"`, `scope: "openid crm.read"`    | `{ id: "c1", kind: "oauth-client" }`           | `{ scopes: [...] }`  |
-| `act: { sub: "agent", act: { sub: "mcp-42" } }`  | `{ id: "agent", chain, ... }`                  | `{ scopes, chain }`  |
-| `act: { kind: "support", sub, session_id, ... }` | `{ kind: "support", id, sessionId, readOnly }` | not set              |
-| `act: { kind: "impersonation", sub, reason }`    | `{ kind: "impersonation", id, reason }`        | not set              |
+| Token                                            | `session.actor`                                 | `session.delegation` |
+| ------------------------------------------------ | ----------------------------------------------- | -------------------- |
+| The user's own                                   | not set                                         | not set              |
+| `client_id: "c1"`, `scope: "openid crm.read"`    | `{ id: "c1", kind: "oauth-client" }`            | `{ scopes: [...] }`  |
+| `act: { sub: "agent", act: { sub: "mcp-42" } }`  | `{ id: "agent", chain, ... }`                   | `{ scopes, chain }`  |
+| `act: { kind: "support", sub, session_id, ... }` | `{ kind: "support", id, sessionId, readOnly }`  | not set              |
+| `act: { kind: "impersonation", sub, reason }`    | `{ kind: "impersonation", id, reason }`         | not set              |
+| `act: { kind: "agent", sub, tools, read_only }`  | `{ kind: "agent", id, tools, readOnly, chain }` | with a `scope` claim |
 
 - Limit what delegated tokens may do with the `scopes` guard option on
   `bs.route`, `bs.action`, `bs.handler` and `bs.middleware`. A missing
   scope answers 403 with an `insufficient_scope` challenge. Only an
-  `oauth-client` actor is limited: the user's own token, a support session
-  and an impersonated session are not.
+  `oauth-client` actor, and an `agent` on a token with a `scope`, are
+  limited: the user's own token, a support session and an impersonated
+  session are not. `delegation.scopes` leaves out OpenID identity scopes
+  (`openid`, `email`, `profile`, `phone`, `address`, `offline_access`).
 - Switch on `session.actor.kind` with a `never` default: it is
-  `oauth-client`, `support` or `impersonation`. An `act` with another `kind`
-  resolves to `invalid` with reason `actor`.
+  `oauth-client`, `support`, `impersonation` or `agent`. An invalid `act`
+  (another `kind`, a level without `sub`, a malformed agent or support
+  level, or a 0.5.0 support token with `session_id` but no `kind`) resolves
+  to `invalid` with reason `actor`, never to the user alone.
+- An agent's `tools` list is enforced by `createAgentRuntime` and
+  `assertToolDelegated` only, not by guards or RLS.
 - In MCP servers, refuse calls in `authorize` by reading
   `toSession(ctx.auth).delegation?.scopes` (the `better-supabase-api` skill).
 - RLS still decides the rows: `sub` is the user, so a client sees at most

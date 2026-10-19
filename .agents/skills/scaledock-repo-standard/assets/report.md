@@ -8,7 +8,7 @@ Mode, repo kind, surfaces, framework and the other inputs, in one or two sentenc
 
 ## Gap table or created tree
 
-- `upgrade` and `align`: the gap table from `references/audit.md`, with the final status of every row.
+- `upgrade` and `align`: the gap table from `references/audit.md`, with the final status of every row, including the CLI contract and scaffolding rows when the repo has a CLI.
 - `new`: the created tree, and the packages and surfaces it contains.
 
 ## Changes
@@ -25,7 +25,7 @@ One line per pin: package, version, why, and what moves it to stable.
 
 ## Baselines
 
-One row per baseline from `references/performance.md`: what was measured, the value before the run, the value after it, and the commit that moved it.
+One row per baseline from `references/performance.md`: what was measured, the value before the run, the value after it, and the commit that moved it. A CLI gets one row each for the `--version`, `--help` and heaviest leaf `--help` medians.
 
 | Baseline | Before | After | Commit |
 | -------- | ------ | ----- | ------ |
@@ -44,6 +44,7 @@ Steps an agent cannot do. Tick the ones already done.
 - [ ] `REUI_LICENSE_KEY` and `TURBO_REMOTE_CACHE_SIGNATURE_KEY` as team Shared Environment Variables, and `TURBO_REMOTE_CACHE_SIGNATURE_KEY` as a GitHub secret
 - [ ] The `TURBO_TEAM` variable, then a CI run whose Remote Cache step is not `outcome=skipped`
 - [ ] Web Analytics and Speed Insights
+- [ ] After the first production deploy, `curl -I` an optimized image URL (`/_next/image?...`) on each web surface behind Services, and expect a `200`
 - [ ] Branch protection (PR required, required checks, squash only) and the Supabase GitHub integration
 - [ ] Stripe Data Pipeline connected to each Supabase project from the Stripe Dashboard
 - [ ] The Google OAuth client

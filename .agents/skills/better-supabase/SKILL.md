@@ -30,7 +30,7 @@ security`, a policy per role and command the app uses, and an index on
    `organization_id in (select better_supabase.member_organization_ids())`, which
    Postgres runs once per statement, not `has_organization_role(organization_id)`,
    which runs once per row. List the table in `expose` in
-   `better-supabase.config.ts` and run `pnpm better-supabase sql add grants`:
+   `better-supabase.config.ts` and run `pnpm better-supabase add grants`:
    new tables get no Data API grants on their own.
 3. Apply it with `supabase db reset` (or `supabase migration up`).
 4. Run `pnpm better-supabase gen`, then fix the type errors it surfaces. It
@@ -159,8 +159,9 @@ const customers = result.data;
 ## CLI in scripts and CI
 
 - No command takes a connection string as an argument. Set `$DATABASE_URL`, `$SUPABASE_DB_URL` or `source.dbUrl`, or pipe it in with `--db-url-stdin`.
-- `--json` prints one JSON document on stdout: the result, or Problem Details with a `code` on failure. `--yes` and `CI` turn prompts off.
-- Exit codes: 0 success, 1 a failure or finding (`--check` drift, doctor errors), 2 a usage, config or environment problem. Each error code is listed at https://bettersupabase.com/docs/cli/errors.
+- `--json` prints one envelope on stdout: `status`, the result under `data`, Problem Details with a `code` under `error`, and the commands to run under `next`. `--yes` and `CI` turn prompts off.
+- Exit codes: 0 success, 1 a failure or finding (`--check` drift, doctor errors), 2 a usage, config or environment problem, 3 when the user has to act. Each error code is listed at https://bettersupabase.com/docs/cli/errors.
+- When the CLI detects an agent it prints JSON and never prompts. Exit code 3 with `input_required` lists `missing` flags and their `choices`; run the `next` command with the value filled in. `consent_required` means the user must agree first (`--force` over their files, `seed --apply` on a remote database): ask them, then run the `next` command with its `--confirm` token. Never pass `--confirm` without asking. See https://bettersupabase.com/docs/cli/agent-mode.
 
 ## Don't
 

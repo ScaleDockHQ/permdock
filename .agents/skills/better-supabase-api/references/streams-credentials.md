@@ -6,7 +6,7 @@ Store long output (a chat answer, a workflow's progress) so a client that
 reconnects reads the rest instead of starting over.
 
 ```bash
-pnpm better-supabase sql add streams
+pnpm better-supabase add streams
 ```
 
 ```ts
@@ -45,7 +45,7 @@ Third-party tokens never go in a column. A row holds a `credential_ref`
 (`{ provider, secret, scope }`) and a `CredentialProvider` resolves it.
 
 ```bash
-pnpm better-supabase sql add credentials
+pnpm better-supabase add credentials
 ```
 
 ```ts
@@ -79,7 +79,7 @@ await fetch(url, { headers: token.headers });
 ## The Workflow World on Supabase (Node only)
 
 ```bash
-pnpm better-supabase sql add workflow-sdk-world   # adds workflows and jobs
+pnpm better-supabase add workflow-sdk-world   # adds workflows and jobs
 pnpm add workflow @workflow/world @workflow/world-postgres pg
 ```
 

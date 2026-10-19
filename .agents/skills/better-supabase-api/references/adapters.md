@@ -109,12 +109,16 @@ a second guard.
 
 ## Edge Functions
 
-```ts title="supabase/functions/api/index.ts"
+```ts title="supabase/functions/api/server.ts"
 import { createEdge } from "better-supabase/edge";
 
 import { betterSupabase } from "../_shared/supabase.ts";
 
-const bs = createEdge(betterSupabase, { cors: true });
+export const bs = createEdge(betterSupabase, { cors: true });
+```
+
+```ts title="supabase/functions/api/index.ts"
+import { bs } from "./server.ts";
 
 Deno.serve(
   bs.resources({ customers: { select: ["id", "name"] } }, { basePath: "/api" }),

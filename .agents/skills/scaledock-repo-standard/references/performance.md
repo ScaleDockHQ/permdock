@@ -10,8 +10,10 @@ Record these before changing anything, and again at the end of the run. Put both
 
 - The bundle baseline (`size`, or the library bundle gate below).
 - The type-instantiation benchmark (`typecheck:perf`), when the repo has one.
-- `time <bin> --help` and `time <bin> --version`, for every CLI.
+  - It gates on instantiation counts. Wall-time ceilings flake under a fully parallel local `verify`: PermDock's tests project measured 8.5 to 9.8 s against an 8 s ceiling there, and 2.2 s alone. Treat wall time as advisory locally, or run the check serially.
+- CLI startup for every CLI: the medians of `--version`, `--help` and the heaviest leaves' `--help` from `scripts/cli-startup.ts` (see [`cli.md`](cli.md)).
 - `next analyze` per Next app. Check the command name against the installed Next.
+- With docs or marketing, the gzipped size of each lazy client chunk and the HTML size of the largest prerendered page.
 
 A change that moves a baseline names the before and after numbers in its commit.
 
@@ -26,7 +28,9 @@ A change that moves a baseline names the before and after numbers in its commit.
 
 - Static marketing and docs sections stay Server Components. An FAQ, a feature grid or a pricing table never carries `"use client"`.
 - Link-styled buttons render `<a className={buttonVariants(...)}>` from a server-only component, so `cn`, cva and the headless Button never reach the client. Record each such primitive in `DESIGN.md` (see [`ui.md`](ui.md)).
-- Heavy client features (chat panels, editors, command palettes) load through `next/dynamic` when opened, and prefetch on pointer enter.
+- Heavy client features (chat panels, editors, command palettes, diagram and graph-layout libraries) load through `next/dynamic` when opened or when their UI renders, and prefetch on pointer enter. The size baseline records each such lazy chunk's gzipped size, so a later import from a shared module shows up as a jump.
+- Static graphics are server-rendered SVG, never a client diagram library. The accessibility pattern for their links is in [`web-design.md`](web-design.md).
+- Shiki output rendered on the server lands in the page HTML. On pages with many files, highlight only what is shown and the rest on demand, and record the HTML size of the largest such page in the baselines.
 
 ## Library runtime
 

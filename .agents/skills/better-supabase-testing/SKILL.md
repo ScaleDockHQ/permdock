@@ -113,13 +113,13 @@ With the polyfill, `vi.useFakeTimers({ now })` drives `Temporal.Now` too.
 ## Doctor in CI
 
 Run `pnpm better-supabase doctor` against the reset stack and fail the job on
-a nonzero exit. `--json` prints the report with each finding's code,
+a nonzero exit. `--json` puts the report, with each finding's code, under `data`,
 `--format github` annotates the pull request, and
 `--format sarif --out doctor.sarif` feeds code scanning.
 
 ## pgTAP
 
-`better-supabase sql add pgtap` installs `tests.create_user`,
+`better-supabase add pgtap` installs `tests.create_user`,
 `tests.authenticate_as(user, claims)`, `tests.clear_authentication()` and
 `tests.rls_enabled('public')` for `supabase test db`. Put
 `select tests.rls_enabled('public');` in a test so tables without RLS fail CI.

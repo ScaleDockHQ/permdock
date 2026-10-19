@@ -29,7 +29,9 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 - **Read installed docs first.** Flag and option names are checked against the installed versions before configuring, starting with the Next.js dev server's `/_next/mcp` and bundled docs.
 - **Strict and typed.** The stable native TypeScript compiler, Ultracite on Oxlint and Oxfmt with every type-aware rule at error, Valibot for every schema, and `Temporal` as the one date library.
 - **Measured performance.** Every run records bundle, type and CLI-startup baselines before and after, experimental flags are opt-ins backed by a measurement, and agent routes are cached.
+- **One web product.** The app, docs and marketing sites share one architecture (`nextjs-app-architecture`) and one design reference, so they look and behave alike.
 - **One name per concept.** Every adapter and doc uses the same names for the same things, and a drift test fails on old ones.
+- **One CLI contract.** Every ScaleDock CLI prints the same JSON envelope, exit codes and problem codes, switches to agent mode for coding agents, and asks for consent before it rewrites files or publishes.
 - **Unit and integration first.** Tests focus on the unit and integration layers. e2e and UI tests are slow and add little, so they are an opt-in for a few critical journeys.
 - **Tool-managed agent files.** The blocks that Next.js and Turborepo write into AGENTS.md are committed as written and never edited by hand.
 - **Done means `pnpm verify` passes.** The run ends with a report of what changed, the deviations kept, the pre-release pins, and the manual steps left.
@@ -57,7 +59,8 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 
 **Surfaces:**
 
-- [`references/nextjs.md`](references/nextjs.md): shared Next config, app architecture, and the agent loop.
+- [`references/nextjs.md`](references/nextjs.md): shared Next config, what ScaleDock adds to `nextjs-app-architecture` (required on app, docs and marketing), the agent loop, and Next.js pitfalls.
+- [`references/web-design.md`](references/web-design.md): the layout, sidebar shell, shared chrome, URL state, graphics and content patterns that app, docs and marketing share.
 - [`references/i18n.md`](references/i18n.md): next-intl with root params, and i18next on Expo.
 - [`references/ui.md`](references/ui.md): shadcn (with `cn` and AI Elements), ReUI Pro, `DESIGN.md`, responsive rules.
 - [`references/app-shell.md`](references/app-shell.md): auth pages, shell, page templates, standard screens.
@@ -68,7 +71,7 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 - [`references/auth.md`](references/auth.md): Supabase Auth as the OAuth 2.1 server for every surface, and the OAuth Consent block.
 - [`references/api.md`](references/api.md): Hono, oRPC, Scalar.
 - [`references/mcp.md`](references/mcp.md): MCP server, tools from the contract, docs MCP.
-- [`references/cli.md`](references/cli.md): product, library and tooling CLIs, and their startup budget.
+- [`references/cli.md`](references/cli.md): product, library and tooling CLIs on the contract better-supabase and PermDock share (manifest, `cli-result-v1` envelope, exit codes, agent mode and consent, file writes, flag vocabulary), scaffolding with `init` and a web builder, and the startup budget.
 - [`references/docs-site.md`](references/docs-site.md): Fumadocs for people and agents.
 - [`references/ai.md`](references/ai.md): AI SDK 7 through AI Gateway, tool approvals and context, `WorkflowAgent`, the Run SDK, telemetry.
 
@@ -84,7 +87,7 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 
 The skill installs these and defers to them for their areas:
 
-- [`nextjs-app-architecture`](https://github.com/aurorascharff/nextjs-app-architecture-skill): the source of truth for Next.js app architecture.
+- [`nextjs-app-architecture`](https://github.com/aurorascharff/nextjs-app-architecture-skill): the required architecture for every Next.js surface (app, docs and marketing).
 - [`expo/skills`](https://github.com/expo/skills): Expo Router, Expo UI, the dev client and SDK upgrades.
 - [better-supabase](https://github.com/ScaleDockHQ/better-supabase): typed Supabase access.
 - [PermDock](https://github.com/ScaleDockHQ/PermDock): roles and permissions.

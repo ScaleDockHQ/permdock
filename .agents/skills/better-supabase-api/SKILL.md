@@ -19,14 +19,14 @@ skill.
 3. Use `db` from the handler context and return its `Result`, a plain value
    or a `Response`.
 4. For a table exposed as REST, prefer `bs.resource(...)` over hand-written
-   routes, and regenerate `openapi.json` with `better-supabase openapi emit`.
+   routes, and regenerate `openapi.json` with `better-supabase spec emit openapi`.
 5. Add an API test that calls the endpoint as a user and as another tenant,
    and with a delegated token that lacks the scope (the
    `better-supabase-testing` skill).
 
 Done when the endpoint rejects callers outside `allow` and tokens without its
 `scopes`, errors come back as Problem Details (no hand-built error JSON), and
-`openapi emit --check` passes if the project has an OpenAPI file.
+`spec emit openapi --check` passes if the project has an OpenAPI file.
 
 ## Who gets in
 
@@ -82,7 +82,7 @@ Don't build error JSON by hand; errors become Problem Details.
 `defineResource` / `bs.resource(table, { operations, list, input })` gives you
 list, get, create, update and delete, with validation and paging (`{ items, page }`).
 `createOpenApi(betterSupabase, { resources })` describes the same routes, and
-`better-supabase openapi emit --check` keeps `openapi.json` in sync.
+`better-supabase spec emit openapi --check` keeps `openapi.json` in sync.
 
 Pass `pagination: "cursor"` to a resource, `defineListQuery` or an MCP table
 for lists that clients read page by page: the list takes `after` instead of
@@ -97,7 +97,7 @@ for lists that clients read page by page: the list takes `after` instead of
 - Set `allowedOrigins` and `allowedHosts` (every host the server answers on, previews and local included) against DNS rebinding, and `resourceDocumentation` to a page that explains how to connect.
 - On the official MCP SDK, keep its `McpServer`: `createMcpAuth(betterSupabase, { resource })` from `better-supabase/mcp/sdk` verifies the token and serves the metadata (`auth.serve(createMcpHandler(factory))`), and `withBetterSupabaseMcp(server, auth)` gives every `registerTool` callback `db`, `auth` and `bs`. With a permission library that wraps `McpServer`, wrap with it first, then `withBetterSupabaseMcp`.
 
-## AI chat (`sql add ai-chat`; `ai`, `@ai-sdk/react`, `@ai-sdk/workflow` and `workflow` as optional peers)
+## AI chat (`add ai-chat`; `ai`, `@ai-sdk/react`, `@ai-sdk/workflow` and `workflow` as optional peers)
 
 - Store chats with `createAiChat({ transport, service })` from `better-supabase/blocks/ai-chat`: `transport` calls as the user, `service` as the service role for assistant messages, runs and the model catalog. Never write assistant messages from the client.
 - Serve the chat with `createAssistant({ streams, run, defaultModel, quota })` from `better-supabase/ai-sdk/chat`: `respond` on `POST /api/chat`, `resume` on `GET /api/chat/[id]/stream`, `stop` on `POST /api/chat/[id]/stop`. Return `streamText(...)` from `run` with the `messages`, `abortSignal` and `providerOptions` it receives, and pass `waitUntil` (`after` in Next.js) so the answer is stored after the response.
@@ -130,7 +130,7 @@ server loaders for the web, `better-supabase/client/native` on the device.
 To read and write offline, run the same repositories on a PowerSync database
 and upload through `bs.db`, as in [references/powersync.md](references/powersync.md).
 
-## Background work (`better-supabase/blocks/jobs`, needs `sql add jobs idempotency webhook-inbox`)
+## Background work (`better-supabase/blocks/jobs`, needs `add jobs idempotency webhook-inbox`)
 
 - `createJobs({ sql: postgres.admin, queues: { queue_name: zodSchema } })` runs on Supabase Queues (pgmq): `enqueue(queue, payload, { context: db.$context })` in the request, then `work` or `drain` in a worker, where `const db = await bs.forContext(job.context).orThrow()` runs the work as the enqueuing user with RLS (it fails with `forbidden` for a job without a user; use `bs.admin(job.context)` only for work no user owns). The handler throws to retry. `schedule(name, cron, queue, payload, { timeZone })` uses pg_cron, or with `blocks.jobs.options.scheduler: "drain"` a `jobs.drainRoute({ secret: process.env.CRON_SECRET, handlers })` route that Vercel Cron calls; `blocks.jobs.options.backend: "table"` runs without pgmq. Queue names are lowercase letters, digits and underscores. With a service-role Supabase client instead of SQL, it uses the `pgmq_public` RPCs (no dedupe or schedules).
 - `createIdempotency({ sql: postgres.admin }).handle(request, handler)` for POST endpoints that clients retry.

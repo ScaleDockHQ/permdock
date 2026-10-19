@@ -2,7 +2,7 @@
 
 The component stack, ReUI Pro, lint rules, `DESIGN.md`, and the responsive and accessibility baseline. The shell and screens built on top are in [`app-shell.md`](app-shell.md).
 
-Applies to a Next.js `app`. Expo UI is in [`expo.md`](expo.md); the `DESIGN.md`, responsive and accessibility rules here apply to it too.
+Applies to a Next.js `app`, and its component stack, lint, `DESIGN.md`, responsive and accessibility rules apply to `docs` and `marketing` as well. The layout, chrome, components and content patterns all three web surfaces share are in [`web-design.md`](web-design.md). Expo UI is in [`expo.md`](expo.md); the `DESIGN.md`, responsive and accessibility rules here apply to it too.
 
 - **shadcn** on Base UI (a `base-*` style) with Tailwind v4 and CSS-first tokens. Components live in `packages/ui`. Every `components.json` aliases `@{{SCOPE}}/ui` and sets `iconLibrary: "hugeicons"`.
   - Class merging comes from the `cn` package, and `lib/utils.ts` only re-exports it. In upgrade mode, run `pnpm dlx shadcn@latest migrate cn` to drop `clsx` and `tailwind-merge`.
@@ -15,7 +15,8 @@ Applies to a Next.js `app`. Expo UI is in [`expo.md`](expo.md); the `DESIGN.md`,
   - Start pages from blocks; adapt them, never restyle them.
   - `REUI_LICENSE_KEY` is a team Shared Environment Variable listed in `global.passThroughEnv`, and is never committed.
 - **`@shadcn/lint`** runs in oxlint: no inline styles and no raw colors.
-- **`DESIGN.md`** owns:
+- After every `shadcn add`, check the generated files: the `cn` import points at the app's `lib/utils` (it has come out as a bare `"cn"`), and unused React imports are removed.
+- **`DESIGN.md`**, one per web app plus the shared tokens (see [`web-design.md`](web-design.md)), owns:
   - tokens and type roles
   - component ownership: `packages/ui`, then `components/`, then `features/`
   - the overlay table, the shell, and the page templates
@@ -24,6 +25,10 @@ Applies to a Next.js `app`. Expo UI is in [`expo.md`](expo.md); the `DESIGN.md`,
 - **Server first:**
   - Static sections (an FAQ, a feature grid, a pricing table) stay Server Components, with no `"use client"`.
   - Link-styled buttons render `<a className={buttonVariants(...)}>` from a server-only component, so `cn`, cva and the headless Button never reach the client. Record each such primitive in `DESIGN.md`.
+- **Web builders** (a `/create` page that writes a preset code for `init`):
+  - Each step is a filtered view of the preset catalogue by `kind`, never a hand-written list, and starts from the catalogue's defaults. The parity rules are in [`cli.md`](cli.md).
+  - Follow the repo's design-system skill: its ReUI plan before building and its self-check after.
+  - Take screenshots at 390px and 1440px for the review.
 - **Create and edit** happen on routes. Dialogs are only for destructive confirmation or short tasks.
 - **Responsive:**
   - From 360px up, with the same routes on every device.

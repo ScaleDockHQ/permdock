@@ -11,7 +11,7 @@ over direct Postgres. Its docs page is
 ## Knowledge and memory
 
 ```bash
-pnpm better-supabase sql add knowledge memory   # adds tenant, access and vector-search
+pnpm better-supabase add knowledge memory   # adds tenant, access and vector-search
 ```
 
 ```ts
@@ -53,7 +53,7 @@ const memory = createMemory({
 ## Agents, connectors and scheduled tasks
 
 ```bash
-pnpm better-supabase sql add agents connectors ai-tasks
+pnpm better-supabase add agents connectors ai-tasks
 ```
 
 - `createAgents({ transport })` stores assistants: `agents.create(organizationId, { slug, name, instructions, tools, knowledgeScopes })`,
@@ -89,7 +89,7 @@ pnpm better-supabase sql add agents connectors ai-tasks
 
 ```bash
 pnpm add eve @workflow/world @workflow/world-postgres pg
-pnpm better-supabase sql add workflow-sdk-world ai-chat memory knowledge credentials inbox
+pnpm better-supabase add workflow-sdk-world ai-chat memory knowledge credentials inbox
 ```
 
 Set `experimental.workflow.world` to `"better-supabase/workflow-sdk/world"`
@@ -108,7 +108,7 @@ in `defineAgent`, then use the helpers from `better-supabase/eve`:
 
 ```bash
 pnpm add chat
-pnpm better-supabase sql add chat-sdk-state inbox
+pnpm better-supabase add chat-sdk-state inbox
 ```
 
 From `better-supabase/chat-sdk`: `createSupabaseState(...)` is the Chat SDK
