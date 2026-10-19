@@ -675,17 +675,20 @@
     "rowConditionKeys"
   ],
   "./preset": [
-    "AGENTS",
     "ARCHETYPES",
     "AUTH",
     "BACKENDS",
     "FEATURES",
     "FRAMEWORKS",
+    "INTEGRATIONS",
+    "PRESET_DEFAULTS",
+    "PRESET_FLAGS",
     "SERVICES",
-    "UI",
     "decodePreset",
     "encodePreset",
     "generatePreset",
+    "integrationsOf",
+    "presetFlags",
     "presetMatrix",
     "resolvePreset"
   ],

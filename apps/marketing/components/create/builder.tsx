@@ -5,16 +5,17 @@ import type { ReactNode } from "react";
 import { CircleAlertIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import {
-  AGENTS,
   ARCHETYPES,
   AUTH,
   BACKENDS,
   FEATURES,
   FRAMEWORKS,
+  INTEGRATIONS,
+  type IntegrationKind,
+  PRESET_DEFAULTS,
   type Preset,
   type PresetInput,
   SERVICES,
-  UI,
   decodePreset,
   generatePreset,
   presetMatrix,
@@ -42,7 +43,10 @@ import {
 import { CheckboxCards, RadioCards } from "./choice-cards";
 import { InstallPanel, OutputTabs, PreviewSkeleton } from "./preview";
 
-const START: PresetInput = { archetype: "b2b", ui: ["shadcn"] };
+const START: PresetInput = { archetype: PRESET_DEFAULTS.archetype };
+
+const AGENT_RUNTIMES = INTEGRATIONS.filter((item) => item.kind === "agent");
+const UI_RECIPES = INTEGRATIONS.filter((item) => item.kind === "ui");
 
 function Step({
   step,
@@ -105,7 +109,7 @@ export function CreateBuilder() {
   const matrix = presetMatrix(preset);
   const locked = resolvePreset({
     archetype: preset.archetype,
-    agents: preset.agents,
+    integrations: preset.integrations,
   }).features;
 
   useEffect(() => {
@@ -116,6 +120,19 @@ export function CreateBuilder() {
 
   const set = (patch: Partial<PresetInput>) => {
     setInput({ ...preset, ...patch });
+  };
+  const ofKind = (kind: IntegrationKind) =>
+    preset.integrations.filter(
+      (id) => INTEGRATIONS.find((item) => item.id === id)?.kind === kind,
+    );
+  const setKind = (kind: IntegrationKind, ids: readonly string[]) => {
+    set({
+      integrations: INTEGRATIONS.filter((item) =>
+        item.kind === kind
+          ? ids.includes(item.id)
+          : preset.integrations.includes(item.id),
+      ).map((item) => item.id),
+    });
   };
 
   return (
@@ -164,7 +181,7 @@ export function CreateBuilder() {
           <Step
             step={2}
             title="Features"
-            description="Required features follow from the archetype and agents."
+            description="Required features follow from the archetype and agent runtimes."
           >
             <CheckboxCards
               name="feature"
@@ -214,26 +231,26 @@ export function CreateBuilder() {
 
           <Step
             step={4}
-            title="Agents and UI"
+            title="Integrations"
             description="Gate agent tools and get UI recipes built on useGate."
           >
-            <SubGroup label="Agents">
+            <SubGroup label="Agent runtimes">
               <CheckboxCards
-                name="agent"
-                label="Agents"
-                choices={AGENTS}
-                value={preset.agents}
-                onChange={(agents) => set({ agents })}
+                name="integration"
+                label="Agent runtimes"
+                choices={AGENT_RUNTIMES}
+                value={ofKind("agent")}
+                onChange={(ids) => setKind("agent", ids)}
               />
             </SubGroup>
             <Separator />
             <SubGroup label="UI recipes">
               <CheckboxCards
-                name="ui"
+                name="integration"
                 label="UI recipes"
-                choices={UI}
-                value={preset.ui}
-                onChange={(ui) => set({ ui })}
+                choices={UI_RECIPES}
+                value={ofKind("ui")}
+                onChange={(ids) => setKind("ui", ids)}
               />
             </SubGroup>
           </Step>
@@ -258,7 +275,7 @@ export function CreateBuilder() {
           <OutputTabs
             generated={generated}
             matrix={matrix}
-            onPickUi={() => set({ ui: ["shadcn"] })}
+            onPickUi={() => setKind("ui", ["shadcn"])}
           />
         </div>
       </div>
