@@ -6,6 +6,8 @@ import { scopeList } from "../../core/scopes.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { runCollect } from "../collect.ts";
 import { didYouMean } from "../core/args.ts";
+import { DOCS_BASE } from "../core/manifest.ts";
+import { findingOf } from "../core/output.ts";
 import { createStyle } from "../core/style.ts";
 import { DOCTOR_REPORT_SCHEMA } from "../core/version.ts";
 import { listSourceFiles, rel } from "../files.ts";
@@ -392,6 +394,9 @@ export async function runDoctor(input: {
     output: input.json
       ? `${JSON.stringify(report, null, 2)}\n`
       : formatDoctor(report, input.color),
+    findings: findings.map((item) =>
+      findingOf({ ...item, docs: `${DOCS_BASE}/doctor#checks` }),
+    ),
   };
 }
 

@@ -13,6 +13,8 @@ import { type Condition, type Policy, getResource } from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import { type CollectOutcome, runCollect } from "./collect.ts";
 import { usageResult } from "./core/errors.ts";
+import { DOCS_BASE } from "./core/manifest.ts";
+import { findingOf } from "./core/output.ts";
 import { USAGE_REPORT_SCHEMA } from "./core/version.ts";
 import { isClientSource } from "./doctor/source.ts";
 import { listSourceFiles, rel } from "./files.ts";
@@ -177,6 +179,21 @@ export async function runUsage(input: {
     output: input.json
       ? `${JSON.stringify(report, null, 2)}\n`
       : formatUsage(report),
+    findings: [
+      ...unused,
+      ...ungranted,
+      ...noRole,
+      ...dynamic,
+      ...undeclared,
+      ...outsideInclude,
+    ].map((item) =>
+      findingOf({
+        code: item.kind,
+        severity: item.kind === "no-role" ? "error" : "warning",
+        message: `${item.key === "*" ? "" : `${item.key}: `}${item.detail}`,
+        docs: `${DOCS_BASE}/usage`,
+      }),
+    ),
   };
 }
 

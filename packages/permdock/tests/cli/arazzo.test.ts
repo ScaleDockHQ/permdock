@@ -20,7 +20,6 @@ function check(overrides: Partial<Input> = {}) {
   return runArazzo({
     cwd: FIXTURE,
     config: { permissions: "./src/permissions.ts" },
-    rest: ["check"],
     doc: "arazzo.json",
     openapi: "openapi.json",
     workflow: undefined,
@@ -30,14 +29,23 @@ function check(overrides: Partial<Input> = {}) {
   });
 }
 
-const USAGE = "permdock arazzo check --doc <arazzo> --openapi <doc>";
-
 describe("runArazzo usage errors", () => {
   it.each([
-    [{ rest: [] }, USAGE],
-    [{ rest: ["lint"] }, USAGE],
-    [{ doc: undefined }, "arazzo check requires --doc and --openapi"],
-    [{ openapi: undefined }, "arazzo check requires --doc and --openapi"],
+    [{ doc: undefined }, ["--doc"]],
+    [{ openapi: undefined }, ["--openapi"]],
+    [{ doc: undefined, openapi: undefined }, ["--doc", "--openapi"]],
+  ] as const)(
+    "asks for the missing input for %j",
+    async (overrides, missing) => {
+      await expect(check(overrides)).rejects.toMatchObject({
+        kind: "action",
+        code: "missing_input",
+        extensions: { missing },
+      });
+    },
+  );
+
+  it.each([
     [{ doc: "missing.json" }, "arazzo check: document not found"],
     [{ openapi: "missing.json" }, "arazzo check: document not found"],
     [
@@ -49,7 +57,7 @@ describe("runArazzo usage errors", () => {
       "arazzo check: permissions not found: ./nope.ts",
     ],
   ] as const)("exits 2 for %j", async (overrides, output) => {
-    expect(await check(overrides)).toEqual({ code: 2, output });
+    expect(await check(overrides)).toMatchObject({ code: 2, output });
   });
 
   it("exits 2 on unreadable JSON", async () => {
@@ -70,8 +78,9 @@ describe("runArazzo findings", () => {
     expect(await check()).toEqual({
       code: 0,
       output: "arazzo check: all steps documented",
+      findings: [],
     });
-    expect(await check({ json: true })).toEqual({
+    expect(await check({ json: true })).toMatchObject({
       code: 0,
       output: JSON.stringify({
         $schema: "https://permdock.com/schemas/arazzo-report-v1.json",
@@ -102,7 +111,7 @@ describe("runArazzo findings", () => {
   });
 
   it("checks only the workflow passed with --workflow", async () => {
-    expect(await check({ workflow: "deletePost" })).toEqual({
+    expect(await check({ workflow: "deletePost" })).toMatchObject({
       code: 0,
       output: "arazzo check: all steps documented",
     });
@@ -111,6 +120,15 @@ describe("runArazzo findings", () => {
     ).toEqual({
       code: 1,
       output: "deletePost document: validation (unknown workflowId deletePost)",
+      findings: [
+        {
+          code: "validation",
+          severity: "error",
+          message: "deletePost document: unknown workflowId deletePost",
+          file: "arazzo-hole.json",
+          docs: "https://permdock.com/docs/cli/arazzo",
+        },
+      ],
     });
   });
 

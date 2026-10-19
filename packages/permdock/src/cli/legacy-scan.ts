@@ -3,6 +3,7 @@ import { relative } from "node:path";
 
 import type { CommandResult } from "./core/result.ts";
 
+import { DOCS_BASE } from "./core/manifest.ts";
 import { listSourceFiles } from "./files.ts";
 
 /** Authorization checks written before PermDock, by the shape they usually take. */
@@ -79,11 +80,27 @@ export function runLegacyScan(options: LegacyScanOptions): CommandResult {
       output: `permdock scan: ${error instanceof Error ? error.message : String(error)}\n`,
     };
   }
+  const located = findings.map((finding) => ({
+    code: "legacy-check",
+    severity: "info" as const,
+    message: `${finding.kind}: ${finding.text}`,
+    file: finding.file,
+    line: finding.line,
+    docs: `${DOCS_BASE}/scan`,
+  }));
   if (options.json === true) {
-    return { code: 0, output: `${JSON.stringify(findings, null, 2)}\n` };
+    return {
+      code: 0,
+      output: `${JSON.stringify(findings, null, 2)}\n`,
+      findings: located,
+    };
   }
   if (findings.length === 0) {
-    return { code: 0, output: "No legacy authorization checks found.\n" };
+    return {
+      code: 0,
+      output: "No legacy authorization checks found.\n",
+      findings: [],
+    };
   }
   const byKind = new Map<string, number>();
   for (const finding of findings) {
@@ -105,5 +122,5 @@ export function runLegacyScan(options: LegacyScanOptions): CommandResult {
         ]
       : []),
   ];
-  return { code: 0, output: `${lines.join("\n")}\n` };
+  return { code: 0, output: `${lines.join("\n")}\n`, findings: located };
 }

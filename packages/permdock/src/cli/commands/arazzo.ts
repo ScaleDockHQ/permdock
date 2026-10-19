@@ -25,7 +25,6 @@ export const check: Leaf = defineLeaf({
     return (await import("../arazzo.ts")).runArazzo({
       cwd: ctx.cwd,
       config: ctx.config,
-      rest: ["check"],
       doc: given(flags.doc),
       openapi: given(flags.openapi),
       workflow: given(flags.workflow),

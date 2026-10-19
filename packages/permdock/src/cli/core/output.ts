@@ -49,6 +49,23 @@ export function dataOf(output: string): unknown {
   }
 }
 
+const LOCATION = /^([^\s:]+\.[A-Za-z0-9]+):(\d+)\b/u;
+
+/**
+ * A finding whose `file` and `line` default to the `path:line` a message
+ * opens with, the form doctor, usage and scan already print.
+ */
+export function findingOf(input: Finding): Finding {
+  if (input.file !== undefined) {
+    return input;
+  }
+  const match = LOCATION.exec(input.message);
+  if (match?.[1] === undefined || match[2] === undefined) {
+    return input;
+  }
+  return { ...input, file: match[1], line: Number(match[2]) };
+}
+
 function escapeData(value: string): string {
   return value
     .replaceAll("%", "%25")

@@ -1,8 +1,10 @@
+import type { CommandResult } from "./core/result.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { catalogPath } from "./catalog-path.ts";
 import { barrelFile, guessPermissions } from "./collect.ts";
+import { DOCS_BASE } from "./core/manifest.ts";
 import { CONFIG_REPORT_SCHEMA } from "./core/version.ts";
 import { defaultSrcPath, rel } from "./files.ts";
 import {
@@ -67,11 +69,18 @@ export function runConfig(input: {
   readonly print: boolean;
   readonly json: boolean;
   readonly strict: boolean;
-}): { readonly code: 0 | 1; readonly output: string } {
+}): CommandResult {
   const report = configReport(input);
   const code = input.strict && report.warnings.length > 0 ? 1 : 0;
+  const findings = report.warnings.map((warning) => ({
+    code: "config-warning",
+    severity: "warning" as const,
+    message: warning,
+    ...(report.file === null ? {} : { file: report.file }),
+    docs: `${DOCS_BASE}/config`,
+  }));
   if (input.print || input.json) {
-    return { code, output: `${JSON.stringify(report, null, 2)}\n` };
+    return { code, output: `${JSON.stringify(report, null, 2)}\n`, findings };
   }
   const lines = [
     report.file === null
@@ -79,5 +88,5 @@ export function runConfig(input: {
       : `${report.file}: ${report.warnings.length === 0 ? "ok" : `${String(report.warnings.length)} warning${report.warnings.length === 1 ? "" : "s"}`}`,
     ...report.warnings.map((warning) => `  warn ${warning}`),
   ];
-  return { code, output: `${lines.join("\n")}\n` };
+  return { code, output: `${lines.join("\n")}\n`, findings };
 }
