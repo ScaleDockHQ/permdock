@@ -132,7 +132,7 @@ function generate(over: Partial<Input> & { readonly config?: PermDockConfig }) {
 describe("rls generate policy loading", () => {
   it("reads the config policy for --from drizzle and needs one", async () => {
     await expect(generate({ from: "drizzle" })).rejects.toThrow(
-      "rls generate needs policy in permdock.config.ts or --from",
+      "rls generate needs policy in permdock.config.ts or --policy",
     );
     const outcome = await generate({
       from: "drizzle",

@@ -100,14 +100,14 @@ create function public.visible(p uuid) returns boolean language sql as $$ select
         severity: "warning",
         message:
           "legacy helper is_member is still called 2 time(s), in supabase/migrations/001_legacy.sql",
-        fix: "run permdock rls migrate --write for policies, rewrite function bodies, views and triggers onto the permdock helpers by hand, then drop function is_member",
+        fix: "run permdock rls migrate for policies, rewrite function bodies, views and triggers onto the permdock helpers by hand, then drop function is_member",
       },
       {
         code: "PD056",
         severity: "warning",
         message:
           "legacy helper org_ids is still called 1 time(s), in supabase/migrations/002_more.sql",
-        fix: "run permdock rls migrate --write for policies, rewrite function bodies, views and triggers onto the permdock helpers by hand, then drop function org_ids",
+        fix: "run permdock rls migrate for policies, rewrite function bodies, views and triggers onto the permdock helpers by hand, then drop function org_ids",
       },
     ]);
   });

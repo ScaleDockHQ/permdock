@@ -15,7 +15,7 @@ import type {
   UnparsedSource,
 } from "./types.ts";
 
-import { describeError } from "./errors.ts";
+import { describeError } from "./core/errors.ts";
 import { rel } from "./files.ts";
 
 /** oxc reports recoverable problems as `Warning` or `Advice`; only `Error` leaves the program incomplete. */
@@ -49,7 +49,7 @@ type Estree = {
   readonly type?: string;
   readonly name?: string;
   readonly value?: unknown;
-  readonly start?: number;
+  readonly start: number;
   readonly object?: Estree;
   readonly property?: Estree;
   readonly computed?: boolean;
@@ -166,7 +166,7 @@ export function scanSources(
         if (callee === "snapshot" || callee === "snapshotFor") {
           snapshots.push({
             file: fileRel,
-            line: lineAt(node.start ?? 0),
+            line: lineAt(node.start),
             include: includeOf(
               node.arguments?.[callee === "snapshot" ? 0 : 2],
               isRoot,
@@ -450,7 +450,7 @@ function recordCall(
   knownKeys: ReadonlySet<string>,
 ): void {
   const callee = calleeName(node.callee);
-  const line = lineAt(node.start ?? 0);
+  const line = lineAt(node.start);
   if (
     callee === "definePermissions" ||
     callee === "defineRoles" ||
@@ -516,7 +516,7 @@ function recordMember(
     if (root !== undefined && isRoot(root)) {
       dynamic.push({
         file: fileRel,
-        line: lineAt(node.start ?? 0),
+        line: lineAt(node.start),
         call: callName(parent),
       });
     }
@@ -537,7 +537,7 @@ function recordMember(
   const call = callName(parent);
   const usage = {
     file: fileRel,
-    line: lineAt(node.start ?? 0),
+    line: lineAt(node.start),
     call,
   };
   if (call === "allow") {

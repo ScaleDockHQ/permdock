@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { jsonData } from "./envelope.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
 afterEach(removeHookProjects);
@@ -207,7 +208,7 @@ describe("permdock supabase hook generate", () => {
       sql.match(/'entitlements', s\.seats, 'keep', s\.keep/gu),
     ).toHaveLength(3);
     expect(sql).toContain("null::jsonb as keep");
-    const manifest: SupabaseHookManifest = JSON.parse(
+    const manifest: SupabaseHookManifest = jsonData(
       (await run(["supabase", "inspect", "--json"], { cwd })).stdout,
     );
     expect(manifest.rls.suspension?.scopes?.["organization"]).toEqual({
@@ -245,7 +246,7 @@ describe("permdock supabase hook generate", () => {
     expect(sql).toContain(
       'grant execute on function "auth_checks"."require_sso"(jsonb) to supabase_auth_admin;',
     );
-    const manifest: SupabaseHookManifest = JSON.parse(
+    const manifest: SupabaseHookManifest = jsonData(
       (await run(["supabase", "inspect", "--json"], { cwd })).stdout,
     );
     expect(manifest.hook.before).toEqual([

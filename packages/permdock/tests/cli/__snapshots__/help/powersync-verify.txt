@@ -1,0 +1,20 @@
+permdock powersync verify: Fail on stale streams or a stream that syncs a denied row
+
+Usage  permdock powersync verify [flags]
+
+Flags
+  --out <file>       The Sync Streams file to verify (default sync-config.yaml)
+  --db-url <url>     Postgres connection string (DATABASE_URL when the command needs one)
+  --db-url-stdin     Read the connection string from stdin, keeping it out of ps and shell history
+  --fixtures <file>  Fixtures file (default rls.fixtures.json)
+  --policy <module>  Module exporting the policy (default policy in the config)
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock powersync verify
+  permdock powersync verify --db-url-stdin
+
+Side effects  database:read
+Docs  https://permdock.com/docs/cli/powersync

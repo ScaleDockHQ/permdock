@@ -17,6 +17,7 @@ import {
   readCredentials,
   writeCredentials,
 } from "../../terminal/storage.ts";
+import { CliError } from "../core/errors.ts";
 import {
   CLI_CLIENT_ID,
   type Env,
@@ -104,13 +105,20 @@ function scopesOf(credential: StoredCredential): readonly string[] {
   return (credential.scope ?? "").split(" ").filter((scope) => scope !== "");
 }
 
-export type CloudAuth =
-  | {
-      readonly ok: true;
-      readonly bearer: string;
-      readonly source: "PERMDOCK_CLOUD_TOKEN" | "PERMDOCK_CLOUD_KEY" | "login";
-    }
-  | { readonly ok: false; readonly code: 1 | 2; readonly output: string };
+export type CloudAuth = {
+  readonly bearer: string;
+  readonly source: "PERMDOCK_CLOUD_TOKEN" | "PERMDOCK_CLOUD_KEY" | "login";
+};
+
+function authRequired(message: string, login: string, ci: string): CliError {
+  return new CliError("action", message, {
+    code: "auth_required",
+    next: [
+      { command: login, when: "to log in on this machine" },
+      { command: ci, when: "in CI" },
+    ],
+  });
+}
 
 /** The stored login for `issuer`, refreshed when its access token has expired. */
 async function storedLogin(
@@ -157,7 +165,8 @@ async function storedLogin(
 
 /**
  * The bearer for the read API: `PERMDOCK_CLOUD_TOKEN` (a read-only key pinned
- * to one environment, for CI), then the stored login for `issuer`.
+ * to one environment, for CI), then the stored login for `issuer`. Throws an
+ * `auth_required` error when there is neither.
  */
 export async function readAuth(
   command: string,
@@ -167,24 +176,19 @@ export async function readAuth(
 ): Promise<CloudAuth> {
   const token = env["PERMDOCK_CLOUD_TOKEN"];
   if (token !== undefined && token !== "") {
-    return { ok: true, bearer: token, source: "PERMDOCK_CLOUD_TOKEN" };
+    return { bearer: token, source: "PERMDOCK_CLOUD_TOKEN" };
   }
   const login = await storedLogin(issuer, runtime);
-  if (login === "expired") {
-    return {
-      ok: false,
-      code: 1,
-      output: `${command}: the login for ${issuer} has expired; run permdock login`,
-    };
+  if (login === "expired" || login === null) {
+    throw authRequired(
+      login === null
+        ? `${command} needs a login: run permdock login, or set PERMDOCK_CLOUD_TOKEN in CI`
+        : `${command}: the login for ${issuer} has expired; run permdock login`,
+      "permdock login",
+      "export PERMDOCK_CLOUD_TOKEN=<read-only key>",
+    );
   }
-  if (login === null) {
-    return {
-      ok: false,
-      code: 2,
-      output: `${command} needs a login: run permdock login, or set PERMDOCK_CLOUD_TOKEN in CI`,
-    };
-  }
-  return { ok: true, bearer: login.access_token, source: "login" };
+  return { bearer: login.access_token, source: "login" };
 }
 
 /** The bearer for `cloud push`: `PERMDOCK_CLOUD_KEY`, then a login holding `catalog:write`. */
@@ -195,30 +199,23 @@ export async function pushAuth(
 ): Promise<CloudAuth> {
   const key = env["PERMDOCK_CLOUD_KEY"];
   if (key !== undefined && key !== "") {
-    return { ok: true, bearer: key, source: "PERMDOCK_CLOUD_KEY" };
+    return { bearer: key, source: "PERMDOCK_CLOUD_KEY" };
   }
   const login = await storedLogin(issuer, runtime);
-  if (login === "expired") {
-    return {
-      ok: false,
-      code: 1,
-      output: `permdock cloud push: the login for ${issuer} has expired; run permdock login --write`,
-    };
+  if (
+    login === "expired" ||
+    login === null ||
+    !scopesOf(login).includes(WRITE_SCOPE)
+  ) {
+    throw authRequired(
+      login === "expired"
+        ? `permdock cloud push: the login for ${issuer} has expired; run permdock login --scope ${WRITE_SCOPE}`
+        : login === null
+          ? `permdock cloud push needs PERMDOCK_CLOUD_KEY in the environment, or a login from permdock login --scope ${WRITE_SCOPE}`
+          : `permdock cloud push needs ${WRITE_SCOPE}: run permdock login --scope ${WRITE_SCOPE}`,
+      `permdock login --scope ${WRITE_SCOPE}`,
+      "export PERMDOCK_CLOUD_KEY=<write key>",
+    );
   }
-  if (login === null) {
-    return {
-      ok: false,
-      code: 2,
-      output:
-        "permdock cloud push needs PERMDOCK_CLOUD_KEY in the environment, or a login from permdock login --write",
-    };
-  }
-  if (!scopesOf(login).includes(WRITE_SCOPE)) {
-    return {
-      ok: false,
-      code: 2,
-      output: `permdock cloud push needs ${WRITE_SCOPE}: run permdock login --write`,
-    };
-  }
-  return { ok: true, bearer: login.access_token, source: "login" };
+  return { bearer: login.access_token, source: "login" };
 }

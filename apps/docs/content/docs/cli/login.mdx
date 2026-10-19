@@ -1,28 +1,30 @@
 ---
 title: login
-description: permdock login and permdock logout sign a person in to the PermDock Cloud platform issuer with the OAuth device flow or a loopback redirect, store the credentials outside the repository, and revoke them on logout.
+description: permdock login, logout and whoami sign a person in to the PermDock Cloud platform issuer with the OAuth device flow or a loopback redirect, store the credentials outside the repository, and revoke them on logout.
 ---
 
-`permdock login` signs a person in at the platform issuer, `https://permdock.com/api`, and stores the token for [cloud pull](/docs/cli/cloud), [rls generate --project](/docs/cli/rls#generate-from-a-cloud-project) and, with `--write`, [cloud push](/docs/cli/cloud). `permdock logout` revokes the token and deletes it.
+`permdock login` signs a person in at the platform issuer, `https://permdock.com/api`, and stores the token for [cloud pull](/docs/cli/cloud), [rls generate --project](/docs/cli/rls#generate-from-a-cloud-project) and, with `--scope catalog:write`, [cloud push](/docs/cli/cloud). `permdock logout` revokes the token and deletes it; `permdock whoami` prints which credential the CLI would use.
 
 ## Usage
 
 ```bash
 permdock login                  # device flow: open the URL, enter the code
-permdock login --write          # also catalog:write, for permdock cloud push
+permdock login --scope catalog:write          # also catalog:write, for permdock cloud push
 permdock login --loopback       # browser redirect to 127.0.0.1 instead of the device flow
 permdock login --no-open        # print the URL only
 permdock login --url http://localhost:4000/api
+permdock whoami
 permdock logout
 ```
 
-| Flag         | Meaning                                                                                 |
-| ------------ | --------------------------------------------------------------------------------------- |
-| `--url`      | The issuer; defaults to `PERMDOCK_CLOUD_URL`, then `https://permdock.com/api`           |
-| `--write`    | `login`: request `catalog:write` as well as `projects:read policy:read`                 |
-| `--loopback` | `login`: use the RFC 8252 loopback redirect even when the issuer offers the device flow |
-| `--no-open`  | `login`: print the URL without opening a browser; a non-interactive run never opens one |
-| `--json`     | `login`: `{ issuer, scope, storage }`; `logout`: `{ issuer, status }`                   |
+| Flag         | Meaning                                                                                                                                                   |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--url`      | The issuer; defaults to `PERMDOCK_CLOUD_URL`, then `https://permdock.com/api`                                                                             |
+| `--scope`    | `login`: scopes beyond `projects:read policy:read`; `catalog:write` for `cloud push`, repeatable                                                          |
+| `--loopback` | `login`: use the RFC 8252 loopback redirect even when the issuer offers the device flow                                                                   |
+| `--open`     | `login`: open the browser at the verification URL; the default on a terminal                                                                              |
+| `--no-open`  | `login`: print the URL without opening a browser; a non-interactive run never opens one                                                                   |
+| `--json`     | `data` in the envelope. `login`: `{ issuer, scope, storage }`; `logout`: `{ issuer, status }`; `whoami`: `{ issuer, source, scopes, expiresAt, expired }` |
 
 ## How it signs in
 
@@ -30,7 +32,7 @@ permdock logout
 2. With a `device_authorization_endpoint`, it runs the RFC 8628 device flow as the public client `permdock-cli` and prints the verification URL and the user code on stderr.
 3. Without one, or with `--loopback`, it listens on `127.0.0.1` on a free port, opens the authorization URL with a PKCE S256 challenge and a `state`, and exchanges the code it receives at `/callback` (RFC 8252). A callback with another `state`, or none within five minutes, fails the login.
 
-The scopes are `projects:read policy:read`, plus `catalog:write` with `--write`. A token response that names other scopes is stored with them, and `cloud push` refuses a login without `catalog:write`.
+The scopes are `projects:read policy:read`, plus `catalog:write` with `--scope catalog:write`. A token response that names other scopes is stored with them, and `cloud push` refuses a login without `catalog:write`.
 
 ## Where the credentials go
 
@@ -45,14 +47,28 @@ Credentials are stored through the [`permdock/terminal`](/docs/adapters/terminal
 
 `permdock logout` posts the refresh token, or the access token when there is none, to the issuer's RFC 7009 `revocation_endpoint`, then deletes the stored credentials. A failed revocation still deletes them and says that the token was not revoked. Without a stored login it prints `not logged in` and exits `0`.
 
+## Whoami
+
+`permdock whoami` reads no network. It names the credential the Cloud commands would send: `PERMDOCK_CLOUD_KEY` or `PERMDOCK_CLOUD_TOKEN` from the environment, else the stored login for `--url` with its scopes and expiry. Without any it exits `3` with `auth_required` and `permdock login` in `next`.
+
 Exit codes: `0` logged in or out; `1` no RFC 8414 metadata, no usable flow, or no token from the issuer; `2` a credentials path inside the repository.
 
 ## In CI
 
 CI does not log in. A job that reads sets `PERMDOCK_CLOUD_TOKEN`, a read-only Cloud key pinned to one environment; a job that pushes sets `PERMDOCK_CLOUD_KEY` ([cloud](/docs/cli/cloud#in-ci)). Both win over a stored login.
 
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command           | Side effects       |
+| ----------------- | ------------------ |
+| `permdock login`  | `network`, `files` |
+| `permdock logout` | `network`, `files` |
+| `permdock whoami` | None               |
+
 ## Why
 
 The device flow is the default because it works over SSH, in a container and in a terminal without a browser, and the person approves on any device. The loopback redirect is the fallback for an issuer without the device flow and for people who prefer the browser redirect; PKCE binds the code to the process that started the login, so another local process that sees the redirect cannot redeem it.
 
-A login is a person's credential and a Cloud key is a deployment's. Keeping them apart means a laptop never needs a deploy key, and `--write` keeps a read-only login the default, so a session left open on a shared machine can read policy but not publish it.
+A login is a person's credential and a Cloud key is a deployment's. Keeping them apart means a laptop never needs a deploy key, and asking for `catalog:write` by name keeps a read-only login the default, so a session left open on a shared machine can read policy but not publish it.

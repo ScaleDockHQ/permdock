@@ -1,11 +1,9 @@
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
-import { timeoutSignal } from "../../core/timeout.ts";
-import { TERMINAL_TIMEOUT_MS } from "../../terminal/device.ts";
-import { POLICY_NOT_PUBLISHED } from "../../testing/cloud-api/platform.ts";
-import { describeError } from "../errors.ts";
+import { authFailure, httpRequest } from "../core/http.ts";
+import { POLICY_NOT_PUBLISHED } from "./problem-types.ts";
 
 /** `GET /v1/projects/{id}/policy`: what the project's last `cloud push` sent, as pushed. */
 export type ProjectPolicy = {
@@ -72,23 +70,14 @@ async function get(
   },
   what: string,
 ): Promise<{ readonly ok: true; readonly body: unknown } | Failure> {
-  const fetchImpl = input.io.fetch ?? globalThis.fetch.bind(globalThis);
-  let response: Response;
-  try {
-    response = await fetchImpl(`${input.issuer}${input.path}`, {
-      headers: {
-        authorization: `Bearer ${input.bearer}`,
-        accept: "application/json",
-      },
-      signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
-    });
-  } catch (error) {
-    return failure(input.json, input.command, 1, {
-      type: "https://permdock.com/problems/cli-unavailable",
-      title: "PermDock Cloud unreachable",
-      detail: `PermDock Cloud unreachable: ${describeError(error)}`,
-    });
-  }
+  const response = await httpRequest(input.io, {
+    url: `${input.issuer}${input.path}`,
+    service: "PermDock Cloud",
+    headers: {
+      authorization: `Bearer ${input.bearer}`,
+      accept: "application/json",
+    },
+  });
   if (response.ok) {
     try {
       return { ok: true, body: await response.json() };
@@ -111,14 +100,23 @@ async function get(
         "the project has no pushed catalog and policy yet; run permdock cloud push first",
     });
   }
-  const detail =
+  const denied = authFailure(
+    response,
     response.status === 401
-      ? "PermDock Cloud rejected the credential (HTTP 401); run permdock login, or check PERMDOCK_CLOUD_TOKEN"
-      : response.status === 403
-        ? `the credential may not read ${what} (HTTP 403); a PERMDOCK_CLOUD_TOKEN reads only its own environment`
-        : response.status === 429
-          ? `PermDock Cloud rate-limited the request (HTTP 429); retry after ${response.headers.get("retry-after") ?? "a while"} seconds`
-          : `PermDock Cloud answered ${what} with HTTP ${String(response.status)}`;
+      ? "PermDock Cloud rejected the credential"
+      : `the credential may not read ${what}; a PERMDOCK_CLOUD_TOKEN reads only its own environment`,
+    [
+      { command: "permdock login", when: "to log in on this machine" },
+      { command: "export PERMDOCK_CLOUD_TOKEN=<read-only key>", when: "in CI" },
+    ],
+  );
+  if (denied !== undefined) {
+    throw denied;
+  }
+  const detail =
+    response.status === 429
+      ? `PermDock Cloud rate-limited the request (HTTP 429); retry after ${response.headers.get("retry-after") ?? "a while"} seconds`
+      : `PermDock Cloud answered ${what} with HTTP ${String(response.status)}`;
   return failure(input.json, input.command, 1, {
     type: type ?? "https://permdock.com/problems/cli-failed",
     title: "PermDock Cloud request failed",

@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type {
   ImportedGrant,
   ImportedRole,
@@ -10,6 +10,7 @@ import type {
 } from "./policy-module.ts";
 
 import { isRecord } from "../../core/compact.ts";
+import { applyFiles } from "../core/files.ts";
 import { emitPolicyModule, isIdentifier } from "./policy-module.ts";
 
 /** One CASL rule as `ability.rules` holds it, or the packed array `packRules` writes. */
@@ -402,16 +403,16 @@ export function runCaslImport(input: {
   }
   // SAFETY: every value was checked to be an array just above.
   const imported = importCasl(parsed as Record<string, readonly unknown[]>);
-  const out = resolve(input.cwd, input.out);
-  mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(
-    out,
-    emitPolicyModule({
-      generator: "casl import",
-      actions: imported.actions,
-      roles: imported.roles,
-    }),
-  );
+  applyFiles(input.cwd, [
+    {
+      path: input.out,
+      text: emitPolicyModule({
+        generator: "casl import",
+        actions: imported.actions,
+        roles: imported.roles,
+      }),
+    },
+  ]);
   if (input.json) {
     return {
       code: 0,

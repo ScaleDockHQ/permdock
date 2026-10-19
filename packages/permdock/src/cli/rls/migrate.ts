@@ -1,8 +1,8 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { parse } from "pgsql-parser";
 
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { RlsMigrateConfig, RlsMigrateHelper } from "../types.ts";
 import type { GenerateOutcome } from "./generate.ts";
 
@@ -10,9 +10,14 @@ import { isRecord } from "../../core/compact.ts";
 import { escapeSqlIdent, quoteSqlLiteral } from "../../core/sql.ts";
 import { dateAt } from "../../core/time.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
-import { describeError } from "../errors.ts";
+import { describeError } from "../core/errors.ts";
+import { type PlannedFile, applyFiles, refuseDirty } from "../core/files.ts";
+import {
+  STDOUT,
+  dataMigrationFile,
+  writeOutputFiles,
+} from "../core/output-files.ts";
 import { sqlFiles } from "../files.ts";
-import { dataMigrationFile, writeOutputFiles } from "../output-files.ts";
 import { RETIRE_MARKER } from "../sql/markers.ts";
 import { HELPERS } from "../sql/shared.ts";
 import { sqlStatements } from "../sql/statements.ts";
@@ -23,7 +28,7 @@ import {
   retireSql,
 } from "./retire.ts";
 
-/** One call `rls migrate` rewrote, or would with `--write`. */
+/** One call `rls migrate` rewrote, or would without `--dry-run`. */
 export type MigrateRewrite = {
   readonly file: string;
   readonly line: number;
@@ -626,6 +631,8 @@ export type MigrateRunInput = {
   readonly config: RlsMigrateConfig;
   readonly target: MigrateTarget;
   readonly write: boolean;
+  /** Rewrite files with uncommitted changes too. */
+  readonly force?: boolean;
   readonly json: boolean;
   readonly retireOut?: string | undefined;
   readonly now?: Date;
@@ -662,7 +669,7 @@ function describe(report: MigrateReport, write: boolean): string {
     (item) => item.reason === "unknown-key",
   ).length;
   lines.push(
-    `rls migrate: ${write ? "rewrote" : "would rewrite"} ${String(report.rewrites.length)} call(s) in ${String(files)} file(s), skipped ${String(report.skipped.length)}${unknown === 0 ? "" : `, ${String(unknown)} with an unknown key`}${write ? "" : "; --write applies them"}`,
+    `rls migrate: ${write ? "rewrote" : "would rewrite"} ${String(report.rewrites.length)} call(s) in ${String(files)} file(s), skipped ${String(report.skipped.length)}${unknown === 0 ? "" : `, ${String(unknown)} with an unknown key`}${write ? "" : "; drop --dry-run to apply them"}`,
   );
   return lines.join("\n");
 }
@@ -682,6 +689,7 @@ export async function runRlsMigrate(
   const rewrites: MigrateRewrite[] = [];
   const skipped: MigrateSkip[] = [];
   const statements: RetireStatement[] = [];
+  const writes: PlannedFile[] = [];
   for (const path of files) {
     const file = relative(input.cwd, path);
     const text = readFileSync(path, "utf8");
@@ -689,7 +697,7 @@ export async function runRlsMigrate(
     rewrites.push(...result.rewrites);
     skipped.push(...result.skipped);
     if (input.write && result.text !== text) {
-      writeFileSync(path, result.text);
+      writes.push({ path, text: result.text });
     }
     for (const statement of sqlStatements(input.write ? result.text : text)) {
       statements.push({ file, ...statement });
@@ -701,6 +709,16 @@ export async function runRlsMigrate(
       output:
         "rls migrate --retire-out needs rls.migrate.tables in permdock.config.ts",
     };
+  }
+  if (writes.length > 0) {
+    refuseDirty({
+      command: "rls migrate",
+      invocation: `rls migrate --sql ${input.sql}`,
+      cwd: input.cwd,
+      paths: writes.map((write) => write.path),
+      force: input.force === true,
+    });
+    applyFiles(input.cwd, writes);
   }
   const retire =
     input.config.tables === undefined
@@ -720,7 +738,13 @@ export async function runRlsMigrate(
   if (input.retireOut === undefined || retire === undefined) {
     return { code: unknown ? 1 : 0, output };
   }
-  const retired = writeRetire(input.cwd, input.retireOut, retire, input.now);
+  const retired = writeRetire(
+    input.cwd,
+    input.retireOut,
+    retire,
+    input.now,
+    !input.write,
+  );
   return {
     code: unknown || retired.code === 1 ? 1 : 0,
     output: `${output}\n${retired.output}`,
@@ -733,6 +757,7 @@ function writeRetire(
   out: string,
   plan: RetirePlan,
   now: Date | undefined,
+  dryRun: boolean,
 ): { readonly code: 0 | 1; readonly output: string } {
   const read = plan.tables.filter(
     (table) => table.present && table.readers.length > 0,
@@ -758,6 +783,9 @@ function writeRetire(
   });
   if (file === undefined) {
     return { code: 0, output: "rls migrate --retire-out: up to date" };
+  }
+  if (dryRun && file.rel !== STDOUT) {
+    return { code: 0, output: `would write ${file.rel}` };
   }
   const written = writeOutputFiles(cwd, [file]);
   return {

@@ -148,9 +148,7 @@ function push(cwd: string, overrides: Partial<Input> = {}) {
   return runCloud({
     cwd,
     config: CONFIG,
-    rest: ["push"],
     url: undefined,
-    environment: undefined,
     dryRun: false,
     json: false,
     env: ENV,
@@ -169,11 +167,11 @@ describe("runCloud", () => {
     });
   });
 
-  it("describes a dry run in text, preferring --url and --environment", async () => {
+  it("describes a dry run in text, preferring --url and --project", async () => {
     const result = await push(FIXTURE, {
       dryRun: true,
       url: "https://flag.permdock.test/",
-      environment: "staging",
+      project: "staging",
       env: { ...ENV, PERMDOCK_CLOUD_ENV: "ignored", VERCEL_ENV: "ignored" },
     });
     expect(result.code).toBe(0);
@@ -231,18 +229,19 @@ export const permissions = definePermissions({
     [{ PERMDOCK_CLOUD_URL: "https://cloud.permdock.test" }],
     [{ PERMDOCK_CLOUD_URL: "", PERMDOCK_CLOUD_KEY: "" }],
   ])("needs a key or a login (%j)", async (env) => {
-    expect(
-      await push(FIXTURE, {
+    await expect(
+      push(FIXTURE, {
         env: { ...env, XDG_CONFIG_HOME: tempDir() },
         io: {
           ...IO,
           fetch: () => Promise.resolve(new Response(null, { status: 404 })),
         },
       }),
-    ).toEqual({
-      code: 2,
-      output:
-        "permdock cloud push needs PERMDOCK_CLOUD_KEY in the environment, or a login from permdock login --write",
+    ).rejects.toMatchObject({
+      kind: "action",
+      code: "auth_required",
+      message:
+        "permdock cloud push needs PERMDOCK_CLOUD_KEY in the environment, or a login from permdock login --scope catalog:write",
     });
   });
 
@@ -286,7 +285,7 @@ export const permissions = definePermissions({
         permissions: "./src/permissions.ts",
         collect: { srcPath: ["./src"] },
       },
-      environment: "a b",
+      project: "a b",
     });
     expect(result.code).toBe(0);
     expect(result.output).toMatch(
@@ -313,21 +312,49 @@ export const permissions = definePermissions({
       // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- a fetch may reject with a non-Error
       fetch: () => Promise.reject(thrown),
     };
-    expect(await push(FIXTURE, { io })).toEqual({ code: 1, output });
+    await expect(push(FIXTURE, { io })).rejects.toMatchObject({
+      kind: "unavailable",
+      code: "network_error",
+      message: output,
+    });
+  });
+
+  it("asks for a write credential when the Cloud answers 401", async () => {
+    const io: CliIo = {
+      ...IO,
+      fetch: () => Promise.resolve(new Response(null, { status: 401 })),
+    };
+    await expect(push(FIXTURE, { io })).rejects.toMatchObject({
+      kind: "action",
+      code: "auth_required",
+      message:
+        "PermDock Cloud rejected the PERMDOCK_CLOUD_KEY for cloud push (HTTP 401)",
+    });
   });
 
   it("reports a rejected catalog with its status", async () => {
     const io: CliIo = {
       ...IO,
-      fetch: () => Promise.resolve(new Response(null, { status: 401 })),
+      fetch: () => Promise.resolve(new Response(null, { status: 422 })),
     };
     expect(await push(FIXTURE, { io })).toEqual({
       code: 1,
-      output: "PermDock Cloud rejected the catalog: HTTP 401",
+      output: "PermDock Cloud rejected the catalog: HTTP 422",
     });
   });
 
-  it.each([[[]], [["rotate"]]])("prints usage for %j", async (rest) => {
-    expect((await push(FIXTURE, { rest })).code).toBe(2);
+  it("sends the permdock-cli user agent", async () => {
+    const seen: (string | null)[] = [];
+    const io: CliIo = {
+      ...IO,
+      fetch: (_input, init) => {
+        seen.push(new Headers(init?.headers).get("user-agent"));
+        return Promise.resolve(new Response(null, { status: 201 }));
+      },
+    };
+    expect((await push(FIXTURE, { io })).code).toBe(0);
+    expect(seen).toEqual([
+      expect.stringMatching(/^permdock-cli\/\S+ node\/\S+ \S+$/u),
+    ]);
   });
 });

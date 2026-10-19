@@ -3,6 +3,7 @@ import type { RolePermission } from "./helpers.ts";
 
 import { escapeSqlIdent } from "../../core/sql.ts";
 import { type SqlClient, type SqlConnect, connectPgPool } from "../pg.ts";
+import { beforeFirst } from "../shared/text.ts";
 import {
   callsHelper,
   HELPER_TABLES,
@@ -458,7 +459,7 @@ const SYSTEM_SCHEMAS = [
 ] as const;
 
 function inScope(table: string): boolean {
-  const schema = table.split(".")[0] ?? "";
+  const schema = beforeFirst(table, ".");
   return (
     HELPER_TABLES.some((item) => item === table) ||
     !(

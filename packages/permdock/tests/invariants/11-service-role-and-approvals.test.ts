@@ -16,7 +16,7 @@ import {
   requestApproval,
   resolveApproval,
 } from "../../src/approvals/index.ts";
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import {
   type Decision,
   allow,

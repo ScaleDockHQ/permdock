@@ -10,7 +10,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/fields-app");
@@ -37,7 +38,12 @@ async function generate(
   extra: readonly string[],
   target = "sql",
   out = "rls.sql",
-): Promise<{ readonly code: number; readonly stdout: string; sql: string }> {
+): Promise<{
+  readonly code: number;
+  readonly stdout: string;
+  readonly stderr: string;
+  sql: string;
+}> {
   const result = await run(
     ["rls", "generate", "--target", target, "--out", out, ...extra],
     { cwd },
@@ -48,7 +54,12 @@ async function generate(
   } catch {
     sql = "";
   }
-  return { code: result.code, stdout: result.stdout, sql };
+  return {
+    code: result.code,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    sql,
+  };
 }
 
 function viewOf(sql: string, name: string, schema = "public"): string {
@@ -182,7 +193,7 @@ describe("permdock rls generate --fields views", () => {
       "--fields",
       "views",
       "--revoke-columns",
-      "--force",
+      "--force-rls",
     ]);
     expect(stdout).toContain("--force with --revoke-columns");
   });
@@ -221,10 +232,12 @@ describe("permdock rls generate --fields views", () => {
     const cwd = appCopy();
     const unknown = await generate(cwd, ["--fields", "columns"]);
     expect(unknown.code).toBe(2);
-    expect(unknown.stdout).toContain("--fields must be views");
+    expect(unknown.stderr).toContain(
+      "rls generate: --fields 'columns' is not one of views.",
+    );
     const alone = await generate(cwd, ["--revoke-columns"]);
     expect(alone.code).toBe(2);
-    expect(alone.stdout).toContain("--revoke-columns needs --fields views");
+    expect(alone.stderr).toContain("--revoke-columns needs --fields views");
   });
 
   it("reads fields and revokeColumns from the rls config", async () => {
@@ -356,7 +369,7 @@ describe("permdock doctor field views", () => {
         cwd,
       });
       // SAFETY: the --json report printed by `permdock doctor` under test.
-      const report = JSON.parse(result.stdout) as {
+      const report = jsonData(result.stdout) as {
         readonly findings: readonly { readonly message: string }[];
       };
       return report.findings.map((item) => item.message);
@@ -383,7 +396,7 @@ describe("permdock doctor field views", () => {
     );
     const result = await run(["doctor", "--json", "--only", "PD022"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly unknown[];
     };
     expect(report.findings).toEqual([]);

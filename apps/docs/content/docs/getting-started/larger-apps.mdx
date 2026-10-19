@@ -90,7 +90,7 @@ A grant that references a leaf outside `permissions` is a type error. See [polic
 
 ### Generate, then use everywhere
 
-`permdock rls import` and `permdock openapi import` emit `src/permissions.generated.ts`: a deterministic `definePermissions()` call with a `// @generated` header. Resource schemas are emitted for the validator detected in `package.json` (`--schema zod|valibot|arktype`) or reference existing Drizzle tables through `drizzle-zod` (`--from drizzle`). Conditions that fit the portable subset become `where` / `check` data; everything else becomes an `opaque` condition that keeps its SQL and fingerprint.
+`permdock rls import` and `permdock openapi import` emit `src/permissions.generated.ts`: a deterministic `definePermissions()` call with a `// @generated` header. Resource schemas are emitted for the validator `--validator zod|valibot|arktype` names. Conditions that fit the portable subset become `where` / `check` data; everything else becomes an `opaque` condition that keeps its SQL and fingerprint.
 
 The generated file merges with hand-written definitions like any other feature file. `permdock rls verify` runs parity tests in both directions so the two never drift silently. See the [RLS CLI](/docs/cli/rls) and the [RLS adapter](/docs/adapters/rls).
 

@@ -125,24 +125,28 @@ function readFile(
   }
 }
 
-/** The OS keychain when `storage.keyring` is set and works; otherwise the mode-0600 file. */
+/**
+ * The OS keychain when `storage.keyring` is set and works; otherwise the
+ * mode-0600 file. Answers the store it wrote.
+ */
 export function writeCredentials(
   storage: TerminalStorageOptions,
   profile: string,
   credential: StoredCredential,
   runtime: TerminalRuntime,
-): void {
+): "keychain" | "file" {
   const entry = keyringEntry(storage, profile);
   if (entry !== null) {
     try {
       entry.setPassword(JSON.stringify(credential));
       deleteFile(storage.service, profile, runtime);
-      return;
+      return "keychain";
     } catch {
       // No keychain service (headless Linux, containers): use the file.
     }
   }
   writeFile(storage.service, profile, credential, runtime);
+  return "file";
 }
 
 function writeFile(

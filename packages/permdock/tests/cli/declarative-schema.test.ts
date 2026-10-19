@@ -10,7 +10,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -300,13 +301,13 @@ describe("rls generate --split and --grants-out under migra", () => {
       { cwd },
     );
     expect(stray.code).toBe(2);
-    expect(stray.stdout).toContain("--seeds-out needs the seeds part");
+    expect(stray.stderr).toContain("--seeds-out needs the seeds part");
     const inline = await run(
       ["rls", "generate", "--split", "helpers", "--out", OUT],
       { cwd },
     );
     expect(inline.code).toBe(2);
-    expect(inline.stdout).toContain(
+    expect(inline.stderr).toContain(
       "rls generate --split helpers under migra needs the seeds part with --seeds-out",
     );
     const unplaced = await run(
@@ -314,7 +315,7 @@ describe("rls generate --split and --grants-out under migra", () => {
       { cwd },
     );
     expect(unplaced.code).toBe(2);
-    expect(unplaced.stdout).toContain(
+    expect(unplaced.stderr).toContain(
       "rls generate --split seeds under migra needs --seeds-out",
     );
   });
@@ -397,7 +398,7 @@ describe("rls generate --split and --grants-out under migra", () => {
       { cwd },
     );
     expect(noPart.code).toBe(2);
-    expect(noPart.stdout).toContain(
+    expect(noPart.stderr).toContain(
       "rls generate --split under migra needs {part} in --out",
     );
     const noHook = await run(
@@ -414,7 +415,7 @@ describe("rls generate --split and --grants-out under migra", () => {
       { cwd },
     );
     expect(noHook.code).toBe(2);
-    expect(noHook.stdout).toContain(
+    expect(noHook.stderr).toContain(
       "--grants-out needs the helpers or hook part in --split",
     );
     const plain = await run(["rls", "generate", "--grants-out", GRANTS], {
@@ -426,13 +427,13 @@ describe("rls generate --split and --grants-out under migra", () => {
       { cwd },
     );
     expect(unconfigured.code).toBe(2);
-    expect(unconfigured.stdout).toContain("needs supabase.hook");
+    expect(unconfigured.stderr).toContain("needs supabase.hook");
     const unknown = await run(
       ["rls", "generate", "--split", "helpers,views", "--out", OUT],
       { cwd },
     );
     expect(unknown.code).toBe(2);
-    expect(unknown.stdout).toContain(
+    expect(unknown.stderr).toContain(
       "takes helpers, seeds, indexes, policies and hook",
     );
   });
@@ -495,7 +496,7 @@ describe("rls generate --split under pg-delta", () => {
       { cwd },
     );
     expect(split.code).toBe(2);
-    expect(split.stdout).toContain(
+    expect(split.stderr).toContain(
       "rls generate --grants-out is for --schemas migra: pg-delta keeps the grants in each part",
     );
     const hook = await run(
@@ -503,7 +504,7 @@ describe("rls generate --split under pg-delta", () => {
       { cwd },
     );
     expect(hook.code).toBe(2);
-    expect(hook.stdout).toContain(
+    expect(hook.stderr).toContain(
       "supabase hook generate --grants-out is for --schemas migra: pg-delta keeps the grants in the hook file",
     );
   });
@@ -527,7 +528,7 @@ describe("rls generate --split under pg-delta", () => {
       { cwd },
     );
     expect(single.code).toBe(2);
-    expect(single.stdout).toContain(
+    expect(single.stderr).toContain(
       "rls generate --split needs {part} in --out, or no --out for pg-delta's per-schema layout (got rls.sql)",
     );
   });
@@ -598,7 +599,7 @@ begin
       { cwd },
     );
     expect(withoutSeeds.code).toBe(2);
-    expect(withoutSeeds.stdout).toContain(
+    expect(withoutSeeds.stderr).toContain(
       "rls generate --split policies under pg-delta with rls.realtime or rls.storage needs the seeds part with --seeds-out",
     );
     const plain = project(
@@ -623,14 +624,14 @@ begin
       cwd,
     });
     expect(inline.code).toBe(2);
-    expect(inline.stdout).toContain(
+    expect(inline.stderr).toContain(
       "rls generate --split helpers under pg-delta needs the seeds part with --seeds-out",
     );
     const result = await run(["rls", "generate", "--split", "helpers,seeds"], {
       cwd,
     });
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain(
+    expect(result.stderr).toContain(
       "rls generate --split seeds under pg-delta needs --seeds-out: pg-delta does not diff the role_permissions rows, so they go in a migration",
     );
   });
@@ -659,7 +660,7 @@ describe("the schema workflow rls generate and supabase hook generate follow", (
       cwd,
     });
     expect(migra.code).toBe(2);
-    expect(migra.stdout).toContain(
+    expect(migra.stderr).toContain(
       "rls generate --split under migra needs {part} in --out",
     );
     const hook = await run(["supabase", "hook", "generate"], { cwd });
@@ -706,14 +707,15 @@ describe("the schema workflow rls generate and supabase hook generate follow", (
       { cwd },
     );
     expect(refused.code).toBe(2);
-    expect(refused.stdout).toContain(
+    expect(refused.stderr).toContain(
       "a hand-written migration keeps its grants",
     );
     const noPart = await run(
       ["rls", "generate", "--split", "helpers", "--out", "rls.sql"],
       { cwd },
     );
-    expect(noPart.stdout).toContain(
+    expect(noPart.code).toBe(2);
+    expect(noPart.stderr).toContain(
       "rls generate --split needs {part} in --out, for example supabase/migrations/",
     );
     const hook = await run(
@@ -721,7 +723,7 @@ describe("the schema workflow rls generate and supabase hook generate follow", (
       { cwd },
     );
     expect(hook.code).toBe(2);
-    expect(hook.stdout).toContain("a hand-written migration keeps its grants");
+    expect(hook.stderr).toContain("a hand-written migration keeps its grants");
     expect(
       (await run(["supabase", "hook", "generate"], { cwd })).stdout,
     ).toContain("wrote supabase/permdock-hook.sql");
@@ -799,7 +801,7 @@ type Finding = { readonly code: string; readonly message: string };
 async function findings(cwd: string, only: string): Promise<Finding[]> {
   const result = await run(["doctor", "--json", "--only", only], { cwd });
   // SAFETY: doctor --json prints a DoctorReport
-  return (JSON.parse(result.stdout) as { findings: Finding[] }).findings;
+  return (jsonData(result.stdout) as { findings: Finding[] }).findings;
 }
 
 function put(cwd: string, file: string, text: string): void {

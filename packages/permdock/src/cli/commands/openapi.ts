@@ -1,170 +1,150 @@
-import { defineCommand } from "citty";
-
+import { type Leaf, defineLeaf } from "../core/command.ts";
+import { missingInput } from "../core/errors.ts";
 import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  listArg,
-  stringArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
+  checkFlag,
+  given,
+  outFlag,
+  policyFlag,
+  validatorFlag,
+} from "../core/flags.ts";
 
-export function openapi(ctx: CliContext): Command {
-  const command = defineCommand({
-    meta: {
-      name: "openapi",
-      description: COMMAND_DESCRIPTIONS.openapi,
+const docFlag = {
+  doc: {
+    type: "string",
+    description: "OpenAPI document: a path, or a URL for import",
+    valueHint: "path",
+  },
+} as const;
+
+export const emit: Leaf = defineLeaf({
+  flags: {
+    ...docFlag,
+    ...outFlag,
+    ...checkFlag,
+    ...policyFlag,
+    target: {
+      type: "enum",
+      options: ["3.1", "3.2", "3.3"],
+      default: "3.2",
+      description: "OpenAPI version; 3.3 is the pinned Security Profiles draft",
     },
-    args: {
-      ...globalArgs,
-      action: {
-        type: "positional",
-        required: false,
-        description: "emit (default) or import",
-      },
-      doc: {
-        type: "string",
-        description: "OpenAPI document: a path, or a URL for import",
-        valueHint: "path",
-      },
-      out: { type: "string", description: "File to write", valueHint: "file" },
-      from: {
-        type: "string",
-        description: "Module exporting the policy, instead of the config",
-        valueHint: "module",
-      },
-      target: {
-        type: "enum",
-        options: ["3.1", "3.2", "3.3"],
-        default: "3.2",
-        description:
-          "OpenAPI version; 3.3 is the pinned Security Profiles draft",
-      },
-      format: {
-        type: "enum",
-        options: ["document", "overlay"],
-        default: "document",
-        description: "A full document or an Overlay",
-      },
-      overlay: {
-        type: "enum",
-        options: ["1.1", "1.2"],
-        default: "1.1",
-        description:
-          "Overlay version; 1.2 is the pinned reusable-actions draft",
-      },
-      check: {
-        type: "boolean",
-        description: "Exit 1 when --out is stale; write nothing",
-      },
-      profile: {
-        type: "enum",
-        options: ["fapi2"],
-        description: "Security profile to declare",
-      },
-      "profile-scheme": {
-        type: "string",
-        description: "Security scheme name for the profile",
-        valueHint: "name",
-      },
-      scheme: {
-        type: "string",
-        default: "permdockOAuth",
-        description: "OAuth security scheme name",
-        valueHint: "name",
-      },
-      "metadata-url": {
-        type: "string",
-        description: "OAuth authorization server metadata URL",
-        valueHint: "url",
-      },
-      "device-flow": {
-        type: "boolean",
-        description: "Declare the device authorization flow",
-      },
-      arity: {
-        type: "boolean",
-        description: "Mark instance and collection operations",
-      },
-      "authorization-url": {
-        type: "string",
-        description: "OAuth authorization endpoint",
-        valueHint: "url",
-      },
-      "token-url": {
-        type: "string",
-        description: "OAuth token endpoint",
-        valueHint: "url",
-      },
-      "device-authorization-url": {
-        type: "string",
-        description: "OAuth device authorization endpoint",
-        valueHint: "url",
-      },
-      schema: {
-        type: "enum",
-        options: ["zod", "valibot", "arktype"],
-        description: "import: schema library for the generated resources",
-      },
-      map: {
-        type: "string",
-        description: "import: JSON mapping of operations to permissions",
-        valueHint: "json",
-      },
-      annotate: {
-        type: "boolean",
-        description:
-          "import: write x-permdock-permissions back into the document",
-      },
+    kind: {
+      type: "enum",
+      options: ["document", "overlay"],
+      default: "document",
+      description: "A full document or an Overlay",
     },
-    async run({ args: parsed, rawArgs }) {
-      const doc = listArg(rawArgs, "doc")[0];
-      if (parsed._[0] === "import") {
-        if (doc === undefined) {
-          throw new Error("openapi --doc is required");
-        }
-        // Lazy: the implementation loads only when this command runs, not for --help.
-        const { runOpenapiImport } = await import("../openapi/import.ts");
-        ctx.report(
-          await runOpenapiImport({
-            cwd: ctx.cwd,
-            doc,
-            out: stringArg(parsed.out),
-            schema: parsed.schema,
-            map: stringArg(parsed.map),
-            annotate: parsed.annotate === true,
-            io: ctx.io,
-          }),
-        );
-        return;
-      }
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const result = await (
-        await import("../openapi/openapi.ts")
-      ).runOpenapi({
-        cwd: ctx.cwd,
-        config: ctx.config,
-        rest: parsed._,
-        doc,
-        out: stringArg(parsed.out),
-        from: stringArg(parsed.from),
-        target: parsed.target,
-        format: parsed.format,
-        overlay: parsed.overlay,
-        check: parsed.check === true,
-        profile: parsed.profile,
-        profileScheme: stringArg(parsed["profile-scheme"]),
-        scheme: parsed.scheme,
-        metadataUrl: listArg(rawArgs, "metadata-url")[0],
-        deviceFlow: parsed["device-flow"] === true,
-        arity: parsed.arity === true,
-        authorizationUrl: stringArg(parsed["authorization-url"]),
-        tokenUrl: stringArg(parsed["token-url"]),
-        deviceAuthorizationUrl: stringArg(parsed["device-authorization-url"]),
-        io: ctx.io,
-      });
-      ctx.report(result);
+    overlay: {
+      type: "enum",
+      options: ["1.1", "1.2"],
+      default: "1.1",
+      description: "Overlay version; 1.2 is the pinned reusable-actions draft",
     },
-  });
-  return command;
-}
+    profile: {
+      type: "enum",
+      options: ["fapi2"],
+      description: "Security profile to declare",
+    },
+    "profile-scheme": {
+      type: "string",
+      description: "Security scheme name for the profile",
+      valueHint: "name",
+    },
+    scheme: {
+      type: "string",
+      description: "OAuth security scheme name (default permdockOAuth)",
+      valueHint: "name",
+    },
+    "metadata-url": {
+      type: "string",
+      description: "OAuth authorization server metadata URL",
+      valueHint: "url",
+    },
+    "device-flow": {
+      type: "boolean",
+      description: "Declare the device authorization flow",
+    },
+    arity: {
+      type: "boolean",
+      description: "Mark instance and collection operations",
+    },
+    "authorization-url": {
+      type: "string",
+      description: "OAuth authorization endpoint",
+      valueHint: "url",
+    },
+    "token-url": {
+      type: "string",
+      description: "OAuth token endpoint",
+      valueHint: "url",
+    },
+    "device-authorization-url": {
+      type: "string",
+      description: "OAuth device authorization endpoint",
+      valueHint: "url",
+    },
+  },
+  async run(ctx, { flags }) {
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    return (await import("../openapi/openapi.ts")).runOpenapi({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      rest: ["emit"],
+      doc: given(flags.doc),
+      out: given(flags.out),
+      from: given(flags.policy),
+      target: flags.target,
+      format: flags.kind,
+      overlay: flags.overlay,
+      check: flags.check,
+      profile: flags.profile,
+      profileScheme: given(flags["profile-scheme"]),
+      scheme: given(flags.scheme) ?? "permdockOAuth",
+      metadataUrl: given(flags["metadata-url"]),
+      deviceFlow: flags["device-flow"],
+      arity: flags.arity,
+      authorizationUrl: given(flags["authorization-url"]),
+      tokenUrl: given(flags["token-url"]),
+      deviceAuthorizationUrl: given(flags["device-authorization-url"]),
+      io: ctx.io,
+    });
+  },
+});
+
+export const importDocument: Leaf = defineLeaf({
+  flags: {
+    ...docFlag,
+    ...outFlag,
+    ...validatorFlag,
+    map: {
+      type: "string",
+      description: "JSON mapping of operations to permissions",
+      valueHint: "json",
+    },
+    annotate: {
+      type: "boolean",
+      description: "Write x-permdock-permissions back into the document",
+    },
+  },
+  async run(ctx, { flags }) {
+    const doc = given(flags.doc);
+    if (doc === undefined) {
+      throw missingInput(
+        "openapi import",
+        ["--doc"],
+        "the OpenAPI document to import",
+      );
+    }
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const { runOpenapiImport } = await import("../openapi/import.ts");
+    return runOpenapiImport({
+      cwd: ctx.cwd,
+      doc,
+      out: given(flags.out),
+      schema: flags.validator,
+      map: given(flags.map),
+      annotate: flags.annotate,
+      io: ctx.io,
+    });
+  },
+});

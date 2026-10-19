@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { shortDiff } from "../../src/cli/text-diff.ts";
+import { shortDiff } from "../../src/cli/core/text-diff.ts";
 
 function lines(count: number, prefix: string): string {
   return `${Array.from({ length: count }, (_, i) => `${prefix}${i}`).join("\n")}\n`;

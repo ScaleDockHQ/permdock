@@ -5,6 +5,13 @@ import {
   SIGNATURE_CHANGES_0_5,
   // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the codemod map without a build
 } from "../packages/permdock/src/cli/codemod/renames-0.5.ts";
+import {
+  COMMAND_MOVES,
+  DEFAULT_CHANGES,
+  FLAG_RENAMES,
+  type FlagRename,
+  // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the CLI rename table without a build
+} from "../packages/permdock/src/cli/core/renames.ts";
 
 export const RENAMED_HEADING = "## Renamed in 0.5.0";
 const FIX = "run node scripts/check-docs-drift.ts --write-renamed";
@@ -61,6 +68,62 @@ function markdownTable(
   ].join("\n");
 }
 
+function code(text: string): string {
+  return `\`${text.replaceAll("|", "\\|")}\``;
+}
+
+/** A hint as Markdown: flags and commands in code, so `<id>` is not read as JSX. */
+function prose(hint: string): string {
+  return hint.replaceAll(/permdock [a-z]+|--[a-z-]+(?: <[a-z]+>)?/gu, (match) =>
+    code(match),
+  );
+}
+
+function flagAfter(rename: FlagRename): string {
+  if (rename.rewrite !== undefined && rename.rewrite !== "") {
+    return code(rename.rewrite);
+  }
+  if (rename.to === undefined || rename.rewrite === "") {
+    return `removed: ${prose(rename.hint ?? "")}`;
+  }
+  if (rename.hint !== undefined) {
+    return rename.hint.startsWith(rename.to)
+      ? prose(rename.hint)
+      : `${code(rename.to)}: ${prose(rename.hint)}`;
+  }
+  const values =
+    rename.values === undefined
+      ? ""
+      : `, values ${Object.entries(rename.values)
+          .map(
+            (pair: readonly [string, string]) =>
+              `${code(pair[0])} to ${code(pair[1])}`,
+          )
+          .join(", ")}`;
+  return `${code(rename.to)}${values}`;
+}
+
+/** The CLI rows: moved commands, renamed or removed flags, flipped defaults. */
+function cliRows(): readonly (readonly string[])[] {
+  return [
+    ...COMMAND_MOVES.map((move) => [
+      code(`permdock ${move.from}`),
+      code(`permdock ${move.to}`),
+      "",
+    ]),
+    ...FLAG_RENAMES.map((rename) => [
+      code(rename.from),
+      flagAfter(rename),
+      rename.commands.map(code).join(", "),
+    ]),
+    ...DEFAULT_CHANGES.map((change) => [
+      `no ${change.unless.map(code).join(" or ")}`,
+      code(change.add),
+      code(change.command),
+    ]),
+  ];
+}
+
 /** The "Renamed in 0.5.0" section of the Naming page, generated from the codemod map. */
 function renamedSection(): string {
   return [
@@ -87,6 +150,10 @@ function renamedSection(): string {
         `\`${change.after}\``,
       ]),
     ),
+    "",
+    "The CLI changed these commands and flags. An old spelling exits `2` with `command_moved` or `flag_renamed` and the new one. `permdock codemod 0.5` rewrites them in `package.json` scripts, CI workflows and shell scripts, and lists them in Markdown:",
+    "",
+    markdownTable(["CLI before", "CLI after", "Commands"], cliRows()),
     "",
   ].join("\n");
 }
@@ -126,7 +193,8 @@ export function renamedSectionDrift(namingPage: string): readonly string[] {
   const section = text.slice(...span);
   const expected = renamedSection();
   return sameRows(section, expected, "Old", "New") &&
-    sameRows(section, expected, "Before", "After")
+    sameRows(section, expected, "Before", "After") &&
+    sameRows(section, expected, "CLI before", "CLI after")
     ? []
     : [
         `getting-started/naming.mdx "${RENAMED_HEADING}" does not match renames-0.5.ts; ${FIX}`,

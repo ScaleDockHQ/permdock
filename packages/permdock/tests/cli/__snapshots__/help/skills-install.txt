@@ -1,0 +1,18 @@
+permdock skills install: Copy the Agent Skills into the agent folders
+
+Usage  permdock skills install [flags]
+
+Flags
+  --client <name>  Agent folders to write: agents, claude or cursor (repeatable)
+  --check          Exit 1 when a file on disk is stale; write nothing
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock skills install
+  permdock skills install --client cursor --client claude
+  permdock skills install --check
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/skills

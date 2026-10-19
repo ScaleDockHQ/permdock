@@ -1,76 +1,77 @@
-import { defineCommand } from "citty";
+import { type Leaf, defineLeaf } from "../core/command.ts";
+import { given } from "../core/flags.ts";
 
-import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  stringArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
-
-const urlArg = {
-  type: "string",
-  description:
-    "Issuer URL (default PERMDOCK_CLOUD_URL, then https://permdock.com/api)",
-  valueHint: "url",
+const urlFlag = {
+  url: {
+    type: "string",
+    description:
+      "Issuer URL (default PERMDOCK_CLOUD_URL, then https://permdock.com/api)",
+    valueHint: "url",
+  },
 } as const;
 
-export function login(ctx: CliContext): Command {
-  return defineCommand({
-    meta: { name: "login", description: COMMAND_DESCRIPTIONS.login },
-    args: {
-      ...globalArgs,
-      url: urlArg,
-      loopback: {
-        type: "boolean",
-        description:
-          "Use a 127.0.0.1 redirect with PKCE instead of the device flow",
-      },
-      write: {
-        type: "boolean",
-        description: "Also request catalog:write, for permdock cloud push",
-      },
-      open: {
-        type: "boolean",
-        description: "Open the browser at the verification URL",
-        default: true,
-        negativeDescription: "Print the URL only",
-      },
+export const login: Leaf = defineLeaf({
+  flags: {
+    ...urlFlag,
+    loopback: {
+      type: "boolean",
+      description:
+        "Use a 127.0.0.1 redirect with PKCE instead of the device flow",
     },
-    async run({ args: parsed }) {
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const { runLogin } = await import("../cloud/login.ts");
-      ctx.report(
-        await runLogin({
-          cwd: ctx.cwd,
-          url: stringArg(parsed.url),
-          loopback: parsed.loopback === true,
-          write: parsed.write === true,
-          open: parsed.open !== false && ctx.interactive,
-          json: ctx.json,
-          env: ctx.io.env ?? process.env,
-          io: ctx.io,
-        }),
-      );
+    scope: {
+      type: "enum",
+      options: ["catalog:write"],
+      repeatable: true,
+      description:
+        "Scopes beyond projects:read and policy:read; catalog:write for permdock cloud push",
     },
-  });
-}
+    open: {
+      type: "boolean",
+      default: true,
+      description: "Open the browser at the verification URL",
+      negativeDescription: "Print the URL only",
+    },
+  },
+  async run(ctx, { flags }) {
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const { runLogin } = await import("../cloud/login.ts");
+    return runLogin({
+      cwd: ctx.cwd,
+      url: given(flags.url),
+      loopback: flags.loopback,
+      scopes: flags.scope,
+      open: flags.open && ctx.interactive,
+      json: ctx.json,
+      env: ctx.env,
+      io: ctx.io,
+    });
+  },
+});
 
-export function logout(ctx: CliContext): Command {
-  return defineCommand({
-    meta: { name: "logout", description: COMMAND_DESCRIPTIONS.logout },
-    args: { ...globalArgs, url: urlArg },
-    async run({ args: parsed }) {
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const { runLogout } = await import("../cloud/login.ts");
-      ctx.report(
-        await runLogout({
-          url: stringArg(parsed.url),
-          json: ctx.json,
-          env: ctx.io.env ?? process.env,
-          io: ctx.io,
-        }),
-      );
-    },
-  });
-}
+export const logout: Leaf = defineLeaf({
+  flags: { ...urlFlag },
+  async run(ctx, { flags }) {
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const { runLogout } = await import("../cloud/login.ts");
+    return runLogout({
+      url: given(flags.url),
+      json: ctx.json,
+      env: ctx.env,
+      io: ctx.io,
+    });
+  },
+});
+
+export const whoami: Leaf = defineLeaf({
+  flags: { ...urlFlag },
+  async run(ctx, { flags }) {
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const { runWhoami } = await import("../cloud/login.ts");
+    return runWhoami({
+      url: given(flags.url),
+      json: ctx.json,
+      env: ctx.env,
+      io: ctx.io,
+    });
+  },
+});

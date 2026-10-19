@@ -12,9 +12,9 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import { runOpenapi } from "../../src/cli/openapi/openapi.ts";
 import { validateOpenapi } from "../../src/cli/openapi/schema.ts";
-import { run } from "../../src/cli/run.ts";
 
 const FIXTURE = path.join(import.meta.dirname, "fixtures/mini-app");
 const TMP = path.join(import.meta.dirname, "../../tmp");
@@ -117,7 +117,7 @@ describe("runOpenapi usage errors", () => {
 
   it("needs a policy or a permissions module", async () => {
     await expect(emit(app(), { config: {} })).rejects.toThrow(
-      "PermDock CLI: openapi needs --from, policy or permissions in the config",
+      "PermDock CLI: openapi emit needs --policy, or policy or permissions in the config",
     );
   });
 

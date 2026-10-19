@@ -8,7 +8,7 @@ import { compact } from "../../core/compact.ts";
 import { renamedKeys } from "../../core/permission-registry.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { type Policy, listPermissions } from "../../index.ts";
-import { describeError } from "../errors.ts";
+import { describeError } from "../core/errors.ts";
 import { INDEXES_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { graphHelper, scopeTable } from "../sql/names.ts";
 import {
@@ -61,9 +61,9 @@ export type GeneratedSql = GeneratedPolicies & {
   readonly migrationRel: string | undefined;
   readonly outRel: string;
   readonly backfill: string | undefined;
-  /** The index targets before `--db` prunes them. */
+  /** The index targets before `--db-url` prunes them. */
   readonly indexes: readonly IndexTarget[];
-  /** Each `--split` part's SQL, with the indexes left after `--db`. */
+  /** Each `--split` part's SQL, with the indexes left after `--db-url`. */
   readonly parts: (indexes: readonly IndexTarget[]) => SplitSql;
 };
 
@@ -448,7 +448,7 @@ function emitTarget(
   return { text, migration, migrationRel, outRel };
 }
 
-/** The generated SQL for one run, before `--db` prunes the index targets. */
+/** The generated SQL for one run, before `--db-url` prunes the index targets. */
 export function generateSql(
   input: RlsGenerateInput,
   policy: Policy,

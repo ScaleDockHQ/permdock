@@ -641,6 +641,34 @@ These changed their call shape; the codemod lists each call site:
 | `requireAccess({ permission, data, tenant, onDenied })` | `requirePermission(permission, data, { tenant, onDenied })` |
 | `RequireAccessInput`                                    | `PermissionRequirementOptions`                              |
 
+The CLI changed these commands and flags. An old spelling exits `2` with `command_moved` or `flag_renamed` and the new one. `permdock codemod 0.5` rewrites them in `package.json` scripts, CI workflows and shell scripts, and lists them in Markdown:
+
+| CLI before                     | CLI after                                                                                 | Commands                                                                                              |
+| ------------------------------ | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `permdock openapi`             | `permdock openapi emit`                                                                   |                                                                                                       |
+| `permdock skills`              | `permdock skills install`                                                                 |                                                                                                       |
+| `permdock arazzo`              | `permdock arazzo check`                                                                   |                                                                                                       |
+| `--db`                         | `--db-url`                                                                                | `rls generate`, `rls import`, `rls verify`, `supabase hook generate`, `powersync verify`              |
+| `--force`                      | `--force-rls`                                                                             | `rls generate`                                                                                        |
+| `--format`                     | `--kind`                                                                                  | `rls verify`                                                                                          |
+| `--emit`                       | `--kind`                                                                                  | `rls verify`                                                                                          |
+| `--format`                     | `--kind`, values `json` to `catalog`, `schema` to `json-schema`, `markdown` to `markdown` | `catalog`                                                                                             |
+| `--format`                     | `--kind`                                                                                  | `openapi emit`                                                                                        |
+| `--from`                       | `--policy`                                                                                | `rls generate`, `rls verify`, `rls migrate`, `powersync generate`, `powersync verify`, `openapi emit` |
+| `--from`                       | `--permissions`                                                                           | `catalog`, `arazzo check`                                                                             |
+| `--schema`                     | `--validator`                                                                             | `rls import`, `openapi import`                                                                        |
+| `--strict`                     | `--fail-on warning`                                                                       | `usage`, `config`, `doctor`                                                                           |
+| `--write`                      | `--scope catalog:write`                                                                   | `login`                                                                                               |
+| `--agent`                      | `--client`                                                                                | `skills install`, `skills update`                                                                     |
+| `--agent`                      | `--integration`                                                                           | `init`                                                                                                |
+| `--ui`                         | `--integration`                                                                           | `init`                                                                                                |
+| `--src`                        | `--out-dir`                                                                               | `init`                                                                                                |
+| `--rbac-scaffold`              | `--rbac supabase`                                                                         | `rls generate`, `rls verify`, `rls migrate`                                                           |
+| `--write`                      | removed: rls migrate writes by default; `--dry-run` prints the plan without writing       | `rls migrate`                                                                                         |
+| `--environment`                | `--project <id>`: a project id is its environment                                         | `cloud push`                                                                                          |
+| `--legacy`                     | removed: `permdock scan` lists the checks written without PermDock; drop `--legacy`       | `scan`                                                                                                |
+| no `--write` or `--retire-out` | `--dry-run`                                                                               | `rls migrate`                                                                                         |
+
 ## Renamed before 0.1.0
 
 | Old                                                            | New                                                           |

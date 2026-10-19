@@ -9,8 +9,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { encodePreset, resolvePreset } from "../../src/preset/index.ts";
+import { jsonData } from "./envelope.ts";
 
 const dirs: string[] = [];
 
@@ -32,12 +33,13 @@ describe("permdock init", () => {
     const code = encodePreset(
       resolvePreset({ archetype: "agent", agents: ["ai-sdk"], ui: ["shadcn"] }),
     );
+    writeFileSync(join(cwd, "bun.lock"), "");
     const result = await run(["init", "--preset", code], { cwd });
     expect(result.code).toBe(0);
     expect(existsSync(join(cwd, "src/policy.ts"))).toBe(true);
     expect(existsSync(join(cwd, "src/agent.ts"))).toBe(true);
     expect(result.stdout).toContain(
-      "npm install permdock zod next react react-dom ai",
+      "bun add permdock zod next react react-dom ai",
     );
     expect(result.stdout).toContain(
       "npx shadcn@latest add @permdock/gated-button",
@@ -91,7 +93,7 @@ describe("permdock init output", () => {
         "express",
         "--feature",
         "rls",
-        "--src",
+        "--out-dir",
         "app",
         "--json",
       ],
@@ -101,7 +103,7 @@ describe("permdock init output", () => {
       readonly written: readonly string[];
       readonly shadcn: string | null;
       readonly dryRun: boolean;
-    } = JSON.parse(result.stdout);
+    } = jsonData(result.stdout);
     expect(report.written).toContain("app/policy.ts");
     expect(report.written).toContain("permdock.config.ts");
     expect(report.shadcn).toBeNull();
@@ -126,7 +128,7 @@ describe("permdock preset", () => {
     const decoded = await run(["preset", "decode", code, "--json"], {
       cwd: tmpdir(),
     });
-    expect(JSON.parse(decoded.stdout)).toMatchObject({ archetype: "b2b" });
+    expect(jsonData(decoded.stdout)).toMatchObject({ archetype: "b2b" });
     const url = await run(["preset", "url", code], { cwd: tmpdir() });
     expect(url.stdout.trim()).toBe(
       `https://permdock.com/create?preset=${code}`,

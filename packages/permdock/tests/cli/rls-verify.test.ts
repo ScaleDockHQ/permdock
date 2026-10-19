@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { miniAppCopy, removeProjects } from "./doctor-kit.ts";
 
 afterEach(removeProjects);
@@ -68,7 +68,7 @@ export const policy = definePolicy(permissions, {
     expect(result.stdout).toContain("verified 3 fixture(s)");
     expect(result.code).toBe(0);
     const pgtap = await run(
-      ["rls", "verify", "--fixtures", "rls.fixtures.json", "--format", "pgtap"],
+      ["rls", "verify", "--fixtures", "rls.fixtures.json", "--kind", "pgtap"],
       { cwd },
     );
     expect(pgtap.stdout).toContain(
@@ -150,7 +150,7 @@ export const policy = definePolicy(permissions, {
       ])}\n`,
     );
     const result = await run(
-      ["rls", "verify", "--fixtures", "rls.fixtures.json", "--format", "pgtap"],
+      ["rls", "verify", "--fixtures", "rls.fixtures.json", "--kind", "pgtap"],
       { cwd },
     );
     expect(result.code).toBe(0);
@@ -190,7 +190,7 @@ export const policy = definePolicy(permissions, {
     expect(result.stdout).toContain("denied");
   });
 
-  it("verify --db reports a connection failure and opaque grants as untestable", async () => {
+  it("verify --db-url reports a connection failure and opaque grants as untestable", async () => {
     const cwd = miniAppCopy();
     writeFileSync(
       join(cwd, "src/opaque-policy.ts"),
@@ -241,7 +241,7 @@ export const policy = definePolicy(permissions, {
       [
         "rls",
         "verify",
-        "--db",
+        "--db-url",
         "postgres://permdock:permdock@127.0.0.1:1/missing",
         "--fixtures",
         "rls.fixtures.json",

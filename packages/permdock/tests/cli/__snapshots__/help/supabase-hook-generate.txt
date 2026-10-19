@@ -1,0 +1,24 @@
+permdock supabase hook generate: Compile the membership sources into the hook migration
+
+Usage  permdock supabase hook generate [flags]
+
+Flags
+  --out <file>                           File to write
+  --check                                Exit 1 when a file on disk is stale; write nothing
+  --db-url <url>                         Postgres connection string (DATABASE_URL when the command needs one)
+  --db-url-stdin                         Read the connection string from stdin, keeping it out of ps and shell history
+  --active-from <source>                 Where the hook reads the active tenant
+  --budget <bytes>                       Byte budget for the memberships claim
+  --schema <name>                        Schema for the hook function
+  --schemas <pg-delta|migra|migrations>  Schema workflow (default supabase.schemas, else pg-delta)
+  --grants-out <file>                    migra: file for the privileges supabase db diff drops
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock supabase hook generate --out supabase/schemas/permdock_hook.sql
+  permdock supabase hook generate --check
+
+Side effects  files, database:read
+Docs  https://permdock.com/docs/cli/supabase

@@ -1,0 +1,18 @@
+permdock powersync generate: Compile the read grants into sync-config.yaml
+
+Usage  permdock powersync generate [flags]
+
+Flags
+  --out <file>       The Sync Streams file (default sync-config.yaml)
+  --check            Exit 1 when a file on disk is stale; write nothing
+  --policy <module>  Module exporting the policy (default policy in the config)
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock powersync generate
+  permdock powersync generate --check
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/powersync

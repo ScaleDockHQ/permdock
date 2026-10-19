@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import {
   runSkills,
   runSkillsCheck,
@@ -71,7 +71,7 @@ describe("skills", () => {
 
   it("list reports installed skills", async () => {
     const cwd = workspace();
-    await run(["skills", "install", "--agent", "cursor"], { cwd });
+    await run(["skills", "install", "--client", "cursor"], { cwd });
     const result = await run(["skills", "list"], { cwd });
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("permdock-wire");
@@ -94,18 +94,18 @@ function bare(manifest = true): string {
 }
 
 describe("runSkills", () => {
-  it("installs on no action and on update, into named and unknown agents", () => {
+  it("installs on no action and on update, and rejects an unknown agent", () => {
     const cwd = workspace();
     expect(runSkills({ cwd, action: undefined, agents: ["agent"] })).toEqual({
       code: 0,
       output:
         "installed .agents/skills/permdock-wire, .agents/skills/permdock-audit (permdock@0.0.0)",
     });
-    expect(
-      runSkills({ cwd, action: "update", agents: ["windsurf"] }).output,
-    ).toBe(
-      "installed .windsurf/skills/permdock-wire, .windsurf/skills/permdock-audit (permdock@0.0.0)",
-    );
+    expect(runSkills({ cwd, action: "update", agents: ["cursr"] })).toEqual({
+      code: 2,
+      output:
+        "skills: unknown --client 'cursr'. Did you mean cursor? Use agents, claude, cursor.",
+    });
   });
 
   it("falls back to node_modules/permdock/skills when the package hides package.json", () => {
@@ -216,7 +216,7 @@ describe("skills --check", () => {
     );
     expect(existsSync(join(cwd, ".cursor/skills"))).toBe(false);
     expect(existsSync(join(cwd, ".permdock"))).toBe(false);
-    await run(["skills", "install", "--agent", "cursor"], { cwd });
+    await run(["skills", "install", "--client", "cursor"], { cwd });
     expect(runSkillsCheck({ cwd, agents: [] })).toEqual({
       code: 0,
       output: "skills match permdock@0.0.0",

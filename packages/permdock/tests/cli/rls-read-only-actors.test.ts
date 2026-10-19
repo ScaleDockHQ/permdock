@@ -4,11 +4,11 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { CompiledPolicy } from "../../src/cli/sql/compile.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import {
   readOnlyActorKinds,
   readOnlyActorPolicies,
 } from "../../src/cli/rls/policies.ts";
-import { run } from "../../src/cli/run.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);

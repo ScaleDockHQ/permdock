@@ -6,7 +6,8 @@ import { afterAll, describe, expect, it } from "vitest";
 import type { CatalogDiff } from "../../src/cli/diff/diff.ts";
 import type { CatalogDocument } from "../../src/cli/types.ts";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/diff-app");
@@ -36,21 +37,21 @@ function parsedCatalog(stdout: string): CatalogDocument {
 }
 
 function parsed(stdout: string): CatalogDiff {
-  // SAFETY: `diff --json` prints a CatalogDiff.
-  return JSON.parse(stdout) as CatalogDiff;
+  // SAFETY: `diff --json` prints a CatalogDiff as the envelope data.
+  return jsonData(stdout) as CatalogDiff;
 }
 
 describe("permdock diff", () => {
   it("needs two inputs", async () => {
     const result = await diff("src/policy-before.ts");
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("two inputs");
+    expect(result.stderr).toContain("two inputs");
   });
 
   it("exits 2 when an input is missing", async () => {
     const result = await diff("src/policy-before.ts", "src/nope.ts");
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("not found: src/nope.ts");
+    expect(result.stderr).toContain("not found: src/nope.ts");
   });
 
   it("reports no changes and exits 0 for the same policy", async () => {
@@ -217,7 +218,7 @@ describe("permdock diff", () => {
   it("prints operation findings in the text report and exits 0", async () => {
     const catalog = await run([
       "catalog",
-      "--from",
+      "--permissions",
       "src/permissions.ts",
       "--cwd",
       FIXTURE,
@@ -269,7 +270,7 @@ describe("permdock diff", () => {
   it("reads a committed catalog on one side", async () => {
     const catalog = await run([
       "catalog",
-      "--from",
+      "--permissions",
       "src/permissions.ts",
       "--cwd",
       FIXTURE,
@@ -297,7 +298,7 @@ describe("permdock diff", () => {
     const file = join(dir, "permissions.catalog.json");
     const catalog = await run([
       "catalog",
-      "--from",
+      "--permissions",
       "src/permissions.ts",
       "--cwd",
       FIXTURE,
@@ -305,7 +306,7 @@ describe("permdock diff", () => {
     writeFileSync(file, catalog.stdout);
     const result = await diff(file, "src/policy-after.ts", "--impact");
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("--impact needs two policy modules");
+    expect(result.stderr).toContain("--impact needs two policy modules");
   });
 
   it("runs the fixtures through both policies with --impact", async () => {
@@ -434,6 +435,6 @@ describe("permdock diff", () => {
       "missing.fixtures.json",
     );
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("missing.fixtures.json");
+    expect(result.stderr).toContain("missing.fixtures.json");
   });
 });

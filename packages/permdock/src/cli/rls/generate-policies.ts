@@ -9,7 +9,7 @@ import { compact } from "../../core/compact.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { type Policy, listPermissions } from "../../index.ts";
-import { describeError } from "../errors.ts";
+import { describeError } from "../core/errors.ts";
 import {
   type CompiledGrants,
   type CompiledPolicy,

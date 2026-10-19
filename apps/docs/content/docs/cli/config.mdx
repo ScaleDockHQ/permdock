@@ -9,12 +9,12 @@ description: Check permdock.config.ts for keys PermDock does not read, or print 
 
 ```bash
 permdock config            # warnings for unknown keys
-permdock config --strict   # exit 1 on a warning, for CI
+permdock config --fail-on warning   # exit 1 on a warning, for CI
 permdock config --print    # the effective config as JSON
 permdock config --config apps/web/permdock.config.ts --print
 ```
 
-`--json` prints the same report as `--print`.
+With `--json`, `data` is the report `--print` prints.
 
 ```json
 {
@@ -67,9 +67,17 @@ permdock config --config apps/web/permdock.config.ts --print
 
 Every command checks the config before it runs. A module path that is not a string, or a section (`collect`, `rls`, `doctor`, …) that is not an object, exits `2` with the key named, as Problem Details under `--json`. A key PermDock does not read is a warning on stderr, `permdock: warning: permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel`, and the command still runs.
 
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command           | Side effects |
+| ----------------- | ------------ |
+| `permdock config` | None         |
+
 ## Why
 
-- **Unknown keys warn instead of failing.** A config written for a newer PermDock still loads in an older CLI, and a monorepo can pin two versions. The cost of a typo is a key that does nothing, so the warning names it and the key list, and `config --strict` turns it into a CI failure for a project that wants one.
+- **Unknown keys warn instead of failing.** A config written for a newer PermDock still loads in an older CLI, and a monorepo can pin two versions. The cost of a typo is a key that does nothing, so the warning names it and the key list, and `config --fail-on warning` turns it into a CI failure for a project that wants one.
 - **The known keys come from the config types.** Each list is checked against `keyof` its section type when PermDock builds, so a new option cannot ship without the validator knowing it.
 
 ## Related

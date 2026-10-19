@@ -15,7 +15,8 @@ import type { RenameSet } from "../../src/cli/codemod/transform.ts";
 import { codemod, runCodemod } from "../../src/cli/codemod/codemod.ts";
 import { RENAMES_0_5 } from "../../src/cli/codemod/renames-0.5.ts";
 import { transformSource } from "../../src/cli/codemod/transform.ts";
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TMP = join(HERE, "../../tmp");
@@ -627,9 +628,9 @@ describe("permdock codemod", () => {
     ]);
     expect(result.code).toBe(0);
     // SAFETY: `codemod --json` prints a CodemodReport.
-    const report = JSON.parse(result.stdout) as CodemodReport;
+    const report = jsonData(result.stdout) as CodemodReport;
     expect(report.dryRun).toBe(true);
-    expect(report.scanned).toBe(2);
+    expect(report.scanned).toBe(3);
     expect(report.files.map((file) => file.file)).toEqual(["src/sinks.ts"]);
     expect(readFileSync(join(dir, "src/sinks.ts"), "utf8")).toBe(
       files["src/sinks.ts"],
@@ -684,7 +685,7 @@ describe("permdock codemod", () => {
     const result = await run(["codemod", "0.4", "--json"]);
     expect(result.code).toBe(2);
     // SAFETY: a failed command prints Problem Details under --json.
-    const problem = JSON.parse(result.stdout) as {
+    const problem = jsonData(result.stdout) as {
       readonly type: string;
       readonly detail: string;
     };
@@ -720,7 +721,7 @@ describe("permdock codemod", () => {
     const dir = project(files);
     const missing = await run(["codemod", "--cwd", dir]);
     expect(missing.code).toBe(2);
-    expect(missing.stderr).toContain("codemod needs a version");
+    expect(missing.stderr).toContain("codemod: <version> is required");
     const unknownPath = await run(["codemod", "0.5", "nope", "--cwd", dir]);
     expect(unknownPath.code).toBe(2);
     expect(unknownPath.stderr).toContain("not found: nope");

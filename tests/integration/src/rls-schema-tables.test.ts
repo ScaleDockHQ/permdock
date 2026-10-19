@@ -139,7 +139,14 @@ describe("rls.tables with schema-qualified names", () => {
       throw new Error("PermDock: Postgres was not started");
     }
     const result = await run(
-      ["rls", "verify", "--db", testerUri(db.uri), "--fixtures", fixturesPath],
+      [
+        "rls",
+        "verify",
+        "--db-url",
+        testerUri(db.uri),
+        "--fixtures",
+        fixturesPath,
+      ],
       { cwd: FIXTURE },
     );
     expect(result.stdout).toContain(
@@ -150,7 +157,7 @@ describe("rls.tables with schema-qualified names", () => {
 
   it("writes pgTAP that names the schema-qualified tables", async () => {
     const result = await run(
-      ["rls", "verify", "--format", "pgtap", "--fixtures", fixturesPath],
+      ["rls", "verify", "--kind", "pgtap", "--fixtures", fixturesPath],
       { cwd: FIXTURE },
     );
     expect(result.code).toBe(0);

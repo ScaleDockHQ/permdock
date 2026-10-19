@@ -4,7 +4,7 @@ import { parse } from "smol-toml";
 
 import type { DoctorFinding } from "./shared/doctor-types.ts";
 
-import { describeError } from "./errors.ts";
+import { describeError } from "./core/errors.ts";
 
 /** The settings of `supabase/config.toml` doctor reads. */
 export type SupabaseConfig = {

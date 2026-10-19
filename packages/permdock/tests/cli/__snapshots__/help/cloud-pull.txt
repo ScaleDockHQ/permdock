@@ -1,0 +1,18 @@
+permdock cloud pull: Write a Cloud project's published catalog and manifest
+
+Usage  permdock cloud pull [flags]
+
+Flags
+  --url <url>        Cloud API base URL
+  --manifest <file>  Manifest file to send or write (default permdock.manifest.json)
+  --project <id>     Cloud project id (default the one project PERMDOCK_CLOUD_TOKEN names)
+  --token-stdin      Read PERMDOCK_CLOUD_TOKEN from stdin
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock cloud pull --project prj_123
+
+Side effects  network, files
+Docs  https://permdock.com/docs/cli/cloud

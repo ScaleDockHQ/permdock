@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { ImportedGrant, ImportedRole } from "./policy-module.ts";
 
+import { applyFiles } from "../core/files.ts";
 import { emitPolicyModule, isIdentifier } from "./policy-module.ts";
 
 /** Why a Casbin policy line did not import. */
@@ -323,17 +324,17 @@ export function runCasbinImport(input: {
     return { code: 2, output: `casbin import --model: ${model.refused}` };
   }
   const imported = importCasbin(model, String(policyText));
-  const out = resolve(input.cwd, input.out);
-  mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(
-    out,
-    emitPolicyModule({
-      generator: "casbin import",
-      actions: imported.actions,
-      roles: imported.roles,
-      exports: { assignments: imported.assignments },
-    }),
-  );
+  applyFiles(input.cwd, [
+    {
+      path: input.out,
+      text: emitPolicyModule({
+        generator: "casbin import",
+        actions: imported.actions,
+        roles: imported.roles,
+        exports: { assignments: imported.assignments },
+      }),
+    },
+  ]);
   const droppedDeny = imported.skipped.some((item) => item.deny === true);
   const code = droppedDeny ? 1 : 0;
   if (input.json) {

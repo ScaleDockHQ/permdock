@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { SupabaseHookManifest } from "../../supabase/manifest.ts";
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { parseCatalog } from "../../catalog/parse.ts";
@@ -10,18 +10,15 @@ import { pushedPolicy } from "../../catalog/pushed-policy.ts";
 import { catalogFingerprint } from "../../index.ts";
 import { parseSupabaseManifest } from "../../supabase/manifest.ts";
 import { runCatalog } from "../catalog.ts";
-import { describeError } from "../errors.ts";
-import { loadConfiguredPolicy } from "../load.ts";
+import { describeError } from "../core/errors.ts";
+import { authFailure, httpRequest } from "../core/http.ts";
+import { cliVersion } from "../core/version.ts";
 import { MANIFEST_FILE } from "../manifest-json.ts";
-import { cliVersion } from "../version.ts";
+import { loadConfiguredPolicy } from "../project/load.ts";
 import { cliRuntime, pushAuth } from "./auth.ts";
 import { cloudUrl, firstNonEmpty } from "./issuer.ts";
-import { runCloudPull } from "./pull.ts";
 
 export { pushedPolicy };
-
-const USAGE =
-  "usage: permdock cloud push [--dry-run] [--url <url>] [--environment <env> | --project <id>] [--manifest <file>]\n       permdock cloud pull [--project <id>] [--url <url>] [--manifest <file>]";
 
 /** `--manifest`, else `permdock.manifest.json` when it exists; a file that does not parse is an error. */
 function readManifest(
@@ -52,9 +49,7 @@ function readManifest(
 export async function runCloud(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
-  readonly rest: readonly string[];
   readonly url: string | undefined;
-  readonly environment: string | undefined;
   readonly project?: string | undefined;
   readonly manifest?: string | undefined;
   readonly dryRun: boolean;
@@ -63,33 +58,6 @@ export async function runCloud(input: {
   readonly now: Date;
   readonly io: CliIo;
 }): Promise<CommandResult> {
-  const action = input.rest[0];
-  if (action === "pull") {
-    return runCloudPull({
-      cwd: input.cwd,
-      config: input.config,
-      url: input.url,
-      project: input.project ?? input.environment,
-      manifest: input.manifest,
-      json: input.json,
-      env: input.env,
-      io: input.io,
-    });
-  }
-  if (action !== "push") {
-    return { code: 2, output: USAGE };
-  }
-  if (
-    input.project !== undefined &&
-    input.environment !== undefined &&
-    input.project !== input.environment
-  ) {
-    return {
-      code: 2,
-      output:
-        "permdock cloud push: --project and --environment name the same thing; pass one",
-    };
-  }
   const manifest = readManifest(input.cwd, input.manifest);
   if (!manifest.ok) {
     return { code: 2, output: manifest.output };
@@ -125,7 +93,6 @@ export async function runCloud(input: {
   const url = cloudUrl(input.url, input.env);
   const environment = firstNonEmpty(
     input.project,
-    input.environment,
     input.env["PERMDOCK_CLOUD_ENV"],
     input.env["VERCEL_ENV"],
     "production",
@@ -138,36 +105,37 @@ export async function runCloud(input: {
     return { code: 0, output: describe("would push") };
   }
   const auth = await pushAuth(url, input.env, cliRuntime(input.io, input.env));
-  if (!auth.ok) {
-    return { code: auth.code, output: auth.output };
-  }
-  const fetchFn = input.io.fetch ?? globalThis.fetch.bind(globalThis);
-  let response: Response;
-  try {
-    response = await fetchFn(
-      `${url}/v1/environments/${encodeURIComponent(environment)}/catalog`,
+  const response = await httpRequest(input.io, {
+    url: `${url}/v1/environments/${encodeURIComponent(environment)}/catalog`,
+    method: "POST",
+    service: "PermDock Cloud",
+    headers: {
+      authorization: `Bearer ${auth.bearer}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      fingerprint,
+      catalog,
+      ...(policy === undefined ? {} : { policy }),
+      ...(manifest.manifest === undefined
+        ? {}
+        : { manifest: manifest.manifest }),
+      permdockVersion: cliVersion(),
+    }),
+  });
+  const denied = authFailure(
+    response,
+    `PermDock Cloud rejected the ${auth.source === "login" ? "login" : "PERMDOCK_CLOUD_KEY"} for cloud push`,
+    [
       {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${auth.bearer}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          fingerprint,
-          catalog,
-          ...(policy === undefined ? {} : { policy }),
-          ...(manifest.manifest === undefined
-            ? {}
-            : { manifest: manifest.manifest }),
-          permdockVersion: cliVersion(),
-        }),
+        command: "permdock login --scope catalog:write",
+        when: "to log in on this machine",
       },
-    );
-  } catch (error) {
-    return {
-      code: 1,
-      output: `PermDock Cloud unreachable: ${describeError(error)}`,
-    };
+      { command: "export PERMDOCK_CLOUD_KEY=<write key>", when: "in CI" },
+    ],
+  );
+  if (denied !== undefined) {
+    throw denied;
   }
   if (!response.ok) {
     return {

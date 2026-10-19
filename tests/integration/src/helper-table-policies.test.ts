@@ -31,7 +31,7 @@ create policy "quote topics" on realtime.messages for select
   using (split_part(topic, ':', 2) in (select permdock.permitted_organization_ids('quote.read#2')));
 `;
 
-describe("rls verify --db and helper calls on storage and realtime", () => {
+describe("rls verify --db-url and helper calls on storage and realtime", () => {
   let db: Postgres | undefined;
   let dir = "";
 
@@ -54,7 +54,7 @@ describe("rls verify --db and helper calls on storage and realtime", () => {
       [
         "rls",
         "verify",
-        "--db",
+        "--db-url",
         db.uri,
         "--fixtures",
         join(dir, "fixtures.json"),

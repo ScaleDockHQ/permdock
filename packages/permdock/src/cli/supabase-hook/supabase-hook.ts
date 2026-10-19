@@ -3,22 +3,22 @@ import { resolve } from "node:path";
 
 import type { Policy } from "../../core/policy-types.ts";
 import type { SupabaseHookManifest } from "../../supabase/manifest.ts";
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig, SupabaseSchemas } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { type Scope, scopeList } from "../../core/scopes.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
-import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
-import { requirePolicy } from "../load.ts";
-import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import {
   driftOf,
   pgDeltaPath,
   type OutputFile,
   STDOUT,
   writeOutputFiles,
-} from "../output-files.ts";
+} from "../core/output-files.ts";
+import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
+import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
+import { requirePolicy } from "../project/load.ts";
 import {
   GRANTS_MARKER,
   HOOK_MARKER,
@@ -55,7 +55,7 @@ import { versionSql } from "./version.ts";
 
 const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
-  hook generate [--out <file>] [--check] [--db <url>] [--schemas pg-delta|migra|migrations]
+  hook generate [--out <file>] [--check] [--db-url <url>] [--schemas pg-delta|migra|migrations]
                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                 [--budget 1024] [--schema public] [--grants-out <file>|-]
   inspect [--json] [--out [permdock.manifest.json]] [--check]

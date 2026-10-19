@@ -36,7 +36,7 @@ The same portable conditions decide `can()` in memory, narrow list queries throu
    ✓ `permdock doctor --only graph` is clean, and a viewer of a parent folder can read a child document.
 3. **Generate or adopt RLS.** Run `permdock rls generate` from the policy, or keep SQL as the authority with `sqlFunction` twins and `rls.functions`, or move hand-written helpers with `permdock rls migrate`. -> [references/queries-and-rls.md](references/queries-and-rls.md#generate-and-verify-rls)
    ✓ `permdock rls generate --check` passes in CI.
-4. **Verify against a real database.** Run `permdock rls verify --db $DATABASE_URL` with fixtures, `--tree` for graph grants, and `--introspect` against a deployed database.
+4. **Verify against a real database.** Run `permdock rls verify --db-url $DATABASE_URL` with fixtures, `--tree` for graph grants, and `--introspect` against a deployed database.
    ✓ Every verify run exits `0`.
 5. **Prove parity in tests.** Add `testOrmParity(policy, scenarios, { run, id })` for each list endpoint and `testRlsParity(policy, options)` for RLS tables, from `permdock/testing` ([testing adapter](https://permdock.com/docs/adapters/testing)). Run `testRelationSource` on a custom `RelationSource`.
    ✓ The query and the database return exactly the rows `filter()` keeps.
@@ -48,7 +48,7 @@ The same portable conditions decide `can()` in memory, narrow list queries throu
 - [ ] No `opaque` RLS grant wraps a named helper; use `sqlFunction` with a twin and map it in `rls.functions`.
 - [ ] No condition the database must enforce reads `context.*` (PD027); on Supabase, `supabase.hook.attrs` lists only server-owned values (PD028).
 - [ ] Graph declarations are walked by a grant (PD031) and nameable in SQL (PD032).
-- [ ] Every list endpoint has an `testOrmParity` run, every RLS table an `testRlsParity` or `rls verify --db` run, and a custom `RelationSource` passes `testRelationSource`.
+- [ ] Every list endpoint has an `testOrmParity` run, every RLS table an `testRlsParity` or `rls verify --db-url` run, and a custom `RelationSource` passes `testRelationSource`.
 
 ## Reference index
 

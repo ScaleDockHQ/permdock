@@ -68,6 +68,14 @@ export default permdockPlugin({});
 
 The plugin is a build hook only; it never wires the API or augments module types. See [Next.js plugin](/docs/cli/next-plugin).
 
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command            | Side effects |
+| ------------------ | ------------ |
+| `permdock collect` | `files`      |
+
 ## Why this model
 
 next-intl's `useExtracted` solved the same shape of problem for translations: many colocated typed declarations, one central artifact, client and server consumers. A central string catalog that usages reference by name puts the declaration far from the code, lets keys drift and accumulates dead entries. Extraction flips it, and PermDock takes the same properties:

@@ -31,8 +31,9 @@ The same skills ship inside the `permdock` npm package and can be installed with
 | Docs MCP server                                | `POST /docs/mcp` (`search`, `list_pages`, `get_page`)            | Search and read docs from inside an MCP-capable agent                                                          |
 | Docs WebMCP tools                              | every docs page (`search_docs`, `read_page`, `open_page`)        | Search and read docs from the browser's own agent; experimental, Chrome 149+ behind a flag                     |
 | Cloud MCP server                               | `https://permdock.com/mcp`                                       | Read-only evidence, catalog and pending approvals; never resolves an approval                                  |
-| `permissions.catalog.json` and its JSON Schema | app repository, `permdock catalog --format schema`               | Know which permissions exist, their arity, scopes and metadata                                                 |
+| `permissions.catalog.json` and its JSON Schema | app repository, `permdock catalog --kind json-schema`            | Know which permissions exist, their arity, scopes and metadata                                                 |
 | `permdock doctor --json`                       | app repository                                                   | Machine-readable findings with stable codes and fixes                                                          |
+| `permdock --help --json`                       | any directory                                                    | Every command, flag, side effect and docs page as `cli-commands-v1`                                            |
 | Example apps                                   | `apps/examples/<adapter>`                                        | Working code for every adapter, each checked by `permdock doctor`                                              |
 
 Standards for these artifacts are on the [Agent docs standards](/docs/standards/agent-docs-standards) page.
@@ -110,17 +111,17 @@ import { usePermission } from "permdock/react";
 const { allowed, status } = usePermission(permissions.post.update, post);
 ```
 
-Finish with `pnpm exec permdock doctor` and add `permdock collect --check` and `permdock usage --strict` to CI. Full versions: [quick start](/docs/getting-started/quick-start), [Next.js adapter](/docs/adapters/next), [MCP adapter](/docs/adapters/mcp), [AI SDK adapter](/docs/adapters/ai-sdk).
+Finish with `pnpm exec permdock doctor` and add `permdock collect --check` and `permdock usage --fail-on warning` to CI. Full versions: [quick start](/docs/getting-started/quick-start), [Next.js adapter](/docs/adapters/next), [MCP adapter](/docs/adapters/mcp), [AI SDK adapter](/docs/adapters/ai-sdk).
 
 ### The shortest OpenAPI recipe
 
 If the project already generates an OpenAPI description, do not write `security` by hand and do not add a PermDock wrapper around the generator. Emit PermDock's Overlay and let the existing pipeline apply it:
 
 ```bash
-permdock openapi emit --doc public/openapi.json --format overlay --out permdock.overlay.json
+permdock openapi emit --doc public/openapi.json --kind overlay --out permdock.overlay.json
 ```
 
-For Next.js and the other frameworks next-openapi-gen scans, add `overlay: { apply: ['./permdock.overlay.json'] }` to `openapi-gen.config.ts`; for Redocly pipelines, `redocly join openapi.json --overlay permdock.overlay.json -o dist/openapi.json`. Hey API, Orval, Scalar and any OpenAPI-to-MCP bridge then read the applied description with no PermDock code. Rules: every operation needs an `operationId`; do not also declare security through the producer (`@auth`, `authPresets`) on operations PermDock covers; add `permdock openapi emit --format overlay --check` to CI. Details: [OpenAPI adapter](/docs/adapters/openapi), [adapters](/docs/adapters).
+For Next.js and the other frameworks next-openapi-gen scans, add `overlay: { apply: ['./permdock.overlay.json'] }` to `openapi-gen.config.ts`; for Redocly pipelines, `redocly join openapi.json --overlay permdock.overlay.json -o dist/openapi.json`. Hey API, Orval, Scalar and any OpenAPI-to-MCP bridge then read the applied description with no PermDock code. Rules: every operation needs an `operationId`; do not also declare security through the producer (`@auth`, `authPresets`) on operations PermDock covers; add `permdock openapi emit --kind overlay --check` to CI. Details: [OpenAPI adapter](/docs/adapters/openapi), [adapters](/docs/adapters).
 
 ## Invariants an agent must keep
 
@@ -135,7 +136,7 @@ PermDock assumes the reader of a denial may be a language model deciding what to
 - MCP refusals return `isError: true` with the `Decision` in `structuredContent`, and missing delegation produces a `scopeChallenge` naming the exact scope (`post:delete`) to request.
 - HTTP adapters emit RFC 9457 `application/problem+json` with `type`, `title`, `permission`, `denials` and `alternatives`; see [Errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
 - `PermDockValidationError` names the resource and the schema issues; `PermDockDeniedError` and `PermDockApprovalRequiredError` carry the `Decision`.
-- CLI reports use stable codes (`PD001`...) with a one-line fix each, and `--json` output carries a `$schema`.
+- CLI reports use stable codes (`PD001`...) with a one-line fix each. Under `--json`, and by default when an agent runs the CLI, every command prints one [`cli-result-v1`](/docs/concepts/wire-formats#cli-result) envelope: the report in `data`, a failure in `error`, and the commands that continue the run in `next`. Exit `3` means the run needs input, a login or the person's consent; ask the person, then run the `next` command. See [agent mode](/docs/cli/agent-mode).
 - `simulate([[permission, data], ...])` lets an agent pre-flight a whole plan and read every decision before acting; it is the in-process form of AuthZEN `evaluations`. `simulateArazzo(permdock, { arazzo, openapi })` does the same from an Arazzo workflow; a `provisional: true` step is not a final grant.
 
 ## Reading the docs

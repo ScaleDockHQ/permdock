@@ -31,7 +31,7 @@ import {
   listPermissions,
   listRoles,
 } from "../index.ts";
-import { CATALOG_SCHEMA, generatorBanner } from "./version.ts";
+import { CATALOG_SCHEMA, generatorBanner } from "./core/version.ts";
 
 function leafLevels(
   tree: PermissionTree,
@@ -62,34 +62,19 @@ export function buildCatalog(
       continue;
     }
     const node = getResource(tree, leaf.resource);
-    resources[leaf.resource] = compactResource(
-      definedIn === undefined
-        ? {
-            id: node?.id ?? "id",
-            schema: node === undefined ? null : jsonSchemaOf(node),
-            parent: node?.parent,
-            links: node?.links,
-            disclosure: node?.disclosure,
-            relations: node?.relations,
-            version: node?.version,
-            restricted: node?.restricted,
-            restrictedStops: node?.restrictedStops,
-            meta: node?.meta,
-          }
-        : {
-            id: node?.id ?? "id",
-            schema: node === undefined ? null : jsonSchemaOf(node),
-            definedIn,
-            parent: node?.parent,
-            links: node?.links,
-            disclosure: node?.disclosure,
-            relations: node?.relations,
-            version: node?.version,
-            restricted: node?.restricted,
-            restrictedStops: node?.restrictedStops,
-            meta: node?.meta,
-          },
-    );
+    resources[leaf.resource] = compactResource({
+      id: node?.id ?? "id",
+      schema: node === undefined ? null : jsonSchemaOf(node),
+      ...(definedIn === undefined ? {} : { definedIn }),
+      parent: node?.parent,
+      links: node?.links,
+      disclosure: node?.disclosure,
+      relations: node?.relations,
+      version: node?.version,
+      restricted: node?.restricted,
+      restrictedStops: node?.restrictedStops,
+      meta: node?.meta,
+    });
   }
   const approvals = codeApprovals(policy);
   const breakGlass = codeBreakGlass(policy);

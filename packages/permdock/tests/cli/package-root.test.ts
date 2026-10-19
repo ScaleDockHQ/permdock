@@ -1,7 +1,10 @@
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { findPackageRoot, packageRoot } from "../../src/cli/package-root.ts";
+import {
+  findPackageRoot,
+  packageRoot,
+} from "../../src/cli/project/package-root.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);

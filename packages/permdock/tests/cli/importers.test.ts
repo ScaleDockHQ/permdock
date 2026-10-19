@@ -10,13 +10,13 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { Permission, Policy } from "../../src/index.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import {
   importCasbin,
   readCasbinModel,
   runCasbinImport,
 } from "../../src/cli/importers/casbin.ts";
 import { importCasl, runCaslImport } from "../../src/cli/importers/casl.ts";
-import { run } from "../../src/cli/run.ts";
 import { getPermDockSync } from "../../src/index.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");

@@ -1,101 +1,85 @@
-import { defineCommand } from "citty";
+import { type Leaf, defineLeaf } from "../core/command.ts";
+import { checkFlag, dbUrl, dbUrlFlags, given } from "../core/flags.ts";
 
-import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  stringArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
+export const hookGenerate: Leaf = defineLeaf({
+  flags: {
+    out: { type: "string", description: "File to write", valueHint: "file" },
+    ...checkFlag,
+    ...dbUrlFlags,
+    "active-from": {
+      type: "string",
+      description: "Where the hook reads the active tenant",
+      valueHint: "source",
+    },
+    budget: {
+      type: "string",
+      description: "Byte budget for the memberships claim",
+      valueHint: "bytes",
+    },
+    schema: {
+      type: "string",
+      description: "Schema for the hook function",
+      valueHint: "name",
+    },
+    schemas: {
+      type: "enum",
+      options: ["pg-delta", "migra", "migrations"],
+      description: "Schema workflow (default supabase.schemas, else pg-delta)",
+    },
+    "grants-out": {
+      type: "string",
+      description: "migra: file for the privileges supabase db diff drops",
+      valueHint: "file",
+    },
+  },
+  async run(ctx, { flags }) {
+    const out = given(flags.out);
+    const db = await dbUrl(ctx, flags);
+    const activeFrom = given(flags["active-from"]);
+    const budget = given(flags.budget);
+    const schema = given(flags.schema);
+    const grantsOut = given(flags["grants-out"]);
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const { runSupabase } = await import("../supabase-hook/supabase-hook.ts");
+    return runSupabase({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      rest: ["hook", "generate"],
+      check: flags.check,
+      json: ctx.json,
+      io: ctx.io,
+      ...(out === undefined ? {} : { out }),
+      ...(db === undefined ? {} : { db }),
+      ...(activeFrom === undefined ? {} : { activeFrom }),
+      ...(budget === undefined ? {} : { budget }),
+      ...(schema === undefined ? {} : { schema }),
+      ...(grantsOut === undefined ? {} : { grantsOut }),
+      ...(flags.schemas === undefined ? {} : { schemas: flags.schemas }),
+    });
+  },
+});
 
-export function supabase(ctx: CliContext): Command {
-  const command = defineCommand({
-    meta: {
-      name: "supabase",
-      description: COMMAND_DESCRIPTIONS.supabase,
+export const inspect: Leaf = defineLeaf({
+  flags: {
+    out: {
+      type: "string",
+      description: "File to write; a bare --out writes permdock.manifest.json",
+      valueHint: "file",
     },
-    args: {
-      ...globalArgs,
-      area: {
-        type: "positional",
-        required: false,
-        description: "hook or inspect",
-      },
-      verb: {
-        type: "positional",
-        required: false,
-        description: "hook: generate",
-      },
-      out: {
-        type: "string",
-        description:
-          "File to write; a bare --out on inspect writes permdock.manifest.json",
-        valueHint: "file",
-      },
-      check: {
-        type: "boolean",
-        description: "Exit 1 when the file on disk is stale; write nothing",
-      },
-      db: {
-        type: "string",
-        description: "Postgres connection string",
-        valueHint: "url",
-      },
-      "active-from": {
-        type: "string",
-        description: "Where the hook reads the active tenant",
-        valueHint: "source",
-      },
-      budget: {
-        type: "string",
-        description: "Byte budget for the memberships claim",
-        valueHint: "bytes",
-      },
-      schema: {
-        type: "string",
-        description: "Schema for the hook function",
-        valueHint: "name",
-      },
-      schemas: {
-        type: "enum",
-        options: ["pg-delta", "migra", "migrations"],
-        description:
-          "Schema workflow (default supabase.schemas, else pg-delta)",
-      },
-      "grants-out": {
-        type: "string",
-        description: "migra: file for the privileges supabase db diff drops",
-        valueHint: "file",
-      },
-    },
-    async run({ args: parsed }) {
-      const out = parsed.out === "" ? true : stringArg(parsed.out);
-      const db = stringArg(parsed.db);
-      const activeFrom = stringArg(parsed["active-from"]);
-      const budget = stringArg(parsed.budget);
-      const schema = stringArg(parsed.schema);
-      const grantsOut = stringArg(parsed["grants-out"]);
-      const schemas = stringArg(parsed.schemas);
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const { runSupabase } = await import("../supabase-hook/supabase-hook.ts");
-      ctx.report(
-        await runSupabase({
-          cwd: ctx.cwd,
-          config: ctx.config,
-          rest: parsed._,
-          check: parsed.check === true,
-          json: ctx.json,
-          io: ctx.io,
-          ...(out === undefined ? {} : { out }),
-          ...(db === undefined ? {} : { db }),
-          ...(activeFrom === undefined ? {} : { activeFrom }),
-          ...(budget === undefined ? {} : { budget }),
-          ...(schema === undefined ? {} : { schema }),
-          ...(grantsOut === undefined ? {} : { grantsOut }),
-          ...(schemas === undefined ? {} : { schemas }),
-        }),
-      );
-    },
-  });
-  return command;
-}
+    ...checkFlag,
+  },
+  async run(ctx, { flags }) {
+    const out = flags.out === "" ? true : flags.out;
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const { runSupabase } = await import("../supabase-hook/supabase-hook.ts");
+    return runSupabase({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      rest: ["inspect"],
+      check: flags.check,
+      json: ctx.json,
+      io: ctx.io,
+      ...(out === undefined ? {} : { out }),
+    });
+  },
+});

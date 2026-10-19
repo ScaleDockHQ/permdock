@@ -607,7 +607,7 @@ export function pd056(
       code: "PD056",
       severity: "warning",
       message: `legacy helper ${name} is still called ${String(count)} time(s), in ${callers.join(", ")}`,
-      fix: `run permdock rls migrate --write for policies, rewrite function bodies, views and triggers onto the permdock helpers by hand, then drop function ${name}`,
+      fix: `run permdock rls migrate for policies, rewrite function bodies, views and triggers onto the permdock helpers by hand, then drop function ${name}`,
     });
   }
   return findings;

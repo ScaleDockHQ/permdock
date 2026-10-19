@@ -209,7 +209,7 @@ describe("rls.readOnlyActors with --helpers-only", () => {
         "verify",
         "--introspect",
         "--helpers-only",
-        "--db",
+        "--db-url",
         started().uri,
         "--dialect",
         "supabase",

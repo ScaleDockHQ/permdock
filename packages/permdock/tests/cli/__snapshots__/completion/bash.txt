@@ -1,0 +1,10 @@
+# permdock completion for bash: eval "$(permdock completion bash)"
+_permdock() {
+  local -a words=("${COMP_WORDS[@]:1:COMP_CWORD}")
+  local IFS=$'\n'
+  COMPREPLY=($(permdock __complete -- "${words[@]}" 2>/dev/null))
+  if [ ${#COMPREPLY[@]} -eq 0 ]; then
+    COMPREPLY=($(compgen -f -- "${COMP_WORDS[COMP_CWORD]}"))
+  fi
+}
+complete -o filenames -F _permdock permdock

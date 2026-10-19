@@ -1,15 +1,17 @@
-List authorization checks written without PermDock, to adopt it in an existing app (permdock scan)
+permdock scan: List authorization checks written without PermDock, to adopt it in an existing app
 
-USAGE permdock scan [OPTIONS] 
+Usage  permdock scan [flags]
 
-OPTIONS
+Flags
+  --pattern <regex>  An extra regular expression to report (repeatable)
+  --src <dir>        Directories to scan (default collect.srcPath or src) (repeatable)
 
-        --cwd=<dir>    Run as if started in this directory                                  
-    --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})                
-             --json    Machine-readable output                                              
-          -y, --yes    Never prompt; take the answer the flags give                         
-            --color    Styled output on a colour terminal (Default: true)                   
-         --no-color    Plain output                                                         
-           --legacy    List authorization checks written without PermDock                   
-  --pattern=<regex>    An extra regular expression to report, repeatable                    
-       --src=<dirs>    Directories to scan, comma-separated (default collect.srcPath or src)
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock scan
+  permdock scan --src app,lib --pattern isBeta
+
+Side effects  none: reads only
+Docs  https://permdock.com/docs/cli/scan

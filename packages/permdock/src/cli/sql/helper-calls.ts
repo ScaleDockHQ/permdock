@@ -1,3 +1,4 @@
+import { beforeFirst } from "../shared/text.ts";
 import { HELPERS } from "./shared.ts";
 
 /**
@@ -39,7 +40,7 @@ export function helperCallKeys(sql: string, blind = false): readonly string[] {
     if (blind && byPermission && (extra === undefined || falsy !== undefined)) {
       continue;
     }
-    const key = literal.replaceAll("''", "'").split("#")[0] ?? "";
+    const key = beforeFirst(literal.replaceAll("''", "'"), "#");
     if (key !== "") {
       keys.add(key);
     }
@@ -84,7 +85,7 @@ export function helperTablePolicies(sql: string): readonly HelperTablePolicy[] {
   return found;
 }
 
-/** `pg_policies` rows on {@link HELPER_TABLES}, read by `rls verify --db`. */
+/** `pg_policies` rows on {@link HELPER_TABLES}, read by `rls verify --db-url`. */
 export const HELPER_TABLE_POLICIES_SQL = `select schemaname || '.' || tablename as target, policyname, coalesce(qual, '') || ' ' || coalesce(with_check, '') as body
 from pg_policies
 where (schemaname, tablename) in (('storage', 'objects'), ('realtime', 'messages'))`;
@@ -104,7 +105,7 @@ export function helperTablePoliciesFromRows(
   return found;
 }
 
-/** The message PD037 and `rls verify --db` report for one policy. */
+/** The message PD037 and `rls verify --db-url` report for one policy. */
 export function rowConditionMessage(
   policy: HelperTablePolicy,
   keys: readonly string[],

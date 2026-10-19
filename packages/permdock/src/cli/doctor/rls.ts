@@ -9,6 +9,7 @@ import { type Policy, hasConditionOp, listPermissions } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { sqlFiles } from "../files.ts";
 import { graphPlan } from "../rls/graph.ts";
+import { byKey } from "../shared/compare.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { filesOf } from "../shared/doctor-files.ts";
 import { commandFor, tableFor } from "../sql/compile.ts";
@@ -94,8 +95,8 @@ export async function pd016(
       findings.push({
         code: "PD016",
         severity: "warning",
-        message: "sqlFunction grants have no rls fixtures for verify --db",
-        fix: "add rls.fixtures.json and run permdock rls verify --db",
+        message: "sqlFunction grants have no rls fixtures for verify --db-url",
+        fix: "add rls.fixtures.json and run permdock rls verify --db-url",
       });
     }
   }
@@ -432,12 +433,10 @@ export async function pd071(
     }
     byVerb.set(leaf.action, [...(byVerb.get(leaf.action) ?? []), leaf.key]);
   }
-  return [...byVerb.entries()]
-    .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([verb, keys]) => ({
-      code: "PD071",
-      severity: "warning" as const,
-      message: `action '${verb}' (${keys.toSorted().join(", ")}) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy`,
-      fix: `map it on purpose in rls.actions: ${verb}: "insert", "update", "delete" or "none"`,
-    }));
+  return [...byVerb.entries()].toSorted(byKey).map(([verb, keys]) => ({
+    code: "PD071",
+    severity: "warning" as const,
+    message: `action '${verb}' (${keys.toSorted().join(", ")}) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy`,
+    fix: `map it on purpose in rls.actions: ${verb}: "insert", "update", "delete" or "none"`,
+  }));
 }

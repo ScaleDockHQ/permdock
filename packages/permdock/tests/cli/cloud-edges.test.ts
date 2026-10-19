@@ -9,13 +9,14 @@ import type { StoredCredential } from "../../src/terminal/types.ts";
 
 import { issuerMetadata } from "../../src/cli/cloud/issuer.ts";
 import { runLoopbackFlow } from "../../src/cli/cloud/loopback.ts";
-import { run } from "../../src/cli/run.ts";
-import { cliVersion } from "../../src/cli/version.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { cliVersion } from "../../src/cli/core/version.ts";
 import { catalogFingerprint } from "../../src/core/catalog-fingerprint.ts";
 import {
   readCredentials,
   writeCredentials,
 } from "../../src/terminal/storage.ts";
+import { jsonData } from "./envelope.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
 // Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
@@ -150,14 +151,13 @@ describe("permdock cloud pull against a failing Cloud", () => {
       ["--project", "prj_1", "--json"],
     );
     expect(result.code).toBe(1);
-    expect(JSON.parse(result.stdout)).toMatchObject({
+    expect(jsonData(result.stdout)).toMatchObject({
       type: "https://permdock.com/problems/cli-unavailable",
     });
   });
 
   it.each([
     [() => new Response("<html>", { status: 200 }), /not JSON/u],
-    [() => new Response(null, { status: 401 }), /rejected the credential/u],
     [
       () =>
         new Response(null, { status: 429, headers: { "retry-after": "7" } }),
@@ -175,6 +175,19 @@ describe("permdock cloud pull against a failing Cloud", () => {
     expect(result.stdout).toMatch(message);
   });
 
+  it("asks for a login with exit 3 when the Cloud rejects the credential", async () => {
+    const result = await pull(
+      stubCloud({
+        [`GET ${POLICY_PATH}`]: () => new Response(null, { status: 401 }),
+      }),
+    );
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain(
+      "PermDock Cloud rejected the credential (HTTP 401)",
+    );
+    expect(result.stderr).toContain("permdock login");
+  });
+
   it("keeps the Cloud's problem type under --json", async () => {
     const result = await pull(
       stubCloud({
@@ -186,7 +199,7 @@ describe("permdock cloud pull against a failing Cloud", () => {
       }),
       ["--project", "prj_1", "--json"],
     );
-    expect(JSON.parse(result.stdout)).toMatchObject({
+    expect(jsonData(result.stdout)).toMatchObject({
       type: "https://permdock.com/problems/maintenance",
       status: 503,
     });
@@ -243,20 +256,20 @@ describe("the project a PERMDOCK_CLOUD_TOKEN reads", () => {
       ["--json"],
     );
     expect(result.code).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({ project: "prj_1" });
+    expect(jsonData(result.stdout)).toMatchObject({ project: "prj_1" });
   });
 
   it.each([
     [{ items: [{ id: "a" }, { id: "b" }] }, 200, 2, /reads 2 projects/u],
     [{ items: "none" }, 200, 2, /reads 0 projects/u],
-    [{}, 401, 1, /rejected the credential/u],
+    [{}, 401, 3, /rejected the credential/u],
   ] as const)("refuses %j", async (body, status, code, message) => {
     const result = await pull(
       stubCloud({ "GET /api/v1/projects": list(body, status) }),
       [],
     );
     expect(result.code).toBe(code);
-    expect(result.stdout).toMatch(message);
+    expect(result.stderr).toMatch(message);
   });
 
   it("is required with a login", async () => {
@@ -266,7 +279,7 @@ describe("the project a PERMDOCK_CLOUD_TOKEN reads", () => {
       login(home(), { access_token: "at_1" }),
     );
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("--project");
+    expect(result.stderr).toContain("--project");
   });
 });
 
@@ -304,7 +317,7 @@ describe("an expired login", () => {
     });
   });
 
-  it("fails with exit 1 when the refresh is refused", async () => {
+  it("asks for a login with exit 3 when the refresh is refused", async () => {
     const result = await pull(
       stubCloud({
         [`GET ${METADATA_PATH}`]: metadata(),
@@ -314,18 +327,18 @@ describe("an expired login", () => {
       ["--project", "prj_1"],
       login(home(), expired),
     );
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("has expired");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("has expired");
   });
 
-  it("fails with exit 1 when the issuer publishes no metadata", async () => {
+  it("asks for a login with exit 3 when the issuer publishes no metadata", async () => {
     const result = await pull(
       stubCloud({}),
       ["--project", "prj_1"],
       login(home(), expired),
     );
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("has expired");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("has expired");
   });
 });
 
@@ -345,16 +358,16 @@ describe("permdock cloud push without PERMDOCK_CLOUD_KEY", () => {
     const result = await push(
       login(home(), { access_token: "at_1", scope: "projects:read" }),
     );
-    expect(result.code).toBe(2);
-    expect(result.stdout).toContain("catalog:write");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("catalog:write");
   });
 
-  it("fails with exit 1 on an expired login", async () => {
+  it("asks for a login with exit 3 on an expired login", async () => {
     const result = await push(
       login(home(), { access_token: "at_1", expires_at: NOW_SECONDS - 60 }),
     );
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("permdock login --write");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("permdock login --scope catalog:write");
   });
 
   it("refuses a --manifest that is not a manifest", async () => {
@@ -365,13 +378,13 @@ describe("permdock cloud push without PERMDOCK_CLOUD_KEY", () => {
       io: io(stubCloud({}), {}),
     });
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("not a valid manifest");
+    expect(result.stderr).toContain("not a valid manifest");
   });
 
-  it("refuses --project and --environment naming different projects", async () => {
+  it("points --environment at --project", async () => {
     const result = await push({}, ["--project", "a", "--environment", "b"]);
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("pass one");
+    expect(result.stderr).toContain("--environment is --project");
   });
 });
 
@@ -394,8 +407,8 @@ describe("permdock rls generate --project against a failing Cloud", () => {
 
   it("passes a fetch failure through", async () => {
     const result = await generateRls(() => new Response(null, { status: 401 }));
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("rejected the credential");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("rejected the credential");
   });
 
   it("refuses a push that carried no policy, as Problem Details under --json", async () => {
@@ -403,7 +416,7 @@ describe("permdock rls generate --project against a failing Cloud", () => {
     expect(text.code).toBe(1);
     expect(text.stdout).toContain("no policy");
     const json = await generateRls(projectPolicy(), true);
-    expect(JSON.parse(json.stdout)).toMatchObject({
+    expect(jsonData(json.stdout)).toMatchObject({
       type: "https://permdock.com/problems/policy-not-published",
     });
   });

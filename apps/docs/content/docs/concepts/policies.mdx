@@ -397,7 +397,7 @@ Hosted grants arrive as a [`PolicyDocument`](/docs/concepts/wire-formats) throug
 - Only portable conditions are accepted: no closures, no `opaque`, no `sqlFunction`, no path through `__proto__`, `constructor` or `prototype` (`non-portable`).
 - A grant on a permission that is not `hostable` (`not-hostable`), on an unknown key (`unknown-permission`) or with a malformed shape (`invalid`) is dropped too. Each drop is a `hosted-grant-dropped` value on `on('error')` carrying the document fingerprint, the grant id and the reason; it never makes `can()` throw.
 - A decision a hosted grant matched carries `matched.hosted` with the document `fingerprint` and the grant `id`, and so does its decision event. The merged instance's `fingerprint` hashes the code fingerprint with the document's, so an approval token issued under one document does not resume under another.
-- `permdock rls`, `permdock openapi` and `permdock collect` keep reading the code policy. A permission compiled into generated RLS should not be `hostable`, because the database never sees the hosted grant; `permdock doctor` reports it as `PD020`.
+- `permdock rls`, `permdock openapi emit` and `permdock collect` keep reading the code policy. A permission compiled into generated RLS should not be `hostable`, because the database never sees the hosted grant; `permdock doctor` reports it as `PD020`.
 - A snapshot built from an instance reflects the hosted grants that instance merged, because it is the instance's computed answer. A `SnapshotSource` never delivers hosted grants of its own.
 
 The opt-in exists because a hosted grant is an allow no code reviewer saw. Listing `hostable` permissions in code bounds what a Cloud admin, or an attacker holding a Cloud admin session, can widen.

@@ -182,7 +182,7 @@ Without the factory, call `snapshotFor(policy, user, { tenant })` and set `cache
 Next.js has no built-in spec generator, so `permdock/next` has no in-process OpenAPI hook. The recipe is a producer plus PermDock's Overlay:
 
 1. [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) scans `app/api/**/route.ts`, generates an `operationId` per handler, and scaffolds Scalar as the docs UI.
-2. `permdock openapi emit --format overlay` writes `permdock.overlay.json` with `securitySchemes`, per-operation `security` and `x-permdock-*` for every handler that calls `getPermDock().assert(...)` or is wrapped by `permdockHandler` ([CLI: openapi](/docs/cli/openapi)).
+2. `permdock openapi emit --kind overlay` writes `permdock.overlay.json` with `securitySchemes`, per-operation `security` and `x-permdock-*` for every handler that calls `getPermDock().assert(...)` or is wrapped by `permdockHandler` ([CLI: openapi](/docs/cli/openapi)).
 3. next-openapi-gen's `overlay.apply` merges the Overlay before writing the spec, so Scalar, any Arazzo files it compiles, and SDK generators such as `@hey-api/openapi-ts` see the applied description.
 
 ```ts
@@ -194,7 +194,7 @@ export default defineConfig({
 ```
 
 ```bash
-permdock openapi emit --doc public/openapi.json --format overlay --out permdock.overlay.json --check   # CI
+permdock openapi emit --doc public/openapi.json --kind overlay --out permdock.overlay.json --check   # CI
 pnpm exec openapi-gen generate
 ```
 

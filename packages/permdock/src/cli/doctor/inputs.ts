@@ -6,7 +6,7 @@ import type { CliIo } from "../types.ts";
 
 import { type CollectOutcome, runCollect } from "../collect.ts";
 import { doctorSrcPath } from "../files.ts";
-import { loadConfiguredPolicy } from "../load.ts";
+import { loadConfiguredPolicy } from "../project/load.ts";
 import { filesOf, readJson } from "../shared/doctor-files.ts";
 
 /** The configured policy, through the project's memoised load when there is one. */

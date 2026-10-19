@@ -1,6 +1,7 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { sqlTextArray } from "../../core/sql.ts";
+import { byKey } from "../shared/compare.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
 import {
   memberForHelper,
@@ -219,9 +220,7 @@ export function customRoleWritesSql(
   const guard = qualified(ctx, CUSTOM_ROLES.guard);
   const shape = qualified(ctx, CUSTOM_ROLES.shape);
   const entries = qualified(ctx, CUSTOM_ROLES.entries);
-  const renames = Object.entries(custom.renamed ?? {}).toSorted(([a], [b]) =>
-    a < b ? -1 : a > b ? 1 : 0,
-  );
+  const renames = Object.entries(custom.renamed ?? {}).toSorted(byKey);
   const current = (expr: string): string => currentKeyExpr(renames, expr);
   const known = sqlTextArray([
     ...(custom.permissions ?? []),

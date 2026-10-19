@@ -1,54 +1,31 @@
-import { defineCommand } from "citty";
+import { type Leaf, defineLeaf } from "../core/command.ts";
 
-import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  listArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
-
-export function scan(ctx: CliContext): Command {
-  return defineCommand({
-    meta: { name: "scan", description: COMMAND_DESCRIPTIONS.scan },
-    args: {
-      ...globalArgs,
-      legacy: {
-        type: "boolean",
-        description: "List authorization checks written without PermDock",
-      },
-      pattern: {
-        type: "string",
-        description: "An extra regular expression to report, repeatable",
-        valueHint: "regex",
-      },
-      src: {
-        type: "string",
-        description:
-          "Directories to scan, comma-separated (default collect.srcPath or src)",
-        valueHint: "dirs",
-      },
+export const scan: Leaf = defineLeaf({
+  flags: {
+    pattern: {
+      type: "string",
+      repeatable: true,
+      description: "An extra regular expression to report",
+      valueHint: "regex",
     },
-    async run({ args: parsed, rawArgs }) {
-      if (parsed.legacy !== true) {
-        ctx.report({
-          code: 2,
-          output: "permdock scan: pass --legacy (the only scan so far)\n",
-        });
-        return;
-      }
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const { runLegacyScan } = await import("../legacy-scan.ts");
-      const src = listArg(rawArgs, "src");
-      ctx.report(
-        runLegacyScan({
-          cwd: ctx.cwd,
-          srcPath:
-            src.length > 0 ? src : (ctx.config.collect?.srcPath ?? ["src"]),
-          patterns: listArg(rawArgs, "pattern"),
-          json: ctx.json,
-        }),
-      );
+    src: {
+      type: "string",
+      repeatable: true,
+      description: "Directories to scan (default collect.srcPath or src)",
+      valueHint: "dir",
     },
-  });
-}
+  },
+  async run(ctx, { flags }) {
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const { runAdoptionScan } = await import("../adoption-scan.ts");
+    return runAdoptionScan({
+      cwd: ctx.cwd,
+      srcPath:
+        flags.src.length > 0
+          ? flags.src
+          : (ctx.config.collect?.srcPath ?? ["src"]),
+      patterns: flags.pattern,
+      json: ctx.json,
+    });
+  },
+});

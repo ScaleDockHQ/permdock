@@ -72,12 +72,14 @@ export default {
 `,
     );
     const result = await run(["doctor", "--json", "--only", "PD028"], { cwd });
-    // SAFETY: the --json report printed by `permdock doctor`.
+    // SAFETY: the cli-result-v1 envelope `permdock doctor --json` prints.
     return (
       JSON.parse(result.stdout) as {
-        readonly findings: readonly { readonly message: string }[];
+        readonly data: {
+          readonly findings: readonly { readonly message: string }[];
+        };
       }
-    ).findings.map((item) => item.message);
+    ).data.findings.map((item) => item.message);
   }
 
   async function writable(name: Case): Promise<boolean> {

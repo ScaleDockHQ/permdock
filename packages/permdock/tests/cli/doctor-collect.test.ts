@@ -225,7 +225,7 @@ describe("PD016 and PD027 under an rls config", () => {
       messages(await pd016({ cwd, config: { ...config, rls: {} } })),
     ).toEqual([
       "policy has opaque RLS conditions that deny in memory",
-      "sqlFunction grants have no rls fixtures for verify --db",
+      "sqlFunction grants have no rls fixtures for verify --db-url",
     ]);
   });
 

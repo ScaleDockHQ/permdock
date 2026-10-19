@@ -215,7 +215,7 @@ describe("runRls dispatch", () => {
     });
   });
 
-  it("passes --db and the injected client through to import", async () => {
+  it("passes --db-url and the injected client through to import", async () => {
     const sql = fakeSql();
     const result = await runRls(
       input({
@@ -252,7 +252,7 @@ describe("runRls dispatch", () => {
     expect(sql).not.toMatch(/service_role/u);
   });
 
-  it("leaves out index suggestions the database already serves with --db", async () => {
+  it("leaves out index suggestions the database already serves with --db-url", async () => {
     const reply =
       (columns: readonly string[], index: readonly string[]) =>
       (call: SqlCall): SqlReply =>
@@ -294,13 +294,15 @@ describe("runRls dispatch", () => {
         out: "db.sql",
         db: "postgres://fake",
         connect: async () => {
-          throw new Error("PermDock CLI: rls generate --db could not connect");
+          throw new Error(
+            "PermDock CLI: rls generate --db-url could not connect",
+          );
         },
       }),
     );
     expect(failed).toMatchObject({
       code: 2,
-      output: "PermDock CLI: rls generate --db could not connect",
+      output: "PermDock CLI: rls generate --db-url could not connect",
     });
   });
 
@@ -438,12 +440,12 @@ async function expectedFor(flags: { readonly helpersOnly?: boolean } = {}) {
 describe("runRls against a closed port through the pg peer", () => {
   const closed = "postgres://permdock:permdock@127.0.0.1:1/missing";
 
-  it("throws an unavailable CliError for import --db", async () => {
+  it("throws an unavailable CliError for import --db-url", async () => {
     await expect(
       runRls(input({ rest: ["import"], db: closed })),
     ).rejects.toMatchObject({
       kind: "unavailable",
-      message: "PermDock CLI: rls import --db could not connect",
+      message: "PermDock CLI: rls import --db-url could not connect",
     });
   });
 
@@ -459,7 +461,7 @@ describe("runRls against a closed port through the pg peer", () => {
 
 describe("runRls verify --introspect", () => {
   it.each([
-    [{}, "PermDock CLI: rls verify --introspect needs --db"],
+    [{}, "PermDock CLI: rls verify --introspect needs --db-url"],
     [
       { db: "postgres://fake", dialect: "mysql" },
       "rls verify --dialect (or rls.dialect) must be supabase, neon or guc",

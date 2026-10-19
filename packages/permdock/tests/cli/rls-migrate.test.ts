@@ -11,8 +11,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { MigrateReport } from "../../src/cli/rls/migrate.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import { mapKey } from "../../src/cli/rls/migrate.ts";
-import { run } from "../../src/cli/run.ts";
+import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -113,11 +114,20 @@ const read = (cwd: string, rel: string) => readFileSync(join(cwd, rel), "utf8");
 
 async function report(cwd: string): Promise<MigrateReport> {
   const result = await run(
-    ["rls", "migrate", "--rbac", "supabase", "--sql", "supabase", "--json"],
+    [
+      "rls",
+      "migrate",
+      "--rbac",
+      "supabase",
+      "--sql",
+      "supabase",
+      "--dry-run",
+      "--json",
+    ],
     { cwd },
   );
   // SAFETY: --json prints runRlsMigrate's MigrateReport.
-  return JSON.parse(result.stdout) as MigrateReport;
+  return jsonData(result.stdout) as MigrateReport;
 }
 
 describe("mapKey", () => {
@@ -164,17 +174,25 @@ describe("rls migrate", () => {
   it("rewrites every helper form in policies and keeps the rest of the file", async () => {
     const cwd = project({ "supabase/schemas/060_assets.sql": POLICIES });
     const dry = await run(
-      ["rls", "migrate", "--rbac", "supabase", "--sql", "supabase"],
+      [
+        "rls",
+        "migrate",
+        "--rbac",
+        "supabase",
+        "--sql",
+        "supabase",
+        "--dry-run",
+      ],
       { cwd },
     );
     expect(dry.code).toBe(0);
     expect(dry.stdout).toContain(
-      "rls migrate: would rewrite 6 call(s) in 1 file(s), skipped 0; --write applies them",
+      "rls migrate: would rewrite 6 call(s) in 1 file(s), skipped 0; drop --dry-run to apply them",
     );
     expect(read(cwd, "supabase/schemas/060_assets.sql")).toBe(POLICIES);
 
     const wrote = await run(
-      ["rls", "migrate", "--rbac", "supabase", "--sql", "supabase", "--write"],
+      ["rls", "migrate", "--rbac", "supabase", "--sql", "supabase"],
       { cwd },
     );
     expect(wrote.code).toBe(0);
@@ -231,17 +249,24 @@ create policy "orgs_disable" on public.organization for update to authenticated
       ],
       [18, "function-body", "is_system_user_with"],
     ]);
-    await run(
-      ["rls", "migrate", "--rbac", "supabase", "--sql", "supabase", "--write"],
-      { cwd },
-    );
+    await run(["rls", "migrate", "--rbac", "supabase", "--sql", "supabase"], {
+      cwd,
+    });
     expect(read(cwd, "supabase/migrations/001_unsafe.sql")).toBe(UNSAFE);
   });
 
   it("exits 1 while a mapped key is unknown", async () => {
     const cwd = project({ "supabase/migrations/002_unknown.sql": UNKNOWN });
     const result = await run(
-      ["rls", "migrate", "--rbac", "supabase", "--sql", "supabase"],
+      [
+        "rls",
+        "migrate",
+        "--rbac",
+        "supabase",
+        "--sql",
+        "supabase",
+        "--dry-run",
+      ],
       { cwd },
     );
     expect(result.code).toBe(1);

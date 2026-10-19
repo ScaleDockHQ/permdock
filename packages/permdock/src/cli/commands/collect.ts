@@ -1,98 +1,69 @@
-import { defineCommand } from "citty";
+import { type Leaf, defineLeaf } from "../core/command.ts";
+import { CliError } from "../core/errors.ts";
+import { checkFlag, given } from "../core/flags.ts";
 
-import { describeError } from "../errors.ts";
-import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  listArg,
-  stringArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
-
-export function collect(ctx: CliContext): Command {
-  const command = defineCommand({
-    meta: {
-      name: "collect",
-      description: COMMAND_DESCRIPTIONS.collect,
+export const collect: Leaf = defineLeaf({
+  flags: {
+    ...checkFlag,
+    src: {
+      type: "string",
+      repeatable: true,
+      description: "Source roots or globs",
+      valueHint: "path",
     },
-    args: {
-      ...globalArgs,
-      check: {
-        type: "boolean",
-        description: "Exit 1 when the catalog on disk is stale; write nothing",
-      },
-      src: {
-        type: "string",
-        description: "Source roots or globs, repeatable or comma-separated",
-        valueHint: "path",
-      },
-      out: {
-        type: "string",
-        description: "Catalog file to write",
-        valueHint: "file",
-      },
-      watch: {
-        type: "boolean",
-        description:
-          "Collect again when a source, config or policy file changes",
-      },
+    out: {
+      type: "string",
+      description: "Catalog file to write",
+      valueHint: "file",
     },
-    async run({ args: parsed, rawArgs }) {
-      const src = listArg(rawArgs, "src");
-      const out = stringArg(parsed.out);
-      const overrides = {
-        ...(src.length > 0 ? { srcPath: src } : {}),
-        ...(out === undefined ? {} : { out }),
-      };
-      if (parsed.watch === true) {
-        if (parsed.check === true) {
-          ctx.report({
-            code: 2,
-            output: "collect: --watch writes the catalog; drop --check",
-          });
-          return;
-        }
-        // Lazy: the watcher loads only when this command runs, not for --help.
-        const { createCollectScheduler } = await import("../watch.ts");
-        const scheduler = createCollectScheduler(
-          ctx.cwd,
-          { collect: overrides },
+    watch: {
+      type: "boolean",
+      description: "Collect again when a source, config or policy file changes",
+    },
+  },
+  async run(ctx, { flags }) {
+    const out = given(flags.out);
+    const overrides = {
+      ...(flags.src.length > 0 ? { srcPath: [...flags.src] } : {}),
+      ...(out === undefined ? {} : { out }),
+    };
+    if (flags.watch) {
+      if (flags.check) {
+        throw new CliError(
+          "usage",
+          "collect: --watch writes the catalog; drop --check",
           {
-            ...(ctx.configFile === undefined
-              ? {}
-              : { configFile: ctx.configFile }),
-            report: (message) => {
-              ctx.io.stderr(message ?? "catalog updated");
-            },
+            code: "invalid_value",
           },
         );
-        let message: string | undefined;
-        try {
-          message = await scheduler.run(false);
-        } catch (error) {
-          message = describeError(error);
-        }
-        scheduler.watch();
-        ctx.report({
-          code: 0,
-          output: message ?? "watching for changes; Ctrl-C to stop",
-        });
-        return;
       }
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const result = await (
-        await import("../collect.ts")
-      ).runCollect({
-        cwd: ctx.cwd,
-        config: ctx.config,
-        collect: overrides,
-        check: parsed.check === true,
-        now: ctx.now,
-        io: ctx.io,
-      });
-      ctx.report({ code: result.code, output: result.message });
-    },
-  });
-  return command;
-}
+      // Lazy: the watcher loads only when this command runs, not for --help.
+      const { watchCollect } = await import("../watch.ts");
+      return watchCollect(ctx, overrides);
+    }
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const result = await (
+      await import("../collect.ts")
+    ).runCollect({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      collect: overrides,
+      check: flags.check,
+      now: ctx.now,
+      io: ctx.io,
+    });
+    return {
+      code: result.code,
+      output: result.message,
+      ...(result.document === undefined
+        ? {}
+        : {
+            data: {
+              out: result.outPath,
+              permissions: result.document.permissions.length,
+              ...(flags.check ? { stale: result.code !== 0 } : {}),
+            },
+          }),
+    };
+  },
+});

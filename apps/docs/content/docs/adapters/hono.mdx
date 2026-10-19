@@ -74,7 +74,7 @@ const route = createRoute({
 });
 ```
 
-`openapi.securitySchemes()` returns the `oauth2` scheme with every `scope` from `listPermissions(permissions)`, plus `oauth2MetadataUrl` and `deviceAuthorization` when configured. Emitted documents target OpenAPI 3.2; for a 3.1 document `deviceAuthorization` and `deprecated` are written under the registered `x-oai-deviceAuthorization` / `x-oai-deviceAuthorizationUrl` / `x-oai-deprecated` extensions and `oauth2MetadataUrl` under `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). `permdock openapi` in the CLI reads the same hook output to check that every protected route is documented.
+`openapi.securitySchemes()` returns the `oauth2` scheme with every `scope` from `listPermissions(permissions)`, plus `oauth2MetadataUrl` and `deviceAuthorization` when configured. Emitted documents target OpenAPI 3.2; for a 3.1 document `deviceAuthorization` and `deprecated` are written under the registered `x-oai-deviceAuthorization` / `x-oai-deviceAuthorizationUrl` / `x-oai-deprecated` extensions and `oauth2MetadataUrl` under `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)). `permdock openapi emit` in the CLI reads the same hook output to check that every protected route is documented.
 
 ### Streams and sockets
 

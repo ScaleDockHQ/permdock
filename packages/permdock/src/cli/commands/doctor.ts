@@ -1,61 +1,53 @@
-import { defineCommand } from "citty";
+import { type Leaf, defineLeaf } from "../core/command.ts";
+import { failOnFlag } from "../core/flags.ts";
+import { ask, CANCELLED } from "../core/prompt.ts";
 
-import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  listArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
-import { ask, CANCELLED } from "./prompt.ts";
-
-export function doctor(ctx: CliContext): Command {
-  const command = defineCommand({
-    meta: {
-      name: "doctor",
-      description: COMMAND_DESCRIPTIONS.doctor,
-    },
-    args: {
-      ...globalArgs,
-      only: {
-        type: "string",
-        description: "Check codes or groups to run, repeatable",
-        valueHint: "codes",
+export const doctor: Leaf = defineLeaf({
+  flags: {
+    only: {
+      type: "string",
+      repeatable: true,
+      description: "Check codes or groups to run",
+      valueHint: "code",
+      async complete() {
+        // Lazy: the checks load only when completion asks for them, not for every run.
+        const { DOCTOR_CHECKS } = await import("../doctor/doctor.ts");
+        return [
+          ...new Set([
+            ...DOCTOR_CHECKS.map(({ code }) => code),
+            ...DOCTOR_CHECKS.flatMap(({ groups }) => groups),
+          ]),
+        ];
       },
-      fix: {
-        type: "boolean",
-        description: "Apply safe fixes: install skills, regenerate the catalog",
-      },
-      strict: { type: "boolean", description: "Exit 1 on warnings too" },
     },
-    async run({ args: parsed, rawArgs }) {
-      let fix = parsed.fix === true;
-      if (fix && ctx.interactive) {
-        const answer = await ask(
-          `Install the Agent Skills and regenerate the catalog in ${ctx.cwd}?`,
-        );
-        if (answer === undefined) {
-          ctx.report(CANCELLED);
-          return;
-        }
-        fix = answer;
+    fix: {
+      type: "boolean",
+      description: "Apply safe fixes: install skills, regenerate the catalog",
+    },
+    ...failOnFlag,
+  },
+  async run(ctx, { flags }) {
+    let fix = flags.fix;
+    if (fix && ctx.interactive && !ctx.yes) {
+      const answer = await ask(
+        `Install the Agent Skills and regenerate the catalog in ${ctx.cwd}?`,
+      );
+      if (answer === undefined) {
+        return CANCELLED;
       }
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const result = await (
-        await import("../doctor/doctor.ts")
-      ).runDoctor({
-        cwd: ctx.cwd,
-        config: ctx.config,
-        only: listArg(rawArgs, "only"),
-        json: ctx.json,
-        fix,
-        strict: parsed.strict === true,
-        color: ctx.color,
-        now: ctx.now,
-        io: ctx.io,
-      });
-      ctx.report(result);
-    },
-  });
-  return command;
-}
+      fix = answer;
+    }
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    return (await import("../doctor/doctor.ts")).runDoctor({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      only: flags.only,
+      json: ctx.json,
+      fix,
+      strict: flags["fail-on"] === "warning",
+      color: ctx.color,
+      now: ctx.now,
+      io: ctx.io,
+    });
+  },
+});

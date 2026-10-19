@@ -1,17 +1,26 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import type { Agent } from "package-manager-detector";
 
-import type { CommandResult } from "./shared/result.ts";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+import type { CommandResult } from "./core/result.ts";
 
 import {
   type Preset,
   type PresetInput,
+  AGENTS,
   ARCHETYPES,
+  FEATURES,
+  FRAMEWORKS,
+  UI,
   decodePreset,
   encodePreset,
   generatePreset,
   resolvePreset,
 } from "../preset/index.ts";
+import { didYouMean } from "./core/args.ts";
+import { applyFiles } from "./core/files.ts";
+import { addLine } from "./core/peer.ts";
 
 /** The page a preset code opens in the builder. */
 const CREATE_URL = "https://permdock.com/create";
@@ -25,14 +34,41 @@ export type InitOptions = {
   /** Overwrite files that already exist; off by default. */
   readonly force?: boolean;
   readonly json?: boolean;
+  /** The package manager the install line names; npm when unset. */
+  readonly agent?: Agent;
 };
+
+/** The first id outside its catalogue, as a message naming the flag and the choices. */
+function unknownChoice(input: PresetInput): string | undefined {
+  const groups: readonly [
+    string,
+    readonly string[],
+    readonly { readonly id: string }[],
+  ][] = [
+    ["--archetype", [input.archetype], ARCHETYPES],
+    [
+      "--framework",
+      input.framework === undefined ? [] : [input.framework],
+      FRAMEWORKS,
+    ],
+    ["--feature", input.features ?? [], FEATURES],
+    ["--integration", input.agents ?? [], AGENTS],
+    ["--integration", input.ui ?? [], UI],
+  ];
+  for (const [flag, picked, choices] of groups) {
+    const ids = choices.map((choice) => choice.id);
+    const unknown = picked.find((id) => !ids.includes(id));
+    if (unknown !== undefined) {
+      const suggestion = didYouMean(unknown, ids);
+      return `unknown ${flag} '${unknown}'${suggestion === undefined ? "" : ` (did you mean ${suggestion}?)`}; pick one of ${ids.join(", ")}`;
+    }
+  }
+  return undefined;
+}
 
 function presetOf(input: string | PresetInput): Preset | string {
   if (typeof input !== "string") {
-    if (!ARCHETYPES.some((archetype) => archetype.id === input.archetype)) {
-      return `unknown archetype '${input.archetype}'; pick one of ${ARCHETYPES.map((item) => item.id).join(", ")}`;
-    }
-    return resolvePreset(input);
+    return unknownChoice(input) ?? resolvePreset(input);
   }
   return (
     decodePreset(input) ??
@@ -56,21 +92,20 @@ export function runInit(options: InitOptions): CommandResult {
     preset,
     options.src === undefined ? {} : { src: options.src },
   );
-  const written: string[] = [];
-  const kept: string[] = [];
-  for (const file of generated.files) {
-    const target = join(options.cwd, file.path);
-    if (existsSync(target) && options.force !== true) {
-      kept.push(file.path);
-      continue;
-    }
-    written.push(file.path);
-    if (options.dryRun !== true) {
-      mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, file.contents);
-    }
-  }
-  const install = `npm install ${generated.dependencies.join(" ")}`;
+  const writes = generated.files.filter(
+    (file) =>
+      options.force === true || !existsSync(join(options.cwd, file.path)),
+  );
+  const written = writes.map((file) => file.path);
+  const kept = generated.files
+    .filter((file) => !writes.includes(file))
+    .map((file) => file.path);
+  applyFiles(
+    options.cwd,
+    writes.map((file) => ({ path: file.path, text: file.contents })),
+    { dryRun: options.dryRun === true },
+  );
+  const install = addLine(options.agent, generated.dependencies);
   const shadcn =
     generated.recipes.length === 0
       ? undefined

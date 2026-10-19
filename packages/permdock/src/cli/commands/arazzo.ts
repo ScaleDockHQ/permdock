@@ -1,60 +1,35 @@
-import { defineCommand } from "citty";
+import { type Leaf, defineLeaf } from "../core/command.ts";
+import { given, permissionsFlag } from "../core/flags.ts";
 
-import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  listArg,
-  stringArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
-
-export function arazzo(ctx: CliContext): Command {
-  const command = defineCommand({
-    meta: {
-      name: "arazzo",
-      description: COMMAND_DESCRIPTIONS.arazzo,
+export const check: Leaf = defineLeaf({
+  flags: {
+    doc: {
+      type: "string",
+      description: "Arazzo document",
+      valueHint: "arazzo.json",
     },
-    args: {
-      ...globalArgs,
-      action: { type: "positional", required: false, description: "check" },
-      doc: {
-        type: "string",
-        description: "Arazzo document",
-        valueHint: "arazzo.json",
-      },
-      openapi: {
-        type: "string",
-        description: "OpenAPI document the workflows call",
-        valueHint: "doc.json",
-      },
-      workflow: {
-        type: "string",
-        description: "Check one workflow",
-        valueHint: "id",
-      },
-      from: {
-        type: "string",
-        description: "Module exporting the policy, instead of the config",
-        valueHint: "module",
-      },
+    openapi: {
+      type: "string",
+      description: "OpenAPI document the workflows call",
+      valueHint: "doc.json",
     },
-    async run({ args: parsed, rawArgs }) {
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const result = await (
-        await import("../arazzo.ts")
-      ).runArazzo({
-        cwd: ctx.cwd,
-        config: ctx.config,
-        rest: parsed._,
-        doc: listArg(rawArgs, "doc")[0],
-        openapi: stringArg(parsed.openapi),
-        workflow: stringArg(parsed.workflow),
-        from: stringArg(parsed.from),
-        json: ctx.json,
-      });
-      ctx.report(result);
+    workflow: {
+      type: "string",
+      description: "Check one workflow",
+      valueHint: "id",
     },
-  });
-  return command;
-}
+    ...permissionsFlag,
+  },
+  async run(ctx, { flags }) {
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    return (await import("../arazzo.ts")).runArazzo({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      doc: given(flags.doc),
+      openapi: given(flags.openapi),
+      workflow: given(flags.workflow),
+      from: given(flags.permissions),
+      json: ctx.json,
+    });
+  },
+});

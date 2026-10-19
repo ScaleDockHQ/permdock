@@ -1,6 +1,7 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { sqlTextArray } from "../../core/sql.ts";
+import { byKey } from "../shared/compare.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
 import { hasMemberFor, memberIdsHelper } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
@@ -78,9 +79,7 @@ where rp.role = any(${sqlTextArray(custom.assignable)})
       and a.effect = 'allow'
   );
 revoke all on table ${ceiling} from anon, authenticated, public;`);
-  const renames = Object.entries(custom.renamed ?? {}).toSorted(([a], [b]) =>
-    a < b ? -1 : a > b ? 1 : 0,
-  );
+  const renames = Object.entries(custom.renamed ?? {}).toSorted(byKey);
   if (custom.levels === true) {
     chunks.push(leveledKeysSql(ctx, renames));
     return chunks.join("\n\n");

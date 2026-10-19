@@ -1,12 +1,14 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { isMap, parseDocument } from "yaml";
 
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { byCodePoint } from "../../core/compare.ts";
+import { applyFiles } from "../core/files.ts";
+import { httpRequest } from "../core/http.ts";
 import { readJsonFile } from "../files.ts";
 import {
   type GeneratedAction,
@@ -348,9 +350,8 @@ async function readSource(
   io: CliIo,
 ): Promise<{ readonly text: string; readonly local?: string } | string> {
   if (/^https?:\/\//u.test(doc)) {
-    const fetcher = io.fetch ?? globalThis.fetch;
     try {
-      const response = await fetcher(doc);
+      const response = await httpRequest(io, { url: doc, service: doc });
       if (!response.ok) {
         return `could not fetch ${doc}: HTTP ${response.status}`;
       }
@@ -517,22 +518,24 @@ export async function runOpenapiImport(input: {
           });
     },
   );
-  const outPath = resolve(input.cwd, input.out);
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(
-    outPath,
-    emitPermissionsModule({
-      generator: "openapi import",
-      schema: input.schema,
-      resources,
-    }),
-  );
-  if (input.annotate && source.local !== undefined) {
-    writeFileSync(
-      source.local,
-      annotated(source.text, parsed.yaml, document, permissions),
-    );
-  }
+  applyFiles(input.cwd, [
+    {
+      path: input.out,
+      text: emitPermissionsModule({
+        generator: "openapi import",
+        schema: input.schema,
+        resources,
+      }),
+    },
+    ...(input.annotate && source.local !== undefined
+      ? [
+          {
+            path: source.local,
+            text: annotated(source.text, parsed.yaml, document, permissions),
+          },
+        ]
+      : []),
+  ]);
   const leaves = resources.reduce(
     (total, item) =>
       total +

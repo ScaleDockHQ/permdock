@@ -1,13 +1,15 @@
 import { type FSWatcher, watch } from "node:fs";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 
-import type { PermDockPluginOptions } from "./types.ts";
+import type { CliContext } from "./core/context.ts";
+import type { CommandResult } from "./core/result.ts";
+import type { CollectConfig, PermDockPluginOptions } from "./types.ts";
 
 import { dateAt } from "../core/time.ts";
 import { runCollect } from "./collect.ts";
-import { isConfigFile, loadConfig } from "./config.ts";
-import { describeError } from "./errors.ts";
+import { describeError } from "./core/errors.ts";
 import { defaultSrcPath } from "./files.ts";
+import { isConfigFile, loadConfig } from "./project/config.ts";
 
 const DEBOUNCE_MS = 50;
 
@@ -203,4 +205,52 @@ export function createCollectScheduler(
   }
 
   return { run, changed, watch: startWatch, close };
+}
+
+/**
+ * `collect --watch`: one collect now, then one per change until Ctrl-C.
+ * Under `--json` each collect is an NDJSON event on stdout; otherwise a
+ * line on stderr.
+ */
+export async function watchCollect(
+  ctx: CliContext,
+  overrides: CollectConfig,
+): Promise<CommandResult> {
+  const emit = (status: "success" | "error", message: string): void => {
+    if (ctx.json) {
+      ctx.io.stdout(
+        `${JSON.stringify({ event: "collect", status, message, at: dateAt().toISOString() })}\n`,
+      );
+    } else {
+      ctx.log(message);
+    }
+  };
+  const scheduler = createCollectScheduler(
+    ctx.cwd,
+    { collect: overrides },
+    {
+      ...(ctx.configFile === undefined ? {} : { configFile: ctx.configFile }),
+      report: (message) => {
+        emit(
+          message === undefined ? "success" : "error",
+          message ?? "catalog updated",
+        );
+      },
+    },
+  );
+  try {
+    const message = await scheduler.run(false);
+    emit(
+      message === undefined ? "success" : "error",
+      message ?? "catalog written",
+    );
+  } catch (error) {
+    emit("error", describeError(error));
+  }
+  scheduler.watch();
+  ctx.signal.addEventListener("abort", () => {
+    scheduler.close();
+  });
+  ctx.log("watching for changes; Ctrl-C to stop");
+  return { code: 0, output: "", streamed: true };
 }

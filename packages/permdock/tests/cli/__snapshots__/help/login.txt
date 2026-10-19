@@ -1,17 +1,20 @@
-Log in to PermDock Cloud with the device flow (RFC 8628) or a loopback redirect (RFC 8252) (permdock login)
+permdock login: Log in to PermDock Cloud with the device flow (RFC 8628) or a loopback redirect (RFC 8252)
 
-USAGE permdock login [OPTIONS] 
+Usage  permdock login [flags]
 
-OPTIONS
+Flags
+  --url <url>              Issuer URL (default PERMDOCK_CLOUD_URL, then https://permdock.com/api)
+  --loopback               Use a 127.0.0.1 redirect with PKCE instead of the device flow
+  --scope <catalog:write>  Scopes beyond projects:read and policy:read; catalog:write for permdock cloud push (repeatable)
+  --open                   Open the browser at the verification URL
+  --no-open                Print the URL only
 
-      --cwd=<dir>    Run as if started in this directory                                   
-  --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})                 
-           --json    Machine-readable output                                               
-        -y, --yes    Never prompt; take the answer the flags give                          
-          --color    Styled output on a colour terminal (Default: true)                    
-       --no-color    Plain output                                                          
-      --url=<url>    Issuer URL (default PERMDOCK_CLOUD_URL, then https://permdock.com/api)
-       --loopback    Use a 127.0.0.1 redirect with PKCE instead of the device flow         
-          --write    Also request catalog:write, for permdock cloud push                   
-           --open    Open the browser at the verification URL (Default: true)              
-        --no-open    Print the URL only                                                    
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock login
+  permdock login --scope catalog:write
+
+Side effects  network, files
+Docs  https://permdock.com/docs/cli/login

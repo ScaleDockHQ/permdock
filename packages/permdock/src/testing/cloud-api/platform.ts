@@ -1,12 +1,13 @@
+import { POLICY_NOT_PUBLISHED } from "../../cli/cloud/problem-types.ts";
+
+export { POLICY_NOT_PUBLISHED };
+
 type Node = Readonly<Record<string, unknown>>;
 
 const CATALOG = "https://permdock.com/schemas/catalog-v1.json";
 const MANIFEST = "https://permdock.com/schemas/supabase-manifest-v1.json";
 export const PUSHED_POLICY =
   "https://permdock.com/schemas/pushed-policy-v1.json";
-/** The Problem `type` of `GET /v1/projects/{id}/policy` before the first `cloud push`. */
-export const POLICY_NOT_PUBLISHED =
-  "https://permdock.com/problems/policy-not-published";
 const OAUTH_FORM = "application/x-www-form-urlencoded";
 
 /** The scopes the platform issuer grants a person's login. */

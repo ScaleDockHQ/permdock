@@ -8,7 +8,7 @@ import { isOperationRisk } from "../core/operation-risks.ts";
 import { isOperationEffect } from "../core/operations.ts";
 import { isPermission } from "../core/permission-registry.ts";
 import { rel } from "./files.ts";
-import { type LoadOptions, loadModule, pickNamed } from "./load.ts";
+import { type LoadOptions, loadModule, pickNamed } from "./project/load.ts";
 
 function metaOf(name: string, value: unknown): CatalogOperation["meta"] {
   const fail = (field: string): never => {

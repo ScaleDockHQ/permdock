@@ -10,13 +10,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { run } from "../../src/cli/core/run.ts";
 import {
   parseSchema,
   patchOas33,
   validateOpenapi,
   validateOverlay,
 } from "../../src/cli/openapi/schema.ts";
-import { run } from "../../src/cli/run.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
@@ -169,7 +169,7 @@ describe("OpenAPI and Overlay output conformance", () => {
         "emit",
         "--doc",
         "openapi.json",
-        "--format",
+        "--kind",
         "overlay",
         "--out",
         "permdock.overlay.json",

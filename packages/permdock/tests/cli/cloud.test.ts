@@ -5,8 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CliIo } from "../../src/cli/types.ts";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { catalogFingerprint } from "../../src/index.ts";
+import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
@@ -91,7 +92,7 @@ describe("permdock cloud push", () => {
     });
     expect(result.code).toBe(0);
     // SAFETY: the --json summary printed by `cloud push` under test.
-    const summary = JSON.parse(result.stdout) as {
+    const summary = jsonData(result.stdout) as {
       readonly hostable: readonly string[];
       readonly environment: string;
       readonly fingerprint: string;
@@ -167,11 +168,9 @@ describe("permdock cloud push", () => {
     expect(first.code).toBe(0);
     // SAFETY: both outputs are the --json summary printed by `cloud push --dry-run`.
     expect(
-      (JSON.parse(first.stdout) as { readonly fingerprint: string })
-        .fingerprint,
+      (jsonData(first.stdout) as { readonly fingerprint: string }).fingerprint,
     ).toBe(
-      (JSON.parse(second.stdout) as { readonly fingerprint: string })
-        .fingerprint,
+      (jsonData(second.stdout) as { readonly fingerprint: string }).fingerprint,
     );
   });
 
@@ -187,8 +186,8 @@ describe("permdock cloud push", () => {
         () => Promise.resolve(new Response(null, { status: 404 })),
       ),
     });
-    expect(missing.code).toBe(2);
-    expect(missing.stdout).toContain("PERMDOCK_CLOUD_KEY");
+    expect(missing.code).toBe(3);
+    expect(missing.stderr).toContain("PERMDOCK_CLOUD_KEY");
     const rejected = await run(["cloud", "push"], {
       cwd,
       io: io(
@@ -206,6 +205,8 @@ describe("permdock cloud push", () => {
   it("prints usage for an unknown cloud action", async () => {
     const result = await run(["cloud", "rotate"], { io: io({}) });
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("cloud push");
+    expect(result.stderr).toBe(
+      "unknown command 'rotate' for permdock cloud. Commands: push, pull.\n",
+    );
   });
 });

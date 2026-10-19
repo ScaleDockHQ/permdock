@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
 import type { Policy } from "../index.ts";
+import type { ExitCode } from "./core/errors.ts";
 import type {
   CatalogDocument,
   CliIo,
@@ -17,7 +18,8 @@ import {
 } from "./catalog-doc.ts";
 import { loadConfiguredOperations } from "./catalog-operations.ts";
 import { catalogPath } from "./catalog-path.ts";
-import { describeError } from "./errors.ts";
+import { describeError } from "./core/errors.ts";
+import { shortDiff } from "./core/text-diff.ts";
 import {
   defaultSrcPath,
   listSourceFiles,
@@ -30,12 +32,11 @@ import {
   loadModule,
   pickNamed,
   loadConfiguredPolicy,
-} from "./load.ts";
+} from "./project/load.ts";
 import { scanSources } from "./scan.ts";
-import { shortDiff } from "./text-diff.ts";
 
 export type CollectOutcome = {
-  readonly code: 0 | 1 | 2;
+  readonly code: ExitCode;
   readonly document: CatalogDocument | undefined;
   readonly scan: ScanResult | undefined;
   readonly outPath: string;

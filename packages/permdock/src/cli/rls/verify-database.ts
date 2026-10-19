@@ -1,13 +1,13 @@
+import type { CommandResult } from "../core/result.ts";
 import type { RlsFixture } from "../fixtures.ts";
 import type { SqlConnect } from "../pg.ts";
-import type { CommandResult } from "../shared/result.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { type Scope, scopeList } from "../../core/scopes.ts";
 import { type CustomRole, type Policy, findPermission } from "../../index.ts";
-import { describeError } from "../errors.ts";
+import { describeError } from "../core/errors.ts";
 import {
   HELPER_TABLE_POLICIES_SQL,
   helperTablePoliciesFromRows,
@@ -119,7 +119,7 @@ async function seedCustomRoles(
     const result = await query(row.sql, row.values);
     if (result.code !== undefined) {
       throw new Error(
-        `PermDock CLI: rls verify --db could not seed custom roles (${result.code}); connect as a role that owns the custom_role_* tables`,
+        `PermDock CLI: rls verify --db-url could not seed custom roles (${result.code}); connect as a role that owns the custom_role_* tables`,
       );
     }
   }

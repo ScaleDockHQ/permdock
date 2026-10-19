@@ -90,7 +90,7 @@ A CLI command that runs the resolution half of `simulate` without a subject ([CL
 permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json
 ```
 
-It fails (exit `1`) when a step's `operationId` does not exist in the referenced description, when the operation has no `x-permdock-permissions`, or when a key does not exist in the catalog. It is the workflow counterpart of `permdock openapi --check`: the document says what each call requires, and the workflow must only call documented operations.
+It fails (exit `1`) when a step's `operationId` does not exist in the referenced description, when the operation has no `x-permdock-permissions`, or when a key does not exist in the catalog. It is the workflow counterpart of `permdock openapi emit --check`: the document says what each call requires, and the workflow must only call documented operations.
 
 ### Out of scope
 

@@ -1,6 +1,7 @@
 import type { CatalogUsage } from "../catalog/types.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type { RoleThrough } from "../supabase/types.ts";
+import type { ExitCode } from "./core/errors.ts";
 
 export type { RoleThrough } from "../supabase/types.ts";
 
@@ -731,14 +732,24 @@ export type CliIo = {
   readonly now?: () => Date;
   readonly fetch?: typeof fetch;
   readonly env?: Readonly<Record<string, string | undefined>>;
-  /** Styled human output; `--no-color` turns it off. Unset is plain. */
+  /** Styled stdout; `--no-color` turns it off. Unset is plain. */
   readonly color?: boolean;
+  /** Styled stderr, decided for that stream on its own. Unset is plain. */
+  readonly errColor?: boolean;
   /** A person at a terminal: commands may prompt. Unset never prompts. */
   readonly interactive?: boolean;
+  /** stdout is a terminal; agent detection reads it. Unset is a pipe. */
+  readonly stdoutIsTty?: boolean;
+  /** stderr is a terminal: progress draws a spinner. Unset prints lines. */
+  readonly stderrIsTty?: boolean;
+  /** Reads all of stdin, for `--*-stdin` secrets. Unset reads nothing. */
+  readonly readStdin?: () => Promise<string>;
+  /** Aborted on SIGINT or SIGTERM. */
+  readonly signal?: AbortSignal;
 };
 
 export type RunResult = {
-  readonly code: 0 | 1 | 2;
+  readonly code: ExitCode;
   readonly stdout: string;
   readonly stderr: string;
 };

@@ -12,13 +12,14 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { MigrateReport } from "../../src/cli/rls/migrate.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import {
   legacyHelperCalls,
   retirePlan,
   retireSql,
 } from "../../src/cli/rls/retire.ts";
-import { run } from "../../src/cli/run.ts";
 import { sqlStatements } from "../../src/cli/sql/statements.ts";
+import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -236,7 +237,7 @@ describe("rls migrate --retire-out", () => {
       "supabase/migrations/20261001000000_legacy.sql": LEGACY,
     });
     const result = await run(
-      [...ARGS, "--retire-out", "supabase/migrations/"],
+      [...ARGS, "--dry-run", "--retire-out", "supabase/migrations/"],
       { cwd },
     );
     expect(result.code).toBe(1);
@@ -249,18 +250,23 @@ describe("rls migrate --retire-out", () => {
     expect(readdirSync(join(cwd, "supabase/migrations"))).toHaveLength(1);
   });
 
-  it("writes one versioned retire migration after --write and the cleanup", async () => {
+  it("writes one versioned retire migration after the rewrite and the cleanup", async () => {
     const cwd = project({
       "supabase/migrations/20261001000000_legacy.sql": LEGACY,
       "supabase/migrations/20261001000001_cleanup.sql": CLEANUP,
     });
-    expect((await run([...ARGS, "--write"], { cwd })).code).toBe(0);
-    const json = await run([...ARGS, "--json"], { cwd });
+    expect((await run([...ARGS], { cwd })).code).toBe(0);
+    const json = await run([...ARGS, "--dry-run", "--json"], { cwd });
     // SAFETY: --json prints runRlsMigrate's MigrateReport.
-    const report = JSON.parse(json.stdout) as MigrateReport;
+    const report = jsonData(json.stdout) as MigrateReport;
     expect(report.retire?.tables[0]?.readers).toEqual([]);
 
     const out = [...ARGS, "--retire-out", "supabase/migrations/"];
+    const dry = await run([...out, "--dry-run"], { cwd });
+    expect(dry.stdout).toContain(
+      "would write supabase/migrations/20261001000002_permdock_retire.sql",
+    );
+    expect(readdirSync(join(cwd, "supabase/migrations"))).toHaveLength(2);
     const first = await run(out, { cwd });
     expect(first.code).toBe(0);
     expect(first.stdout).toContain(

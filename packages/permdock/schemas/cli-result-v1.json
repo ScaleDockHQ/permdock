@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permdock.com/schemas/cli-result-v1.json",
+  "title": "PermDock CLI result v1",
+  "description": "What every `permdock` command prints on stdout under `--json`, `--format json` or agent mode: one envelope per run, success or not. `data` is the command's report; `error` is RFC 9457 Problem Details. Fields are only added within v1.",
+  "type": "object",
+  "required": ["$schema", "status"],
+  "properties": {
+    "$schema": {
+      "const": "https://permdock.com/schemas/cli-result-v1.json"
+    },
+    "status": {
+      "enum": ["success", "error", "action_required"],
+      "description": "`action_required` exits 3: the run needs input, consent or a login that only a person can give."
+    },
+    "data": {
+      "description": "The command's report. Its shape is the command's own; a report with its own `$schema` keeps it."
+    },
+    "error": { "$ref": "#/$defs/problem" },
+    "next": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/nextStep" },
+      "description": "Commands that move the run forward, in order."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "success" } } },
+      "then": { "not": { "required": ["error"] } },
+      "else": { "required": ["error"] }
+    }
+  ],
+  "$defs": {
+    "nextStep": {
+      "type": "object",
+      "required": ["command", "when"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "A complete command line, starting with `permdock`."
+        },
+        "when": {
+          "type": "string",
+          "description": "The condition under which to run it, such as `after the person agrees`."
+        }
+      },
+      "additionalProperties": false
+    },
+    "problem": {
+      "type": "object",
+      "required": ["type", "title", "detail", "code", "exitCode"],
+      "properties": {
+        "type": {
+          "enum": [
+            "https://permdock.com/problems/cli-usage",
+            "https://permdock.com/problems/cli-unavailable",
+            "https://permdock.com/problems/cli-failed",
+            "https://permdock.com/problems/cli-action-required",
+            "https://permdock.com/problems/cli-cancelled"
+          ]
+        },
+        "title": { "type": "string" },
+        "detail": { "type": "string" },
+        "code": {
+          "enum": [
+            "usage_error",
+            "unknown_command",
+            "unknown_flag",
+            "invalid_value",
+            "command_moved",
+            "flag_renamed",
+            "missing_input",
+            "missing_config",
+            "peer_missing",
+            "supabase_cli_missing",
+            "file_conflict",
+            "dirty_worktree",
+            "write_failed",
+            "consent_required",
+            "auth_required",
+            "network_error",
+            "database_unavailable",
+            "service_unavailable",
+            "check_failed",
+            "cancelled"
+          ],
+          "description": "Stable, snake_case; new codes are only added within v1."
+        },
+        "command": {
+          "type": "string",
+          "description": "The command path, such as `rls generate`."
+        },
+        "exitCode": { "enum": [1, 2, 3, 130, 143] }
+      },
+      "additionalProperties": true
+    }
+  }
+}

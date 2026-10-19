@@ -1,4 +1,5 @@
-import type { OutputFile } from "../output-files.ts";
+import type { ExitCode } from "../core/errors.ts";
+import type { OutputFile } from "../core/output-files.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { RolePermission } from "./helpers.ts";
@@ -9,15 +10,15 @@ import { renamedKeys } from "../../core/permission-registry.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { dateAt } from "../../core/time.ts";
 import { type Policy, listPermissions } from "../../index.ts";
-import { POLICY_NOT_PUBLISHED } from "../../testing/cloud-api/platform.ts";
+import { POLICY_NOT_PUBLISHED } from "../cloud/problem-types.ts";
 import { fetchProjectPolicy } from "../cloud/pull.ts";
-import { cliErrorKind, describeError, exitCodeOf } from "../errors.ts";
-import { requirePolicy } from "../load.ts";
+import { cliErrorKind, describeError, exitCodeOf } from "../core/errors.ts";
 import {
   dataMigrationFile,
   driftOf,
   writeOutputFiles,
-} from "../output-files.ts";
+} from "../core/output-files.ts";
+import { requirePolicy } from "../project/load.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
 import { buildContext } from "./generate-context.ts";
 import {
@@ -31,7 +32,7 @@ import { generateSql } from "./generate-sql.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
 
 export type GenerateOutcome = {
-  readonly code: 0 | 1 | 2;
+  readonly code: ExitCode;
   readonly output: string;
   readonly text: string;
   /** The policies `text` creates; set when `write` is false. */
@@ -62,7 +63,7 @@ function loadPolicy(
   return requirePolicy(
     cwd,
     policyPath,
-    "rls generate needs policy in permdock.config.ts or --from",
+    "rls generate needs policy in permdock.config.ts or --policy",
   );
 }
 
@@ -78,7 +79,7 @@ async function projectPolicyOf(
 ): Promise<Policy | GenerateOutcome> {
   const fetched = await fetchProjectPolicy({
     command: PROJECT_COMMAND,
-    url: undefined,
+    url: input.url,
     project,
     json: input.json === true,
     env: input.io.env ?? process.env,
@@ -141,7 +142,7 @@ export async function runRlsGenerate(
     input.from !== "drizzle"
   ) {
     return refused(
-      "rls generate takes the policy from --project or from a --from module, not both",
+      "rls generate takes the policy from --project or from a --policy module, not both",
     );
   }
   let policy: Policy;

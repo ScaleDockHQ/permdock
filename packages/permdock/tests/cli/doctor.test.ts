@@ -2,8 +2,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { findingCodes, miniAppCopy, removeProjects } from "./doctor-kit.ts";
+import { jsonData } from "./envelope.ts";
 
 afterEach(removeProjects);
 
@@ -215,7 +216,7 @@ create materialized view mat as select 1;
     );
     const result = await run(["doctor", "--json", "--only", "PD022"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
     expect(report.findings.map((item) => item.message)).toEqual([
@@ -250,7 +251,7 @@ revoke update (bio) on profiles from authenticated;
       });
       // SAFETY: the --json report printed by `permdock doctor` under test.
       return (
-        JSON.parse(result.stdout) as {
+        jsonData(result.stdout) as {
           readonly findings: readonly {
             readonly severity: string;
             readonly message: string;
@@ -302,7 +303,7 @@ export default {
       });
       // SAFETY: the --json report printed by `permdock doctor` under test.
       return (
-        JSON.parse(result.stdout) as {
+        jsonData(result.stdout) as {
           readonly findings: readonly { readonly message: string }[];
         }
       ).findings.map((item) => item.message);
@@ -380,7 +381,7 @@ export function PublishButton(props: { post: never }) {
         cwd,
       });
       // SAFETY: the --json report printed by `permdock doctor` under test.
-      return JSON.parse(result.stdout) as {
+      return jsonData(result.stdout) as {
         readonly findings: readonly {
           readonly code: string;
           readonly message: string;
@@ -453,7 +454,7 @@ export const d = (claims: unknown, options: never) => subjectFromSupabase(claims
     );
     const result = await run(["doctor", "--json", "--only", "PD038"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
         readonly message: string;
@@ -479,7 +480,7 @@ create policy "write" on posts for insert to authenticated with check (true);
     );
     const result = await run(["doctor", "--json", "--only", "PD040"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
     expect(report.findings.map((item) => item.message)).toEqual([
@@ -515,7 +516,7 @@ export const PATCH = protect(permissions.post.update)(handler);
     );
     const result = await run(["doctor", "--json", "--only", "PD036"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
     expect(report.findings.map((item) => item.message)).toEqual([
@@ -538,7 +539,7 @@ export const modern = (subject: never, key: never) =>
     );
     const result = await run(["doctor", "--json", "--only", "PD041"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
     expect(report.findings.map((item) => item.message)).toEqual([

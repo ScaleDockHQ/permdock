@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { miniAppCopy, removeProjects } from "./doctor-kit.ts";
 
 afterEach(removeProjects);
@@ -11,9 +11,9 @@ describe("permdock rls", () => {
   it("prints command help when no subcommand is given", async () => {
     const result = await run(["rls"]);
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("generate");
-    expect(result.stdout).toContain("import");
-    expect(result.stdout).toContain("verify");
+    expect(result.stderr).toContain("generate");
+    expect(result.stderr).toContain("import");
+    expect(result.stderr).toContain("verify");
   });
 
   it("lists rls in --help", async () => {
@@ -51,7 +51,11 @@ describe("permdock rls", () => {
       } catch {
         sql = "";
       }
-      return { code: result.code, out: result.stdout, sql };
+      return {
+        code: result.code,
+        out: `${result.stdout}${result.stderr}`,
+        sql,
+      };
     };
     const guc = await generate("guc", []);
     expect(guc.code).toBe(0);
@@ -89,11 +93,11 @@ describe("permdock rls", () => {
     expect(readFileSync(join(cwd, "plain.sql"), "utf8")).not.toContain(
       "force row level security",
     );
-    await generate("forced.sql", "sql", ["--force"]);
+    await generate("forced.sql", "sql", ["--force-rls"]);
     expect(readFileSync(join(cwd, "forced.sql"), "utf8")).toMatch(
       /enable row level security;\nalter table "[^"]+"\."[^"]+" force row level security;/u,
     );
-    const drizzle = await generate("policies.ts", "drizzle", ["--force"]);
+    const drizzle = await generate("policies.ts", "drizzle", ["--force-rls"]);
     expect(drizzle.stdout).toContain("policies.migration.sql");
     expect(readFileSync(join(cwd, "policies.migration.sql"), "utf8")).toMatch(
       /enable row level security;\nalter table "[^"]+"\."[^"]+" force row level security;/u,
@@ -304,7 +308,8 @@ export const policy = definePolicy(permissions, {
         "sql",
         "--dialect",
         "supabase",
-        "--rbac-scaffold",
+        "--rbac",
+        "supabase",
         "--out",
         "rls.sql",
       ],
@@ -538,8 +543,8 @@ export const policy = definePolicy(permissions, {
     const target = await run(["rls", "generate", "--target", "mysql"], { cwd });
     expect(target.code).toBe(2);
     const imported = await run(["rls", "import"], { cwd });
-    expect(imported.code).toBe(2);
-    expect(imported.stdout).toContain("--sql");
+    expect(imported.code).toBe(3);
+    expect(imported.stderr).toContain("--sql");
   });
 
   it("writes drizzle and prisma targets", async () => {

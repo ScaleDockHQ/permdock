@@ -31,8 +31,8 @@ pnpm exec permdock rls generate --target sql --dialect supabase --out migrations
 pnpm exec permdock rls generate --target drizzle --dialect supabase
 pnpm exec permdock rls import --sql migrations/rls.sql --out src/permissions.generated.ts
 pnpm exec permdock rls verify --fixtures rls.fixtures.json
-pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
-pnpm exec permdock rls verify --introspect --db $DATABASE_URL
+pnpm exec permdock rls verify --db-url $DATABASE_URL --fixtures rls.fixtures.json
+pnpm exec permdock rls verify --introspect --db-url $DATABASE_URL
 ```
 
 - List the scope instances a permission reaches in process with `permdock.permittedIds(permission, scope, { within })`, never a loop of `can` over memberships with a made-up row.
@@ -49,14 +49,14 @@ pnpm exec permdock rls verify --introspect --db $DATABASE_URL
 - On Supabase every generated helper and policy reads the subject through `permdock_user_id()`: the `sub` in `request.jwt.claims`, and null for the empty `sub` of a tenant service key. It ignores the legacy `request.jwt.claim.sub` setting; SQL that impersonates a user sets `request.jwt.claims`. A hand-written policy such a token reaches calls `(select permdock.permdock_user_id())`, never `auth.uid()`, which fails the uuid cast.
 - `rls.assignments` puts a `permdock_assignment` trigger on each mapped membership table, the global-roles table `rls.roles` and each table in `tables`; `ownRole: 'refuse'` (or a map of tables) also refuses a client write to the caller's own row. `doctor` PD064 names a guarded table no migration puts the trigger on.
 - SQL that assigns roles calls `permdock_can_assign_any(role, tenant, scope, scope_id)`, which covers declared and custom roles; SQL acting later for a stored user (an invitation accept re-checking the inviter) calls `permdock_can_assign_any_for(user, ...)`. `permdock supabase inspect` lists both in the manifest's `rls.helpers`.
-- Index suggestions (the `indexes` part of `--split`, or `index suggestion` warnings) cover only the columns the policies and helpers look rows up by. Add `--db $DATABASE_URL` to `generate` so it leaves out indexes an existing index already leads with and columns the table lacks; never hand-copy a suggestion that duplicates an existing composite index.
+- Index suggestions (the `indexes` part of `--split`, or `index suggestion` warnings) cover only the columns the policies and helpers look rows up by. Add `--db-url $DATABASE_URL` to `generate` so it leaves out indexes an existing index already leads with and columns the table lacks; never hand-copy a suggestion that duplicates an existing composite index.
 - Never emit `service_role`. Fixtures may carry `memberships`, `tenant` and `customRoles`.
 
 ## SQL as the authority
 
-When the database already holds the rules, skip `generate`. Map each helper in `rls.functions`, write `sqlFunction` twins in the policy, and fail CI on `rls verify --db`. `--inline-functions` inlines the twin for targets that cannot call a SQL function.
+When the database already holds the rules, skip `generate`. Map each helper in `rls.functions`, write `sqlFunction` twins in the policy, and fail CI on `rls verify --db-url`. `--inline-functions` inlines the twin for targets that cannot call a SQL function.
 
-When hand-written policies call the app's own helpers (`org_ids_with_permission`, `has_org_permission`), map each under `rls.migrate.helpers` with its `form` (`ids`, `row`, `scoped`, `global`, `membership`) and the legacy keys under `rls.migrate.keys` or `prefixes`. Run `permdock rls migrate`, read the skipped calls, and apply with `--write`. Generate with `--helpers-only` while the policies stay hand-written. A `row-conditions` skip means that table's policy should be generated, not migrated.
+When hand-written policies call the app's own helpers (`org_ids_with_permission`, `has_org_permission`), map each under `rls.migrate.helpers` with its `form` (`ids`, `row`, `scoped`, `global`, `membership`) and the legacy keys under `rls.migrate.keys` or `prefixes`. Run `permdock rls migrate --dry-run`, read the skipped calls, and apply by running it without `--dry-run`. Generate with `--helpers-only` while the policies stay hand-written. A `row-conditions` skip means that table's policy should be generated, not migrated.
 
 When the old helpers read a permissions table that triggers keep in step (`user_permissions`), list it under `rls.migrate.tables`. `permdock rls migrate` then reports its refresh triggers and every policy, view or function that still reads it, and `permdock doctor` reports PD066 while the migrations still create it. Rewrite each reader, then run `permdock rls migrate --retire-out <migrations dir>/`, which exits `1` and writes nothing while a reader remains. Never hand-write the drop with `cascade` ([retire a materialised table](https://permdock.com/docs/cli/rls#retire-a-materialised-table)).
 

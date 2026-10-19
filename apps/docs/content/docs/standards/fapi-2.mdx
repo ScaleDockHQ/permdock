@@ -3,7 +3,7 @@ title: FAPI 2.0 Security Profile
 description: "What the FAPI 2.0 Security Profile requires of a resource server and how permdock/jwt with profile: 'fapi2' and the OpenAPI emitter enforce those requirements before a permission check runs."
 ---
 
-`permdock/jwt` implements the resource-server rules as `subjectFromJwt(token, { profile: 'fapi2' })`, and `permdock openapi` emits the `x-permdock-securityProfile` extension. Grant Management is tracking only.
+`permdock/jwt` implements the resource-server rules as `subjectFromJwt(token, { profile: 'fapi2' })`, and `permdock openapi emit` emits the `x-permdock-securityProfile` extension. Grant Management is tracking only.
 
 ## What it is
 
@@ -85,9 +85,9 @@ Two consequences follow from the fail-closed rule:
 - Every row above that ends in an anonymous subject leaves `can()` returning `false` and `assert` producing the 401-class Problem Details the authentication layer defines; the policy never sees a half-verified principal. See [authentication](/docs/concepts/authentication).
 - The only row that produces a `denied` Decision is requirement 4. RFC 6750 section 3.1 asks for `insufficient_scope` when the token lacks authority, and PermDock has the information to say what would have sufficed: `Decision.alternatives` becomes the `scope` hint in `WWW-Authenticate` and the `alternatives` member of the [Problem Details](/docs/standards/problem-details) body. The same field drives MCP `scopeChallenge` step-ups ([MCP authorization](/docs/standards/mcp-authorization)), so an OAuth client and an MCP client are told the same thing in their own vocabulary.
 
-### `permdock openapi`
+### `permdock openapi emit`
 
-FAPI 2.0 has no OpenAPI representation of its own. `permdock openapi` marks operations protected by a FAPI 2.0 subject resolver with `x-permdock-securityProfile: fapi2` next to the operation's `security` requirement, and declares the OAuth 2.0 security scheme with `x-permdock-oauth2MetadataUrl` pointing at the issuer's RFC 8414 metadata (or the native 3.2 `oauth2MetadataUrl` field). Gateways and client generators that understand the extension can enforce sender constraint at the edge; those that do not ignore it.
+FAPI 2.0 has no OpenAPI representation of its own. `permdock openapi emit` marks operations protected by a FAPI 2.0 subject resolver with `x-permdock-securityProfile: fapi2` next to the operation's `security` requirement, and declares the OAuth 2.0 security scheme with `x-permdock-oauth2MetadataUrl` pointing at the issuer's RFC 8414 metadata (or the native 3.2 `oauth2MetadataUrl` field). Gateways and client generators that understand the extension can enforce sender constraint at the edge; those that do not ignore it.
 
 ```yaml
 paths:

@@ -12,11 +12,12 @@ import {
 import { createRequire } from "node:module";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
-import type { CommandResult } from "./shared/result.ts";
+import type { CommandResult } from "./core/result.ts";
 
 import { byCodePoint } from "../core/compare.ts";
+import { didYouMean } from "./core/args.ts";
 import { readJsonFile } from "./files.ts";
-import { packageRoot } from "./package-root.ts";
+import { packageRoot } from "./project/package-root.ts";
 
 const SKILL_NAMES = [
   "permdock",
@@ -35,7 +36,7 @@ const AGENT_FOLDERS: Readonly<Record<string, string>> = {
   cursor: ".cursor/skills",
 };
 
-/** The `--agent` names `skills install` knows, with the folder each writes. */
+/** The `--client` names `skills install` knows, with the folder each writes. */
 export const SKILL_AGENTS: Readonly<Record<string, string>> = AGENT_FOLDERS;
 
 /** Agents whose config folder (`.claude`, `.cursor`, `.agents`) the project already has. */
@@ -51,6 +52,15 @@ export function runSkills(input: {
   readonly agents: readonly string[];
   readonly check?: boolean;
 }): CommandResult {
+  const names = new Set([...Object.keys(AGENT_FOLDERS), "agent"]);
+  const unknown = input.agents.find((agent) => !names.has(agent));
+  if (unknown !== undefined) {
+    const suggestion = didYouMean(unknown, Object.keys(AGENT_FOLDERS));
+    return {
+      code: 2,
+      output: `skills: unknown --client '${unknown}'.${suggestion === undefined ? "" : ` Did you mean ${suggestion}?`} Use ${Object.keys(AGENT_FOLDERS).join(", ")}.`,
+    };
+  }
   switch (input.action) {
     case undefined:
     case "install":
@@ -266,10 +276,10 @@ function resolveTargets(agents: readonly string[]): readonly string[] {
   if (agents.length === 0) {
     return Object.values(AGENT_FOLDERS);
   }
-  return agents.map((agent) => {
-    const key = agent === "agent" ? "agents" : agent;
-    return AGENT_FOLDERS[key] ?? `.${key}/skills`;
-  });
+  return agents.map(
+    (agent) =>
+      AGENT_FOLDERS[agent === "agent" ? "agents" : agent] ?? ".agents/skills",
+  );
 }
 
 function resolveSkillsRoot(cwd: string, bundled: string): string | undefined {

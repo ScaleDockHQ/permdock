@@ -1,0 +1,18 @@
+permdock arazzo check: Resolve every Arazzo step to x-permdock-permissions
+
+Usage  permdock arazzo check [flags]
+
+Flags
+  --doc <arazzo.json>     Arazzo document
+  --openapi <doc.json>    OpenAPI document the workflows call
+  --workflow <id>         Check one workflow
+  --permissions <module>  Module exporting the permissions (default permissions in the config)
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock arazzo check --doc arazzo.json --openapi openapi.json
+
+Side effects  none: reads only
+Docs  https://permdock.com/docs/cli/arazzo

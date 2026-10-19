@@ -9,6 +9,7 @@ import type {
   TemplateHint,
 } from "./shapes-0.5.ts";
 
+import { beforeFirst } from "../shared/text.ts";
 import {
   type Edit,
   type Estree,
@@ -150,7 +151,7 @@ export function replace(
   text: string,
   from: string,
 ): void {
-  edit(ctx, node, text, from, text.split(" as ")[0] ?? text);
+  edit(ctx, node, text, from, beforeFirst(text, " as "));
 }
 
 export function renameOf(

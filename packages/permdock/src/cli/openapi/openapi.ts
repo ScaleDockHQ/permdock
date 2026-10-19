@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { OverlayOperation } from "../../openapi/types.ts";
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
@@ -15,10 +15,15 @@ import {
 } from "../../index.ts";
 import { openapiVersion } from "../../openapi/emit.ts";
 import { createPermDock } from "../../openapi/index.ts";
+import { fileDrift } from "../core/output-files.ts";
+import { shortDiff } from "../core/text-diff.ts";
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
-import { asPermissionTree, asPolicy, loadModule, pickNamed } from "../load.ts";
-import { fileDrift } from "../output-files.ts";
-import { shortDiff } from "../text-diff.ts";
+import {
+  asPermissionTree,
+  asPolicy,
+  loadModule,
+  pickNamed,
+} from "../project/load.ts";
 import { validateOpenapi, validateOverlay } from "./schema.ts";
 
 function mergeRecord(
@@ -82,7 +87,7 @@ async function loadPolicy(
   const permissionsPath = config.permissions;
   if (permissionsPath === undefined) {
     throw new Error(
-      "PermDock CLI: openapi needs --from, policy or permissions in the config",
+      "PermDock CLI: openapi emit needs --policy, or policy or permissions in the config",
     );
   }
   const tree = asPermissionTree(

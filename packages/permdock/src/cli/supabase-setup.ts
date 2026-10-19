@@ -6,8 +6,8 @@ import type { DoctorFinding } from "./shared/doctor-types.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { readMemberships } from "../supabase/subject.ts";
+import { partPath } from "./core/output-files.ts";
 import { sqlFiles } from "./files.ts";
-import { partPath } from "./output-files.ts";
 import { type SqlConnect, pgConnector } from "./pg.ts";
 import { MIGRATION_DIRS } from "./shared/constants.ts";
 
@@ -91,7 +91,7 @@ export function missingHelpersInFiles(
 export async function missingHelpersInDb(
   db: string,
   manifest: SupabaseHookManifest,
-  connect: SqlConnect = pgConnector("permdock supabase hook generate --db"),
+  connect: SqlConnect = pgConnector("permdock supabase hook generate --db-url"),
 ): Promise<readonly string[]> {
   const client = await connect(db);
   try {
@@ -192,10 +192,17 @@ export function pd039(input: {
   }
   const fixture = input.config.doctor?.claims;
   if (fixture !== undefined) {
-    const parsed: unknown = JSON.parse(
-      readFileSync(resolve(input.cwd, fixture), "utf8"),
-    );
-    const samples = Array.isArray(parsed) ? parsed : [];
+    const parsed = readClaimsFixture(resolve(input.cwd, fixture));
+    if (!parsed.ok) {
+      findings.push({
+        code: "PD039",
+        severity: "warning",
+        message: `doctor.claims ${fixture} is not a JSON file doctor can read (${parsed.message}), so the claim budget went unchecked`,
+        fix: "point doctor.claims at a JSON array of sample claims",
+      });
+      return findings;
+    }
+    const samples = Array.isArray(parsed.value) ? parsed.value : [];
     for (const claim of oversizedClaims(samples, input.manifest)) {
       findings.push({
         code: "PD039",
@@ -214,4 +221,19 @@ export function pd039(input: {
     }
   }
   return findings;
+}
+
+function readClaimsFixture(
+  path: string,
+):
+  | { readonly ok: true; readonly value: unknown }
+  | { readonly ok: false; readonly message: string } {
+  try {
+    return { ok: true, value: JSON.parse(readFileSync(path, "utf8")) };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
 }

@@ -1,0 +1,42 @@
+permdock rls migrate: Rewrite hand-written policies onto the generated helpers
+
+Usage  permdock rls migrate [flags]
+
+Flags
+  --target <sql|drizzle|prisma>          Output form (default sql)
+  --dialect <supabase|neon|guc>          How the database reads the subject (default rls.dialect, else supabase)
+  --policy <module>                      Module exporting the policy (default policy in the config)
+  --memberships <table>                  Membership table as <table>:tenant,user,role
+  --rbac <supabase>                      Scaffold the role tables for this provider
+  --rbac-schema <name>                   Schema for the scaffolded role tables
+  --authorize <database|jwt>             Where roles are read
+  --skip-closures                        Skip grants with closures instead of failing
+  --inline-functions                     Inline helper calls into the policies
+  --force-rls                            Emit FORCE ROW LEVEL SECURITY so the table owner is held to the policies
+  --guc-prefix <prefix>                  guc dialect: setting prefix
+  --policy-per-role                      One policy per role instead of one per command
+  --policy-name <template>               Policy name template
+  --tenant-type <type>                   Postgres type of the tenant column
+  --custom-roles                         Emit the custom role tables and helpers
+  --capabilities                         Emit the link capability helpers
+  --fields <views>                       Field security
+  --revoke-columns                       Revoke restricted columns on the table
+  --helpers-only                         Write the helpers and keep the policies hand-written
+  --shims                                Wrap each rls.migrate helper under its legacy name
+  --schemas <pg-delta|migra|migrations>  Schema workflow (default supabase.schemas, else pg-delta)
+  --db-url <url>                         Postgres connection string (DATABASE_URL when the command needs one)
+  --db-url-stdin                         Read the connection string from stdin, keeping it out of ps and shell history
+  --sql <path>                           SQL file or folder to read
+  --dry-run                              Print what would change; write nothing
+  --force                                Rewrite files with uncommitted changes too
+  --retire-out <file>                    File dropping the rls.migrate.tables once nothing reads them
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock rls migrate --sql supabase/migrations --dry-run
+  permdock rls migrate --sql supabase/migrations
+
+Side effects  rewrite, files
+Docs  https://permdock.com/docs/cli/rls

@@ -9,6 +9,7 @@ import {
   supabaseTenantClaim,
 } from "../../supabase/sources.ts";
 import { authAdminRead, hookUri } from "../rls/rbac.ts";
+import { beforeFirst } from "../shared/text.ts";
 import { activeRowSql, checkSuspension } from "../sql/active.ts";
 import { globalRoleSource } from "../sql/global-roles.ts";
 import { memberForHelper } from "../sql/names.ts";
@@ -208,9 +209,9 @@ function beforeGrantsSql(
   extra: readonly ExtraClaim[],
 ): string {
   const granted = new Set(extra.map((entry) => entry.fn.split(".")[0]));
-  const schemas = [
-    ...new Set(before.map((fn) => fn.split(".")[0] ?? "")),
-  ].filter((name) => !granted.has(name));
+  const schemas = [...new Set(before.map((fn) => beforeFirst(fn, ".")))].filter(
+    (name) => !granted.has(name),
+  );
   return [
     ...schemas.map(
       (name) =>

@@ -9,7 +9,7 @@ import {
   loadConfiguredPolicy,
   loadModule,
   pickNamed,
-} from "../../src/cli/load.ts";
+} from "../../src/cli/project/load.ts";
 import {
   PERMISSIONS,
   policyModule,
@@ -115,7 +115,7 @@ describe("loadModule", () => {
       "src/plain.ts": "export const plain: number = 1;\n",
     });
     const load = pathToFileURL(
-      path.join(import.meta.dirname, "../../src/cli/load.ts"),
+      path.join(import.meta.dirname, "../../src/cli/project/load.ts"),
     ).href;
     const script = [
       `import { loadModule } from ${JSON.stringify(load)};`,

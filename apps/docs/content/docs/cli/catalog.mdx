@@ -3,17 +3,26 @@ title: catalog
 description: Export the permission catalog as JSON, JSON Schema or Markdown, and the shape of the catalog document.
 ---
 
-`permdock catalog` turns the merged permission definition into documents that people, CI and agents read without running the app. [collect](/docs/cli/collect) scans source and writes `permissions.catalog.json`; `catalog` builds the same catalog, or reads the runtime definition with `--from`, and renders it in the requested format.
+`permdock catalog` turns the merged permission definition into documents that people, CI and agents read without running the app. [collect](/docs/cli/collect) scans source and writes `permissions.catalog.json`; `catalog` builds the same catalog, or reads the runtime definition with `--permissions`, and renders it in the requested format.
 
 ## Usage
 
 ```bash
-permdock catalog --format json     > permissions.catalog.json
-permdock catalog --format schema   > permissions.schema.json     # JSON Schema of the catalog document
-permdock catalog --format markdown > docs/permissions.md
-permdock catalog --from ./src/permissions.ts   # render straight from the definition module, skipping collect
-permdock catalog --include post --include billing.invoice        # scope to a subtree
+permdock catalog --out permissions.catalog.json
+permdock catalog --kind json-schema --out permissions.schema.json   # JSON Schema of the catalog document
+permdock catalog --kind markdown --out docs/permissions.md
+permdock catalog --kind markdown --out docs/permissions.md --check   # CI: exit 1 when the file is stale
+permdock catalog --permissions ./src/permissions.ts   # render straight from the definition module, skipping collect
+permdock catalog --include post --include billing.invoice   # scope to a subtree
 ```
+
+| Flag                     | Meaning                                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------------------------- |
+| `--kind <kind>`          | `catalog` (default), `json-schema` or `markdown`                                                    |
+| `--permissions <module>` | The definition module to read; default `permissions` in `permdock.config.ts`                        |
+| `--include <key>`        | Permission keys or prefixes to keep, repeatable                                                     |
+| `--out <file>`           | Write the document to this file, with a `Created` or `Updated` line; without it, print it on stdout |
+| `--check`                | With `--out`: exit `1` and print a diff when the file differs; write nothing                        |
 
 ## Where the data comes from
 
@@ -72,7 +81,7 @@ Notes on the shape:
 - `meta` is whatever the definition attached to the action (`title`, `description`, `tags`, or any JSON); it is what MCP tool descriptions and Markdown output use.
 - `schema` is a JSON Schema document (draft 2020-12).
 - Without a configured `policy`, the catalog has no grants, role details or conditions. With one, `grants` lists every code grant with its portable conditions, approval, fields and validity, in a canonical order ([wire formats](/docs/concepts/wire-formats#catalog)); closures are marked `portable: false` and never serialised. [diff](/docs/cli/diff) compares that section between two versions.
-- The `$schema` URL is the published JSON Schema of the catalog format, which is the same document `--format schema` emits, so agents can validate a catalog offline. The exact hostname is fixed when the docs site launches.
+- The `$schema` URL is the published JSON Schema of the catalog format, which is the same document `--kind json-schema` emits, so agents can validate a catalog offline. The exact hostname is fixed when the docs site launches.
 
 ## Reading a catalog
 
@@ -99,11 +108,11 @@ const sqlEnforceable = catalog.permissions.filter(
 - `catalogPath(config, cwd, out?)` resolves the file the same way `collect` writes it: `out`, then `collect.out`, then `catalog.out`, then `permissions.catalog.json`.
 - The types (`CatalogDocument`, `CatalogPermission`, `CatalogResource`, `CatalogRole`, `CatalogScope`, `CatalogGrant`, `CatalogValidity`, `CatalogApproval`, `CatalogBreakGlass`, `CatalogActivation`, `CatalogSupportAccess`, `CatalogUsage`) are exported from both `permdock/catalog` and `permdock/cli`.
 
-The reader, the `$schema` file and `--format schema` come from one schema constant, and a test checks the committed catalogs against both the reader and Ajv.
+The reader, the `$schema` file and `--kind json-schema` come from one schema constant, and a test checks the committed catalogs against both the reader and Ajv.
 
 ## Markdown output
 
-`--format markdown` renders one section per resource with a table of actions, arity, scope and metadata, and (when present) usage counts. It is intended to be committed under `docs/` or pasted into a PR so reviewers can see the permission surface change without reading TypeScript.
+`--kind markdown` renders one section per resource with a table of actions, arity, scope and metadata, and (when present) usage counts. It is intended to be committed under `docs/` or pasted into a PR so reviewers can see the permission surface change without reading TypeScript.
 
 ## Consumers
 
@@ -111,6 +120,14 @@ The reader, the `$schema` file and `--format schema` come from one schema consta
 - The MCP adapter uses `meta` for tool descriptions and `arity` to decide whether a `data` loader is required.
 - The docs MCP server (`search`, `list_pages` and `get_page` at `/docs/mcp`) and `llms.txt` expose the Markdown output so agents can ask "which permissions exist?".
 - `permdock/testing` compares a policy matrix against the catalog to find permissions with no test.
+
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command            | Side effects |
+| ------------------ | ------------ |
+| `permdock catalog` | `files`      |
 
 ## Related
 

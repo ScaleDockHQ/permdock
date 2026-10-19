@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Permission } from "../../src/index.ts";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { listPermissions } from "../../src/index.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -116,7 +116,7 @@ describe("openapi import", () => {
         "openapi.json",
         "--out",
         "permissions.generated.ts",
-        "--schema",
+        "--validator",
         "zod",
       ],
       { cwd: dir },
@@ -210,7 +210,7 @@ paths:
       { cwd: dir },
     );
     expect(bad.code).toBe(2);
-    expect(bad.stdout).toContain("not valid OpenAPI 3.2");
+    expect(bad.stderr).toContain("not valid OpenAPI 3.2");
     const old = await run(
       ["openapi", "import", "--doc", "old.json", "--out", "x.ts"],
       { cwd: dir },

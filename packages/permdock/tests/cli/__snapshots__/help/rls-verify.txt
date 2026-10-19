@@ -1,0 +1,44 @@
+permdock rls verify: Run the fixtures against the policies, or compare a live database
+
+Usage  permdock rls verify [flags]
+
+Flags
+  --target <sql|drizzle|prisma>          Output form (default sql)
+  --dialect <supabase|neon|guc>          How the database reads the subject (default rls.dialect, else supabase)
+  --policy <module>                      Module exporting the policy (default policy in the config)
+  --memberships <table>                  Membership table as <table>:tenant,user,role
+  --rbac <supabase>                      Scaffold the role tables for this provider
+  --rbac-schema <name>                   Schema for the scaffolded role tables
+  --authorize <database|jwt>             Where roles are read
+  --skip-closures                        Skip grants with closures instead of failing
+  --inline-functions                     Inline helper calls into the policies
+  --force-rls                            Emit FORCE ROW LEVEL SECURITY so the table owner is held to the policies
+  --guc-prefix <prefix>                  guc dialect: setting prefix
+  --policy-per-role                      One policy per role instead of one per command
+  --policy-name <template>               Policy name template
+  --tenant-type <type>                   Postgres type of the tenant column
+  --custom-roles                         Emit the custom role tables and helpers
+  --capabilities                         Emit the link capability helpers
+  --fields <views>                       Field security
+  --revoke-columns                       Revoke restricted columns on the table
+  --helpers-only                         Write the helpers and keep the policies hand-written
+  --shims                                Wrap each rls.migrate helper under its legacy name
+  --schemas <pg-delta|migra|migrations>  Schema workflow (default supabase.schemas, else pg-delta)
+  --db-url <url>                         Postgres connection string (DATABASE_URL when the command needs one)
+  --db-url-stdin                         Read the connection string from stdin, keeping it out of ps and shell history
+  --fixtures <file>                      Fixtures file
+  --kind <node|pgtap>                    Run the fixtures in Node or emit a pgTAP file
+  --tree                                 Check the relationship closure
+  --introspect                           Compare against the live database
+  --advisors                             Run the Supabase security advisors
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock rls verify
+  permdock rls verify --kind pgtap
+  permdock rls verify --introspect --db-url-stdin
+
+Side effects  database:read
+Docs  https://permdock.com/docs/cli/rls

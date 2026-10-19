@@ -91,7 +91,7 @@ export default defineConfig({
 Effect is not a bundler. Three existing paths cover it:
 
 1. **Schema.** Effect Schema 3.13+ via its Standard Schema adapter is a resource schema, same as Zod ([Standard Schema](/docs/standards/standard-schema)). Boundary validation stays synchronous.
-2. **HttpApi.** Effect HttpApi has no per-route PermDock hook. Emit OpenAPI, then `permdock openapi emit --format overlay` and apply it ([OpenAPI](/docs/adapters/openapi)).
+2. **HttpApi.** Effect HttpApi has no per-route PermDock hook. Emit OpenAPI, then `permdock openapi emit --kind overlay` and apply it ([OpenAPI](/docs/adapters/openapi)).
 3. **Collect.** When the app is built with Vite (or webpack / esbuild), add `createPermDockUnplugin` as above. Runtime guards stay `permdock/server` or the HTTP adapter that matches the listener.
 
 ## What it does not do

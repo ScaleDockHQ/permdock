@@ -17,7 +17,7 @@ PermDock is one stage of a pipeline it does not own, and composes with every oth
 flowchart LR
   routes[Routes with protect]
   producer[Producer: spec from code]
-  emit[permdock openapi emit --format overlay]
+  emit[permdock openapi emit --kind overlay]
   applier[Applier]
   applied[Applied description with security]
   docs[Docs UI]
@@ -37,7 +37,7 @@ flowchart LR
 ```
 
 1. **Producer.** A framework plugin or a route-file scanner turns handlers into a description. Producers own paths, parameters, schemas and `operationId`s.
-2. **PermDock.** Where there is an in-process hook, the fragments below are attached during generation. Otherwise `permdock openapi emit --format overlay` writes an Overlay that adds `securitySchemes`, per-operation `security` and `x-permdock-*`.
+2. **PermDock.** Where there is an in-process hook, the fragments below are attached during generation. Otherwise `permdock openapi emit --kind overlay` writes an Overlay that adds `securitySchemes`, per-operation `security` and `x-permdock-*`.
 3. **Applier.** The project's existing Overlay applier merges it. PermDock ships none.
 4. **Consumers.** Docs UIs, SDK generators, OpenAPI-to-MCP bridges, Arazzo runners, gateways and `permdock openapi import` read standard `security`; the ones that opt in also read `x-permdock-*`.
 
@@ -48,7 +48,7 @@ flowchart LR
 | Stage                             | Tools                                                                                                                                                                                                                                                 | How PermDock connects                                                                                                             |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | Producers with an in-process hook | `hono-openapi`, `@hono/zod-openapi`, `@orpc/openapi`, `trpc-to-openapi`, `@elysia/openapi`, `@fastify/swagger`, `@nestjs/swagger`                                                                                                                     | `describe()`, `security()`, `spec()` passed into the generator next to `protect`                                                  |
-| Producers without a hook          | [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) (Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro, Hono, Express), [TypeSpec](https://typespec.io), tsoa, ts-rest, Effect HttpApi, feTS, hand-written YAML or JSON | `overlay()` or `permdock openapi emit --format overlay`, applied by the producer or a CLI                                         |
+| Producers without a hook          | [next-openapi-gen](https://github.com/tazo90/next-openapi-gen) (Next.js, TanStack Start, React Router, Remix, SvelteKit, Nuxt, Astro, Hono, Express), [TypeSpec](https://typespec.io), tsoa, ts-rest, Effect HttpApi, feTS, hand-written YAML or JSON | `overlay()` or `permdock openapi emit --kind overlay`, applied by the producer or a CLI                                           |
 | Appliers                          | next-openapi-gen `overlay.apply`, Redocly CLI `join --overlay`, Bump.sh `bump overlay` and its GitHub Action, Speakeasy CLI, Zuplo CLI, `overlays-js`, `openapi-format`, `oas-patch`                                                                  | Consume the Overlay                                                                                                               |
 | SDK generators                    | [Hey API](https://heyapi.dev), [Orval](https://orval.dev), [Kubb](https://kubb.dev), openapi-typescript, OpenAPI Generator, Kiota, Fern, Speakeasy, Redocly `generate-client`                                                                         | Read standard `security`; no PermDock code                                                                                        |
 | Docs UIs and hosts                | [Scalar](https://scalar.com), Swagger UI, Redoc, Stoplight Elements, RapiDoc, fumadocs-openapi, Zudoku; hosted: Mintlify, Bump.sh, Fern docs, Redocly Realm, Docusaurus OpenAPI, GitBook, Postman                                                     | Read standard `security`; Scalar optionally renders the `x-badges` approval hint; PermDock never writes a host's own extensions   |
@@ -138,7 +138,7 @@ Every PermDock-specific field in a document is an OpenAPI extension under the `x
 
 ## Overlay output
 
-`overlay({ operations })` returns an Overlay 1.1.0 document whose `actions` target each listed operation by its `operationId` and `update` it with `security` and `x-permdock-*` fields, plus one action for `components.securitySchemes`. Each entry of `operations` is `{ operationId, permissions }`; without `operations`, there is one action per permission, targeting an operation whose `operationId` is the permission key. The CLI reads the operations from the source document's `x-permdock-permissions`. `overlay({ version: '1.2' })` returns the pinned Overlay 1.2 draft instead: the per-operation bodies become reusable actions under `components.actions`, one per distinct permission set, and each operation is a `$ref` reference with its own `target`; `x-permdock-catalog.drafts.overlay` names the pin ([OpenAPI Overlay](/docs/standards/openapi-overlay)). The source document stays untouched and owned by the API team. `permdock openapi emit --format overlay` (with `--overlay 1.2` for the draft) produces the same output from the CLI.
+`overlay({ operations })` returns an Overlay 1.1.0 document whose `actions` target each listed operation by its `operationId` and `update` it with `security` and `x-permdock-*` fields, plus one action for `components.securitySchemes`. Each entry of `operations` is `{ operationId, permissions }`; without `operations`, there is one action per permission, targeting an operation whose `operationId` is the permission key. The CLI reads the operations from the source document's `x-permdock-permissions`. `overlay({ version: '1.2' })` returns the pinned Overlay 1.2 draft instead: the per-operation bodies become reusable actions under `components.actions`, one per distinct permission set, and each operation is a `$ref` reference with its own `target`; `x-permdock-catalog.drafts.overlay` names the pin ([OpenAPI Overlay](/docs/standards/openapi-overlay)). The source document stays untouched and owned by the API team. `permdock openapi emit --kind overlay` (with `--overlay 1.2` for the draft) produces the same output from the CLI.
 
 ```ts
 const doc = overlay({ extends: "./openapi.json" });
@@ -163,7 +163,7 @@ export default defineConfig({
 ```
 
 ```bash
-permdock openapi emit --doc public/openapi.json --format overlay --out permdock.overlay.json
+permdock openapi emit --doc public/openapi.json --kind overlay --out permdock.overlay.json
 pnpm exec openapi-gen generate      # applies the Overlay, writes the spec, scaffolds Scalar
 ```
 
@@ -224,7 +224,7 @@ Bridges carry their own exposure extensions (Mintlify `x-mcp`, Zuplo `x-zuplo-ro
 ### Testing and diff
 
 - Schemathesis `ignored_auth` sends each operation that declares `security` without credentials and fails unless the server answers `401` or `403`, so it catches a route that lost its `protect` after the description was published.
-- oasdiff treats a removed or weakened `security` requirement as a breaking change; compare the previous and current applied descriptions in CI behind `permdock openapi --check`.
+- oasdiff treats a removed or weakened `security` requirement as a breaking change; compare the previous and current applied descriptions in CI behind `permdock openapi emit --check`.
 - Prism and Microcks mock servers answer `401` for secured operations without credentials, so client tests exercise the denied path.
 
 ### Linters
@@ -243,12 +243,12 @@ Generation:
 
 1. The framework hook (`describeRoute`, `createRoute`, oRPC `openapi({ spec })`, `meta.openapi`) receives the object returned by `describe` / `security` / `spec` next to the `protect` middleware for the same permission.
 2. The document generator collects operations; `securitySchemes()` supplies the component with all scopes, inlined in each document rather than shared by URI reference, so every API in a monorepo carries its own scheme.
-3. `permdock openapi --check` (CLI) compares the generated document against the routes registered with `protect` and fails when a protected route has no security entry or a documented scope has no enforcing route.
+3. `permdock openapi emit --check` (CLI) compares the generated document against the routes registered with `protect` and fails when a protected route has no security entry or a documented scope has no enforcing route.
 
 Import (`permdock openapi import ./openapi.json --out src/permissions.generated.ts`):
 
 1. Operations are grouped by `tags` or path segments into resources; `operationId` or method and path derive action names (`GET /posts/{id}` becomes `post.read`, `POST /posts` becomes `post.create`).
-2. `security` scopes and `x-permdock-permissions` are read back into keys and scopes; request and response schemas become resource schemas for the chosen validator (`--schema zod|valibot|arktype`).
+2. `security` scopes and `x-permdock-permissions` are read back into keys and scopes; request and response schemas become resource schemas for the chosen validator (`--validator zod|valibot|arktype`).
 3. A deterministic `definePermissions()` file with a `// @generated` header is written; it merges with hand-written definitions through `mergePermissions` like any feature file ([larger apps](/docs/getting-started/larger-apps)).
 
 ## What it validates
@@ -277,8 +277,8 @@ No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-opena
 
 - [OpenAPI 3.2 and 3.3](/docs/standards/openapi): security scheme additions, the 3.1 fallback table and the pinned Security Profile draft.
 - [OpenAPI registries](/docs/standards/openapi-registry): the `x-permdock-*` namespace and registered names.
-- [OpenAPI Overlay](/docs/standards/openapi-overlay): the `--format overlay` output and its threat model.
+- [OpenAPI Overlay](/docs/standards/openapi-overlay): the `--kind overlay` output and its threat model.
 - [FAPI 2.0](/docs/standards/fapi-2): what `securityProfile: 'fapi2'` declares.
 - [Standard Schema](/docs/standards/standard-schema): request and response schemas via Standard JSON Schema.
 - [Problem Details](/docs/standards/problem-details): documented `403` body.
-- [CLI: openapi](/docs/cli/openapi): `permdock openapi` emit, import, `--target`, `--format` and `--check`.
+- [CLI: openapi](/docs/cli/openapi): `permdock openapi emit` emit, import, `--target`, `--format` and `--check`.

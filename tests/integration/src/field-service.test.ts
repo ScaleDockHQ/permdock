@@ -52,7 +52,7 @@ describe("field-service fixture", () => {
   });
 
   it("agrees with the policy on every fixture in the database", async () => {
-    const result = await run(["rls", "verify", "--db", db!.uri], {
+    const result = await run(["rls", "verify", "--db-url", db!.uri], {
       cwd: FIXTURE,
     });
     expect(result.stdout).toContain("verified 12 fixture(s) in-process");
@@ -88,7 +88,7 @@ describe("field-service fixture", () => {
   });
 
   it("syncs no row the policy denies", async () => {
-    const result = await run(["powersync", "verify", "--db", db!.uri], {
+    const result = await run(["powersync", "verify", "--db-url", db!.uri], {
       cwd: FIXTURE,
     });
     expect(result.stdout).toContain("no stream syncs a row the fixtures deny");

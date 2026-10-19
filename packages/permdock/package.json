@@ -316,8 +316,8 @@
   "dependencies": {
     "@clack/prompts": "catalog:",
     "@standard-schema/spec": "catalog:",
-    "citty": "catalog:",
     "diff": "catalog:",
+    "fastest-levenshtein": "catalog:",
     "jiti": "catalog:",
     "oxc-parser": "catalog:",
     "package-manager-detector": "catalog:",
@@ -350,6 +350,7 @@
     "@types/pg": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@vercel/detect-agent": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "ai": "catalog:",
     "ajv": "catalog:",

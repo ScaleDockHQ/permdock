@@ -10,7 +10,7 @@ description: Report permissions that are defined but never used, used but never 
 ```bash
 permdock usage                     # human-readable report
 permdock usage --json              # machine-readable report with $schema
-permdock usage --strict            # warnings become exit 1
+permdock usage --fail-on warning            # warnings become exit 1
 permdock usage --ignore 'billing.plan.*'
 ```
 
@@ -24,7 +24,7 @@ A permission exists in `definePermissions()` but no source file under `srcPath` 
 
 ### Used but ungranted
 
-A permission is checked somewhere, but no role in the policy has an `allow` for it. Every check will be `denied` for every subject, which is either intentional (a feature flagged off) or a missing grant that will surface as a support ticket. Reported as a warning; with `--strict` it fails the build.
+A permission is checked somewhere, but no role in the policy has an `allow` for it. Every check will be `denied` for every subject, which is either intentional (a feature flagged off) or a missing grant that will surface as a support ticket. Reported as a warning; with `--fail-on warning` it fails the build.
 
 ### Granted by no role
 
@@ -70,6 +70,14 @@ permdock usage
 
 Permissions resolved through `findPermission(permissions, someString)` cannot be attributed statically. They are listed under a `dynamic` section with their call sites so a reviewer can decide whether the string source (database, JWT scope, OpenAPI import) is trusted. `--dynamic-as-used` treats every permission as potentially used, which silences "defined but unused" for catalogs that are driven entirely by data.
 
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command          | Side effects |
+| ---------------- | ------------ |
+| `permdock usage` | None         |
+
 ## Why
 
 - **Undeclared fields are a `usage` warning, not a `definePolicy` error.** A schema without Standard JSON Schema cannot be read, and some policies deliberately condition on a field added by a view or a join. A warning in CI catches the typo without making the policy module depend on schema introspection at runtime.
@@ -78,7 +86,7 @@ Permissions resolved through `findPermission(permissions, someString)` cannot be
 ## CI
 
 ```yaml
-- run: pnpm exec permdock usage --strict
+- run: pnpm exec permdock usage --fail-on warning
 ```
 
 Recommended together with `collect --check`: `collect` guarantees the catalog reflects the code, `usage` guarantees the code and the policy agree.

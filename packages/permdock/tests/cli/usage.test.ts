@@ -31,7 +31,7 @@ async function usage(
     readonly json?: boolean;
     readonly dynamicAsUsed?: boolean;
   } = {},
-): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+): Promise<{ readonly code: number; readonly output: string }> {
   return runUsage({
     cwd,
     config: options.config ?? CONFIG,

@@ -10,7 +10,7 @@ import {
   partPath,
   pgDeltaPath,
   seedsMigration,
-} from "../output-files.ts";
+} from "../core/output-files.ts";
 import { GRANTS_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { splitUndiffed } from "../sql/statements.ts";
 import {

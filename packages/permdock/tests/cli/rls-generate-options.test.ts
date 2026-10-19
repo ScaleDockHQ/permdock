@@ -11,7 +11,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { CliError } from "../../src/cli/errors.ts";
+import { CliError } from "../../src/cli/core/errors.ts";
 import { assignmentSql } from "../../src/cli/rls/assignments.ts";
 import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
 import { ownershipRules } from "../../src/cli/rls/ownership.ts";
@@ -80,7 +80,7 @@ function generate(rls: NonNullable<PermDockConfig["rls"]>) {
 }
 
 describe("rls generate options", () => {
-  it("exits 1, not 2, when --db cannot be reached", async () => {
+  it("exits 1, not 2, when --db-url cannot be reached", async () => {
     const outcome = await runRlsGenerate({
       cwd,
       config: { policy: "./manage.ts", rls: { memberships } },

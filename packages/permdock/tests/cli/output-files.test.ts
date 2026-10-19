@@ -8,7 +8,7 @@ import {
   partPath,
   STDOUT,
   writeOutputFiles,
-} from "../../src/cli/output-files.ts";
+} from "../../src/cli/core/output-files.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
