@@ -49,7 +49,7 @@
   "./supabase/middleware": 145511,
   "./ssf": 59613,
   "./better-auth": 36405,
-  "./better-supabase": 161356,
+  "./better-supabase": 161428,
   "./clerk": 12393,
   "./convex": 106742,
   "./pdp": 112303,
@@ -59,8 +59,8 @@
   "./testing": 317966,
   "./testing/saas": 146471,
   "./testing/saas/permissions": 137104,
-  "./cli": 652310,
-  "./unplugin": 169884,
-  "./next/plugin": 168958,
+  "./cli": 654260,
+  "./unplugin": 170676,
+  "./next/plugin": 169745,
   "./next/client": 1433
 }

@@ -99,7 +99,7 @@ export async function dbUrl(
   return undefined;
 }
 
-export const DB_URL_ENV = ["DATABASE_URL", "SUPABASE_DB_URL"] as const;
+const DB_URL_ENV = ["DATABASE_URL", "SUPABASE_DB_URL"] as const;
 
 /** A string flag given with a value; a bare flag reads as `""`. */
 export function given(value: string | undefined): string | undefined {
