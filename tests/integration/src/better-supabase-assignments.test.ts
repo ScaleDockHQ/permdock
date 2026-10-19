@@ -67,7 +67,9 @@ describe("authorizationProvider canAssign with custom roles", () => {
     if (inspected.code !== 0) {
       throw new Error(`supabase inspect: ${inspected.stdout}`);
     }
-    manifest = inspected.stdout;
+    // SAFETY: the cli-result-v1 envelope `permdock supabase inspect --json` prints.
+    const envelope = JSON.parse(inspected.stdout) as { readonly data: unknown };
+    manifest = JSON.stringify(envelope.data);
     lite = new PGlite();
     await lite.exec(SETUP);
     await lite.exec(readFileSync(out, "utf8"));

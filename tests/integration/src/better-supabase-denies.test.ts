@@ -85,7 +85,9 @@ describe("better-supabase SQL against a deny of the same permission", () => {
     if (inspected.code !== 0) {
       throw new Error(`supabase inspect: ${inspected.stdout}`);
     }
-    manifest = inspected.stdout;
+    // SAFETY: the cli-result-v1 envelope `permdock supabase inspect --json` prints.
+    const envelope = JSON.parse(inspected.stdout) as { readonly data: unknown };
+    manifest = JSON.stringify(envelope.data);
     const exported = await run(["catalog"], { cwd: FIXTURE });
     if (exported.code !== 0) {
       throw new Error(`catalog: ${exported.stdout}`);
