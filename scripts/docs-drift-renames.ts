@@ -1,4 +1,4 @@
-import { globSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import {
@@ -144,18 +144,34 @@ function rowMatches(row: Rename, old: string, next: string): boolean {
   return cellNames(old).includes(row.from) && cellNames(next).includes(row.to);
 }
 
-/** Every `.changeset/rename-*.md` `| Old | New |` row is a codemod map row, and every map row is in one. */
+function releasedRenames(root: string): string {
+  const path = join(root, "packages/permdock/CHANGELOG.md");
+  const text = existsSync(path) ? read(path) : "";
+  const start = text.indexOf("\n## 0.5.0\n");
+  if (start === -1) {
+    return "";
+  }
+  const end = text.indexOf("\n## ", start + 1);
+  return text.slice(start, end === -1 ? undefined : end);
+}
+
+/** Every `| Old | New |` row of a `.changeset/rename-*.md` file or the 0.5.0 changelog is a codemod map row, and every map row is in one. */
 function changesetRenames(root: string): readonly string[] {
   const dir = join(root, ".changeset");
   const problems: string[] = [];
   const all: (readonly [string, string])[] = [];
-  for (const name of globSync("rename-*.md", { cwd: dir }).toSorted()) {
-    const text = read(join(dir, name));
+  const sources = [
+    ...globSync("rename-*.md", { cwd: dir })
+      .toSorted()
+      .map((name) => [`.changeset/${name}`, read(join(dir, name))] as const),
+    ["packages/permdock/CHANGELOG.md", releasedRenames(root)] as const,
+  ];
+  for (const [where, text] of sources) {
     for (const [old = "", next = ""] of tableRows(text, "Old", "New")) {
       all.push([old, next]);
       if (!RENAMES_0_5.some((row) => rowMatches(row, old, next))) {
         problems.push(
-          `.changeset/${name} renames ${old} to ${next}, which renames-0.5.ts does not list`,
+          `${where} renames ${old} to ${next}, which renames-0.5.ts does not list`,
         );
       }
     }
@@ -163,7 +179,7 @@ function changesetRenames(root: string): readonly string[] {
   for (const row of RENAMES_0_5) {
     if (!all.some(([old, next]) => rowMatches(row, old, next))) {
       problems.push(
-        `renames-0.5.ts renames ${row.from} to ${row.to} (${row.entries.join(", ")}), which no .changeset/rename-*.md table lists`,
+        `renames-0.5.ts renames ${row.from} to ${row.to} (${row.entries.join(", ")}), which no .changeset/rename-*.md table or 0.5.0 changelog entry lists`,
       );
     }
   }
