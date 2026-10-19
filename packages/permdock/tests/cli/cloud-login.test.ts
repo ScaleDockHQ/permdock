@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -192,5 +193,111 @@ describe("permdock login", () => {
     });
     expect(login.code).toBe(1);
     expect(login.stdout).toContain("RFC 8414");
+  });
+});
+
+describe("permdock whoami", () => {
+  it("asks for a login when there is no credential", async () => {
+    const reference = await referenceCloud(policy, CATALOG);
+    const result = await run(["whoami", "--json"], {
+      cwd: FIXTURE,
+      io: io(reference, { XDG_CONFIG_HOME: configHome() }),
+    });
+    expect(result.code).toBe(3);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      status: "action_required",
+      error: { code: "auth_required" },
+      next: [{ command: "permdock login" }],
+    });
+  });
+
+  it("names an environment credential without its value", async () => {
+    const reference = await referenceCloud(policy, CATALOG);
+    const result = await run(["whoami"], {
+      cwd: FIXTURE,
+      io: io(reference, { PERMDOCK_CLOUD_KEY: "pdk_secret" }),
+    });
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe(
+      `${reference.url}: PERMDOCK_CLOUD_KEY from the environment\n`,
+    );
+  });
+
+  it("reports the stored login's scopes and expiry", async () => {
+    const reference = await referenceCloud(policy, CATALOG);
+    const env = { XDG_CONFIG_HOME: configHome() };
+    expect(
+      (await run(["login"], { cwd: FIXTURE, io: io(reference, env) })).code,
+    ).toBe(0);
+    const json = await run(["whoami", "--json"], {
+      cwd: FIXTURE,
+      io: io(reference, env),
+    });
+    expect(jsonData(json.stdout)).toMatchObject({
+      issuer: reference.url,
+      source: "login",
+      scopes: ["projects:read", "policy:read"],
+      expired: false,
+    });
+    const text = await run(["whoami"], {
+      cwd: FIXTURE,
+      io: io(reference, env),
+    });
+    expect(text.stdout).toBe(
+      `${reference.url}: logged in (projects:read policy:read)\n`,
+    );
+  });
+
+  it("says when a login without a refresh token has expired", async () => {
+    const reference = await referenceCloud(policy, CATALOG);
+    const env = { XDG_CONFIG_HOME: configHome() };
+    expect(
+      (await run(["login"], { cwd: FIXTURE, io: io(reference, env) })).code,
+    ).toBe(0);
+    const file = join(env.XDG_CONFIG_HOME, "permdock", "credentials.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        profiles: {
+          [reference.url]: { access_token: "at_old", expires_at: 1 },
+        },
+      }),
+    );
+    const text = await run(["whoami"], {
+      cwd: FIXTURE,
+      io: io(reference, env),
+    });
+    expect(text.stdout).toBe(
+      `${reference.url}: logged in (no scopes); the login has expired, run permdock login\n`,
+    );
+    const json = await run(["whoami", "--json"], {
+      cwd: FIXTURE,
+      io: io(reference, env),
+    });
+    expect(jsonData(json.stdout)).toMatchObject({
+      scopes: [],
+      expiresAt: "1970-01-01T00:00:01.000Z",
+      expired: true,
+    });
+  });
+
+  it("names an environment credential under --json, and logout says when nobody is logged in", async () => {
+    const reference = await referenceCloud(policy, CATALOG);
+    const whoami = await run(["whoami", "--json"], {
+      cwd: FIXTURE,
+      io: io(reference, { PERMDOCK_CLOUD_TOKEN: "pdt_x" }),
+    });
+    expect(jsonData(whoami.stdout)).toEqual({
+      issuer: reference.url,
+      source: "PERMDOCK_CLOUD_TOKEN",
+    });
+    const logout = await run(["logout", "--json"], {
+      cwd: FIXTURE,
+      io: io(reference, { XDG_CONFIG_HOME: configHome() }),
+    });
+    expect(jsonData(logout.stdout)).toEqual({
+      issuer: reference.url,
+      status: "not logged in",
+    });
   });
 });

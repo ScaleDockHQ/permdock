@@ -105,6 +105,17 @@ describe("rewriteCliCalls", () => {
     });
   });
 
+  it.each(["permdock catalog --format=xml", "permdock catalog --format"])(
+    "reports %s, whose value it cannot map",
+    (text) => {
+      expect(rewriteCliCalls(text, { json: false })).toMatchObject({
+        text,
+        changes: [],
+        followUps: [{ message: "catalog: --format is --kind since 0.5.0." }],
+      });
+    },
+  );
+
   it("reports a rename that needs a person, and a value it cannot map", () => {
     const result = rewriteCliCalls(
       "permdock cloud push --environment staging\npermdock catalog --format yaml\n",

@@ -1,0 +1,172 @@
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { run } from "../../src/cli/core/run.ts";
+
+const FIXTURE = join(import.meta.dirname, "fixtures/mini-app");
+
+function capture(env: Readonly<Record<string, string>> = {}): {
+  readonly env: Readonly<Record<string, string>>;
+  readonly stdout: () => void;
+  readonly stderr: () => void;
+} {
+  return { env, stdout: () => undefined, stderr: () => undefined };
+}
+
+function errorOf(stdout: string): unknown {
+  const parsed: unknown = JSON.parse(stdout);
+  return typeof parsed === "object" && parsed !== null
+    ? Reflect.get(parsed, "error")
+    : undefined;
+}
+
+describe("run: groups", () => {
+  it("names the subcommand a moved group's flags belong to", async () => {
+    const result = await run(["openapi", "--check", "--json"], {
+      cwd: FIXTURE,
+    });
+    expect(result.code).toBe(2);
+    expect(errorOf(result.stdout)).toMatchObject({
+      code: "command_moved",
+      replacement: "permdock openapi emit",
+    });
+  });
+
+  it("lists a bare group's subcommands as choices under --json", async () => {
+    const result = await run(["rls", "--json"], { cwd: FIXTURE });
+    expect(result.code).toBe(2);
+    expect(errorOf(result.stdout)).toMatchObject({
+      code: "missing_input",
+      choices: [
+        "permdock rls generate",
+        "permdock rls import",
+        "permdock rls verify",
+        "permdock rls migrate",
+      ],
+    });
+  });
+
+  it("prints a group's help as text", async () => {
+    const result = await run(["rls", "--help"], { cwd: FIXTURE });
+    expect(result.code).toBe(0);
+    expect(result.stdout).toMatch(/^permdock rls: /u);
+  });
+});
+
+describe("run: the root", () => {
+  it.each([
+    [["--json"], "missing_input", "permdock needs a command"],
+    [
+      ["--format", "xml", "--json"],
+      "invalid_value",
+      "--format 'xml' is not one of text, json, github, sarif.",
+    ],
+    [
+      ["--json", "--format", "text"],
+      "invalid_value",
+      "--json and --format text ask for different output; pick one",
+    ],
+    [
+      ["rls", "--format", "xml", "--json"],
+      "invalid_value",
+      "--format 'xml' is not one of text, json, github, sarif.",
+    ],
+  ])("answers %j with %s", async (argv, code, detail) => {
+    const result = await run(argv, { cwd: FIXTURE });
+    expect(result.code).toBe(2);
+    expect(errorOf(result.stdout)).toMatchObject({ code, detail });
+  });
+});
+
+describe("run: flags", () => {
+  it("says a removed flag is gone, with no replacement", async () => {
+    const result = await run(["scan", "--legacy", "--json"], { cwd: FIXTURE });
+    const error = errorOf(result.stdout);
+    expect(error).toMatchObject({ code: "flag_renamed", flag: "--legacy" });
+    expect(error).not.toHaveProperty("replacement");
+  });
+
+  it("refuses --json with another --format", async () => {
+    const result = await run(["doctor", "--json", "--format", "text"], {
+      cwd: FIXTURE,
+    });
+    expect(result.code).toBe(2);
+    expect(errorOf(result.stdout)).toMatchObject({ code: "invalid_value" });
+  });
+
+  it("repeats --cwd and --config in the command consent asks for", async () => {
+    const result = await run(
+      [
+        "codemod",
+        "0.5",
+        "--agent",
+        "yes",
+        "--cwd",
+        FIXTURE,
+        "--config",
+        "permdock.config.ts",
+      ],
+      { cwd: FIXTURE },
+    );
+    expect(result.code).toBe(3);
+    expect(result.stdout).toContain(
+      `--cwd ${FIXTURE} --config permdock.config.ts --confirm `,
+    );
+  });
+});
+
+describe("run: output formats", () => {
+  it("prints no annotations and an empty SARIF run for a report without findings", async () => {
+    const github = await run(["config", "--format", "github"], {
+      cwd: FIXTURE,
+      io: capture(),
+    });
+    expect(github.stdout).toBe("");
+    const sarif = await run(["config", "--format", "sarif"], {
+      cwd: FIXTURE,
+      io: capture(),
+    });
+    expect(JSON.parse(sarif.stdout)).toMatchObject({
+      version: "2.1.0",
+      runs: [{ results: [] }],
+    });
+  });
+
+  it("refuses --format github for a command that reports no findings", async () => {
+    const result = await run(["preset", "url", "--format", "github"], {
+      cwd: FIXTURE,
+    });
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(
+      "--format github renders findings, and permdock preset url reports none; use text or json",
+    );
+  });
+});
+
+describe("run: --debug", () => {
+  it("logs the mode, the config file and the exit code", async () => {
+    const result = await run(["config", "--debug"], {
+      cwd: FIXTURE,
+      io: { ...capture(), errColor: true },
+    });
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain("debug: config: agent mode off");
+    expect(result.stderr).toContain(
+      `debug: config file: ${join(FIXTURE, "permdock.config.ts")}`,
+    );
+    expect(result.stderr).toContain("debug: config: exit 0");
+  });
+
+  it("logs the cause of a network error", async () => {
+    const result = await run(["cloud", "pull", "--project", "p", "--debug"], {
+      cwd: FIXTURE,
+      io: {
+        ...capture({ PERMDOCK_CLOUD_TOKEN: "pdt_test" }),
+        fetch: () => Promise.reject(new Error("connect ECONNREFUSED")),
+      },
+    });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("cause: connect ECONNREFUSED");
+    expect(result.stderr).not.toContain("pdt_test");
+  });
+});

@@ -116,5 +116,7 @@ describe("completion candidates", () => {
     expect(await candidates(["codemod", ""])).toEqual(["0.5"]);
     expect(await candidates(["codemod", "--dry-run", ""])).toEqual(["0.5"]);
     expect(await candidates(["codemod", "0.5", ""])).toEqual([]);
+    expect(await candidates(["codemod", "--cwd", "app", ""])).toEqual(["0.5"]);
+    expect(await candidates(["codemod", "--", ""])).toEqual([]);
   });
 });
