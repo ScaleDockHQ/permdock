@@ -630,7 +630,7 @@ describe("permdock codemod", () => {
     // SAFETY: `codemod --json` prints a CodemodReport.
     const report = jsonData(result.stdout) as CodemodReport;
     expect(report.dryRun).toBe(true);
-    expect(report.scanned).toBe(2);
+    expect(report.scanned).toBe(3);
     expect(report.files.map((file) => file.file)).toEqual(["src/sinks.ts"]);
     expect(readFileSync(join(dir, "src/sinks.ts"), "utf8")).toBe(
       files["src/sinks.ts"],

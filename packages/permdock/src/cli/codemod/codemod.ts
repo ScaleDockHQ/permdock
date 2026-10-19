@@ -6,6 +6,7 @@ import type { CommandResult } from "../core/result.ts";
 import { CliError } from "../core/errors.ts";
 import { type PlannedFile, applyFiles, refuseDirty } from "../core/files.ts";
 import { rel } from "../files.ts";
+import { rewriteCliCalls } from "./cli-calls.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
 import {
   AWAIT_RENAMES_0_5,
@@ -53,6 +54,20 @@ const EXTENSIONS: ReadonlySet<string> = new Set([
   ".vue",
   ".svelte",
 ]);
+
+/** Files whose shell commands the codemod rewrites when the version renames CLI names. */
+const CLI_FILE_NAMES: ReadonlySet<string> = new Set([
+  "package.json",
+  "Makefile",
+  "justfile",
+  "Dockerfile",
+]);
+const CLI_EXTENSIONS: ReadonlySet<string> = new Set([".yml", ".yaml", ".sh"]);
+/** Prose: the codemod lists the old calls in it and rewrites none. */
+const CLI_REVIEW_EXTENSIONS: ReadonlySet<string> = new Set([".md", ".mdx"]);
+
+/** The versions whose renames include the CLI's own commands and flags. */
+const CLI_RENAME_VERSIONS: ReadonlySet<string> = new Set(["0.5"]);
 
 const SKIP_DIRS: ReadonlySet<string> = new Set([
   "node_modules",
@@ -114,6 +129,7 @@ export function codemod(options: CodemodOptions): CodemodReport {
   const files = sourceFiles(
     options.cwd,
     options.paths.length === 0 ? ["."] : options.paths,
+    CLI_RENAME_VERSIONS.has(version),
   );
   const changed: CodemodFileReport[] = [];
   const followUps: CodemodFollowUpReport[] = [];
@@ -124,7 +140,9 @@ export function codemod(options: CodemodOptions): CodemodReport {
       continue;
     }
     const name = rel(options.cwd, file);
-    const result = transformSource(file, source, set);
+    const result = isCodeFile(file)
+      ? transformSource(file, source, set)
+      : cliResult(file, source);
     if (result.error !== undefined) {
       followUps.push({
         file: name,
@@ -175,7 +193,52 @@ function normaliseVersion(version: string | undefined): string {
   return match?.[1] ?? version;
 }
 
-function sourceFiles(cwd: string, paths: readonly string[]): readonly string[] {
+function isCodeFile(file: string): boolean {
+  return EXTENSIONS.has(extname(file));
+}
+
+function isCliFile(name: string): boolean {
+  return (
+    CLI_FILE_NAMES.has(name) ||
+    CLI_EXTENSIONS.has(extname(name)) ||
+    CLI_REVIEW_EXTENSIONS.has(extname(name))
+  );
+}
+
+function cliResult(
+  file: string,
+  source: string,
+): ReturnType<typeof transformSource> {
+  const result = rewriteCliCalls(source, {
+    json: extname(file) === ".json",
+  });
+  if (!CLI_REVIEW_EXTENSIONS.has(extname(file))) {
+    return {
+      source: result.text,
+      changes: result.changes,
+      followUps: result.followUps,
+    };
+  }
+  return {
+    source,
+    changes: [],
+    followUps: [
+      ...result.changes.map((change) => ({
+        line: change.line,
+        column: change.column,
+        name: "cli",
+        message: `${change.from} → ${change.to} since 0.5.0`,
+      })),
+      ...result.followUps,
+    ],
+  };
+}
+
+function sourceFiles(
+  cwd: string,
+  paths: readonly string[],
+  cli: boolean,
+): readonly string[] {
   const out = new Set<string>();
   for (const path of paths) {
     const root = resolve(cwd, path);
@@ -186,13 +249,13 @@ function sourceFiles(cwd: string, paths: readonly string[]): readonly string[] {
     if (stats.isFile()) {
       out.add(root);
     } else {
-      walkDir(root, out);
+      walkDir(root, out, cli);
     }
   }
   return [...out].toSorted();
 }
 
-function walkDir(dir: string, out: Set<string>): void {
+function walkDir(dir: string, out: Set<string>, cli: boolean): void {
   for (const name of readdirSync(dir)) {
     if (SKIP_DIRS.has(name)) {
       continue;
@@ -200,8 +263,8 @@ function walkDir(dir: string, out: Set<string>): void {
     const full = join(dir, name);
     const stats = statSync(full);
     if (stats.isDirectory()) {
-      walkDir(full, out);
-    } else if (EXTENSIONS.has(extname(name))) {
+      walkDir(full, out, cli);
+    } else if (EXTENSIONS.has(extname(name)) || (cli && isCliFile(name))) {
       out.add(full);
     }
   }

@@ -9,18 +9,18 @@ An app with its own authorization adopts PermDock in steps. Each step leaves the
 | ----------------------- | --------------------------------------------------------------- | ----------------------------------------------------- |
 | 1. Model the vocabulary | `definePermissions` with the app's own keys, names and verbs    | Everything; nothing is generated yet                  |
 | 2. Helpers beside SQL   | `rls generate --helpers-only --shims`                           | Every hand-written policy, function, view and trigger |
-| 3. Rewrite policies     | `rls migrate --write`                                           | Function bodies, views and triggers, through shims    |
+| 3. Rewrite policies     | `rls migrate`                                                   | Function bodies, views and triggers, through shims    |
 | 4. Token cutover        | The Supabase token hook, `claimsFirst`, legacy claims           | Tokens issued before the deploy                       |
 | 5. Custom-role data     | `rls generate --backfill-out` copies the app's role tables      | Roles stored under old keys; the app's own tables     |
 | 6. Rename keys          | `renamed` aliases, then a deprecation window measured by doctor | Old keys in SQL, tokens and stored roles              |
 
 ## Find the checks you have
 
-`permdock scan --legacy` lists the authorization checks in the application code that do not go through PermDock: role comparisons (`user.role === "admin"`), `roles.includes`, `isAdmin` flags, `hasRole` and `hasPermission` helpers, CASL `ability.can`, Clerk `has({ role })` and role claims read from a token. Add your own shapes with `--pattern`. Rules that already live in CASL or Casbin import as roles and grants: [`permdock casl import`](/docs/cli/casl) and [`permdock casbin import`](/docs/cli/casbin).
+`permdock scan` lists the authorization checks in the application code that do not go through PermDock: role comparisons (`user.role === "admin"`), `roles.includes`, `isAdmin` flags, `hasRole` and `hasPermission` helpers, CASL `ability.can`, Clerk `has({ role })` and role claims read from a token. Add your own shapes with `--pattern`. Rules that already live in CASL or Casbin import as roles and grants: [`permdock casl import`](/docs/cli/casl) and [`permdock casbin import`](/docs/cli/casbin).
 
 ```bash
-permdock scan --legacy
-permdock scan --legacy --src app,lib --pattern "featureFlag\("
+permdock scan
+permdock scan --src app,lib --pattern "featureFlag\("
 ```
 
 Each finding is a place where a permission belongs. The count at the end is the work left before PermDock can decide on its own.
@@ -72,8 +72,8 @@ A Supabase project with declarative schemas splits the same output instead: `--s
 ## Rewrite policies
 
 ```bash
-permdock rls migrate --rbac supabase --sql supabase              # dry run
-permdock rls migrate --rbac supabase --sql supabase --write
+permdock rls migrate --rbac supabase --sql supabase --dry-run
+permdock rls migrate --rbac supabase --sql supabase
 ```
 
 `migrate` rewrites calls to the legacy helpers inside `create policy` and `alter policy` onto the generated helpers, and maps keys through `rls.migrate.keys`, then `renamed`, then `rls.migrate.prefixes` ([migrate](/docs/cli/rls#migrate)). It lists every call it skipped: function bodies, views and triggers stay on the shims until they are rewritten by hand. `permdock doctor` PD056 counts the remaining callers of each legacy name; drop a shim and its legacy function once its count is zero.
@@ -115,7 +115,7 @@ Pick `database` when a revoked role must stop working on the next request for ev
 To retire the table:
 
 1. Generate the helpers beside it with `--shims` and an `rls.migrate.helpers` entry for `has_permission` ([shims](/docs/cli/rls#shims)). The shim answers for function bodies and views that still call the old name.
-2. Add `user_permissions` to `rls.migrate.tables` and run `rls migrate --write` to rewrite the policies. The report lists the refresh triggers and every view, function or policy that still reads the table; `permdock doctor` reports the same as PD066.
+2. Add `user_permissions` to `rls.migrate.tables` and run `rls migrate` to rewrite the policies. The report lists the refresh triggers and every view, function or policy that still reads the table; `permdock doctor` reports the same as PD066.
 3. Rewrite the remaining readers by hand. When the report shows none, run `rls migrate --retire-out supabase/migrations/`: it writes one migration that drops the refresh triggers and their functions, the uncalled shim and the table, without `cascade` ([retire a materialised table](/docs/cli/rls#retire-a-materialised-table)).
 
 ## Cut tokens over

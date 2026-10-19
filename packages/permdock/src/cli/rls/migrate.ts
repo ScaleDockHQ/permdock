@@ -12,7 +12,11 @@ import { dateAt } from "../../core/time.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError } from "../core/errors.ts";
 import { type PlannedFile, applyFiles, refuseDirty } from "../core/files.ts";
-import { dataMigrationFile, writeOutputFiles } from "../core/output-files.ts";
+import {
+  STDOUT,
+  dataMigrationFile,
+  writeOutputFiles,
+} from "../core/output-files.ts";
 import { sqlFiles } from "../files.ts";
 import { RETIRE_MARKER } from "../sql/markers.ts";
 import { HELPERS } from "../sql/shared.ts";
@@ -734,7 +738,13 @@ export async function runRlsMigrate(
   if (input.retireOut === undefined || retire === undefined) {
     return { code: unknown ? 1 : 0, output };
   }
-  const retired = writeRetire(input.cwd, input.retireOut, retire, input.now);
+  const retired = writeRetire(
+    input.cwd,
+    input.retireOut,
+    retire,
+    input.now,
+    !input.write,
+  );
   return {
     code: unknown || retired.code === 1 ? 1 : 0,
     output: `${output}\n${retired.output}`,
@@ -747,6 +757,7 @@ function writeRetire(
   out: string,
   plan: RetirePlan,
   now: Date | undefined,
+  dryRun: boolean,
 ): { readonly code: 0 | 1; readonly output: string } {
   const read = plan.tables.filter(
     (table) => table.present && table.readers.length > 0,
@@ -772,6 +783,9 @@ function writeRetire(
   });
   if (file === undefined) {
     return { code: 0, output: "rls migrate --retire-out: up to date" };
+  }
+  if (dryRun && file.rel !== STDOUT) {
+    return { code: 0, output: `would write ${file.rel}` };
   }
   const written = writeOutputFiles(cwd, [file]);
   return {

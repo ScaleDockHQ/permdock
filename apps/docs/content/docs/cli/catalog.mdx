@@ -8,10 +8,10 @@ description: Export the permission catalog as JSON, JSON Schema or Markdown, and
 ## Usage
 
 ```bash
-permdock catalog --format json     > permissions.catalog.json
-permdock catalog --format schema   > permissions.schema.json     # JSON Schema of the catalog document
-permdock catalog --format markdown > docs/permissions.md
-permdock catalog --from ./src/permissions.ts   # render straight from the definition module, skipping collect
+permdock catalog --kind catalog     > permissions.catalog.json
+permdock catalog --kind json-schema   > permissions.schema.json     # JSON Schema of the catalog document
+permdock catalog --kind markdown > docs/permissions.md
+permdock catalog --permissions ./src/permissions.ts   # render straight from the definition module, skipping collect
 permdock catalog --include post --include billing.invoice        # scope to a subtree
 ```
 

@@ -35,7 +35,7 @@ Adopting PermDock in an app with its own keys, SQL helpers and tokens is a step-
 - Keep the app's keys. Map verbs such as `view` to SQL with `rls.actions`, and give colliding resources a distinct `name` on `resource()`.
 - Put application-owned metadata in `meta.x`; PermDock carries it and never reads it (see App data below).
 - Rename a key later with `definePermissions(tree, { renamed: { "old.key": "new.key" } })`. Remove the alias only when `permdock doctor` PD055 and PD056 are quiet; `permdock diff` reports the removal as the breaking `alias-removed`.
-- Generate helpers beside legacy SQL with `permdock rls generate --helpers-only --shims`, then rewrite policies with `permdock rls migrate --write`.
+- Generate helpers beside legacy SQL with `permdock rls generate --helpers-only --shims`, then rewrite policies with `permdock rls migrate`.
 
 ## App data and app obligations
 
@@ -48,7 +48,7 @@ Owning page: [extend PermDock](https://permdock.com/docs/guides/extending).
 
 ## CLI starting points
 
-- When the app already has an OpenAPI document and no definitions yet, start from `permdock openapi import --doc <doc> --out src/permissions.generated.ts --schema zod` and review each action's `meta.inferredFrom`.
+- When the app already has an OpenAPI document and no definitions yet, start from `permdock openapi import --doc <doc> --out src/permissions.generated.ts --validator zod` and review each action's `meta.inferredFrom`.
 - When the repo has Arazzo workflows, run `permdock arazzo check --doc <arazzo> --openapi <doc>`.
 - When the app uses PermDock Cloud, add `permdock cloud push` to the deploy step after the deploy, with `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` from CI secrets; pass `--manifest` with the `supabase inspect --out` file when the repo has one. A repo that builds from a Cloud project runs `permdock cloud pull --project <id>` with `PERMDOCK_CLOUD_TOKEN` before its checks instead. Locally, `permdock login` replaces both keys. The Cloud is optional and never on the decision path.
 - `permdock skills install` copies these skills into the project's agent folders, writing a symlinked folder once through its target; `permdock skills install --check` in CI fails when the installed skills differ from the package version.

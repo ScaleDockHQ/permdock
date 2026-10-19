@@ -12,7 +12,7 @@ A project is one Cloud environment and has the same id: `--project` and `--envir
 ## Usage
 
 ```bash
-permdock cloud push                         # PERMDOCK_CLOUD_KEY, or a login from permdock login --write
+permdock cloud push                         # PERMDOCK_CLOUD_KEY, or a login from permdock login --scope catalog:write
 permdock cloud push --environment preview   # overrides PERMDOCK_CLOUD_ENV, then VERCEL_ENV, then production
 permdock cloud push --manifest supabase/permdock.manifest.json
 permdock cloud push --dry-run --json        # print the fingerprint and summary; no network

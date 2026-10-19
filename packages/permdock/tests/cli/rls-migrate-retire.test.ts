@@ -262,6 +262,11 @@ describe("rls migrate --retire-out", () => {
     expect(report.retire?.tables[0]?.readers).toEqual([]);
 
     const out = [...ARGS, "--retire-out", "supabase/migrations/"];
+    const dry = await run([...out, "--dry-run"], { cwd });
+    expect(dry.stdout).toContain(
+      "would write supabase/migrations/20261001000002_permdock_retire.sql",
+    );
+    expect(readdirSync(join(cwd, "supabase/migrations"))).toHaveLength(2);
     const first = await run(out, { cwd });
     expect(first.code).toBe(0);
     expect(first.stdout).toContain(

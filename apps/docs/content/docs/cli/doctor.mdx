@@ -167,7 +167,7 @@ Fires when `claims.tenant` names a claim the issuer emits only for some accounts
 
 ### PD012: stale draft pin
 
-Reads `x-permdock-catalog.drafts` from every OpenAPI document and Overlay `permdock openapi` has written in the repository (found through the `openapi` section of the config or the paths passed to `--doc`) and compares each pin with the revision the installed CLI emits ([OpenAPI 3.3](/docs/standards/openapi), [watch list](/docs/standards/watch-list)). A mismatch means the document carries an older draft shape than a regeneration would produce, which is a warning here and an error in `permdock openapi emit --check`; the fix is to regenerate. Documents and Overlays without `drafts` (targets `3.1` and `3.2`, Overlay `1.1`) are not checked; a `--overlay 1.2` Overlay carries `drafts.overlay` ([OpenAPI Overlay](/docs/standards/openapi-overlay)).
+Reads `x-permdock-catalog.drafts` from every OpenAPI document and Overlay `permdock openapi emit` has written in the repository (found through the `openapi` section of the config or the paths passed to `--doc`) and compares each pin with the revision the installed CLI emits ([OpenAPI 3.3](/docs/standards/openapi), [watch list](/docs/standards/watch-list)). A mismatch means the document carries an older draft shape than a regeneration would produce, which is a warning here and an error in `permdock openapi emit --check`; the fix is to regenerate. Documents and Overlays without `drafts` (targets `3.1` and `3.2`, Overlay `1.1`) are not checked; a `--overlay 1.2` Overlay carries `drafts.overlay` ([OpenAPI Overlay](/docs/standards/openapi-overlay)).
 
 ### PD013: polymorphic `EdDSA`
 
@@ -183,7 +183,7 @@ Warns when a custom `TokenVerifier` passed as `verifier` does not declare `typ` 
 
 ### PD016: RLS opaque grants and unverified twins
 
-Warns when `permdock.config.ts` has an `rls` block whose policy still contains `opaque` conditions (they deny in memory; map the helper through `rls.functions` or rewrite as `sqlFunction`) or `sqlFunction` grants with no `rls.fixtures.json` (or `rls.fixtures`) so `permdock rls verify --db` cannot prove the twin. See [conditions](/docs/concepts/conditions) and [rls](/docs/cli/rls).
+Warns when `permdock.config.ts` has an `rls` block whose policy still contains `opaque` conditions (they deny in memory; map the helper through `rls.functions` or rewrite as `sqlFunction`) or `sqlFunction` grants with no `rls.fixtures.json` (or `rls.fixtures`) so `permdock rls verify --db-url` cannot prove the twin. See [conditions](/docs/concepts/conditions) and [rls](/docs/cli/rls).
 
 ## Example report
 
@@ -284,7 +284,7 @@ Broken object level authorization (BOLA, OWASP API1) is a route that takes an ob
 
 ### PD037: helper calls for row-conditioned permissions
 
-The SQL helpers answer one question, whether the subject holds a role with the grant key in a scope; the row conditions of a grant stay in PermDock's own table policies ([RLS](/docs/adapters/rls#sql-helper-contract)). A Storage or Realtime policy written outside PermDock, such as a better-supabase bucket or topic `access` policy, that calls a helper for a permission with a `where`, `check`, closure, field list, purpose, break-glass override, `validFrom` / `validUntil` window, or a relation, plan, actor or assurance grantee would therefore grant more than the application does. The check reads `create policy` statements on `storage.objects` and `realtime.messages` from the migration directories (`doctor.migrations`) and errors on each grant-key helper call (`permdock_has`, `permitted_<scope>_ids`) whose key has `rowConditions: true` in the catalog. `permdock_has_permission('<key>')` and `permitted_<scope>_ids_by_permission('<key>')` count only the allows without a row condition, minus any deny, so they never grant more than the application does and are not flagged; `permitted_<scope>_ids_by_permission('<key>', true)` adds the conditioned allows and is. That is the fix for a permission that also has a relationship grant, such as a chat thread shared with one user: the topic policy calls the permission-key form and admits the members whose role reaches the thread's organization, while the share stays in the table policies. `permdock rls verify --db` runs the same check against `pg_policies`. `--only supabase` or `--only row-conditions` runs PD037.
+The SQL helpers answer one question, whether the subject holds a role with the grant key in a scope; the row conditions of a grant stay in PermDock's own table policies ([RLS](/docs/adapters/rls#sql-helper-contract)). A Storage or Realtime policy written outside PermDock, such as a better-supabase bucket or topic `access` policy, that calls a helper for a permission with a `where`, `check`, closure, field list, purpose, break-glass override, `validFrom` / `validUntil` window, or a relation, plan, actor or assurance grantee would therefore grant more than the application does. The check reads `create policy` statements on `storage.objects` and `realtime.messages` from the migration directories (`doctor.migrations`) and errors on each grant-key helper call (`permdock_has`, `permitted_<scope>_ids`) whose key has `rowConditions: true` in the catalog. `permdock_has_permission('<key>')` and `permitted_<scope>_ids_by_permission('<key>')` count only the allows without a row condition, minus any deny, so they never grant more than the application does and are not flagged; `permitted_<scope>_ids_by_permission('<key>', true)` adds the conditioned allows and is. That is the fix for a permission that also has a relationship grant, such as a chat thread shared with one user: the topic policy calls the permission-key form and admits the members whose role reaches the thread's organization, while the share stays in the table policies. `permdock rls verify --db-url` runs the same check against `pg_policies`. `--only supabase` or `--only row-conditions` runs PD037.
 
 ### PD038: tenant claim mismatch
 
@@ -360,7 +360,7 @@ A key renamed with `definePermissions(..., { renamed })` keeps resolving in stor
 
 ### PD056: callers of a legacy helper
 
-With `rls.migrate.helpers` set, the check counts calls to each legacy helper name in the migration folders, leaving out the statements that create, grant or drop the helper itself. A remaining call keeps the legacy function, or its [shim](/docs/cli/rls#shims), in use. Run `permdock rls migrate --write` for the policies, rewrite function bodies, views and triggers onto the PermDock helpers by hand, then drop the function. `--only shims` (or `--only sql`) runs PD056.
+With `rls.migrate.helpers` set, the check counts calls to each legacy helper name in the migration folders, leaving out the statements that create, grant or drop the helper itself. A remaining call keeps the legacy function, or its [shim](/docs/cli/rls#shims), in use. Run `permdock rls migrate` for the policies, rewrite function bodies, views and triggers onto the PermDock helpers by hand, then drop the function. `--only shims` (or `--only sql`) runs PD056.
 
 ### PD057: anonymous sign-ins mapped as users
 

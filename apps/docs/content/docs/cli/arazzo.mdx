@@ -3,11 +3,11 @@ title: arazzo
 description: Resolve every step of an Arazzo workflow to an operation's x-permdock-permissions and report steps that call undocumented operations.
 ---
 
-`permdock arazzo check` is the workflow counterpart of `permdock openapi --check`. It runs the resolution half of `simulateArazzo(permdock, { arazzo, openapi })` and never evaluates a subject. See [Arazzo workflows](/docs/standards/arazzo) and [Arazzo](/docs/standards/arazzo).
+`permdock arazzo check` is the workflow counterpart of `permdock openapi emit --check`. It runs the resolution half of `simulateArazzo(permdock, { arazzo, openapi })` and never evaluates a subject. See [Arazzo workflows](/docs/standards/arazzo) and [Arazzo](/docs/standards/arazzo).
 
 ```bash
 permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json
-permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json --workflow publishPost --from src/permissions.ts
+permdock arazzo check --doc workflows/publish-post.arazzo.json --openapi openapi.json --workflow publishPost --permissions src/permissions.ts
 ```
 
 ## Flags

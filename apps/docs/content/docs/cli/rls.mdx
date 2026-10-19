@@ -11,11 +11,11 @@ description: Generate Postgres row-level security policies from a PermDock polic
 permdock rls generate --target drizzle --dialect supabase --out src/db/policies.ts
 permdock rls generate --target sql     --dialect neon     --out migrations/0007_rls.sql
 permdock rls generate --target prisma  --dialect guc      --out prisma/policies.prisma
-permdock rls generate --target sql --dialect supabase --rbac-scaffold   # also emit Supabase's authorize() RBAC tables
+permdock rls generate --target sql --dialect supabase --rbac supabase   # also emit Supabase's authorize() RBAC tables
 permdock rls generate --target sql --dialect supabase --memberships organization_members:organization_id,user_id,role --tenant-type uuid
 permdock rls generate --target sql --policy-per-role --out migrations/rls.sql   # one policy per role and permission
 permdock rls generate --target sql --inline-functions --out migrations/rls.sql
-permdock rls generate --target sql --force --out migrations/rls.sql   # also FORCE ROW LEVEL SECURITY
+permdock rls generate --target sql --force-rls --out migrations/rls.sql   # also FORCE ROW LEVEL SECURITY
 permdock rls generate --target sql --fields views --out migrations/rls.sql   # plus <table>_visible field views
 permdock rls generate --target sql --fields views --revoke-columns --out migrations/rls.sql   # and close restricted columns on the table
 permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook \
@@ -827,9 +827,9 @@ PERMDOCK_CLOUD_TOKEN=... permdock rls generate --project production --check
 ## migrate
 
 ```bash
-permdock rls migrate --rbac supabase --sql supabase              # dry run: every rewrite and every skipped call
-permdock rls migrate --rbac supabase --sql supabase --write      # apply them
-permdock rls migrate --rbac supabase --sql supabase --json       # { rewrites, skipped, retire }
+permdock rls migrate --rbac supabase --sql supabase --dry-run         # every rewrite and every skipped call, nothing written
+permdock rls migrate --rbac supabase --sql supabase                   # apply them
+permdock rls migrate --rbac supabase --sql supabase --dry-run --json  # { rewrites, skipped, retire }
 permdock rls migrate --rbac supabase --sql supabase --retire-out supabase/migrations/   # drop rls.migrate.tables once unread
 ```
 
@@ -927,9 +927,9 @@ While any listed table still has a reader, `--retire-out` writes nothing and the
 ## import
 
 ```bash
-permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts
-permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts --schema valibot
-permdock rls import --db $DATABASE_URL --out src/permissions.generated.ts --from drizzle
+permdock rls import --db-url $DATABASE_URL --out src/permissions.generated.ts
+permdock rls import --db-url $DATABASE_URL --out src/permissions.generated.ts --validator valibot
+permdock rls import --db-url $DATABASE_URL --out src/permissions.generated.ts --from drizzle
 ```
 
 `import` reads `pg_policies` (with `--db`, optional `pg` peer) or a SQL dump (`--sql`), parses each `USING` and `WITH CHECK` expression with `pgsql-parser` (libpg_query compiled to WASM; an optional peer, so run `pnpm add -D pgsql-parser` first, or `import` prints that line and exits) and pattern-matches the AST against the portable subset, recognising the `EXISTS` form of membership (its role filter as `role = 'x'`, `role in (…)` or `role = any(array[…])`, enum casts included, each value read through `rls.roleValues`), the Supabase `auth.uid()` / `auth.jwt()` idioms, and `FuncCall` names listed in `rls.functions`. Recognised expressions become portable conditions; mapped functions become `sqlFunction` with the configured twin; everything else becomes `opaque({ sql, fingerprint })`, where `fingerprint` is a hash of the deparsed AST so formatting changes do not register as drift. Unmapped functions print `add rls.functions.<name>` and, with `--db`, a slice of `pg_proc.prosrc`. Calls to the generated helpers are read back in both layouts: `"<col>" in (select permitted_tenant_ids('<key>'))` and the team form become `memberOf` with the roles that `role_permissions` (the seeds in a dump, or the live table with `--db`) lists for that key, and `(select permdock_has('<key>'))` stays `opaque` in the condition, because a global role has no row form. Each catalog entry lists those branches under `grants` as `{ key, permission, scope, roles, where? }`, so the imported file still names which roles each policy admits. An `EXISTS` or `IN` subquery over a table that `rls.memberships` does not name stays opaque, and the command prints a commented `rls.memberships.tenant` stanza for that table with the default column names to edit; it never assumes the table holds memberships. A subquery over a mapped membership table becomes `memberOf` only when its `where` binds the membership row to the signed-in user (`user = auth.uid()` or the `current_setting` user), correlates it to the policy row through a scope column, and filters roles with string literals (`role = 'owner'`, `role in ('owner', 'admin')`), which become `roles`. Any other predicate in that `where`, an `or`, or a missing user binding keeps the expression `opaque`: an unread filter would widen the imported condition to every member.
@@ -944,11 +944,11 @@ No other tool imports RLS into application permissions; Kysera's `@kysera/rls` i
 
 ```bash
 permdock rls verify --fixtures rls.fixtures.json
-permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
-permdock rls verify --fixtures rls.fixtures.json --format pgtap > tests/rls.sql
-permdock rls verify --db $DATABASE_URL --tree
-permdock rls verify --db $DATABASE_URL --introspect
-permdock rls verify --advisors --db $DATABASE_URL --json
+permdock rls verify --db-url $DATABASE_URL --fixtures rls.fixtures.json
+permdock rls verify --fixtures rls.fixtures.json --kind pgtap > tests/rls.sql
+permdock rls verify --db-url $DATABASE_URL --tree
+permdock rls verify --db-url $DATABASE_URL --introspect
+permdock rls verify --advisors --db-url $DATABASE_URL --json
 ```
 
 `verify` runs a parity test for every (subject, permission, row) triple in the fixtures: `can()` in-process against the PermDock policy, then, with `--db` (optional `pg` peer), the same operation in the database under `set local role authenticated` with the subject's claims in `request.jwt.claims` (Supabase) or the GUCs (`guc`): `sub`, the tenant claim, the role claim and `memberships`, so `jwt`-mode helpers see the fixture's subject. A `create` fixture inserts every column of `row`; an `update` fixture with `newRow` writes its columns and compares against `can()` on the `{ current, next }` pair. A fixture file may be `{ fixtures, customRoles }`: the custom roles resolve in-process through a `CustomRoleSource`, travel in the `memberships[].grants` claim, and, with `rls.customRoles` and `rls.authorize: 'database'`, are written to the custom-role tables inside each fixture's rolled-back transaction, so connect as a role that owns those tables. A row that already exists is kept (`on conflict do nothing`), so fixtures can name custom roles the database already holds. Outcomes per row are `allowed`, `filtered` (the row disappears from a `SELECT`) or `rejected` (error `42501`). Disagreements are listed with the grant; the exit code is `1`. On success it prints `verified <n> fixture(s) in-process`, or `in-process and against the database` with `--db`. Opaque grants are reported as untestable app-side. With `--db`, `verify` also reads `pg_policies` on `storage.objects` and `realtime.messages` and reports a `PD037` mismatch for each policy that calls a helper with a permission whose grants carry row conditions ([doctor](/docs/cli/doctor)). `sqlFunction` grants compare the twin in memory with the live function and are reported as verified through twin.
@@ -977,7 +977,7 @@ The repository runs Splinter's lints itself on the SQL `rls generate` writes: `t
 `--format pgtap` writes the same checks as a pgTAP script for `supabase test db` or `pg_prove`, so CI can run them without Node or the `pg` peer. `verify` first decides every fixture in-process; a fixture that disagrees with its `expected` or names an unknown permission prints the mismatch and exits `1` without a script. The script then plans one test per fixture and, inside one transaction that it rolls back, creates `pg_temp.permdock_decision(statement text)`, writes the fixture custom roles as above, and for each fixture opens a savepoint, runs `set local role authenticated`, binds the subject with the same settings as `--db`, and asserts `is(pg_temp.permdock_decision('<statement>'), 'granted' | 'denied', ...)` with the outcome `can()` gave. The statement is the one `--db` runs, with the fixture values inlined as untyped literals, and `permdock_decision` answers `granted` when it returns a row and `denied` when it returns none or fails, the same rule as `--db`. An opaque grant becomes `skip()`. The field-view comparison (`rls.fields: 'views'`) and `--tree` run only with `--db`. The fixture rows must already exist in the database the script runs against, as with `--db`.
 
 ```bash
-permdock rls verify --fixtures rls.fixtures.json --format pgtap > supabase/tests/permdock_rls_test.sql
+permdock rls verify --fixtures rls.fixtures.json --kind pgtap > supabase/tests/permdock_rls_test.sql
 supabase test db
 ```
 
@@ -988,7 +988,7 @@ supabase test db
 When SQL is the authority, skip `generate`. Pin the TypeScript policy (with `sqlFunction` twins) and fail the job on mismatch:
 
 ```yaml
-- run: pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
+- run: pnpm exec permdock rls verify --db-url $DATABASE_URL --fixtures rls.fixtures.json
 ```
 
 ## CI
@@ -998,7 +998,7 @@ When SQL is the authority, skip `generate`. Pin the TypeScript policy (with `sql
 # declarative schemas: the same --split, --seeds-out and --schemas as the generate step, plus --check
 - run: pnpm exec supabase db schema declarative sync --no-apply -f drift_check --strict-coverage # expect "No schema changes found"
 # migra: supabase db diff instead, and --grants-out in the generate step
-- run: pnpm exec permdock rls verify --db $DATABASE_URL # in the job with a Postgres service
+- run: pnpm exec permdock rls verify --db-url $DATABASE_URL # in the job with a Postgres service
 ```
 
 `tests/integration` in this repository runs `verify` against Postgres in testcontainers.

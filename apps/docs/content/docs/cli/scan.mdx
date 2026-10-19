@@ -3,13 +3,13 @@ title: scan
 description: List the authorization checks in an existing app that do not go through PermDock - role comparisons, hasRole and hasPermission helpers, CASL abilities, Clerk has() and role claims - as the work left before PermDock decides on its own.
 ---
 
-`permdock scan --legacy` reads the source files and lists each line that looks like an authorization check written without PermDock. It runs nothing and changes nothing; a finding is a place to look, not a verdict. Lines that mention `permdock` are skipped.
+`permdock scan` reads the source files and lists each line that looks like an authorization check written without PermDock. It runs nothing and changes nothing; a finding is a place to look, not a verdict. Lines that mention `permdock` are skipped.
 
 ```bash
-permdock scan --legacy
-permdock scan --legacy --src app,lib
-permdock scan --legacy --pattern "featureFlag\(" --pattern "isBeta"
-permdock scan --legacy --json
+permdock scan
+permdock scan --src app,lib
+permdock scan --pattern "featureFlag\(" --pattern "isBeta"
+permdock scan --json
 ```
 
 | Flag                | Meaning                                                                            |

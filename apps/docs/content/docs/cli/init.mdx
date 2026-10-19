@@ -10,9 +10,9 @@ description: Write a preset's permissions, policy, app definition and framework 
 ```bash
 permdock init --preset p1AQIDBAc                  # a code from permdock.com/create
 permdock init --archetype b2b --framework hono     # or pick with flags
-permdock init --archetype agent --agent ai-sdk --agent mcp --ui shadcn
+permdock init --archetype agent --integration ai-sdk --integration mcp --integration shadcn
 permdock init --archetype consumer --dry-run       # print the plan, write nothing
-permdock init --preset p1AQIDBAc --src app --force
+permdock init --preset p1AQIDBAc --out-dir app --force
 ```
 
 | Flag                 | Meaning                                                                                          |

@@ -9,7 +9,7 @@ description: Check permdock.config.ts for keys PermDock does not read, or print 
 
 ```bash
 permdock config            # warnings for unknown keys
-permdock config --strict   # exit 1 on a warning, for CI
+permdock config --fail-on warning   # exit 1 on a warning, for CI
 permdock config --print    # the effective config as JSON
 permdock config --config apps/web/permdock.config.ts --print
 ```

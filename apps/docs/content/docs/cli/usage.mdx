@@ -10,7 +10,7 @@ description: Report permissions that are defined but never used, used but never 
 ```bash
 permdock usage                     # human-readable report
 permdock usage --json              # machine-readable report with $schema
-permdock usage --strict            # warnings become exit 1
+permdock usage --fail-on warning            # warnings become exit 1
 permdock usage --ignore 'billing.plan.*'
 ```
 
@@ -78,7 +78,7 @@ Permissions resolved through `findPermission(permissions, someString)` cannot be
 ## CI
 
 ```yaml
-- run: pnpm exec permdock usage --strict
+- run: pnpm exec permdock usage --fail-on warning
 ```
 
 Recommended together with `collect --check`: `collect` guarantees the catalog reflects the code, `usage` guarantees the code and the policy agree.

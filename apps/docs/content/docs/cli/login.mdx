@@ -9,7 +9,7 @@ description: permdock login and permdock logout sign a person in to the PermDock
 
 ```bash
 permdock login                  # device flow: open the URL, enter the code
-permdock login --write          # also catalog:write, for permdock cloud push
+permdock login --scope catalog:write          # also catalog:write, for permdock cloud push
 permdock login --loopback       # browser redirect to 127.0.0.1 instead of the device flow
 permdock login --no-open        # print the URL only
 permdock login --url http://localhost:4000/api

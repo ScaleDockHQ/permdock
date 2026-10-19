@@ -3,7 +3,7 @@ title: openapi
 description: Emit security and securitySchemes into an existing OpenAPI document (or as an Overlay) from the permission catalog, or import a document into a generated definition.
 ---
 
-`permdock openapi` works in both directions between a permission catalog and an OpenAPI document. It targets OpenAPI 3.2 by default, can write 3.1 documents using the registered `x-oai-*` fallbacks plus `x-permdock-oauth2MetadataUrl`, and can write experimental 3.3 documents that carry the pinned OpenAPI 3.3 Security Profile draft. The runtime hooks that attach `security` while a framework generates its document live in `permdock/openapi` ([OpenAPI adapter](/docs/adapters/openapi)); the CLI is for documents that already exist as files.
+`permdock openapi emit` works in both directions between a permission catalog and an OpenAPI document. It targets OpenAPI 3.2 by default, can write 3.1 documents using the registered `x-oai-*` fallbacks plus `x-permdock-oauth2MetadataUrl`, and can write experimental 3.3 documents that carry the pinned OpenAPI 3.3 Security Profile draft. The runtime hooks that attach `security` while a framework generates its document live in `permdock/openapi` ([OpenAPI adapter](/docs/adapters/openapi)); the CLI is for documents that already exist as files.
 
 ## Flags
 
@@ -35,7 +35,7 @@ description: Emit security and securitySchemes into an existing OpenAPI document
 ```bash
 permdock openapi emit --doc openapi.json                                  # 3.2 document, in place
 permdock openapi emit --doc openapi.yaml --target 3.1 --out openapi.3-1.yaml
-permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay.json
+permdock openapi emit --doc openapi.json --kind overlay --out permdock.overlay.json
 permdock openapi emit --doc openapi.json --profile fapi2 --metadata-url https://auth.example.com/.well-known/oauth-authorization-server
 permdock openapi emit --doc openapi.json --target 3.3 --profile fapi2 --out openapi.3-3.json   # experimental: pinned 3.3 Security Profile draft
 permdock openapi emit --doc openapi.json --check                          # exit 1 if the document would change
@@ -44,7 +44,7 @@ permdock openapi emit --doc openapi.json --check                          # exit
 `emit` reads the catalog (or the definition module) and the document, then:
 
 1. Adds or updates `components.securitySchemes.<scheme>` as an `oauth2` scheme whose `scopes` are every permission `scope` in the catalog, with `meta.description` as the scope description. On 3.2 and 3.3 it sets `oauth2MetadataUrl` and, when `--device-flow` is passed, a `deviceAuthorization` flow. On 3.1 the device flow is written as `x-oai-deviceAuthorization` with `x-oai-deviceAuthorizationUrl`, both registered in the OAI Extension Registry, and the metadata URL as `x-permdock-oauth2MetadataUrl`; no `x-oai-*` extension is registered for `oauth2MetadataUrl`, so PermDock uses its own namespace rather than inventing one ([OpenAPI registries](/docs/standards/openapi-registry)).
-2. For every operation that declares `x-permdock-permissions` (an array of permission keys, written by the runtime hooks or by hand), adds a `security` entry requiring the matching scopes and validates that each key exists in the catalog. Unknown keys are errors. Permissions with a portable condition also receive `x-permdock-conditions`; permissions whose grants carry `approval` receive `x-permdock-approval`. Per-step permissions for Arazzo workflows are checked by [`permdock arazzo check`](/docs/cli/arazzo), not by `permdock openapi`.
+2. For every operation that declares `x-permdock-permissions` (an array of permission keys, written by the runtime hooks or by hand), adds a `security` entry requiring the matching scopes and validates that each key exists in the catalog. Unknown keys are errors. Permissions with a portable condition also receive `x-permdock-conditions`; permissions whose grants carry `approval` receive `x-permdock-approval`. Per-step permissions for Arazzo workflows are checked by [`permdock arazzo check`](/docs/cli/arazzo), not by `permdock openapi emit`.
 3. Keeps a `deprecated` (3.2, 3.3) or `x-oai-deprecated` (3.1) the scheme already carries. OpenAPI has no per-scope deprecation, so a permission's `meta.deprecated` does not change the document.
 4. With `--profile fapi2`, writes `x-permdock-securityProfile: "fapi2"` on the scheme and on every covered operation, and refuses (exit `2`) a scheme that accepts tokens anywhere but the HTTP header, since FAPI 2.0 forbids query-parameter tokens for resource servers. On `--target 3.3` it additionally writes a `type: profile` scheme (`profileMetadata.name: fapi-20-security-profile`, `supportedParametersSchema`, `servers` from the metadata URLs) and one `components.securityProfileRequirements` entry per distinct scope set, in the shape of the pinned draft, sets `openapi: 3.3.0` and validates the result against the pinned patch of the 3.2 schema; the extension stays as the twin ([OpenAPI 3.3](/docs/standards/openapi)).
 5. Keeps what the document already says about the scheme: flow URLs, flows PermDock does not write, `description`. PermDock owns the `scopes`.
@@ -90,9 +90,9 @@ Everything not owned by PermDock is left untouched; the command is safe to run o
 `--format overlay` writes an Overlay 1.1.0 document instead: one `update` action for `components.securitySchemes`, one per operation (targeted by `operationId`) adding `security` and the `x-permdock-*` fields, one for the root `x-permdock-catalog` and, on `--target 3.3`, one for `components.securityProfileRequirements`. `--overlay 1.2` writes the same content in the pinned Overlay 1.2 draft shape: the per-operation bodies move into `components.actions`, one reusable action per distinct set of granted permissions, and each operation becomes a `$ref` reference with its own `target`; the pin goes into `x-permdock-catalog.drafts.overlay`. In either version the Overlay never contains a `remove` action on `security`, `securitySchemes` or `securityProfileRequirements`, inline or in a reusable action. Both examples and the reasons to prefer this form are on [OpenAPI Overlay](/docs/standards/openapi-overlay).
 
 ```bash
-permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay.json
+permdock openapi emit --doc openapi.json --kind overlay --out permdock.overlay.json
 # apply with any Overlay 1.x applier, then serve or publish the result
-permdock openapi emit --doc openapi.json --format overlay --overlay 1.2 --out permdock.overlay.json
+permdock openapi emit --doc openapi.json --kind overlay --overlay 1.2 --out permdock.overlay.json
 # experimental: Overlay 1.2 draft; use only with an applier that accepts components.actions (next-openapi-gen today)
 ```
 
@@ -136,7 +136,7 @@ The CLI ships a ruleset file for Spectral, Redocly and vacuum alongside the CLI.
 
 ```bash
 permdock openapi import --doc https://api.example.com/openapi.json --out src/permissions.generated.ts
-permdock openapi import --doc openapi.yaml --out src/permissions.generated.ts --schema zod
+permdock openapi import --doc openapi.yaml --out src/permissions.generated.ts --validator zod
 permdock openapi import --doc openapi.yaml --out src/permissions.generated.ts --map permdock.map.json --annotate
 ```
 
@@ -165,7 +165,7 @@ The generated file merges with hand-written definitions through `mergePermission
 
 ```yaml
 - run: pnpm exec permdock openapi emit --doc openapi.json --check
-- run: pnpm exec permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay.json --check
+- run: pnpm exec permdock openapi emit --doc openapi.json --kind overlay --out permdock.overlay.json --check
 ```
 
 Fails when a permission was added, renamed or deprecated without regenerating the document or Overlay, when an operation references a permission that does not exist, when a committed Overlay differs from what the catalog would produce (including a `remove` on `security` that PermDock never emits), or when a `--target 3.3` document or `--overlay 1.2` Overlay carries a `drafts` pin the installed CLI does not emit. `--check` compares an Overlay against a regeneration in the same Overlay version and never writes.
@@ -183,7 +183,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec permdock collect --check
-      - run: pnpm exec permdock openapi emit --doc openapi.json --format overlay --out permdock.overlay.json --check
+      - run: pnpm exec permdock openapi emit --doc openapi.json --kind overlay --out permdock.overlay.json --check
       - run: npx openapi-overlays-js --openapi openapi.json --overlay permdock.overlay.json > dist/openapi.json
       # Breaking-change diff: a removed or weakened security requirement fails the job
       - run: npx oasdiff breaking origin/main:dist/openapi.json dist/openapi.json --fail-on ERR

@@ -31,8 +31,8 @@ pnpm exec permdock rls generate --target sql --dialect supabase --out migrations
 pnpm exec permdock rls generate --target drizzle --dialect supabase
 pnpm exec permdock rls import --sql migrations/rls.sql --out src/permissions.generated.ts
 pnpm exec permdock rls verify --fixtures rls.fixtures.json
-pnpm exec permdock rls verify --db $DATABASE_URL --fixtures rls.fixtures.json
-pnpm exec permdock rls verify --introspect --db $DATABASE_URL
+pnpm exec permdock rls verify --db-url $DATABASE_URL --fixtures rls.fixtures.json
+pnpm exec permdock rls verify --introspect --db-url $DATABASE_URL
 ```
 
 - List the scope instances a permission reaches in process with `permdock.permittedIds(permission, scope, { within })`, never a loop of `can` over memberships with a made-up row.
@@ -56,7 +56,7 @@ pnpm exec permdock rls verify --introspect --db $DATABASE_URL
 
 When the database already holds the rules, skip `generate`. Map each helper in `rls.functions`, write `sqlFunction` twins in the policy, and fail CI on `rls verify --db`. `--inline-functions` inlines the twin for targets that cannot call a SQL function.
 
-When hand-written policies call the app's own helpers (`org_ids_with_permission`, `has_org_permission`), map each under `rls.migrate.helpers` with its `form` (`ids`, `row`, `scoped`, `global`, `membership`) and the legacy keys under `rls.migrate.keys` or `prefixes`. Run `permdock rls migrate`, read the skipped calls, and apply with `--write`. Generate with `--helpers-only` while the policies stay hand-written. A `row-conditions` skip means that table's policy should be generated, not migrated.
+When hand-written policies call the app's own helpers (`org_ids_with_permission`, `has_org_permission`), map each under `rls.migrate.helpers` with its `form` (`ids`, `row`, `scoped`, `global`, `membership`) and the legacy keys under `rls.migrate.keys` or `prefixes`. Run `permdock rls migrate --dry-run`, read the skipped calls, and apply by running it without `--dry-run`. Generate with `--helpers-only` while the policies stay hand-written. A `row-conditions` skip means that table's policy should be generated, not migrated.
 
 When the old helpers read a permissions table that triggers keep in step (`user_permissions`), list it under `rls.migrate.tables`. `permdock rls migrate` then reports its refresh triggers and every policy, view or function that still reads it, and `permdock doctor` reports PD066 while the migrations still create it. Rewrite each reader, then run `permdock rls migrate --retire-out <migrations dir>/`, which exits `1` and writes nothing while a reader remains. Never hand-write the drop with `cascade` ([retire a materialised table](https://permdock.com/docs/cli/rls#retire-a-materialised-table)).
 
