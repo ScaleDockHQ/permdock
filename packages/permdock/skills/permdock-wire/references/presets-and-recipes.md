@@ -2,25 +2,29 @@
 
 ## Presets
 
-A preset is an archetype plus the features, auth, backend, framework, agent runtimes, UI and Cloud services an app needs, encoded as a code that starts with `p1` ([presets](https://permdock.com/docs/concepts/presets)). The user builds one at [permdock.com/create](https://permdock.com/create), or you pass flags.
+A preset is an archetype plus the features, auth, backend, framework, integrations and Cloud services an app needs, encoded as a code that starts with `p1` ([presets](https://permdock.com/docs/concepts/presets)). The user builds one at [permdock.com/create](https://permdock.com/create), or you pass flags.
 
 ```bash
 npx permdock init --preset <code> --dry-run
-npx permdock init --archetype b2b --framework hono --feature approvals --dry-run
+npx permdock init --archetype b2b --framework hono --auth clerk --backend drizzle --feature approvals --dry-run
 npx permdock preset decode <code>
 ```
 
-| Flag          | Values                                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------------------------ |
-| `--archetype` | `b2b`, `agent`, `marketplace`, `api`, `internal`, `consumer`                                                 |
-| `--framework` | `next`, `hono`, `express`, `none`                                                                            |
-| `--feature`   | `tenancy`, `custom-roles`, `approvals`, `agents`, `audit`, `limits`, `plans`, `ownership`, `api-keys`, `rls` |
-| `--agent`     | `ai-sdk`, `mcp`                                                                                              |
-| `--ui`        | `shadcn`, `react-native`                                                                                     |
+| Flag            | Values                                                                                                                  |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `--archetype`   | `b2b`, `agent`, `marketplace`, `api`, `internal`, `consumer`                                                            |
+| `--framework`   | `next`, `hono`, `express`, `none`                                                                                       |
+| `--auth`        | `custom`, `supabase`, `better-auth`, `clerk`, `jwt`                                                                     |
+| `--backend`     | `memory`, `supabase`, `drizzle`, `prisma`                                                                               |
+| `--feature`     | `tenancy`, `custom-roles`, `approvals`, `operations`, `decision-log`, `limits`, `plans`, `ownership`, `api-keys`, `rls` |
+| `--integration` | `ai-sdk`, `mcp`, `shadcn`, `react-native`                                                                               |
+| `--service`     | `cloud-decision-log`, `cloud-approvals`, `cloud-snapshots`, `cloud-hosted-grants`                                       |
+
+`permdock preset decode <code>` ends with the `init` flags that select the same preset.
 
 `init` keeps every file that exists unless `--force` is passed, installs nothing and calls no network. It prints the `npm install` line, the `npx shadcn add` line for the recipes and the docs pages to read. Run what it prints, then `permdock doctor`.
 
-What `init` writes is the app's own code: `src/permissions.ts`, `src/policy.ts`, `src/permdock.ts` (`defineApp` with a `profile` from `NODE_ENV`), `src/session.ts` and `src/data.ts` to wire to the real auth and database, and the framework file. The session returns `null` until it is wired, so every check denies. Replace the loaders; do not add rules to them.
+What `init` writes is the app's own code: `src/permissions.ts`, `src/policy.ts`, `src/permdock.ts` (`defineApp` with a `profile` from `NODE_ENV`), `src/session.ts`, `src/data.ts`, the framework file and `permdock.config.ts` ([what each choice writes](https://permdock.com/docs/cli/init#generated-files)). With `--auth custom` the session returns `null` until it is wired, so every check denies; a provider's session calls its `subjectFrom*`. With `--backend memory` the loaders return demo rows: replace them, and do not add rules to them.
 
 ### Who owns what
 

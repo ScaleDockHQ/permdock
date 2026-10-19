@@ -11,6 +11,22 @@ permdock preset decode p1AQIDBAc --json
 permdock preset url p1AQIDBAc
 ```
 
+`decode` ends with the `permdock init` flags that select the same preset, leaving out defaults and the features the archetype and integrations turn on:
+
+```txt
+  archetype    b2b
+  features     tenancy, custom-roles, operations, decision-log
+  auth         custom
+  backend      memory
+  framework    next
+  integrations mcp, shadcn
+  services     none
+
+  permdock init --archetype b2b --integration mcp --integration shadcn
+```
+
+With `--json`, `data` is the preset: `{ archetype, features, auth, backend, framework, integrations, services }`. `url` answers `{ url }`.
+
 A code this version does not read, including one with a newer version prefix, exits `2`.
 
 ## Side effects
