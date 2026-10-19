@@ -388,5 +388,28 @@ describe("permdock powersync", () => {
       code: 1,
       stderr: expect.stringContaining("could not connect"),
     });
+    const fromEnv = await run(
+      [
+        "powersync",
+        "verify",
+        "--out",
+        "streams.yaml",
+        "--fixtures",
+        "rls.fixtures.json",
+      ],
+      {
+        cwd,
+        io: {
+          stdout: () => undefined,
+          stderr: () => undefined,
+          env: { DATABASE_URL: "postgres://permdock@127.0.0.1:1/none" },
+        },
+      },
+    );
+
+    expect(fromEnv).toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining("could not connect"),
+    });
   });
 });

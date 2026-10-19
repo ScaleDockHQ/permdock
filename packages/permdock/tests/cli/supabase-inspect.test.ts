@@ -1,5 +1,5 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -503,6 +503,24 @@ describe("permdock supabase inspect", () => {
     const notObject = await run([...out, "--check"], { cwd });
     expect(notObject.code).toBe(1);
     expect(notObject.stdout).toContain("permdock.manifest.json differs in ");
+  });
+
+  it("prints the manifest for --out - and refuses it for hook generate", async () => {
+    const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
+    const printed = await run(["supabase", "inspect", "--out", "-"], { cwd });
+    const bare = await run(["supabase", "inspect"], { cwd });
+
+    expect(printed).toMatchObject({ code: 0, stdout: bare.stdout });
+    expect(existsSync(join(cwd, "-"))).toBe(false);
+    const refused = await run(
+      ["supabase", "hook", "generate", "--out", "-", "--json"],
+      { cwd },
+    );
+
+    expect(refused.code).toBe(2);
+    expect(JSON.parse(refused.stdout)).toMatchObject({
+      error: { code: "invalid_value", flag: "--out" },
+    });
   });
 
   it("defaults --out and --check to permdock.manifest.json", async () => {
