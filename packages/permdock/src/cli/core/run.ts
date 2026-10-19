@@ -13,6 +13,12 @@ import {
 } from "../project/config.ts";
 import { agentMode } from "./agent.ts";
 import { flagSpellings, parseFlags, parseLeaf, suggestion } from "./args.ts";
+import {
+  consentReasons,
+  consentRequired,
+  consentToken,
+  replayArgv,
+} from "./consent.ts";
 import { type CliContext, GLOBAL_FLAGS, type OutputFormat } from "./context.ts";
 import { redact } from "./credentials.ts";
 import {
@@ -47,6 +53,7 @@ type Globals = {
   readonly format?: string;
   readonly yes: boolean;
   readonly agent?: string;
+  readonly confirm?: string;
   readonly debug: boolean;
   readonly color: boolean;
   readonly help: boolean;
@@ -113,6 +120,7 @@ function extractGlobals(argv: readonly string[]): {
   const json = flag("json");
   const format = text("format");
   const agent = text("agent");
+  const confirm = text("confirm");
   return {
     globals: {
       ...(cwd === undefined ? {} : { cwd }),
@@ -120,6 +128,7 @@ function extractGlobals(argv: readonly string[]): {
       ...(json === undefined ? {} : { json }),
       ...(format === undefined ? {} : { format }),
       ...(agent === undefined ? {} : { agent }),
+      ...(confirm === undefined ? {} : { confirm }),
       yes: flag("yes") === true,
       debug: flag("debug") === true,
       color: flag("color") !== false,
@@ -456,6 +465,20 @@ export async function run(
       input = parseLeaf(name, tokens, leaf.flags, leaf.positionals);
     } catch (error) {
       return fail(error);
+    }
+    if (agent) {
+      const reasons = consentReasons(entry.effects, input.flags);
+      if (reasons.length > 0) {
+        const replay = [
+          ...replayArgv([...path, ...tokens], leaf.flags),
+          ...(globals.cwd === undefined ? [] : ["--cwd", globals.cwd]),
+          ...(globals.config === undefined ? [] : ["--config", globals.config]),
+        ];
+        const token = consentToken(replay, cwd);
+        if (globals.confirm !== token) {
+          return fail(consentRequired(name, reasons, replay, token));
+        }
+      }
     }
     let loaded = NO_CONFIG;
     if (entry.config || globals.config !== undefined) {

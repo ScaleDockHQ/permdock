@@ -36,7 +36,7 @@ Flags
   --backfill-out <file>                  File for the rls.customRoles.from copy
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock rls generate --target sql --out supabase/schemas/permdock.sql

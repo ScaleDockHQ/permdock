@@ -10,7 +10,7 @@ Flags
   --annotate                         Write x-permdock-permissions back into the document
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock openapi import --doc openapi.yaml --out src/permissions.generated.ts

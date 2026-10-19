@@ -6,7 +6,7 @@ Flags
   --url <url>  Issuer URL (default PERMDOCK_CLOUD_URL, then https://permdock.com/api)
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock whoami

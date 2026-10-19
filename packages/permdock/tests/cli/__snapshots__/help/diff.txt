@@ -11,7 +11,7 @@ Flags
   --fixtures <file>  Fixtures file for --impact
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock diff main.catalog.json permissions.catalog.json

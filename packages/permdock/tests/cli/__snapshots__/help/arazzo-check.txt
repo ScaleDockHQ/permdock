@@ -9,7 +9,7 @@ Flags
   --permissions <module>  Module exporting the permissions (default permissions in the config)
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock arazzo check --doc arazzo.json --openapi openapi.json

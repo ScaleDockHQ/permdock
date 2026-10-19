@@ -21,7 +21,7 @@ Flags
   --device-authorization-url <url>  OAuth device authorization endpoint
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock openapi emit --doc openapi.json --out openapi.secured.json

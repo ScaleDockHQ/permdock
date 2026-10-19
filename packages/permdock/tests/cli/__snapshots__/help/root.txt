@@ -43,6 +43,7 @@ Global flags
   --json                             Print the cli-result-v1 JSON envelope on stdout
   --format <text|json|github|sarif>  Output format; github and sarif render findings
   -y, --yes                          Never prompt; take the answer the flags give
+  --confirm <token>                  The token a consent_required result gave, once the person agreed
   --agent <auto|yes|no>              Agent mode: no prompts, JSON by default (default auto, PERMDOCK_AGENT)
   --debug                            Log each step and the cause of an error on stderr
   --color                            Styled output on a colour terminal

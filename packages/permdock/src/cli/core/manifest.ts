@@ -3,7 +3,9 @@ import type { Leaf } from "./command.ts";
 /**
  * What a command may touch. `files` writes files it owns, `rewrite` edits
  * files the project owns, `database:*` connects to Postgres, `network`
- * calls a remote service, `install` runs a package manager.
+ * calls a remote service, `cloud:write` publishes to PermDock Cloud,
+ * `install` runs a package manager. In agent mode `rewrite`, `cloud:write`
+ * and `files` with `--force` need the person's consent.
  */
 export type Effect =
   | "files"
@@ -11,6 +13,7 @@ export type Effect =
   | "database:read"
   | "database:write"
   | "network"
+  | "cloud:write"
   | "install";
 
 export type LeafEntry = {
@@ -524,7 +527,7 @@ export const SECTIONS: readonly Section[] = [
                 "permdock cloud push --project prj_123",
               ],
               docs: "cloud",
-              effects: ["network"],
+              effects: ["network", "cloud:write"],
               config: true,
               load: async () => (await import("../commands/cloud.ts")).push,
             },

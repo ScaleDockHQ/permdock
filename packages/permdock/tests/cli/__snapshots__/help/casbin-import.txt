@@ -8,7 +8,7 @@ Flags
   --out <file>     File to write
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock casbin import --model model.conf --policy policy.csv --out src/permissions.generated.ts

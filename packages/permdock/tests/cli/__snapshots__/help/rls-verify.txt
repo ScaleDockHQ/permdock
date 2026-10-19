@@ -33,7 +33,7 @@ Flags
   --advisors                             Run the Supabase security advisors
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock rls verify

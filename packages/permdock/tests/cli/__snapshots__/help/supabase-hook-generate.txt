@@ -14,7 +14,7 @@ Flags
   --grants-out <file>                    migra: file for the privileges supabase db diff drops
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock supabase hook generate --out supabase/schemas/permdock_hook.sql

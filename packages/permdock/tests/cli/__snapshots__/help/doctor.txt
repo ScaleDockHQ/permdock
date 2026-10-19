@@ -8,7 +8,7 @@ Flags
   --fail-on <error|warning>  Lowest finding severity that exits 1 (default error)
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock doctor

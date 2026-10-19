@@ -74,6 +74,12 @@ export const GLOBAL_FLAGS: Flags = {
     alias: "y",
     description: "Never prompt; take the answer the flags give",
   },
+  confirm: {
+    type: "string",
+    description:
+      "The token a consent_required result gave, once the person agreed",
+    valueHint: "token",
+  },
   agent: {
     type: "enum",
     options: ["auto", "yes", "no"],

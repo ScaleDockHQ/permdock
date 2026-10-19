@@ -9,7 +9,7 @@ Flags
   --watch       Collect again when a source, config or policy file changes
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock collect

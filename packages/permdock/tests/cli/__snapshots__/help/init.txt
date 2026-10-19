@@ -13,7 +13,7 @@ Flags
   --force               Overwrite files PermDock did not write or that changed by hand
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock init --preset p1AQIDBAc

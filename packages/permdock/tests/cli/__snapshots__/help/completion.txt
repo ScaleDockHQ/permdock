@@ -6,7 +6,7 @@ Arguments
   shell  bash, zsh or fish
 
 Global flags
-  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock completion zsh > ~/.zfunc/_permdock
