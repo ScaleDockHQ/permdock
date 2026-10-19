@@ -30,7 +30,7 @@ export type LegacyFinding = {
   readonly text: string;
 };
 
-export type LegacyScanOptions = {
+export type AdoptionScanOptions = {
   readonly cwd: string;
   readonly srcPath: readonly string[];
   /** Extra regular expressions, matched per line, reported as `custom`. */
@@ -43,7 +43,7 @@ export type LegacyScanOptions = {
  * the work left before a permission can be enforced. It reads source text
  * only and runs nothing; a finding is a place to look, not a verdict.
  */
-function scanLegacy(options: LegacyScanOptions): readonly LegacyFinding[] {
+function scanLegacy(options: AdoptionScanOptions): readonly LegacyFinding[] {
   const custom = (options.patterns ?? []).map((source) => ({
     name: "custom",
     pattern: new RegExp(source, "u"),
@@ -70,7 +70,7 @@ function scanLegacy(options: LegacyScanOptions): readonly LegacyFinding[] {
   return findings;
 }
 
-export function runLegacyScan(options: LegacyScanOptions): CommandResult {
+export function runAdoptionScan(options: AdoptionScanOptions): CommandResult {
   let findings: readonly LegacyFinding[];
   try {
     findings = scanLegacy(options);

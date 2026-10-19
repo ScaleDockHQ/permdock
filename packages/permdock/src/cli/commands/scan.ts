@@ -17,8 +17,8 @@ export const scan: Leaf = defineLeaf({
   },
   async run(ctx, { flags }) {
     // Lazy: the implementation loads only when this command runs, not for --help.
-    const { runLegacyScan } = await import("../legacy-scan.ts");
-    return runLegacyScan({
+    const { runAdoptionScan } = await import("../adoption-scan.ts");
+    return runAdoptionScan({
       cwd: ctx.cwd,
       srcPath:
         flags.src.length > 0
