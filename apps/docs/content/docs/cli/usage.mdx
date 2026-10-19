@@ -24,7 +24,7 @@ A permission exists in `definePermissions()` but no source file under `srcPath` 
 
 ### Used but ungranted
 
-A permission is checked somewhere, but no role in the policy has an `allow` for it. Every check will be `denied` for every subject, which is either intentional (a feature flagged off) or a missing grant that will surface as a support ticket. Reported as a warning; with `--strict` it fails the build.
+A permission is checked somewhere, but no role in the policy has an `allow` for it. Every check will be `denied` for every subject, which is either intentional (a feature flagged off) or a missing grant that will surface as a support ticket. Reported as a warning; with `--fail-on warning` it fails the build.
 
 ### Granted by no role
 

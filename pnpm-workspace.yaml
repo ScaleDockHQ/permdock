@@ -163,7 +163,6 @@ catalog:
   # The root pins debug's optional supports-color peer so every importer shares one @nestjs/common and @nestjs/core variant.
   supports-color: 7.2.0
   "@clack/prompts": 1.8.1
-  citty: 0.2.2
   jiti: 2.7.0
   package-manager-detector: 1.9.0
   smol-toml: 1.9.1

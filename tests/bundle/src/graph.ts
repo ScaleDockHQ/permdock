@@ -103,7 +103,6 @@ export const RUNTIME_ENTRIES =
 /** Packages only the CLI and the test runners may load. */
 export const TOOLING_PACKAGES = [
   "@clack/prompts",
-  "citty",
   "diff",
   "fastest-levenshtein",
   "jiti",

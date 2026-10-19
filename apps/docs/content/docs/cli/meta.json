@@ -2,6 +2,7 @@
   "title": "CLI",
   "pages": [
     "index",
+    "agent-mode",
     "init",
     "preset",
     "scan",
@@ -15,6 +16,7 @@
     "arazzo",
     "rls",
     "doctor",
+    "completion",
     "config",
     "skills",
     "login",

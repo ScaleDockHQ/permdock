@@ -7,12 +7,6 @@ import { dryRunFlag, given } from "../core/flags.ts";
 
 const sharedFlags = {
   url: { type: "string", description: "Cloud API base URL", valueHint: "url" },
-  project: {
-    type: "string",
-    description:
-      "Cloud project id (default PERMDOCK_CLOUD_ENV, then VERCEL_ENV, then production)",
-    valueHint: "id",
-  },
   manifest: {
     type: "string",
     description:
@@ -35,6 +29,12 @@ async function withStdinSecret(
 export const push: Leaf = defineLeaf({
   flags: {
     ...sharedFlags,
+    project: {
+      type: "string",
+      description:
+        "Cloud project id (default PERMDOCK_CLOUD_ENV, then VERCEL_ENV, then production)",
+      valueHint: "id",
+    },
     ...dryRunFlag,
     "key-stdin": {
       type: "boolean",
@@ -67,6 +67,12 @@ export const push: Leaf = defineLeaf({
 export const pull: Leaf = defineLeaf({
   flags: {
     ...sharedFlags,
+    project: {
+      type: "string",
+      description:
+        "Cloud project id (default the one project PERMDOCK_CLOUD_TOKEN names)",
+      valueHint: "id",
+    },
     "token-stdin": {
       type: "boolean",
       description: "Read PERMDOCK_CLOUD_TOKEN from stdin",

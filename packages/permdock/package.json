@@ -316,7 +316,6 @@
   "dependencies": {
     "@clack/prompts": "catalog:",
     "@standard-schema/spec": "catalog:",
-    "citty": "catalog:",
     "diff": "catalog:",
     "fastest-levenshtein": "catalog:",
     "jiti": "catalog:",

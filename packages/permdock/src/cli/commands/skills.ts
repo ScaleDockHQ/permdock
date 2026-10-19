@@ -10,8 +10,7 @@ const clientFlag = {
   client: {
     type: "string",
     repeatable: true,
-    description:
-      "Agent client folders to write: cursor, claude, codex and the others skills list names",
+    description: "Agent folders to write: agents, claude or cursor",
     valueHint: "name",
     complete: () => Object.keys(SKILL_AGENTS),
   },

@@ -48,7 +48,6 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
     expect(Object.keys(manifest.dependencies).toSorted()).toEqual([
       "@clack/prompts",
       "@standard-schema/spec",
-      "citty",
       "diff",
       "fastest-levenshtein",
       "jiti",

@@ -15,10 +15,13 @@ permdock codemod 0.5 src --json           # the report as JSON
 
 The positional arguments after the version are files or directories; the default is the working directory. The command reads `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue` and `.svelte` files and skips `node_modules`, `dist`, `.git`, `.next`, `.turbo`, `.svelte-kit` and `coverage`. In a Vue or Svelte file it rewrites each `<script>` block. A file that imports no `permdock` entry is never changed.
 
-| Flag        | Meaning                                                                                                |
-| ----------- | ------------------------------------------------------------------------------------------------------ |
-| `--dry-run` | Print the report without writing any file                                                              |
-| `--json`    | Print `{ version, dryRun, scanned, files, followUps }`; an unknown version is RFC 9457 Problem Details |
+| Flag        | Meaning                                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `--dry-run` | Print the report without writing any file                                                                                |
+| `--force`   | Rewrite files with uncommitted changes too; without it, a dirty file in a git work tree exits `2` (`dirty_worktree`)     |
+| `--json`    | `data` in the envelope: `{ version, dryRun, scanned, files, followUps }`; an unknown version is RFC 9457 Problem Details |
+
+The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's consent (`rewrite`).
 
 The version is `0.5` (`0.5.0` and `v0.5` are read the same way). Any other version is a usage error that names the supported ones, exit `2`.
 
@@ -59,6 +62,12 @@ Some 0.5.0 changes move more than a name. The codemod rewrites these where the i
 | `createPermDock(policy, user, { approvalPolicies: source })` from `permdock` or `permdock/pdp`                                                                   | `{ approvalPolicies: approvalPolicies(source) }`; a `memoryApprovalPolicySource([…])` value stays as it is                             |
 | `createPermDock(policy, user, { policies: source })`                                                                                                             | `{ policies: hostedPolicies(source) }`                                                                                                 |
 | `ttl: '30m'`, `after`, `per`, `window`, `maxDuration`, `duration` or a `durations` list of `s`, `m`, `h`, `d` or `w` strings, inside a call to a PermDock import | Whole seconds: `ttl: 1800`                                                                                                             |
+
+## CLI calls
+
+The same run rewrites `permdock` command lines renamed in 0.5.0 in `package.json`, `Makefile`, `justfile`, `Dockerfile`, `.yml`, `.yaml` and `.sh` files: moved commands (`permdock openapi` becomes `permdock openapi emit`), renamed flags and values (`usage --strict` becomes `usage --fail-on warning`, `catalog --format schema` becomes `catalog --kind json-schema`), and a changed default (`rls migrate` without `--write` or `--retire-out` gains `--dry-run`, since it now writes by default). It matches `permdock`, `npx permdock`, `pnpm exec permdock` and a versioned `permdock@0.4`, and stops a command at `&&`, `||`, `;`, a pipe, a redirect or a comment.
+
+A flag that needs a person's choice is a follow-up, not a rewrite: `cloud push --environment` asks for the project id. In `.md` and `.mdx` files every call is a follow-up, since prose around it may need the same edit. The rows are on the [Naming](/docs/getting-started/naming#renamed-in-050) page.
 
 ## What it reports
 

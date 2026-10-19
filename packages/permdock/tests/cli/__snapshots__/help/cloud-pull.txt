@@ -4,8 +4,8 @@ Usage  permdock cloud pull [flags]
 
 Flags
   --url <url>        Cloud API base URL
-  --project <id>     Cloud project id (default PERMDOCK_CLOUD_ENV, then VERCEL_ENV, then production)
   --manifest <file>  Manifest file to send or write (default permdock.manifest.json)
+  --project <id>     Cloud project id (default the one project PERMDOCK_CLOUD_TOKEN names)
   --token-stdin      Read PERMDOCK_CLOUD_TOKEN from stdin
 
 Global flags

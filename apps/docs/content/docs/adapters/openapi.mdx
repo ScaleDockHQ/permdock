@@ -248,7 +248,7 @@ Generation:
 Import (`permdock openapi import ./openapi.json --out src/permissions.generated.ts`):
 
 1. Operations are grouped by `tags` or path segments into resources; `operationId` or method and path derive action names (`GET /posts/{id}` becomes `post.read`, `POST /posts` becomes `post.create`).
-2. `security` scopes and `x-permdock-permissions` are read back into keys and scopes; request and response schemas become resource schemas for the chosen validator (`--schema zod|valibot|arktype`).
+2. `security` scopes and `x-permdock-permissions` are read back into keys and scopes; request and response schemas become resource schemas for the chosen validator (`--validator zod|valibot|arktype`).
 3. A deterministic `definePermissions()` file with a `// @generated` header is written; it merges with hand-written definitions through `mergePermissions` like any feature file ([larger apps](/docs/getting-started/larger-apps)).
 
 ## What it validates
@@ -277,7 +277,7 @@ No dedicated app. `apps/examples/hono` generates a 3.2 document with `hono-opena
 
 - [OpenAPI 3.2 and 3.3](/docs/standards/openapi): security scheme additions, the 3.1 fallback table and the pinned Security Profile draft.
 - [OpenAPI registries](/docs/standards/openapi-registry): the `x-permdock-*` namespace and registered names.
-- [OpenAPI Overlay](/docs/standards/openapi-overlay): the `--format overlay` output and its threat model.
+- [OpenAPI Overlay](/docs/standards/openapi-overlay): the `--kind overlay` output and its threat model.
 - [FAPI 2.0](/docs/standards/fapi-2): what `securityProfile: 'fapi2'` declares.
 - [Standard Schema](/docs/standards/standard-schema): request and response schemas via Standard JSON Schema.
 - [Problem Details](/docs/standards/problem-details): documented `403` body.

@@ -58,7 +58,7 @@ export function runSkills(input: {
     const suggestion = didYouMean(unknown, Object.keys(AGENT_FOLDERS));
     return {
       code: 2,
-      output: `skills: unknown --client '${unknown}'${suggestion === undefined ? "" : `. Did you mean ${suggestion}?`} Use ${Object.keys(AGENT_FOLDERS).join(", ")}.`,
+      output: `skills: unknown --client '${unknown}'.${suggestion === undefined ? "" : ` Did you mean ${suggestion}?`} Use ${Object.keys(AGENT_FOLDERS).join(", ")}.`,
     };
   }
   switch (input.action) {

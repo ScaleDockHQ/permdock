@@ -1,0 +1,40 @@
+---
+title: completion
+description: Tab completion for permdock in bash, zsh and fish - commands, subcommands, flags, enum values and catalogue values such as doctor codes and init archetypes.
+---
+
+`permdock completion bash|zsh|fish` prints a completion script. The script asks the installed `permdock` for candidates on every Tab, so completion follows the version in the project without regenerating the script.
+
+## Usage
+
+```bash
+eval "$(permdock completion bash)"                                  # ~/.bashrc
+permdock completion zsh > "${fpath[1]}/_permdock"                   # zsh, then restart the shell
+permdock completion fish > ~/.config/fish/completions/permdock.fish
+```
+
+| Flag                 | Description                                                               |
+| -------------------- | ------------------------------------------------------------------------- |
+| `shell` (positional) | `bash`, `zsh` or `fish`; any other value exits `2` with the nearest match |
+
+The bash script runs on bash 3.2, the version macOS ships.
+
+## What completes
+
+- Command and subcommand names, from the same manifest `--help` reads. Hidden commands are left out.
+- Flags of the command typed so far, plus the global flags. Hidden flags are left out.
+- The values of a flag with a fixed set, such as `--format` and `--fail-on`.
+- Catalogue values: `init --archetype`, `--framework`, `--feature` and `--integration` from the preset catalogue, `doctor --only` check codes and groups, `skills install --client` agent clients, `rls generate --split` parts and `codemod` versions. A comma-separated value completes after the last comma and skips the values already given.
+- File names, from the shell, after a flag that takes a path and wherever `permdock` offers nothing.
+
+The scripts call the hidden `permdock __complete -- <words>`, which prints one candidate per line. It prints text in [agent mode](/docs/cli/agent-mode) too, since its reader is the shell.
+
+## Why
+
+- **The binary answers, not the script.** A static script lists the flags of the version that wrote it and falls behind on the next upgrade. Asking `permdock __complete` keeps one source, the manifest, for the parser, the help, the docs test and completion.
+- **Catalogue values come from the code that checks them.** `doctor --only` completes from the table of checks `doctor` runs, and `init --archetype` from the preset catalogue `init` validates against, so a value Tab offers is a value the command accepts.
+
+## Related
+
+- [CLI](/docs/cli)
+- [Agent mode](/docs/cli/agent-mode)

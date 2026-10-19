@@ -15,17 +15,16 @@ permdock init --archetype consumer --dry-run       # print the plan, write nothi
 permdock init --preset p1AQIDBAc --out-dir app --force
 ```
 
-| Flag                 | Meaning                                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------------------ |
-| `--preset <code>`    | A preset code from [/create](https://permdock.com/create); the other selection flags are ignored |
-| `--archetype <name>` | `b2b` (default), `agent`, `marketplace`, `api`, `internal` or `consumer`                         |
-| `--framework <name>` | `next` (default), `hono`, `express` or `none`                                                    |
-| `--feature <name>`   | A feature to add beyond the archetype's, repeatable                                              |
-| `--agent <name>`     | `ai-sdk` or `mcp`, repeatable                                                                    |
-| `--ui <name>`        | `shadcn` or `react-native`, repeatable: prints the `@permdock` recipes to add                    |
-| `--src <dir>`        | The directory the files go in; default `src`                                                     |
-| `--dry-run`          | List the files it would write; write nothing                                                     |
-| `--force`            | Overwrite files that already exist                                                               |
+| Flag                   | Meaning                                                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `--preset <code>`      | A preset code from [/create](https://permdock.com/create); the other selection flags are ignored                     |
+| `--archetype <name>`   | `b2b` (default), `agent`, `marketplace`, `api`, `internal` or `consumer`                                             |
+| `--framework <name>`   | `next` (default), `hono`, `express` or `none`                                                                        |
+| `--feature <name>`     | A feature to add beyond the archetype's, repeatable                                                                  |
+| `--integration <name>` | `ai-sdk` or `mcp` wire an agent adapter; `shadcn` or `react-native` print the `@permdock` recipes to add. Repeatable |
+| `--out-dir <dir>`      | The directory the files go in; default `src`                                                                         |
+| `--dry-run`            | List the files it would write; write nothing                                                                         |
+| `--force`              | Overwrite files that already exist                                                                                   |
 
 The output ends with the preset's code and its [/create](https://permdock.com/create) link, so the same preset can be opened, changed and applied again. `--json` prints `{ preset, written, kept, dryRun, install, shadcn, docs }`.
 

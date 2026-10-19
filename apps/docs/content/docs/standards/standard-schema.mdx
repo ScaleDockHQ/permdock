@@ -58,7 +58,7 @@ Rules of consumption:
 - **Issues become denials.** A failed validation yields `outcome: 'denied'` with a reason of kind `validation` carrying the `issues` array, so an MCP client or an HTTP caller sees which field was wrong.
 - **JSON Schema export** calls `~standard.jsonSchema.output({ target: 'draft-2020-12' })` when the validator implements `StandardJSONSchemaV1`; a schema-less resource, a validator without it and a converter that throws all produce `schema: null` in the catalog.
 - `@standard-schema/spec` is a **regular dependency** of `permdock`, not a peer, because its types are part of PermDock's public API. Users never install it themselves.
-- Generated definitions from `permdock rls import` emit code for the validator chosen with `--schema zod|valibot|arktype`, or reference existing Drizzle tables via `drizzle-zod`; the output is still just a Standard Schema.
+- Generated definitions from `permdock rls import` emit code for the validator chosen with `--validator zod|valibot|arktype`, or reference existing Drizzle tables via `drizzle-zod`; the output is still just a Standard Schema.
 
 ## Mapping table
 

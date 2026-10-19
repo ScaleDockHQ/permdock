@@ -29,13 +29,33 @@ function documented(flags: Flags): readonly string[] {
     .map(([name, flag]) => spelling(name, flag));
 }
 
+/** Every spelling the parser accepts for `flags`, `--no-x` included. */
+function spellings(flags: Flags): readonly string[] {
+  return Object.keys(flags).flatMap((name) => [`--${name}`, `--no-${name}`]);
+}
+
+/** `--out` but not `--out-dir`: a flag named on the page as a whole word. */
+function mentions(docs: string, flag: string): boolean {
+  return new RegExp(`${flag}(?![\\w-])`, "u").test(docs);
+}
+
+/** The flags a page's tables list in their first column. */
+function tableFlags(docs: string): readonly string[] {
+  return docs
+    .split("\n")
+    .map((line) => /^\|\s*`(--[a-z][a-z0-9-]*)/u.exec(line)?.[1])
+    .filter((flag) => flag !== undefined);
+}
+
 const LEAVES = leaves().filter(({ entry }) => entry.hidden !== true);
+
+const PAGES = [...new Set(LEAVES.map(({ entry }) => entry.docs))];
 
 describe("CLI flag docs", () => {
   it("documents every global flag on docs/cli/index.mdx", () => {
     const docs = page("index");
     expect(
-      documented(GLOBAL_FLAGS).filter((flag) => !docs.includes(flag)),
+      documented(GLOBAL_FLAGS).filter((flag) => !mentions(docs, flag)),
     ).toEqual([]);
   });
 
@@ -45,7 +65,24 @@ describe("CLI flag docs", () => {
     const leaf = await entry.load();
     const docs = page(entry.docs);
     expect(
-      documented(leaf.flags).filter((flag) => !docs.includes(flag)),
+      documented(leaf.flags).filter((flag) => !mentions(docs, flag)),
     ).toEqual([]);
   });
+
+  it.each(PAGES)(
+    "lists no flag in a table on docs/cli/%s.mdx that its commands do not take",
+    async (name) => {
+      const known = new Set(spellings(GLOBAL_FLAGS));
+      for (const { entry } of LEAVES.filter(
+        (item) => item.entry.docs === name,
+      )) {
+        for (const flag of spellings((await entry.load()).flags)) {
+          known.add(flag);
+        }
+      }
+      expect(tableFlags(page(name)).filter((flag) => !known.has(flag))).toEqual(
+        [],
+      );
+    },
+  );
 });
