@@ -134,19 +134,11 @@ function peerFloor(): string | undefined {
 
 /**
  * The installed package the check reads: `better-supabase-floor`, an alias
- * pinned to the lowest version of the peer range, once that version is on
- * npm; until then the `better-supabase` dev dependency, which decision 0035
- * packs from a pinned commit of the release branch.
+ * pinned to the lowest version of the peer range, so the check holds after the
+ * `better-supabase` dev dependency moves on.
  */
 function floorRoot(): string {
-  for (const name of ["better-supabase-floor", "better-supabase"]) {
-    try {
-      return path.dirname(require.resolve(`${name}/package.json`));
-    } catch {
-      continue;
-    }
-  }
-  throw new Error("PermDock: better-supabase is not installed");
+  return path.dirname(require.resolve("better-supabase-floor/package.json"));
 }
 
 const sources = readdirSync(SOURCE)

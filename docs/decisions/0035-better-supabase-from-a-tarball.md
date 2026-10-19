@@ -1,6 +1,6 @@
 # 0035. better-supabase from a tarball of the sibling checkout
 
-- Status: accepted
+- Status: superseded by 0038 (2026-10-19)
 - Date: 2026-10-17
 
 ## Context
