@@ -221,13 +221,15 @@ export async function run(
   const resolved = resolve(helpWord ? rest.slice(1) : rest);
   const command = resolved.path.join(" ");
   const askedHelp = globals.help || helpWord;
+  const agentJson =
+    agent &&
+    globals.json !== false &&
+    !(resolved.kind === "leaf" && resolved.entry.shellOutput === true);
 
   const formatOf = (): OutputFormat | CliProblem => {
     const given = globals.format;
     if (given === undefined) {
-      return globals.json === true || (agent && globals.json !== false)
-        ? "json"
-        : "text";
+      return globals.json === true || agentJson ? "json" : "text";
     }
     if (
       given === "text" ||
@@ -265,7 +267,7 @@ export async function run(
   const format: OutputFormat =
     typeof formatOrProblem === "string"
       ? formatOrProblem
-      : globals.json === true || (agent && globals.json !== false)
+      : globals.json === true || agentJson
         ? "json"
         : "text";
   const json = format === "json";

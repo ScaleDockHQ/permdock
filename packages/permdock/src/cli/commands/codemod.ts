@@ -7,6 +7,10 @@ export const codemod: Leaf = defineLeaf({
       name: "version",
       description: "The release to migrate to (0.5)",
       required: true,
+      async complete() {
+        // Lazy: oxc-parser and the rename maps load only when completion asks for them.
+        return (await import("../codemod/codemod.ts")).codemodVersions();
+      },
     },
     {
       name: "paths",

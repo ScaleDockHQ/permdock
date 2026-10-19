@@ -9,6 +9,16 @@ export const doctor: Leaf = defineLeaf({
       repeatable: true,
       description: "Check codes or groups to run",
       valueHint: "code",
+      async complete() {
+        // Lazy: the checks load only when completion asks for them, not for every run.
+        const { DOCTOR_CHECKS } = await import("../doctor/doctor.ts");
+        return [
+          ...new Set([
+            ...DOCTOR_CHECKS.map(({ code }) => code),
+            ...DOCTOR_CHECKS.flatMap(({ groups }) => groups),
+          ]),
+        ];
+      },
     },
     fix: {
       type: "boolean",

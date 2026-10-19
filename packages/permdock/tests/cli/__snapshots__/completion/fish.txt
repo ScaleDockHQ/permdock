@@ -1,0 +1,6 @@
+# permdock completion for fish: permdock completion fish > ~/.config/fish/completions/permdock.fish
+function __permdock_complete
+  set -l words (commandline -opc)[2..-1] (commandline -ct)
+  permdock __complete -- $words 2>/dev/null
+end
+complete -c permdock -f -a '(__permdock_complete)'

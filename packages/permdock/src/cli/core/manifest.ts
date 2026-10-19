@@ -28,6 +28,8 @@ export type LeafEntry = {
   readonly config: boolean;
   /** Reports findings, so `--format github` and `sarif` apply. */
   readonly findings?: boolean;
+  /** Prints for a shell to read, so agent mode keeps text output unless `--json` asks. */
+  readonly shellOutput?: boolean;
   readonly hidden?: boolean;
   readonly load: () => Promise<Leaf>;
 };
@@ -166,6 +168,7 @@ export const SECTIONS: readonly Section[] = [
           docs: "completion",
           effects: [],
           config: false,
+          shellOutput: true,
           load: async () =>
             (await import("../commands/completion.ts")).completion,
         },
@@ -577,6 +580,7 @@ export const COMPLETE_LEAF: LeafEntry = leaf(
     docs: "completion",
     effects: [],
     config: false,
+    shellOutput: true,
     hidden: true,
     load: async () => (await import("../commands/completion.ts")).complete,
   },

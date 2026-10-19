@@ -42,6 +42,10 @@ const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
   "0.5": CODEMOD_0_5,
 });
 
+export function codemodVersions(): readonly string[] {
+  return Object.keys(CODEMODS);
+}
+
 const EXTENSIONS: ReadonlySet<string> = new Set([
   ".ts",
   ".tsx",

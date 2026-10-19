@@ -228,6 +228,11 @@ export const generate: Leaf = defineLeaf({
       description:
         "Write helpers, seeds, indexes, policies and hook as separate parts",
       valueHint: "parts",
+      list: true,
+      async complete() {
+        // Lazy: the writer module loads only when completion asks for the parts.
+        return (await import("../core/output-files.ts")).SPLIT_PARTS;
+      },
     },
     "grants-out": {
       type: "string",

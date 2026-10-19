@@ -1,6 +1,12 @@
 import type { PresetInput } from "../../preset/index.ts";
 
-import { AGENTS, UI } from "../../preset/index.ts";
+import {
+  AGENTS,
+  ARCHETYPES,
+  FEATURES,
+  FRAMEWORKS,
+  UI,
+} from "../../preset/index.ts";
 import { suggestion } from "../core/args.ts";
 import { type Leaf, defineLeaf } from "../core/command.ts";
 import { CliError } from "../core/errors.ts";
@@ -21,23 +27,27 @@ export const init: Leaf = defineLeaf({
       description:
         "Without --preset: b2b, agent, marketplace, api, internal or consumer",
       valueHint: "name",
+      complete: () => ARCHETYPES.map((choice) => choice.id),
     },
     framework: {
       type: "string",
       description: "Without --preset: next, hono, express or none",
       valueHint: "name",
+      complete: () => FRAMEWORKS.map((choice) => choice.id),
     },
     feature: {
       type: "string",
       repeatable: true,
       description: "Without --preset: a feature to add",
       valueHint: "name",
+      complete: () => FEATURES.map((choice) => choice.id),
     },
     integration: {
       type: "string",
       repeatable: true,
       description: "Without --preset: ai-sdk, mcp, shadcn or react-native",
       valueHint: "name",
+      complete: () => [...AGENT_IDS, ...UI_IDS],
     },
     "out-dir": {
       type: "string",

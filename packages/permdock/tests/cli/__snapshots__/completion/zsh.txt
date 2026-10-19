@@ -1,0 +1,12 @@
+#compdef permdock
+# permdock completion for zsh: permdock completion zsh > "${fpath[1]}/_permdock"
+_permdock() {
+  local -a reply
+  reply=("${(@f)$(permdock __complete -- "${words[@]:1:CURRENT-1}" 2>/dev/null)}")
+  if (( ${#reply[@]} == 0 )) || [[ -z "${reply[1]}" ]]; then
+    _files
+  else
+    compadd -a reply
+  fi
+}
+compdef _permdock permdock

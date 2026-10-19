@@ -1,6 +1,11 @@
 import type { CliContext } from "./context.ts";
 import type { CommandResult } from "./result.ts";
 
+/** Completion candidates for a value: ids from a catalogue, never file names. */
+export type CompleteValues = () =>
+  | readonly string[]
+  | Promise<readonly string[]>;
+
 type FlagBase = {
   readonly description: string;
   /** One-letter alias, written `-x`. */
@@ -23,6 +28,9 @@ export type StringFlag = FlagBase & {
   readonly repeatable?: boolean;
   /** Reads the value from stdin; the flag that names the secret's stdin form. */
   readonly secret?: { readonly stdinFlag: string; readonly env?: string };
+  /** Takes a comma-separated list, as `--split helpers,seeds` does. */
+  readonly list?: boolean;
+  readonly complete?: CompleteValues;
 };
 
 export type EnumFlag = FlagBase & {
@@ -42,6 +50,7 @@ export type Positional = {
   readonly required?: boolean;
   /** Takes every remaining positional. Only the last one may be variadic. */
   readonly variadic?: boolean;
+  readonly complete?: CompleteValues;
 };
 
 type FlagValue<F extends Flag> = F extends BooleanFlag

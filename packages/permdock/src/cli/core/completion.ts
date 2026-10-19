@@ -1,4 +1,4 @@
-import type { Flags } from "./command.ts";
+import type { CompleteValues, Flags, Leaf } from "./command.ts";
 
 import { GLOBAL_FLAGS } from "./context.ts";
 import { resolve } from "./manifest.ts";
@@ -13,20 +13,49 @@ function flagNames(flags: Flags): readonly string[] {
     .map(([name]) => `--${name}`);
 }
 
-/** The values the flag before the cursor takes, when it is an enum. */
-function enumValues(
-  flags: Flags,
-  previous: string | undefined,
-): readonly string[] | undefined {
-  if (
-    previous === undefined ||
-    !previous.startsWith("--") ||
-    previous.includes("=")
-  ) {
+/** The flag `token` names when it waits for a separate value, as `--only` does and `--only=x` does not. */
+function valueFlag(flags: Flags, token: string | undefined) {
+  if (token === undefined || !token.startsWith("--") || token.includes("=")) {
     return undefined;
   }
-  const flag = flags[previous.slice(2)];
-  return flag?.type === "enum" ? flag.options : undefined;
+  const flag = flags[token.slice(2)];
+  return flag === undefined || flag.type === "boolean" ? undefined : flag;
+}
+
+/** The positional the next bare word fills, after the words already typed past the leaf's path. */
+function positionalAt(leaf: Leaf, typed: readonly string[]) {
+  let index = 0;
+  for (let i = 0; i < typed.length; i += 1) {
+    const token = typed[i] ?? "";
+    if (token === "--") {
+      return undefined;
+    }
+    if (token.startsWith("-")) {
+      if (valueFlag({ ...GLOBAL_FLAGS, ...leaf.flags }, token) !== undefined) {
+        i += 1;
+      }
+      continue;
+    }
+    index += 1;
+  }
+  const positionals = leaf.positionals ?? [];
+  const last = positionals.at(-1);
+  return positionals[index] ?? (last?.variadic === true ? last : undefined);
+}
+
+/** Values from `complete`, matched against what follows the last comma when the value is a list. */
+async function valuesFor(
+  complete: CompleteValues,
+  partial: string,
+  list: boolean,
+): Promise<readonly string[]> {
+  const cut = list ? partial.lastIndexOf(",") + 1 : 0;
+  const head = partial.slice(0, cut);
+  const taken = head.split(",");
+  const tail = partial.slice(cut);
+  return (await complete())
+    .filter((value) => value.startsWith(tail) && !taken.includes(value))
+    .map((value) => head + value);
 }
 
 /**
@@ -38,39 +67,46 @@ export async function candidates(
 ): Promise<readonly string[]> {
   const partial = words.at(-1) ?? "";
   const before = words.slice(0, -1);
-  const previous = before.at(-1);
   const resolved = resolve(before);
-  let flags: Flags = GLOBAL_FLAGS;
-  let names: readonly string[] = [];
   if (resolved.kind === "group") {
     if (resolved.unknown !== undefined) {
       return [];
     }
-    names = resolved.entry.children
-      .filter((child) => child.kind === "group" || child.hidden !== true)
-      .map((child) => child.name);
-  } else {
-    const leaf = await resolved.entry.load();
-    flags = { ...GLOBAL_FLAGS, ...leaf.flags };
+    const pool = partial.startsWith("-")
+      ? flagNames(GLOBAL_FLAGS)
+      : resolved.entry.children
+          .filter((child) => child.kind === "group" || child.hidden !== true)
+          .map((child) => child.name);
+    return pool.filter((name) => name.startsWith(partial));
   }
-  const values = enumValues(flags, previous);
-  if (values !== undefined) {
-    return values.filter((value) => value.startsWith(partial));
+  const leaf = await resolved.entry.load();
+  const flags: Flags = { ...GLOBAL_FLAGS, ...leaf.flags };
+  const flag = valueFlag(flags, before.at(-1));
+  if (flag?.type === "enum") {
+    return valuesFor(() => flag.options, partial, flag.repeatable === true);
   }
-  if (previous?.startsWith("--") === true) {
-    const flag = flags[previous.slice(2)];
-    if (flag?.type === "string" && !previous.includes("=")) {
-      return [];
-    }
+  if (flag?.type === "string") {
+    return flag.complete === undefined
+      ? []
+      : valuesFor(
+          flag.complete,
+          partial,
+          flag.repeatable === true || flag.list === true,
+        );
   }
-  const pool = partial.startsWith("-") ? flagNames(flags) : names;
-  return pool.filter((name) => name.startsWith(partial));
+  if (partial.startsWith("-")) {
+    return flagNames(flags).filter((name) => name.startsWith(partial));
+  }
+  const positional = positionalAt(leaf, resolved.rest);
+  return positional?.complete === undefined
+    ? []
+    : valuesFor(positional.complete, partial, false);
 }
 
 const BASH = `# permdock completion for bash: eval "$(permdock completion bash)"
 _permdock() {
+  local -a words=("\${COMP_WORDS[@]:1:COMP_CWORD}")
   local IFS=$'\\n'
-  local words=("\${COMP_WORDS[@]:1:COMP_CWORD}")
   COMPREPLY=($(permdock __complete -- "\${words[@]}" 2>/dev/null))
   if [ \${#COMPREPLY[@]} -eq 0 ]; then
     COMPREPLY=($(compgen -f -- "\${COMP_WORDS[COMP_CWORD]}"))

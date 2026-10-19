@@ -13,6 +13,7 @@ const clientFlag = {
     description:
       "Agent client folders to write: cursor, claude, codex and the others skills list names",
     valueHint: "name",
+    complete: () => Object.keys(SKILL_AGENTS),
   },
 } as const;
 

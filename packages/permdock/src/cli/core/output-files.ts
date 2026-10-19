@@ -68,9 +68,15 @@ export function writeOutputFiles(
   };
 }
 
-const PARTS = ["helpers", "seeds", "indexes", "policies", "hook"] as const;
+export const SPLIT_PARTS = [
+  "helpers",
+  "seeds",
+  "indexes",
+  "policies",
+  "hook",
+] as const;
 
-export type SplitPart = (typeof PARTS)[number];
+export type SplitPart = (typeof SPLIT_PARTS)[number];
 
 /** `--split helpers,seeds,indexes,policies,hook`: the parts in that fixed order, or an error. */
 export function parseSplit(
@@ -83,11 +89,13 @@ export function parseSplit(
     .split(",")
     .map((name) => name.trim())
     .filter((name) => name !== "");
-  const unknown = names.filter((name) => !PARTS.some((part) => part === name));
+  const unknown = names.filter(
+    (name) => !SPLIT_PARTS.some((part) => part === name),
+  );
   if (unknown.length > 0 || names.length === 0) {
     return `rls generate --split takes helpers, seeds, indexes, policies and hook, got '${raw}'`;
   }
-  return PARTS.filter((part) => names.includes(part));
+  return SPLIT_PARTS.filter((part) => names.includes(part));
 }
 
 /** The path of one split part: `{part}` in `out` replaced by the part name. */
