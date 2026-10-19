@@ -41,7 +41,6 @@ if (argv.length === 1 && (argv[0] === "--version" || argv[0] === "-v")) {
         !isCi(process.env),
     },
   });
-  signals.dispose();
-  // A signal has set 130 or 143 already.
+  // The handlers stay: `--watch` returns while its watcher keeps the process alive, and a later signal must still exit 130 or 143.
   process.exitCode ??= result.code;
 }

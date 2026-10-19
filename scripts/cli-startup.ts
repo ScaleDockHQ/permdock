@@ -10,18 +10,26 @@ const RUNS = 9;
 /** CI runners share their cores with the rest of the turbo run, so the millisecond ceilings there only report. */
 const ENFORCE_CEILINGS = process.env["CI"] === undefined;
 
+/** A leaf's `--help` loads that one command module, so each budget catches a heavy import in it. */
 const COMMANDS = {
   version: ["--version"],
   help: ["--help"],
+  "catalog --help": ["catalog", "--help"],
+  "doctor --help": ["doctor", "--help"],
+  "rls generate --help": ["rls", "generate", "--help"],
+  "cloud push --help": ["cloud", "push", "--help"],
 } as const;
+
+// SAFETY: COMMANDS is a literal object, so its keys are exactly Command
+const NAMES = Object.keys(COMMANDS) as Command[];
 
 type Command = keyof typeof COMMANDS;
 
 interface Budget {
   /** Median wall-clock milliseconds when the budget was recorded. */
-  readonly recordedMs: Record<Command, number>;
+  readonly recordedMs: Partial<Record<Command, number>>;
   /** Ceiling in milliseconds per command, loose because it depends on the machine. */
-  readonly maxMs: Record<Command, number>;
+  readonly maxMs: Partial<Record<Command, number>>;
   /** `--help` may take at most this multiple of `--version`, plus `helpSlackMs`. */
   readonly maxHelpRatio: number;
   readonly helpSlackMs: number;
@@ -49,6 +57,10 @@ function median(command: Command): number {
   return Math.round(sorted[Math.floor(sorted.length / 2)] ?? 0);
 }
 
+function ms(value: number | undefined): string {
+  return value === undefined ? "none" : `${String(value)}ms`;
+}
+
 function readBudget(): Budget {
   // SAFETY: the budget file is written by this script in this shape
   return JSON.parse(readFileSync(BUDGET, "utf8")) as Budget;
@@ -56,19 +68,23 @@ function readBudget(): Budget {
 
 const write = process.argv.includes("--write");
 const budget = readBudget();
-const measured: Record<Command, number> = {
-  version: median("version"),
-  help: median("help"),
-};
+// SAFETY: one entry per name in NAMES, which covers every Command
+const measured = Object.fromEntries(
+  NAMES.map((command) => [command, median(command)]),
+) as Record<Command, number>;
 const failures: string[] = [];
 
-for (const command of ["version", "help"] as const) {
+for (const command of NAMES) {
+  const label = `permdock ${COMMANDS[command].join(" ")}`;
+  const ceiling = budget.maxMs[command];
   process.stdout.write(
-    `--${command}: ${String(measured[command])}ms median of ${String(RUNS)} (recorded ${String(budget.recordedMs[command])}ms, ceiling ${String(budget.maxMs[command])}ms)\n`,
+    `${label}: ${String(measured[command])}ms median of ${String(RUNS)} (recorded ${ms(budget.recordedMs[command])}, ceiling ${ms(ceiling)})\n`,
   );
-  if (ENFORCE_CEILINGS && measured[command] > budget.maxMs[command]) {
+  if (ceiling === undefined) {
+    failures.push(`${label}: no ceiling in ${BUDGET}`);
+  } else if (ENFORCE_CEILINGS && measured[command] > ceiling) {
     failures.push(
-      `--${command}: ${String(measured[command])}ms is over the ${String(budget.maxMs[command])}ms ceiling`,
+      `${label}: ${String(measured[command])}ms is over the ${String(ceiling)}ms ceiling`,
     );
   }
 }
