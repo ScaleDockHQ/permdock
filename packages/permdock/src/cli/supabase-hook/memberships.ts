@@ -11,6 +11,7 @@ import { scopeColumn } from "../../conditions/compile.ts";
 import { type Scope, resolveScope, scopeChain } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { roleManifest } from "../../supabase/roles.ts";
+import { configError } from "../core/errors.ts";
 import {
   hasMemberFor,
   hasPermittedUsers,
@@ -103,7 +104,7 @@ function mappedMembership(
 export function positiveInteger(value: unknown, label: string): number {
   const number = typeof value === "string" ? Number(value) : value;
   if (typeof number !== "number" || !Number.isInteger(number) || number <= 0) {
-    throw new Error(`PermDock CLI: ${label} must be a positive integer`);
+    throw configError(`PermDock CLI: ${label} must be a positive integer`);
   }
   return number;
 }
@@ -120,7 +121,7 @@ export function activeFromSql(
   if (typeof spec === "string" && spec.startsWith("app_metadata.")) {
     const key = spec.slice("app_metadata.".length);
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(key)) {
-      throw new Error(`PermDock CLI: unsafe app_metadata key '${key}'`);
+      throw configError(`PermDock CLI: unsafe app_metadata key '${key}'`);
     }
     return {
       sql: `claims -> 'app_metadata' ->> ${quoteLiteral(key)}`,
@@ -131,7 +132,7 @@ export function activeFromSql(
       ? (() => {
           const dot = spec.lastIndexOf(".");
           if (dot <= 0) {
-            throw new Error(
+            throw configError(
               `PermDock CLI: --active-from must be app_metadata.<key> or <table>.<column>, got '${spec}'`,
             );
           }
@@ -178,13 +179,13 @@ export function checkSources(parts: {
   readonly scopes: readonly Scope[];
 }): void {
   if (parts.sources.length === 0) {
-    throw new Error(
+    throw configError(
       "PermDock CLI: supabase.hook.memberships needs at least one tableMembershipSource or junctionMembershipSource source",
     );
   }
   for (const source of parts.sources) {
     if (source.sql === undefined || typeof source.sql.select !== "function") {
-      throw new Error(
+      throw configError(
         "PermDock CLI: supabase.hook.memberships takes tableMembershipSource / junctionMembershipSource sources from permdock/supabase",
       );
     }
@@ -194,7 +195,7 @@ export function checkSources(parts: {
     }
     const name = resolveScope(parts.scopes, scope);
     if (name !== scope) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: the ${source.sql.table} source names scope '${scope}', which the policy does not declare by that name`,
       );
     }
@@ -202,7 +203,7 @@ export function checkSources(parts: {
     const holds = new Set(source.sql.holds ?? [scope]);
     const missing = chain.filter((ancestor) => !holds.has(ancestor));
     if (missing.length > 0) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: the ${source.sql.table} source needs within columns for ${missing.join(", ")}: a ${scope} membership without every ancestor grants nothing`,
       );
     }

@@ -22,6 +22,7 @@ import {
 } from "../../core/resource-relations.ts";
 import { scopeList } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
+import { configError } from "../core/errors.ts";
 import { activeUserSql } from "../sql/active.ts";
 import {
   CLOSURE,
@@ -186,7 +187,7 @@ function relationArm(
     !isPrincipalRelation(spec) &&
     (!isFieldRelation(spec) || spec.memberOf !== undefined)
   ) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: relation '${relation}' on ${node.name} is not a graph relation RLS can compile`,
     );
   }
@@ -262,7 +263,7 @@ function linkSql(
 ): string {
   const spec = Object.hasOwn(node.links, link) ? node.links[link] : undefined;
   if (spec === undefined) {
-    throw new Error(`PermDock CLI: ${node.name} has no link '${link}'`);
+    throw configError(`PermDock CLI: ${node.name} has no link '${link}'`);
   }
   const fn = qualified(ctx, linkHelper(node.name, link));
   return `-- ${node.name}.${link}: rows whose ${spec.field} points at one of the given ${spec.resource} ids
@@ -535,13 +536,13 @@ export function graphSql(
     const helper = graphHelper(name);
     const sql = graphSqlName(name) ?? name;
     if (ctx.scopes.some((scope) => scope.name === sql)) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: resource '${name}' has graph relations and shares its SQL name with the ${sql} scope, so ${helper} would replace the scope helper; rename the resource (permdock doctor PD032)`,
       );
     }
     const other = sqlNames.get(sql);
     if (other !== undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: resources '${other}' and '${name}' both name the SQL helper ${helper}; rename one (permdock doctor PD032)`,
       );
     }

@@ -151,7 +151,7 @@ describe("permdock config", () => {
     const result = await run(["usage", "--json", "--cwd", bad]);
     expect(result.code).toBe(2);
     expect(jsonData(result.stdout)).toMatchObject({
-      type: "https://permdock.com/problems/cli-usage",
+      type: "https://permdock.com/docs/cli/errors#usage",
       detail:
         "PermDock CLI: permdock.config.ts: policy must be a module path string",
     });

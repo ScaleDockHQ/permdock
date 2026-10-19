@@ -23,7 +23,7 @@ import {
   type Policy,
 } from "../../index.ts";
 import { buildCatalog } from "../catalog-doc.ts";
-import { usageResult } from "../core/errors.ts";
+import { configError, usageResult } from "../core/errors.ts";
 import { fixtureRow, fixtureSubject, loadFixtures } from "../fixtures.ts";
 import { asPolicy, loadModule, pickNamed } from "../project/load.ts";
 import { describeDelegation, describeGrant, formatText } from "./format.ts";
@@ -145,7 +145,7 @@ const EMPTY_SCAN: ScanResult = {
 async function loadSide(cwd: string, source: string, now: Date): Promise<Side> {
   const abs = resolve(cwd, source);
   if (!existsSync(abs)) {
-    throw new Error(`PermDock CLI: not found: ${source}`);
+    throw configError(`PermDock CLI: not found: ${source}`);
   }
   if (abs.endsWith(".json")) {
     return {

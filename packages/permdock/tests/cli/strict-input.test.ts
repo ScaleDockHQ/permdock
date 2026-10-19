@@ -41,7 +41,7 @@ describe("unknown flags", () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       status: "error",
       error: {
-        type: "https://permdock.com/problems/cli-usage",
+        type: "https://permdock.com/docs/cli/errors#unknown_flag",
         code: "unknown_flag",
         command: "config",
         exitCode: 2,

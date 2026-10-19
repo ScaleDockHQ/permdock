@@ -1,5 +1,6 @@
 import type { RlsAudit, RlsTrigger } from "../types.ts";
 
+import { configError } from "../core/errors.ts";
 import { byKey } from "../shared/compare.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
@@ -35,7 +36,7 @@ export function generatedTables(
 
 function functionName(name: unknown, label: string): string {
   if (typeof name !== "string" || name.split(".").length !== 2) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: ${label} must be a schema-qualified function such as audit.log_change, got ${JSON.stringify(name)}`,
     );
   }
@@ -48,7 +49,7 @@ function knownTable(
   label: string,
 ): void {
   if (!tables.includes(table)) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: ${label} names ${table}, which rls generate does not create with this config; it creates ${tables.join(", ")}`,
     );
   }
@@ -60,25 +61,25 @@ function triggerSql(table: string, trigger: RlsTrigger, label: string): string {
     trigger.name === "" ||
     trigger.name.toLowerCase().startsWith("permdock_")
   ) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: ${label}.name must be a name outside permdock_, which generated triggers use, got ${JSON.stringify(trigger.name)}`,
     );
   }
   if (trigger.when !== "before" && trigger.when !== "after") {
-    throw new Error(`${PREFIX}: ${label}.when must be before or after`);
+    throw configError(`${PREFIX}: ${label}.when must be before or after`);
   }
   const events: readonly string[] = trigger.events;
   if (events.length === 0 || !events.every((event) => EVENTS.has(event))) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: ${label}.events must list insert, update, delete or truncate`,
     );
   }
   const level = trigger.level ?? "row";
   if (level !== "row" && level !== "statement") {
-    throw new Error(`${PREFIX}: ${label}.level must be row or statement`);
+    throw configError(`${PREFIX}: ${label}.level must be row or statement`);
   }
   if (level === "row" && events.includes("truncate")) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: ${label} fires on truncate, which Postgres allows only with level: 'statement'`,
     );
   }
@@ -142,7 +143,7 @@ export function auditSql(
   const targets = listed ?? AUDITED.filter((table) => tables.includes(table));
   const args = Object.entries(audit.args ?? {}).map(([name, value]) => {
     if (!IDENT.test(name)) {
-      throw new Error(
+      throw configError(
         `${PREFIX}: rls.audit.args names ${JSON.stringify(name)}, which is not a lower-case parameter name`,
       );
     }

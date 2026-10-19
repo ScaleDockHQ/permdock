@@ -3,6 +3,7 @@ import type { SupabaseHookConfig } from "../types.ts";
 import type { Parts } from "./parts.ts";
 
 import { PERMDOCK_CLAIMS_SCHEMA } from "../claims-schema.ts";
+import { configError } from "../core/errors.ts";
 import { quoteLiteral, quoteQualified, quoteTable } from "../sql/quote.ts";
 
 const CLAIM_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/u;
@@ -171,7 +172,7 @@ export function beforePlan(
     (fn) => typeof fn !== "string" || !CLAIM_FUNCTION.test(fn),
   );
   if (bad.length > 0) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: supabase.hook.before must name schema-qualified functions such as auth_checks.before_token (got ${bad.map(String).join(", ")})`,
     );
   }

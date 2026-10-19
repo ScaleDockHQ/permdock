@@ -152,7 +152,7 @@ describe("permdock cloud pull against a failing Cloud", () => {
     );
     expect(result.code).toBe(1);
     expect(jsonData(result.stdout)).toMatchObject({
-      type: "https://permdock.com/problems/cli-unavailable",
+      type: "https://permdock.com/docs/cli/errors#network_error",
     });
   });
 

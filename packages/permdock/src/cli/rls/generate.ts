@@ -12,7 +12,7 @@ import { dateAt } from "../../core/time.ts";
 import { type Policy, listPermissions } from "../../index.ts";
 import { POLICY_NOT_PUBLISHED } from "../cloud/problem-types.ts";
 import { fetchProjectPolicy } from "../cloud/pull.ts";
-import { cliErrorKind, describeError, exitCodeOf } from "../core/errors.ts";
+import { describeError, exitCodeOfError } from "../core/errors.ts";
 import {
   dataMigrationFile,
   driftOf,
@@ -181,7 +181,7 @@ export async function runRlsGenerate(
       warnings.push(...pruned.warnings);
     } catch (cause) {
       return {
-        code: exitCodeOf(cliErrorKind(cause)),
+        code: exitCodeOfError(cause),
         output: describeError(cause),
         text: "",
       };

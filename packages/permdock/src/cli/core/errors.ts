@@ -14,44 +14,92 @@ export type ExitCode = 0 | 1 | 2 | 3 | 130 | 143;
  * (exit 1). `failed`: the check the command ran found a problem, such as
  * catalog drift (exit 1). `action`: the run needs input, consent or a login
  * it cannot get without a person (exit 3). `cancelled`: the person at the
- * terminal cancelled a prompt (exit 130).
+ * terminal cancelled a prompt (exit 130). `internal`: the CLI itself failed
+ * (exit 1).
  */
 export type CliErrorKind =
   | "usage"
   | "unavailable"
   | "failed"
   | "action"
-  | "cancelled";
+  | "cancelled"
+  | "internal";
 
-/** The stable, snake_case `code` member of a CLI problem; the contract better-supabase shares. */
+/**
+ * The stable, snake_case `code` member of a CLI problem. A code better-supabase
+ * also uses keeps its spelling, title and exit code there; the rest are
+ * PermDock's own and never reuse one of its names for another meaning.
+ */
 export type ProblemCode =
-  | "usage_error"
+  | "usage"
   | "unknown_command"
   | "unknown_flag"
   | "invalid_value"
   | "command_moved"
   | "flag_renamed"
-  | "missing_input"
-  | "missing_config"
-  | "peer_missing"
+  | "missing_value"
+  | "config_not_found"
+  | "config_invalid"
+  | "dependency_missing"
   | "supabase_cli_missing"
-  | "file_conflict"
+  | "database_unreachable"
+  | "network_error"
+  | "request_failed"
+  | "auth_required"
   | "dirty_worktree"
   | "write_failed"
-  | "consent_required"
-  | "auth_required"
-  | "network_error"
-  | "database_unavailable"
-  | "service_unavailable"
   | "check_failed"
-  | "cancelled";
+  | "input_required"
+  | "consent_required"
+  | "cancelled"
+  | "internal";
+
+const CODES: {
+  readonly [K in ProblemCode]: readonly [title: string, exitCode: ExitCode];
+} = {
+  usage: ["Invalid arguments", 2],
+  unknown_command: ["Unknown command", 2],
+  unknown_flag: ["Unknown flag", 2],
+  invalid_value: ["Invalid value", 2],
+  command_moved: ["Command moved", 2],
+  flag_renamed: ["Flag renamed", 2],
+  missing_value: ["Missing value", 2],
+  config_not_found: ["Config file not found", 2],
+  config_invalid: ["Invalid config", 2],
+  dependency_missing: ["Missing dependency", 1],
+  supabase_cli_missing: ["Supabase CLI not found", 1],
+  database_unreachable: ["Database unreachable", 1],
+  network_error: ["No response", 1],
+  request_failed: ["Request failed", 1],
+  auth_required: ["Authentication required", 3],
+  dirty_worktree: ["Uncommitted changes", 3],
+  write_failed: ["Write failed", 1],
+  check_failed: ["Out of date", 1],
+  input_required: ["Input required", 3],
+  consent_required: ["Consent required", 3],
+  cancelled: ["Cancelled", 130],
+  internal: ["Unexpected error", 1],
+};
+
+/** Every problem code, in the order the errors page lists them. */
+// SAFETY: CODES has exactly one key per ProblemCode.
+export const PROBLEM_CODES = Object.keys(CODES) as readonly ProblemCode[];
+
+/** Each code has a heading on this page, so `type` links to its explanation. */
+export const CLI_ERRORS_URL = "https://permdock.com/docs/cli/errors";
+
+/** The exit code a problem with `code` gets. */
+export function exitCodeOfProblem(code: ProblemCode): ExitCode {
+  return CODES[code][1];
+}
 
 const DEFAULT_CODES: Readonly<Record<CliErrorKind, ProblemCode>> = {
-  usage: "usage_error",
-  unavailable: "service_unavailable",
+  usage: "usage",
+  unavailable: "network_error",
   failed: "check_failed",
-  action: "missing_input",
+  action: "input_required",
   cancelled: "cancelled",
+  internal: "internal",
 };
 
 export type CliErrorOptions = ErrorOptions & {
@@ -93,29 +141,31 @@ export type CliProblem = {
   readonly [extension: string]: unknown;
 };
 
-const TITLES: Readonly<Record<CliErrorKind, string>> = {
-  usage: "Usage or configuration error",
-  unavailable: "A database or service the command needs did not answer",
-  failed: "The check the command ran found a problem",
-  action: "The command needs input, consent or a login to continue",
-  cancelled: "The command was cancelled",
-};
-
-const TYPES: Readonly<Record<CliErrorKind, string>> = {
-  usage: "cli-usage",
-  unavailable: "cli-unavailable",
-  failed: "cli-failed",
-  action: "cli-action-required",
-  cancelled: "cli-cancelled",
-};
-
 export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** An unclassified error is a usage error: a module that throws while loading is the project's to fix. */
-export function cliErrorKind(error: unknown): CliErrorKind {
-  return error instanceof CliError ? error.kind : "usage";
+/**
+ * The exit code an error ends the run with: its code's, so a `CliError` and
+ * the problem printed for it always agree. Anything that is not a
+ * `CliError` is a bug in the CLI.
+ */
+export function exitCodeOfError(error: unknown): ExitCode {
+  if (error instanceof CliError) {
+    return exitCodeOfProblem(error.code);
+  }
+  return rejectedDefinition(error)
+    ? exitCodeOfProblem("config_invalid")
+    : exitCodeOf("internal");
+}
+
+/**
+ * The library's own runtime checks throw plain errors whose message starts
+ * with `PermDock` (an identifier, a condition, a policy it rejects). Those are
+ * the project's to fix, so they count as `config_invalid`, not as a CLI bug.
+ */
+function rejectedDefinition(error: unknown): error is Error {
+  return error instanceof Error && /^PermDock( CLI)?[:\s]/.test(error.message);
 }
 
 export function exitCodeOf(kind: CliErrorKind): ExitCode {
@@ -124,6 +174,7 @@ export function exitCodeOf(kind: CliErrorKind): ExitCode {
       return 2;
     case "unavailable":
     case "failed":
+    case "internal":
       return 1;
     case "action":
       return 3;
@@ -162,16 +213,20 @@ export function cliProblem(
   options?: {
     readonly code?: ProblemCode;
     readonly extensions?: Readonly<Record<string, unknown>>;
+    /** The exit code the run ended with, when it is not the code's own (143). */
+    readonly exitCode?: ExitCode;
   },
 ): CliProblem {
+  const code = options?.code ?? DEFAULT_CODES[kind];
+  const [title, exitCode] = CODES[code];
   return {
     ...options?.extensions,
-    type: `https://permdock.com/problems/${TYPES[kind]}`,
-    title: TITLES[kind],
+    type: `${CLI_ERRORS_URL}#${code}`,
+    title,
     detail: stripVTControlCharacters(message),
-    code: options?.code ?? DEFAULT_CODES[kind],
+    code,
     ...(command === undefined ? {} : { command }),
-    exitCode: exitCodeOf(kind),
+    exitCode: options?.exitCode ?? exitCode,
   };
 }
 
@@ -185,7 +240,9 @@ export function problemOf(
       extensions: error.extensions,
     });
   }
-  return cliProblem("usage", describeError(error), command);
+  return rejectedDefinition(error)
+    ? cliProblem("usage", error.message, command, { code: "config_invalid" })
+    : cliProblem("internal", describeError(error), command);
 }
 
 /**
@@ -205,6 +262,14 @@ export function usageResult(error: unknown): {
   };
 }
 
+/**
+ * A config, policy or definition the command cannot compile: the project's
+ * to fix, so a usage error (exit 2) and never an `internal` one.
+ */
+export function configError(message: string): CliError {
+  return new CliError("usage", message, { code: "config_invalid" });
+}
+
 /** The run needs a value only the caller can supply: exit 3 with `missing` naming the flags. */
 export function missingInput(
   command: string,
@@ -214,6 +279,6 @@ export function missingInput(
   return new CliError(
     "action",
     `${command} needs ${missing.join(" and ")}${hint === undefined ? "" : `: ${hint}`}`,
-    { code: "missing_input", extensions: { missing } },
+    { code: "input_required", extensions: { missing } },
   );
 }

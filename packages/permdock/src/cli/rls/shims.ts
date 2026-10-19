@@ -6,6 +6,7 @@ import type {
 } from "../types.ts";
 import type { RolePermission } from "./helpers.ts";
 
+import { configError } from "../core/errors.ts";
 import { byKey } from "../shared/compare.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import { breakGlassKey } from "../sql/grants.ts";
@@ -44,7 +45,7 @@ function mappedKey(
 
 function scopeOf(ctx: RlsSqlContext, scope: string): string {
   if (!ctx.scopes.some((item) => item.name === scope)) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: rls.migrate helper scope '${scope}' is not a declared scope`,
     );
   }
@@ -320,7 +321,9 @@ export function shimsSql(
   ];
   for (const [name, helper] of Object.entries(config.helpers).toSorted(byKey)) {
     if (!NAME.test(name)) {
-      throw new Error(`PermDock CLI: unsafe rls.migrate helper name '${name}'`);
+      throw configError(
+        `PermDock CLI: unsafe rls.migrate helper name '${name}'`,
+      );
     }
     chunks.push(
       shim(ctx, config, keys, `${quoteIdent(schema)}.${name}`, helper),

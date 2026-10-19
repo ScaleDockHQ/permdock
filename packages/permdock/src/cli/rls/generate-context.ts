@@ -11,6 +11,7 @@ import { resolveScope, scopeList } from "../../core/scopes.ts";
 import { type Policy, listPermissions, listRoles } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
+import { configError } from "../core/errors.ts";
 import { checkSuspension } from "../sql/active.ts";
 import { type RlsSqlContext, parseMembershipsFlag } from "../sql/context.ts";
 import { roleNames } from "../sql/grants.ts";
@@ -114,7 +115,7 @@ function skippedOwnershipTriggers(
   return Object.keys(triggers).map((key) => {
     const name = resolveScope(scopes, key);
     if (name === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.ownershipTriggers.${key} names a scope the policy does not declare`,
       );
     }

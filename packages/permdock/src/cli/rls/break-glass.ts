@@ -2,6 +2,7 @@ import type { Policy } from "../../index.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { scopeField } from "../../core/tenancy.ts";
+import { configError } from "../core/errors.ts";
 import { tableFor } from "../sql/compile.ts";
 import {
   breakGlassHolder,
@@ -129,7 +130,9 @@ function rowsFilter(ctx: RlsSqlContext, entry: BreakGlassEntry): string {
 
 function functionName(resource: string): string {
   if (!IDENT.test(resource)) {
-    throw new Error(`PermDock CLI: unsafe break-glass resource '${resource}'`);
+    throw configError(
+      `PermDock CLI: unsafe break-glass resource '${resource}'`,
+    );
   }
   return `permdock_break_glass_${resource}`;
 }

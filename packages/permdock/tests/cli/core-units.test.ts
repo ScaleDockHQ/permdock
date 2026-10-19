@@ -157,7 +157,7 @@ describe("parseFlags", () => {
       parseFlags("x", ["--no-dry-run=false"], flags).values.get("dry-run"),
     ).toBe(true);
     expect(() => parseFlags("x", ["--dry-run=yes"], flags)).toThrow(
-      "x: --dry-run takes no value",
+      "x: --dry-run takes true or false, got 'yes'",
     );
   });
 
@@ -442,7 +442,7 @@ describe("run", () => {
     });
     expect(result.code).toBe(3);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      error: { code: "missing_input" },
+      error: { code: "input_required" },
     });
   });
 
@@ -455,7 +455,38 @@ describe("run", () => {
     const result = await run(["rls", "migrate", "--json"], { cwd: FIXTURE });
     expect(result.code).toBe(3);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      error: { code: "missing_input" },
+      error: { code: "input_required" },
+    });
+  });
+
+  it("names the missing positional and the command that supplies it", async () => {
+    const result = await run(["preset", "decode", "--json"], { cwd: FIXTURE });
+    expect(result.code).toBe(3);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      status: "action_required",
+      error: { code: "input_required", missing: ["<code>"] },
+      next: [{ command: "permdock preset decode --json <code>" }],
+    });
+  });
+
+  it("refuses an --agent or PERMDOCK_AGENT value outside auto, yes and no", async () => {
+    const flag = await run(["config", "--agent=maybe", "--json"], {
+      cwd: FIXTURE,
+    });
+    expect(flag.code).toBe(2);
+    expect(JSON.parse(flag.stdout)).toMatchObject({
+      error: {
+        code: "invalid_value",
+        detail: "--agent takes auto, yes or no, got 'maybe'",
+      },
+    });
+    const env = await run(["config", "--json"], {
+      cwd: FIXTURE,
+      io: { ...quiet, env: { PERMDOCK_AGENT: "maybe" } },
+    });
+    expect(env.code).toBe(2);
+    expect(JSON.parse(env.stdout)).toMatchObject({
+      error: { code: "invalid_value" },
     });
   });
 

@@ -15,6 +15,7 @@ import {
 } from "../../index.ts";
 import { openapiVersion } from "../../openapi/emit.ts";
 import { createPermDock } from "../../openapi/index.ts";
+import { configError } from "../core/errors.ts";
 import { fileDrift } from "../core/output-files.ts";
 import { shortDiff } from "../core/text-diff.ts";
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
@@ -86,7 +87,7 @@ async function loadPolicy(
   }
   const permissionsPath = config.permissions;
   if (permissionsPath === undefined) {
-    throw new Error(
+    throw configError(
       "PermDock CLI: openapi emit needs --policy, or policy or permissions in the config",
     );
   }
@@ -108,7 +109,7 @@ function leavesOf(policy: Policy, keys: readonly unknown[]): Permission[] {
     }
     const leaf = findPermission(policy.permissions, key);
     if (leaf === undefined) {
-      throw new Error(`PermDock CLI: unknown permission '${key}'`);
+      throw configError(`PermDock CLI: unknown permission '${key}'`);
     }
     return leaf;
   });

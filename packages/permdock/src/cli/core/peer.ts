@@ -25,9 +25,9 @@ export async function requirePeer<T>(
       throw error;
     }
     const agent = await packageManagerOf(cwd);
-    throw new CliError("usage", peerHint(name, command, agent), {
+    throw new CliError("unavailable", peerHint(name, command, agent), {
       cause: error,
-      code: "peer_missing",
+      code: "dependency_missing",
       extensions: { package: name },
       next: [
         {

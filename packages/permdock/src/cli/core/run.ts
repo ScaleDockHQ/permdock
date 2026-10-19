@@ -18,6 +18,7 @@ import {
   consentReasons,
   consentRequired,
   consentToken,
+  quote,
   replayArgv,
 } from "./consent.ts";
 import { type CliContext, GLOBAL_FLAGS, type OutputFormat } from "./context.ts";
@@ -151,6 +152,34 @@ function lined(text: string): string {
   return text === "" || text.endsWith("\n") ? text : `${text}\n`;
 }
 
+/**
+ * The step that answers an `input_required` error without its own `next`:
+ * the same command line with each missing flag or positional filled by a
+ * placeholder the caller replaces.
+ */
+function missingInputNext(
+  argv: readonly string[],
+  error: CliError,
+): readonly NextStep[] | undefined {
+  const missing = error.extensions["missing"];
+  if (
+    error.code !== "input_required" ||
+    !Array.isArray(missing) ||
+    !missing.every((item): item is string => typeof item === "string")
+  ) {
+    return undefined;
+  }
+  const filled = missing.flatMap((item) =>
+    item.startsWith("--") ? [item, `<${item.slice(2)}>`] : [item],
+  );
+  return [
+    {
+      when: "with the values the user gives",
+      command: ["permdock", ...argv.map(quote), ...filled].join(" "),
+    },
+  ];
+}
+
 /** The `--flag` tokens before `--`, as typed without a value. */
 function typedFlags(argv: readonly string[]): readonly string[] {
   const end = argv.indexOf("--");
@@ -209,10 +238,19 @@ export async function run(
   const env = io.env ?? process.env;
   const { globals, rest } = extractGlobals(argv);
   // Detection reads only an env the caller passed, so a programmatic run() is not switched to JSON by its host.
-  const agent = agentMode(globals.agent, io.env ?? {}, {
-    stdoutIsTty: io.stdoutIsTty === true,
-    exists: existsSync,
-  });
+  let agentProblem: CliError | undefined;
+  let agent = false;
+  try {
+    agent = agentMode(globals.agent, io.env ?? {}, {
+      stdoutIsTty: io.stdoutIsTty === true,
+      exists: existsSync,
+    });
+  } catch (error) {
+    if (!(error instanceof CliError)) {
+      throw error;
+    }
+    agentProblem = error;
+  }
   const color = io.color === true && globals.color;
   const errStyle = createStyle(io.errColor === true && globals.color);
   const plain = (text: string): string =>
@@ -312,12 +350,17 @@ export async function run(
     }
     return emitProblem(
       problemOf(error, command === "" ? undefined : command),
-      error instanceof CliError ? error.next : undefined,
+      error instanceof CliError
+        ? (error.next ?? (json ? missingInputNext(argv, error) : undefined))
+        : undefined,
     );
   };
 
   if (typeof formatOrProblem !== "string") {
     return emitProblem(formatOrProblem);
+  }
+  if (agentProblem !== undefined) {
+    return fail(agentProblem);
   }
 
   if (resolved.kind === "group") {
@@ -399,7 +442,7 @@ export async function run(
           `permdock${name === "" ? "" : ` ${name}`} needs a command`,
           name === "" ? undefined : name,
           {
-            code: "missing_input",
+            code: "usage",
             extensions: {
               choices: group.children
                 .filter(
@@ -595,6 +638,7 @@ export async function run(
         kind,
         problemDetail(result.output, parsed),
         name,
+        { exitCode: result.code },
       );
       writeOut(
         JSON.stringify(

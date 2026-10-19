@@ -18,6 +18,7 @@ import {
   requiresApproval,
 } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
+import { configError } from "../core/errors.ts";
 import { apiKeyAllowsCall } from "../rls/api-keys.ts";
 import { capabilityAccessSql } from "../rls/capabilities.ts";
 import { type RolePermission, accessSql } from "../rls/helpers.ts";
@@ -221,7 +222,7 @@ function resourceCondition(
   ctx: RlsSqlContext,
 ): Condition {
   if (item.access.kind !== "resource") {
-    throw new Error("PermDock CLI: resourceCondition needs a resource role");
+    throw configError("PermDock CLI: resourceCondition needs a resource role");
   }
   const { role, resource: roleResource } = item.access;
   const target = policy.resources.get(item.grant.permission.resource);
@@ -322,7 +323,7 @@ function prepare(
       );
       return undefined;
     }
-    throw new Error(
+    throw configError(
       `PermDock CLI: closure grant ${label}/${grant.permission.key} is not portable; rewrite it or pass --skip-closures`,
     );
   }
@@ -336,7 +337,7 @@ function prepare(
       );
       return undefined;
     }
-    throw new Error(
+    throw configError(
       `PermDock CLI: grant ${label}/${grant.permission.key} reads ${context.join(", ")}; request context is not in the token, so RLS cannot compile it. Move the value to a server-set claim (principal.claims.*) or pass --skip-closures (permdock doctor PD027)`,
     );
   }
@@ -431,7 +432,7 @@ function assignKeys(
     for (const [index, list] of lists.entries()) {
       const group = groupOf(permission, list);
       if (group !== undefined && named.has(group)) {
-        throw new Error(
+        throw configError(
           `PermDock CLI: grants of ${permission} with different conditions share group '${group}'; a group names one condition`,
         );
       }
@@ -464,7 +465,7 @@ function groupOf(
     ),
   ].toSorted();
   if (names.length > 1) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: grants of ${permission} with one condition name the groups ${names.join(", ")}; give them one group`,
     );
   }
@@ -503,7 +504,7 @@ function levelEntries(
       continue;
     }
     if (grant.permission.key.includes("@")) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: permission key '${grant.permission.key}' holds '@', which separates a level in custom-role grant keys`,
       );
     }

@@ -7,12 +7,15 @@ import { isRecord } from "../core/compact.ts";
 import { isOperationRisk } from "../core/operation-risks.ts";
 import { isOperationEffect } from "../core/operations.ts";
 import { isPermission } from "../core/permission-registry.ts";
+import { configError } from "./core/errors.ts";
 import { rel } from "./files.ts";
 import { type LoadOptions, loadModule, pickNamed } from "./project/load.ts";
 
 function metaOf(name: string, value: unknown): CatalogOperation["meta"] {
   const fail = (field: string): never => {
-    throw new Error(`PermDock CLI: operations.${name}.meta${field} is invalid`);
+    throw configError(
+      `PermDock CLI: operations.${name}.meta${field} is invalid`,
+    );
   };
   if (!isRecord(value)) {
     return fail("");
@@ -44,7 +47,9 @@ function metaOf(name: string, value: unknown): CatalogOperation["meta"] {
  */
 export function catalogOperations(value: unknown): readonly CatalogOperation[] {
   if (!isRecord(value)) {
-    throw new Error("PermDock CLI: operations export is not an operation map");
+    throw configError(
+      "PermDock CLI: operations export is not an operation map",
+    );
   }
   const out: CatalogOperation[] = [];
   for (const name of Object.keys(value)) {
@@ -54,13 +59,13 @@ export function catalogOperations(value: unknown): readonly CatalogOperation[] {
       operation["name"] !== name ||
       !isPermission(operation["permission"])
     ) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: operations.${name} is not an operation; export the defineOperations result`,
       );
     }
     const results: unknown = operation["results"];
     if (results !== undefined && !isPermission(results)) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: operations.${name}.results is not a permission`,
       );
     }
@@ -85,7 +90,7 @@ export async function loadConfiguredOperations(
   }
   const abs = resolve(cwd, path);
   if (!existsSync(abs)) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: operations module not found: ${rel(cwd, abs)}`,
     );
   }

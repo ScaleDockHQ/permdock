@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { PROBLEM_CODES } from "../../src/cli/core/errors.ts";
 import { CLI_COMMANDS_SCHEMA } from "../../src/cli/core/help.ts";
 import { leaves } from "../../src/cli/core/manifest.ts";
 import { CLI_RESULT_SCHEMA } from "../../src/cli/core/output.ts";
@@ -33,6 +34,15 @@ function expectResult(stdout: string): Record<string, unknown> {
 describe("schemas/cli-result-v1.json", () => {
   it("has the $id the envelope names", () => {
     expect(schema("cli-result-v1.json")["$id"]).toBe(CLI_RESULT_SCHEMA);
+  });
+
+  it("lists every problem code the CLI raises", () => {
+    const defs = schema("cli-result-v1.json")["$defs"];
+    // SAFETY: the committed schema's $defs.problem.properties.code holds an enum.
+    const code = (
+      defs as { problem: { properties: { code: { enum: string[] } } } }
+    ).problem.properties.code;
+    expect(code.enum).toEqual([...PROBLEM_CODES]);
   });
 
   it("validates a success", async () => {

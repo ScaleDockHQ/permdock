@@ -5,7 +5,7 @@ import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 import type { RolePermission } from "./helpers.ts";
 
-import { usageResult } from "../core/errors.ts";
+import { configError, usageResult } from "../core/errors.ts";
 import { writeFileEnsuringDir } from "../files.ts";
 import {
   emitPermissionsModule,
@@ -163,7 +163,7 @@ function emitGenerated(
 
 function assertNoServiceRole(sql: string): void {
   if (/\bto\s+service_role\b|\bfrom\s+service_role\b/i.test(sql)) {
-    throw new Error(
+    throw configError(
       "PermDock CLI: imported SQL must never target service_role",
     );
   }

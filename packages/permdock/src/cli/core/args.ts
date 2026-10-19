@@ -132,7 +132,7 @@ export function parseFlags(
         if (raw !== "true" && raw !== "false") {
           throw new CliError(
             "usage",
-            `${command}: ${spelling} takes no value`,
+            `${command}: ${spelling} takes true or false, got '${raw}'`,
             { code: "invalid_value" },
           );
         }
@@ -197,9 +197,12 @@ export function parseLeaf(
       positional.variadic === true ? rest[0] : rest.shift();
     if (positional.required === true && args[positional.name] === undefined) {
       throw new CliError(
-        "usage",
+        "action",
         `${command}: <${positional.name}> is required. Run permdock ${command} --help.`,
-        { code: "missing_input" },
+        {
+          code: "input_required",
+          extensions: { missing: [`<${positional.name}>`] },
+        },
       );
     }
   }
@@ -209,7 +212,7 @@ export function parseLeaf(
     throw new CliError(
       "usage",
       `${command}: unexpected argument '${extra[0] ?? ""}'. Run permdock ${command} --help.`,
-      { code: "unknown_command" },
+      { code: "usage" },
     );
   }
   return {

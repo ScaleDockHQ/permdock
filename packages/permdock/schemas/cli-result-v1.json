@@ -52,38 +52,36 @@
       "required": ["type", "title", "detail", "code", "exitCode"],
       "properties": {
         "type": {
-          "enum": [
-            "https://permdock.com/problems/cli-usage",
-            "https://permdock.com/problems/cli-unavailable",
-            "https://permdock.com/problems/cli-failed",
-            "https://permdock.com/problems/cli-action-required",
-            "https://permdock.com/problems/cli-cancelled"
-          ]
+          "type": "string",
+          "pattern": "^https://permdock\\.com/docs/cli/errors#[a-z_]+$",
+          "description": "The code's heading on the errors page, `https://permdock.com/docs/cli/errors#<code>`."
         },
         "title": { "type": "string" },
         "detail": { "type": "string" },
         "code": {
           "enum": [
-            "usage_error",
+            "usage",
             "unknown_command",
             "unknown_flag",
             "invalid_value",
             "command_moved",
             "flag_renamed",
-            "missing_input",
-            "missing_config",
-            "peer_missing",
+            "missing_value",
+            "config_not_found",
+            "config_invalid",
+            "dependency_missing",
             "supabase_cli_missing",
-            "file_conflict",
+            "database_unreachable",
+            "network_error",
+            "request_failed",
+            "auth_required",
             "dirty_worktree",
             "write_failed",
-            "consent_required",
-            "auth_required",
-            "network_error",
-            "database_unavailable",
-            "service_unavailable",
             "check_failed",
-            "cancelled"
+            "input_required",
+            "consent_required",
+            "cancelled",
+            "internal"
           ],
           "description": "Stable, snake_case; new codes are only added within v1."
         },

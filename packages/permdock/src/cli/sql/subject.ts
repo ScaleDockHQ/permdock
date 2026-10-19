@@ -1,6 +1,7 @@
 import type { RlsMembershipTable } from "../types.ts";
 
 import { byCodePoint } from "../../core/compare.ts";
+import { configError } from "../core/errors.ts";
 import { tenantTypeOf } from "./columns.ts";
 import { CLAIM, type RlsSqlContext } from "./context.ts";
 import { qualified, quoteIdent, quoteLiteral } from "./quote.ts";
@@ -94,7 +95,7 @@ export const SESSION_LIVE_HELPER = "permdock_session_live";
 /** `{ subject: { session: { live: true } } }` in a policy; only Supabase has `auth.sessions`. */
 export function liveSessionSql(ctx: RlsSqlContext): string {
   if (ctx.dialect !== "supabase") {
-    throw new Error(
+    throw configError(
       `PermDock CLI: { subject: { session: { live: true } } } reads auth.sessions, which only the supabase dialect has (got ${ctx.dialect})`,
     );
   }
@@ -161,7 +162,7 @@ export function subjectIdSql(ctx: RlsSqlContext): string {
 
 export function subjectClaimSql(ctx: RlsSqlContext, claim: string): string {
   if (!CLAIM.test(claim)) {
-    throw new Error(`PermDock CLI: unsafe claim name '${claim}'`);
+    throw configError(`PermDock CLI: unsafe claim name '${claim}'`);
   }
   switch (ctx.dialect) {
     case "supabase":
@@ -180,7 +181,7 @@ export function subjectClaimSql(ctx: RlsSqlContext, claim: string): string {
 /** A claim as `jsonb`; the `guc` dialect stores JSON text in `<prefix>.<claim>`. */
 export function subjectClaimJsonSql(ctx: RlsSqlContext, claim: string): string {
   if (!CLAIM.test(claim)) {
-    throw new Error(`PermDock CLI: unsafe claim name '${claim}'`);
+    throw configError(`PermDock CLI: unsafe claim name '${claim}'`);
   }
   switch (ctx.dialect) {
     case "supabase":

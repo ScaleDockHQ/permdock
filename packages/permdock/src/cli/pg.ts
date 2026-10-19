@@ -38,7 +38,7 @@ function unreachable(command: string, cause: unknown): CliError {
   return new CliError(
     "unavailable",
     `PermDock CLI: ${command.replace(/^permdock /u, "")} could not connect`,
-    { cause, code: "database_unavailable" },
+    { cause, code: "database_unreachable" },
   );
 }
 

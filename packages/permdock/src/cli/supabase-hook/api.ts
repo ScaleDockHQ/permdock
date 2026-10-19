@@ -6,6 +6,7 @@ import {
   HOOK_API_SCHEMA,
   hookApiNames,
 } from "../../supabase/sources.ts";
+import { configError } from "../core/errors.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
 import { activeRowSql } from "../sql/active.ts";
 import { quoteIdent, quoteLiteral } from "../sql/quote.ts";
@@ -108,7 +109,7 @@ export function apiWrappersSql(parts: Parts): string {
   ): string => {
     const fn = `${quoteIdent(target)}.${quoteIdent(name)}`;
     if (target === parts.schema && name === inner) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: supabase.hook.api would replace ${source}.${inner}: set api.schema or api.prefix`,
       );
     }

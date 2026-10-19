@@ -7,6 +7,7 @@ import type {
 } from "../types.ts";
 
 import { authorizeSql } from "../../supabase/index.ts";
+import { configError } from "../core/errors.ts";
 import { roleNames } from "../sql/grants.ts";
 import {
   quoteIdent,
@@ -83,7 +84,7 @@ export function parseRbacAuthorize(
   if (raw === "database" || raw === "jwt") {
     return raw;
   }
-  throw new Error(
+  throw configError(
     `PermDock CLI: --authorize must be database or jwt, got '${raw}'`,
   );
 }

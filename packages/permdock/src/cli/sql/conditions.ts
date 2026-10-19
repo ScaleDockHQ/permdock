@@ -14,6 +14,7 @@ import {
   type ConditionValue,
   isSqlFunctionField,
 } from "../../index.ts";
+import { configError } from "../core/errors.ts";
 import {
   activeInstancesSql,
   activeMembershipSql,
@@ -68,13 +69,13 @@ export function claimPath(ref: string): readonly string[] | undefined {
   }
   const segments = ref.slice(prefix.length).split(".");
   if (segments.length > MAX_CLAIM_DEPTH) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: claim path '${ref}' is deeper than ${MAX_CLAIM_DEPTH}`,
     );
   }
   for (const segment of segments) {
     if (!CLAIM.test(segment) || isForbiddenKey(segment)) {
-      throw new Error(`PermDock CLI: unsafe claim name '${segment}'`);
+      throw configError(`PermDock CLI: unsafe claim name '${segment}'`);
     }
   }
   return segments;
@@ -102,7 +103,7 @@ function claimRoot(
 ): { readonly root: string; readonly keys: readonly string[] } {
   const [head, ...rest] = path;
   if (head === undefined) {
-    throw new Error("PermDock CLI: empty claim path");
+    throw configError("PermDock CLI: empty claim path");
   }
   switch (ctx.dialect) {
     case "supabase":
@@ -213,7 +214,7 @@ function sqlValue(
   if (typeof value === "string") {
     return quoteLiteral(value);
   }
-  throw new Error("PermDock CLI: non-portable condition value");
+  throw configError("PermDock CLI: non-portable condition value");
 }
 
 function compileRef(ref: string, ctx: RlsSqlContext, field?: string): string {
@@ -239,11 +240,11 @@ function compileRef(ref: string, ctx: RlsSqlContext, field?: string): string {
     );
   }
   if (ref === "context" || ref.startsWith("context.")) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: '${ref}' is request context, which is not in the token; RLS cannot read it (permdock doctor PD027)`,
     );
   }
-  throw new Error(`PermDock CLI: non-portable subject ref '${ref}'`);
+  throw configError(`PermDock CLI: non-portable subject ref '${ref}'`);
 }
 
 /** `value` with `\`, `%` and `_` escaped for `like ... escape '\'`, as `escapeLike` does in process. */
@@ -358,7 +359,7 @@ function compileMemberOf(
       ? undefined
       : resolveScope(ctx.scopes, condition.scope);
   if (condition.scope !== "resource" && scope === undefined) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: memberOf ${condition.scope} names a scope the policy does not declare`,
     );
   }
@@ -372,7 +373,7 @@ function compileMemberOf(
     const named = scope === undefined ? undefined : scopeTable(ctx, scope);
     const rowColumn = scope === undefined ? mapping.id : named?.column;
     if (rowColumn === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: memberships mapping for ${condition.scope} is missing the row column`,
       );
     }
@@ -442,7 +443,7 @@ function compileMemberOf(
     ];
     return parts.length === 1 ? parts.join("") : `(${parts.join(" and ")})`;
   }
-  throw new Error(
+  throw configError(
     `PermDock CLI: memberOf ${condition.scope} needs a memberships table mapping`,
   );
 }
@@ -493,7 +494,7 @@ export function compileConditionSql(
         const path = claimPath(condition.value.ref);
         if (path === undefined) {
           compileRef(condition.value.ref, ctx);
-          throw new Error(
+          throw configError(
             `PermDock CLI: non-portable ${condition.op} against '${condition.value.ref}'`,
           );
         }
@@ -715,7 +716,7 @@ function compileHoppedSql(
 ): string {
   const resources = ctx.graph?.resources;
   if (resources === undefined) {
-    throw new Error(
+    throw configError(
       "PermDock CLI: a related condition with link hops needs the policy resources in the RLS context",
     );
   }

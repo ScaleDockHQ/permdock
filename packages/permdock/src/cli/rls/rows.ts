@@ -2,6 +2,7 @@ import type { Policy, ResourceNode } from "../../index.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { flattenGrantee } from "../../core/grantee.ts";
+import { configError } from "../core/errors.ts";
 import { branchClauses } from "../sql/clauses.ts";
 import { type CompiledBranch, tableFor } from "../sql/compile.ts";
 import { graphSqlName } from "../sql/names.ts";
@@ -21,7 +22,7 @@ export function rowsHelper(resource: string): string {
     name === undefined ||
     new TextEncoder().encode(`${helper}_for`).length > 63
   ) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: rls.rowHelpers cannot name a helper for resource '${resource}'; use a SQL name of at most 45 bytes`,
     );
   }
@@ -243,7 +244,7 @@ export function rowHelpersSql(
   for (const name of names) {
     const node = policy.resources.get(name);
     if (node === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.rowHelpers names '${name}', which the policy does not declare`,
       );
     }

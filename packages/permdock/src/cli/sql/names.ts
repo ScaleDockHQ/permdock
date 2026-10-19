@@ -11,6 +11,7 @@ import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
 import { type Scope, rootScope, scopeChain } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { type RoleColumn, roleColumn } from "../../supabase/roles.ts";
+import { configError } from "../core/errors.ts";
 import { CLI, quoteIdent, quoteLiteral } from "./quote.ts";
 import { subjectIdSql } from "./subject.ts";
 
@@ -37,7 +38,7 @@ export function graphSqlName(name: string): string | undefined {
 function sqlNameOf(name: string, label: string): string {
   const sql = graphSqlName(name);
   if (sql === undefined) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: ${label} is not a SQL name (letters, digits and underscores, starting with a letter), so rls generate cannot name its helper`,
     );
   }
@@ -103,7 +104,7 @@ export function memberRoleOf(
 /** The helper returning the ids of scope `name` a grant key reaches. */
 export function permittedIdsHelper(name: string): string {
   if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
-    throw new Error(`PermDock CLI: unsafe scope name '${name}'`);
+    throw configError(`PermDock CLI: unsafe scope name '${name}'`);
   }
   return `permitted_${name}_ids`;
 }
@@ -116,7 +117,7 @@ export function permittedForHelper(name: string): string {
 /** The helper returning the ids of scope `name` the subject holds any live membership of. */
 export function memberIdsHelper(name: string): string {
   if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
-    throw new Error(`PermDock CLI: unsafe scope name '${name}'`);
+    throw configError(`PermDock CLI: unsafe scope name '${name}'`);
   }
   return `member_${name}_ids`;
 }

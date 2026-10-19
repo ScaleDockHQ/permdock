@@ -149,13 +149,14 @@ describe("permdock powersync", () => {
       connect: fakeDb(() => false),
     });
     expect(under.output).toContain("note.read for u1: granted, not synced");
-    const missing = await runPowerSync({
-      ...base,
-      rest: ["verify"],
-      db: "postgres://test",
-      fixtures: "missing.json",
-    });
-    expect(missing).toMatchObject({ code: 2 });
+    await expect(
+      runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        fixtures: "missing.json",
+      }),
+    ).rejects.toMatchObject({ code: "config_invalid" });
     await expect(
       runPowerSync({
         ...base,
@@ -286,8 +287,8 @@ describe("permdock powersync", () => {
         { subject: { id: "u1", claims: [] }, action: "note.read", row: {} },
       ]),
     );
-    expect(
-      await runPowerSync({
+    await expect(
+      runPowerSync({
         cwd,
         config: projectConfig,
         check: false,
@@ -295,9 +296,9 @@ describe("permdock powersync", () => {
         db: "postgres://test",
         connect: fakeDb(() => false),
       }),
-    ).toMatchObject({
-      code: 2,
-      output: "PermDock CLI: fixture 0 subject.claims must be an object",
+    ).rejects.toMatchObject({
+      code: "config_invalid",
+      message: "PermDock CLI: fixture 0 subject.claims must be an object",
     });
   });
 
@@ -313,11 +314,11 @@ describe("permdock powersync", () => {
         })
       ).code,
     ).toBe(2);
-    expect(
-      await runPowerSync({ cwd, config: {}, check: false, rest: ["generate"] }),
-    ).toEqual({
-      code: 2,
-      output: "PermDock CLI: powersync needs policy in the config or --policy",
+    await expect(
+      runPowerSync({ cwd, config: {}, check: false, rest: ["generate"] }),
+    ).rejects.toMatchObject({
+      code: "config_invalid",
+      message: "PermDock CLI: powersync needs policy in the config or --policy",
     });
     expect(await pd058({ cwd, config: { powersync: {} } })).toEqual([]);
     const broken: PermDockConfig = {

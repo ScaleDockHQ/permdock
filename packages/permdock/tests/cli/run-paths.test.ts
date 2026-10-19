@@ -36,7 +36,7 @@ describe("run: groups", () => {
     const result = await run(["rls", "--json"], { cwd: FIXTURE });
     expect(result.code).toBe(2);
     expect(errorOf(result.stdout)).toMatchObject({
-      code: "missing_input",
+      code: "usage",
       choices: [
         "permdock rls generate",
         "permdock rls import",
@@ -55,7 +55,7 @@ describe("run: groups", () => {
 
 describe("run: the root", () => {
   it.each([
-    [["--json"], "missing_input", "permdock needs a command"],
+    [["--json"], "usage", "permdock needs a command"],
     [
       ["--format", "xml", "--json"],
       "invalid_value",

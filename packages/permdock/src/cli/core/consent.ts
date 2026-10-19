@@ -33,7 +33,8 @@ export function consentReasons(
   return reasons;
 }
 
-function quote(token: string): string {
+/** A token as the shell reads it back unchanged. */
+export function quote(token: string): string {
   return /^[\w@%+=:,./-]+$/u.test(token)
     ? token
     : `'${token.replaceAll("'", String.raw`'\''`)}'`;

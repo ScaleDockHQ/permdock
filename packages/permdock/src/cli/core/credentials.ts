@@ -38,7 +38,10 @@ export async function secretInput(
       throw new CliError(
         "usage",
         `${ctx.command}: --${input.flag}-stdin read nothing from stdin`,
-        { code: "missing_input" },
+        {
+          code: "missing_value",
+          extensions: { flag: `--${input.flag}-stdin` },
+        },
       );
     }
   } else if (input.value !== undefined && input.value !== "") {
