@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 
 import type { PermDockPluginOptions } from "../cli/types.ts";
 
-import { peerHint } from "../cli/peer.ts";
+import { peerHint } from "../cli/core/peer.ts";
 import {
   createCollectScheduler,
   report,

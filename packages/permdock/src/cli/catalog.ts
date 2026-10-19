@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { CommandResult } from "./shared/result.ts";
+import type { CommandResult } from "./core/result.ts";
 import type { CatalogDocument, CliIo, PermDockConfig } from "./types.ts";
 
 import {
@@ -19,7 +19,7 @@ import {
   loadModule,
   pickNamed,
   loadConfiguredPolicy,
-} from "./load.ts";
+} from "./project/load.ts";
 import { scanSources } from "./scan.ts";
 
 export async function runCatalog(input: {

@@ -11,11 +11,11 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { OpenApiPermDockOptions } from "../../src/openapi/types.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import {
   validateOpenapi,
   validateOverlay,
 } from "../../src/cli/openapi/schema.ts";
-import { run } from "../../src/cli/run.ts";
 import {
   allow,
   anyone,
@@ -337,7 +337,7 @@ describe("OpenAPI Overlay", () => {
     });
   });
 
-  describe("permdock openapi emit --format overlay", () => {
+  describe("permdock openapi emit --kind overlay", () => {
     const temps: string[] = [];
     afterEach(() => {
       for (const dir of temps.splice(0)) {
@@ -371,7 +371,7 @@ describe("OpenAPI Overlay", () => {
           "emit",
           "--doc",
           "openapi.json",
-          "--format",
+          "--kind",
           "overlay",
           "--out",
           "permdock.overlay.json",

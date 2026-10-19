@@ -133,7 +133,7 @@ describe("missingHelpersInDb", () => {
         "postgres://permdock:permdock@127.0.0.1:1/missing",
         manifestOf("public"),
       ),
-    ).rejects.toThrow("supabase hook generate --db could not connect");
+    ).rejects.toThrow("supabase hook generate --db-url could not connect");
   });
 });
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ActualRls } from "../../src/cli/rls/introspect.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import {
   diffMixed,
   diffRls,
@@ -11,7 +12,6 @@ import {
   missingIndexes,
   normalizeTableName,
 } from "../../src/cli/rls/introspect.ts";
-import { run } from "../../src/cli/run.ts";
 import { fakeSql } from "../fakes/sql.ts";
 
 const SQL = `create or replace function "app".permdock_has(p_grant text)
@@ -154,11 +154,11 @@ describe("rls verify --introspect", () => {
     ]);
   });
 
-  it("needs --db", async () => {
+  it("needs --db-url", async () => {
     const result = await run(["rls", "verify", "--introspect"]);
     expect(result.code).toBe(2);
     expect(result.stderr + result.stdout).toContain(
-      "rls verify --introspect needs --db",
+      "rls verify --introspect needs --db-url",
     );
   });
 });

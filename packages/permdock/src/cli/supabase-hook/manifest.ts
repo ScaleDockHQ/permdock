@@ -17,6 +17,7 @@ import type { Parts } from "./parts.ts";
 import { hasConditionOp } from "../../conditions/ast.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
+import { SUPABASE_MANIFEST_SCHEMA } from "../core/version.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
 import { guardedTables } from "../rls/assignments.ts";
@@ -38,7 +39,6 @@ import {
 } from "../sql/names.ts";
 import { customRolesOn, HELPERS } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
-import { SUPABASE_MANIFEST_SCHEMA } from "../version.ts";
 import { hookClaims } from "./claims.ts";
 import { BUDGET_MEASURE } from "./sql.ts";
 import { AUTHZ_VERSION_BUMP } from "./version.ts";

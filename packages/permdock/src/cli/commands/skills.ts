@@ -1,63 +1,54 @@
-import { defineCommand } from "citty";
+import type { CliContext } from "../core/context.ts";
+import type { CommandResult } from "../core/result.ts";
 
+import { type Leaf, defineLeaf } from "../core/command.ts";
+import { checkFlag } from "../core/flags.ts";
+import { CANCELLED, pick } from "../core/prompt.ts";
 import { detectedAgents, runSkills, SKILL_AGENTS } from "../skills.ts";
-import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  listArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
-import { CANCELLED, pick } from "./prompt.ts";
 
-export function skills(ctx: CliContext): Command {
-  const command = defineCommand({
-    meta: {
-      name: "skills",
-      description: COMMAND_DESCRIPTIONS.skills,
-    },
-    args: {
-      ...globalArgs,
-      action: {
-        type: "positional",
-        required: false,
-        description: "install (default), update or list",
-      },
-      agent: {
-        type: "string",
-        description: "Agent skill folders to write, repeatable",
-        valueHint: "name",
-      },
-      check: {
-        type: "boolean",
-        description:
-          "Fail when the installed skills differ from this version; write nothing",
-      },
-    },
-    async run({ args: parsed, rawArgs }) {
-      const action = parsed._[0];
-      let agents = listArg(rawArgs, "agent");
-      const installs =
-        action === undefined || action === "install" || action === "update";
-      const check = parsed.check === true;
-      if (ctx.interactive && installs && !check && agents.length === 0) {
-        const detected = detectedAgents(ctx.cwd);
-        const picked = await pick(
-          "Which agents should get the PermDock skills?",
-          Object.entries(SKILL_AGENTS).map(([value, hint]) => ({
-            value,
-            hint,
-          })),
-          detected.length > 0 ? detected : Object.keys(SKILL_AGENTS),
-        );
-        if (picked === undefined) {
-          ctx.report(CANCELLED);
-          return;
-        }
-        agents = picked;
-      }
-      ctx.report(runSkills({ cwd: ctx.cwd, action, agents, check }));
-    },
-  });
-  return command;
+const clientFlag = {
+  client: {
+    type: "string",
+    repeatable: true,
+    description:
+      "Agent client folders to write: cursor, claude, codex and the others skills list names",
+    valueHint: "name",
+  },
+} as const;
+
+async function installTo(
+  ctx: CliContext,
+  action: "install" | "update",
+  clients: readonly string[],
+  check: boolean,
+): Promise<CommandResult> {
+  let agents = clients;
+  if (ctx.interactive && !ctx.yes && !check && agents.length === 0) {
+    const detected = detectedAgents(ctx.cwd);
+    const picked = await pick(
+      "Which agents should get the PermDock skills?",
+      Object.entries(SKILL_AGENTS).map(([value, hint]) => ({ value, hint })),
+      detected.length > 0 ? detected : Object.keys(SKILL_AGENTS),
+    );
+    if (picked === undefined) {
+      return CANCELLED;
+    }
+    agents = picked;
+  }
+  return runSkills({ cwd: ctx.cwd, action, agents, check });
 }
+
+export const install: Leaf = defineLeaf({
+  flags: { ...clientFlag, ...checkFlag },
+  run: (ctx, { flags }) => installTo(ctx, "install", flags.client, flags.check),
+});
+
+export const update: Leaf = defineLeaf({
+  flags: { ...clientFlag },
+  run: (ctx, { flags }) => installTo(ctx, "update", flags.client, false),
+});
+
+export const list: Leaf = defineLeaf({
+  flags: {},
+  run: (ctx) => runSkills({ cwd: ctx.cwd, action: "list", agents: [] }),
+});

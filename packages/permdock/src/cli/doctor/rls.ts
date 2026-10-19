@@ -94,8 +94,8 @@ export async function pd016(
       findings.push({
         code: "PD016",
         severity: "warning",
-        message: "sqlFunction grants have no rls fixtures for verify --db",
-        fix: "add rls.fixtures.json and run permdock rls verify --db",
+        message: "sqlFunction grants have no rls fixtures for verify --db-url",
+        fix: "add rls.fixtures.json and run permdock rls verify --db-url",
       });
     }
   }

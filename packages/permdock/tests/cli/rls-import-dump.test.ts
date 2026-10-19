@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { miniAppCopy, removeProjects } from "./doctor-kit.ts";
 
 afterEach(removeProjects);

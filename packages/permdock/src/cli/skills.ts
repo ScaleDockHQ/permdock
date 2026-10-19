@@ -12,12 +12,12 @@ import {
 import { createRequire } from "node:module";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
-import type { CommandResult } from "./shared/result.ts";
+import type { CommandResult } from "./core/result.ts";
 
 import { byCodePoint } from "../core/compare.ts";
 import { didYouMean } from "./core/args.ts";
 import { readJsonFile } from "./files.ts";
-import { packageRoot } from "./package-root.ts";
+import { packageRoot } from "./project/package-root.ts";
 
 const SKILL_NAMES = [
   "permdock",
@@ -58,7 +58,7 @@ export function runSkills(input: {
     const suggestion = didYouMean(unknown, Object.keys(AGENT_FOLDERS));
     return {
       code: 2,
-      output: `skills: unknown --agent '${unknown}'${suggestion === undefined ? "" : `. Did you mean ${suggestion}?`} Use ${Object.keys(AGENT_FOLDERS).join(", ")}.`,
+      output: `skills: unknown --client '${unknown}'${suggestion === undefined ? "" : `. Did you mean ${suggestion}?`} Use ${Object.keys(AGENT_FOLDERS).join(", ")}.`,
     };
   }
   switch (input.action) {

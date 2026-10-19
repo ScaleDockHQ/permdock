@@ -10,8 +10,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { defineConfig } from "../../src/cli/config.ts";
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { defineConfig } from "../../src/cli/project/config.ts";
+import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
@@ -55,7 +56,7 @@ describe("run", () => {
   it("returns exit 2 and rls help when rls has no subcommand", async () => {
     const rls = await run(["rls"]);
     expect(rls.code).toBe(2);
-    expect(rls.stdout).toContain("generate");
+    expect(rls.stderr).toContain("generate");
   });
 
   it("emits security onto an OpenAPI document", async () => {
@@ -104,9 +105,9 @@ describe("run", () => {
     const result = await run(argv);
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("permdock catalog");
-    expect(result.stdout).toContain("--format=<json|schema|markdown>");
-    expect(result.stdout).toContain("(Default: json)");
-    expect(result.stdout).toContain("--no-color");
+    expect(result.stdout).toContain("--kind <catalog|json-schema|markdown>");
+    expect(result.stdout).toContain("(default catalog)");
+    expect(result.stdout).toContain("--color");
   });
 
   it.each([
@@ -137,12 +138,14 @@ describe("run", () => {
     );
   });
 
-  it("gives a bare enum flag its default and ignores flags after --", async () => {
+  it("refuses a bare enum flag and ignores flags after --", async () => {
     const cwd = appCopy();
-    const bare = await run(["catalog", "--format"], { cwd });
-    expect(bare.code).toBe(0);
-    expect(bare.stdout).toContain('"key": "post.update"');
-    const passed = await run(["catalog", "--", "--format", "markdown"], {
+    const bare = await run(["catalog", "--kind"], { cwd });
+    expect(bare).toMatchObject({
+      code: 2,
+      stderr: "catalog: --kind needs a value.\n",
+    });
+    const passed = await run(["catalog", "--", "--kind", "markdown"], {
       cwd,
     });
     expect(passed.code).toBe(0);
@@ -186,21 +189,21 @@ describe("run", () => {
 
   it("catalog --format json lists post.update", async () => {
     const cwd = appCopy();
-    const result = await run(["catalog", "--format", "json"], { cwd });
+    const result = await run(["catalog", "--kind", "catalog"], { cwd });
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('"key": "post.update"');
     expect(result.stdout).toContain('"arity": "instance"');
   });
 
   it("catalog --format schema emits a JSON Schema document", async () => {
-    const result = await run(["catalog", "--format", "schema"]);
+    const result = await run(["catalog", "--kind", "json-schema"]);
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("catalog-v1.json");
   });
 
   it("catalog --format markdown has a post section", async () => {
     const cwd = appCopy();
-    const result = await run(["catalog", "--format", "markdown"], { cwd });
+    const result = await run(["catalog", "--kind", "markdown"], { cwd });
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("## post");
     expect(result.stdout).toContain("archive");
@@ -211,7 +214,7 @@ describe("run", () => {
     const result = await run(["usage", "--json"], { cwd });
     expect(result.code).toBe(1);
     // SAFETY: the --json report printed by `permdock usage` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly unused: readonly { readonly key: string }[];
       readonly ungranted: readonly { readonly key: string }[];
       readonly noRole: readonly { readonly key: string }[];
@@ -237,7 +240,7 @@ describe("run", () => {
     );
     const result = await run(["usage", "--json"], { cwd });
     // SAFETY: the --json report printed by `permdock usage` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly undeclared: readonly {
         readonly key: string;
         readonly detail: string;
@@ -277,7 +280,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
     );
     const result = await run(["usage", "--json"], { cwd });
     // SAFETY: the --json report printed by `permdock usage` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly outsideInclude: readonly { readonly key: string }[];
     };
     expect(report.outsideInclude.map((item) => item.key)).toEqual([
@@ -287,7 +290,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
 
   it("usage --strict fails on warnings", async () => {
     const cwd = appCopy();
-    const result = await run(["usage", "--strict"], { cwd });
+    const result = await run(["usage", "--fail-on", "warning"], { cwd });
     expect(result.code).toBe(1);
   });
 
@@ -311,7 +314,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
         "arazzo.json",
         "--openapi",
         "openapi.json",
-        "--from",
+        "--permissions",
         "src/permissions.ts",
       ],
       { cwd },
@@ -345,7 +348,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
     });
     expect(result.code).toBe(0);
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly unknown[];
     };
     expect(report.findings).toEqual([]);
@@ -356,38 +359,45 @@ describe("run flag validation", () => {
   it.each([
     [
       ["catalog", "--format", "xml"],
-      "catalog: Invalid value for argument: --format (xml). Expected one of: json, schema, markdown.",
+      "catalog: --format is --kind since 0.5.0.",
     ],
     [
-      ["openapi", "import", "--schema", "joi"],
-      "openapi: Invalid value for argument: --schema (joi). Expected one of: zod, valibot, arktype.",
+      ["openapi", "import", "--doc", "x.json", "--validator", "joi"],
+      "openapi import: --validator 'joi' is not one of zod, valibot, arktype.",
     ],
-    [["openapi", "import"], "openapi --doc is required"],
     [
       ["openapi", "emit", "--target", "4.0"],
-      "openapi: Invalid value for argument: --target (4.0). Expected one of: 3.1, 3.2, 3.3.",
+      "openapi emit: --target '4.0' is not one of 3.1, 3.2, 3.3.",
     ],
     [
-      ["openapi", "emit", "--format", "yaml"],
-      "openapi: Invalid value for argument: --format (yaml). Expected one of: document, overlay.",
+      ["openapi", "emit", "--kind", "yaml"],
+      "openapi emit: --kind 'yaml' is not one of document, overlay.",
     ],
     [
       ["openapi", "emit", "--overlay", "2.0"],
-      "openapi: Invalid value for argument: --overlay (2.0). Expected one of: 1.1, 1.2.",
+      "openapi emit: --overlay '2.0' is not one of 1.1, 1.2.",
     ],
     [
       ["openapi", "emit", "--profile", "fapi1"],
-      "openapi: Invalid value for argument: --profile (fapi1). Expected one of: fapi2.",
+      "openapi emit: --profile 'fapi1' is not one of fapi2. Did you mean fapi2?",
     ],
     [
       ["rls", "generate", "--rbac", "auth0"],
-      "rls: Invalid value for argument: --rbac (auth0). Expected one of: supabase.",
+      "rls generate: --rbac 'auth0' is not one of supabase.",
     ],
   ])("exits 2 on %o", async (argv, message) => {
     expect(await run(argv, { cwd: appCopy() })).toEqual({
       code: 2,
       stdout: "",
       stderr: `${message}\n`,
+    });
+  });
+
+  it("asks for a missing required input with exit 3", async () => {
+    expect(await run(["openapi", "import"], { cwd: appCopy() })).toEqual({
+      code: 3,
+      stdout: "",
+      stderr: "openapi import needs --doc: the OpenAPI document to import\n",
     });
   });
 

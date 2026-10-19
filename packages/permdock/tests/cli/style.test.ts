@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createStyle, streamHasColors } from "../../src/cli/style.ts";
+import { createStyle, streamHasColors } from "../../src/cli/core/style.ts";
 
 function stream(tty: boolean, colors = true): NodeJS.WriteStream {
   // SAFETY: streamHasColors reads only isTTY and hasColors.

@@ -15,7 +15,7 @@ import type {
   UnparsedSource,
 } from "./types.ts";
 
-import { describeError } from "./errors.ts";
+import { describeError } from "./core/errors.ts";
 import { rel } from "./files.ts";
 
 /** oxc reports recoverable problems as `Warning` or `Advice`; only `Error` leaves the program incomplete. */

@@ -5,7 +5,7 @@ import type { CustomRole, Membership, Subject } from "../index.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { readJsonFile } from "./files.ts";
-import { loadModule, pickNamed } from "./load.ts";
+import { loadModule, pickNamed } from "./project/load.ts";
 
 /** One subject, row and action, as `rls verify` and `diff --impact` read them. */
 export type RlsFixture = {

@@ -1,13 +1,13 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { CommandResult } from "./shared/result.ts";
+import type { CommandResult } from "./core/result.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { type PermissionTree, arazzoFindings } from "../index.ts";
+import { ARAZZO_REPORT_SCHEMA } from "./core/version.ts";
 import { readJsonFile } from "./files.ts";
-import { asPermissionTree, loadModule, pickNamed } from "./load.ts";
-import { ARAZZO_REPORT_SCHEMA } from "./version.ts";
+import { asPermissionTree, loadModule, pickNamed } from "./project/load.ts";
 
 export async function runArazzo(input: {
   readonly cwd: string;

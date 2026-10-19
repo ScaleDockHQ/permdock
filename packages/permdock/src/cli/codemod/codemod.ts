@@ -1,9 +1,9 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 
-import { CliError } from "../errors.ts";
+import { CliError } from "../core/errors.ts";
 import { rel } from "../files.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
 import {

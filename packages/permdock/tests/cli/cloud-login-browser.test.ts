@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 
 interface Spawned {
   readonly calls: (readonly [string, readonly string[]])[];

@@ -12,9 +12,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { SqlClient } from "../../src/cli/pg.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import { pd058 } from "../../src/cli/doctor/powersync.ts";
 import { runPowerSync } from "../../src/cli/powersync/powersync.ts";
-import { run } from "../../src/cli/run.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TMP = join(HERE, "../../tmp");
@@ -162,7 +162,7 @@ describe("permdock powersync", () => {
         rest: ["verify"],
         db: "postgres://permdock@127.0.0.1:1/none",
       }),
-    ).rejects.toThrow("powersync verify --db could not connect");
+    ).rejects.toThrow("powersync verify --db-url could not connect");
     writeFileSync(join(cwd, "sync-config.yaml"), "streams: {}\n");
     expect((await runPowerSync({ ...base, rest: ["verify"] })).output).toBe(
       "sync-config.yaml differs from the policy: run permdock powersync generate",
@@ -359,7 +359,7 @@ describe("permdock powersync", () => {
     const generated = await run(["powersync", "generate"], { cwd });
     expect(generated.stdout).toContain("wrote streams.yaml");
     const checked = await run(
-      ["powersync", "verify", "--from", "./policy.ts"],
+      ["powersync", "verify", "--policy", "./policy.ts"],
       { cwd },
     );
     expect(checked.code).toBe(0);
@@ -371,7 +371,7 @@ describe("permdock powersync", () => {
         "streams.yaml",
         "--fixtures",
         "rls.fixtures.json",
-        "--db",
+        "--db-url",
         "postgres://permdock@127.0.0.1:1/none",
       ],
       { cwd },

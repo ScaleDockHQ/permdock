@@ -1,15 +1,16 @@
+import type { CommandResult } from "../core/result.ts";
 import type { DoctorFinding } from "../shared/doctor-types.ts";
-import type { CommandResult } from "../shared/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { scopeList } from "../../core/scopes.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { runCollect } from "../collect.ts";
 import { didYouMean } from "../core/args.ts";
+import { createStyle } from "../core/style.ts";
+import { DOCTOR_REPORT_SCHEMA } from "../core/version.ts";
 import { listSourceFiles, rel } from "../files.ts";
-import { type Project, loadProject } from "../project.ts";
+import { type Project, loadProject } from "../project/project.ts";
 import { runSkillsInstall } from "../skills.ts";
-import { createStyle } from "../style.ts";
 import { pd045 } from "../supabase-config.ts";
 import { attrsPlan } from "../supabase-hook/claims.ts";
 import {
@@ -17,7 +18,6 @@ import {
   supabaseHookManifest,
 } from "../supabase-hook/supabase-hook.ts";
 import { pd039 } from "../supabase-setup.ts";
-import { DOCTOR_REPORT_SCHEMA } from "../version.ts";
 import { pd064 } from "./assignments.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";

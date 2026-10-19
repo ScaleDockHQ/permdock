@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { parse } from "pgsql-parser";
 
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { RlsMigrateConfig, RlsMigrateHelper } from "../types.ts";
 import type { GenerateOutcome } from "./generate.ts";
 
@@ -10,9 +10,9 @@ import { isRecord } from "../../core/compact.ts";
 import { escapeSqlIdent, quoteSqlLiteral } from "../../core/sql.ts";
 import { dateAt } from "../../core/time.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
-import { describeError } from "../errors.ts";
+import { describeError } from "../core/errors.ts";
+import { dataMigrationFile, writeOutputFiles } from "../core/output-files.ts";
 import { sqlFiles } from "../files.ts";
-import { dataMigrationFile, writeOutputFiles } from "../output-files.ts";
 import { RETIRE_MARKER } from "../sql/markers.ts";
 import { HELPERS } from "../sql/shared.ts";
 import { sqlStatements } from "../sql/statements.ts";
@@ -23,7 +23,7 @@ import {
   retireSql,
 } from "./retire.ts";
 
-/** One call `rls migrate` rewrote, or would with `--write`. */
+/** One call `rls migrate` rewrote, or would without `--dry-run`. */
 export type MigrateRewrite = {
   readonly file: string;
   readonly line: number;
@@ -662,7 +662,7 @@ function describe(report: MigrateReport, write: boolean): string {
     (item) => item.reason === "unknown-key",
   ).length;
   lines.push(
-    `rls migrate: ${write ? "rewrote" : "would rewrite"} ${String(report.rewrites.length)} call(s) in ${String(files)} file(s), skipped ${String(report.skipped.length)}${unknown === 0 ? "" : `, ${String(unknown)} with an unknown key`}${write ? "" : "; --write applies them"}`,
+    `rls migrate: ${write ? "rewrote" : "would rewrite"} ${String(report.rewrites.length)} call(s) in ${String(files)} file(s), skipped ${String(report.skipped.length)}${unknown === 0 ? "" : `, ${String(unknown)} with an unknown key`}${write ? "" : "; drop --dry-run to apply them"}`,
   );
   return lines.join("\n");
 }

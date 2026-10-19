@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { CatalogDocument } from "../../src/catalog/types.ts";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { referenceCloud } from "../cloud/fixtures/reference-cloud.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 

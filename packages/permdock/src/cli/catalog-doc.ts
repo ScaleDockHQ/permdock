@@ -31,7 +31,7 @@ import {
   listPermissions,
   listRoles,
 } from "../index.ts";
-import { CATALOG_SCHEMA, generatorBanner } from "./version.ts";
+import { CATALOG_SCHEMA, generatorBanner } from "./core/version.ts";
 
 function leafLevels(
   tree: PermissionTree,

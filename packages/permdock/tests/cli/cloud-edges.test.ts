@@ -9,13 +9,14 @@ import type { StoredCredential } from "../../src/terminal/types.ts";
 
 import { issuerMetadata } from "../../src/cli/cloud/issuer.ts";
 import { runLoopbackFlow } from "../../src/cli/cloud/loopback.ts";
-import { run } from "../../src/cli/run.ts";
-import { cliVersion } from "../../src/cli/version.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { cliVersion } from "../../src/cli/core/version.ts";
 import { catalogFingerprint } from "../../src/core/catalog-fingerprint.ts";
 import {
   readCredentials,
   writeCredentials,
 } from "../../src/terminal/storage.ts";
+import { jsonData } from "./envelope.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
 // Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
@@ -150,7 +151,7 @@ describe("permdock cloud pull against a failing Cloud", () => {
       ["--project", "prj_1", "--json"],
     );
     expect(result.code).toBe(1);
-    expect(JSON.parse(result.stdout)).toMatchObject({
+    expect(jsonData(result.stdout)).toMatchObject({
       type: "https://permdock.com/problems/cli-unavailable",
     });
   });
@@ -186,7 +187,7 @@ describe("permdock cloud pull against a failing Cloud", () => {
       }),
       ["--project", "prj_1", "--json"],
     );
-    expect(JSON.parse(result.stdout)).toMatchObject({
+    expect(jsonData(result.stdout)).toMatchObject({
       type: "https://permdock.com/problems/maintenance",
       status: 503,
     });
@@ -243,7 +244,7 @@ describe("the project a PERMDOCK_CLOUD_TOKEN reads", () => {
       ["--json"],
     );
     expect(result.code).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({ project: "prj_1" });
+    expect(jsonData(result.stdout)).toMatchObject({ project: "prj_1" });
   });
 
   it.each([
@@ -256,7 +257,7 @@ describe("the project a PERMDOCK_CLOUD_TOKEN reads", () => {
       [],
     );
     expect(result.code).toBe(code);
-    expect(result.stdout).toMatch(message);
+    expect(code === 1 ? result.stdout : result.stderr).toMatch(message);
   });
 
   it("is required with a login", async () => {
@@ -266,7 +267,7 @@ describe("the project a PERMDOCK_CLOUD_TOKEN reads", () => {
       login(home(), { access_token: "at_1" }),
     );
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("--project");
+    expect(result.stderr).toContain("--project");
   });
 });
 
@@ -304,7 +305,7 @@ describe("an expired login", () => {
     });
   });
 
-  it("fails with exit 1 when the refresh is refused", async () => {
+  it("asks for a login with exit 3 when the refresh is refused", async () => {
     const result = await pull(
       stubCloud({
         [`GET ${METADATA_PATH}`]: metadata(),
@@ -314,18 +315,18 @@ describe("an expired login", () => {
       ["--project", "prj_1"],
       login(home(), expired),
     );
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("has expired");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("has expired");
   });
 
-  it("fails with exit 1 when the issuer publishes no metadata", async () => {
+  it("asks for a login with exit 3 when the issuer publishes no metadata", async () => {
     const result = await pull(
       stubCloud({}),
       ["--project", "prj_1"],
       login(home(), expired),
     );
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("has expired");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("has expired");
   });
 });
 
@@ -345,16 +346,16 @@ describe("permdock cloud push without PERMDOCK_CLOUD_KEY", () => {
     const result = await push(
       login(home(), { access_token: "at_1", scope: "projects:read" }),
     );
-    expect(result.code).toBe(2);
-    expect(result.stdout).toContain("catalog:write");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("catalog:write");
   });
 
-  it("fails with exit 1 on an expired login", async () => {
+  it("asks for a login with exit 3 on an expired login", async () => {
     const result = await push(
       login(home(), { access_token: "at_1", expires_at: NOW_SECONDS - 60 }),
     );
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("permdock login --write");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("permdock login --scope catalog:write");
   });
 
   it("refuses a --manifest that is not a manifest", async () => {
@@ -365,13 +366,13 @@ describe("permdock cloud push without PERMDOCK_CLOUD_KEY", () => {
       io: io(stubCloud({}), {}),
     });
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("not a valid manifest");
+    expect(result.stderr).toContain("not a valid manifest");
   });
 
-  it("refuses --project and --environment naming different projects", async () => {
+  it("points --environment at --project", async () => {
     const result = await push({}, ["--project", "a", "--environment", "b"]);
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("pass one");
+    expect(result.stderr).toContain("--environment is --project");
   });
 });
 
@@ -403,7 +404,7 @@ describe("permdock rls generate --project against a failing Cloud", () => {
     expect(text.code).toBe(1);
     expect(text.stdout).toContain("no policy");
     const json = await generateRls(projectPolicy(), true);
-    expect(JSON.parse(json.stdout)).toMatchObject({
+    expect(jsonData(json.stdout)).toMatchObject({
       type: "https://permdock.com/problems/policy-not-published",
     });
   });

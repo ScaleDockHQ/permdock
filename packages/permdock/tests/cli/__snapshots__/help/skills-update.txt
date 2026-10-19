@@ -1,0 +1,15 @@
+permdock skills update: Replace installed skills with this version's
+
+Usage  permdock skills update [flags]
+
+Flags
+  --client <name>  Agent client folders to write: cursor, claude, codex and the others skills list names (repeatable)
+
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock skills update
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/skills

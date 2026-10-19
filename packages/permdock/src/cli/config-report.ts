@@ -3,12 +3,12 @@ import type { PermDockConfig } from "./types.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { catalogPath } from "./catalog-path.ts";
 import { barrelFile, guessPermissions } from "./collect.ts";
+import { CONFIG_REPORT_SCHEMA } from "./core/version.ts";
 import { defaultSrcPath, rel } from "./files.ts";
 import {
   DEFAULT_SENSITIVE_ACTIONS,
   MIGRATION_DIRS,
 } from "./shared/constants.ts";
-import { CONFIG_REPORT_SCHEMA } from "./version.ts";
 
 /** The config as written and the value each command uses where it is unset. */
 export type ConfigReport = {

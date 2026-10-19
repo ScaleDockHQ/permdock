@@ -1,0 +1,31 @@
+permdock openapi emit: Write security and securitySchemes into an OpenAPI document
+
+Usage  permdock openapi emit [flags]
+
+Flags
+  --doc <path>                      OpenAPI document: a path, or a URL for import
+  --out <file>                      File to write
+  --check                           Exit 1 when a file on disk is stale; write nothing
+  --policy <module>                 Module exporting the policy (default policy in the config)
+  --target <3.1|3.2|3.3>            OpenAPI version; 3.3 is the pinned Security Profiles draft (default 3.2)
+  --kind <document|overlay>         A full document or an Overlay (default document)
+  --overlay <1.1|1.2>               Overlay version; 1.2 is the pinned reusable-actions draft (default 1.1)
+  --profile <fapi2>                 Security profile to declare
+  --profile-scheme <name>           Security scheme name for the profile
+  --scheme <name>                   OAuth security scheme name (default permdockOAuth)
+  --metadata-url <url>              OAuth authorization server metadata URL
+  --device-flow                     Declare the device authorization flow
+  --arity                           Mark instance and collection operations
+  --authorization-url <url>         OAuth authorization endpoint
+  --token-url <url>                 OAuth token endpoint
+  --device-authorization-url <url>  OAuth device authorization endpoint
+
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock openapi emit --doc openapi.json --out openapi.secured.json
+  permdock openapi emit --doc openapi.json --kind overlay --out overlay.json
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/openapi

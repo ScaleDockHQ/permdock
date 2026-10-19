@@ -1,10 +1,10 @@
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { timeoutSignal } from "../../core/timeout.ts";
 import { TERMINAL_TIMEOUT_MS } from "../../terminal/device.ts";
-import { describeError } from "../errors.ts";
+import { describeError } from "../core/errors.ts";
 import { POLICY_NOT_PUBLISHED } from "./problem-types.ts";
 
 /** `GET /v1/projects/{id}/policy`: what the project's last `cloud push` sent, as pushed. */

@@ -1,11 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 import type { RolePermission } from "./helpers.ts";
 
-import { usageResult } from "../errors.ts";
+import { usageResult } from "../core/errors.ts";
 import { writeFileEnsuringDir } from "../files.ts";
 import {
   emitPermissionsModule,
@@ -271,7 +271,7 @@ export async function runRlsImport(input: {
   readonly schema: string;
   readonly memberships?: string;
   readonly io: CliIo;
-  /** Opens the `--db` connection; defaults to the `pg` peer. */
+  /** Opens the `--db-url` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
 }): Promise<CommandResult> {
   let policies: ImportedPolicy[] = [];
@@ -299,7 +299,7 @@ export async function runRlsImport(input: {
     try {
       const fromDb = await policiesFromDb(
         input.db,
-        input.connect ?? pgConnector("permdock rls import --db", input.cwd),
+        input.connect ?? pgConnector("permdock rls import --db-url", input.cwd),
       );
       policies = fromDb.policies;
       bodies = fromDb.bodies;
@@ -311,7 +311,7 @@ export async function runRlsImport(input: {
   } else {
     return {
       code: 2,
-      output: "PermDock CLI: rls import needs --sql <file> or --db <url>",
+      output: "PermDock CLI: rls import needs --sql <file> or --db-url <url>",
     };
   }
   const memberships =

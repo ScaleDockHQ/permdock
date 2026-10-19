@@ -388,7 +388,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
         [
           "rls",
           "verify",
-          "--db",
+          "--db-url",
           // Database mode seeds each fixture's custom roles, which needs the
           // table owner; the checked statement still runs as authenticated.
           shape.name === "custom_jwt"
@@ -582,7 +582,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
         throw new Error("PermDock: Postgres was not started");
       }
       const emitted = await run(
-        ["rls", "verify", "--fixtures", fixturesPath, "--format", "pgtap"],
+        ["rls", "verify", "--fixtures", fixturesPath, "--kind", "pgtap"],
         { cwd: shape.cwd },
       );
       expect(emitted.code).toBe(0);
@@ -614,12 +614,12 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
     },
   );
 
-  it("verify --db keeps custom roles that already exist in the database", async () => {
+  it("verify --db-url keeps custom roles that already exist in the database", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
     const emitted = await run(
-      ["rls", "verify", "--fixtures", fixturesPath, "--format", "pgtap"],
+      ["rls", "verify", "--fixtures", fixturesPath, "--kind", "pgtap"],
       { cwd: FIXTURE },
     );
     const seeds = emitted.stdout
@@ -634,7 +634,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
     try {
       await client.query(seeds.join("\n"));
       const result = await run(
-        ["rls", "verify", "--db", uri, "--fixtures", fixturesPath],
+        ["rls", "verify", "--db-url", uri, "--fixtures", fixturesPath],
         { cwd: FIXTURE },
       );
       expect(result.stdout).toContain(

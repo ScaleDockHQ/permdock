@@ -1,5 +1,5 @@
-import type { ExitCode } from "../errors.ts";
-import type { OutputFile } from "../output-files.ts";
+import type { ExitCode } from "../core/errors.ts";
+import type { OutputFile } from "../core/output-files.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { RolePermission } from "./helpers.ts";
@@ -12,13 +12,13 @@ import { dateAt } from "../../core/time.ts";
 import { type Policy, listPermissions } from "../../index.ts";
 import { POLICY_NOT_PUBLISHED } from "../cloud/problem-types.ts";
 import { fetchProjectPolicy } from "../cloud/pull.ts";
-import { cliErrorKind, describeError, exitCodeOf } from "../errors.ts";
-import { requirePolicy } from "../load.ts";
+import { cliErrorKind, describeError, exitCodeOf } from "../core/errors.ts";
 import {
   dataMigrationFile,
   driftOf,
   writeOutputFiles,
-} from "../output-files.ts";
+} from "../core/output-files.ts";
+import { requirePolicy } from "../project/load.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
 import { buildContext } from "./generate-context.ts";
 import {

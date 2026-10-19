@@ -272,7 +272,7 @@ describe("rls verify matrix (admin, member, viewer, non-member, global role)", (
         [
           "rls",
           "verify",
-          "--db",
+          "--db-url",
           testerUri(db.uri, shape.name),
           "--fixtures",
           fixturesPath,
@@ -286,14 +286,14 @@ describe("rls verify matrix (admin, member, viewer, non-member, global role)", (
     },
   );
 
-  it("reads the live policies back to roles with rls import --db", async () => {
+  it("reads the live policies back to roles with rls import --db-url", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
     for (const shape of ["collapsed_database", "per_role_database"]) {
       const out = join(dir, `${shape}.generated.ts`);
       const imported = await run(
-        ["rls", "import", "--db", databaseUri(db.uri, shape), "--out", out],
+        ["rls", "import", "--db-url", databaseUri(db.uri, shape), "--out", out],
         { cwd: FIXTURE },
       );
       expect(imported.code).toBe(0);

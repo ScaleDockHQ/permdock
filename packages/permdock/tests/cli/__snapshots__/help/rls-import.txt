@@ -1,0 +1,21 @@
+permdock rls import: Turn existing RLS policies into a generated definition
+
+Usage  permdock rls import [flags]
+
+Flags
+  --sql <path>                       SQL file or folder to read
+  --db-url <url>                     Postgres connection string (DATABASE_URL when the command needs one)
+  --db-url-stdin                     Read the connection string from stdin, keeping it out of ps and shell history
+  --out <file>                       File to write
+  --validator <zod|valibot|arktype>  Schema library for the generated resources (default zod)
+  --memberships <table>              Membership table as <table>:tenant,user,role
+
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock rls import --sql schema.sql --out src/permissions.generated.ts
+  permdock rls import --db-url-stdin --out src/permissions.generated.ts
+
+Side effects  files, database:read
+Docs  https://permdock.com/docs/cli/rls

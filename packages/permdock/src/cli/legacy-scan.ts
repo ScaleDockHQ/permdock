@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 
-import type { CommandResult } from "./shared/result.ts";
+import type { CommandResult } from "./core/result.ts";
 
 import { listSourceFiles } from "./files.ts";
 

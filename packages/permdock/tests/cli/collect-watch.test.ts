@@ -10,7 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { createCollectScheduler } from "../../src/cli/watch.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -47,7 +47,7 @@ describe("permdock collect --watch", () => {
       },
     });
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain("watching for changes");
+    expect(result.stderr).toContain("watching for changes");
     const catalog = join(cwd, "permissions.catalog.json");
     expect(readFileSync(catalog, "utf8")).not.toContain("post.export");
     // FSEvents drops changes made before its stream is live, and fs.watch has no ready event.
@@ -69,7 +69,7 @@ describe("permdock collect --watch", () => {
       },
       { timeout: 10_000 },
     );
-    expect(stderr).toContain("catalog updated");
+    expect(stderr.join("")).toContain("catalog updated");
   }, 20_000);
 
   it("runs once for a burst of changes and skips its own catalog", async () => {
@@ -116,7 +116,7 @@ describe("permdock collect --watch", () => {
     );
     expect(result.code).toBe(0);
     expect(result.stdout).not.toContain("watching for changes");
-    expect(result.stdout).toContain("srcPath");
+    expect(result.stderr).toContain("srcPath");
   });
 
   it("rejects --watch with --check", async () => {

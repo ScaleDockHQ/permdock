@@ -24,7 +24,8 @@ const coreSources = [...sources("core"), ...sources("conditions")];
 
 /** Process-wide memo caches of values that never depend on a request. */
 const MEMO_CACHES: Readonly<Record<string, string>> = {
-  [path.join("cli", "package-root.ts")]: "the permdock package directory",
+  [path.join("cli", "project", "package-root.ts")]:
+    "the permdock package directory",
   [path.join("cli", "openapi", "schema.ts")]: "compiled JSON Schema validators",
 };
 

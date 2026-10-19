@@ -2,13 +2,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { commands, isCommand } from "../../src/cli/commands/index.ts";
-import { CliError, usageResult } from "../../src/cli/errors.ts";
-import { packageRoot } from "../../src/cli/package-root.ts";
-import { run } from "../../src/cli/run.ts";
+import { CliError, usageResult } from "../../src/cli/core/errors.ts";
+import { leaves } from "../../src/cli/core/manifest.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { packageRoot } from "../../src/cli/project/package-root.ts";
 import { PERMISSIONS, project, removeProjects } from "./doctor-kit.ts";
 
-const NAMES = Object.keys(commands).filter(isCommand);
+const PATHS = leaves()
+  .filter(({ entry }) => entry.hidden !== true)
+  .map(({ path }) => path);
 const FIXTURE = join(import.meta.dirname, "fixtures/mini-app");
 
 describe("permdock --version", () => {
@@ -35,12 +37,16 @@ describe("help", () => {
     await expect(stdout).toMatchFileSnapshot("__snapshots__/help/root.txt");
   });
 
-  it.each(NAMES)("matches the recorded %s help", async (name) => {
-    const { code, stdout } = await run([name, "--help", "--no-color"]);
+  it.each(PATHS)("matches the recorded help for %s", async (...path) => {
+    const { code, stdout } = await run([...path, "--help", "--no-color"]);
     expect(code).toBe(0);
-    await expect(stdout).toMatchFileSnapshot(`__snapshots__/help/${name}.txt`);
+    await expect(stdout).toMatchFileSnapshot(
+      `__snapshots__/help/${path.join("-")}.txt`,
+    );
   });
 });
+
+const ENVELOPE = "https://permdock.com/schemas/cli-result-v1.json";
 
 describe("Problem Details under --json", () => {
   it("prints a usage problem on stdout for an unknown command", async () => {
@@ -48,10 +54,15 @@ describe("Problem Details under --json", () => {
     expect(result.code).toBe(2);
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout)).toEqual({
-      type: "https://permdock.com/problems/cli-usage",
-      title: "Usage or configuration error",
-      detail: expect.stringContaining("unknown command 'nope'"),
-      exitCode: 2,
+      $schema: ENVELOPE,
+      status: "error",
+      error: {
+        type: "https://permdock.com/problems/cli-usage",
+        title: "Usage or configuration error",
+        detail: expect.stringContaining("unknown command 'nope'"),
+        code: "unknown_command",
+        exitCode: 2,
+      },
     });
   });
 
@@ -60,7 +71,7 @@ describe("Problem Details under --json", () => {
       "rls",
       "verify",
       "--introspect",
-      "--db",
+      "--db-url",
       "postgres://permdock:permdock@127.0.0.1:1/missing",
       "--json",
       "--cwd",
@@ -68,12 +79,18 @@ describe("Problem Details under --json", () => {
     ]);
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
-      type: "https://permdock.com/problems/cli-unavailable",
-      title: "A database or service the command needs did not answer",
-      detail: "PermDock CLI: rls verify --introspect could not connect",
-      command: "rls",
-      exitCode: 1,
+      $schema: ENVELOPE,
+      status: "error",
+      error: {
+        type: "https://permdock.com/problems/cli-unavailable",
+        title: "A database or service the command needs did not answer",
+        detail: "PermDock CLI: rls verify --introspect could not connect",
+        code: "database_unavailable",
+        command: "rls verify",
+        exitCode: 1,
+      },
     });
+    expect(result.stdout).not.toContain("permdock:permdock@");
   });
 
   it("wraps a failed check's text report as a failed problem", async () => {
@@ -85,11 +102,21 @@ describe("Problem Details under --json", () => {
     const result = await run(["collect", "--check", "--json", "--cwd", cwd]);
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
-      type: "https://permdock.com/problems/cli-failed",
-      title: "The check the command ran found a problem",
-      detail: "catalog missing: permissions.catalog.json",
-      command: "collect",
-      exitCode: 1,
+      $schema: ENVELOPE,
+      status: "error",
+      data: {
+        out: join(cwd, "permissions.catalog.json"),
+        permissions: 9,
+        stale: true,
+      },
+      error: {
+        type: "https://permdock.com/problems/cli-failed",
+        title: "The check the command ran found a problem",
+        detail: "catalog missing: permissions.catalog.json",
+        code: "check_failed",
+        command: "collect",
+        exitCode: 1,
+      },
     });
   });
 
@@ -98,9 +125,12 @@ describe("Problem Details under --json", () => {
     const result = await run(["usage", "--json", "--cwd", cwd]);
     expect(result.code).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      type: "https://permdock.com/problems/cli-usage",
-      command: "usage",
-      exitCode: 2,
+      status: "error",
+      error: {
+        type: "https://permdock.com/problems/cli-usage",
+        command: "usage",
+        exitCode: 2,
+      },
     });
   });
 

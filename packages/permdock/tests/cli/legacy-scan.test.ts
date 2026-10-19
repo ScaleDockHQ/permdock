@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { jsonData } from "./envelope.ts";
 
 const dirs: string[] = [];
 
@@ -36,7 +37,7 @@ describe("permdock scan --legacy", () => {
         "if (featureFlag('x')) {}",
       ].join("\n"),
     });
-    const result = await run(["scan", "--legacy"], { cwd });
+    const result = await run(["scan"], { cwd });
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("src/actions.ts:1  role comparison");
     expect(result.stdout).toContain("src/actions.ts:4  CASL ability");
@@ -53,18 +54,10 @@ describe("permdock scan --legacy", () => {
   it("reports a custom pattern, prints JSON and says when nothing is found", async () => {
     const cwd = project({ "app/x.ts": "if (featureFlag('beta')) {}\n" });
     const custom = await run(
-      [
-        "scan",
-        "--legacy",
-        "--src",
-        "app",
-        "--pattern",
-        "featureFlag\\(",
-        "--json",
-      ],
+      ["scan", "--src", "app", "--pattern", "featureFlag\\(", "--json"],
       { cwd },
     );
-    expect(JSON.parse(custom.stdout)).toEqual([
+    expect(jsonData(custom.stdout)).toEqual([
       {
         file: "app/x.ts",
         line: 1,
@@ -72,12 +65,11 @@ describe("permdock scan --legacy", () => {
         text: "if (featureFlag('beta')) {}",
       },
     ]);
-    const none = await run(["scan", "--legacy", "--src", "app"], { cwd });
+    const none = await run(["scan", "--src", "app"], { cwd });
     expect(none.stdout).toContain("No legacy authorization checks found.");
-    expect((await run(["scan"], { cwd })).code).toBe(2);
     expect(
       (
-        await run(["scan", "--legacy", "--src", "app", "--pattern", "("], {
+        await run(["scan", "--src", "app", "--pattern", "("], {
           cwd,
         })
       ).code,

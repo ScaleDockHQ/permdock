@@ -3,7 +3,7 @@ import type { Agent } from "package-manager-detector";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import type { CommandResult } from "./shared/result.ts";
+import type { CommandResult } from "./core/result.ts";
 
 import {
   type Preset,
@@ -19,7 +19,7 @@ import {
   resolvePreset,
 } from "../preset/index.ts";
 import { didYouMean } from "./core/args.ts";
-import { addLine } from "./peer.ts";
+import { addLine } from "./core/peer.ts";
 
 /** The page a preset code opens in the builder. */
 const CREATE_URL = "https://permdock.com/create";
@@ -51,8 +51,8 @@ function unknownChoice(input: PresetInput): string | undefined {
       FRAMEWORKS,
     ],
     ["--feature", input.features ?? [], FEATURES],
-    ["--agent", input.agents ?? [], AGENTS],
-    ["--ui", input.ui ?? [], UI],
+    ["--integration", input.agents ?? [], AGENTS],
+    ["--integration", input.ui ?? [], UI],
   ];
   for (const [flag, picked, choices] of groups) {
     const ids = choices.map((choice) => choice.id);

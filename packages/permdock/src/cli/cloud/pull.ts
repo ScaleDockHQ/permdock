@@ -2,7 +2,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { relative, resolve } from "node:path";
 
 import type { CatalogDocument } from "../../catalog/types.ts";
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { parseCatalog } from "../../catalog/parse.ts";
@@ -10,10 +10,10 @@ import { catalogFingerprint } from "../../core/catalog-fingerprint.ts";
 import { parseSupabaseManifest } from "../../supabase/manifest.ts";
 import { formatCatalogJson } from "../catalog-doc.ts";
 import { catalogPath } from "../catalog-path.ts";
-import { describeError } from "../errors.ts";
+import { describeError } from "../core/errors.ts";
+import { cliVersion } from "../core/version.ts";
 import { writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
-import { cliVersion } from "../version.ts";
 import { cliRuntime, readAuth } from "./auth.ts";
 import { cloudUrl, type Env } from "./issuer.ts";
 import {
@@ -47,9 +47,6 @@ export async function fetchProjectPolicy(input: {
     input.env,
     cliRuntime(input.io, input.env),
   );
-  if (!auth.ok) {
-    return { ok: false, result: { code: auth.code, output: auth.output } };
-  }
   const request: CloudRequest = {
     issuer,
     bearer: auth.bearer,

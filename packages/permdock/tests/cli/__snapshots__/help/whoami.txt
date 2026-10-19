@@ -1,0 +1,16 @@
+permdock whoami: Print the PermDock Cloud identity the CLI acts as
+
+Usage  permdock whoami [flags]
+
+Flags
+  --url <url>  Issuer URL (default PERMDOCK_CLOUD_URL, then https://permdock.com/api)
+
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock whoami
+  permdock whoami --json
+
+Side effects  none: reads only
+Docs  https://permdock.com/docs/cli/login

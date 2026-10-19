@@ -2,72 +2,50 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import {
-  type CliContext,
-  globalArgs,
-  resolveArgs,
-} from "../../src/cli/commands/context.ts";
-import { commands, isCommand } from "../../src/cli/commands/index.ts";
+import type { Flag, Flags } from "../../src/cli/core/command.ts";
+
+import { GLOBAL_FLAGS } from "../../src/cli/core/context.ts";
+import { leaves } from "../../src/cli/core/manifest.ts";
 
 const CLI_DOCS = path.join(
   import.meta.dirname,
   "../../../../apps/docs/content/docs/cli",
 );
 
-const ctx: CliContext = {
-  cwd: import.meta.dirname,
-  config: {},
-  configWarnings: [],
-  io: { stdout: () => undefined, stderr: () => undefined },
-  now: new Date(0),
-  json: false,
-  color: false,
-  interactive: false,
-  report: () => undefined,
-};
-
-/** Commands documented on another command's page. */
-const PAGE_OF: Readonly<Record<string, string>> = { logout: "login" };
-
 function page(name: string): string {
-  return readFileSync(
-    path.join(CLI_DOCS, `${PAGE_OF[name] ?? name}.mdx`),
-    "utf8",
-  );
+  return readFileSync(path.join(CLI_DOCS, `${name}.mdx`), "utf8");
 }
 
 /** How the docs write a flag: `--no-x` for a boolean that is on by default. */
-function spelling(
-  name: string,
-  def: { readonly type?: string; readonly default?: unknown },
-): string {
-  return def.type === "boolean" && def.default === true
+function spelling(name: string, flag: Flag): string {
+  return flag.type === "boolean" && flag.default === true
     ? `--no-${name}`
     : `--${name}`;
 }
 
+function documented(flags: Flags): readonly string[] {
+  return Object.entries(flags)
+    .filter(([, flag]) => flag.hidden !== true)
+    .map(([name, flag]) => spelling(name, flag));
+}
+
+const LEAVES = leaves().filter(({ entry }) => entry.hidden !== true);
+
 describe("CLI flag docs", () => {
   it("documents every global flag on docs/cli/index.mdx", () => {
     const docs = page("index");
-    const missing = Object.entries(globalArgs)
-      .map(([name, def]) => spelling(name, def))
-      .filter((flag) => !docs.includes(flag));
-    expect(missing).toEqual([]);
+    expect(
+      documented(GLOBAL_FLAGS).filter((flag) => !docs.includes(flag)),
+    ).toEqual([]);
   });
 
-  it.each(Object.keys(commands).filter(isCommand))(
-    "documents every %s flag on docs/cli/<command>.mdx",
-    async (name) => {
-      const args = await resolveArgs((await commands[name]())(ctx));
-      const docs = page(name);
-      const missing = Object.entries(args)
-        .filter(
-          ([flag, def]) =>
-            def.type !== "positional" && !Object.hasOwn(globalArgs, flag),
-        )
-        .map(([flag, def]) => spelling(flag, def))
-        .filter((flag) => !docs.includes(flag));
-      expect(missing).toEqual([]);
-    },
-  );
+  it.each(
+    LEAVES.map(({ path: words, entry }) => [words.join(" "), entry] as const),
+  )("documents every flag of permdock %s on its page", async (_name, entry) => {
+    const leaf = await entry.load();
+    const docs = page(entry.docs);
+    expect(
+      documented(leaf.flags).filter((flag) => !docs.includes(flag)),
+    ).toEqual([]);
+  });
 });

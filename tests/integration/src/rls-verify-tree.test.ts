@@ -73,7 +73,7 @@ describe("rls verify --tree over the shared SaaS folder tree", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    const result = await run(["rls", "verify", "--tree", "--db", db.uri], {
+    const result = await run(["rls", "verify", "--tree", "--db-url", db.uri], {
       cwd: FIXTURE,
     });
     const counts =

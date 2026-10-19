@@ -3,11 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { didYouMean, unknownFlags } from "../../src/cli/core/args.ts";
 import { isCi } from "../../src/cli/core/env.ts";
+import { exitCodeOf } from "../../src/cli/core/errors.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { runDoctor } from "../../src/cli/doctor/doctor.ts";
-import { exitCodeOf } from "../../src/cli/errors.ts";
-import { run } from "../../src/cli/run.ts";
 
 const dirs: string[] = [];
 
@@ -40,31 +39,14 @@ describe("unknown flags", () => {
     });
     expect(result.code).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      type: "https://permdock.com/problems/cli-usage",
-      command: "config",
-      exitCode: 2,
+      status: "error",
+      error: {
+        type: "https://permdock.com/problems/cli-usage",
+        code: "unknown_flag",
+        command: "config",
+        exitCode: 2,
+      },
     });
-  });
-
-  it("accepts declared flags, aliases, negations, = values and anything after --", () => {
-    const def = {
-      json: { type: "boolean" },
-      yes: { type: "boolean", alias: "y" },
-      out: { type: "string" },
-      action: { type: "positional" },
-    } as const;
-    expect(
-      unknownFlags(
-        ["generate", "--no-json", "-y", "--out=x.sql", "-", "--", "--other"],
-        def,
-      ),
-    ).toEqual([]);
-    expect(unknownFlags(["--action", "-x"], def)).toEqual(["--action", "-x"]);
-  });
-
-  it("suggests only a close name", () => {
-    expect(didYouMean("--chek", ["--check", "--json"])).toBe("--check");
-    expect(didYouMean("--zzzzzz", ["--check", "--json"])).toBeUndefined();
   });
 });
 
@@ -112,7 +94,9 @@ describe("value checks", () => {
       cwd: dir(),
     });
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain("Expected one of: database, jwt.");
+    expect(result.stderr).toBe(
+      "rls generate: --authorize 'jwk' is not one of database, jwt. Did you mean jwt?\n",
+    );
   });
 
   it("rejects an init id outside the catalogue and suggests the nearest", async () => {
@@ -121,7 +105,7 @@ describe("value checks", () => {
       { cwd: dir() },
     );
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain(
+    expect(result.stderr).toContain(
       "unknown --framework 'nxt' (did you mean next?)",
     );
   });

@@ -231,18 +231,19 @@ export const permissions = definePermissions({
     [{ PERMDOCK_CLOUD_URL: "https://cloud.permdock.test" }],
     [{ PERMDOCK_CLOUD_URL: "", PERMDOCK_CLOUD_KEY: "" }],
   ])("needs a key or a login (%j)", async (env) => {
-    expect(
-      await push(FIXTURE, {
+    await expect(
+      push(FIXTURE, {
         env: { ...env, XDG_CONFIG_HOME: tempDir() },
         io: {
           ...IO,
           fetch: () => Promise.resolve(new Response(null, { status: 404 })),
         },
       }),
-    ).toEqual({
-      code: 2,
-      output:
-        "permdock cloud push needs PERMDOCK_CLOUD_KEY in the environment, or a login from permdock login --write",
+    ).rejects.toMatchObject({
+      kind: "action",
+      code: "auth_required",
+      message:
+        "permdock cloud push needs PERMDOCK_CLOUD_KEY in the environment, or a login from permdock login --scope catalog:write",
     });
   });
 

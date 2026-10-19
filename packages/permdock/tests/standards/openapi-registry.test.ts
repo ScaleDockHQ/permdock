@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { OpenApiPermDockOptions } from "../../src/openapi/types.ts";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import {
   allow,

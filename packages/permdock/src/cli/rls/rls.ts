@@ -1,10 +1,10 @@
+import type { CommandResult } from "../core/result.ts";
 import type { SqlConnect } from "../pg.ts";
-import type { CommandResult } from "../shared/result.ts";
 import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from "../types.ts";
 
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
-import { usageResult } from "../errors.ts";
-import { requirePeer } from "../peer.ts";
+import { usageResult } from "../core/errors.ts";
+import { requirePeer } from "../core/peer.ts";
 import { isSupabaseSchemas, schemasRefusal } from "../supabase-schemas.ts";
 import { type CliExec, runRlsAdvisors } from "./advisors.ts";
 import { type GenerateOutcome, runRlsGenerate } from "./generate.ts";
@@ -23,26 +23,12 @@ import { runRlsVerify } from "./verify.ts";
 
 export const RLS_HELP = `permdock rls generate | import | verify | migrate
 
-  generate --target drizzle|sql|prisma --dialect supabase|neon|guc
-           [--rbac supabase] [--rbac-schema public] [--authorize database|jwt]
-           [--memberships <table>:tenant,user,role]
-           [--policy-per-role] [--policy-name '{table}_{op}'] [--tenant-type uuid] [--custom-roles]
-           [--capabilities] [--fields views [--revoke-columns]]
-           [--out <path>] [--check] [--skip-closures] [--inline-functions] [--force] [--guc-prefix app]
-           [--schemas pg-delta|migra|migrations]
-           [--split helpers,seeds,indexes,policies,hook --seeds-out supabase/migrations/]: pg-delta layout
-           [--split helpers,seeds,policies,hook --out <dir>/056_permdock_{part}.sql --grants-out <file>|-]: migra
-           [--seeds-out <file>|<dir>/|-] [--backfill-out <file>|<dir>/|-]
-           [--helpers-only] [--shims] [--db $DATABASE_URL]
-  import   --sql schema.sql | --db $DATABASE_URL --out src/permissions.generated.ts
-           [--schema zod|valibot|arktype] [--memberships <table>:tenant,user,role]
-  verify   [--db $DATABASE_URL] [--fixtures rls.fixtures.ts] [--format pgtap|node] [--tree]
-           [--introspect --db $DATABASE_URL, with the generate flags]
-           [--advisors [--db $DATABASE_URL] [--json]]: supabase db advisors, security lints
-  migrate  --sql <dir> [--write] [--json] [--retire-out <file>|<dir>/|-], with the generate flags
-           rewrites the rls.migrate helpers' calls in policies onto the generated helpers;
-           --retire-out drops each rls.migrate.tables table and its refresh triggers once unread
+  generate  Compile the policy into RLS policies and helpers
+  import    Turn existing policies (--sql or --db-url) into a permissions module
+  verify    Run the fixtures, or compare a live database with --introspect
+  migrate   Rewrite the rls.migrate helpers' calls onto the generated helpers
 
+Run permdock rls <command> --help for its flags.
 Never emits service_role, except in the execute grant rls.trustedReaders asks for. memberOf compiles through the dialect memberships mapping.
 `;
 
@@ -92,7 +78,7 @@ export type RlsRunInput = {
   readonly write: boolean;
   readonly json: boolean;
   readonly io: CliIo;
-  /** Opens every `--db` connection; defaults to the `pg` peer. */
+  /** Opens every `--db-url` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
   /** `verify --advisors`: run `supabase db advisors` instead of the fixtures. */
   readonly advisors?: boolean;
@@ -270,7 +256,7 @@ async function introspect(input: RlsRunInput): Promise<CommandResult> {
   if (input.db === undefined) {
     return {
       code: 2,
-      output: "PermDock CLI: rls verify --introspect needs --db",
+      output: "PermDock CLI: rls verify --introspect needs --db-url",
     };
   }
   const dialect = asDialect(input.dialect ?? input.config.rls?.dialect);

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { SupabaseHookManifest } from "../../supabase/manifest.ts";
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { parseCatalog } from "../../catalog/parse.ts";
@@ -12,10 +12,10 @@ import { catalogFingerprint } from "../../index.ts";
 import { parseSupabaseManifest } from "../../supabase/manifest.ts";
 import { TERMINAL_TIMEOUT_MS } from "../../terminal/device.ts";
 import { runCatalog } from "../catalog.ts";
-import { describeError } from "../errors.ts";
-import { loadConfiguredPolicy } from "../load.ts";
+import { describeError } from "../core/errors.ts";
+import { cliVersion } from "../core/version.ts";
 import { MANIFEST_FILE } from "../manifest-json.ts";
-import { cliVersion } from "../version.ts";
+import { loadConfiguredPolicy } from "../project/load.ts";
 import { cliRuntime, pushAuth } from "./auth.ts";
 import { cloudUrl, firstNonEmpty } from "./issuer.ts";
 import { runCloudPull } from "./pull.ts";
@@ -140,9 +140,6 @@ export async function runCloud(input: {
     return { code: 0, output: describe("would push") };
   }
   const auth = await pushAuth(url, input.env, cliRuntime(input.io, input.env));
-  if (!auth.ok) {
-    return { code: auth.code, output: auth.output };
-  }
   const fetchFn = input.io.fetch ?? globalThis.fetch.bind(globalThis);
   let response: Response;
   try {

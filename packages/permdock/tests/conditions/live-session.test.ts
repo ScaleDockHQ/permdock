@@ -4,8 +4,8 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { Subject } from "../../src/core/subject.ts";
 
+import { run } from "../../src/cli/core/run.ts";
 import { conditionFromAst } from "../../src/cli/rls/import-ast.ts";
-import { run } from "../../src/cli/run.ts";
 import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { normalizeWhere } from "../../src/conditions/normalize.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";

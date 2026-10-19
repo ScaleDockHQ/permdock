@@ -4,9 +4,10 @@ import type {
   StoredCredential,
   TerminalRuntime,
 } from "../../terminal/types.ts";
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
 
+import { dateAt, instantAt, secondsAt } from "../../core/time.ts";
 import { timeoutSignal } from "../../core/timeout.ts";
 import { runDeviceFlow, TERMINAL_TIMEOUT_MS } from "../../terminal/device.ts";
 import {
@@ -15,6 +16,7 @@ import {
   readCredentials,
   writeCredentials,
 } from "../../terminal/storage.ts";
+import { CliError } from "../core/errors.ts";
 import {
   CREDENTIAL_SERVICE,
   cliRuntime,
@@ -27,7 +29,6 @@ import {
   type Env,
   issuerMetadata,
   READ_SCOPES,
-  WRITE_SCOPE,
 } from "./issuer.ts";
 import { runLoopbackFlow } from "./loopback.ts";
 
@@ -35,7 +36,8 @@ export type LoginInput = {
   readonly cwd: string;
   readonly url: string | undefined;
   readonly loopback: boolean;
-  readonly write: boolean;
+  /** Scopes beyond the read scopes, such as `catalog:write`. */
+  readonly scopes: readonly string[];
   readonly open: boolean;
   readonly json: boolean;
   readonly env: Env;
@@ -100,9 +102,7 @@ export async function runLogin(input: LoginInput): Promise<CommandResult> {
       `permdock login: ${issuer} publishes no RFC 8414 metadata for that issuer`,
     );
   }
-  const scope = [...READ_SCOPES, ...(input.write ? [WRITE_SCOPE] : [])].join(
-    " ",
-  );
+  const scope = [...new Set([...READ_SCOPES, ...input.scopes])].join(" ");
   const open = input.open ? openBrowser : undefined;
   const say = (text: string): void => {
     input.io.stderr(text.replace(/\n$/u, ""));
@@ -201,5 +201,65 @@ export async function runLogout(input: LogoutInput): Promise<CommandResult> {
     output: input.json
       ? JSON.stringify({ issuer, status })
       : `logged out of ${issuer} (${revoked ? "token revoked" : "credentials deleted; the token was not revoked"})`,
+  };
+}
+
+export type WhoamiInput = {
+  readonly url: string | undefined;
+  readonly json: boolean;
+  readonly env: Env;
+  readonly io: CliIo;
+};
+
+/** The credential the next Cloud call sends, without sending it. */
+export async function runWhoami(input: WhoamiInput): Promise<CommandResult> {
+  const issuer = cloudUrl(input.url, input.env);
+  for (const name of ["PERMDOCK_CLOUD_KEY", "PERMDOCK_CLOUD_TOKEN"] as const) {
+    const value = input.env[name];
+    if (value !== undefined && value !== "") {
+      const data = { issuer, source: name };
+      return {
+        code: 0,
+        output: input.json
+          ? JSON.stringify(data)
+          : `${issuer}: ${name} from the environment`,
+        data,
+      };
+    }
+  }
+  const runtime = cliRuntime(input.io, input.env);
+  const credential = readCredentials(
+    await credentialStorage(),
+    issuer,
+    runtime,
+  );
+  if (credential === null) {
+    throw new CliError("action", `not logged in to ${issuer}`, {
+      code: "auth_required",
+      next: [{ command: "permdock login", when: "to log in" }],
+    });
+  }
+  const scopes = (credential.scope ?? "")
+    .split(" ")
+    .filter((scope) => scope !== "");
+  const expired =
+    credential.expires_at !== undefined &&
+    credential.expires_at <= secondsAt(runtime.now?.()) &&
+    credential.refresh_token === undefined;
+  const data = {
+    issuer,
+    source: "login",
+    scopes,
+    ...(credential.expires_at === undefined
+      ? {}
+      : { expiresAt: dateAt(instantAt(credential.expires_at)).toISOString() }),
+    expired,
+  };
+  return {
+    code: 0,
+    output: input.json
+      ? JSON.stringify(data)
+      : `${issuer}: logged in (${scopes.join(" ") || "no scopes"})${expired ? "; the login has expired, run permdock login" : ""}`,
+    data,
   };
 }

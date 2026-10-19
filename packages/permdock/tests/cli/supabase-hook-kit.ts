@@ -8,7 +8,7 @@ import {
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 
 export const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");

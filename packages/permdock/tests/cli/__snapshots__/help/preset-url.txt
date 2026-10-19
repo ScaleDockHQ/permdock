@@ -1,0 +1,15 @@
+permdock preset url: Print the permdock.com/create link that opens a code
+
+Usage  permdock preset url <code> [flags]
+
+Arguments
+  code  The preset code
+
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock preset url p1AQIDBAc
+
+Side effects  none: reads only
+Docs  https://permdock.com/docs/cli/preset

@@ -1,73 +1,69 @@
-import { defineCommand } from "citty";
-
+import { type Leaf, defineLeaf } from "../core/command.ts";
 import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  stringArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
+  checkFlag,
+  dbUrl,
+  dbUrlFlags,
+  given,
+  policyFlag,
+} from "../core/flags.ts";
 
-export function powersync(ctx: CliContext): Command {
-  const command = defineCommand({
-    meta: {
-      name: "powersync",
-      description: COMMAND_DESCRIPTIONS.powersync,
+export const generate: Leaf = defineLeaf({
+  flags: {
+    out: {
+      type: "string",
+      description: "The Sync Streams file (default sync-config.yaml)",
+      valueHint: "file",
     },
-    args: {
-      ...globalArgs,
-      verb: {
-        type: "positional",
-        required: false,
-        description: "generate or verify",
-      },
-      out: {
-        type: "string",
-        description: "The Sync Streams file (default sync-config.yaml)",
-        valueHint: "file",
-      },
-      check: {
-        type: "boolean",
-        description:
-          "generate: exit 1 when the file on disk is stale; write nothing",
-      },
-      db: {
-        type: "string",
-        description:
-          "verify: Postgres connection string to run the fixtures against",
-        valueHint: "url",
-      },
-      fixtures: {
-        type: "string",
-        description: "verify: fixtures file (default rls.fixtures.json)",
-        valueHint: "file",
-      },
-      from: {
-        type: "string",
-        description: "Module exporting policy (default: policy in the config)",
-        valueHint: "file",
-      },
+    ...checkFlag,
+    ...policyFlag,
+  },
+  async run(ctx, { flags }) {
+    const out = given(flags.out);
+    const from = given(flags.policy);
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const { runPowerSync } = await import("../powersync/powersync.ts");
+    return runPowerSync({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      rest: ["generate"],
+      check: flags.check,
+      ...(out === undefined ? {} : { out }),
+      ...(from === undefined ? {} : { from }),
+    });
+  },
+});
+
+export const verify: Leaf = defineLeaf({
+  flags: {
+    out: {
+      type: "string",
+      description: "The Sync Streams file to verify (default sync-config.yaml)",
+      valueHint: "file",
     },
-    async run({ args: parsed }) {
-      const out = stringArg(parsed.out);
-      const db = stringArg(parsed.db);
-      const fixtures = stringArg(parsed.fixtures);
-      const from = stringArg(parsed.from);
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const { runPowerSync } = await import("../powersync/powersync.ts");
-      ctx.report(
-        await runPowerSync({
-          cwd: ctx.cwd,
-          config: ctx.config,
-          rest: parsed._,
-          check: parsed.check === true,
-          ...(out === undefined ? {} : { out }),
-          ...(db === undefined ? {} : { db }),
-          ...(fixtures === undefined ? {} : { fixtures }),
-          ...(from === undefined ? {} : { from }),
-        }),
-      );
+    ...dbUrlFlags,
+    fixtures: {
+      type: "string",
+      description: "Fixtures file (default rls.fixtures.json)",
+      valueHint: "file",
     },
-  });
-  return command;
-}
+    ...policyFlag,
+  },
+  async run(ctx, { flags }) {
+    const out = given(flags.out);
+    const db = await dbUrl(ctx, flags, { required: true });
+    const fixtures = given(flags.fixtures);
+    const from = given(flags.policy);
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    const { runPowerSync } = await import("../powersync/powersync.ts");
+    return runPowerSync({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      rest: ["verify"],
+      check: false,
+      ...(out === undefined ? {} : { out }),
+      ...(db === undefined ? {} : { db }),
+      ...(fixtures === undefined ? {} : { fixtures }),
+      ...(from === undefined ? {} : { from }),
+    });
+  },
+});

@@ -374,7 +374,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
         [
           "rls",
           "verify",
-          "--db",
+          "--db-url",
           testerUri(db.uri, name),
           "--fixtures",
           fixturesPath,
@@ -467,7 +467,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
     },
   );
 
-  it("reads the generated view back with rls import --db", async () => {
+  it("reads the generated view back with rls import --db-url", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
@@ -475,7 +475,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
       const name = shapeName(shape);
       const out = join(dir, `${name}.generated.ts`);
       const imported = await run(
-        ["rls", "import", "--db", databaseUri(db.uri, name), "--out", out],
+        ["rls", "import", "--db-url", databaseUri(db.uri, name), "--out", out],
         { cwd: join(dir, name) },
       );
       expect(imported.code).toBe(0);

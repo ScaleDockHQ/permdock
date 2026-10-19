@@ -1,8 +1,9 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { parseConfig } from "../../src/cli/config-schema.ts";
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
+import { parseConfig } from "../../src/cli/project/config-schema.ts";
 import { PERMISSIONS, project, removeProjects } from "./doctor-kit.ts";
+import { jsonData } from "./envelope.ts";
 
 afterAll(removeProjects);
 
@@ -101,7 +102,9 @@ describe("permdock config", () => {
     const plain = await run(["config", "--cwd", cwd]);
     expect(plain.code).toBe(0);
     expect(plain.stdout).toContain("permdock.config.ts: 1 warning");
-    expect((await run(["config", "--strict", "--cwd", cwd])).code).toBe(1);
+    expect(
+      (await run(["config", "--fail-on", "warning", "--cwd", cwd])).code,
+    ).toBe(1);
   });
 
   it("reads the file --config names", async () => {
@@ -147,7 +150,7 @@ describe("permdock config", () => {
     });
     const result = await run(["usage", "--json", "--cwd", bad]);
     expect(result.code).toBe(2);
-    expect(JSON.parse(result.stdout)).toMatchObject({
+    expect(jsonData(result.stdout)).toMatchObject({
       type: "https://permdock.com/problems/cli-usage",
       detail:
         "PermDock CLI: permdock.config.ts: policy must be a module path string",

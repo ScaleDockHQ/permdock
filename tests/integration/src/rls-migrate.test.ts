@@ -115,7 +115,7 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
   beforeAll(async () => {
     dir = mkdtempSync(join(tmpdir(), "permdock-migrate-"));
     writeFileSync(join(dir, "legacy.sql"), LEGACY);
-    rewrote = await succeed(["migrate", "--sql", dir, "--write"]);
+    rewrote = await succeed(["migrate", "--sql", dir]);
     migrated = readFileSync(join(dir, "legacy.sql"), "utf8");
     await succeed([
       "generate",
@@ -205,7 +205,7 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    const verified = await cli(["verify", "--introspect", "--db", db.uri]);
+    const verified = await cli(["verify", "--introspect", "--db-url", db.uri]);
     expect(verified).toMatchObject({ code: 0 });
     expect(verified.out).toContain(
       "info: public.quotes: no policy calls a PermDock helper",
@@ -232,7 +232,15 @@ export default {
 `,
       );
       const result = await run(
-        ["rls", "verify", "--introspect", "--db", db.uri, "--rbac", "supabase"],
+        [
+          "rls",
+          "verify",
+          "--introspect",
+          "--db-url",
+          db.uri,
+          "--rbac",
+          "supabase",
+        ],
         { cwd: mapped },
       );
       expect(result.stdout).toContain(
@@ -256,7 +264,7 @@ export default {
        create policy quotes_typo on public.quotes for select to authenticated
          using (organization_id in (select permdock.permitted_organization_ids('quote.read')))`,
     );
-    const verified = await cli(["verify", "--introspect", "--db", db.uri]);
+    const verified = await cli(["verify", "--introspect", "--db-url", db.uri]);
     expect(verified.code).toBe(1);
     expect(verified.out).toContain(
       "permdock.role_permissions: unexpected viewer allow customers.update on organization",
@@ -332,6 +340,7 @@ export default {
   it("refuses while the legacy helper still has callers", async () => {
     const result = await cli([
       "migrate",
+      "--dry-run",
       "--sql",
       sql,
       "--retire-out",
@@ -346,7 +355,7 @@ export default {
   });
 
   it("drops the table, its trigger and the uncalled helper, and the policies still answer", async () => {
-    expect((await cli(["migrate", "--sql", sql, "--write"])).code).toBe(0);
+    expect((await cli(["migrate", "--sql", sql])).code).toBe(0);
     const retired = await cli([
       "migrate",
       "--sql",

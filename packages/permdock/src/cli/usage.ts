@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { CommandResult } from "./shared/result.ts";
+import type { CommandResult } from "./core/result.ts";
 import type {
   CatalogUsage,
   CliIo,
@@ -12,11 +12,11 @@ import type {
 import { type Condition, type Policy, getResource } from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
 import { type CollectOutcome, runCollect } from "./collect.ts";
+import { usageResult } from "./core/errors.ts";
+import { USAGE_REPORT_SCHEMA } from "./core/version.ts";
 import { isClientSource } from "./doctor/source.ts";
-import { usageResult } from "./errors.ts";
 import { listSourceFiles, rel } from "./files.ts";
-import { asPolicy, loadModule, pickNamed } from "./load.ts";
-import { USAGE_REPORT_SCHEMA } from "./version.ts";
+import { asPolicy, loadModule, pickNamed } from "./project/load.ts";
 
 export type UsageFinding = {
   readonly kind:

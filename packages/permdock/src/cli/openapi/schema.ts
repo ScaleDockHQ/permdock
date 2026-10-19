@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { isRecord } from "../../core/compact.ts";
 import { DRAFT_PINS } from "../../openapi/pins.ts";
-import { packageRoot } from "../package-root.ts";
+import { packageRoot } from "../project/package-root.ts";
 
 export type OpenapiVersion = "3.1" | "3.2" | "3.3";
 

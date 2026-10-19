@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { CatalogFinding } from "../../core/sink.ts";
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type {
   CatalogDelegation,
   CatalogDocument,
@@ -23,9 +23,9 @@ import {
   type Policy,
 } from "../../index.ts";
 import { buildCatalog } from "../catalog-doc.ts";
-import { usageResult } from "../errors.ts";
+import { usageResult } from "../core/errors.ts";
 import { fixtureRow, fixtureSubject, loadFixtures } from "../fixtures.ts";
-import { asPolicy, loadModule, pickNamed } from "../load.ts";
+import { asPolicy, loadModule, pickNamed } from "../project/load.ts";
 import { describeDelegation, describeGrant, formatText } from "./format.ts";
 
 export type BreakingKind =

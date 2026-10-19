@@ -473,7 +473,7 @@ describe("permdock supabase hook generate against Postgres", () => {
     expect(generated).not.toMatch(/service_role/iu);
   });
 
-  it("reports missing helpers from the database with --db (PD039)", async () => {
+  it("reports missing helpers from the database with --db-url (PD039)", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
@@ -491,7 +491,7 @@ describe("permdock supabase hook generate against Postgres", () => {
           "generate",
           "--out",
           join(dir, "hook.sql"),
-          "--db",
+          "--db-url",
           uri.href,
         ],
         { cwd: FIXTURE },
@@ -504,7 +504,7 @@ describe("permdock supabase hook generate against Postgres", () => {
           "generate",
           "--out",
           join(dir, "hook.sql"),
-          "--db",
+          "--db-url",
           db.uri,
         ],
         { cwd: FIXTURE },

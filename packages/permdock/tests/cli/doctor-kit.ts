@@ -3,6 +3,8 @@ import path from "node:path";
 
 import type { CliIo } from "../../src/cli/types.ts";
 
+import { jsonData } from "./envelope.ts";
+
 const TMP = path.join(import.meta.dirname, "../../tmp");
 const temps: string[] = [];
 
@@ -91,7 +93,7 @@ export function miniAppCopy(): string {
 /** The finding codes in the `--json` report `permdock doctor` printed. */
 export function findingCodes(stdout: string): readonly string[] {
   // SAFETY: stdout is the --json report printed by `permdock doctor`.
-  const report = JSON.parse(stdout) as {
+  const report = jsonData(stdout) as {
     readonly findings: readonly { readonly code: string }[];
   };
   return report.findings.map((item) => item.code);

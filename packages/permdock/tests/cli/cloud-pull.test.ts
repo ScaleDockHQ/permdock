@@ -5,12 +5,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CatalogDocument } from "../../src/catalog/types.ts";
 import type { CliIo } from "../../src/cli/types.ts";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { catalogFingerprint } from "../../src/core/catalog-fingerprint.ts";
 import { writeCredentials } from "../../src/terminal/storage.ts";
 import { POLICY_NOT_PUBLISHED } from "../../src/testing/cloud-api/platform.ts";
 import { referenceCloud } from "../cloud/fixtures/reference-cloud.ts";
 import { policy } from "../fixtures/named-scopes.ts";
+import { jsonData } from "./envelope.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
 // Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
@@ -80,7 +81,7 @@ async function pushedProject(reference: Cloud): Promise<{
     [
       "cloud",
       "push",
-      "--environment",
+      "--project",
       reference.environment,
       "--manifest",
       MANIFEST,
@@ -112,7 +113,7 @@ describe("permdock cloud pull", () => {
     expect(readFileSync(join(project.cwd, MANIFEST), "utf8")).toBe(
       project.manifest,
     );
-    expect(JSON.parse(pulled.stdout)).toMatchObject({
+    expect(jsonData(pulled.stdout)).toMatchObject({
       project: reference.environment,
       version: 2,
       fingerprint: catalogFingerprint(JSON.parse(project.catalog)),
@@ -169,7 +170,7 @@ describe("permdock cloud pull", () => {
       { cwd, io: io(reference, { XDG_CONFIG_HOME: config }) },
     );
     expect(pulled.code).toBe(1);
-    expect(JSON.parse(pulled.stdout)).toMatchObject({
+    expect(jsonData(pulled.stdout)).toMatchObject({
       type: POLICY_NOT_PUBLISHED,
       status: 404,
     });
@@ -182,8 +183,8 @@ describe("permdock cloud pull", () => {
       cwd,
       io: io(reference, { XDG_CONFIG_HOME: join(cwd, "config") }),
     });
-    expect(pulled.code).toBe(2);
-    expect(pulled.stdout).toContain("PERMDOCK_CLOUD_TOKEN");
+    expect(pulled.code).toBe(3);
+    expect(pulled.stderr).toContain("PERMDOCK_CLOUD_TOKEN");
   });
 
   it("refuses a read-only token on another project", async () => {
@@ -235,11 +236,11 @@ describe("permdock rls generate --project", () => {
     const reference = await cloud();
     const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
     const result = await run(
-      ["rls", "generate", "--project", "test", "--from", "./policy.ts"],
+      ["rls", "generate", "--project", "test", "--policy", "./policy.ts"],
       { cwd, io: io(reference, {}) },
     );
     expect(result.code).toBe(2);
-    expect(result.stdout).toContain("not both");
+    expect(result.stderr).toContain("not both");
   });
 
   it("refuses --project for another rls action", async () => {

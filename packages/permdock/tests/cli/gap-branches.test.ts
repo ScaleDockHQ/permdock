@@ -5,11 +5,11 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { pd005 } from "../../src/cli/doctor/project.ts";
 import {
   isSeedsDirectory,
   seedsMigration,
-} from "../../src/cli/output-files.ts";
+} from "../../src/cli/core/output-files.ts";
+import { pd005 } from "../../src/cli/doctor/project.ts";
 import { assignmentSql } from "../../src/cli/rls/assignments.ts";
 import { helpersSql } from "../../src/cli/rls/helpers.ts";
 import { ownershipRules } from "../../src/cli/rls/ownership.ts";

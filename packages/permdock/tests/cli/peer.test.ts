@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
-import { packageRoot } from "../../src/cli/package-root.ts";
-import { peerHint, requirePeer } from "../../src/cli/peer.ts";
+import { peerHint, requirePeer } from "../../src/cli/core/peer.ts";
+import { packageRoot } from "../../src/cli/project/package-root.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
 afterAll(removeProjects);
@@ -53,15 +53,15 @@ describe("requirePeer", () => {
     ["yarn@berry", "yarn add -D pg"],
     ["bun", "bun add -D pg"],
   ] as const)("names %s in the install line", (agent, line) => {
-    expect(peerHint("pg", "permdock rls verify --db", agent)).toBe(
-      `PermDock CLI: permdock rls verify --db needs the optional peer pg. Install it with: ${line}`,
+    expect(peerHint("pg", "permdock rls verify --db-url", agent)).toBe(
+      `PermDock CLI: permdock rls verify --db-url needs the optional peer pg. Install it with: ${line}`,
     );
   });
 
   it("names pnpm and npm when no package manager is known", () => {
     vi.stubEnv("npm_config_user_agent", "");
     try {
-      expect(peerHint("pg", "permdock rls verify --db")).toContain(
+      expect(peerHint("pg", "permdock rls verify --db-url")).toContain(
         "pnpm add -D pg (or npm install -D pg)",
       );
     } finally {
@@ -83,7 +83,7 @@ describe("requirePeer", () => {
           requirePeer(
             () => Promise.reject(missingModule("pg")),
             "pg",
-            "permdock rls verify --db",
+            "permdock rls verify --db-url",
             cwd,
           ),
         ).rejects.toThrow(`Install it with: ${line}`);

@@ -32,7 +32,7 @@ function fake(stdout: string, seen: string[][] = []): CliExec {
 }
 
 describe("rls verify --advisors", () => {
-  it("runs the security advisors on --db and maps lints to doctor codes", async () => {
+  it("runs the security advisors on --db-url and maps lints to doctor codes", async () => {
     const seen: string[][] = [];
     const result = await runRlsAdvisors({
       cwd: "/app",
@@ -60,7 +60,7 @@ describe("rls verify --advisors", () => {
     expect(result.output).toContain("1 finding(s) at WARN or above");
   });
 
-  it("checks the local stack without --db and passes on INFO rows only", async () => {
+  it("checks the local stack without --db-url and passes on INFO rows only", async () => {
     const seen: string[][] = [];
     const result = await runRlsAdvisors({
       cwd: "/app",

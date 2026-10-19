@@ -8,7 +8,7 @@ import type {
 } from "../types.ts";
 import type { RbacAuthorizeMode } from "./rbac.ts";
 
-import { type SplitPart, parseSplit } from "../output-files.ts";
+import { type SplitPart, parseSplit } from "../core/output-files.ts";
 
 export type RlsGenerateInput = {
   readonly cwd: string;
@@ -61,7 +61,7 @@ export type RlsGenerateInput = {
   readonly shims?: boolean;
   /** `false` returns the SQL and its policies without touching `out`. */
   readonly write?: boolean;
-  /** `--db`: index suggestions leave out what the database already indexes or lacks. */
+  /** `--db-url`: index suggestions leave out what the database already indexes or lacks. */
   readonly db?: string;
   readonly connect?: SqlConnect;
   readonly io: CliIo;

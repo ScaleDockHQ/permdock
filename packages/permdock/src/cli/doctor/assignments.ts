@@ -1,8 +1,8 @@
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
 import { scopeList } from "../../core/scopes.ts";
+import { partPath } from "../core/output-files.ts";
 import { sqlFiles } from "../files.ts";
-import { partPath } from "../output-files.ts";
 import { guardedTables } from "../rls/assignments.ts";
 import { ownershipRules } from "../rls/ownership.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";

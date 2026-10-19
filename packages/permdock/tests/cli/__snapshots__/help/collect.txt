@@ -1,16 +1,20 @@
-Scan the sources for definePermissions() and permission references; write the catalog and barrel (permdock collect)
+permdock collect: Scan the sources for definePermissions() and references; write the catalog and barrel
 
-USAGE permdock collect [OPTIONS] 
+Usage  permdock collect [flags]
 
-OPTIONS
+Flags
+  --check       Exit 1 when a file on disk is stale; write nothing
+  --src <path>  Source roots or globs (repeatable)
+  --out <file>  Catalog file to write
+  --watch       Collect again when a source, config or policy file changes
 
-      --cwd=<dir>    Run as if started in this directory                       
-  --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})     
-           --json    Machine-readable output                                   
-        -y, --yes    Never prompt; take the answer the flags give              
-          --color    Styled output on a colour terminal (Default: true)        
-       --no-color    Plain output                                              
-          --check    Exit 1 when the catalog on disk is stale; write nothing   
-     --src=<path>    Source roots or globs, repeatable or comma-separated      
-     --out=<file>    Catalog file to write                                     
-          --watch    Collect again when a source, config or policy file changes
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock collect
+  permdock collect --check
+  permdock collect --watch
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/collect

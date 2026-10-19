@@ -2,8 +2,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { findingCodes, miniAppCopy, removeProjects } from "./doctor-kit.ts";
+import { jsonData } from "./envelope.ts";
 
 afterEach(removeProjects);
 
@@ -75,7 +76,7 @@ export const policy = definePolicy(permissions, {
       cwd,
     });
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
         readonly message: string;
@@ -200,7 +201,7 @@ export const policy = definePolicy(permissions, {
     );
     const result = await run(["doctor", "--json", "--only", "graph"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
         readonly severity: string;
@@ -293,7 +294,7 @@ create policy "posts update by permission" on storage.objects for update to auth
     );
     const result = await run(["doctor", "--json", "--only", "PD037"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = JSON.parse(result.stdout) as {
+    const report = jsonData(result.stdout) as {
       readonly findings: readonly {
         readonly code: string;
         readonly message: string;

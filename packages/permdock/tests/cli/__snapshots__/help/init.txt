@@ -1,21 +1,23 @@
-Write a preset's permissions, policy, app and wiring into the project (permdock init)
+permdock init: Write a preset's permissions, policy, app and wiring into the project
 
-USAGE permdock init [OPTIONS] 
+Usage  permdock init [flags]
 
-OPTIONS
+Flags
+  --preset <code>       A preset code from permdock.com/create
+  --archetype <name>    Without --preset: b2b, agent, marketplace, api, internal or consumer
+  --framework <name>    Without --preset: next, hono, express or none
+  --feature <name>      Without --preset: a feature to add (repeatable)
+  --integration <name>  Without --preset: ai-sdk, mcp, shadcn or react-native (repeatable)
+  --out-dir <dir>       Source directory the files go in (default src)
+  --dry-run             Print what would change; write nothing
+  --force               Overwrite files PermDock did not write or that changed by hand
 
-         --cwd=<dir>    Run as if started in this directory                                 
-     --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})               
-              --json    Machine-readable output                                             
-           -y, --yes    Never prompt; take the answer the flags give                        
-             --color    Styled output on a colour terminal (Default: true)                  
-          --no-color    Plain output                                                        
-     --preset=<code>    A preset code from permdock.com/create                              
-  --archetype=<name>    Without --preset: b2b, agent, marketplace, api, internal or consumer
-  --framework=<name>    Without --preset: next, hono, express or none                       
-    --feature=<name>    Without --preset: a feature to add, repeatable                      
-      --agent=<name>    Without --preset: ai-sdk or mcp, repeatable                         
-         --ui=<name>    Without --preset: shadcn or react-native, repeatable                
-         --src=<dir>    Source directory the files go in (default src)                      
-           --dry-run    Print what would be written; write nothing                          
-             --force    Overwrite files that already exist                                  
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock init --preset p1AQIDBAc
+  permdock init --archetype b2b --framework hono --integration mcp
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/init

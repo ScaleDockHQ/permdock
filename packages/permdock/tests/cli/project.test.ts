@@ -1,11 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runDoctor } from "../../src/cli/doctor/doctor.ts";
-import { loadModule } from "../../src/cli/load.ts";
-import { loadProject } from "../../src/cli/project.ts";
+import { loadModule } from "../../src/cli/project/load.ts";
+import { loadProject } from "../../src/cli/project/project.ts";
 import { NOW, policyProject, quietIo, removeProjects } from "./doctor-kit.ts";
 
-vi.mock(import("../../src/cli/load.ts"), async (importOriginal) => {
+vi.mock(import("../../src/cli/project/load.ts"), async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,

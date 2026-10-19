@@ -9,7 +9,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { globalRoleSource } from "../../src/cli/sql/global-roles.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));

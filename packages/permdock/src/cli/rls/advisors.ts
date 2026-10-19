@@ -3,9 +3,9 @@ import type { Agent } from "package-manager-detector";
 import { spawn } from "node:child_process";
 import { delimiter, join } from "node:path";
 
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 
-import { addLine, packageManagerOf } from "../peer.ts";
+import { addLine, packageManagerOf } from "../core/peer.ts";
 
 type ExecResult = {
   readonly status: number | null;
@@ -103,7 +103,7 @@ function installHint(agent: Agent | undefined): string {
 }
 
 /**
- * `supabase db advisors --type security` against `--db` or the local stack,
+ * `supabase db advisors --type security` against `--db-url` or the local stack,
  * from the project's `node_modules/.bin` first, then `PATH`. Exit 1 on a WARN
  * or ERROR row, 2 when the CLI is missing or fails.
  */

@@ -1,54 +1,39 @@
-import { defineCommand } from "citty";
+import { type Leaf, defineLeaf } from "../core/command.ts";
+import { given, permissionsFlag } from "../core/flags.ts";
 
-import {
-  type CliContext,
-  type Command,
-  globalArgs,
-  listArg,
-  stringArg,
-} from "./context.ts";
-import { COMMAND_DESCRIPTIONS } from "./index.ts";
+const RUN_FORMAT = {
+  catalog: "json",
+  "json-schema": "schema",
+  markdown: "markdown",
+} as const;
 
-export function catalog(ctx: CliContext): Command {
-  const command = defineCommand({
-    meta: {
-      name: "catalog",
-      description: COMMAND_DESCRIPTIONS.catalog,
+export const catalog: Leaf = defineLeaf({
+  flags: {
+    kind: {
+      type: "enum",
+      options: ["catalog", "json-schema", "markdown"],
+      default: "catalog",
+      description:
+        "What to print: the catalog, its JSON Schema, or a Markdown table",
     },
-    args: {
-      ...globalArgs,
-      format: {
-        type: "enum",
-        options: ["json", "schema", "markdown"],
-        default: "json",
-        description: "Output format",
-      },
-      from: {
-        type: "string",
-        description: "Module exporting the permissions, instead of the config",
-        valueHint: "module",
-      },
-      include: {
-        type: "string",
-        description: "Permission keys or prefixes to keep, repeatable",
-        valueHint: "key",
-      },
+    ...permissionsFlag,
+    include: {
+      type: "string",
+      repeatable: true,
+      description: "Permission keys or prefixes to keep",
+      valueHint: "key",
     },
-    async run({ args: parsed, rawArgs }) {
-      // Lazy: the implementation loads only when this command runs, not for --help.
-      const result = await (
-        await import("../catalog.ts")
-      ).runCatalog({
-        cwd: ctx.cwd,
-        config: ctx.config,
-        format: parsed.format,
-        from: stringArg(parsed.from),
-        include: listArg(rawArgs, "include"),
-        now: ctx.now,
-        io: ctx.io,
-      });
-      ctx.report(result);
-    },
-  });
-  return command;
-}
+  },
+  async run(ctx, { flags }) {
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    return (await import("../catalog.ts")).runCatalog({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      format: RUN_FORMAT[flags.kind],
+      from: given(flags.permissions),
+      include: flags.include,
+      now: ctx.now,
+      io: ctx.io,
+    });
+  },
+});

@@ -1,0 +1,46 @@
+permdock rls generate: Compile the policy into RLS policies and helpers
+
+Usage  permdock rls generate [flags]
+
+Flags
+  --target <sql|drizzle|prisma>          Output form (default sql)
+  --dialect <supabase|neon|guc>          How the database reads the subject (default rls.dialect, else supabase)
+  --policy <module>                      Module exporting the policy (default policy in the config)
+  --memberships <table>                  Membership table as <table>:tenant,user,role
+  --rbac <supabase>                      Scaffold the role tables for this provider
+  --rbac-schema <name>                   Schema for the scaffolded role tables
+  --authorize <database|jwt>             Where roles are read
+  --skip-closures                        Skip grants with closures instead of failing
+  --inline-functions                     Inline helper calls into the policies
+  --force-rls                            Emit FORCE ROW LEVEL SECURITY so the table owner is held to the policies
+  --guc-prefix <prefix>                  guc dialect: setting prefix
+  --policy-per-role                      One policy per role instead of one per command
+  --policy-name <template>               Policy name template
+  --tenant-type <type>                   Postgres type of the tenant column
+  --custom-roles                         Emit the custom role tables and helpers
+  --capabilities                         Emit the link capability helpers
+  --fields <views>                       Field security
+  --revoke-columns                       Revoke restricted columns on the table
+  --helpers-only                         Write the helpers and keep the policies hand-written
+  --shims                                Wrap each rls.migrate helper under its legacy name
+  --schemas <pg-delta|migra|migrations>  Schema workflow (default supabase.schemas, else pg-delta)
+  --db-url <url>                         Postgres connection string (DATABASE_URL when the command needs one)
+  --db-url-stdin                         Read the connection string from stdin, keeping it out of ps and shell history
+  --out <file>                           File to write
+  --check                                Exit 1 when a file on disk is stale; write nothing
+  --project <id>                         Rebuild the policy from a PermDock Cloud project's pushed catalog and policy
+  --url <url>                            With --project: Cloud API base URL
+  --split <parts>                        Write helpers, seeds, indexes, policies and hook as separate parts
+  --grants-out <file>                    migra: file for the privileges supabase db diff drops
+  --seeds-out <file>                     File for the role_permissions seeds
+  --backfill-out <file>                  File for the rls.customRoles.from copy
+
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock rls generate --target sql --out supabase/schemas/permdock.sql
+  permdock rls generate --check
+
+Side effects  files, database:read, network
+Docs  https://permdock.com/docs/cli/rls

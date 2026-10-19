@@ -1,0 +1,17 @@
+permdock casbin import: Turn a Casbin RBAC model and policy into a permissions and policy module
+
+Usage  permdock casbin import [flags]
+
+Flags
+  --model <file>   The Casbin model.conf
+  --policy <file>  The Casbin policy.csv
+  --out <file>     File to write
+
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock casbin import --model model.conf --policy policy.csv --out src/permissions.generated.ts
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/casbin

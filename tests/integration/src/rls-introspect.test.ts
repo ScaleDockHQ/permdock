@@ -45,7 +45,7 @@ function claims(extra: Readonly<Record<string, unknown>> = {}): string {
 
 async function verify(uri: string): Promise<{ code: number; out: string }> {
   const result = await run(
-    ["rls", "verify", "--introspect", "--db", uri, "--dialect", "supabase"],
+    ["rls", "verify", "--introspect", "--db-url", uri, "--dialect", "supabase"],
     { cwd: FIXTURE },
   );
   return { code: result.code, out: `${result.stdout}${result.stderr}` };
@@ -134,7 +134,7 @@ describe("rls verify --introspect", () => {
     expect(result.code).toBe(0);
   });
 
-  it("suggests only indexes the database lacks with rls generate --db", async () => {
+  it("suggests only indexes the database lacks with rls generate --db-url", async () => {
     const pg = started();
     const dir = mkdtempSync(join(tmpdir(), "permdock-introspect-db-"));
     const suggest = async (): Promise<string> => {
@@ -148,7 +148,7 @@ describe("rls verify --introspect", () => {
           "supabase",
           "--out",
           join(dir, "rls.sql"),
-          "--db",
+          "--db-url",
           pg.uri,
         ],
         { cwd: FIXTURE },

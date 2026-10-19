@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import {
@@ -11,16 +11,16 @@ import {
   memoryCustomRoleSource,
   type Policy,
 } from "../../index.ts";
-import { usageResult } from "../errors.ts";
+import { usageResult } from "../core/errors.ts";
+import { fileDrift } from "../core/output-files.ts";
 import {
   type RlsFixture,
   fixtureRow,
   fixtureSubject,
   loadFixtures,
 } from "../fixtures.ts";
-import { requirePolicy } from "../load.ts";
-import { fileDrift } from "../output-files.ts";
 import { type SqlConnect, pgConnector } from "../pg.ts";
+import { requirePolicy } from "../project/load.ts";
 import { canFixture } from "../rls/verify.ts";
 import { quoteIdent } from "../sql/quote.ts";
 import {
@@ -32,7 +32,7 @@ import {
 } from "./streams.ts";
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
-permdock powersync verify [--db <url>] [--fixtures rls.fixtures.json]`;
+permdock powersync verify [--db-url <url>] [--fixtures rls.fixtures.json]`;
 
 const DEFAULT_OUT = "sync-config.yaml";
 
@@ -265,7 +265,7 @@ export async function runPowerSync(input: {
   readonly db?: string;
   readonly fixtures?: string;
   readonly from?: string;
-  /** Opens the `--db` connection; defaults to the `pg` peer. */
+  /** Opens the `--db-url` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
 }): Promise<CommandResult> {
   const [verb] = input.rest;
@@ -331,7 +331,7 @@ export async function runPowerSync(input: {
         db: input.db,
         connect:
           input.connect ??
-          pgConnector("permdock powersync verify --db", input.cwd),
+          pgConnector("permdock powersync verify --db-url", input.cwd),
       });
       mismatches.push(...database.mismatches);
       notes.push(...database.notes);

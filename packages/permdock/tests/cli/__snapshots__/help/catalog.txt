@@ -1,15 +1,18 @@
-Export the catalog as JSON, JSON Schema or Markdown (permdock catalog)
+permdock catalog: Export the catalog as catalog JSON, JSON Schema or Markdown
 
-USAGE permdock catalog [OPTIONS] 
+Usage  permdock catalog [flags]
 
-OPTIONS
+Flags
+  --kind <catalog|json-schema|markdown>  What to print: the catalog, its JSON Schema, or a Markdown table (default catalog)
+  --permissions <module>                 Module exporting the permissions (default permissions in the config)
+  --include <key>                        Permission keys or prefixes to keep (repeatable)
 
-                      --cwd=<dir>    Run as if started in this directory                    
-                  --config=<file>    Config file (default permdock.config.{ts,mts,js,mjs})  
-                           --json    Machine-readable output                                
-                        -y, --yes    Never prompt; take the answer the flags give           
-                          --color    Styled output on a colour terminal (Default: true)     
-                       --no-color    Plain output                                           
-  --format=<json|schema|markdown>    Output format (Default: json)                          
-                  --from=<module>    Module exporting the permissions, instead of the config
-                  --include=<key>    Permission keys or prefixes to keep, repeatable        
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock catalog --out permissions.catalog.json
+  permdock catalog --kind markdown
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/catalog

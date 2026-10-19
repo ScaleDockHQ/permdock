@@ -1,4 +1,4 @@
-import type { CommandResult } from "../shared/result.ts";
+import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import {
@@ -10,10 +10,10 @@ import {
   type Permission,
   type Policy,
 } from "../../index.ts";
-import { usageResult } from "../errors.ts";
+import { usageResult } from "../core/errors.ts";
 import { fixtureRow, fixtureSubject, loadFixtures } from "../fixtures.ts";
-import { loadPolicyAt } from "../load.ts";
 import { pgConnector, type SqlConnect } from "../pg.ts";
+import { loadPolicyAt } from "../project/load.ts";
 import { commandFor } from "../sql/compile.ts";
 import {
   expectedFields,
@@ -77,11 +77,11 @@ export async function runRlsVerify(input: {
   /** Check a generated tree with restricted branches instead of fixtures; needs `db`. */
   readonly tree?: boolean;
   readonly io: CliIo;
-  /** Opens the `--db` connection; defaults to the `pg` peer. */
+  /** Opens the `--db-url` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
 }): Promise<CommandResult> {
   const connect =
-    input.connect ?? pgConnector("permdock rls verify --db", input.cwd);
+    input.connect ?? pgConnector("permdock rls verify --db-url", input.cwd);
   const policyPath = input.from ?? input.config.policy;
   if (policyPath === undefined) {
     return {
@@ -94,7 +94,7 @@ export async function runRlsVerify(input: {
     if (input.db === undefined) {
       return {
         code: 2,
-        output: "PermDock CLI: rls verify --tree needs --db",
+        output: "PermDock CLI: rls verify --tree needs --db-url",
       };
     }
     try {

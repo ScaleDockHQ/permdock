@@ -1,0 +1,15 @@
+permdock preset decode: Print what a preset code holds
+
+Usage  permdock preset decode <code> [flags]
+
+Arguments
+  code  The preset code
+
+Global flags
+  --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock preset decode p1AQIDBAc
+
+Side effects  none: reads only
+Docs  https://permdock.com/docs/cli/preset

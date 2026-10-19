@@ -12,9 +12,10 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 import type { CatalogDocument } from "../../src/catalog/types.ts";
 import type { CliIo } from "../../src/cli/types.ts";
 
-import { run } from "../../src/cli/run.ts";
+import { run } from "../../src/cli/core/run.ts";
 import { referenceCloud } from "../cloud/fixtures/reference-cloud.ts";
 import { policy } from "../fixtures/named-scopes.ts";
+import { jsonData } from "./envelope.ts";
 
 // Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
 vi.mock("@napi-rs/keyring", () => {
@@ -93,7 +94,7 @@ describe("permdock login", () => {
       }),
     });
     expect(login.code).toBe(0);
-    expect(JSON.parse(login.stdout)).toMatchObject({
+    expect(jsonData(login.stdout)).toMatchObject({
       issuer: reference.url,
       scope: "projects:read policy:read",
     });
@@ -110,7 +111,7 @@ describe("permdock login", () => {
       cwd: FIXTURE,
       io: io(reference, env),
     });
-    expect(JSON.parse(logout.stdout)).toMatchObject({ status: "revoked" });
+    expect(jsonData(logout.stdout)).toMatchObject({ status: "revoked" });
     expect([...reference.platform.revoked]).toEqual([
       expect.stringMatching(/^rt_/u),
     ]);
@@ -124,13 +125,13 @@ describe("permdock login", () => {
   it("asks for catalog:write with --write and pushes with the login", async () => {
     const reference = await referenceCloud(policy, CATALOG);
     const env = { XDG_CONFIG_HOME: configHome() };
-    const login = await run(["login", "--write"], {
+    const login = await run(["login", "--scope", "catalog:write"], {
       cwd: FIXTURE,
       io: io(reference, env),
     });
     expect(login.code).toBe(0);
     expect(login.stdout).toContain("catalog:write");
-    const push = await run(["cloud", "push", "--environment", "test"], {
+    const push = await run(["cloud", "push", "--project", "test"], {
       cwd: FIXTURE,
       io: io(reference, env),
     });
@@ -174,7 +175,7 @@ describe("permdock login", () => {
       io: io(reference, { XDG_CONFIG_HOME: inside }),
     });
     expect(login.code).toBe(2);
-    expect(login.stdout).toContain("inside the repository");
+    expect(login.stderr).toContain("inside the repository");
     expect(existsSync(join(inside, "permdock"))).toBe(false);
   });
 

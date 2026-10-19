@@ -56,12 +56,12 @@ function catalogOf(
 }
 
 describe("runRlsImport inputs", () => {
-  it("needs --sql or --db", async () => {
+  it("needs --sql or --db-url", async () => {
     expect(
       await runRlsImport({ cwd: project(), config, schema: "zod", io }),
     ).toEqual({
       code: 2,
-      output: "PermDock CLI: rls import needs --sql <file> or --db <url>",
+      output: "PermDock CLI: rls import needs --sql <file> or --db-url <url>",
     });
   });
 
@@ -355,7 +355,7 @@ function dbReply(options: {
   };
 }
 
-describe("runRlsImport --db through an injected client", () => {
+describe("runRlsImport --db-url through an injected client", () => {
   it("reads policies, function bodies and role_permissions seeds", async () => {
     const sql = fakeSql(dbReply({ schema: "public" }));
     const cwd = project();

@@ -12,7 +12,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import {
   migrationVersion,
   nextMigrationVersion,
-} from "../../src/cli/output-files.ts";
+} from "../../src/cli/core/output-files.ts";
 import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
