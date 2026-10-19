@@ -92,4 +92,15 @@ describe("schemas/cli-commands-v1.json", () => {
         .map(({ path }) => ({ path: path.join(" ") })),
     });
   });
+
+  it("is printed only when asked for, not by default in agent mode", async () => {
+    for (const argv of [
+      ["--help", "--agent", "yes"],
+      ["rls", "generate", "--help", "--agent", "yes"],
+    ]) {
+      const { code, stdout } = await run(argv);
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/^permdock/u);
+    }
+  });
 });

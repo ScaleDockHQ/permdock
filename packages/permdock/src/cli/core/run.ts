@@ -271,6 +271,7 @@ export async function run(
         ? "json"
         : "text";
   const json = format === "json";
+  const helpJson = globals.json === true || globals.format === "json";
 
   const emitProblem = (
     problem: CliProblem,
@@ -328,7 +329,7 @@ export async function run(
       );
     }
     if (askedHelp) {
-      if (json) {
+      if (helpJson) {
         writeOut(
           JSON.stringify(
             await commandsJson(resolved.path, resolved.entry),
@@ -352,7 +353,7 @@ export async function run(
 
   if (askedHelp) {
     const leaf = await resolved.entry.load();
-    if (json) {
+    if (helpJson) {
       writeOut(
         JSON.stringify(leafJson(resolved.path, resolved.entry, leaf), null, 2),
       );
