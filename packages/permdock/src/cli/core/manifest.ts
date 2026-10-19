@@ -632,8 +632,7 @@ export function resolve(argv: readonly string[]): Resolved {
   let node: GroupEntry = ROOT;
   const path: string[] = [];
   const rest: string[] = [];
-  for (let i = 0; i < argv.length; i += 1) {
-    const token = argv[i] ?? "";
+  for (const [i, token] of argv.entries()) {
     if (token === "--") {
       rest.push(...argv.slice(i));
       break;

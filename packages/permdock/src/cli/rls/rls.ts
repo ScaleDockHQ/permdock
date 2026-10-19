@@ -319,9 +319,6 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
   if (badSchemas !== undefined) {
     return { code: 2, output: badSchemas };
   }
-  if (input.project !== undefined && action !== "generate") {
-    return { code: 2, output: "--project applies to rls generate only" };
-  }
   switch (action) {
     case "generate": {
       const target = asTarget(input.target);

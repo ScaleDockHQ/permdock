@@ -3,6 +3,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type { ShimGrants } from "./shims.ts";
 
 import { partitionsOf, scopeField } from "../../core/tenancy.ts";
+import { byKey } from "../shared/compare.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import { permittedForHelper, permittedIdsHelper } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
@@ -73,9 +74,7 @@ function grantsFunction(
   anonExecute: boolean,
 ): string {
   const fn = qualified(ctx, PERMISSION_HELPERS.grantKeys);
-  const map = Object.fromEntries(
-    [...grants].toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-  );
+  const map = Object.fromEntries([...grants].toSorted(byKey));
   const current =
     Object.keys(renamed).length === 0
       ? "p_permission"
@@ -202,7 +201,7 @@ export function permissionHelpersSql(
   ): Body => {
     const rows = (["global", scope] as const).flatMap((at) =>
       Object.entries(grants.get(at) ?? {})
-        .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .toSorted(byKey)
         .flatMap(([key, effects]) =>
           (["allow", "deny"] as const).flatMap((effect) =>
             effects[effect].map(

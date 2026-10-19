@@ -1,3 +1,4 @@
+import { beforeFirst } from "../shared/text.ts";
 export const HOOK_MARKER = "-- permdock:hook v1";
 
 /** The first line of a `--grants-out` file. */
@@ -36,7 +37,7 @@ export type SupabaseGrantsMarker = {
 };
 
 function firstLine(sql: string): string {
-  return (sql.split("\n", 1)[0] ?? "").replace(/\r$/u, "");
+  return beforeFirst(sql, "\n").replace(/\r$/u, "");
 }
 
 /** The `key=value` pairs after the marker, in a prototype-less object. */

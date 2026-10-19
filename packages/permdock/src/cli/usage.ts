@@ -19,6 +19,7 @@ import { USAGE_REPORT_SCHEMA } from "./core/version.ts";
 import { isClientSource } from "./doctor/source.ts";
 import { listSourceFiles, rel } from "./files.ts";
 import { asPolicy, loadModule, pickNamed } from "./project/load.ts";
+import { beforeFirst } from "./shared/text.ts";
 
 export type UsageFinding = {
   readonly kind:
@@ -280,7 +281,7 @@ function conditionFields(
     return;
   }
   const add = (field: string): void => {
-    out.add(field.split(".")[0] ?? field);
+    out.add(beforeFirst(field, "."));
   };
   switch (condition.op) {
     case "eq":

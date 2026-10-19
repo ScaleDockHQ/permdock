@@ -1,4 +1,4 @@
-import type { CliProblem, ExitCode } from "./errors.ts";
+import type { ExitCode } from "./errors.ts";
 
 /** A next step for an agent or a script: the full command line, and when to run it. */
 export type NextStep = {
@@ -28,9 +28,6 @@ export type CommandResult = {
   readonly output: string;
   readonly data?: unknown;
   readonly findings?: readonly Finding[];
-  readonly next?: readonly NextStep[];
-  /** Set for an error or action-required result the command built itself. */
-  readonly problem?: CliProblem;
   /** The command wrote its own NDJSON events on stdout; print nothing more. */
   readonly streamed?: boolean;
 };

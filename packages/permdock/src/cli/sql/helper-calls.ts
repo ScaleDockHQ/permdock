@@ -1,3 +1,4 @@
+import { beforeFirst } from "../shared/text.ts";
 import { HELPERS } from "./shared.ts";
 
 /**
@@ -39,7 +40,7 @@ export function helperCallKeys(sql: string, blind = false): readonly string[] {
     if (blind && byPermission && (extra === undefined || falsy !== undefined)) {
       continue;
     }
-    const key = literal.replaceAll("''", "'").split("#")[0] ?? "";
+    const key = beforeFirst(literal.replaceAll("''", "'"), "#");
     if (key !== "") {
       keys.add(key);
     }

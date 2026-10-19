@@ -9,11 +9,12 @@ export const completion: Leaf = defineLeaf({
   ],
   flags: {},
   run(_ctx, { args }) {
-    const shell = SHELLS.find((name) => name === args["shell"]);
+    const typed = args["shell"] ?? "";
+    const shell = SHELLS.find((name) => name === typed);
     if (shell === undefined) {
       throw new CliError(
         "usage",
-        `completion: unknown shell '${args["shell"] ?? ""}'.${suggestion(args["shell"] ?? "", SHELLS)} Use bash, zsh or fish.`,
+        `completion: unknown shell '${typed}'.${suggestion(typed, SHELLS)} Use bash, zsh or fish.`,
         { code: "invalid_value" },
       );
     }

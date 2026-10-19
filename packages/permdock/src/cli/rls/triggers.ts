@@ -1,5 +1,6 @@
 import type { RlsAudit, RlsTrigger } from "../types.ts";
 
+import { byKey } from "../shared/compare.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
 
@@ -104,9 +105,7 @@ export function triggersSql(
     return "";
   }
   const chunks: string[] = [];
-  for (const [table, list] of Object.entries(triggers).toSorted(([a], [b]) =>
-    a < b ? -1 : a > b ? 1 : 0,
-  )) {
+  for (const [table, list] of Object.entries(triggers).toSorted(byKey)) {
     knownTable(table, tables, `rls.triggers.${table}`);
     const target = `${quoteIdent(schema)}.${quoteIdent(table)}`;
     for (const [index, trigger] of list.entries()) {

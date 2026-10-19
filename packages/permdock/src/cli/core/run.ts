@@ -3,7 +3,7 @@ import { stripVTControlCharacters } from "node:util";
 
 import type { CliIo, RunResult } from "../types.ts";
 import type { Leaf } from "./command.ts";
-import type { CommandResult } from "./result.ts";
+import type { CommandResult, NextStep } from "./result.ts";
 
 import { dateAt } from "../../core/time.ts";
 import {
@@ -11,6 +11,7 @@ import {
   readConfig,
   resolveCwd,
 } from "../project/config.ts";
+import { beforeFirst } from "../shared/text.ts";
 import { agentMode } from "./agent.ts";
 import { flagSpellings, parseFlags, parseLeaf, suggestion } from "./args.ts";
 import {
@@ -81,7 +82,7 @@ function extractGlobals(argv: readonly string[]): {
   const rest: string[] = [];
   for (let i = 0; i < before.length; i += 1) {
     const token = before[i] ?? "";
-    const spelling = token.split("=", 1)[0] ?? token;
+    const spelling = beforeFirst(token, "=");
     const name = token.startsWith("-") ? spellings.get(spelling) : undefined;
     if (name === undefined) {
       rest.push(token);
@@ -155,7 +156,7 @@ function typedFlags(argv: readonly string[]): readonly string[] {
   const end = argv.indexOf("--");
   return (end === -1 ? argv : argv.slice(0, end))
     .filter((token) => token.startsWith("--"))
-    .map((token) => token.split("=", 1)[0] ?? token);
+    .map((token) => beforeFirst(token, "="));
 }
 
 export async function run(
@@ -216,6 +217,11 @@ export async function run(
   const errStyle = createStyle(io.errColor === true && globals.color);
   const plain = (text: string): string =>
     color ? text : stripVTControlCharacters(text);
+  const trace = (message: string): void => {
+    if (globals.debug) {
+      writeErr(errStyle.paint("dim", `debug: ${message}`));
+    }
+  };
 
   const helpWord = rest[0] === "help";
   const resolved = resolve(helpWord ? rest.slice(1) : rest);
@@ -275,7 +281,7 @@ export async function run(
 
   const emitProblem = (
     problem: CliProblem,
-    next?: CommandResult["next"],
+    next?: readonly NextStep[],
   ): RunResult => {
     if (json) {
       writeOut(
@@ -483,6 +489,9 @@ export async function run(
         }
       }
     }
+    trace(
+      `${name}: agent mode ${agent ? "on" : "off"}, ${format} output, cwd ${cwd}`,
+    );
     let loaded = NO_CONFIG;
     if (entry.config || globals.config !== undefined) {
       try {
@@ -490,6 +499,11 @@ export async function run(
       } catch (error) {
         return fail(error);
       }
+      trace(
+        loaded.file === undefined
+          ? "config file: none found"
+          : `config file: ${loaded.file}`,
+      );
       if (name !== "config") {
         for (const warning of loaded.warnings) {
           writeErr(errStyle.paint("yellow", `permdock: warning: ${warning}`));
@@ -527,11 +541,7 @@ export async function run(
         secrets.add(value);
       },
       log: writeErr,
-      trace: (message) => {
-        if (globals.debug) {
-          writeErr(errStyle.paint("dim", `debug: ${message}`));
-        }
-      },
+      trace,
       progress: progressReporter({
         write: writeErrRaw,
         tty: io.stderrIsTty === true && !agent,
@@ -544,6 +554,7 @@ export async function run(
     } catch (error) {
       return fail(error);
     }
+    trace(`${name}: exit ${String(result.code)}`);
     return render(name, result);
   }
 
@@ -569,7 +580,6 @@ export async function run(
             envelope({
               status: "success",
               ...(data === undefined ? {} : { data }),
-              ...(result.next === undefined ? {} : { next: result.next }),
             }),
             null,
             2,
@@ -580,16 +590,17 @@ export async function run(
       const kind = kindOfCode(result.code);
       const report =
         result.data !== undefined || isReport(data) ? data : undefined;
-      const problem =
-        result.problem ??
-        cliProblem(kind, problemDetail(result.output, parsed), name);
+      const problem = cliProblem(
+        kind,
+        problemDetail(result.output, parsed),
+        name,
+      );
       writeOut(
         JSON.stringify(
           envelope({
             status: problem.exitCode === 3 ? "action_required" : "error",
             ...(report === undefined ? {} : { data: report }),
             error: problem,
-            ...(result.next === undefined ? {} : { next: result.next }),
           }),
           null,
           2,
@@ -598,17 +609,12 @@ export async function run(
       return done(result.code);
     }
     const text = plain(result.output);
-    if (result.problem !== undefined && text.trim() === "") {
-      writeErr(result.problem.detail);
-    } else if (text !== "") {
+    if (text !== "") {
       if (result.code === 0 || result.code === 1) {
         writeOut(text);
       } else {
         writeErr(text);
       }
-    }
-    for (const step of result.next ?? []) {
-      writeErr(`  ${step.when}: ${step.command}`);
     }
     return done(result.code);
   }

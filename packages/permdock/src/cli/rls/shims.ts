@@ -6,6 +6,7 @@ import type {
 } from "../types.ts";
 import type { RolePermission } from "./helpers.ts";
 
+import { byKey } from "../shared/compare.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import { breakGlassKey } from "../sql/grants.ts";
 import { memberIdsHelper, permittedIdsHelper } from "../sql/names.ts";
@@ -317,9 +318,7 @@ export function shimsSql(
   const chunks = [
     `-- permdock shims: legacy helper names over the permdock helpers; drop each once doctor reports no caller (PD056)`,
   ];
-  for (const [name, helper] of Object.entries(config.helpers).toSorted(
-    ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
-  )) {
+  for (const [name, helper] of Object.entries(config.helpers).toSorted(byKey)) {
     if (!NAME.test(name)) {
       throw new Error(`PermDock CLI: unsafe rls.migrate helper name '${name}'`);
     }

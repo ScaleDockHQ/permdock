@@ -8,6 +8,8 @@ import type {
 
 import { qualifySqlTable, sqlTextArray } from "../../core/sql.ts";
 import { type RoleSource, roleColumn } from "../../supabase/roles.ts";
+import { byCodeUnit, byKey } from "../shared/compare.ts";
+import { beforeFirst } from "../shared/text.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
 import {
@@ -28,7 +30,7 @@ function col(name: string): string {
 }
 
 function schemaOf(table: string): string {
-  return table.includes(".") ? (table.split(".")[0] ?? "public") : "public";
+  return table.includes(".") ? beforeFirst(table, ".") : "public";
 }
 
 /** The roles-table column a reference joins on, after checking it points at `roles`. */
@@ -77,7 +79,7 @@ export function legacyKeySql(
     exact.set(from, to);
   }
   const prefixes = Object.entries(migrate?.prefixes ?? {}).toSorted(
-    ([a], [b]) => b.length - a.length || (a < b ? -1 : a > b ? 1 : 0),
+    ([a], [b]) => b.length - a.length || byCodeUnit(a, b),
   );
   const prefixed =
     prefixes.length === 0
@@ -92,15 +94,13 @@ export function legacyKeySql(
     exact.size === 0
       ? prefixed
       : `(case ${expr} ${[...exact.entries()]
-          .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+          .toSorted(byKey)
           .map(
             ([from, to]) =>
               `when ${quoteLiteral(from)} then ${quoteLiteral(to)}`,
           )
           .join(" ")} else ${prefixed} end)`;
-  const renames = Object.entries(renamed).toSorted(([a], [b]) =>
-    a < b ? -1 : a > b ? 1 : 0,
-  );
+  const renames = Object.entries(renamed).toSorted(byKey);
   return currentKeyExpr(renames, mapped);
 }
 
@@ -158,9 +158,7 @@ export function backfillSql(
   const skipped =
     roles.skip === undefined ? "false" : `coalesce(${col(roles.skip)}, false)`;
   const renamed = custom.renamed ?? {};
-  const renames = Object.entries(renamed).toSorted(([a], [b]) =>
-    a < b ? -1 : a > b ? 1 : 0,
-  );
+  const renames = Object.entries(renamed).toSorted(byKey);
   const current = (expr: string): string => currentKeyExpr(renames, expr);
   const known = sqlTextArray([
     ...(custom.permissions ?? []),

@@ -151,12 +151,13 @@ export function leafHelp(
     "",
     `${style.paint("bold", "Usage")}  ${name}${positionals === "" ? "" : ` ${positionals}`} [flags]`,
   ];
-  if ((leaf.positionals ?? []).length > 0) {
+  const args = leaf.positionals ?? [];
+  if (args.length > 0) {
     lines.push(
       "",
       style.paint("bold", "Arguments"),
       ...table(
-        (leaf.positionals ?? []).map((item) => [item.name, item.description]),
+        args.map((item) => [item.name, item.description]),
         style,
       ),
     );
