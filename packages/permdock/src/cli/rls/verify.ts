@@ -86,7 +86,7 @@ export async function runRlsVerify(input: {
   if (policyPath === undefined) {
     return {
       code: 2,
-      output: "PermDock CLI: rls verify needs policy in the config or --from",
+      output: "PermDock CLI: rls verify needs policy in the config or --policy",
     };
   }
   const policy: Policy = await loadPolicyAt(input.cwd, policyPath);

@@ -63,7 +63,7 @@ function loadPolicy(
   return requirePolicy(
     cwd,
     policyPath,
-    "rls generate needs policy in permdock.config.ts or --from",
+    "rls generate needs policy in permdock.config.ts or --policy",
   );
 }
 
@@ -142,7 +142,7 @@ export async function runRlsGenerate(
     input.from !== "drizzle"
   ) {
     return refused(
-      "rls generate takes the policy from --project or from a --from module, not both",
+      "rls generate takes the policy from --project or from a --policy module, not both",
     );
   }
   let policy: Policy;

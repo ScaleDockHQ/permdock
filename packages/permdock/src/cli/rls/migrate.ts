@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { parse } from "pgsql-parser";
 
@@ -11,6 +11,7 @@ import { escapeSqlIdent, quoteSqlLiteral } from "../../core/sql.ts";
 import { dateAt } from "../../core/time.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError } from "../core/errors.ts";
+import { type PlannedFile, applyFiles, refuseDirty } from "../core/files.ts";
 import { dataMigrationFile, writeOutputFiles } from "../core/output-files.ts";
 import { sqlFiles } from "../files.ts";
 import { RETIRE_MARKER } from "../sql/markers.ts";
@@ -626,6 +627,8 @@ export type MigrateRunInput = {
   readonly config: RlsMigrateConfig;
   readonly target: MigrateTarget;
   readonly write: boolean;
+  /** Rewrite files with uncommitted changes too. */
+  readonly force?: boolean;
   readonly json: boolean;
   readonly retireOut?: string | undefined;
   readonly now?: Date;
@@ -682,6 +685,7 @@ export async function runRlsMigrate(
   const rewrites: MigrateRewrite[] = [];
   const skipped: MigrateSkip[] = [];
   const statements: RetireStatement[] = [];
+  const writes: PlannedFile[] = [];
   for (const path of files) {
     const file = relative(input.cwd, path);
     const text = readFileSync(path, "utf8");
@@ -689,7 +693,7 @@ export async function runRlsMigrate(
     rewrites.push(...result.rewrites);
     skipped.push(...result.skipped);
     if (input.write && result.text !== text) {
-      writeFileSync(path, result.text);
+      writes.push({ path, text: result.text });
     }
     for (const statement of sqlStatements(input.write ? result.text : text)) {
       statements.push({ file, ...statement });
@@ -701,6 +705,16 @@ export async function runRlsMigrate(
       output:
         "rls migrate --retire-out needs rls.migrate.tables in permdock.config.ts",
     };
+  }
+  if (writes.length > 0) {
+    refuseDirty({
+      command: "rls migrate",
+      invocation: `rls migrate --sql ${input.sql}`,
+      cwd: input.cwd,
+      paths: writes.map((write) => write.path),
+      force: input.force === true,
+    });
+    applyFiles(input.cwd, writes);
   }
   const retire =
     input.config.tables === undefined

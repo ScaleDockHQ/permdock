@@ -148,9 +148,7 @@ function push(cwd: string, overrides: Partial<Input> = {}) {
   return runCloud({
     cwd,
     config: CONFIG,
-    rest: ["push"],
     url: undefined,
-    environment: undefined,
     dryRun: false,
     json: false,
     env: ENV,
@@ -169,11 +167,11 @@ describe("runCloud", () => {
     });
   });
 
-  it("describes a dry run in text, preferring --url and --environment", async () => {
+  it("describes a dry run in text, preferring --url and --project", async () => {
     const result = await push(FIXTURE, {
       dryRun: true,
       url: "https://flag.permdock.test/",
-      environment: "staging",
+      project: "staging",
       env: { ...ENV, PERMDOCK_CLOUD_ENV: "ignored", VERCEL_ENV: "ignored" },
     });
     expect(result.code).toBe(0);
@@ -287,7 +285,7 @@ export const permissions = definePermissions({
         permissions: "./src/permissions.ts",
         collect: { srcPath: ["./src"] },
       },
-      environment: "a b",
+      project: "a b",
     });
     expect(result.code).toBe(0);
     expect(result.output).toMatch(
@@ -326,9 +324,5 @@ export const permissions = definePermissions({
       code: 1,
       output: "PermDock Cloud rejected the catalog: HTTP 401",
     });
-  });
-
-  it.each([[[]], [["rotate"]]])("prints usage for %j", async (rest) => {
-    expect((await push(FIXTURE, { rest })).code).toBe(2);
   });
 });

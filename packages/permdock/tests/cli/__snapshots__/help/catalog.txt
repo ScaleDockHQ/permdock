@@ -6,6 +6,8 @@ Flags
   --kind <catalog|json-schema|markdown>  What to print: the catalog, its JSON Schema, or a Markdown table (default catalog)
   --permissions <module>                 Module exporting the permissions (default permissions in the config)
   --include <key>                        Permission keys or prefixes to keep (repeatable)
+  --out <file>                           File to write
+  --check                                Exit 1 when a file on disk is stale; write nothing
 
 Global flags
   --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help

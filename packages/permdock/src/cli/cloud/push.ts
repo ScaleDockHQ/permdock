@@ -18,12 +18,8 @@ import { MANIFEST_FILE } from "../manifest-json.ts";
 import { loadConfiguredPolicy } from "../project/load.ts";
 import { cliRuntime, pushAuth } from "./auth.ts";
 import { cloudUrl, firstNonEmpty } from "./issuer.ts";
-import { runCloudPull } from "./pull.ts";
 
 export { pushedPolicy };
-
-const USAGE =
-  "usage: permdock cloud push [--dry-run] [--url <url>] [--environment <env> | --project <id>] [--manifest <file>]\n       permdock cloud pull [--project <id>] [--url <url>] [--manifest <file>]";
 
 /** `--manifest`, else `permdock.manifest.json` when it exists; a file that does not parse is an error. */
 function readManifest(
@@ -54,9 +50,7 @@ function readManifest(
 export async function runCloud(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
-  readonly rest: readonly string[];
   readonly url: string | undefined;
-  readonly environment: string | undefined;
   readonly project?: string | undefined;
   readonly manifest?: string | undefined;
   readonly dryRun: boolean;
@@ -65,33 +59,6 @@ export async function runCloud(input: {
   readonly now: Date;
   readonly io: CliIo;
 }): Promise<CommandResult> {
-  const action = input.rest[0];
-  if (action === "pull") {
-    return runCloudPull({
-      cwd: input.cwd,
-      config: input.config,
-      url: input.url,
-      project: input.project ?? input.environment,
-      manifest: input.manifest,
-      json: input.json,
-      env: input.env,
-      io: input.io,
-    });
-  }
-  if (action !== "push") {
-    return { code: 2, output: USAGE };
-  }
-  if (
-    input.project !== undefined &&
-    input.environment !== undefined &&
-    input.project !== input.environment
-  ) {
-    return {
-      code: 2,
-      output:
-        "permdock cloud push: --project and --environment name the same thing; pass one",
-    };
-  }
   const manifest = readManifest(input.cwd, input.manifest);
   if (!manifest.ok) {
     return { code: 2, output: manifest.output };
@@ -127,7 +94,6 @@ export async function runCloud(input: {
   const url = cloudUrl(input.url, input.env);
   const environment = firstNonEmpty(
     input.project,
-    input.environment,
     input.env["PERMDOCK_CLOUD_ENV"],
     input.env["VERCEL_ENV"],
     "production",

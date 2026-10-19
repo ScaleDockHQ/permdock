@@ -117,7 +117,7 @@ describe("runOpenapi usage errors", () => {
 
   it("needs a policy or a permissions module", async () => {
     await expect(emit(app(), { config: {} })).rejects.toThrow(
-      "PermDock CLI: openapi needs --from, policy or permissions in the config",
+      "PermDock CLI: openapi emit needs --policy, or policy or permissions in the config",
     );
   });
 

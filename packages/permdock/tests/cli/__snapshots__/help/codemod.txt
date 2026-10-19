@@ -8,6 +8,7 @@ Arguments
 
 Flags
   --dry-run  Print what would change; write nothing
+  --force    Rewrite files with uncommitted changes too
 
 Global flags
   --cwd --config --json --format --yes --agent --debug --color --help; see permdock --help

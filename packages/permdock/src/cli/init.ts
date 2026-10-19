@@ -1,7 +1,7 @@
 import type { Agent } from "package-manager-detector";
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 import type { CommandResult } from "./core/result.ts";
 
@@ -19,6 +19,7 @@ import {
   resolvePreset,
 } from "../preset/index.ts";
 import { didYouMean } from "./core/args.ts";
+import { applyFiles } from "./core/files.ts";
 import { addLine } from "./core/peer.ts";
 
 /** The page a preset code opens in the builder. */
@@ -91,20 +92,19 @@ export function runInit(options: InitOptions): CommandResult {
     preset,
     options.src === undefined ? {} : { src: options.src },
   );
-  const written: string[] = [];
-  const kept: string[] = [];
-  for (const file of generated.files) {
-    const target = join(options.cwd, file.path);
-    if (existsSync(target) && options.force !== true) {
-      kept.push(file.path);
-      continue;
-    }
-    written.push(file.path);
-    if (options.dryRun !== true) {
-      mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, file.contents);
-    }
-  }
+  const writes = generated.files.filter(
+    (file) =>
+      options.force === true || !existsSync(join(options.cwd, file.path)),
+  );
+  const written = writes.map((file) => file.path);
+  const kept = generated.files
+    .filter((file) => !writes.includes(file))
+    .map((file) => file.path);
+  applyFiles(
+    options.cwd,
+    writes.map((file) => ({ path: file.path, text: file.contents })),
+    { dryRun: options.dryRun === true },
+  );
   const install = addLine(options.agent, generated.dependencies);
   const shadcn =
     generated.recipes.length === 0

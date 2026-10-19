@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 
 import { dateAt } from "../../core/time.ts";
-import { writeFileEnsuringDir } from "../files.ts";
+import { applyFiles } from "./files.ts";
 import { shortDiff } from "./text-diff.ts";
 
 /** One generated file: `part` names it in drift reports, `rel` is relative to the working directory, `-` for stdout. */
@@ -49,23 +49,23 @@ export function driftOf(cwd: string, files: readonly OutputFile[]): string[] {
   return drift;
 }
 
-/** Writes every file but the stdout ones, whose text it returns for printing. */
+/** Writes every file but the stdout ones, all or nothing, and returns the stdout text for printing. */
 export function writeOutputFiles(
   cwd: string,
   files: readonly OutputFile[],
 ): { readonly wrote: readonly string[]; readonly printed: string } {
-  const wrote: string[] = [];
-  const printed: string[] = [];
-  for (const file of files) {
-    if (file.rel === STDOUT) {
-      printed.push(file.text.trimEnd());
-      continue;
-    }
-    const path = resolve(cwd, file.rel);
-    writeFileEnsuringDir(path, file.text);
-    wrote.push(file.rel);
-  }
-  return { wrote, printed: printed.join("\n") };
+  const onDisk = files.filter((file) => file.rel !== STDOUT);
+  applyFiles(
+    cwd,
+    onDisk.map((file) => ({ path: file.rel, text: file.text })),
+  );
+  return {
+    wrote: onDisk.map((file) => file.rel),
+    printed: files
+      .filter((file) => file.rel === STDOUT)
+      .map((file) => file.text.trimEnd())
+      .join("\n"),
+  };
 }
 
 const PARTS = ["helpers", "seeds", "indexes", "policies", "hook"] as const;

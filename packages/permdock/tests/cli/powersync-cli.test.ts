@@ -317,7 +317,7 @@ describe("permdock powersync", () => {
       await runPowerSync({ cwd, config: {}, check: false, rest: ["generate"] }),
     ).toEqual({
       code: 2,
-      output: "PermDock CLI: powersync needs policy in the config or --from",
+      output: "PermDock CLI: powersync needs policy in the config or --policy",
     });
     expect(await pd058({ cwd, config: { powersync: {} } })).toEqual([]);
     const broken: PermDockConfig = {

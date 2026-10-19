@@ -36,6 +36,8 @@ export type ProblemCode =
   | "peer_missing"
   | "supabase_cli_missing"
   | "file_conflict"
+  | "dirty_worktree"
+  | "write_failed"
   | "consent_required"
   | "auth_required"
   | "network_error"

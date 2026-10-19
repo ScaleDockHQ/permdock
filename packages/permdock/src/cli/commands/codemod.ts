@@ -15,7 +15,13 @@ export const codemod: Leaf = defineLeaf({
       variadic: true,
     },
   ],
-  flags: { ...dryRunFlag },
+  flags: {
+    ...dryRunFlag,
+    force: {
+      type: "boolean",
+      description: "Rewrite files with uncommitted changes too",
+    },
+  },
   async run(ctx, { flags, args, rest }) {
     // Lazy: oxc-parser and the rename maps load only when this command runs, not for --help.
     const { runCodemod } = await import("../codemod/codemod.ts");
@@ -24,6 +30,7 @@ export const codemod: Leaf = defineLeaf({
       version: args["version"],
       paths: rest,
       dryRun: flags["dry-run"],
+      force: flags.force,
       json: ctx.json,
     });
   },

@@ -36,7 +36,7 @@ const AGENT_FOLDERS: Readonly<Record<string, string>> = {
   cursor: ".cursor/skills",
 };
 
-/** The `--agent` names `skills install` knows, with the folder each writes. */
+/** The `--client` names `skills install` knows, with the folder each writes. */
 export const SKILL_AGENTS: Readonly<Record<string, string>> = AGENT_FOLDERS;
 
 /** Agents whose config folder (`.claude`, `.cursor`, `.agents`) the project already has. */

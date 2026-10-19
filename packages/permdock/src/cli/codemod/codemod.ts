@@ -1,9 +1,10 @@
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 
 import type { CommandResult } from "../core/result.ts";
 
 import { CliError } from "../core/errors.ts";
+import { type PlannedFile, applyFiles, refuseDirty } from "../core/files.ts";
 import { rel } from "../files.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
 import {
@@ -86,6 +87,8 @@ export type CodemodOptions = {
   readonly version: string | undefined;
   readonly paths: readonly string[];
   readonly dryRun: boolean;
+  /** Rewrite files with uncommitted changes too. */
+  readonly force?: boolean;
   readonly json: boolean;
 };
 
@@ -114,6 +117,7 @@ export function codemod(options: CodemodOptions): CodemodReport {
   );
   const changed: CodemodFileReport[] = [];
   const followUps: CodemodFollowUpReport[] = [];
+  const writes: PlannedFile[] = [];
   for (const file of files) {
     const source = readFileSync(file, "utf8");
     if (!source.includes("permdock")) {
@@ -133,13 +137,23 @@ export function codemod(options: CodemodOptions): CodemodReport {
     }
     if (result.changes.length > 0) {
       changed.push({ file: name, changes: result.changes });
-      if (!options.dryRun && result.source !== source) {
-        writeFileSync(file, result.source);
+      if (result.source !== source) {
+        writes.push({ path: file, text: result.source });
       }
     }
     for (const followUp of result.followUps) {
       followUps.push({ file: name, ...followUp });
     }
+  }
+  if (!options.dryRun && writes.length > 0) {
+    refuseDirty({
+      command: "codemod",
+      invocation: ["codemod", version, ...options.paths].join(" "),
+      cwd: options.cwd,
+      paths: writes.map((write) => write.path),
+      force: options.force === true,
+    });
+    applyFiles(options.cwd, writes);
   }
   return {
     version,

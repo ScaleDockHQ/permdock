@@ -1,9 +1,10 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { CommandResult } from "./core/result.ts";
 import type { CatalogDocument, CliIo, PermDockConfig } from "./types.ts";
 
+import { isRecord } from "../core/compact.ts";
 import {
   buildCatalog,
   catalogSchemaDocument,
@@ -12,6 +13,7 @@ import {
 } from "./catalog-doc.ts";
 import { loadConfiguredOperations } from "./catalog-operations.ts";
 import { runCollect } from "./collect.ts";
+import { applyFiles, fileSummary } from "./core/files.ts";
 import { defaultSrcPath, listSourceFiles } from "./files.ts";
 import {
   asPermissionTree,
@@ -93,4 +95,53 @@ export async function runCatalog(input: {
     return { code: 0, output: formatCatalogMarkdown(filtered) };
   }
   return { code: 0, output: formatCatalogJson(filtered) };
+}
+
+/** The comparable form of a catalog file: without the fields every run changes. */
+function comparable(text: string): string {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (isRecord(parsed)) {
+      const {
+        generatedAt: _generatedAt,
+        generator: _generator,
+        ...rest
+      } = parsed;
+      return JSON.stringify(rest);
+    }
+  } catch {
+    // Markdown and other text compare as written.
+  }
+  return text;
+}
+
+/** `catalog --out`: writes the export, or with `--check` exits 1 when the file differs. */
+export function catalogFile(
+  cwd: string,
+  out: string,
+  text: string,
+  check: boolean,
+): CommandResult {
+  if (check) {
+    const path = resolve(cwd, out);
+    if (!existsSync(path)) {
+      return {
+        code: 1,
+        output: `catalog missing: ${out}`,
+        data: { out, stale: true },
+      };
+    }
+    const stale = comparable(readFileSync(path, "utf8")) !== comparable(text);
+    return {
+      code: stale ? 1 : 0,
+      output: stale ? `catalog stale: ${out}` : `${out} is up to date`,
+      data: { out, stale },
+    };
+  }
+  const applied = applyFiles(cwd, [{ path: out, text }]);
+  return {
+    code: 0,
+    output: fileSummary(applied, false),
+    data: { files: applied },
+  };
 }

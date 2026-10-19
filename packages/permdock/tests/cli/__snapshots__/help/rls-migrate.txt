@@ -28,6 +28,7 @@ Flags
   --db-url-stdin                         Read the connection string from stdin, keeping it out of ps and shell history
   --sql <path>                           SQL file or folder to read
   --dry-run                              Print what would change; write nothing
+  --force                                Rewrite files with uncommitted changes too
   --retire-out <file>                    File dropping the rls.migrate.tables once nothing reads them
 
 Global flags

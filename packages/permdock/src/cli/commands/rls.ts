@@ -334,6 +334,10 @@ export const migrate: Leaf = defineLeaf({
     ...shapeFlags,
     ...sqlFlag,
     ...dryRunFlag,
+    force: {
+      type: "boolean",
+      description: "Rewrite files with uncommitted changes too",
+    },
     "retire-out": {
       type: "string",
       description:
@@ -355,6 +359,7 @@ export const migrate: Leaf = defineLeaf({
       ...(await rlsInput(ctx, "migrate", flags)),
       sql,
       write: !flags["dry-run"],
+      forceRewrite: flags.force,
       ...(retireOut === undefined ? {} : { retireOut }),
     });
   },

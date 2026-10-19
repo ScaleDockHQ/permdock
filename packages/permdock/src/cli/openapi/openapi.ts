@@ -87,7 +87,7 @@ async function loadPolicy(
   const permissionsPath = config.permissions;
   if (permissionsPath === undefined) {
     throw new Error(
-      "PermDock CLI: openapi needs --from, policy or permissions in the config",
+      "PermDock CLI: openapi emit needs --policy, or policy or permissions in the config",
     );
   }
   const tree = asPermissionTree(

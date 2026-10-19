@@ -52,9 +52,7 @@ export const push: Leaf = defineLeaf({
     return (await import("../cloud/push.ts")).runCloud({
       cwd: ctx.cwd,
       config: ctx.config,
-      rest: ["push"],
       url: given(flags.url),
-      environment: undefined,
       project: given(flags.project),
       manifest: given(flags.manifest),
       dryRun: flags["dry-run"],

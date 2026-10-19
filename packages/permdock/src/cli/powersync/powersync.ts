@@ -1,4 +1,3 @@
-import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { CommandResult } from "../core/result.ts";
@@ -12,6 +11,7 @@ import {
   type Policy,
 } from "../../index.ts";
 import { usageResult } from "../core/errors.ts";
+import { applyFiles } from "../core/files.ts";
 import { fileDrift } from "../core/output-files.ts";
 import {
   type RlsFixture,
@@ -48,7 +48,7 @@ function loadPolicy(
   return requirePolicy(
     cwd,
     from ?? config.policy,
-    "powersync needs policy in the config or --from",
+    "powersync needs policy in the config or --policy",
   );
 }
 
@@ -300,9 +300,7 @@ export async function runPowerSync(input: {
               .join("\n"),
           };
     }
-    for (const file of files) {
-      writeFileSync(resolve(input.cwd, file.path), file.text);
-    }
+    applyFiles(input.cwd, files);
     return {
       code: 0,
       output: [...files.map((file) => `wrote ${file.path}`), ...warnings].join(

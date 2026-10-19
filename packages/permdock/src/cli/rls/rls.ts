@@ -76,6 +76,8 @@ export type RlsRunInput = {
   readonly helpersOnly: boolean;
   readonly shims?: boolean;
   readonly write: boolean;
+  /** `rls migrate --force`: rewrite files with uncommitted changes too. */
+  readonly forceRewrite?: boolean;
   readonly json: boolean;
   readonly io: CliIo;
   /** Opens every `--db-url` connection; defaults to the `pg` peer. */
@@ -205,6 +207,7 @@ async function migrate(input: RlsRunInput): Promise<CommandResult> {
         : { roleValues: input.config.rls.roleValues }),
     },
     write: input.write,
+    force: input.forceRewrite === true,
     json: input.json,
     retireOut: input.retireOut,
     ...(input.io.now === undefined ? {} : { now: input.io.now() }),

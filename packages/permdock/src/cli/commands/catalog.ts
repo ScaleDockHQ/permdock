@@ -1,5 +1,6 @@
 import { type Leaf, defineLeaf } from "../core/command.ts";
-import { given, permissionsFlag } from "../core/flags.ts";
+import { missingInput } from "../core/errors.ts";
+import { checkFlag, given, outFlag, permissionsFlag } from "../core/flags.ts";
 
 const RUN_FORMAT = {
   catalog: "json",
@@ -23,10 +24,13 @@ export const catalog: Leaf = defineLeaf({
       description: "Permission keys or prefixes to keep",
       valueHint: "key",
     },
+    ...outFlag,
+    ...checkFlag,
   },
   async run(ctx, { flags }) {
     // Lazy: the implementation loads only when this command runs, not for --help.
-    return (await import("../catalog.ts")).runCatalog({
+    const { catalogFile, runCatalog } = await import("../catalog.ts");
+    const result = await runCatalog({
       cwd: ctx.cwd,
       config: ctx.config,
       format: RUN_FORMAT[flags.kind],
@@ -35,5 +39,15 @@ export const catalog: Leaf = defineLeaf({
       now: ctx.now,
       io: ctx.io,
     });
+    const out = given(flags.out);
+    if (out === undefined) {
+      if (flags.check) {
+        throw missingInput("catalog --check", ["--out"], "the file to compare");
+      }
+      return result;
+    }
+    return result.code === 0
+      ? catalogFile(ctx.cwd, out, result.output, flags.check)
+      : result;
   },
 });
