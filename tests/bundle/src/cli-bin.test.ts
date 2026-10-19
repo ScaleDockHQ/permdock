@@ -33,15 +33,20 @@ describe("the built permdock bin", () => {
   it("prints usage for --help", () => {
     const result = run("--help");
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("USAGE permdock");
+    expect(result.stdout).toContain("Usage  permdock <command>");
   });
 
-  it("answers an unknown command with a Problem Details body under --json", () => {
+  it("answers an unknown command with a cli-result-v1 error under --json", () => {
     const result = run("nope", "--json");
     expect(result.status).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
-      type: "https://permdock.com/problems/cli-usage",
-      exitCode: 2,
+      $schema: "https://permdock.com/schemas/cli-result-v1.json",
+      status: "error",
+      error: {
+        type: "https://permdock.com/problems/cli-usage",
+        code: "unknown_command",
+        exitCode: 2,
+      },
     });
   });
 });
