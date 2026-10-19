@@ -67,16 +67,14 @@ describe("act claim parity with better-supabase", () => {
     });
     expect(
       actorOf(agentClaims({ sub: agentRun.sub }, { agent: "a" })),
-    ).toMatchObject({
-      ok: true,
-      actor: { kind: "agent", tools: [] },
-    });
+    ).toMatchObject({ ok: true, actor: { kind: "agent", id: "a" } });
   });
 
   it.each([
     ["a session_id", { session_id: "sess-1" }],
     ["an empty tool name", { tools: [""] }],
     ["tools that are not an array", { tools: "search_knowledge" }],
+    ["a non-boolean read_only", { read_only: "true" }],
   ])(
     "refuses an agent level with %s, which better-supabase drops",
     (_, extra) => {
@@ -87,12 +85,6 @@ describe("act claim parity with better-supabase", () => {
   );
 
   // Divergences a maintainer decided to keep; a change on either side fails here.
-  it("refuses a non-boolean read_only, which better-supabase keeps as an agent", () => {
-    const claims = withAgent({ read_only: "true" });
-    expect(actorOf(claims)).toEqual({ ok: false, reason: "invalid-chain" });
-    expect(betterSupabaseActor(claims)).toMatchObject({ kind: "agent" });
-  });
-
   it("reads session_id without kind as support, which better-supabase drops", () => {
     const claims: Claims = {
       sub: agentRun.sub,

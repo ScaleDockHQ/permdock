@@ -18,7 +18,7 @@ The positional arguments after the version are files or directories; the default
 | Flag        | Meaning                                                                                                                  |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `--dry-run` | Print the report without writing any file                                                                                |
-| `--force`   | Rewrite files with uncommitted changes too; without it, a dirty file in a git work tree exits `2` (`dirty_worktree`)     |
+| `--force`   | Rewrite files with uncommitted changes too; without it, a dirty file in a git work tree exits `3` (`dirty_worktree`)     |
 | `--json`    | `data` in the envelope: `{ version, dryRun, scanned, files, followUps }`; an unknown version is RFC 9457 Problem Details |
 
 The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's consent (`rewrite`).

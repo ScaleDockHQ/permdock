@@ -184,10 +184,16 @@ const OPTIONAL: readonly Template[] = [
   "permissionsFor",
 ];
 
-/** Postgres aliases of the id types better-supabase reads (`uuid`, `text`, `bigint`, `integer`). */
+/**
+ * Postgres aliases of the id types better-supabase reads (`uuid`, `text`,
+ * `bigint`, `integer`), matching its `moduleIdType` from
+ * `better-supabase/sql`, which this runtime entry does not import.
+ */
 const ID_TYPES: Readonly<Record<string, string>> = {
   uuid: "uuid",
   text: "text",
+  varchar: "text",
+  "character varying": "text",
   bigint: "bigint",
   int8: "bigint",
   integer: "integer",
@@ -641,7 +647,8 @@ export function authorizationProvider(
   const operations = catalog === undefined ? {} : operationsOf(catalog);
   const delegated = delegatedScopes(catalog);
   const scopes = rls.scopes.map((scope) => {
-    const idType = ID_TYPES[scope.type.trim().toLowerCase()];
+    const idType =
+      ID_TYPES[scope.type.trim().toLowerCase().replaceAll(/\s+/gu, " ")];
     if (idType === undefined) {
       problems.push(
         `Scope "${scope.name}" has ids of type ${scope.type}; better-supabase reads uuid, text, bigint and integer ids.`,

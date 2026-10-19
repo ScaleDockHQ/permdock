@@ -2,11 +2,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -109,7 +109,7 @@ describe("rls.tables with schema-qualified names", () => {
   beforeAll(async () => {
     writeFileSync(fixturesPath, `${JSON.stringify(FIXTURES, null, 2)}\n`);
     const out = join(dir, "rls.sql");
-    const result = await run(
+    const result = await runPipingDbUrl(
       ["rls", "generate", "--target", "sql", "--out", out],
       { cwd: FIXTURE },
     );
@@ -138,7 +138,7 @@ describe("rls.tables with schema-qualified names", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    const result = await run(
+    const result = await runPipingDbUrl(
       [
         "rls",
         "verify",
@@ -156,7 +156,7 @@ describe("rls.tables with schema-qualified names", () => {
   });
 
   it("writes pgTAP that names the schema-qualified tables", async () => {
-    const result = await run(
+    const result = await runPipingDbUrl(
       ["rls", "verify", "--kind", "pgtap", "--fixtures", fixturesPath],
       { cwd: FIXTURE },
     );

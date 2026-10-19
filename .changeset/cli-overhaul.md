@@ -9,7 +9,7 @@ Breaking: the `permdock` CLI now shares better-supabase's CLI contract. Groups h
 | `permdock openapi`             | `permdock openapi emit`                 |                                                                                                       |
 | `permdock skills`              | `permdock skills install`               |                                                                                                       |
 | `permdock arazzo`              | `permdock arazzo check`                 |                                                                                                       |
-| `--db`                         | `--db-url`                              | `rls generate`, `rls import`, `rls verify`, `supabase hook generate`, `powersync verify`              |
+| `--db`, `--db-url`             | `--db-url-stdin` or `DATABASE_URL`      | `rls generate`, `rls import`, `rls verify`, `supabase hook generate`, `powersync verify`              |
 | `--force`                      | `--force-rls`                           | `rls generate`                                                                                        |
 | `--format`, `--emit`           | `--kind`                                | `rls verify`, `catalog` (`json` is `catalog`, `schema` is `json-schema`), `openapi emit`              |
 | `--from`                       | `--policy`                              | `rls generate`, `rls verify`, `rls migrate`, `powersync generate`, `powersync verify`, `openapi emit` |
@@ -17,7 +17,7 @@ Breaking: the `permdock` CLI now shares better-supabase's CLI contract. Groups h
 | `--schema`                     | `--validator`                           | `rls import`, `openapi import`                                                                        |
 | `--strict`                     | `--fail-on warning`                     | `usage`, `config`, `doctor`                                                                           |
 | `--write`                      | `--scope catalog:write`                 | `login`                                                                                               |
-| `--agent`                      | `--client`                              | `skills install`, `skills update`                                                                     |
+| `--agent`, `--client`          | `--for`                                 | `skills install`, `skills update`                                                                     |
 | `--src`                        | `--out-dir`                             | `init`                                                                                                |
 | `--rbac-scaffold`              | `--rbac supabase`                       | `rls generate`, `rls verify`, `rls migrate`                                                           |
 | `--write`, `--retire-out` only | writes by default; `--dry-run` previews | `rls migrate`                                                                                         |

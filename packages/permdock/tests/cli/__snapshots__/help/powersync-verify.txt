@@ -4,8 +4,7 @@ Usage  permdock powersync verify [flags]
 
 Flags
   --out <file>       The Sync Streams file to verify (default sync-config.yaml)
-  --db-url <url>     Postgres connection string (DATABASE_URL when the command needs one)
-  --db-url-stdin     Read the connection string from stdin, keeping it out of ps and shell history
+  --db-url-stdin     Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
   --fixtures <file>  Fixtures file (default rls.fixtures.json)
   --policy <module>  Module exporting the policy (default policy in the config)
 

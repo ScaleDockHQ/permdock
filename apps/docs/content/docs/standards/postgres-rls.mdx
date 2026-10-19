@@ -68,8 +68,8 @@ RLS is the only enforcement layer that survives a bypassed application, and Supa
 
 ```bash
 permdock rls generate --target drizzle|sql|prisma --dialect supabase|neon|guc
-permdock rls import --db-url $DATABASE_URL --out src/permissions.generated.ts
-permdock rls verify --db-url $DATABASE_URL
+permdock rls import --out src/permissions.generated.ts
+printf %s "$DATABASE_URL" | permdock rls verify --db-url-stdin
 ```
 
 - **Generate.** Roles and grants become policies (mapping below). A `SELECT` policy is generated or verified whenever update or delete grants exist, and a table left with zero permissive policies for a role and command is warned about. Companion `ENABLE ROW LEVEL SECURITY`, optional `FORCE`, grant and revoke statements, `(select ...)` wrappers and index suggestions are emitted alongside. Role checks go through generated `security definer` helpers (`permdock_has`, and one `permitted_<scope>_ids` and one membership-only `member_<scope>_ids` per [named scope](/docs/concepts/scopes) the policy declares) over a seeded `role_permissions` table, called uncorrelated so they run once per statement (see below), and each table gets one permissive policy per command. With `--rbac supabase`, the `user_roles` / `authorize()` scaffold is generated as well; `permdock supabase hook generate` writes the hook. SQL output is idempotent (`drop policy if exists` then `create policy`); the Drizzle and Prisma targets leave diffing to drizzle-kit, Prisma 8 or Atlas.

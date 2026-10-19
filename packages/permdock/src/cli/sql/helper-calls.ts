@@ -85,7 +85,7 @@ export function helperTablePolicies(sql: string): readonly HelperTablePolicy[] {
   return found;
 }
 
-/** `pg_policies` rows on {@link HELPER_TABLES}, read by `rls verify --db-url`. */
+/** `pg_policies` rows on {@link HELPER_TABLES}, read by `rls verify --db-url-stdin`. */
 export const HELPER_TABLE_POLICIES_SQL = `select schemaname || '.' || tablename as target, policyname, coalesce(qual, '') || ' ' || coalesce(with_check, '') as body
 from pg_policies
 where (schemaname, tablename) in (('storage', 'objects'), ('realtime', 'messages'))`;
@@ -105,7 +105,7 @@ export function helperTablePoliciesFromRows(
   return found;
 }
 
-/** The message PD037 and `rls verify --db-url` report for one policy. */
+/** The message PD037 and `rls verify --db-url-stdin` report for one policy. */
 export function rowConditionMessage(
   policy: HelperTablePolicy,
   keys: readonly string[],

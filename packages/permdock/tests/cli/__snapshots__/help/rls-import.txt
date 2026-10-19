@@ -4,8 +4,7 @@ Usage  permdock rls import [flags]
 
 Flags
   --sql <path>                       SQL file or folder to read
-  --db-url <url>                     Postgres connection string (DATABASE_URL when the command needs one)
-  --db-url-stdin                     Read the connection string from stdin, keeping it out of ps and shell history
+  --db-url-stdin                     Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
   --out <file>                       File to write
   --validator <zod|valibot|arktype>  Schema library for the generated resources (default zod)
   --memberships <table>              Membership table as <table>:tenant,user,role

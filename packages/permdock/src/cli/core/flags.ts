@@ -1,20 +1,15 @@
 import type { CliContext } from "./context.ts";
 
 import { secretInput } from "./credentials.ts";
+import { CliError } from "./errors.ts";
 
 /** The flag vocabulary shared with better-supabase: one spelling per meaning. */
 
 export const dbUrlFlags = {
-  "db-url": {
-    type: "string",
-    description: "Postgres connection string",
-    valueHint: "url",
-    secret: { stdinFlag: "db-url-stdin", env: "DATABASE_URL" },
-  },
   "db-url-stdin": {
     type: "boolean",
     description:
-      "Read the connection string from stdin, keeping it out of ps and shell history",
+      "Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)",
   },
 } as const;
 
@@ -78,25 +73,53 @@ export const validatorFlag = {
   },
 } as const;
 
-/** The connection string from `--db-url-stdin`, `--db-url`, or `DATABASE_URL` when the leaf needs one. */
-export function dbUrl(
+/**
+ * The connection string from `--db-url-stdin`, or, when the leaf needs one,
+ * `DATABASE_URL` then `SUPABASE_DB_URL`: the order better-supabase reads them.
+ */
+export async function dbUrl(
   ctx: CliContext,
-  flags: {
-    readonly "db-url": string | undefined;
-    readonly "db-url-stdin": boolean;
-  },
+  flags: { readonly "db-url-stdin": boolean },
   options?: { readonly required?: boolean },
 ): Promise<string | undefined> {
-  return secretInput(ctx, {
+  const piped = await secretInput(ctx, {
     flag: "db-url",
-    value: flags["db-url"],
     stdin: flags["db-url-stdin"],
-    env: "DATABASE_URL",
-    useEnv: options?.required === true,
   });
+  if (piped !== undefined || options?.required !== true) {
+    return piped;
+  }
+  for (const name of DB_URL_ENV) {
+    const value = ctx.env[name];
+    if (value !== undefined && value !== "") {
+      ctx.addSecret(value);
+      return value;
+    }
+  }
+  return undefined;
 }
+
+const DB_URL_ENV = ["DATABASE_URL", "SUPABASE_DB_URL"] as const;
 
 /** A string flag given with a value; a bare flag reads as `""`. */
 export function given(value: string | undefined): string | undefined {
   return value === undefined || value === "" ? undefined : value;
+}
+
+/**
+ * `--out` for a command that only writes a file: `-` is refused instead of
+ * creating a file named `-`.
+ */
+export function fileOut(
+  command: string,
+  value: string | undefined,
+): string | undefined {
+  if (value === "-") {
+    throw new CliError(
+      "usage",
+      `${command}: --out - is not supported; name a file.`,
+      { code: "invalid_value", extensions: { flag: "--out" } },
+    );
+  }
+  return given(value);
 }

@@ -39,7 +39,7 @@ describe("runArazzo usage errors", () => {
     async (overrides, missing) => {
       await expect(check(overrides)).rejects.toMatchObject({
         kind: "action",
-        code: "missing_input",
+        code: "input_required",
         extensions: { missing },
       });
     },

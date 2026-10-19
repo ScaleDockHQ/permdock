@@ -226,7 +226,7 @@ generateText({ model, tools, toolApproval }); // granted → approved, denied �
 
 ```bash
 permdock rls generate --target drizzle --dialect supabase   # roles × grants → policies
-permdock rls verify --db-url $DATABASE_URL                      # can() vs database parity
+printf %s "$DATABASE_URL" | permdock rls verify --db-url-stdin                      # can() vs database parity
 ```
 
 ## Agents and approvals

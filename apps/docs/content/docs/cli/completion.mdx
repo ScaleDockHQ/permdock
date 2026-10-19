@@ -24,7 +24,7 @@ The bash script runs on bash 3.2, the version macOS ships.
 - Command and subcommand names, from the same manifest `--help` reads. Hidden commands are left out.
 - Flags of the command typed so far, plus the global flags. Hidden flags are left out.
 - The values of a flag with a fixed set, such as `--format` and `--fail-on`.
-- Catalogue values: `init --archetype`, `--framework`, `--feature` and `--integration` from the preset catalogue, `doctor --only` check codes and groups, `skills install --client` agent clients, `rls generate --split` parts and `codemod` versions. A comma-separated value completes after the last comma and skips the values already given.
+- Catalogue values: `init --archetype`, `--framework`, `--feature` and `--integration` from the preset catalogue, `doctor --only` check codes and groups, `skills install --for` agent clients, `rls generate --split` parts and `codemod` versions. A comma-separated value completes after the last comma and skips the values already given.
 - File names, from the shell, after a flag that takes a path and wherever `permdock` offers nothing.
 
 The scripts call the hidden `permdock __complete -- <words>`, which prints one candidate per line. It prints text in [agent mode](/docs/cli/agent-mode) too, since its reader is the shell.

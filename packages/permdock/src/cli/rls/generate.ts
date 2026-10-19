@@ -12,7 +12,7 @@ import { dateAt } from "../../core/time.ts";
 import { type Policy, listPermissions } from "../../index.ts";
 import { POLICY_NOT_PUBLISHED } from "../cloud/problem-types.ts";
 import { fetchProjectPolicy } from "../cloud/pull.ts";
-import { cliErrorKind, describeError, exitCodeOf } from "../core/errors.ts";
+import { describeError, exitCodeOfError } from "../core/errors.ts";
 import {
   dataMigrationFile,
   driftOf,
@@ -181,7 +181,7 @@ export async function runRlsGenerate(
       warnings.push(...pruned.warnings);
     } catch (cause) {
       return {
-        code: exitCodeOf(cliErrorKind(cause)),
+        code: exitCodeOfError(cause),
         output: describeError(cause),
         text: "",
       };
@@ -258,10 +258,21 @@ export async function runRlsGenerate(
         };
   }
   const written = writeOutputFiles(input.cwd, files);
-  const extra = warnings.length === 0 ? "" : `\n${warnings.join("\n")}`;
+  const notes = [
+    ...(written.wrote.length === 0
+      ? []
+      : [`wrote ${written.wrote.join(", ")}`]),
+    ...warnings,
+  ];
+  if (written.printed !== "") {
+    // Stdout carries only the printed SQL, so `--out -` pipes into a file.
+    for (const note of notes) {
+      input.io.stderr(note);
+    }
+  }
   return {
     code: 0,
-    output: `wrote ${written.wrote.join(", ")}${written.printed === "" ? "" : `\n${written.printed}`}${extra}`,
+    output: written.printed === "" ? notes.join("\n") : written.printed,
     text,
     ...extras,
   };

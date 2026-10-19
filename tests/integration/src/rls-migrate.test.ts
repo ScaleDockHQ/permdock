@@ -10,11 +10,11 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { jwtClaims, visibleIds } from "./support/rls.ts";
 
@@ -98,9 +98,12 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
   let rewrote = "";
 
   const cli = async (args: readonly string[]) => {
-    const result = await run(["rls", ...args, "--rbac", "supabase"], {
-      cwd: FIXTURE,
-    });
+    const result = await runPipingDbUrl(
+      ["rls", ...args, "--rbac", "supabase"],
+      {
+        cwd: FIXTURE,
+      },
+    );
     return { code: result.code, out: `${result.stdout}${result.stderr}` };
   };
 
@@ -231,7 +234,7 @@ export default {
 };
 `,
       );
-      const result = await run(
+      const result = await runPipingDbUrl(
         [
           "rls",
           "verify",
@@ -303,9 +306,12 @@ describe("rls migrate --retire-out on CentraKit's materialised permissions", () 
   let sql = "";
 
   const cli = async (args: readonly string[]) => {
-    const result = await run(["rls", ...args, "--rbac", "supabase"], {
-      cwd: dir,
-    });
+    const result = await runPipingDbUrl(
+      ["rls", ...args, "--rbac", "supabase"],
+      {
+        cwd: dir,
+      },
+    );
     return { code: result.code, out: `${result.stdout}${result.stderr}` };
   };
 

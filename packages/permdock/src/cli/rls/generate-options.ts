@@ -61,7 +61,7 @@ export type RlsGenerateInput = {
   readonly shims?: boolean;
   /** `false` returns the SQL and its policies without touching `out`. */
   readonly write?: boolean;
-  /** `--db-url`: index suggestions leave out what the database already indexes or lacks. */
+  /** `--db-url-stdin`: index suggestions leave out what the database already indexes or lacks. */
   readonly db?: string;
   readonly connect?: SqlConnect;
   readonly io: CliIo;

@@ -119,7 +119,7 @@ async function seedCustomRoles(
     const result = await query(row.sql, row.values);
     if (result.code !== undefined) {
       throw new Error(
-        `PermDock CLI: rls verify --db-url could not seed custom roles (${result.code}); connect as a role that owns the custom_role_* tables`,
+        `PermDock CLI: rls verify --db-url-stdin could not seed custom roles (${result.code}); connect as a role that owns the custom_role_* tables`,
       );
     }
   }

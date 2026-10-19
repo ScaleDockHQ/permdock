@@ -7,6 +7,7 @@ import type {
   RlsStorageBucket,
 } from "../types.ts";
 
+import { configError } from "../core/errors.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { permittedByPermissionHelper } from "./permission-keys.ts";
 
@@ -27,7 +28,7 @@ function policyName(prefix: string, name: string, command: SqlCommand): string {
     .replaceAll(/^_|_$/gu, "");
   const full = `permdock_${prefix}_${slug}_${command}`;
   if (new TextEncoder().encode(full).length > 63) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: the ${prefix} policy name ${full} is longer than Postgres's 63 bytes; shorten '${name}'`,
     );
   }
@@ -46,7 +47,7 @@ function grantKey(
   const key: unknown =
     typeof ref === "object" && ref !== null ? Reflect.get(ref, "key") : ref;
   if (typeof key !== "string" || !facts.keys.has(key)) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: ${where} must be a permission reference from the definitions (got ${JSON.stringify(key)})`,
     );
   }
@@ -64,7 +65,7 @@ function declaredScope(
   where: string,
 ): string {
   if (!facts.scopes.has(scope)) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: ${where} names the scope '${scope}', which definePolicy({ scopes }) does not declare`,
     );
   }
@@ -111,7 +112,7 @@ function realtimePolicies(
           index !== placeholder.index && !LITERAL_SEGMENT.test(segment),
       )
     ) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: ${where} must be ':'-separated segments with exactly one '{<scope>}' segment, such as 'org:{organization}:chat'`,
       );
     }
@@ -125,7 +126,7 @@ function realtimePolicies(
     const read = grantKey(facts, topic.read, `${where}.read`, warnings);
     const write = grantKey(facts, topic.write, `${where}.write`, warnings);
     if (read === undefined) {
-      throw new Error(`PermDock CLI: ${where}.read is required`);
+      throw configError(`PermDock CLI: ${where}.read is required`);
     }
     const policies: CompiledPolicy[] = [
       {
@@ -154,7 +155,7 @@ function realtimePolicies(
 function folderOf(bucket: RlsStorageBucket, where: string): number {
   const folder = bucket.folder ?? 1;
   if (!Number.isInteger(folder) || folder < 1) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: ${where}.folder must be a positive integer (got ${String(folder)})`,
     );
   }
@@ -205,7 +206,7 @@ function storagePolicies(
       ];
     });
     if (policies.length === 0) {
-      throw new Error(`PermDock CLI: ${where} needs read, write or delete`);
+      throw configError(`PermDock CLI: ${where} needs read, write or delete`);
     }
     return policies;
   });
@@ -229,7 +230,7 @@ export function realtimeStoragePolicies(
     return [];
   }
   if (ctx.dialect !== "supabase") {
-    throw new Error(
+    throw configError(
       `PermDock CLI: rls.realtime and rls.storage need --dialect supabase (got ${ctx.dialect})`,
     );
   }
@@ -244,7 +245,7 @@ export function realtimeStoragePolicies(
   const seen = new Set<string>();
   for (const { name } of policies) {
     if (seen.has(name)) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: two rls.realtime or rls.storage entries both name the policy ${name}; rename one`,
       );
     }

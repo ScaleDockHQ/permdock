@@ -689,7 +689,7 @@ describe("permdock codemod", () => {
       readonly type: string;
       readonly detail: string;
     };
-    expect(problem.type).toBe("https://permdock.com/problems/cli-usage");
+    expect(problem.type).toBe("https://permdock.com/docs/cli/errors#usage");
     expect(problem.detail).toBe(
       "unknown codemod version '0.4'. Supported: 0.5.",
     );
@@ -720,7 +720,7 @@ describe("permdock codemod", () => {
   it("asks for a version and reports a missing path", async () => {
     const dir = project(files);
     const missing = await run(["codemod", "--cwd", dir]);
-    expect(missing.code).toBe(2);
+    expect(missing.code).toBe(3);
     expect(missing.stderr).toContain("codemod: <version> is required");
     const unknownPath = await run(["codemod", "0.5", "nope", "--cwd", dir]);
     expect(unknownPath.code).toBe(2);

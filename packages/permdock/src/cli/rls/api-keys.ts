@@ -6,6 +6,7 @@ import type {
 import type { RlsApiKeys } from "../types.ts";
 
 import { SQL_IDENT } from "../../core/sql.ts";
+import { configError } from "../core/errors.ts";
 import { activeInstancesSql, grantPermissionSql } from "../sql/active.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import {
@@ -26,7 +27,7 @@ const DEFAULTS = {
 function field(settings: RlsApiKeys, name: keyof typeof DEFAULTS): string {
   const value = settings[name] ?? DEFAULTS[name];
   if (typeof value !== "string" || !SQL_IDENT.test(value)) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: rls.apiKeys.${name} must be a claim field name matching ${SQL_IDENT.source}`,
     );
   }
@@ -57,7 +58,7 @@ export function apiKeysPlan(
   const fields = apiKeyFields(setting);
   const unknown = fields.serviceRoles.filter((role) => !declared.has(role));
   if (unknown.length > 0) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: rls.apiKeys.serviceRoles names roles the policy does not declare: ${unknown.join(", ")}`,
     );
   }

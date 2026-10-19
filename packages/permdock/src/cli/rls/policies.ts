@@ -2,6 +2,7 @@ import type { CompiledBranch, CompiledPolicy } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { sole } from "../../core/compact.ts";
+import { configError } from "../core/errors.ts";
 import { branchClauses, wrapSql } from "../sql/clauses.ts";
 import { qualified } from "../sql/quote.ts";
 import { subjectClaimJsonSql } from "../sql/subject.ts";
@@ -40,7 +41,7 @@ function render(
 /** Rejects a template that cannot name every policy of the chosen shape uniquely. */
 function assertPolicyName(template: string, perRole: boolean): void {
   if (!perRole && /\{(role|permission)\}/u.test(template)) {
-    throw new Error(
+    throw configError(
       "PermDock CLI: --policy-name {role} and {permission} need --policy-per-role; a collapsed policy covers several roles",
     );
   }
@@ -48,7 +49,7 @@ function assertPolicyName(template: string, perRole: boolean): void {
     !perRole &&
     !(template.includes("{table}") && template.includes("{op}"))
   ) {
-    throw new Error(
+    throw configError(
       "PermDock CLI: --policy-name needs {table} and {op} so each table and command gets its own policy",
     );
   }
@@ -239,7 +240,7 @@ export function readOnlyActorKinds(
   }
   const kinds = setting === true ? DEFAULT_READ_ONLY_ACTORS : setting;
   if (kinds.length === 0 || kinds.some((kind) => !ACTOR_KIND.test(kind))) {
-    throw new Error(
+    throw configError(
       "PermDock CLI: rls.readOnlyActors must be true or a non-empty list of actor kinds such as 'support'",
     );
   }

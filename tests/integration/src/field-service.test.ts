@@ -2,11 +2,11 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const FIXTURE = join(
@@ -31,7 +31,7 @@ describe("field-service fixture", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-field-service-"));
     const out = join(dir, "rls.sql");
-    const result = await run(
+    const result = await runPipingDbUrl(
       ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
       { cwd: FIXTURE },
     );
@@ -52,15 +52,18 @@ describe("field-service fixture", () => {
   });
 
   it("agrees with the policy on every fixture in the database", async () => {
-    const result = await run(["rls", "verify", "--db-url", db!.uri], {
-      cwd: FIXTURE,
-    });
+    const result = await runPipingDbUrl(
+      ["rls", "verify", "--db-url", db!.uri],
+      {
+        cwd: FIXTURE,
+      },
+    );
     expect(result.stdout).toContain("verified 12 fixture(s) in-process");
     expect(result.code).toBe(0);
   });
 
   it("keeps sync-config.yaml current with the policy", async () => {
-    const result = await run(["powersync", "generate", "--check"], {
+    const result = await runPipingDbUrl(["powersync", "generate", "--check"], {
       cwd: FIXTURE,
     });
     expect(result.stdout).toContain("sync-config.yaml is current");
@@ -88,9 +91,12 @@ describe("field-service fixture", () => {
   });
 
   it("syncs no row the policy denies", async () => {
-    const result = await run(["powersync", "verify", "--db-url", db!.uri], {
-      cwd: FIXTURE,
-    });
+    const result = await runPipingDbUrl(
+      ["powersync", "verify", "--db-url", db!.uri],
+      {
+        cwd: FIXTURE,
+      },
+    );
     expect(result.stdout).toContain("no stream syncs a row the fixtures deny");
     expect(result.code).toBe(0);
     expect(result.stdout).toContain(
@@ -102,7 +108,7 @@ describe("field-service fixture", () => {
   });
 
   it("reports no doctor finding for the streams", async () => {
-    const result = await run(["doctor", "--json"], { cwd: FIXTURE });
+    const result = await runPipingDbUrl(["doctor", "--json"], { cwd: FIXTURE });
     expect(result.stdout).not.toContain("PD058");
   });
 });

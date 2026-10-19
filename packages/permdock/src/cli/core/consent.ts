@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 
-import type { Flags } from "./command.ts";
 import type { Effect } from "./manifest.ts";
 
 import { CliError } from "./errors.ts";
@@ -33,21 +32,18 @@ export function consentReasons(
   return reasons;
 }
 
-function quote(token: string): string {
+/** A token as the shell reads it back unchanged. */
+export function quote(token: string): string {
   return /^[\w@%+=:,./-]+$/u.test(token)
     ? token
     : `'${token.replaceAll("'", String.raw`'\''`)}'`;
 }
 
 /**
- * The argv as a command line to run again: `--confirm` dropped and a
- * secret flag's value replaced by its stdin form, so the line can be shown
- * and the token does not depend on the secret.
+ * The argv as a command line to run again, `--confirm` dropped. Secrets
+ * only arrive through `--*-stdin` flags, so the line holds none.
  */
-export function replayArgv(
-  argv: readonly string[],
-  flags: Flags,
-): readonly string[] {
+export function replayArgv(argv: readonly string[]): readonly string[] {
   const out: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i] ?? "";
@@ -58,26 +54,25 @@ export function replayArgv(
       i += token.includes("=") ? 0 : 1;
       continue;
     }
-    const flag = name === undefined ? undefined : flags[name];
-    if (flag?.type === "string" && flag.secret !== undefined) {
-      out.push(`--${flag.secret.stdinFlag}`);
-      i += token.includes("=") ? 0 : 1;
-      continue;
-    }
     out.push(token);
   }
   return out;
 }
 
 /**
- * A short token bound to the command line and the directory it runs in. Hex,
- * because a base64url token may start with `-` and parse as a flag.
+ * A short token bound to what the person agrees to, the directory and the
+ * command line. Hex, because a base64url token may start with `-` and parse
+ * as a flag. 16 characters, as better-supabase's.
  */
-export function consentToken(argv: readonly string[], cwd: string): string {
+export function consentToken(
+  reasons: readonly ConsentReason[],
+  argv: readonly string[],
+  cwd: string,
+): string {
   return createHash("sha256")
-    .update(JSON.stringify([cwd, ...argv]))
+    .update(JSON.stringify([reasons, cwd, ...argv]))
     .digest("hex")
-    .slice(0, 12);
+    .slice(0, 16);
 }
 
 const REASON_TEXT: Readonly<Record<ConsentReason, string>> = {

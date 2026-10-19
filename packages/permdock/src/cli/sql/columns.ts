@@ -2,6 +2,7 @@ import type { RlsSqlContext } from "./context.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { isForbiddenKey } from "../../core/paths.ts";
+import { configError } from "../core/errors.ts";
 
 /** The Postgres type a JSON Schema property compares as; `undefined` for text or an unknown shape. */
 function columnTypeOf(property: unknown): string | undefined {
@@ -99,7 +100,7 @@ const SQL_TYPE = /^[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)*(\[\])?$/u;
 
 export function sqlType(name: string): string {
   if (!SQL_TYPE.test(name)) {
-    throw new Error(`PermDock CLI: unsafe SQL type '${name}'`);
+    throw configError(`PermDock CLI: unsafe SQL type '${name}'`);
   }
   return name;
 }

@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "agent-mode",
+    "errors",
     "init",
     "preset",
     "scan",

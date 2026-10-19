@@ -43,7 +43,7 @@ describe("the built permdock bin", () => {
       $schema: "https://permdock.com/schemas/cli-result-v1.json",
       status: "error",
       error: {
-        type: "https://permdock.com/problems/cli-usage",
+        type: "https://permdock.com/docs/cli/errors#unknown_command",
         code: "unknown_command",
         exitCode: 2,
       },

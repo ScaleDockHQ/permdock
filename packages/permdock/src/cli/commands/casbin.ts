@@ -1,5 +1,5 @@
 import { type Leaf, defineLeaf } from "../core/command.ts";
-import { given, outFlag } from "../core/flags.ts";
+import { fileOut, given, outFlag } from "../core/flags.ts";
 
 export const casbinImport: Leaf = defineLeaf({
   flags: {
@@ -22,7 +22,7 @@ export const casbinImport: Leaf = defineLeaf({
       cwd: ctx.cwd,
       model: given(flags.model),
       policy: given(flags.policy),
-      out: given(flags.out),
+      out: fileOut("casbin import", flags.out),
       json: ctx.json,
     });
   },

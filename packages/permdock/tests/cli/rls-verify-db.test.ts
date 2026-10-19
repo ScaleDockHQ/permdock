@@ -57,7 +57,7 @@ function rowsFor(
   };
 }
 
-describe("rls verify --db-url through an injected client", () => {
+describe("rls verify --db-url-stdin through an injected client", () => {
   it("agrees when the database allows what decide grants and filters what it denies", async () => {
     const sql = fakeSql(rowsFor((call) => (call.values[0] === "p1" ? 1 : 0)));
     const cwd = app([
@@ -404,12 +404,14 @@ describe("rls verify --db-url through an injected client", () => {
       io,
       connect: () =>
         Promise.reject(
-          new Error("PermDock CLI: rls verify --db-url could not connect"),
+          new Error(
+            "PermDock CLI: rls verify --db-url-stdin could not connect",
+          ),
         ),
     });
     expect(outcome).toEqual({
       code: 2,
-      output: "PermDock CLI: rls verify --db-url could not connect",
+      output: "PermDock CLI: rls verify --db-url-stdin could not connect",
     });
   });
 
@@ -505,7 +507,7 @@ describe("rls verify fixtures", () => {
 });
 
 describe("rls verify --tree through an injected client", () => {
-  it("needs --db-url", async () => {
+  it("needs a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL", async () => {
     const cwd = app([]);
     expect(
       await runRlsVerify({
@@ -517,7 +519,8 @@ describe("rls verify --tree through an injected client", () => {
       }),
     ).toEqual({
       code: 2,
-      output: "PermDock CLI: rls verify --tree needs --db-url",
+      output:
+        "PermDock CLI: rls verify --tree needs a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
     });
   });
 

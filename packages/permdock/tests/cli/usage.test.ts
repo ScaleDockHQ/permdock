@@ -71,11 +71,11 @@ describe("runUsage setup errors", () => {
         output: "PermDock CLI: policy module not found: ./src/absent.ts",
       },
     );
-    expect(
-      await usage(cwd, { config: { policy: "./src/not-policy.ts" } }),
-    ).toEqual({
-      code: 2,
-      output: "PermDock CLI: policy export is not a Policy",
+    await expect(
+      usage(cwd, { config: { policy: "./src/not-policy.ts" } }),
+    ).rejects.toMatchObject({
+      code: "config_invalid",
+      message: "PermDock CLI: policy export is not a Policy",
     });
   });
 });

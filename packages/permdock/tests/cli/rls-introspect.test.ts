@@ -154,11 +154,11 @@ describe("rls verify --introspect", () => {
     ]);
   });
 
-  it("needs --db-url", async () => {
+  it("needs a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL", async () => {
     const result = await run(["rls", "verify", "--introspect"]);
     expect(result.code).toBe(2);
     expect(result.stderr + result.stdout).toContain(
-      "rls verify --introspect needs --db-url",
+      "rls verify --introspect needs a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
     );
   });
 });

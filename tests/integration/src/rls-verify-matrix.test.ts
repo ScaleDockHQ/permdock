@@ -2,12 +2,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres, databaseUri, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -221,7 +221,7 @@ describe("rls verify matrix (admin, member, viewer, non-member, global role)", (
     db = await startPostgres([ROLES]);
     for (const shape of SHAPES) {
       const out = join(dir, `${shape.name}.sql`);
-      const generated = await run(
+      const generated = await runPipingDbUrl(
         [
           "rls",
           "generate",
@@ -268,7 +268,7 @@ describe("rls verify matrix (admin, member, viewer, non-member, global role)", (
       if (db === undefined) {
         throw new Error("PermDock: Postgres was not started");
       }
-      const result = await run(
+      const result = await runPipingDbUrl(
         [
           "rls",
           "verify",
@@ -286,13 +286,13 @@ describe("rls verify matrix (admin, member, viewer, non-member, global role)", (
     },
   );
 
-  it("reads the live policies back to roles with rls import --db-url", async () => {
+  it("reads the live policies back to roles with rls import --db-url-stdin", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
     for (const shape of ["collapsed_database", "per_role_database"]) {
       const out = join(dir, `${shape}.generated.ts`);
-      const imported = await run(
+      const imported = await runPipingDbUrl(
         ["rls", "import", "--db-url", databaseUri(db.uri, shape), "--out", out],
         { cwd: FIXTURE },
       );

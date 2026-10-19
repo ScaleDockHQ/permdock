@@ -1,6 +1,6 @@
 -- better-supabase module: audit (0.8.0)
 -- @bs-module-test audit
--- Managed by `better-supabase sql add`; re-running it overwrites this file.
+-- Managed by `better-supabase add`; re-running it overwrites this file.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 begin;

@@ -118,7 +118,7 @@ export const SECTIONS: readonly Section[] = [
           leaf("install", "Copy the Agent Skills into the agent folders", {
             examples: [
               "permdock skills install",
-              "permdock skills install --client cursor --client claude",
+              "permdock skills install --for cursor --for claude",
               "permdock skills install --check",
             ],
             docs: "skills",

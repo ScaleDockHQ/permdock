@@ -44,7 +44,7 @@ export async function readConfig(
       "usage",
       `PermDock CLI: config file not found: ${path}`,
       {
-        code: "missing_config",
+        code: "config_not_found",
       },
     );
   }

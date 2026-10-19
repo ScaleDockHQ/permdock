@@ -1,6 +1,7 @@
 import type { CompiledPolicy, SqlCommand } from "../sql/compile.ts";
 import type { RlsDialect, RlsTarget } from "../types.ts";
 
+import { configError } from "../core/errors.ts";
 import { quoteIdent, quoteQualified } from "../sql/quote.ts";
 import { supautilsRejections } from "../sql/supautils.ts";
 import {
@@ -194,7 +195,7 @@ const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
 function identifier(name: string, what: string): string {
   if (!IDENTIFIER.test(name)) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: ${what} ${JSON.stringify(name)} is not an identifier`,
     );
   }
@@ -335,7 +336,7 @@ export function emitPrisma(
   ];
   for (const item of policies) {
     if (item.effect === "deny") {
-      throw new Error(
+      throw configError(
         `PermDock CLI: Prisma policy blocks are permissive only, so ${item.name} (a deny) needs --target sql`,
       );
     }

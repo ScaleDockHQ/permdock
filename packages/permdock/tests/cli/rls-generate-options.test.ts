@@ -80,7 +80,7 @@ function generate(rls: NonNullable<PermDockConfig["rls"]>) {
 }
 
 describe("rls generate options", () => {
-  it("exits 1, not 2, when --db-url cannot be reached", async () => {
+  it("exits 1, not 2, when --db-url-stdin cannot be reached", async () => {
     const outcome = await runRlsGenerate({
       cwd,
       config: { policy: "./manage.ts", rls: { memberships } },

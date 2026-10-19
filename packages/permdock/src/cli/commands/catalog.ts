@@ -39,7 +39,7 @@ export const catalog: Leaf = defineLeaf({
       now: ctx.now,
       io: ctx.io,
     });
-    const out = given(flags.out);
+    const out = given(flags.out === "-" ? "" : flags.out);
     if (out === undefined) {
       if (flags.check) {
         throw missingInput("catalog --check", ["--out"], "the file to compare");

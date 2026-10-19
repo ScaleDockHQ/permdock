@@ -57,8 +57,8 @@ describe("Problem Details under --json", () => {
       $schema: ENVELOPE,
       status: "error",
       error: {
-        type: "https://permdock.com/problems/cli-usage",
-        title: "Usage or configuration error",
+        type: "https://permdock.com/docs/cli/errors#unknown_command",
+        title: "Unknown command",
         detail: expect.stringContaining("unknown command 'nope'"),
         code: "unknown_command",
         exitCode: 2,
@@ -67,25 +67,34 @@ describe("Problem Details under --json", () => {
   });
 
   it("names the command and exits 1 when the database does not answer", async () => {
-    const result = await run([
-      "rls",
-      "verify",
-      "--introspect",
-      "--db-url",
-      "postgres://permdock:permdock@127.0.0.1:1/missing",
-      "--json",
-      "--cwd",
-      FIXTURE,
-    ]);
+    const result = await run(
+      [
+        "rls",
+        "verify",
+        "--introspect",
+        "--db-url-stdin",
+        "--json",
+        "--cwd",
+        FIXTURE,
+      ],
+      {
+        io: {
+          stdout: () => undefined,
+          stderr: () => undefined,
+          readStdin: () =>
+            Promise.resolve("postgres://permdock:permdock@127.0.0.1:1/missing"),
+        },
+      },
+    );
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
       $schema: ENVELOPE,
       status: "error",
       error: {
-        type: "https://permdock.com/problems/cli-unavailable",
-        title: "A database or service the command needs did not answer",
+        type: "https://permdock.com/docs/cli/errors#database_unreachable",
+        title: "Database unreachable",
         detail: "PermDock CLI: rls verify --introspect could not connect",
-        code: "database_unavailable",
+        code: "database_unreachable",
         command: "rls verify",
         exitCode: 1,
       },
@@ -110,8 +119,8 @@ describe("Problem Details under --json", () => {
         stale: true,
       },
       error: {
-        type: "https://permdock.com/problems/cli-failed",
-        title: "The check the command ran found a problem",
+        type: "https://permdock.com/docs/cli/errors#check_failed",
+        title: "Out of date",
         detail: "catalog missing: permissions.catalog.json",
         code: "check_failed",
         command: "collect",
@@ -127,7 +136,7 @@ describe("Problem Details under --json", () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       status: "error",
       error: {
-        type: "https://permdock.com/problems/cli-usage",
+        type: "https://permdock.com/docs/cli/errors#usage",
         command: "usage",
         exitCode: 2,
       },

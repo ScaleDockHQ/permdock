@@ -13,7 +13,7 @@ The catalog entry is `better-supabase: file:.better-supabase/better-supabase.tgz
 
 ## Consequences
 
-The lockfile pins the tarball's integrity, so CI packs the same commit the lockfile was written from; the script warns when the local checkout is at another commit. After changing the sibling, run `node scripts/better-supabase-checkout.ts --force` and `pnpm install`, then bump `COMMIT` once the change is pushed.
+The lockfile pins the tarball's integrity, so CI packs the same commit the lockfile was written from; the script warns when the local checkout is at another commit. After changing the sibling, run `node scripts/better-supabase-checkout.ts --force` and `pnpm install`, then bump `COMMIT` once the change is pushed. The script packs the sibling's working tree, uncommitted edits included; when the sibling has any, pack from a clean `git worktree` at `COMMIT` instead, or the lockfile integrity will not match CI. `COMMIT` is `b69e916e8` (better-supabase `main`, 2026-10-19), the first commit with the shared CLI contract that 0037 describes.
 
 The `permdock` peer range is `>=0.9.0 <0.10.0` (2026-10-18), because the slots exist only from 0.9. The tarball still reports version 0.8.0, so `allowAny` stays. `tests/better-supabase/peer-floor.test.ts` checks that every name `src/better-supabase` imports exists in the installed package; until 0.9.0 is on npm that package is the tarball.
 

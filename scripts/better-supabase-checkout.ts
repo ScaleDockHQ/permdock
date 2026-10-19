@@ -16,7 +16,7 @@ import { parseArgs } from "node:util";
 // sibling's own `catalog:` ranges, and an installed tarball resolves its peers
 // from this repository; `link:` would resolve them from the sibling. The
 // lockfile pins the tarball's integrity, so CI must pack the same commit.
-const COMMIT = "eb98b926a0506c624c8345dc8c5c142fb4cc86c8";
+const COMMIT = "b69e916e852707fd31078e971fd8c1124437e91a";
 const REPOSITORY = "https://github.com/ScaleDockHQ/better-supabase.git";
 
 const { values } = parseArgs({

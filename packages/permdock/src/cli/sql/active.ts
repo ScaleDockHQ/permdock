@@ -8,6 +8,7 @@ import type { CheckedPermission, RlsSqlContext } from "./context.ts";
 import { type Scope, resolveScope, scopeChain } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
+import { configError } from "../core/errors.ts";
 import { scopeTypeOf } from "./columns.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "./quote.ts";
 import { subjectIdSql } from "./subject.ts";
@@ -21,13 +22,13 @@ function checkActiveRow(label: string, row: RlsActiveRow): void {
   if (row.status !== undefined) {
     quoteIdent(row.status);
     if (row.active === undefined || row.active.length === 0) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: ${label}.status needs the active values in ${label}.active`,
       );
     }
   }
   if (row.disabledAt === undefined && row.status === undefined) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: ${label} needs disabledAt or status to tell an active row`,
     );
   }
@@ -48,13 +49,13 @@ export function checkSuspension(
   for (const [key, row] of Object.entries(suspension.scopes ?? {})) {
     const name = resolveScope(scopes, key);
     if (name === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.suspension.scopes.${key} names a scope the policy does not declare`,
       );
     }
     checkActiveRow(`rls.suspension.scopes.${key}`, row);
     if (row.keep !== undefined && !Array.isArray(row.keep)) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.suspension.scopes.${key}.keep is a list of permissions or permission keys`,
       );
     }
@@ -64,7 +65,7 @@ export function checkSuspension(
   }
   const memberships = suspension.memberships;
   if (memberships?.keep !== undefined && !Array.isArray(memberships.keep)) {
-    throw new Error(
+    throw configError(
       "PermDock CLI: rls.suspension.memberships.keep is a list of permissions or permission keys",
     );
   }
@@ -176,7 +177,7 @@ export function activeInstancesSql(
     }
     const id = idOf(name);
     if (id === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.suspension.scopes.${name} needs the ${name} id on ${scope} memberships: add columns.${name} to the ${scope} memberships table`,
       );
     }

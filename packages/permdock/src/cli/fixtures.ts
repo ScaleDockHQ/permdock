@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import type { CustomRole, Membership, Subject } from "../index.ts";
 
 import { isRecord } from "../core/compact.ts";
+import { configError } from "./core/errors.ts";
 import { readJsonFile } from "./files.ts";
 import { loadModule, pickNamed } from "./project/load.ts";
 
@@ -36,7 +37,9 @@ function asFixtures(value: unknown): readonly RlsFixture[] {
       ? value["fixtures"]
       : undefined;
   if (list === undefined) {
-    throw new Error("PermDock CLI: fixtures must be an array or { fixtures }");
+    throw configError(
+      "PermDock CLI: fixtures must be an array or { fixtures }",
+    );
   }
   return list.map((item, index) => {
     if (
@@ -44,7 +47,7 @@ function asFixtures(value: unknown): readonly RlsFixture[] {
       !isRecord(item["subject"]) ||
       item["row"] === undefined
     ) {
-      throw new Error(`PermDock CLI: fixture ${index} needs subject and row`);
+      throw configError(`PermDock CLI: fixture ${index} needs subject and row`);
     }
     if (typeof item["action"] !== "string") {
       throw new TypeError(`PermDock CLI: fixture ${index} needs action`);
@@ -54,19 +57,19 @@ function asFixtures(value: unknown): readonly RlsFixture[] {
     }
     const memberships = item["subject"]["memberships"];
     if (memberships !== undefined && !Array.isArray(memberships)) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: fixture ${index} subject.memberships must be an array`,
       );
     }
     const tenant = item["subject"]["tenant"];
     if (tenant !== undefined && typeof tenant !== "string") {
-      throw new Error(
+      throw configError(
         `PermDock CLI: fixture ${index} subject.tenant must be a string`,
       );
     }
     const claims = item["subject"]["claims"];
     if (claims !== undefined && !isRecord(claims)) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: fixture ${index} subject.claims must be an object`,
       );
     }
@@ -93,7 +96,7 @@ export async function loadFixtures(
 ): Promise<FixtureFile> {
   const abs = resolve(cwd, path);
   if (!existsSync(abs)) {
-    throw new Error(`PermDock CLI: fixtures not found: ${path}`);
+    throw configError(`PermDock CLI: fixtures not found: ${path}`);
   }
   if (abs.endsWith(".json")) {
     const parsed: unknown = readJsonFile(abs);

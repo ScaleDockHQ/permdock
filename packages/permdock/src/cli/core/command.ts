@@ -26,8 +26,6 @@ export type StringFlag = FlagBase & {
   readonly valueHint?: string;
   /** Every occurrence counts and values split on commas. */
   readonly repeatable?: boolean;
-  /** Reads the value from stdin; the flag that names the secret's stdin form. */
-  readonly secret?: { readonly stdinFlag: string; readonly env?: string };
   /** Takes a comma-separated list, as `--split helpers,seeds` does. */
   readonly list?: boolean;
   readonly complete?: CompleteValues;

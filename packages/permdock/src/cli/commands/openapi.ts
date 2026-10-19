@@ -2,6 +2,7 @@ import { type Leaf, defineLeaf } from "../core/command.ts";
 import { missingInput } from "../core/errors.ts";
 import {
   checkFlag,
+  fileOut,
   given,
   outFlag,
   policyFlag,
@@ -91,7 +92,7 @@ export const emit: Leaf = defineLeaf({
       config: ctx.config,
       rest: ["emit"],
       doc: given(flags.doc),
-      out: given(flags.out),
+      out: fileOut("openapi emit", flags.out),
       from: given(flags.policy),
       target: flags.target,
       format: flags.kind,
@@ -140,7 +141,7 @@ export const importDocument: Leaf = defineLeaf({
     return runOpenapiImport({
       cwd: ctx.cwd,
       doc,
-      out: given(flags.out),
+      out: fileOut("openapi import", flags.out),
       schema: flags.validator,
       map: given(flags.map),
       annotate: flags.annotate,

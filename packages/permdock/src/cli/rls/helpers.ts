@@ -1,5 +1,6 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 
+import { configError } from "../core/errors.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import {
   hasMemberFor,
@@ -67,7 +68,7 @@ export function accessSql(
     return `(select ${qualified(ctx, HELPERS.has)}(${key}))`;
   }
   if (column === undefined) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: ${scope}-scoped grant needs definePolicy({ scopes.${scope} })`,
     );
   }

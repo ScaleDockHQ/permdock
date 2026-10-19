@@ -2,11 +2,11 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -44,7 +44,7 @@ function claims(extra: Readonly<Record<string, unknown>> = {}): string {
 }
 
 async function verify(uri: string): Promise<{ code: number; out: string }> {
-  const result = await run(
+  const result = await runPipingDbUrl(
     ["rls", "verify", "--introspect", "--db-url", uri, "--dialect", "supabase"],
     { cwd: FIXTURE },
   );
@@ -57,7 +57,7 @@ describe("rls verify --introspect", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-introspect-"));
     const out = join(dir, "rls.sql");
-    const result = await run(
+    const result = await runPipingDbUrl(
       [
         "rls",
         "generate",
@@ -134,11 +134,11 @@ describe("rls verify --introspect", () => {
     expect(result.code).toBe(0);
   });
 
-  it("suggests only indexes the database lacks with rls generate --db-url", async () => {
+  it("suggests only indexes the database lacks with rls generate --db-url-stdin", async () => {
     const pg = started();
     const dir = mkdtempSync(join(tmpdir(), "permdock-introspect-db-"));
     const suggest = async (): Promise<string> => {
-      const result = await run(
+      const result = await runPipingDbUrl(
         [
           "rls",
           "generate",

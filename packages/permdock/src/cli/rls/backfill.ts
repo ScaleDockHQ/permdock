@@ -8,6 +8,7 @@ import type {
 
 import { qualifySqlTable, sqlTextArray } from "../../core/sql.ts";
 import { type RoleSource, roleColumn } from "../../supabase/roles.ts";
+import { configError } from "../core/errors.ts";
 import { byCodeUnit, byKey } from "../shared/compare.ts";
 import { beforeFirst } from "../shared/text.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
@@ -43,7 +44,7 @@ function roleRef(
   const pairs = Object.entries(role.on);
   const [pair] = pairs;
   if (pair === undefined || pairs.length !== 1) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: ${label}.on must map exactly one column of ${table} to ${role.through}, for example { role_id: 'id' }`,
     );
   }
@@ -51,12 +52,12 @@ function roleRef(
     ? role.through
     : `${schemaOf(table)}.${role.through}`;
   if (qualifySqlTable(through) !== qualifySqlTable(roles.table)) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: ${label}.through must be rls.customRoleWrites.roles.table (${roles.table}), got ${role.through}`,
     );
   }
   if (role.column !== roles.key) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: ${label}.column must be rls.customRoleWrites.roles.key (${roles.key}), got ${role.column}`,
     );
   }
@@ -124,22 +125,22 @@ export function backfillSql(
   const custom = ctx.customRoles;
   const root = ctx.scopes[0]?.name;
   if (custom === undefined || root === undefined) {
-    throw new Error(`${PREFIX}: rls.customRoles.from needs custom roles on`);
+    throw configError(`${PREFIX}: rls.customRoles.from needs custom roles on`);
   }
   if (ctx.authorize !== "database") {
-    throw new Error(
+    throw configError(
       `${PREFIX}: rls.customRoles.from needs database mode; in jwt mode custom roles ride the token, so build the grants claim with customRoleClaim`,
     );
   }
   const roles = custom.table;
   if (roles === undefined) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: rls.customRoles.from needs rls.customRoleWrites.roles, the roles table each row belongs to`,
     );
   }
   const leveled = custom.levels === true;
   if (from.permissions.level !== undefined && !leveled) {
-    throw new Error(
+    throw configError(
       `${PREFIX}: rls.customRoles.from.permissions.level is set, but no resource declares levels`,
     );
   }

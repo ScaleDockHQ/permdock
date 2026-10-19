@@ -8,7 +8,6 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { testRlsParity, type RlsParityFixture } from "permdock/testing";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -17,6 +16,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions } from "../fixtures/rls-fields/permissions.ts";
 import { policy } from "../fixtures/rls-fields/policy.ts";
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres, databaseUri, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -313,7 +313,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
       const out = join(cwd, "rls.sql");
       mkdirSync(cwd);
       writeFileSync(join(cwd, "permdock.config.ts"), configFor(shape));
-      const generated = await run(
+      const generated = await runPipingDbUrl(
         [
           "rls",
           "generate",
@@ -370,7 +370,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
         throw new Error("PermDock: Postgres was not started");
       }
       const name = shapeName(shape);
-      const result = await run(
+      const result = await runPipingDbUrl(
         [
           "rls",
           "verify",
@@ -467,14 +467,14 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
     },
   );
 
-  it("reads the generated view back with rls import --db-url", async () => {
+  it("reads the generated view back with rls import --db-url-stdin", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
     for (const shape of SHAPES.filter((item) => item.dialect === "supabase")) {
       const name = shapeName(shape);
       const out = join(dir, `${name}.generated.ts`);
-      const imported = await run(
+      const imported = await runPipingDbUrl(
         ["rls", "import", "--db-url", databaseUri(db.uri, name), "--out", out],
         { cwd: join(dir, name) },
       );

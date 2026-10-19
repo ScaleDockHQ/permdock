@@ -3,6 +3,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type { ShimGrants } from "./shims.ts";
 
 import { partitionsOf, scopeField } from "../../core/tenancy.ts";
+import { configError } from "../core/errors.ts";
 import { byKey } from "../shared/compare.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import { permittedForHelper, permittedIdsHelper } from "../sql/names.ts";
@@ -60,7 +61,7 @@ export function requiresSql(
 /** Postgres truncates an identifier past 63 bytes, which would merge two helpers. */
 export function checkName(name: string): string {
   if (new TextEncoder().encode(name).length > 63) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: the helper name ${name} is longer than 63 bytes; use a shorter scope name`,
     );
   }

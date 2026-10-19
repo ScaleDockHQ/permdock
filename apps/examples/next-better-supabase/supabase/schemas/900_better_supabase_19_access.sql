@@ -1,7 +1,7 @@
 -- better-supabase module: access (0.8.0)
 -- @bs-module access@1 managed
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.access.model).
--- Managed by `better-supabase sql add`; re-running it overwrites this file.
+-- Managed by `better-supabase add`; re-running it overwrites this file.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 create schema if not exists better_supabase;

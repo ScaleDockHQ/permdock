@@ -24,7 +24,7 @@ import { runRlsVerify } from "./verify.ts";
 export const RLS_HELP = `permdock rls generate | import | verify | migrate
 
   generate  Compile the policy into RLS policies and helpers
-  import    Turn existing policies (--sql or --db-url) into a permissions module
+  import    Turn existing policies (--sql or --db-url-stdin) into a permissions module
   verify    Run the fixtures, or compare a live database with --introspect
   migrate   Rewrite the rls.migrate helpers' calls onto the generated helpers
 
@@ -80,7 +80,7 @@ export type RlsRunInput = {
   readonly forceRewrite?: boolean;
   readonly json: boolean;
   readonly io: CliIo;
-  /** Opens every `--db-url` connection; defaults to the `pg` peer. */
+  /** Opens every `--db-url-stdin` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
   /** `verify --advisors`: run `supabase db advisors` instead of the fixtures. */
   readonly advisors?: boolean;
@@ -259,7 +259,8 @@ async function introspect(input: RlsRunInput): Promise<CommandResult> {
   if (input.db === undefined) {
     return {
       code: 2,
-      output: "PermDock CLI: rls verify --introspect needs --db-url",
+      output:
+        "PermDock CLI: rls verify --introspect needs a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
     };
   }
   const dialect = asDialect(input.dialect ?? input.config.rls?.dialect);

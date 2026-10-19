@@ -2,6 +2,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsApprovalsAdopt } from "../types.ts";
 
 import { APPROVAL_REQUEST_SCHEMA } from "../../approvals/request-schema.ts";
+import { configError } from "../core/errors.ts";
 import { memberIdsHelper } from "../sql/names.ts";
 import {
   qualified,
@@ -360,7 +361,7 @@ export function approvalsSql(
       ["token", "body", "open", "schema", "mirror"] as const
     ).find((key) => approvals[key] !== undefined);
     if (adoptOnly !== undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.approvals.${adoptOnly} adopts a table; set rls.approvals.table too`,
       );
     }
@@ -582,7 +583,7 @@ function mirrorsOf(adopt: RlsApprovalsAdopt): Mirror {
   const out: [string, keyof typeof MIRRORS][] = [];
   for (const [field, column] of Object.entries(adopt.mirror ?? {})) {
     if (!Object.hasOwn(MIRRORS, field)) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.approvals.mirror.${field} is not a request field; use ${Object.keys(MIRRORS).join(", ")}`,
       );
     }
@@ -651,20 +652,22 @@ export function adoptedApprovalStoreSql(
       column === (adopt.token ?? "token") ||
       column === (adopt.body ?? "body")
     ) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.approvals.mirror names the ${column} column, which already holds the token or the body`,
       );
     }
   }
   const open = adopt.open ?? "insert";
   if (open !== "insert" && open !== "attach") {
-    throw new Error(
+    throw configError(
       `PermDock CLI: rls.approvals.open must be 'insert' or 'attach', got '${String(open)}'`,
     );
   }
   const schema = adopt.schema;
   if (schema !== undefined && (typeof schema !== "string" || schema === "")) {
-    throw new Error("PermDock CLI: rls.approvals.schema must be a schema name");
+    throw configError(
+      "PermDock CLI: rls.approvals.schema must be a schema name",
+    );
   }
   const fn = (name: string): string =>
     schema === undefined

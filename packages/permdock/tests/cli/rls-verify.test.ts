@@ -190,7 +190,7 @@ export const policy = definePolicy(permissions, {
     expect(result.stdout).toContain("denied");
   });
 
-  it("verify --db-url reports a connection failure and opaque grants as untestable", async () => {
+  it("verify --db-url-stdin reports a connection failure and opaque grants as untestable", async () => {
     const cwd = miniAppCopy();
     writeFileSync(
       join(cwd, "src/opaque-policy.ts"),
@@ -238,15 +238,16 @@ export const policy = definePolicy(permissions, {
     expect(inProcess.code).toBe(0);
     expect(inProcess.stdout).toContain("untestable app-side");
     const missing = await run(
-      [
-        "rls",
-        "verify",
-        "--db-url",
-        "postgres://permdock:permdock@127.0.0.1:1/missing",
-        "--fixtures",
-        "rls.fixtures.json",
-      ],
-      { cwd },
+      ["rls", "verify", "--db-url-stdin", "--fixtures", "rls.fixtures.json"],
+      {
+        cwd,
+        io: {
+          stdout: () => undefined,
+          stderr: () => undefined,
+          readStdin: () =>
+            Promise.resolve("postgres://permdock:permdock@127.0.0.1:1/missing"),
+        },
+      },
     );
     expect(missing.code).toBe(1);
     expect(missing.stderr).toContain("could not connect");

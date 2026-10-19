@@ -55,7 +55,7 @@ import { versionSql } from "./version.ts";
 
 const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
-  hook generate [--out <file>] [--check] [--db-url <url>] [--schemas pg-delta|migra|migrations]
+  hook generate [--out <file>] [--check] [--db-url-stdin] [--schemas pg-delta|migra|migrations]
                 [--active-from app_metadata.active_<scope>|<table>.<column>]
                 [--budget 1024] [--schema public] [--grants-out <file>|-]
   inspect [--json] [--out [permdock.manifest.json]] [--check]

@@ -8,6 +8,7 @@ import {
   supabaseMembershipsBudget,
   supabaseTenantClaim,
 } from "../../supabase/sources.ts";
+import { configError } from "../core/errors.ts";
 import { authAdminRead, hookUri } from "../rls/rbac.ts";
 import { beforeFirst } from "../shared/text.ts";
 import { activeRowSql, checkSuspension } from "../sql/active.ts";
@@ -366,7 +367,7 @@ export function hookParts(
 ): Parts {
   const hook = config.supabase?.hook;
   if (hook === undefined) {
-    throw new Error(
+    throw configError(
       "PermDock CLI: supabase hook generate needs supabase.hook in permdock.config.ts",
     );
   }
@@ -421,10 +422,10 @@ export function hookParts(
     },
   };
   if (parts.attrs !== undefined && parts.attrs.errors.length > 0) {
-    throw new Error(`PermDock CLI: ${parts.attrs.errors.join("; ")}`);
+    throw configError(`PermDock CLI: ${parts.attrs.errors.join("; ")}`);
   }
   if (extraPlan.errors.length > 0) {
-    throw new Error(`PermDock CLI: ${extraPlan.errors.join("; ")}`);
+    throw configError(`PermDock CLI: ${extraPlan.errors.join("; ")}`);
   }
   quoteIdent(parts.tenantClaim);
   return parts;

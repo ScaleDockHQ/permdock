@@ -14,7 +14,6 @@ import {
   consentToken,
   replayArgv,
 } from "../../src/cli/core/consent.ts";
-import { dbUrlFlags } from "../../src/cli/core/flags.ts";
 import { run } from "../../src/cli/core/run.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -53,7 +52,7 @@ describe("consent in agent mode", () => {
     const result = await run(["codemod", "0.5"], { cwd, io: io() });
     expect(result.code).toBe(3);
     const envelope: unknown = JSON.parse(result.stdout);
-    const token = consentToken(["codemod", "0.5"], cwd);
+    const token = consentToken(["rewrite"], ["codemod", "0.5"], cwd);
     expect(envelope).toMatchObject({
       status: "action_required",
       error: {
@@ -83,15 +82,15 @@ describe("consent in agent mode", () => {
 
   it("makes tokens that never parse as a flag", () => {
     for (let i = 0; i < 500; i += 1) {
-      expect(consentToken(["codemod", "0.5"], `/repo/${i}`)).toMatch(
-        /^[0-9a-f]{12}$/u,
-      );
+      expect(
+        consentToken(["rewrite"], ["codemod", "0.5"], `/repo/${i}`),
+      ).toMatch(/^[0-9a-f]{16}$/u);
     }
   });
 
   it("is not satisfied by --yes or by a token for another command line", async () => {
     const cwd = project();
-    const token = consentToken(["codemod", "0.5", "src"], cwd);
+    const token = consentToken(["rewrite"], ["codemod", "0.5", "src"], cwd);
     for (const argv of [
       ["codemod", "0.5", "--yes"],
       ["codemod", "0.5", "--confirm", token],
@@ -153,22 +152,16 @@ describe("consentReasons", () => {
 });
 
 describe("replayArgv", () => {
-  it("drops --confirm and keeps a secret out of the command line", () => {
+  it("drops --confirm in both spellings", () => {
     expect(
-      replayArgv(
-        [
-          "rls",
-          "verify",
-          "--db-url",
-          "postgres://u:secret@db/app",
-          "--confirm=abc",
-          "--tree",
-        ],
-        dbUrlFlags,
-      ),
+      replayArgv([
+        "rls",
+        "verify",
+        "--db-url-stdin",
+        "--confirm=abc",
+        "--tree",
+      ]),
     ).toEqual(["rls", "verify", "--db-url-stdin", "--tree"]);
-    expect(
-      replayArgv(["--db-url=postgres://x", "--confirm", "abc"], dbUrlFlags),
-    ).toEqual(["--db-url-stdin"]);
+    expect(replayArgv(["--tree", "--confirm", "abc"])).toEqual(["--tree"]);
   });
 });

@@ -88,11 +88,9 @@ describe("parseLeaf", () => {
       rest: ["a", "b"],
     });
     expect(problem(() => parseLeaf("x", [], {}, positionals)).code).toBe(
-      "missing_input",
+      "input_required",
     );
-    expect(problem(() => parseLeaf("x", ["extra"], {})).code).toBe(
-      "unknown_command",
-    );
+    expect(problem(() => parseLeaf("x", ["extra"], {})).code).toBe("usage");
   });
 });
 

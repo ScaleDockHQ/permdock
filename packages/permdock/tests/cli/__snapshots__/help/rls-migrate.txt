@@ -24,8 +24,7 @@ Flags
   --helpers-only                         Write the helpers and keep the policies hand-written
   --shims                                Wrap each rls.migrate helper under its legacy name
   --schemas <pg-delta|migra|migrations>  Schema workflow (default supabase.schemas, else pg-delta)
-  --db-url <url>                         Postgres connection string (DATABASE_URL when the command needs one)
-  --db-url-stdin                         Read the connection string from stdin, keeping it out of ps and shell history
+  --db-url-stdin                         Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
   --sql <path>                           SQL file or folder to read
   --dry-run                              Print what would change; write nothing
   --force                                Rewrite files with uncommitted changes too

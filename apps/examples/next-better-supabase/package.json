@@ -12,7 +12,7 @@
     "lint": "oxlint --disable-nested-config --type-aware",
     "serve": "node scripts/serve.ts",
     "start": "next start -p 3489 -H 127.0.0.1",
-    "supabase:check": "supabase db lint -s public,permdock,tests --fail-on warning && supabase db advisors --local --fail-on warn && permdock doctor && node scripts/stack-db-url.ts | better-supabase doctor --strict --db-url-stdin",
+    "supabase:check": "supabase db lint -s public,permdock,tests --fail-on warning && supabase db advisors --local --fail-on warn && permdock doctor && node scripts/stack-db-url.ts | better-supabase doctor --fail-on warning --db-url-stdin",
     "supabase:diff": "supabase db schema declarative sync --no-apply -f",
     "supabase:start": "supabase start --runtime native",
     "supabase:stop": "supabase stop",

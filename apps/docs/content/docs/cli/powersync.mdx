@@ -5,7 +5,7 @@ description: permdock powersync generate compiles the policy's read grants into 
 
 ```bash
 permdock powersync generate [--out sync-config.yaml] [--check] [--policy <module>]
-permdock powersync verify [--db-url-stdin | --db-url <url>] [--fixtures rls.fixtures.json] [--policy <module>]
+permdock powersync verify [--db-url-stdin] [--fixtures rls.fixtures.json] [--policy <module>]
 ```
 
 `generate` writes an edition 3 [Sync Streams](https://docs.powersync.com/sync/streams/overview) file with one auto-subscribed stream per synced resource. Each stream's `queries` are the ways a user may read a row: one query per allow grant of the read permission, and one per role source of the membership table. The tables and memberships come from `rls` (`rls.tables`, `rls.memberships`), the same `database`-mode mapping [`permdock rls generate`](/docs/cli/rls) reads.
@@ -48,14 +48,13 @@ streams:
       - "SELECT * FROM jobs WHERE jobs.organization_id IN (SELECT organization_users.organization_id FROM organization_users INNER JOIN roles ON roles.id = organization_users.role_id WHERE organization_users.user_id = auth.user_id() AND roles.key IN ('admin'))"
 ```
 
-| Flag             | Values         | Default                                  | Effect                                                                                     |
-| ---------------- | -------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `--out`          | a path         | `powersync.out`, else `sync-config.yaml` | Where `generate` writes and what `verify` compares                                         |
-| `--check`        | flag           | off                                      | `generate`: exit `1` when the file on disk is stale; write nothing                         |
-| `--db-url`       | a Postgres URL | none                                     | `verify`: run every stream query against this database per fixture                         |
-| `--db-url-stdin` | flag           | off                                      | `verify`: read the connection string from stdin, so it stays out of `ps` and shell history |
-| `--fixtures`     | a path         | `rls.fixtures`, else `rls.fixtures.json` | `verify`: the [`rls verify`](/docs/cli/rls) fixtures                                       |
-| `--policy`       | a module       | `policy` in the config                   | The module exporting `policy`                                                              |
+| Flag             | Values   | Default                                  | Effect                                                                                                                                                        |
+| ---------------- | -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--out`          | a path   | `powersync.out`, else `sync-config.yaml` | Where `generate` writes and what `verify` compares                                                                                                            |
+| `--check`        | flag     | off                                      | `generate`: exit `1` when the file on disk is stale; write nothing                                                                                            |
+| `--db-url-stdin` | flag     | off                                      | `verify`: read the connection string from stdin and run every stream query against that database per fixture (default `DATABASE_URL`, then `SUPABASE_DB_URL`) |
+| `--fixtures`     | a path   | `rls.fixtures`, else `rls.fixtures.json` | `verify`: the [`rls verify`](/docs/cli/rls) fixtures                                                                                                          |
+| `--policy`       | a module | `policy` in the config                   | The module exporting `policy`                                                                                                                                 |
 
 `powersync` also takes `resources` (the resources that get a stream; default every resource with a grant of the action), `action` (default `read`) and `manifest` (a path; none by default).
 
@@ -90,7 +89,7 @@ Everything else leaves the grant out of the stream, and `generate` prints why: a
 
 ## Verify
 
-`verify` compiles the policy again and fails when `sync-config.yaml` differs. With `--db-url`, it runs each fixture of a synced permission: the stream queries with the subject's id against the database, and `can()` in process with the row's organization active, since a stream holds rows of every organization the user belongs to. A row a stream syncs and the policy denies is a mismatch and exits `1`. A row the policy grants and no stream syncs is a note: the app reads it from the server. The database must hold the fixture rows and memberships, as for `rls verify --db-url`.
+`verify` compiles the policy again and fails when `sync-config.yaml` differs. With `--db-url-stdin`, it runs each fixture of a synced permission: the stream queries with the subject's id against the database, and `can()` in process with the row's organization active, since a stream holds rows of every organization the user belongs to. A row a stream syncs and the policy denies is a mismatch and exits `1`. A row the policy grants and no stream syncs is a note: the app reads it from the server. The database must hold the fixture rows and memberships, as for `rls verify --db-url-stdin`.
 
 `verify` passes a fixture's `subject.claims` to `auth.parameter()` and fails when a `permdock_*` stream syncs another user's rows. It compares the `powersync.manifest` file as JSON.
 

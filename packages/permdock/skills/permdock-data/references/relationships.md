@@ -60,7 +60,7 @@ Pass `relations: memoryRelationSource(permissions, { rows, edges })` in tests, o
 `permdock rls generate` emits the `permdock_closure` table, its statement triggers and `permitted_<resource>_ids(relation)` helpers. Snapshots carry no graph: graph grants are `portable: false` on the client and go to the decision endpoint. Check with:
 
 ```bash
-pnpm exec permdock rls verify --tree --db-url $DATABASE_URL
+pnpm exec permdock rls verify --tree
 pnpm exec permdock doctor --only graph
 ```
 

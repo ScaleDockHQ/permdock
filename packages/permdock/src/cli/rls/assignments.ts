@@ -8,6 +8,7 @@ import type {
 import { type Scope, resolveScope } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { roleColumn } from "../../supabase/roles.ts";
+import { configError } from "../core/errors.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
 import { memberForTable, scopeTable } from "../sql/names.ts";
 import {
@@ -62,12 +63,12 @@ function assignedTables(ctx: RlsSqlContext): readonly AssignedTable[] {
   for (const extra of ctx.assignments?.tables ?? []) {
     const scope = resolveScope(ctx.scopes, extra.scope);
     if (scope === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.assignments.tables names scope '${extra.scope}', which the policy does not declare`,
       );
     }
     if (scope !== ctx.scopes[0]?.name && extra.tenant === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.assignments.tables entry ${extra.table} assigns at ${scope}, below the first scope: name its tenant column`,
       );
     }
@@ -105,17 +106,17 @@ function ownRoleTables(
       (table) => qualifySqlTable(table.table) === qualifySqlTable(name),
     );
     if (entry === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.assignments.ownRole names ${name}, which no assignment trigger guards`,
       );
     }
     if (value !== "refuse") {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.assignments.ownRole.${name} must be 'refuse'`,
       );
     }
     if (entry.user === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: rls.assignments.ownRole names ${name}, which has no user column: set its user in rls.assignments.tables`,
       );
     }

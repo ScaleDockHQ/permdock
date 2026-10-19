@@ -10,6 +10,7 @@ import {
   type Policy,
   listRoles,
 } from "../../index.ts";
+import { configError } from "../core/errors.ts";
 import { andConditions } from "./conditions.ts";
 
 /** Who a grant reaches before any row condition applies. */
@@ -80,7 +81,7 @@ function relationWhere(
     now: { ref: "now" },
   });
   if (where === undefined) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: grant ${grant.permission.key} names relation '${grantee.relation}', which ${grant.permission.resource} does not declare`,
     );
   }
@@ -98,7 +99,7 @@ function inheritWhere(
     policy.resources,
   );
   if (where === undefined) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: grant ${grant.permission.key} inherits ${grantee.permission}, which ${grant.permission.resource} cannot reach`,
     );
   }
@@ -116,7 +117,7 @@ function actorAccess(
     grantee.actor !== "oauth-client" ||
     others > 0
   ) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: grant ${grant.permission.key} is limited to an actor grantee; RLS compiles only deny(…, { to: actor('oauth-client') }) on its own, so enforce it in the application`,
     );
   }
@@ -130,7 +131,7 @@ function accessOf(
 ): RlsAccess {
   const [held, ...more] = roles;
   if (more.length > 0) {
-    throw new Error(
+    throw configError(
       `PermDock CLI: grant ${grant.permission.key} requires several roles at once (${roles.map((item) => item.role).join(", ")}); RLS compiles one role per grant`,
     );
   }
@@ -182,7 +183,7 @@ export function collectGrants(policy: Policy): readonly RlsGrant[] {
           break;
         case "plan":
         case "assurance":
-          throw new Error(
+          throw configError(
             `PermDock CLI: grant ${grant.permission.key} is limited to a ${item.kind} grantee, which RLS cannot compile; enforce it in the application`,
           );
         default: {

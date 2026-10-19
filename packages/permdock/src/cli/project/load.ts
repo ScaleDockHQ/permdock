@@ -5,6 +5,15 @@ import { pathToFileURL } from "node:url";
 import type { Permission, PermissionTree, Policy } from "../../index.ts";
 
 import { listPermissions } from "../../index.ts";
+import { CliError, describeError } from "../core/errors.ts";
+
+/** A project module the CLI cannot use: the project's to fix, so a usage error. */
+function invalidModule(message: string, cause?: unknown): CliError {
+  return new CliError("usage", message, {
+    code: "config_invalid",
+    ...(cause === undefined ? {} : { cause }),
+  });
+}
 
 /**
  * Errors Node raises while resolving or parsing a module graph, before any of
@@ -60,6 +69,20 @@ export async function loadModule(
   abs: string,
   options?: LoadOptions,
 ): Promise<Record<string, unknown>> {
+  try {
+    return await importModule(abs, options);
+  } catch (error) {
+    if (error instanceof CliError) {
+      throw error;
+    }
+    throw invalidModule(describeError(error), error);
+  }
+}
+
+async function importModule(
+  abs: string,
+  options: LoadOptions | undefined,
+): Promise<Record<string, unknown>> {
   let loaded: unknown;
   if (options?.fresh === true) {
     loaded = await importWithJiti(abs, true);
@@ -74,7 +97,9 @@ export async function loadModule(
     }
   }
   if (loaded === null || typeof loaded !== "object") {
-    throw new Error(`PermDock CLI: module '${abs}' did not export an object`);
+    throw invalidModule(
+      `PermDock CLI: module '${abs}' did not export an object`,
+    );
   }
   // SAFETY: checked to be a non-null object above; exports stay unknown.
   return loaded as Record<string, unknown>;
@@ -94,7 +119,7 @@ export function pickNamed(
 
 export function asPermissionTree(value: unknown): PermissionTree {
   if (value === null || typeof value !== "object") {
-    throw new Error(
+    throw invalidModule(
       "PermDock CLI: permissions export is not a permission tree",
     );
   }
@@ -109,7 +134,7 @@ export function asPolicy(value: unknown): Policy {
     !("roles" in value) ||
     !("permissions" in value)
   ) {
-    throw new Error("PermDock CLI: policy export is not a Policy");
+    throw invalidModule("PermDock CLI: policy export is not a Policy");
   }
   // SAFETY: the project's configured policy export, checked above for roles and permissions.
   return value as Policy;
@@ -137,7 +162,11 @@ export function requirePolicy(
   missing: string,
 ): Promise<Policy> {
   return path === undefined
-    ? Promise.reject(new Error(`PermDock CLI: ${missing}`))
+    ? Promise.reject(
+        new CliError("usage", `PermDock CLI: ${missing}`, {
+          code: "config_invalid",
+        }),
+      )
     : loadPolicyAt(cwd, path);
 }
 

@@ -3,6 +3,7 @@ import type { CompiledBranch } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { jsonSchemaOf } from "../catalog-doc.ts";
+import { configError } from "../core/errors.ts";
 import { andSql, branchClauses, wrapSql } from "../sql/clauses.ts";
 import {
   helperSchema,
@@ -184,7 +185,7 @@ export function fieldViews(
     }
     const names = schemaColumns(policy, resource);
     if (names === undefined) {
-      throw new Error(
+      throw configError(
         `PermDock CLI: --fields views needs the ${resource} schema's JSON Schema (Standard JSON Schema) to list the columns of ${table}`,
       );
     }

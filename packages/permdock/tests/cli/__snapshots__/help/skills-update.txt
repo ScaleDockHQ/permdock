@@ -3,7 +3,7 @@ permdock skills update: Replace installed skills with this version's
 Usage  permdock skills update [flags]
 
 Flags
-  --client <name>  Agent folders to write: agents, claude or cursor (repeatable)
+  --for <name>  Agent folders to write: agents, claude or cursor (repeatable)
 
 Global flags
   --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help

@@ -1,5 +1,7 @@
 import type { Env } from "./env.ts";
 
+import { CliError } from "./errors.ts";
+
 export type AgentProbe = {
   readonly stdoutIsTty: boolean;
   readonly exists: (path: string) => boolean;
@@ -89,20 +91,41 @@ const MODES: Readonly<Record<string, AgentMode>> = {
   auto: "auto",
 };
 
-function modeOf(value: string | undefined): AgentMode | undefined {
-  const key = value?.trim().toLowerCase();
-  return key === undefined || !Object.hasOwn(MODES, key)
-    ? undefined
-    : MODES[key];
+function modeOf(
+  value: string | undefined,
+  source: string,
+): AgentMode | undefined {
+  if (value === undefined || value === "") {
+    return undefined;
+  }
+  const key = value.trim().toLowerCase();
+  const mode = Object.hasOwn(MODES, key) ? MODES[key] : undefined;
+  if (mode === undefined) {
+    throw new CliError(
+      "usage",
+      `${source} takes auto, yes or no, got '${value}'`,
+      {
+        code: "invalid_value",
+        extensions: source.startsWith("--") ? { flag: source } : {},
+      },
+    );
+  }
+  return mode;
 }
 
-/** `--agent`, then `PERMDOCK_AGENT`, then detection. */
+/**
+ * `--agent`, then `PERMDOCK_AGENT`, then detection. An unknown value is a
+ * usage error, so a typo never leaves an agent with prompts it cannot answer.
+ */
 export function agentMode(
   flag: string | undefined,
   env: Env,
   probe: AgentProbe,
 ): boolean {
-  const mode = modeOf(flag) ?? modeOf(env["PERMDOCK_AGENT"]) ?? "auto";
+  const mode =
+    flag === undefined
+      ? (modeOf(env["PERMDOCK_AGENT"], "PERMDOCK_AGENT") ?? "auto")
+      : (modeOf(flag, "--agent") ?? "auto");
   switch (mode) {
     case "yes":
       return true;

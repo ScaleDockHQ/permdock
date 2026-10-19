@@ -38,7 +38,18 @@ const DB_COMMANDS = [
 ];
 
 export const FLAG_RENAMES: readonly FlagRename[] = [
-  { commands: DB_COMMANDS, from: "--db", to: "--db-url" },
+  {
+    commands: DB_COMMANDS,
+    from: "--db",
+    to: "--db-url-stdin",
+    hint: "--db-url-stdin or DATABASE_URL",
+  },
+  {
+    commands: DB_COMMANDS,
+    from: "--db-url",
+    to: "--db-url-stdin",
+    hint: "--db-url-stdin or DATABASE_URL",
+  },
   { commands: ["rls generate"], from: "--force", to: "--force-rls" },
   {
     commands: ["rls verify"],
@@ -92,7 +103,12 @@ export const FLAG_RENAMES: readonly FlagRename[] = [
   {
     commands: ["skills install", "skills update"],
     from: "--agent",
-    to: "--client",
+    to: "--for",
+  },
+  {
+    commands: ["skills install", "skills update"],
+    from: "--client",
+    to: "--for",
   },
   { commands: ["init"], from: "--agent", to: "--integration" },
   { commands: ["init"], from: "--ui", to: "--integration" },

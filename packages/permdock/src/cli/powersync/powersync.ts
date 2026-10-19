@@ -32,7 +32,7 @@ import {
 } from "./streams.ts";
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
-permdock powersync verify [--db-url <url>] [--fixtures rls.fixtures.json]`;
+permdock powersync verify [--db-url-stdin] [--fixtures rls.fixtures.json]`;
 
 const DEFAULT_OUT = "sync-config.yaml";
 
@@ -265,7 +265,7 @@ export async function runPowerSync(input: {
   readonly db?: string;
   readonly fixtures?: string;
   readonly from?: string;
-  /** Opens the `--db-url` connection; defaults to the `pg` peer. */
+  /** Opens the `--db-url-stdin` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
 }): Promise<CommandResult> {
   const [verb] = input.rest;
@@ -329,7 +329,7 @@ export async function runPowerSync(input: {
         db: input.db,
         connect:
           input.connect ??
-          pgConnector("permdock powersync verify --db-url", input.cwd),
+          pgConnector("permdock powersync verify --db-url-stdin", input.cwd),
       });
       mismatches.push(...database.mismatches);
       notes.push(...database.notes);
