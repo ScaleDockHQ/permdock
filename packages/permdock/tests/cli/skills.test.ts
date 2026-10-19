@@ -94,18 +94,18 @@ function bare(manifest = true): string {
 }
 
 describe("runSkills", () => {
-  it("installs on no action and on update, into named and unknown agents", () => {
+  it("installs on no action and on update, and rejects an unknown agent", () => {
     const cwd = workspace();
     expect(runSkills({ cwd, action: undefined, agents: ["agent"] })).toEqual({
       code: 0,
       output:
         "installed .agents/skills/permdock-wire, .agents/skills/permdock-audit (permdock@0.0.0)",
     });
-    expect(
-      runSkills({ cwd, action: "update", agents: ["windsurf"] }).output,
-    ).toBe(
-      "installed .windsurf/skills/permdock-wire, .windsurf/skills/permdock-audit (permdock@0.0.0)",
-    );
+    expect(runSkills({ cwd, action: "update", agents: ["cursr"] })).toEqual({
+      code: 2,
+      output:
+        "skills: unknown --agent 'cursr'. Did you mean cursor? Use agents, claude, cursor.",
+    });
   });
 
   it("falls back to node_modules/permdock/skills when the package hides package.json", () => {

@@ -4,8 +4,8 @@ import type { CliIo } from "../types.ts";
 import { isRecord } from "../../core/compact.ts";
 import { timeoutSignal } from "../../core/timeout.ts";
 import { TERMINAL_TIMEOUT_MS } from "../../terminal/device.ts";
-import { POLICY_NOT_PUBLISHED } from "../../testing/cloud-api/platform.ts";
 import { describeError } from "../errors.ts";
+import { POLICY_NOT_PUBLISHED } from "./problem-types.ts";
 
 /** `GET /v1/projects/{id}/policy`: what the project's last `cloud push` sent, as pushed. */
 export type ProjectPolicy = {

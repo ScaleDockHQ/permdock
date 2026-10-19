@@ -1,3 +1,4 @@
+import type { ExitCode } from "../errors.ts";
 import type { OutputFile } from "../output-files.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { PermDockConfig } from "../types.ts";
@@ -9,7 +10,7 @@ import { renamedKeys } from "../../core/permission-registry.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { dateAt } from "../../core/time.ts";
 import { type Policy, listPermissions } from "../../index.ts";
-import { POLICY_NOT_PUBLISHED } from "../../testing/cloud-api/platform.ts";
+import { POLICY_NOT_PUBLISHED } from "../cloud/problem-types.ts";
 import { fetchProjectPolicy } from "../cloud/pull.ts";
 import { cliErrorKind, describeError, exitCodeOf } from "../errors.ts";
 import { requirePolicy } from "../load.ts";
@@ -31,7 +32,7 @@ import { generateSql } from "./generate-sql.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
 
 export type GenerateOutcome = {
-  readonly code: 0 | 1 | 2;
+  readonly code: ExitCode;
   readonly output: string;
   readonly text: string;
   /** The policies `text` creates; set when `write` is false. */
@@ -78,7 +79,7 @@ async function projectPolicyOf(
 ): Promise<Policy | GenerateOutcome> {
   const fetched = await fetchProjectPolicy({
     command: PROJECT_COMMAND,
-    url: undefined,
+    url: input.url,
     project,
     json: input.json === true,
     env: input.io.env ?? process.env,

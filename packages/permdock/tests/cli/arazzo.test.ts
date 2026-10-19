@@ -74,7 +74,7 @@ describe("runArazzo findings", () => {
     expect(await check({ json: true })).toEqual({
       code: 0,
       output: JSON.stringify({
-        $schema: "permdock-arazzo-check",
+        $schema: "https://permdock.com/schemas/arazzo-report-v1.json",
         findings: [],
       }),
     });
@@ -96,7 +96,7 @@ describe("runArazzo findings", () => {
       }[];
     };
     expect(parsed).toMatchObject({
-      $schema: "permdock-arazzo-check",
+      $schema: "https://permdock.com/schemas/arazzo-report-v1.json",
       findings: [{ workflowId: "ghost", stepId: "x", reason: "undocumented" }],
     });
   });

@@ -19,6 +19,8 @@ export type RlsGenerateInput = {
   readonly from?: string;
   /** `--project`: rebuild the policy with `policyFromCatalog` from the Cloud project's pushed catalog and policy. */
   readonly project?: string;
+  /** The Cloud API base URL `project` is read from. */
+  readonly url?: string;
   readonly json?: boolean;
   readonly memberships?: string;
   readonly rbac: boolean;

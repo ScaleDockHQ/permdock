@@ -5,6 +5,7 @@ import type { CliIo, PermDockConfig } from "../types.ts";
 import { scopeList } from "../../core/scopes.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { runCollect } from "../collect.ts";
+import { didYouMean } from "../core/args.ts";
 import { listSourceFiles, rel } from "../files.ts";
 import { type Project, loadProject } from "../project.ts";
 import { runSkillsInstall } from "../skills.ts";
@@ -85,6 +86,8 @@ const SQL_CHECKS = [
 
 export type DoctorReport = {
   readonly $schema: typeof DOCTOR_REPORT_SCHEMA;
+  /** What `--fix` changed before the checks ran; empty without `--fix`. */
+  readonly fixed: readonly string[];
   readonly findings: readonly DoctorFinding[];
   readonly errors: number;
   readonly warnings: number;
@@ -334,12 +337,19 @@ export async function runDoctor(input: {
   readonly now: Date;
   readonly io: CliIo;
 }): Promise<CommandResult> {
+  const wanted = new Set(input.only.map((item) => item.toLowerCase()));
+  const unknown = unknownOnly(wanted);
+  if (unknown !== undefined) {
+    return { code: 2, output: unknown };
+  }
+  const fixed: string[] = [];
   if (input.fix) {
-    runSkillsInstall({
+    const skills = runSkillsInstall({
       cwd: input.cwd,
       agents: [],
     });
-    await runCollect({
+    fixed.push(`skills: ${skills.output}`);
+    const collected = await runCollect({
       cwd: input.cwd,
       config: input.config,
       collect: input.config.collect ?? {},
@@ -347,9 +357,9 @@ export async function runDoctor(input: {
       now: input.now,
       io: input.io,
     });
+    fixed.push(`catalog: ${collected.message.trim()}`);
   }
   const project = loadProject(input);
-  const wanted = new Set(input.only.map((item) => item.toLowerCase()));
   const selected = (check: DoctorCheck): boolean =>
     wanted.size === 0 ||
     wanted.has(check.code.toLowerCase()) ||
@@ -371,6 +381,7 @@ export async function runDoctor(input: {
   ).length;
   const report: DoctorReport = {
     $schema: DOCTOR_REPORT_SCHEMA,
+    fixed,
     findings,
     errors,
     warnings,
@@ -411,9 +422,33 @@ async function pd060(project: Project): Promise<readonly DoctorFinding[]> {
   }));
 }
 
+/** A usage message for the first `--only` value that names no check code or group. */
+function unknownOnly(wanted: ReadonlySet<string>): string | undefined {
+  const known = new Set<string>();
+  for (const check of DOCTOR_CHECKS) {
+    known.add(check.code.toLowerCase());
+    for (const group of check.groups) {
+      known.add(group);
+    }
+  }
+  for (const item of wanted) {
+    if (!known.has(item)) {
+      const suggestion = didYouMean(item, [...known]);
+      return `doctor: --only ${item} names no check code or group${suggestion === undefined ? "" : `. Did you mean ${suggestion}?`}`;
+    }
+  }
+  return undefined;
+}
+
 function formatDoctor(report: DoctorReport, color: boolean): string {
   const style = createStyle(color);
   const lines = [style.paint("bold", "permdock doctor"), ""];
+  for (const change of report.fixed) {
+    lines.push(`  ${style.okMark} fixed ${change}`);
+  }
+  if (report.fixed.length > 0) {
+    lines.push("");
+  }
   for (const finding of report.findings) {
     const mark =
       finding.severity === "error" ? style.errorMark : style.warnMark;

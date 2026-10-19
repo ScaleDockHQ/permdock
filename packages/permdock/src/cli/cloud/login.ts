@@ -151,11 +151,10 @@ export async function runLogin(input: LoginInput): Promise<CommandResult> {
   const granted: StoredCredential =
     credential.scope === undefined ? { ...credential, scope } : credential;
   const storage = await credentialStorage();
-  writeCredentials(storage, issuer, granted, runtime);
   const where =
-    storage.keyring === undefined
-      ? credentialsPath(CREDENTIAL_SERVICE, runtime)
-      : "the OS keychain";
+    writeCredentials(storage, issuer, granted, runtime) === "keychain"
+      ? "the OS keychain"
+      : credentialsPath(CREDENTIAL_SERVICE, runtime);
   return {
     code: 0,
     output: input.json

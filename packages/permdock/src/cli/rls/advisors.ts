@@ -1,7 +1,18 @@
-import { spawnSync } from "node:child_process";
+import type { Agent } from "package-manager-detector";
+
+import { spawn } from "node:child_process";
 import { delimiter, join } from "node:path";
 
 import type { CommandResult } from "../shared/result.ts";
+
+import { addLine, packageManagerOf } from "../peer.ts";
+
+type ExecResult = {
+  readonly status: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly error?: Error;
+};
 
 /** Runs a program to completion; `error` is set when it could not start. */
 export type CliExec = (
@@ -10,13 +21,9 @@ export type CliExec = (
   options: {
     readonly cwd: string;
     readonly env: Readonly<Record<string, string | undefined>>;
+    readonly signal?: AbortSignal;
   },
-) => {
-  readonly status: number | null;
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly error?: Error;
-};
+) => ExecResult | Promise<ExecResult>;
 
 /** The PermDock doctor check that reports the same problem in migrations. */
 const ADVISOR_CODES: Readonly<Record<string, `PD${string}`>> = {
@@ -37,19 +44,29 @@ export type AdvisorFinding = {
   readonly code?: `PD${string}`;
 };
 
-const defaultExec: CliExec = (command, args, options) => {
-  const result = spawnSync(command, [...args], {
-    cwd: options.cwd,
-    env: options.env,
-    encoding: "utf8",
+const defaultExec: CliExec = (command, args, options) =>
+  new Promise((resolve) => {
+    const child = spawn(command, [...args], {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ["ignore", "pipe", "pipe"],
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.once("error", (error) => {
+      resolve({ status: null, stdout, stderr, error });
+    });
+    child.once("close", (status) => {
+      resolve({ status, stdout, stderr });
+    });
   });
-  return {
-    status: result.status,
-    stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
-    ...(result.error === undefined ? {} : { error: result.error }),
-  };
-};
 
 function text(value: unknown, key: string): string {
   const field =
@@ -81,24 +98,27 @@ function findingsOf(value: unknown): readonly AdvisorFinding[] | undefined {
   });
 }
 
-const INSTALL =
-  "rls verify --advisors runs the Supabase CLI: install it with npm install --save-dev supabase (or brew install supabase/tap/supabase)";
+function installHint(agent: Agent | undefined): string {
+  return `rls verify --advisors runs the Supabase CLI: install it with ${addLine(agent, ["supabase"], { dev: true })} (or brew install supabase/tap/supabase)`;
+}
 
 /**
- * `supabase db advisors --type security` against `--db` or the local stack.
- * Exit 1 on a WARN or ERROR row, 2 when the CLI is missing or fails.
+ * `supabase db advisors --type security` against `--db` or the local stack,
+ * from the project's `node_modules/.bin` first, then `PATH`. Exit 1 on a WARN
+ * or ERROR row, 2 when the CLI is missing or fails.
  */
-export function runRlsAdvisors(input: {
+export async function runRlsAdvisors(input: {
   readonly cwd: string;
   readonly db?: string;
   readonly json: boolean;
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly exec?: CliExec;
-}): CommandResult {
+  readonly signal?: AbortSignal;
+}): Promise<CommandResult> {
   const exec = input.exec ?? defaultExec;
   const bin = join(input.cwd, "node_modules", ".bin");
   const path = input.env["PATH"];
-  const result = exec(
+  const result = await exec(
     "supabase",
     [
       "db",
@@ -115,10 +135,11 @@ export function runRlsAdvisors(input: {
         ...input.env,
         PATH: path === undefined ? bin : `${bin}${delimiter}${path}`,
       },
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
     },
   );
   if (result.error !== undefined) {
-    return { code: 2, output: INSTALL };
+    return { code: 2, output: installHint(await packageManagerOf(input.cwd)) };
   }
   let parsed: unknown;
   try {

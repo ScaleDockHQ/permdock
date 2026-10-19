@@ -37,7 +37,12 @@ async function generate(
   extra: readonly string[],
   target = "sql",
   out = "rls.sql",
-): Promise<{ readonly code: number; readonly stdout: string; sql: string }> {
+): Promise<{
+  readonly code: number;
+  readonly stdout: string;
+  readonly stderr: string;
+  sql: string;
+}> {
   const result = await run(
     ["rls", "generate", "--target", target, "--out", out, ...extra],
     { cwd },
@@ -48,7 +53,12 @@ async function generate(
   } catch {
     sql = "";
   }
-  return { code: result.code, stdout: result.stdout, sql };
+  return {
+    code: result.code,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    sql,
+  };
 }
 
 function viewOf(sql: string, name: string, schema = "public"): string {
@@ -221,7 +231,9 @@ describe("permdock rls generate --fields views", () => {
     const cwd = appCopy();
     const unknown = await generate(cwd, ["--fields", "columns"]);
     expect(unknown.code).toBe(2);
-    expect(unknown.stdout).toContain("--fields must be views");
+    expect(unknown.stderr).toContain(
+      "Invalid value for argument: --fields (columns). Expected one of: views.",
+    );
     const alone = await generate(cwd, ["--revoke-columns"]);
     expect(alone.code).toBe(2);
     expect(alone.stdout).toContain("--revoke-columns needs --fields views");

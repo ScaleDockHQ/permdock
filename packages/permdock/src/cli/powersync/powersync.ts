@@ -329,7 +329,9 @@ export async function runPowerSync(input: {
         fixtures,
         customRoles,
         db: input.db,
-        connect: input.connect ?? pgConnector("permdock powersync verify --db"),
+        connect:
+          input.connect ??
+          pgConnector("permdock powersync verify --db", input.cwd),
       });
       mismatches.push(...database.mismatches);
       notes.push(...database.notes);

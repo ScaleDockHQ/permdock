@@ -80,7 +80,8 @@ export async function runRlsVerify(input: {
   /** Opens the `--db` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
 }): Promise<CommandResult> {
-  const connect = input.connect ?? pgConnector("permdock rls verify --db");
+  const connect =
+    input.connect ?? pgConnector("permdock rls verify --db", input.cwd);
   const policyPath = input.from ?? input.config.policy;
   if (policyPath === undefined) {
     return {

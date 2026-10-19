@@ -32,12 +32,13 @@ describe("permdock init", () => {
     const code = encodePreset(
       resolvePreset({ archetype: "agent", agents: ["ai-sdk"], ui: ["shadcn"] }),
     );
+    writeFileSync(join(cwd, "bun.lock"), "");
     const result = await run(["init", "--preset", code], { cwd });
     expect(result.code).toBe(0);
     expect(existsSync(join(cwd, "src/policy.ts"))).toBe(true);
     expect(existsSync(join(cwd, "src/agent.ts"))).toBe(true);
     expect(result.stdout).toContain(
-      "npm install permdock zod next react react-dom ai",
+      "bun add permdock zod next react react-dom ai",
     );
     expect(result.stdout).toContain(
       "npx shadcn@latest add @permdock/gated-button",

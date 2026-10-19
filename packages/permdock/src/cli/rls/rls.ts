@@ -56,6 +56,7 @@ export type RlsRunInput = {
   readonly from: string | undefined;
   /** `generate --project`: the policy comes from the Cloud project instead of a module. */
   readonly project?: string | undefined;
+  readonly url?: string | undefined;
   readonly sql: string | undefined;
   readonly db: string | undefined;
   readonly fixtures: string | undefined;
@@ -95,7 +96,7 @@ export type RlsRunInput = {
   readonly connect?: SqlConnect;
   /** `verify --advisors`: run `supabase db advisors` instead of the fixtures. */
   readonly advisors?: boolean;
-  /** Starts the Supabase CLI for `--advisors`; defaults to `spawnSync`. */
+  /** Starts the Supabase CLI for `--advisors`; defaults to `spawn`. */
   readonly exec?: CliExec;
 };
 
@@ -146,6 +147,7 @@ function generateInput(
     ...(input.out === undefined ? {} : { out: input.out }),
     ...(input.from === undefined ? {} : { from: input.from }),
     ...(input.project === undefined ? {} : { project: input.project }),
+    ...(input.url === undefined ? {} : { url: input.url }),
     json: input.json,
     ...(input.memberships === undefined
       ? {}
@@ -384,6 +386,7 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
           cwd: input.cwd,
           json: input.json,
           env: input.io.env ?? process.env,
+          ...(input.io.signal === undefined ? {} : { signal: input.io.signal }),
           ...(input.db === undefined ? {} : { db: input.db }),
           ...(input.exec === undefined ? {} : { exec: input.exec }),
         });

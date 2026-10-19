@@ -32,9 +32,9 @@ function fake(stdout: string, seen: string[][] = []): CliExec {
 }
 
 describe("rls verify --advisors", () => {
-  it("runs the security advisors on --db and maps lints to doctor codes", () => {
+  it("runs the security advisors on --db and maps lints to doctor codes", async () => {
     const seen: string[][] = [];
-    const result = runRlsAdvisors({
+    const result = await runRlsAdvisors({
       cwd: "/app",
       db: "postgresql://localhost/postgres",
       json: false,
@@ -60,9 +60,9 @@ describe("rls verify --advisors", () => {
     expect(result.output).toContain("1 finding(s) at WARN or above");
   });
 
-  it("checks the local stack without --db and passes on INFO rows only", () => {
+  it("checks the local stack without --db and passes on INFO rows only", async () => {
     const seen: string[][] = [];
-    const result = runRlsAdvisors({
+    const result = await runRlsAdvisors({
       cwd: "/app",
       json: true,
       env: {},
@@ -77,8 +77,8 @@ describe("rls verify --advisors", () => {
     });
   });
 
-  it("prints an install hint when the Supabase CLI is missing", () => {
-    const result = runRlsAdvisors({
+  it("prints an install hint when the Supabase CLI is missing", async () => {
+    const result = await runRlsAdvisors({
       cwd: "/app",
       json: false,
       env: {},
@@ -91,25 +91,27 @@ describe("rls verify --advisors", () => {
     });
     expect(result).toEqual({
       code: 2,
-      output: expect.stringContaining("npm install --save-dev supabase"),
+      output: expect.stringMatching(
+        /install it with \S+ (?:add|install) -D supabase/u,
+      ),
     });
   });
 
-  it("spawns the Supabase CLI from PATH and reports it missing", () => {
-    const result = runRlsAdvisors({
+  it("spawns the Supabase CLI from PATH and reports it missing", async () => {
+    const result = await runRlsAdvisors({
       cwd: import.meta.dirname,
       json: false,
       env: {},
     });
     expect(result.code).toBe(2);
-    expect(result.output).toContain("npm install --save-dev supabase");
+    expect(result.output).toContain("pnpm add -D supabase");
   });
 
   it.each([
     ["stderr", "boom\n", "supabase db advisors failed: boom"],
     ["the exit status", "", "supabase db advisors failed: exit 3"],
-  ])("falls back to %s when stdout is not JSON", (_, stderr, output) => {
-    const result = runRlsAdvisors({
+  ])("falls back to %s when stdout is not JSON", async (_, stderr, output) => {
+    const result = await runRlsAdvisors({
       cwd: "/app",
       json: false,
       env: {},
@@ -118,8 +120,8 @@ describe("rls verify --advisors", () => {
     expect(result).toEqual({ code: 2, output });
   });
 
-  it("reads missing fields of a malformed row as empty", () => {
-    const result = runRlsAdvisors({
+  it("reads missing fields of a malformed row as empty", async () => {
+    const result = await runRlsAdvisors({
       cwd: "/app",
       json: true,
       env: {},
@@ -130,8 +132,8 @@ describe("rls verify --advisors", () => {
     });
   });
 
-  it("reports the CLI's own error", () => {
-    const result = runRlsAdvisors({
+  it("reports the CLI's own error", async () => {
+    const result = await runRlsAdvisors({
       cwd: "/app",
       json: false,
       env: {},

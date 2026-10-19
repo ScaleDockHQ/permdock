@@ -22,9 +22,30 @@ export async function requirePeer<T>(
     if (!isMissingModule(error)) {
       throw error;
     }
-    const agent = getUserAgent() ?? (await detect({ cwd }))?.agent;
-    throw new Error(peerHint(name, command, agent), { cause: error });
+    throw new Error(peerHint(name, command, await packageManagerOf(cwd)), {
+      cause: error,
+    });
   }
+}
+
+/** The package manager whose lockfile the project has, else the one running the CLI. */
+export async function packageManagerOf(
+  cwd: string,
+): Promise<Agent | undefined> {
+  return (await detect({ cwd }))?.agent ?? getUserAgent() ?? undefined;
+}
+
+/** The command that adds `packages` with `agent`, npm when there is none. */
+export function addLine(
+  agent: Agent | undefined,
+  packages: readonly string[],
+  options?: { readonly dev?: boolean },
+): string {
+  const args = options?.dev === true ? ["-D", ...packages] : [...packages];
+  const command = resolveCommand(agent ?? "npm", "add", args);
+  return command === null
+    ? `npm install ${args.join(" ")}`
+    : [command.command, ...command.args].join(" ");
 }
 
 function isMissingModule(error: unknown): boolean {

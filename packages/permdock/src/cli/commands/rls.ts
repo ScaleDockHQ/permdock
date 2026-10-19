@@ -43,6 +43,11 @@ export function rls(ctx: CliContext): Command {
           "generate: rebuild the policy from a PermDock Cloud project's pushed catalog and policy",
         valueHint: "id",
       },
+      url: {
+        type: "string",
+        description: "generate --project: Cloud API base URL",
+        valueHint: "url",
+      },
       sql: {
         type: "string",
         description: "import / migrate: SQL file or folder to read",
@@ -69,14 +74,14 @@ export function rls(ctx: CliContext): Command {
         valueHint: "table",
       },
       format: {
-        type: "string",
+        type: "enum",
+        options: ["node", "pgtap"],
         description: "verify: node or pgtap",
-        valueHint: "format",
       },
       emit: {
-        type: "string",
+        type: "enum",
+        options: ["node", "pgtap"],
         description: "Alias of --format",
-        valueHint: "format",
       },
       rbac: {
         type: "enum",
@@ -93,9 +98,9 @@ export function rls(ctx: CliContext): Command {
         valueHint: "name",
       },
       authorize: {
-        type: "string",
-        description: "Where roles are read: 'jwt' or 'database'",
-        valueHint: "mode",
+        type: "enum",
+        options: ["database", "jwt"],
+        description: "Where roles are read",
       },
       check: {
         type: "boolean",
@@ -109,7 +114,11 @@ export function rls(ctx: CliContext): Command {
         type: "boolean",
         description: "Inline helper calls into the policies",
       },
-      force: { type: "boolean", description: "Overwrite an existing file" },
+      force: {
+        type: "boolean",
+        description:
+          "generate: emit FORCE ROW LEVEL SECURITY so the table owner is held to the policies",
+      },
       "guc-prefix": {
         type: "string",
         description: "guc dialect: setting prefix",
@@ -138,9 +147,9 @@ export function rls(ctx: CliContext): Command {
         description: "Emit the link capability helpers",
       },
       fields: {
-        type: "string",
-        description: "Field security: 'views'",
-        valueHint: "mode",
+        type: "enum",
+        options: ["views"],
+        description: "Field security",
       },
       "revoke-columns": {
         type: "boolean",
@@ -216,6 +225,7 @@ export function rls(ctx: CliContext): Command {
         out: stringArg(parsed.out),
         from: stringArg(parsed.from),
         project: stringArg(parsed.project),
+        url: stringArg(parsed.url),
         sql: stringArg(parsed.sql),
         db: stringArg(parsed.db),
         fixtures: stringArg(parsed.fixtures),

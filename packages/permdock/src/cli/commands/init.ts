@@ -62,8 +62,12 @@ export function init(ctx: CliContext): Command {
     },
     async run({ args: parsed, rawArgs }) {
       // Lazy: the implementation loads only when this command runs, not for --help.
-      const { runInit } = await import("../init.ts");
-      // SAFETY: runInit checks the archetype and resolvePreset drops ids outside the catalogue.
+      const [{ runInit }, { packageManagerOf }] = await Promise.all([
+        import("../init.ts"),
+        import("../peer.ts"),
+      ]);
+      const agent = await packageManagerOf(ctx.cwd);
+      // SAFETY: runInit rejects every id outside the catalogue before it resolves the preset.
       const selection = {
         archetype: parsed.archetype ?? "b2b",
         ...(parsed.framework === undefined
@@ -81,6 +85,7 @@ export function init(ctx: CliContext): Command {
           dryRun: parsed["dry-run"] === true,
           force: parsed.force === true,
           json: ctx.json,
+          ...(agent === undefined ? {} : { agent }),
         }),
       );
     },

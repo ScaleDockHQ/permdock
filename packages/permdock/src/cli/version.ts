@@ -27,3 +27,5 @@ export const DOCTOR_REPORT_SCHEMA =
   "https://permdock.com/schemas/doctor-report-v1.json" as const;
 export const CONFIG_REPORT_SCHEMA =
   "https://permdock.com/schemas/config-report-v1.json" as const;
+export const ARAZZO_REPORT_SCHEMA =
+  "https://permdock.com/schemas/arazzo-report-v1.json" as const;

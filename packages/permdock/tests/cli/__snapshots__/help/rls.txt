@@ -19,28 +19,29 @@ OPTIONS
                            --out=<file>    File to write                                                                         
                         --from=<module>    Module exporting the policy, instead of the config                                    
                          --project=<id>    generate: rebuild the policy from a PermDock Cloud project's pushed catalog and policy
+                            --url=<url>    generate --project: Cloud API base URL                                                
                            --sql=<path>    import / migrate: SQL file or folder to read                                          
                              --db=<url>    Postgres connection string                                                            
                       --fixtures=<file>    verify: fixtures file                                                                 
                         --schema=<name>    import: schema library, or the helper schema                                          
                   --memberships=<table>    import: membership table                                                              
-                      --format=<format>    verify: node or pgtap                                                                 
-                        --emit=<format>    Alias of --format                                                                     
+                  --format=<node|pgtap>    verify: node or pgtap                                                                 
+                    --emit=<node|pgtap>    Alias of --format                                                                     
                       --rbac=<supabase>    generate: scaffold the role tables for this provider                                  
                         --rbac-scaffold    generate: scaffold the role tables                                                    
                    --rbac-schema=<name>    Schema for the scaffolded role tables                                                 
-                     --authorize=<mode>    Where roles are read: 'jwt' or 'database'                                             
+             --authorize=<database|jwt>    Where roles are read                                                                  
                                 --check    Exit 1 when the files on disk are stale; write nothing                                
                         --skip-closures    Skip grants with closures instead of failing                                          
                      --inline-functions    Inline helper calls into the policies                                                 
-                                --force    Overwrite an existing file                                                            
+                                --force    generate: emit FORCE ROW LEVEL SECURITY so the table owner is held to the policies    
                   --guc-prefix=<prefix>    guc dialect: setting prefix                                                           
                       --policy-per-role    One policy per role instead of one per command                                        
                --policy-name=<template>    Policy name template                                                                  
                    --tenant-type=<type>    Postgres type of the tenant column                                                    
                          --custom-roles    Emit the custom role tables and helpers                                               
                          --capabilities    Emit the link capability helpers                                                      
-                        --fields=<mode>    Field security: 'views'                                                               
+                       --fields=<views>    Field security                                                                        
                        --revoke-columns    Revoke restricted columns on the table                                                
                                  --tree    verify: check the relationship closure                                                
                            --introspect    verify: compare against the live database                                             

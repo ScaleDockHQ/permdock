@@ -7,6 +7,7 @@ import type { PermDockConfig } from "./types.ts";
 import { type PermissionTree, arazzoFindings } from "../index.ts";
 import { readJsonFile } from "./files.ts";
 import { asPermissionTree, loadModule, pickNamed } from "./load.ts";
+import { ARAZZO_REPORT_SCHEMA } from "./version.ts";
 
 export async function runArazzo(input: {
   readonly cwd: string;
@@ -68,7 +69,7 @@ export async function runArazzo(input: {
   if (input.json) {
     return {
       code: findings.length === 0 ? 0 : 1,
-      output: JSON.stringify({ $schema: "permdock-arazzo-check", findings }),
+      output: JSON.stringify({ $schema: ARAZZO_REPORT_SCHEMA, findings }),
     };
   }
   if (findings.length === 0) {

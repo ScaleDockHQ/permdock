@@ -35,7 +35,8 @@ export function arazzo(ctx: CliContext): Command {
       },
       from: {
         type: "string",
-        description: "Module exporting the policy, instead of the config",
+        description:
+          "Module exporting the permissions tree, instead of the config",
         valueHint: "module",
       },
     },

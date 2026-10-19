@@ -818,7 +818,7 @@ permdock login && permdock rls generate --project prj_123 --target sql --out sup
 PERMDOCK_CLOUD_TOKEN=... permdock rls generate --project production --check
 ```
 
-The bearer is `PERMDOCK_CLOUD_TOKEN` when it is set, otherwise the stored [login](/docs/cli/login). A grant whose condition is a closure arrives as `closure: true`: the rebuilt allow never matches and the rebuilt deny always applies, so the generated SQL is never more permissive than the code. A project whose push carried no policy exits `1` with the `https://permdock.com/problems/policy-not-published` problem. `--project` with a `--from` policy module, or with an action other than `generate`, is a usage error.
+`--url <url>` reads the project from another Cloud API base URL, as [cloud push](/docs/cli/cloud) does; without it the URL is `PERMDOCK_CLOUD_URL` or the hosted Cloud. The bearer is `PERMDOCK_CLOUD_TOKEN` when it is set, otherwise the stored [login](/docs/cli/login). A grant whose condition is a closure arrives as `closure: true`: the rebuilt allow never matches and the rebuilt deny always applies, so the generated SQL is never more permissive than the code. A project whose push carried no policy exits `1` with the `https://permdock.com/problems/policy-not-published` problem. `--project` with a `--from` policy module, or with an action other than `generate`, is a usage error.
 
 ### Helpers only
 

@@ -1,3 +1,5 @@
+import type { Agent } from "package-manager-detector";
+
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -6,12 +8,18 @@ import type { CommandResult } from "./shared/result.ts";
 import {
   type Preset,
   type PresetInput,
+  AGENTS,
   ARCHETYPES,
+  FEATURES,
+  FRAMEWORKS,
+  UI,
   decodePreset,
   encodePreset,
   generatePreset,
   resolvePreset,
 } from "../preset/index.ts";
+import { didYouMean } from "./core/args.ts";
+import { addLine } from "./peer.ts";
 
 /** The page a preset code opens in the builder. */
 const CREATE_URL = "https://permdock.com/create";
@@ -25,14 +33,41 @@ export type InitOptions = {
   /** Overwrite files that already exist; off by default. */
   readonly force?: boolean;
   readonly json?: boolean;
+  /** The package manager the install line names; npm when unset. */
+  readonly agent?: Agent;
 };
+
+/** The first id outside its catalogue, as a message naming the flag and the choices. */
+function unknownChoice(input: PresetInput): string | undefined {
+  const groups: readonly [
+    string,
+    readonly string[],
+    readonly { readonly id: string }[],
+  ][] = [
+    ["--archetype", [input.archetype], ARCHETYPES],
+    [
+      "--framework",
+      input.framework === undefined ? [] : [input.framework],
+      FRAMEWORKS,
+    ],
+    ["--feature", input.features ?? [], FEATURES],
+    ["--agent", input.agents ?? [], AGENTS],
+    ["--ui", input.ui ?? [], UI],
+  ];
+  for (const [flag, picked, choices] of groups) {
+    const ids = choices.map((choice) => choice.id);
+    const unknown = picked.find((id) => !ids.includes(id));
+    if (unknown !== undefined) {
+      const suggestion = didYouMean(unknown, ids);
+      return `unknown ${flag} '${unknown}'${suggestion === undefined ? "" : ` (did you mean ${suggestion}?)`}; pick one of ${ids.join(", ")}`;
+    }
+  }
+  return undefined;
+}
 
 function presetOf(input: string | PresetInput): Preset | string {
   if (typeof input !== "string") {
-    if (!ARCHETYPES.some((archetype) => archetype.id === input.archetype)) {
-      return `unknown archetype '${input.archetype}'; pick one of ${ARCHETYPES.map((item) => item.id).join(", ")}`;
-    }
-    return resolvePreset(input);
+    return unknownChoice(input) ?? resolvePreset(input);
   }
   return (
     decodePreset(input) ??
@@ -70,7 +105,7 @@ export function runInit(options: InitOptions): CommandResult {
       writeFileSync(target, file.contents);
     }
   }
-  const install = `npm install ${generated.dependencies.join(" ")}`;
+  const install = addLine(options.agent, generated.dependencies);
   const shadcn =
     generated.recipes.length === 0
       ? undefined

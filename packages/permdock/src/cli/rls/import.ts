@@ -299,7 +299,7 @@ export async function runRlsImport(input: {
     try {
       const fromDb = await policiesFromDb(
         input.db,
-        input.connect ?? pgConnector("permdock rls import --db"),
+        input.connect ?? pgConnector("permdock rls import --db", input.cwd),
       );
       policies = fromDb.policies;
       bodies = fromDb.bodies;

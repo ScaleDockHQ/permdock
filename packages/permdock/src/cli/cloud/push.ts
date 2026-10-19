@@ -7,8 +7,10 @@ import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { parseCatalog } from "../../catalog/parse.ts";
 import { pushedPolicy } from "../../catalog/pushed-policy.ts";
+import { timeoutSignal } from "../../core/timeout.ts";
 import { catalogFingerprint } from "../../index.ts";
 import { parseSupabaseManifest } from "../../supabase/manifest.ts";
+import { TERMINAL_TIMEOUT_MS } from "../../terminal/device.ts";
 import { runCatalog } from "../catalog.ts";
 import { describeError } from "../errors.ts";
 import { loadConfiguredPolicy } from "../load.ts";
@@ -148,6 +150,7 @@ export async function runCloud(input: {
       `${url}/v1/environments/${encodeURIComponent(environment)}/catalog`,
       {
         method: "POST",
+        signal: timeoutSignal(TERMINAL_TIMEOUT_MS, input.io.signal),
         headers: {
           authorization: `Bearer ${auth.bearer}`,
           "content-type": "application/json",
