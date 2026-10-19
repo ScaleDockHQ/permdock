@@ -157,7 +157,7 @@ catalog:
   dotenv-cli: 11.0.0
   portless: 0.15.8
   better-supabase: file:.better-supabase/better-supabase.tgz
-  "@supabase/postgrest-typegen": 0.4.0
+  "@supabase/postgrest-typegen": 0.6.0
   supabase: 2.121.0
   server-only: 0.0.1
   # The root pins debug's optional supports-color peer so every importer shares one @nestjs/common and @nestjs/core variant.
@@ -286,7 +286,7 @@ peerDependencyRules:
     "@supabase/server>@nestjs/common": "12"
     # Reached only through `workflow`'s Nest integration, which no workspace loads; @supabase/server picks Nest 11 beside it.
     "@nestjs/core>@nestjs/common": "11"
-    # typegen 0.4.0 pins oxfmt 0.66.0 exactly; the example's `better-supabase gen` formats with the repo's oxfmt.
+    # typegen 0.6.0 pins oxfmt 0.66.0 exactly; the example's `better-supabase gen` formats with the repo's oxfmt.
     "@supabase/postgrest-typegen>oxfmt": "0.73"
     # The optional typescript peer of SvelteKit 3 reads only its public types; the repository builds with TypeScript 7.
     "@sveltejs/kit>typescript": "7"

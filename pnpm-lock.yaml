@@ -342,8 +342,8 @@ catalogs:
       specifier: 1.0.0-alpha.59
       version: 1.0.0-alpha.59
     '@supabase/postgrest-typegen':
-      specifier: 0.4.0
-      version: 0.4.0
+      specifier: 0.6.0
+      version: 0.6.0
     '@supabase/server':
       specifier: 1.9.2
       version: 1.9.2
@@ -857,7 +857,7 @@ importers:
         version: 11.8.0(@babel/core@7.29.7(supports-color@7.2.0))(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
-        version: 0.13.11(arktype@2.2.5)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+        version: 0.13.11(arktype@2.2.8)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
       '@vercel/analytics':
         specifier: 'catalog:'
         version: 2.0.1(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(nuxt@4.5.2(56e1340c092b8e7e078ff1cb8f57326f))(react@19.3.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0))(vue@3.5.44(typescript@7.0.2))
@@ -1266,7 +1266,7 @@ importers:
         version: 2.1.5(hono@4.13.13)
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+        version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
       hono:
         specifier: 'catalog:'
         version: 4.13.13
@@ -1761,7 +1761,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: file:.better-supabase/better-supabase.tgz(17dd15bcb18a7c3dcdebcf210c29a545)
+        version: file:.better-supabase/better-supabase.tgz(7218100c1fe663e835575f625af7029d)
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -1801,7 +1801,7 @@ importers:
         version: 1.64.1
       '@supabase/postgrest-typegen':
         specifier: 'catalog:'
-        version: 0.4.0(oxfmt@0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0)))
+        version: 0.6.0(oxfmt@0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0)))
       '@testcontainers/postgresql':
         specifier: 'catalog:'
         version: 12.2.1(supports-color@7.2.0)
@@ -2585,7 +2585,7 @@ importers:
         version: 11.8.0(@babel/core@7.29.7(supports-color@7.2.0))(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
-        version: 0.13.11(arktype@2.2.5)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+        version: 0.13.11(arktype@2.2.8)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
       '@vercel/analytics':
         specifier: 'catalog:'
         version: 2.0.1(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(nuxt@4.5.2(94b538e20862f0ff2f34fbbf79b954c0))(react@19.3.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0))(vue@3.5.44(typescript@7.0.2))
@@ -2862,13 +2862,13 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: file:.better-supabase/better-supabase.tgz(d6537398a5c74357a95a04bf04476a7f)
+        version: file:.better-supabase/better-supabase.tgz(7fcceffb9a1457915bc1a8ee9ad35426)
       chat:
         specifier: 'catalog:'
         version: 4.42.0(ai@7.0.141(zod@4.6.7))(supports-color@7.2.0)(workflow@5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@7.2.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.1(@babel/core@8.0.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+        version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
       elysia:
         specifier: 'catalog:'
         version: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2)
@@ -3180,10 +3180,10 @@ importers:
         version: 7.0.141(zod@4.6.7)
       better-supabase:
         specifier: 'catalog:'
-        version: file:.better-supabase/better-supabase.tgz(71f17fb6d8ce7fc0aa25d32364fc75c6)
+        version: file:.better-supabase/better-supabase.tgz(2896eb7548811a4d2486d9c2b3cb810c)
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+        version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
       elysia:
         specifier: 'catalog:'
         version: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2)
@@ -3536,11 +3536,11 @@ packages:
     resolution: {integrity: sha512-9ytjzGwxjm9Uz7I9avfbt5vlQt6uk9uRRESzJjqrznl6WKvI6dwYTo+vJ3U02Wrq/mR3iql/PzhvHhKdJIAjDQ==}
     engines: {node: '>=20'}
 
-  '@ark/schema@0.56.4':
-    resolution: {integrity: sha512-nd4OqaWdKZJeGF5zNmZysDQO7NyyJ1ycl4S7i16Hj1VxqL+x72Z66lOn7ErpsoMUZtCtslAMHMjqJhuQSxciyw==}
+  '@ark/schema@0.56.7':
+    resolution: {integrity: sha512-jmoOJlYIc4k1uv8oYBDNOFnAsKk2a2D9t/D6npF2JUfW4ecPB0v6ce6lruKg7lkBxIBA8Z7UtxfmvephYbhUGQ==}
 
-  '@ark/util@0.56.4':
-    resolution: {integrity: sha512-KKqwGSia44cvuuDY70jGfbiUdG2E8F2cM4npdqvJ22S5a0LknlwG6nIrfQG1nF8fzxpzP30098wp0a8ASs0prQ==}
+  '@ark/util@0.56.7':
+    resolution: {integrity: sha512-z8pVnrPk/x9GC18yOp5wCe8rR2+Z6us4CTSg7dvxdsDLuA2xXYq+QETD1fO6f3fMuXe+PCjpvtCnhTW9RHLgEw==}
 
   '@astrojs/compiler-binding-android-arm64@0.5.1':
     resolution: {integrity: sha512-nMb2nMIJtcWLNH+fV75Enmi+jp4tIOYOfsv4XtpgdOWkqc9P4uSSdK5u1xb340AzrXo5V18SxLl/nc3vcqtamQ==}
@@ -8370,8 +8370,8 @@ packages:
     resolution: {integrity: sha512-JXy+37KPApHsyotaQACovv/Jy9E22rfiWLRuT+2UjoEAcAIelDFIrsF/FY47Dy19mO7lI0Tq+zDCX8oJ2Ozfiw==}
     engines: {node: '>=22.0.0'}
 
-  '@supabase/postgrest-typegen@0.4.0':
-    resolution: {integrity: sha512-WxQ+/LWQYhAHADiSHVhxHghcc0w6U8B6eQ0WTE0CSkNsfqpoX3RGa9odmL/3l/oGpqcy51ajQOK5CKv9mNBpZA==}
+  '@supabase/postgrest-typegen@0.6.0':
+    resolution: {integrity: sha512-3aCh88bSqPpLbKQV3q9obZcYSJ9BYbQgkYFCYgGcu9pv/WEE/9sK7k2aWJqKJR9hK9NTWXBD85/yx7vSMvEw+A==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       oxfmt: 0.66.0
@@ -10043,11 +10043,11 @@ packages:
     resolution: {integrity: sha512-COROpnaoap1E2F000S62r6A60uHZnmlvomhfyT2DlTcrY1OrBKn2UhH7qn5wTC9zMvD0AY7csdPSNwKP+7WiQw==}
     engines: {node: '>= 0.4'}
 
-  arkregex@0.0.10:
-    resolution: {integrity: sha512-+iDWBYBjH8w7wqEv8VY4loBwRldFxX84KNwKbobH3FJPay/18XI9sTesmXYpKyIrgbC5z/s16+vSJYHCC9FEvQ==}
+  arkregex@0.0.13:
+    resolution: {integrity: sha512-c17sqCqiiZauxyoU1KZ2zbzCgeghGmc8dR2CrdQnlEtpq3bLhRLoLrxTL52M/8yQD8e/i1/IBRpRCNAuqJa7xQ==}
 
-  arktype@2.2.5:
-    resolution: {integrity: sha512-c9oqY1eBab2LceqvpWX50xae2HB8P/nJPxRhuhPVf5lEDi3WQpf7WQflJFMsyCiA3NGh6zENOlse30gWBzlwDg==}
+  arktype@2.2.8:
+    resolution: {integrity: sha512-tZyLza7kO2vN8BXBKcj4t43IVMe8/ZyqlITH0chZv7FfEw+edLovpY922tqcK4mCjTpf4oNo2xV6np7tquP1ww==}
 
   asap@2.0.6:
     resolution: {integrity: sha512-BSHWgDSAiKs50o2Re8ppvp3seVHXSRM44cdSsT9FfNEUUZLOGWVCsiWaRPWM1Znn+mqZ1OfVZ3z3DWEzSp7hRA==}
@@ -17879,11 +17879,11 @@ snapshots:
       typescript: 5.6.1-rc
       validate-npm-package-name: 5.0.1
 
-  '@ark/schema@0.56.4':
+  '@ark/schema@0.56.7':
     dependencies:
-      '@ark/util': 0.56.4
+      '@ark/util': 0.56.7
 
-  '@ark/util@0.56.4': {}
+  '@ark/util@0.56.7': {}
 
   '@astrojs/compiler-binding-android-arm64@0.5.1':
     optional: true
@@ -21093,7 +21093,7 @@ snapshots:
       - xml2js
     optional: true
 
-  '@nuxt/nitro-server@4.5.2(9d255deb5f6970a7eadadb5dc4a5278f)':
+  '@nuxt/nitro-server@4.5.2(4467527a92ace2e693f90543adfcff7a)':
     dependencies:
       '@nuxt/devalue': 2.0.2
       '@nuxt/kit': 4.5.2(magic-string@1.4.3)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
@@ -21110,9 +21110,98 @@ snapshots:
       impound: 1.2.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       klona: 2.0.6
       mocked-exports: 0.1.1
-      nitropack: 2.13.4(@electric-sql/pglite@0.5.10)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2))(oxc-parser@0.154.0)(rolldown@1.2.14)(srvx@1.0.5)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      nitropack: 2.13.4(@electric-sql/pglite@0.5.10)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(typescript@7.0.2))(@types/pg@8.23.1)(kysely@0.29.6)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(prisma@7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)))(mysql2@3.24.5(@types/node@24.19.2))(oxc-parser@0.154.0)(rolldown@1.2.14)(srvx@1.0.5)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       nostics: 1.3.0
-      nuxt: 4.5.2(bbdec9eae0b0c804479489298c56e756)
+      nuxt: 4.5.2(f7fec9f96c7a10a99b3ab8388357b26f)
+      nypm: 0.6.10
+      ohash: 2.0.12
+      pathe: 2.0.3
+      rou3: 0.9.2
+      std-env: 4.3.0
+      ufo: 1.6.4
+      unctx: 3.0.1(magic-string@1.4.3)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
+      unstorage: 1.17.5(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(ioredis@5.11.1(supports-color@7.2.0))
+      vue: 3.5.44(typescript@7.0.2)
+      vue-bundle-renderer: 2.4.0
+      vue-devtools-stub: 0.1.0
+    optionalDependencies:
+      '@babel/plugin-proposal-decorators': 7.29.7(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0)
+      '@babel/plugin-syntax-typescript': 7.29.7(@babel/core@7.29.7(supports-color@7.2.0))
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@electric-sql/pglite'
+      - '@farmfe/core'
+      - '@libsql/client'
+      - '@netlify/blobs'
+      - '@oxc-project/types'
+      - '@parcel/watcher'
+      - '@planetscale/database'
+      - '@rsbuild/core'
+      - '@rspack/core'
+      - '@unhead/cli'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - '@vitejs/devtools-kit'
+      - aws4fetch
+      - bare-abort-controller
+      - bare-buffer
+      - better-sqlite3
+      - bun-types-no-globals
+      - db0
+      - drizzle-orm
+      - encoding
+      - esbuild
+      - idb-keyval
+      - ioredis
+      - lightningcss
+      - magic-string
+      - magicast
+      - mysql2
+      - oxc-parser
+      - react-native-b4a
+      - rolldown
+      - rollup
+      - sqlite3
+      - srvx
+      - supports-color
+      - typescript
+      - unloader
+      - unplugin
+      - uploadthing
+      - vite
+      - webpack
+      - xml2js
+    optional: true
+
+  '@nuxt/nitro-server@4.5.2(fa842625bc0e33aec874eaceb4ad8e60)':
+    dependencies:
+      '@nuxt/devalue': 2.0.2
+      '@nuxt/kit': 4.5.2(magic-string@1.4.3)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
+      '@unhead/vue': 3.4.1(@oxc-project/types@0.154.0)(esbuild@0.28.2)(lightningcss@1.33.0)(oxc-parser@0.154.0)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.44(typescript@7.0.2))
+      '@vue/shared': 3.5.44
+      consola: 3.4.2
+      defu: 6.1.7
+      destr: 2.0.5
+      devalue: 5.9.4
+      errx: 0.1.2
+      escape-string-regexp: 5.0.0
+      exsolve: 1.1.1
+      h3: 1.15.11
+      impound: 1.2.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      klona: 2.0.6
+      mocked-exports: 0.1.1
+      nitropack: 2.13.4(@electric-sql/pglite@0.5.10)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2))(oxc-parser@0.154.0)(rolldown@1.2.14)(srvx@1.0.5)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      nostics: 1.3.0
+      nuxt: 4.5.2(0598b27f134a149dec8b0d175c0c244d)
       nypm: 0.6.10
       ohash: 2.0.12
       pathe: 2.0.3
@@ -21217,6 +21306,78 @@ snapshots:
       consola: 3.4.2
       rc9: 3.1.0
       std-env: 4.3.0
+    optional: true
+
+  '@nuxt/vite-builder@4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@7.2.0)))(@types/node@24.19.2)(esbuild@0.28.2)(magic-string@1.4.3)(magicast@0.5.5)(nuxt@4.5.2(0598b27f134a149dec8b0d175c0c244d))(oxc-parser@0.154.0)(oxlint@1.88.0(oxlint-tsgolint@7.0.2004))(rolldown@1.2.14)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.14)(rollup@4.63.5))(rollup@4.63.5)(supports-color@7.2.0)(terser@5.51.2)(typescript@7.0.2)(vue@3.5.44(typescript@7.0.2))(yaml@2.9.1)':
+    dependencies:
+      '@nuxt/kit': 4.5.2(magic-string@1.4.3)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
+      '@vitejs/plugin-vue': 6.0.10(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.44(typescript@7.0.2))
+      '@vitejs/plugin-vue-jsx': 5.1.6(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.44(typescript@7.0.2))
+      autoprefixer: 10.6.1(postcss@8.5.30)
+      consola: 3.4.2
+      cssnano: 8.0.10(postcss@8.5.30)
+      defu: 6.1.7
+      escape-string-regexp: 5.0.0
+      exsolve: 1.1.1
+      generic-names: 4.0.0
+      get-port-please: 3.2.0
+      jiti: 2.7.0
+      js-tokens: 10.0.0
+      knitwork: 1.3.0
+      mlly: 1.8.2
+      mocked-exports: 0.1.1
+      nuxt: 4.5.2(0598b27f134a149dec8b0d175c0c244d)
+      nypm: 0.6.10
+      pathe: 2.0.3
+      pkg-types: 2.3.3
+      postcss: 8.5.30
+      rolldown-string: 0.3.1(rolldown@1.2.14)
+      seroval: 1.6.9
+      std-env: 4.3.0
+      ufo: 1.6.4
+      unenv: 2.0.0-rc.24
+      unplugin: 3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      vite: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
+      vite-node: 6.0.0(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
+      vite-plugin-checker: 0.14.5(oxlint@1.88.0(oxlint-tsgolint@7.0.2004))(typescript@7.0.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      vue: 3.5.44(typescript@7.0.2)
+      vue-bundle-renderer: 2.4.0
+    optionalDependencies:
+      '@babel/plugin-proposal-decorators': 7.29.7(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0)
+      '@babel/plugin-syntax-jsx': 7.29.7(@babel/core@7.29.7(supports-color@7.2.0))
+      rolldown: 1.2.14
+      rollup-plugin-visualizer: 7.1.1(rolldown@1.2.14)(rollup@4.63.5)
+    transitivePeerDependencies:
+      - '@biomejs/biome'
+      - '@farmfe/core'
+      - '@rsbuild/core'
+      - '@rspack/core'
+      - '@types/node'
+      - '@vitejs/devtools'
+      - bun-types-no-globals
+      - esbuild
+      - eslint
+      - less
+      - magic-string
+      - magicast
+      - meow
+      - optionator
+      - oxc-parser
+      - oxlint
+      - rollup
+      - sass
+      - sass-embedded
+      - stylelint
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - typescript
+      - unloader
+      - vue-tsc
+      - webpack
+      - yaml
     optional: true
 
   '@nuxt/vite-builder@4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@7.2.0)))(@types/node@24.19.2)(esbuild@0.28.2)(magic-string@1.4.3)(magicast@0.5.5)(nuxt@4.5.2(56e1340c092b8e7e078ff1cb8f57326f))(oxc-parser@0.152.0)(oxlint@1.88.0(oxlint-tsgolint@7.0.2004))(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(supports-color@7.2.0)(terser@5.51.2)(typescript@7.0.2)(vue@3.5.44(typescript@7.0.2))(yaml@2.9.1)':
@@ -21363,7 +21524,7 @@ snapshots:
       - yaml
     optional: true
 
-  '@nuxt/vite-builder@4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@7.2.0)))(@types/node@24.19.2)(esbuild@0.28.2)(magic-string@1.4.3)(magicast@0.5.5)(nuxt@4.5.2(bbdec9eae0b0c804479489298c56e756))(oxc-parser@0.154.0)(oxlint@1.88.0(oxlint-tsgolint@7.0.2004))(rolldown@1.2.14)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.14)(rollup@4.63.5))(rollup@4.63.5)(supports-color@7.2.0)(terser@5.51.2)(typescript@7.0.2)(vue@3.5.44(typescript@7.0.2))(yaml@2.9.1)':
+  '@nuxt/vite-builder@4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@7.2.0)))(@types/node@24.19.2)(esbuild@0.28.2)(magic-string@1.4.3)(magicast@0.5.5)(nuxt@4.5.2(f7fec9f96c7a10a99b3ab8388357b26f))(oxc-parser@0.154.0)(oxlint@1.88.0(oxlint-tsgolint@7.0.2004))(rolldown@1.2.14)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.14)(rollup@4.63.5))(rollup@4.63.5)(supports-color@7.2.0)(terser@5.51.2)(typescript@7.0.2)(vue@3.5.44(typescript@7.0.2))(yaml@2.9.1)':
     dependencies:
       '@nuxt/kit': 4.5.2(magic-string@1.4.3)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
       '@vitejs/plugin-vue': 6.0.10(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.44(typescript@7.0.2))
@@ -21381,7 +21542,7 @@ snapshots:
       knitwork: 1.3.0
       mlly: 1.8.2
       mocked-exports: 0.1.1
-      nuxt: 4.5.2(bbdec9eae0b0c804479489298c56e756)
+      nuxt: 4.5.2(f7fec9f96c7a10a99b3ab8388357b26f)
       nypm: 0.6.10
       pathe: 2.0.3
       pkg-types: 2.3.3
@@ -23537,9 +23698,9 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/postgrest-typegen@0.4.0(oxfmt@0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0)))':
+  '@supabase/postgrest-typegen@0.6.0(oxfmt@0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0)))':
     dependencies:
-      arktype: 2.2.5
+      arktype: 2.2.8
     optionalDependencies:
       oxfmt: 0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0))
 
@@ -23740,18 +23901,18 @@ snapshots:
     dependencies:
       '@swc/counter': 0.1.3
 
-  '@t3-oss/env-core@0.13.11(arktype@2.2.5)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)':
+  '@t3-oss/env-core@0.13.11(arktype@2.2.8)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)':
     optionalDependencies:
-      arktype: 2.2.5
+      arktype: 2.2.8
       typescript: 7.0.2
       valibot: 1.5.0(typescript@7.0.2)
       zod: 4.6.7
 
-  '@t3-oss/env-nextjs@0.13.11(arktype@2.2.5)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)':
+  '@t3-oss/env-nextjs@0.13.11(arktype@2.2.8)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)':
     dependencies:
-      '@t3-oss/env-core': 0.13.11(arktype@2.2.5)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+      '@t3-oss/env-core': 0.13.11(arktype@2.2.8)(typescript@7.0.2)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
     optionalDependencies:
-      arktype: 2.2.5
+      arktype: 2.2.8
       typescript: 7.0.2
       valibot: 1.5.0(typescript@7.0.2)
       zod: 4.6.7
@@ -26080,15 +26241,15 @@ snapshots:
 
   aria-query@5.3.2: {}
 
-  arkregex@0.0.10:
+  arkregex@0.0.13:
     dependencies:
-      '@ark/util': 0.56.4
+      '@ark/util': 0.56.7
 
-  arktype@2.2.5:
+  arktype@2.2.8:
     dependencies:
-      '@ark/schema': 0.56.4
-      '@ark/util': 0.56.4
-      arkregex: 0.0.10
+      '@ark/schema': 0.56.7
+      '@ark/util': 0.56.7
+      arkregex: 0.0.13
 
   asap@2.0.6: {}
 
@@ -26488,53 +26649,7 @@ snapshots:
 
   better-result@2.10.0: {}
 
-  better-supabase@file:.better-supabase/better-supabase.tgz(17dd15bcb18a7c3dcdebcf210c29a545):
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@supabase/middleware': 1.0.0(typescript@7.0.2)
-      '@supabase/postgrest-js': 2.118.0
-      '@supabase/server': 1.9.2(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)
-      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
-      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
-    optionalDependencies:
-      '@ai-sdk/mcp': 2.0.76(zod@4.6.7)
-      '@ai-sdk/react': 4.0.145(react@19.3.1)(zod@4.6.7)
-      '@modelcontextprotocol/server': 2.3.1
-      '@nestjs/common': 11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
-      '@next/playwright': 16.4.1(@playwright/test@1.64.1)
-      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
-      '@opentelemetry/api': 1.9.1
-      '@orpc/server': 2.0.0-beta.42(crossws@0.4.12(srvx@1.0.5))(fastify@5.12.7)
-      '@solidjs/start': 2.0.6(@solidjs/router@1.0.0(solid-js@1.9.17))(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
-      '@supabase/postgrest-typegen': 0.4.0(oxfmt@0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0)))
-      '@tanstack/react-start': 1.169.2(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.14)(rollup@4.63.5)(supports-color@7.2.0)(vite-plugin-solid@2.11.14(solid-js@1.9.17)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      '@workflow/world': 5.0.4
-      ai: 7.0.141(zod@4.6.7)
-      astro: 7.4.0(@types/node@24.19.2)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@7.2.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
-      chat: 4.42.0(ai@7.0.141(zod@4.6.7))(supports-color@7.2.0)(workflow@5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@7.2.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
-      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2)
-      eve: 0.79.2(@opentelemetry/api@1.9.1)(ai@7.0.141(zod@4.6.7))(chat@4.42.0(ai@7.0.141(zod@4.6.7))(supports-color@7.2.0)(workflow@5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@7.2.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7))
-      expo-server: 57.0.3
-      express: 5.3.0(supports-color@7.2.0)
-      fastify: 5.12.7
-      h3: 2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0)
-      hono: 4.13.13
-      next: 16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      nuxt: 4.5.2(bbdec9eae0b0c804479489298c56e756)
-      oxfmt: 0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0))
-      pg: 8.23.1
-      react: 19.3.1
-      react-router: 8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      solid-js: 1.9.17
-      svelte: 5.57.2(@typescript-eslint/types@8.71.0)
-      temporal-polyfill: 1.0.6
-      vue: 3.5.44(typescript@7.0.2)
-      workflow: 5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@7.2.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)(ws@8.22.0)
-    transitivePeerDependencies:
-      - typescript
-
-  better-supabase@file:.better-supabase/better-supabase.tgz(71f17fb6d8ce7fc0aa25d32364fc75c6):
+  better-supabase@file:.better-supabase/better-supabase.tgz(2896eb7548811a4d2486d9c2b3cb810c):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26566,7 +26681,7 @@ snapshots:
       h3: 2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0)
       hono: 4.13.13
       next: 16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      nuxt: 4.5.2(bbdec9eae0b0c804479489298c56e756)
+      nuxt: 4.5.2(0598b27f134a149dec8b0d175c0c244d)
       oxfmt: 0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0))
       pg: 8.23.1
       react: 19.3.1
@@ -26579,7 +26694,53 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@file:.better-supabase/better-supabase.tgz(d6537398a5c74357a95a04bf04476a7f):
+  better-supabase@file:.better-supabase/better-supabase.tgz(7218100c1fe663e835575f625af7029d):
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@supabase/middleware': 1.0.0(typescript@7.0.2)
+      '@supabase/postgrest-js': 2.118.0
+      '@supabase/server': 1.9.2(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))(elysia@1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0))(hono@4.13.13)(pg@8.23.1)(typescript@7.0.2)
+      '@supabase/ssr': 0.12.7(@supabase/supabase-js@2.118.0(@opentelemetry/api@1.9.1))
+      '@supabase/supabase-js': 2.118.0(@opentelemetry/api@1.9.1)
+    optionalDependencies:
+      '@ai-sdk/mcp': 2.0.76(zod@4.6.7)
+      '@ai-sdk/react': 4.0.145(react@19.3.1)(zod@4.6.7)
+      '@modelcontextprotocol/server': 2.3.1
+      '@nestjs/common': 11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
+      '@next/playwright': 16.4.1(@playwright/test@1.64.1)
+      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
+      '@opentelemetry/api': 1.9.1
+      '@orpc/server': 2.0.0-beta.42(crossws@0.4.12(srvx@1.0.5))(fastify@5.12.7)
+      '@solidjs/start': 2.0.6(@solidjs/router@1.0.0(solid-js@1.9.17))(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@supabase-labs/middleware-openfeature': 0.2.0(typescript@7.0.2)
+      '@supabase/postgrest-typegen': 0.6.0(oxfmt@0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0)))
+      '@tanstack/react-start': 1.169.2(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.14)(rollup@4.63.5)(supports-color@7.2.0)(vite-plugin-solid@2.11.14(solid-js@1.9.17)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@workflow/world': 5.0.4
+      ai: 7.0.141(zod@4.6.7)
+      astro: 7.4.0(@types/node@24.19.2)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@7.2.0))(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
+      chat: 4.42.0(ai@7.0.141(zod@4.6.7))(supports-color@7.2.0)(workflow@5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@7.2.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
+      elysia: 1.4.30(@sinclair/typebox@0.34.52)(exact-mirror@1.2.6)(file-type@22.1.1(supports-color@7.2.0))(openapi-types@12.1.3)(typescript@7.0.2)
+      eve: 0.79.2(@opentelemetry/api@1.9.1)(ai@7.0.141(zod@4.6.7))(chat@4.42.0(ai@7.0.141(zod@4.6.7))(supports-color@7.2.0)(workflow@5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@7.2.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7))
+      expo-server: 57.0.3
+      express: 5.3.0(supports-color@7.2.0)
+      fastify: 5.12.7
+      h3: 2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0)
+      hono: 4.13.13
+      next: 16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      nuxt: 4.5.2(f7fec9f96c7a10a99b3ab8388357b26f)
+      oxfmt: 0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0))
+      pg: 8.23.1
+      react: 19.3.1
+      react-router: 8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      solid-js: 1.9.17
+      svelte: 5.57.2(@typescript-eslint/types@8.71.0)
+      temporal-polyfill: 1.0.6
+      vue: 3.5.44(typescript@7.0.2)
+      workflow: 5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@7.2.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.1(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@7.2.0)(typescript@7.0.2)(ws@8.22.0)
+    transitivePeerDependencies:
+      - typescript
+
+  better-supabase@file:.better-supabase/better-supabase.tgz(7fcceffb9a1457915bc1a8ee9ad35426):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26612,7 +26773,7 @@ snapshots:
       h3: 2.0.2(crossws@0.4.12(srvx@1.0.5))(ocache@0.3.0)
       hono: 4.13.13
       next: 16.4.1(@babel/core@8.0.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      nuxt: 4.5.2(bbdec9eae0b0c804479489298c56e756)
+      nuxt: 4.5.2(0598b27f134a149dec8b0d175c0c244d)
       oxfmt: 0.73.0(@astrojs/compiler-rs@0.5.1)(svelte@5.57.2(@typescript-eslint/types@8.71.0))
       pg: 8.23.1
       react: 19.3.1
@@ -27562,10 +27723,10 @@ snapshots:
       mysql2: 3.24.5(@types/node@24.19.2)
     optional: true
 
-  db0@0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2)):
+  db0@0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2)):
     optionalDependencies:
       '@electric-sql/pglite': 0.5.10
-      drizzle-orm: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+      drizzle-orm: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
       mysql2: 3.24.5(@types/node@24.19.2)
     optional: true
 
@@ -27763,13 +27924,13 @@ snapshots:
       prisma: 7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
     optional: true
 
-  drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7):
+  drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7):
     optionalDependencies:
       '@electric-sql/pglite': 0.5.10
       '@opentelemetry/api': 1.9.1
       '@sinclair/typebox': 0.34.52
       '@types/pg': 8.23.1
-      arktype: 2.2.5
+      arktype: 2.2.8
       mysql2: 3.24.5(@types/node@24.19.2)
       pg: 8.23.1
       postgres: 3.4.7
@@ -31374,7 +31535,7 @@ snapshots:
       - webpack
     optional: true
 
-  nitropack@2.13.4(@electric-sql/pglite@0.5.10)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2))(oxc-parser@0.154.0)(rolldown@1.2.14)(srvx@1.0.5)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)):
+  nitropack@2.13.4(@electric-sql/pglite@0.5.10)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(typescript@7.0.2))(@types/pg@8.23.1)(kysely@0.29.6)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(prisma@7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)))(mysql2@3.24.5(@types/node@24.19.2))(oxc-parser@0.154.0)(rolldown@1.2.14)(srvx@1.0.5)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.4.2
       '@rollup/plugin-alias': 6.0.0(rollup@4.63.5)
@@ -31395,7 +31556,7 @@ snapshots:
       cookie-es: 2.0.1
       croner: 10.0.1
       crossws: 0.3.5
-      db0: 0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2))
+      db0: 0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(typescript@7.0.2))(@types/pg@8.23.1)(kysely@0.29.6)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(prisma@7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)))(mysql2@3.24.5(@types/node@24.19.2))
       defu: 6.1.7
       destr: 2.0.5
       dot-prop: 10.2.0
@@ -31441,7 +31602,121 @@ snapshots:
       unenv: 2.0.0-rc.24
       unimport: 6.5.0(esbuild@0.28.2)(oxc-parser@0.154.0)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       unplugin-utils: 0.3.2
-      unstorage: 1.17.5(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2)))(ioredis@5.11.1(supports-color@7.2.0))
+      unstorage: 1.17.5(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2))(typescript@7.0.2))(@types/pg@8.23.1)(kysely@0.29.6)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(prisma@7.10.0(@types/node@24.19.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)))(mysql2@3.24.5(@types/node@24.19.2)))(ioredis@5.11.1(supports-color@7.2.0))
+      untyped: 2.0.0
+      unwasm: 0.5.3
+      youch: 4.1.1
+      youch-core: 0.3.3
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@electric-sql/pglite'
+      - '@farmfe/core'
+      - '@libsql/client'
+      - '@netlify/blobs'
+      - '@parcel/watcher'
+      - '@planetscale/database'
+      - '@rsbuild/core'
+      - '@rspack/core'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - aws4fetch
+      - bare-abort-controller
+      - bare-buffer
+      - better-sqlite3
+      - bun-types-no-globals
+      - drizzle-orm
+      - encoding
+      - idb-keyval
+      - mysql2
+      - oxc-parser
+      - react-native-b4a
+      - rolldown
+      - sqlite3
+      - srvx
+      - supports-color
+      - unloader
+      - uploadthing
+      - vite
+      - webpack
+    optional: true
+
+  nitropack@2.13.4(@electric-sql/pglite@0.5.10)(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2))(oxc-parser@0.154.0)(rolldown@1.2.14)(srvx@1.0.5)(supports-color@7.2.0)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)):
+    dependencies:
+      '@cloudflare/kv-asset-handler': 0.4.2
+      '@rollup/plugin-alias': 6.0.0(rollup@4.63.5)
+      '@rollup/plugin-commonjs': 29.0.3(rollup@4.63.5)
+      '@rollup/plugin-inject': 5.0.5(rollup@4.63.5)
+      '@rollup/plugin-json': 6.1.0(rollup@4.63.5)
+      '@rollup/plugin-node-resolve': 16.0.3(rollup@4.63.5)
+      '@rollup/plugin-replace': 6.0.3(rollup@4.63.5)
+      '@rollup/plugin-terser': 1.0.0(rollup@4.63.5)
+      '@vercel/nft': 1.11.0(rollup@4.63.5)(supports-color@7.2.0)
+      archiver: 7.0.1
+      c12: 3.3.4(magicast@0.5.5)
+      chokidar: 5.0.0
+      citty: 0.2.2
+      compatx: 0.2.0
+      confbox: 0.2.4
+      consola: 3.4.2
+      cookie-es: 2.0.1
+      croner: 10.0.1
+      crossws: 0.3.5
+      db0: 0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2))
+      defu: 6.1.7
+      destr: 2.0.5
+      dot-prop: 10.2.0
+      esbuild: 0.28.2
+      escape-string-regexp: 5.0.0
+      etag: 1.8.1
+      exsolve: 1.1.1
+      globby: 16.2.4
+      gzip-size: 7.0.0
+      h3: 1.15.11
+      hookable: 5.5.3
+      httpxy: 0.5.5
+      ioredis: 5.11.1(supports-color@7.2.0)
+      jiti: 2.7.0
+      klona: 2.0.6
+      knitwork: 1.3.0
+      listhen: 1.10.1(srvx@1.0.5)
+      magic-string: 0.30.21
+      magicast: 0.5.5
+      mime: 4.1.0
+      mlly: 1.8.2
+      node-fetch-native: 1.6.7
+      node-mock-http: 1.0.5
+      ofetch: 1.5.1
+      ohash: 2.0.12
+      pathe: 2.0.3
+      perfect-debounce: 2.1.0
+      pkg-types: 2.3.3
+      pretty-bytes: 7.1.3
+      radix3: 1.1.2
+      rollup: 4.63.5
+      rollup-plugin-visualizer: 7.1.1(rolldown@1.2.14)(rollup@4.63.5)
+      scule: 1.3.0
+      semver: 7.8.5
+      serve-placeholder: 2.0.2
+      serve-static: 2.2.1(supports-color@7.2.0)
+      source-map: 0.7.6
+      std-env: 4.3.0
+      ufo: 1.6.4
+      ultrahtml: 1.7.0
+      uncrypto: 0.1.3
+      unctx: 2.5.0
+      unenv: 2.0.0-rc.24
+      unimport: 6.5.0(esbuild@0.28.2)(oxc-parser@0.154.0)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      unplugin-utils: 0.3.2
+      unstorage: 1.17.5(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2)))(ioredis@5.11.1(supports-color@7.2.0))
       untyped: 2.0.0
       unwasm: 0.5.3
       youch: 4.1.1
@@ -31564,6 +31839,149 @@ snapshots:
       boolbase: 1.0.0
 
   nullthrows@1.1.1: {}
+
+  nuxt@4.5.2(0598b27f134a149dec8b0d175c0c244d):
+    dependencies:
+      '@dxup/nuxt': 0.5.10(esbuild@0.28.2)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      '@nuxt/cli': 3.37.0(@nuxt/schema@4.5.2)(commander@14.0.3)(magicast@0.5.5)(supports-color@7.2.0)
+      '@nuxt/devtools': 3.4.2(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(ioredis@5.11.1(supports-color@7.2.0))(magic-string@1.4.3)(oxc-parser@0.154.0)(rolldown@1.2.14)(supports-color@7.2.0)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.44(typescript@7.0.2))
+      '@nuxt/kit': 4.5.2(magic-string@1.4.3)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
+      '@nuxt/nitro-server': 4.5.2(fa842625bc0e33aec874eaceb4ad8e60)
+      '@nuxt/schema': 4.5.2
+      '@nuxt/telemetry': 2.9.1(@nuxt/kit@4.5.2(magic-string@1.4.3)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))))
+      '@nuxt/vite-builder': 4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@7.2.0)))(@types/node@24.19.2)(esbuild@0.28.2)(magic-string@1.4.3)(magicast@0.5.5)(nuxt@4.5.2(0598b27f134a149dec8b0d175c0c244d))(oxc-parser@0.154.0)(oxlint@1.88.0(oxlint-tsgolint@7.0.2004))(rolldown@1.2.14)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.14)(rollup@4.63.5))(rollup@4.63.5)(supports-color@7.2.0)(terser@5.51.2)(typescript@7.0.2)(vue@3.5.44(typescript@7.0.2))(yaml@2.9.1)
+      '@unhead/vue': 3.4.1(@oxc-project/types@0.154.0)(esbuild@0.28.2)(lightningcss@1.33.0)(oxc-parser@0.154.0)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.44(typescript@7.0.2))
+      '@vue/shared': 3.5.44
+      chokidar: 5.0.0
+      compatx: 0.2.0
+      consola: 3.4.2
+      cookie-es: 3.1.1
+      defu: 6.1.7
+      devalue: 5.9.4
+      errx: 0.1.2
+      escape-string-regexp: 5.0.0
+      exsolve: 1.1.1
+      fnv1a-64: 0.1.2
+      hookable: 6.1.2
+      ignore: 7.0.10
+      impound: 1.2.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      jiti: 2.7.0
+      klona: 2.0.6
+      knitwork: 1.3.0
+      magic-string: 1.4.3
+      mlly: 1.8.2
+      nanotar: 0.3.0
+      nostics: 1.3.0
+      nypm: 0.6.10
+      object-identity: 0.2.3
+      ofetch: 1.5.1
+      ohash: 2.0.12
+      on-change: 6.0.2
+      oxc-walker: 1.1.1(@oxc-project/types@0.154.0)(oxc-parser@0.154.0)(rolldown@1.2.14)
+      pathe: 2.0.3
+      perfect-debounce: 2.1.0
+      picomatch: 4.0.7
+      pkg-types: 2.3.3
+      rolldown: 1.2.14
+      rolldown-string: 0.3.1(rolldown@1.2.14)
+      rou3: 0.9.2
+      scule: 1.3.0
+      std-env: 4.3.0
+      tinyglobby: 0.2.17
+      ufo: 1.6.4
+      ultrahtml: 1.7.0
+      uncrypto: 0.1.3
+      unctx: 3.0.1(magic-string@1.4.3)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
+      undici: 8.11.2
+      unhead: 3.4.1(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      unimport: 6.5.0(esbuild@0.28.2)(oxc-parser@0.154.0)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      unplugin: 3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
+      unrouting: 0.2.3
+      untyped: 2.0.0
+      verkit: 0.3.2
+      vue: 3.5.44(typescript@7.0.2)
+      vue-component-type-helpers: 3.3.11
+      vue-router: 5.3.1(@vue/compiler-sfc@3.5.44)(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.44(typescript@7.0.2))
+    optionalDependencies:
+      '@types/node': 24.19.2
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@babel/plugin-proposal-decorators'
+      - '@babel/plugin-syntax-jsx'
+      - '@babel/plugin-syntax-typescript'
+      - '@biomejs/biome'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@electric-sql/pglite'
+      - '@farmfe/core'
+      - '@libsql/client'
+      - '@netlify/blobs'
+      - '@oxc-project/types'
+      - '@pinia/colada'
+      - '@planetscale/database'
+      - '@rollup/plugin-babel'
+      - '@rsbuild/core'
+      - '@rspack/core'
+      - '@unhead/cli'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - '@vitejs/devtools'
+      - '@vitejs/devtools-kit'
+      - '@vue/compiler-sfc'
+      - aws4fetch
+      - bare-abort-controller
+      - bare-buffer
+      - better-sqlite3
+      - bufferutil
+      - bun-types-no-globals
+      - cac
+      - commander
+      - db0
+      - drizzle-orm
+      - encoding
+      - esbuild
+      - eslint
+      - idb-keyval
+      - ioredis
+      - less
+      - lightningcss
+      - magicast
+      - meow
+      - mysql2
+      - optionator
+      - oxc-parser
+      - oxlint
+      - pinia
+      - react-native-b4a
+      - rollup
+      - rollup-plugin-visualizer
+      - sass
+      - sass-embedded
+      - sqlite3
+      - srvx
+      - stylelint
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - typescript
+      - unloader
+      - uploadthing
+      - utf-8-validate
+      - vite
+      - vue-tsc
+      - webpack
+      - xml2js
+      - yaml
+    optional: true
 
   nuxt@4.5.2(56e1340c092b8e7e078ff1cb8f57326f):
     dependencies:
@@ -31851,16 +32269,16 @@ snapshots:
       - yaml
     optional: true
 
-  nuxt@4.5.2(bbdec9eae0b0c804479489298c56e756):
+  nuxt@4.5.2(f7fec9f96c7a10a99b3ab8388357b26f):
     dependencies:
       '@dxup/nuxt': 0.5.10(esbuild@0.28.2)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@nuxt/cli': 3.37.0(@nuxt/schema@4.5.2)(commander@14.0.3)(magicast@0.5.5)(supports-color@7.2.0)
       '@nuxt/devtools': 3.4.2(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.4.1)(ioredis@5.11.1(supports-color@7.2.0))(magic-string@1.4.3)(oxc-parser@0.154.0)(rolldown@1.2.14)(supports-color@7.2.0)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.44(typescript@7.0.2))
       '@nuxt/kit': 4.5.2(magic-string@1.4.3)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
-      '@nuxt/nitro-server': 4.5.2(9d255deb5f6970a7eadadb5dc4a5278f)
+      '@nuxt/nitro-server': 4.5.2(4467527a92ace2e693f90543adfcff7a)
       '@nuxt/schema': 4.5.2
       '@nuxt/telemetry': 2.9.1(@nuxt/kit@4.5.2(magic-string@1.4.3)(magicast@0.5.5)(oxc-parser@0.154.0)(rolldown@1.2.14)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))))
-      '@nuxt/vite-builder': 4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@7.2.0)))(@types/node@24.19.2)(esbuild@0.28.2)(magic-string@1.4.3)(magicast@0.5.5)(nuxt@4.5.2(bbdec9eae0b0c804479489298c56e756))(oxc-parser@0.154.0)(oxlint@1.88.0(oxlint-tsgolint@7.0.2004))(rolldown@1.2.14)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.14)(rollup@4.63.5))(rollup@4.63.5)(supports-color@7.2.0)(terser@5.51.2)(typescript@7.0.2)(vue@3.5.44(typescript@7.0.2))(yaml@2.9.1)
+      '@nuxt/vite-builder': 4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@7.2.0)))(@types/node@24.19.2)(esbuild@0.28.2)(magic-string@1.4.3)(magicast@0.5.5)(nuxt@4.5.2(f7fec9f96c7a10a99b3ab8388357b26f))(oxc-parser@0.154.0)(oxlint@1.88.0(oxlint-tsgolint@7.0.2004))(rolldown@1.2.14)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.14)(rollup@4.63.5))(rollup@4.63.5)(supports-color@7.2.0)(terser@5.51.2)(typescript@7.0.2)(vue@3.5.44(typescript@7.0.2))(yaml@2.9.1)
       '@unhead/vue': 3.4.1(@oxc-project/types@0.154.0)(esbuild@0.28.2)(lightningcss@1.33.0)(oxc-parser@0.154.0)(rolldown@1.2.14)(rollup@4.63.5)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.44(typescript@7.0.2))
       '@vue/shared': 3.5.44
       chokidar: 5.0.0
@@ -35068,7 +35486,7 @@ snapshots:
       ioredis: 5.11.1(supports-color@7.2.0)
     optional: true
 
-  unstorage@1.17.5(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2)))(ioredis@5.11.1(supports-color@7.2.0)):
+  unstorage@1.17.5(@vercel/functions@3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0))(db0@0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2)))(ioredis@5.11.1(supports-color@7.2.0)):
     dependencies:
       anymatch: 3.1.3
       chokidar: 5.0.0
@@ -35080,7 +35498,7 @@ snapshots:
       ufo: 1.6.4
     optionalDependencies:
       '@vercel/functions': 3.9.7(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.22.0)
-      db0: 0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.5)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2))
+      db0: 0.3.4(@electric-sql/pglite@0.5.10)(drizzle-orm@1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7))(mysql2@3.24.5(@types/node@24.19.2))
       ioredis: 5.11.1(supports-color@7.2.0)
     optional: true
 
