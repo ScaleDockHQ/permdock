@@ -978,7 +978,7 @@ The claims the Supabase token hook writes have a JSON Schema, `schemas/supabase-
 
 ## Supabase hook manifest
 
-Output of `permdock supabase inspect --json`, and the file `inspect --out permdock.manifest.json` writes ([supabase](/docs/cli/supabase)): what the generated hook and SQL helpers expect, for a package that writes policies or claims next to them. Its JSON Schema is `schemas/supabase-manifest-v1.json` in the `permdock` package, and the file names it in `$schema`. `version` is the format major, as in the catalog; `permdock/testing` exports `supabaseHookManifestFixture`, and `permdock/supabase` the `SupabaseHookManifest` type.
+The `data` of `permdock supabase inspect --json`, and the file `inspect --out permdock.manifest.json` writes ([supabase](/docs/cli/supabase)): what the generated hook and SQL helpers expect, for a package that writes policies or claims next to them. Its JSON Schema is `schemas/supabase-manifest-v1.json` in the `permdock` package, and the file names it in `$schema`. `version` is the format major, as in the catalog; `permdock/testing` exports `supabaseHookManifestFixture`, and `permdock/supabase` the `SupabaseHookManifest` type.
 
 ```json
 {

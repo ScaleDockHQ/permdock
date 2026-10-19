@@ -27,7 +27,7 @@ permdock scan --json
 | Clerk has()             | `has({ role: … })`, `has({ permission: … })`           |
 | JWT role claim          | `claims["role"]`, `token["user_role"]`                 |
 
-`--json` prints `[{ file, line, kind, text }]`. Move each check to a permission, then run both side by side with [`shadowMode`](/docs/getting-started/existing-apps#run-permdock-beside-the-old-checks) before enforcing.
+With `--json`, `data` is `[{ file, line, kind, text }]`. Move each check to a permission, then run both side by side with [`shadowMode`](/docs/getting-started/existing-apps#run-permdock-beside-the-old-checks) before enforcing.
 
 ## Side effects
 

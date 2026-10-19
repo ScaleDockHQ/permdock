@@ -42,7 +42,7 @@ Any other matcher term (`keyMatch`, `regexMatch`, an ABAC attribute, a superuser
 | `deny-without-effect` | A deny line under an allow-only effect, which Casbin itself never applies                     |
 | `malformed`           | A line has too few fields                                                                     |
 
-The command exits `1` when a deny line did not import, because the generated policy then allows what the model denied. `--json` prints `{ out, assignments, skipped: [{ line, text, reason, detail, deny? }] }`.
+The command exits `1` when a deny line did not import, because the generated policy then allows what the model denied. With `--json`, `data` is `{ out, assignments, skipped: [{ line, text, reason, detail, deny? }] }`.
 
 ## Side effects
 
