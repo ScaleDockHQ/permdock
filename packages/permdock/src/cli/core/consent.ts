@@ -69,11 +69,14 @@ export function replayArgv(
   return out;
 }
 
-/** A short token bound to the command line and the directory it runs in. */
+/**
+ * A short token bound to the command line and the directory it runs in. Hex,
+ * because a base64url token may start with `-` and parse as a flag.
+ */
 export function consentToken(argv: readonly string[], cwd: string): string {
   return createHash("sha256")
     .update(JSON.stringify([cwd, ...argv]))
-    .digest("base64url")
+    .digest("hex")
     .slice(0, 12);
 }
 

@@ -75,10 +75,18 @@ describe("consent in agent mode", () => {
       cwd,
       io: io(),
     });
-    expect(confirmed.code).toBe(0);
+    expect(confirmed).toMatchObject({ code: 0 });
     expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(
       "permdock doctor --fail-on warning\n",
     );
+  });
+
+  it("makes tokens that never parse as a flag", () => {
+    for (let i = 0; i < 500; i += 1) {
+      expect(consentToken(["codemod", "0.5"], `/repo/${i}`)).toMatch(
+        /^[0-9a-f]{12}$/u,
+      );
+    }
   });
 
   it("is not satisfied by --yes or by a token for another command line", async () => {

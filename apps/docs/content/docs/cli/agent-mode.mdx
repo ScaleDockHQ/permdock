@@ -1,0 +1,74 @@
+---
+title: Agent mode
+description: How the permdock CLI behaves when an AI agent runs it - JSON results by default, no prompts, exit 3 with next steps, and a consent token before it rewrites files, publishes to the Cloud or overwrites with --force.
+---
+
+When an AI coding agent runs `permdock`, the CLI prints the [`cli-result-v1`](/docs/concepts/wire-formats#cli-result) envelope instead of text, never prompts, and stops with exit `3` when the run needs something only a person can give: input, a login, or consent.
+
+## Usage
+
+```bash
+permdock doctor                     # JSON envelope when an agent runs it
+permdock doctor --format text       # text even in agent mode
+permdock doctor --agent no          # turn agent mode off for this run
+PERMDOCK_AGENT=1 permdock collect   # turn it on, as in a test harness
+permdock codemod 0.5 --confirm 6f3a9c0e41b2   # run again after the person agreed
+```
+
+## Detection
+
+`--agent auto|yes|no` decides, then `PERMDOCK_AGENT` (`1`, `yes`, `true`, `0`, `no`, `false`, `auto`), then detection. Detection reads the same variables as [`@vercel/detect-agent`](https://www.npmjs.com/package/@vercel/detect-agent) 1.2.5, in its order, and a test asserts both agree:
+
+| Variable                                                     | Agent             |
+| ------------------------------------------------------------ | ----------------- |
+| `AI_AGENT`                                                   | The name it holds |
+| `CURSOR_TRACE_ID`, only when stdout is not a terminal        | Cursor            |
+| `CURSOR_AGENT`, `CURSOR_EXTENSION_HOST_ROLE=agent-exec`      | Cursor CLI        |
+| `GEMINI_CLI`                                                 | Gemini CLI        |
+| `CODEX_SANDBOX`, `CODEX_CI`, `CODEX_THREAD_ID`               | Codex             |
+| `ANTIGRAVITY_AGENT`                                          | Antigravity       |
+| `AUGMENT_AGENT`                                              | Augment           |
+| `OPENCODE_CLIENT`                                            | opencode          |
+| `CLAUDECODE`, `CLAUDE_CODE`                                  | Claude Code       |
+| `REPL_ID`                                                    | Replit            |
+| `COPILOT_MODEL`, `COPILOT_ALLOW_ALL`, `COPILOT_GITHUB_TOKEN` | GitHub Copilot    |
+| `/opt/.devin` exists                                         | Devin             |
+
+`run()` from `permdock/cli` reads only the `env` its caller passes, so a program that calls it is not switched to JSON by the agent that runs the program.
+
+## What changes
+
+- **Output.** stdout carries the envelope; `--format text` or `--no-json` brings text back. Progress and logs go to stderr without spinners.
+- **Prompts.** None. A command that would ask takes the answer its flags give, or stops with `missing_input`.
+- **Exit 3.** `status` is `action_required` and `error.code` is `missing_input`, `auth_required` or `consent_required`. `next` lists the commands that continue the run, each with the condition under which to run it.
+- **Completion.** `permdock completion` and the hidden `__complete` print text for the shell even in agent mode.
+
+## Consent
+
+An agent may not start three kinds of run without the person's go-ahead:
+
+| Reason        | When                                              | Commands                                           |
+| ------------- | ------------------------------------------------- | -------------------------------------------------- |
+| `rewrite`     | The command edits files the project owns          | `codemod`, `rls migrate`                           |
+| `cloud:write` | The command publishes to a PermDock Cloud project | `cloud push`                                       |
+| `overwrite`   | `--force` replaces files PermDock did not write   | `init --force`, any `files` command with `--force` |
+
+The first run exits `3` with `consent_required`, the reasons and a token. The agent shows the person what will happen, and after they agree runs the command in `next`, which is the same command line with `--confirm <token>`. A run with `--dry-run` or `--check` writes nothing and needs no consent.
+
+The token is the first 12 hex characters of a SHA-256 of the working directory and the command line, `--confirm` left out. A token for one command line does not confirm another, and `--yes` does not stand in for it. A secret flag such as `--db-url` counts by its stdin form (`--db-url-stdin`), so the token never depends on the secret, and the line in `next` never prints it.
+
+`auth_required` follows the same shape: a `401` or `403` from the Cloud exits `3` with `permdock login` in `next`.
+
+## Why
+
+- **JSON by default for agents.** An agent parses text by guessing; one envelope with a stable `code` per failure lets it branch without matching prose. `--format text` stays one flag away for an agent that shows the output to a person.
+- **Exit 3, not 1.** `1` means a check found a problem the code must fix. A login or a consent is neither, and a separate code lets a script or an agent tell "fix the code" from "ask the person".
+- **A token, not `--yes`.** `--yes` answers prompts, and an agent adds it to every command it runs. The token binds the consent to one command line in one directory, so the agent has to show the person that line first.
+- **Detection follows `@vercel/detect-agent`.** Agents set their own variables, and one shared list means `permdock`, the Vercel CLI and better-supabase switch to agent mode for the same agents. The list is copied rather than depended on so the CLI's startup loads no extra package.
+
+## Related
+
+- [CLI](/docs/cli)
+- [Completion](/docs/cli/completion)
+- [For AI agents](/docs/for-ai-agents)
+- [Wire formats](/docs/concepts/wire-formats#cli-result)
