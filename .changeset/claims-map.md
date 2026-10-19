@@ -1,5 +1,5 @@
 ---
-"permdock": major
+"permdock": minor
 ---
 
 Every subject provider takes one `claims` option, a `ClaimsMap`, for where values live in the verified claims. Each field is a dot path or a function over the claims; a function that throws reads as absent.

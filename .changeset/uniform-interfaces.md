@@ -1,5 +1,5 @@
 ---
-"permdock": major
+"permdock": minor
 ---
 
 Extension interfaces share one shape. Every interface takes an optional `name`, which `on('auth')` reports when that source throws (`{ reason: 'source-threw', source: 'memberships', name }`). Every `DirectoryStore` method may now answer with a value or a Promise, like the other interfaces.

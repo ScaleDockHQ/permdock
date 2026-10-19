@@ -1,5 +1,5 @@
 ---
-"permdock": major
+"permdock": minor
 ---
 
 Breaking: core and `permdock/pdp` build an instance with `getPermDock` (async) or `getPermDockSync`, so `create*` means a module-scope factory, `get*` a per-request server read and `use*` a client read. `permdock/next` renames `requireAccess` to `requirePermission`, which takes `getPermission`'s arguments. Run `permdock codemod 0.5` for the renames below; the call-shape change in the second table needs a manual edit.
