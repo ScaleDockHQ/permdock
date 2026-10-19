@@ -1,7 +1,7 @@
 import type { InstanceOptions } from "./instance-options.ts";
 import type { PermDock, PermDockOptions } from "./permdock.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
-import type { Principal } from "./subject.ts";
+import type { Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { instanceOptions } from "./instance-options.ts";
@@ -30,7 +30,7 @@ export type BuildInstanceInput<
   V extends PolicyVocabulary,
 > = {
   readonly policy: Policy<TUser, TPrincipal, V>;
-  readonly user: TUser | null;
+  readonly user: TUser | Subject | null;
   /** The adapter's options; only their `InstanceOptions` keys are read. */
   readonly sources: InstanceOptions;
   /** Set after `sources`, so an adapter's own `sink` or `tenant` wins. */

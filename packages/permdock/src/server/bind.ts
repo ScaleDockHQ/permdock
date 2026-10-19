@@ -3,7 +3,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
-import type { Principal } from "../core/subject.ts";
+import type { Principal, Subject } from "../core/subject.ts";
 import type { OtelWrap } from "../otel/types.ts";
 import type { PdpFactory } from "../pdp/types.ts";
 import type { Connection } from "./connection.ts";
@@ -37,7 +37,10 @@ import {
 /** The options of every framework adapter; `TContext` is what its callbacks receive. */
 export type ServerAdapterOptions<TContext, TUser = unknown> = InstanceOptions &
   ServerAdapterServices & {
-    readonly subject: (context: TContext) => TUser | Promise<TUser>;
+    /** The user, or a full `Subject` (core then skips `policy.subject`). */
+    readonly subject: (
+      context: TContext,
+    ) => TUser | Subject | Promise<TUser | Subject>;
     /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
     readonly actor?: (context: TContext) => unknown;
     readonly tenant?: TenantOption<TContext>;

@@ -6,7 +6,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { RequestContext } from "../core/request-context.ts";
-import type { Delegation } from "../core/subject.ts";
+import type { Delegation, Subject } from "../core/subject.ts";
 import type { Boundary } from "../core/validation.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
@@ -27,7 +27,10 @@ export type ModelMap = Readonly<Record<string, Permission>>;
 
 /** The options `permdock/ai-sdk`, `permdock/openai`, `permdock/claude-agent` and `permdock/eve` share. */
 export type AgentAdapterOptions<TContext, TUser = unknown> = InstanceOptions & {
-  readonly subject: (context: TContext) => TUser | Promise<TUser>;
+  /** The user, or a full `Subject` (core then skips `policy.subject`). */
+  readonly subject: (
+    context: TContext,
+  ) => TUser | Subject | Promise<TUser | Subject>;
   readonly actor?: (context: TContext) => unknown;
   readonly delegation?: (
     context: TContext,
@@ -64,7 +67,10 @@ export type AgentAdapterOptions<TContext, TUser = unknown> = InstanceOptions & {
 };
 
 export type AgentKernelOptions<TContext, TUser = unknown> = InstanceOptions & {
-  readonly subject: (context: TContext) => TUser | Promise<TUser>;
+  /** The user, or a full `Subject` (core then skips `policy.subject`). */
+  readonly subject: (
+    context: TContext,
+  ) => TUser | Subject | Promise<TUser | Subject>;
   readonly actor?: (context: TContext) => unknown;
   readonly delegation?: (
     context: TContext,

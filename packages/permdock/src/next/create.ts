@@ -8,7 +8,7 @@ import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
-import type { Principal } from "../core/subject.ts";
+import type { Principal, Subject } from "../core/subject.ts";
 import type {
   GetPermDockQuery,
   GetSnapshotQuery,
@@ -139,7 +139,7 @@ export function createPermDock<
   const sink =
     options.sink === undefined ? undefined : afterResponse(options.sink);
 
-  const resolveSubject = cache((): Promise<TUser | null> =>
+  const resolveSubject = cache((): Promise<TUser | Subject | null> =>
     resolveOrNull(() => options.subject(), unstable_rethrow),
   );
 
