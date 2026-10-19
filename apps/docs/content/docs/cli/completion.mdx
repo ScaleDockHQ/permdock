@@ -29,6 +29,14 @@ The bash script runs on bash 3.2, the version macOS ships.
 
 The scripts call the hidden `permdock __complete -- <words>`, which prints one candidate per line. It prints text in [agent mode](/docs/cli/agent-mode) too, since its reader is the shell.
 
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command               | Side effects |
+| --------------------- | ------------ |
+| `permdock completion` | None         |
+
 ## Why
 
 - **The binary answers, not the script.** A static script lists the flags of the version that wrote it and falls behind on the next upgrade. Asking `permdock __complete` keeps one source, the manifest, for the parser, the help, the docs test and completion.

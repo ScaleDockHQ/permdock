@@ -38,6 +38,6 @@ A renamed flag or moved command gets a row in `core/renames.ts`, which feeds the
 
 ## Tests
 
-- `tests/cli/__snapshots__/help/<leaf>.txt` snapshots every leaf's help; `tests/cli/docs-flags.test.ts` checks each page lists its flags and no flag its commands do not take.
+- `tests/cli/__snapshots__/help/<leaf>.txt` snapshots every leaf's help; `tests/cli/docs-flags.test.ts` checks each page lists its flags, no flag its commands do not take, and the `effects` of each command in its `Side effects` table.
 - `tests/cli/completion.test.ts` snapshots the scripts and checks the candidates.
 - `scripts/cli-startup.ts` holds the startup budget, and `tests/cli/startup-imports.test.ts` fails when `--help` or `--version` reaches a command module.

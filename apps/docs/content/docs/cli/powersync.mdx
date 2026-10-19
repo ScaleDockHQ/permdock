@@ -96,6 +96,15 @@ Everything else leaves the grant out of the stream, and `generate` prints why: a
 
 [`permdock doctor`](/docs/cli/doctor) reports PD058 when `sync-config.yaml` or the manifest is stale or missing, and when the config does not compile to Sync Streams.
 
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command                       | Side effects    |
+| ----------------------------- | --------------- |
+| `permdock powersync generate` | `files`         |
+| `permdock powersync verify`   | `database:read` |
+
 ## Why
 
 - **Under-sync, never over-sync.** A device keeps synced rows offline, so a row the policy denies must never reach it. Every grant that does not compile is left out, deny grants drop the stream, and the server still decides every request ([threat model](/docs/security/threat-model)).

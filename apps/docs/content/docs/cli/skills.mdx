@@ -53,6 +53,16 @@ Every skill has the same shape: the inputs to find out first, numbered invariant
 
 Skills are versioned with `permdock`. A skill links docs pages by absolute `https://permdock.com/docs/<path>` URL, so an agent with network access can read the full page (or its `.md` variant) and an agent without it still has the skill's inline recipe. When an adapter's API changes, its docs page, its skill section and its example app change in the same pull request; `.agents/rules/change-checklist.mdc` lists this rule for maintainers.
 
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command                   | Side effects |
+| ------------------------- | ------------ |
+| `permdock skills install` | `files`      |
+| `permdock skills update`  | `files`      |
+| `permdock skills list`    | None         |
+
 ## Why
 
 - **One skill per topic; pull request review stays in the audit skill.** A single wiring skill that covered agents, approvals, tenancy, RLS and credentials loaded hundreds of lines an agent did not need for the task in front of it. Each topic skill now carries its own workflow and Verify list, and `permdock-audit` runs those lists instead of repeating them, so a check lives in one place. Reviewing a pull request uses the same checks as auditing an app, limited to the diff, so it stays a step in `permdock-audit` rather than a separate skill that would drift from it.

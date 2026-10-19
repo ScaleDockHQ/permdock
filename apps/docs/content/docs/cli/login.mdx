@@ -57,6 +57,16 @@ Exit codes: `0` logged in or out; `1` no RFC 8414 metadata, no usable flow, or n
 
 CI does not log in. A job that reads sets `PERMDOCK_CLOUD_TOKEN`, a read-only Cloud key pinned to one environment; a job that pushes sets `PERMDOCK_CLOUD_KEY` ([cloud](/docs/cli/cloud#in-ci)). Both win over a stored login.
 
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command           | Side effects       |
+| ----------------- | ------------------ |
+| `permdock login`  | `network`, `files` |
+| `permdock logout` | `network`, `files` |
+| `permdock whoami` | None               |
+
 ## Why
 
 The device flow is the default because it works over SSH, in a container and in a terminal without a browser, and the person approves on any device. The loopback redirect is the fallback for an issuer without the device flow and for people who prefer the browser redirect; PKCE binds the code to the process that started the login, so another local process that sees the redirect cannot redeem it.

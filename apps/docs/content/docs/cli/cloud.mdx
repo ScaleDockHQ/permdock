@@ -77,6 +77,15 @@ A job that only reads, such as a repository that consumes another team's publish
     PERMDOCK_CLOUD_TOKEN: ${{ secrets.PERMDOCK_CLOUD_TOKEN }}
 ```
 
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command               | Side effects             |
+| --------------------- | ------------------------ |
+| `permdock cloud push` | `network`, `cloud:write` |
+| `permdock cloud pull` | `network`, `files`       |
+
 ## Why
 
 Publishing is a CLI command, not a build hook. `createPermDockPlugin` and `createPermDockUnplugin` stay collect-only because a build that needs a secret and the network fails on forks, in preview builds without credentials and in offline CI, and a catalog published mid-build can describe code that never deploys. A command in the deploy step runs once, with the key the deploy already holds.

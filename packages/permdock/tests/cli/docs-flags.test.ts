@@ -70,6 +70,32 @@ describe("CLI flag docs", () => {
   });
 
   it.each(PAGES)(
+    "lists the side effects the manifest declares on docs/cli/%s.mdx",
+    (name) => {
+      const docs = page(name);
+      const start = docs.indexOf("\n## Side effects\n");
+      expect(start).toBeGreaterThan(-1);
+      const end = docs.indexOf("\n## ", start + 1);
+      const rows = docs
+        .slice(start, end === -1 ? undefined : end)
+        .split("\n")
+        .map((line) =>
+          /^\|\s*`permdock ([^`]+)`\s*\|\s*(.+?)\s*\|$/u.exec(line),
+        )
+        .filter((match) => match !== null)
+        .map((match) => [match[1], match[2]?.replaceAll("`", "")]);
+      expect(rows).toEqual(
+        LEAVES.filter(({ entry }) => entry.docs === name).map(
+          ({ path: words, entry }) => [
+            words.join(" "),
+            entry.effects.length === 0 ? "None" : entry.effects.join(", "),
+          ],
+        ),
+      );
+    },
+  );
+
+  it.each(PAGES)(
     "lists no flag in a table on docs/cli/%s.mdx that its commands do not take",
     async (name) => {
       const known = new Set(spellings(GLOBAL_FLAGS));
