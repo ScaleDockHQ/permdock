@@ -57,7 +57,7 @@ describe("skills install prompt", () => {
   });
 
   it.each([
-    ["--client is given", ["skills", "install", "--client", "claude"], true],
+    ["--for is given", ["skills", "install", "--for", "claude"], true],
     ["not at a terminal", ["skills", "install"], false],
     ["--json is set", ["skills", "install", "--json"], true],
   ] as const)("does not prompt when %s", async (_, argv, interactive) => {

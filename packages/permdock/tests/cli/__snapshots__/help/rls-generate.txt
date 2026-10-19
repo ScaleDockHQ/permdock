@@ -24,8 +24,7 @@ Flags
   --helpers-only                         Write the helpers and keep the policies hand-written
   --shims                                Wrap each rls.migrate helper under its legacy name
   --schemas <pg-delta|migra|migrations>  Schema workflow (default supabase.schemas, else pg-delta)
-  --db-url <url>                         Postgres connection string (DATABASE_URL when the command needs one)
-  --db-url-stdin                         Read the connection string from stdin, keeping it out of ps and shell history
+  --db-url-stdin                         Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
   --out <file>                           File to write
   --check                                Exit 1 when a file on disk is stale; write nothing
   --project <id>                         Rebuild the policy from a PermDock Cloud project's pushed catalog and policy

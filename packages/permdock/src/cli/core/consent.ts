@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 
-import type { Flags } from "./command.ts";
 import type { Effect } from "./manifest.ts";
 
 import { CliError } from "./errors.ts";
@@ -41,14 +40,10 @@ export function quote(token: string): string {
 }
 
 /**
- * The argv as a command line to run again: `--confirm` dropped and a
- * secret flag's value replaced by its stdin form, so the line can be shown
- * and the token does not depend on the secret.
+ * The argv as a command line to run again, `--confirm` dropped. Secrets
+ * only arrive through `--*-stdin` flags, so the line holds none.
  */
-export function replayArgv(
-  argv: readonly string[],
-  flags: Flags,
-): readonly string[] {
+export function replayArgv(argv: readonly string[]): readonly string[] {
   const out: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i] ?? "";
@@ -56,12 +51,6 @@ export function replayArgv(
       ? token.slice(2).split("=", 1)[0]
       : undefined;
     if (name === "confirm") {
-      i += token.includes("=") ? 0 : 1;
-      continue;
-    }
-    const flag = name === undefined ? undefined : flags[name];
-    if (flag?.type === "string" && flag.secret !== undefined) {
-      out.push(`--${flag.secret.stdinFlag}`);
       i += token.includes("=") ? 0 : 1;
       continue;
     }

@@ -67,16 +67,25 @@ describe("Problem Details under --json", () => {
   });
 
   it("names the command and exits 1 when the database does not answer", async () => {
-    const result = await run([
-      "rls",
-      "verify",
-      "--introspect",
-      "--db-url",
-      "postgres://permdock:permdock@127.0.0.1:1/missing",
-      "--json",
-      "--cwd",
-      FIXTURE,
-    ]);
+    const result = await run(
+      [
+        "rls",
+        "verify",
+        "--introspect",
+        "--db-url-stdin",
+        "--json",
+        "--cwd",
+        FIXTURE,
+      ],
+      {
+        io: {
+          stdout: () => undefined,
+          stderr: () => undefined,
+          readStdin: () =>
+            Promise.resolve("postgres://permdock:permdock@127.0.0.1:1/missing"),
+        },
+      },
+    );
     expect(result.code).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
       $schema: ENVELOPE,

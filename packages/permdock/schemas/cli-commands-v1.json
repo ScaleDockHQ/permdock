@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://permdock.com/schemas/cli-commands-v1.json",
   "title": "PermDock CLI commands v1",
-  "description": "What `permdock --help --json` prints: every command with its arguments, options, examples, side effects and docs page, read from the same manifest the parser uses. `permdock <command> --help --json` prints the same document with that command only. The shape follows better-supabase's `cli-commands-v1`; `docs`, `config` and the secret fields are PermDock's own. Fields are only added within v1.",
+  "description": "What `permdock --help --json` prints: every command with its arguments, options, examples, side effects and docs page, read from the same manifest the parser uses. `permdock <command> --help --json` prints the same document with that command only. The shape follows better-supabase's `cli-commands-v1`; `docs` and `config` are PermDock's own. Fields are only added within v1.",
   "type": "object",
   "required": ["$schema", "name", "version", "options", "commands"],
   "properties": {
@@ -155,16 +155,6 @@
           "description": "Takes several values, repeated."
         },
         "valueHint": {
-          "type": "string"
-        },
-        "secret": {
-          "const": true,
-          "description": "The value is a secret: pass it through stdin with `stdinFlag` or the `env` variable, never in argv."
-        },
-        "stdinFlag": {
-          "type": "string"
-        },
-        "env": {
           "type": "string"
         }
       },

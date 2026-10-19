@@ -526,7 +526,7 @@ export async function run(
       const reasons = consentReasons(entry.effects, input.flags);
       if (reasons.length > 0) {
         const replay = [
-          ...replayArgv([...path, ...tokens], leaf.flags),
+          ...replayArgv([...path, ...tokens]),
           ...(globals.cwd === undefined ? [] : ["--cwd", globals.cwd]),
           ...(globals.config === undefined ? [] : ["--config", globals.config]),
         ];

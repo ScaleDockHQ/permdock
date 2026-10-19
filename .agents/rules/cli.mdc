@@ -25,7 +25,7 @@ The `permdock` binary follows the contract better-supabase's CLI defines (`docs/
 - **Effects**: `files`, `rewrite`, `database:read`, `database:write`, `network`, `cloud:write`, `install`. A leaf lists every effect it may have; help prints them, and consent reads them.
 - **Writing files** goes through the `FilePlan` in `core/files.ts`: `--dry-run`, `--check`, `--force`, all or nothing. A `rewrite` refuses files with uncommitted changes unless `--force`.
 - **Agent mode** (`--agent`, `PERMDOCK_AGENT`, `detectAgent`): JSON by default, no prompts. Missing input returns `action_required` with `missing` and `next`. `rewrite`, `cloud:write` and `--force` over files need `--confirm <token>`; `--yes` never stands in. A leaf whose stdout is a script for the shell sets `shellOutput`.
-- **Secrets** are never echoed: a secret flag has a `--<name>-stdin` form and an env fallback, and `next` and the consent token use the stdin form.
+- **Secrets** never sit in argv: they come from a `--<name>-stdin` flag (`--db-url-stdin`, `--key-stdin`, `--token-stdin`) or an environment variable, and are redacted from every output. No flag takes a secret as its value.
 - **Completion**: candidates come from the manifest. A flag or positional with a fixed set of values that is not an `enum` gets a `complete` hook, lazy when it needs a heavy module.
 
 ## Flag vocabulary

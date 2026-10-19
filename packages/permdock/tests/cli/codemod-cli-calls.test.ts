@@ -41,10 +41,6 @@ function shell(text: string): string {
 describe("rewriteCliCalls", () => {
   it.each([
     [
-      "permdock rls generate --db $DATABASE_URL --out rls.sql",
-      "permdock rls generate --db-url $DATABASE_URL --out rls.sql",
-    ],
-    [
       "npx permdock@0.4 catalog --format markdown > CATALOG.md",
       "npx permdock@0.4 catalog --kind markdown > CATALOG.md",
     ],
@@ -65,10 +61,7 @@ describe("rewriteCliCalls", () => {
       "permdock openapi --from policy.ts",
       "permdock openapi emit --policy policy.ts",
     ],
-    [
-      "permdock skills --agent cursor",
-      "permdock skills install --client cursor",
-    ],
+    ["permdock skills --agent cursor", "permdock skills install --for cursor"],
     ["permdock arazzo --doc a.yaml", "permdock arazzo check --doc a.yaml"],
     [
       "permdock init --ui shadcn --agent mcp --src app",
@@ -79,19 +72,19 @@ describe("rewriteCliCalls", () => {
       "permdock rls migrate --sql supabase --dry-run   # dry run",
     ],
     [
-      "permdock rls verify --db <url> 2>&1 | tee log",
-      "permdock rls verify --db-url <url> 2>&1 | tee log",
+      "permdock skills install --client cursor",
+      "permdock skills install --for cursor",
     ],
     [
       "permdock rls verify --db $URL && permdock catalog --from p.ts",
-      "permdock rls verify --db-url $URL && permdock catalog --permissions p.ts",
+      "permdock rls verify --db $URL && permdock catalog --permissions p.ts",
     ],
   ])("rewrites %s", (before, after) => {
     expect(shell(before)).toBe(after);
   });
 
   it.each([
-    "permdock rls generate --db-url $URL",
+    "permdock rls generate --db-url-stdin",
     "permdock openapi emit --policy p.ts",
     "permdock --version",
     "import { x } from 'permdock/cli'",
@@ -140,10 +133,25 @@ describe("rewriteCliCalls", () => {
   });
 
   it("ends a package.json script at its closing quote", () => {
-    const text = `{ "scripts": { "rls": "permdock rls generate --db \\"$URL\\"", "x": "echo --db" } }`;
+    const text = `{ "scripts": { "c": "permdock catalog --from \\"$P\\"", "x": "echo --from" } }`;
     expect(rewriteCliCalls(text, { json: true }).text).toBe(
-      `{ "scripts": { "rls": "permdock rls generate --db-url \\"$URL\\"", "x": "echo --db" } }`,
+      `{ "scripts": { "c": "permdock catalog --permissions \\"$P\\"", "x": "echo --from" } }`,
     );
+  });
+
+  it("leaves a connection string on the command line to a person", () => {
+    const text = "permdock rls verify --db-url $DATABASE_URL";
+    const result = rewriteCliCalls(text, { json: false });
+    expect(result.text).toBe(text);
+    expect(result.followUps).toEqual([
+      {
+        line: 1,
+        column: 21,
+        name: "cli",
+        message:
+          "rls verify: --db-url is --db-url-stdin or DATABASE_URL since 0.5.0.",
+      },
+    ]);
   });
 
   it("reports each change with its line and column", () => {
@@ -160,7 +168,7 @@ describe("permdock codemod 0.5 on scripts and workflows", () => {
   it("rewrites package.json, workflows and shell scripts, and lists calls in Markdown", () => {
     const cwd = project({
       "package.json": `${JSON.stringify(
-        { scripts: { "rls:check": "permdock rls verify --db $DATABASE_URL" } },
+        { scripts: { catalog: "permdock catalog --from p.ts" } },
         null,
         2,
       )}\n`,
@@ -178,7 +186,7 @@ describe("permdock codemod 0.5 on scripts and workflows", () => {
       json: true,
     });
     expect(readFileSync(join(cwd, "package.json"), "utf8")).toContain(
-      '"permdock rls verify --db-url $DATABASE_URL"',
+      '"permdock catalog --permissions p.ts"',
     );
     expect(
       readFileSync(join(cwd, ".github/workflows/ci.yml"), "utf8"),
@@ -200,7 +208,8 @@ describe("permdock codemod 0.5 on scripts and workflows", () => {
         line: 1,
         column: 28,
         name: "cli",
-        message: "--db → --db-url since 0.5.0",
+        message:
+          "rls generate: --db is --db-url-stdin or DATABASE_URL since 0.5.0.",
       },
     ]);
   });

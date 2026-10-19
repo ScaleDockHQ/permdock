@@ -14,7 +14,6 @@ import {
   consentToken,
   replayArgv,
 } from "../../src/cli/core/consent.ts";
-import { dbUrlFlags } from "../../src/cli/core/flags.ts";
 import { run } from "../../src/cli/core/run.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -153,22 +152,16 @@ describe("consentReasons", () => {
 });
 
 describe("replayArgv", () => {
-  it("drops --confirm and keeps a secret out of the command line", () => {
+  it("drops --confirm in both spellings", () => {
     expect(
-      replayArgv(
-        [
-          "rls",
-          "verify",
-          "--db-url",
-          "postgres://u:secret@db/app",
-          "--confirm=abc",
-          "--tree",
-        ],
-        dbUrlFlags,
-      ),
+      replayArgv([
+        "rls",
+        "verify",
+        "--db-url-stdin",
+        "--confirm=abc",
+        "--tree",
+      ]),
     ).toEqual(["rls", "verify", "--db-url-stdin", "--tree"]);
-    expect(
-      replayArgv(["--db-url=postgres://x", "--confirm", "abc"], dbUrlFlags),
-    ).toEqual(["--db-url-stdin"]);
+    expect(replayArgv(["--tree", "--confirm", "abc"])).toEqual(["--tree"]);
   });
 });

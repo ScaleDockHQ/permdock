@@ -2,12 +2,12 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { saasSchemaSql, saasSeed, saasSeedSql } from "permdock/testing/saas";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -47,7 +47,7 @@ describe("rls verify --tree over the shared SaaS folder tree", () => {
   const out = join(dir, "saas.sql");
 
   beforeAll(async () => {
-    const generated = await run(
+    const generated = await runPipingDbUrl(
       ["rls", "generate", "--target", "sql", "--out", out],
       { cwd: FIXTURE },
     );
@@ -73,9 +73,12 @@ describe("rls verify --tree over the shared SaaS folder tree", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    const result = await run(["rls", "verify", "--tree", "--db-url", db.uri], {
-      cwd: FIXTURE,
-    });
+    const result = await runPipingDbUrl(
+      ["rls", "verify", "--tree", "--db-url", db.uri],
+      {
+        cwd: FIXTURE,
+      },
+    );
     const counts =
       /verified (\d+) tree check\(s\) against the database \((\d+) granted\)/u.exec(
         result.stdout,

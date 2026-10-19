@@ -163,7 +163,7 @@ describe("permdock powersync", () => {
         rest: ["verify"],
         db: "postgres://permdock@127.0.0.1:1/none",
       }),
-    ).rejects.toThrow("powersync verify --db-url could not connect");
+    ).rejects.toThrow("powersync verify --db-url-stdin could not connect");
     writeFileSync(join(cwd, "sync-config.yaml"), "streams: {}\n");
     expect((await runPowerSync({ ...base, rest: ["verify"] })).output).toBe(
       "sync-config.yaml differs from the policy: run permdock powersync generate",
@@ -372,10 +372,17 @@ describe("permdock powersync", () => {
         "streams.yaml",
         "--fixtures",
         "rls.fixtures.json",
-        "--db-url",
-        "postgres://permdock@127.0.0.1:1/none",
+        "--db-url-stdin",
       ],
-      { cwd },
+      {
+        cwd,
+        io: {
+          stdout: () => undefined,
+          stderr: () => undefined,
+          readStdin: () =>
+            Promise.resolve("postgres://permdock@127.0.0.1:1/none"),
+        },
+      },
     );
     expect(flagged).toMatchObject({
       code: 1,

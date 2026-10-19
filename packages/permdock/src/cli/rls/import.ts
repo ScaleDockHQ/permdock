@@ -271,7 +271,7 @@ export async function runRlsImport(input: {
   readonly schema: string;
   readonly memberships?: string;
   readonly io: CliIo;
-  /** Opens the `--db-url` connection; defaults to the `pg` peer. */
+  /** Opens the `--db-url-stdin` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
 }): Promise<CommandResult> {
   let policies: ImportedPolicy[] = [];
@@ -299,7 +299,8 @@ export async function runRlsImport(input: {
     try {
       const fromDb = await policiesFromDb(
         input.db,
-        input.connect ?? pgConnector("permdock rls import --db-url", input.cwd),
+        input.connect ??
+          pgConnector("permdock rls import --db-url-stdin", input.cwd),
       );
       policies = fromDb.policies;
       bodies = fromDb.bodies;
@@ -311,7 +312,8 @@ export async function runRlsImport(input: {
   } else {
     return {
       code: 2,
-      output: "PermDock CLI: rls import needs --sql <file> or --db-url <url>",
+      output:
+        "PermDock CLI: rls import needs --sql <file> or a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
     };
   }
   const memberships =

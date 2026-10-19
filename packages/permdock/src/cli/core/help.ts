@@ -43,9 +43,6 @@ function notedText(flag: Flag): string {
   if (flag.type === "enum" && flag.default !== undefined) {
     notes.push(`default ${flag.default}`);
   }
-  if (flag.type === "string" && flag.secret?.env !== undefined) {
-    notes.push(`${flag.secret.env} when the command needs one`);
-  }
   return notes.length === 0
     ? flag.description
     : `${flag.description} (${notes.join(", ")})`;
@@ -212,13 +209,6 @@ function flagJson(name: string, flag: Flag): Record<string, unknown> {
       : {}),
     ...(flag.type === "string" && flag.valueHint !== undefined
       ? { valueHint: flag.valueHint }
-      : {}),
-    ...(flag.type === "string" && flag.secret !== undefined
-      ? {
-          secret: true,
-          stdinFlag: flag.secret.stdinFlag,
-          ...(flag.secret.env === undefined ? {} : { env: flag.secret.env }),
-        }
       : {}),
   };
 }

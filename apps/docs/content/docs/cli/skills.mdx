@@ -16,7 +16,7 @@ npx skills add ScaleDockHQ/PermDock --skill permdock-approvals
 
 # with permdock installed
 pnpm exec permdock skills install
-pnpm exec permdock skills install --client cursor --client claude
+pnpm exec permdock skills install --for cursor --for claude
 pnpm exec permdock skills list
 pnpm exec permdock skills update
 pnpm exec permdock skills install --check
@@ -24,7 +24,7 @@ pnpm exec permdock skills install --check
 
 `install` copies every skill from `node_modules/permdock/skills/` into the folders the detected agents read (`.agents/skills/`, `.claude/skills/`, `.cursor/skills/`) and records the installed version in a lock entry so `permdock doctor` can report drift (`PD005`). `skills.sh` installs land in the same folders, and `--skill <name>` picks one.
 
-Without `--client`, `install` and `update` on a terminal ask which agents to install for, with the agents whose folder (`.agents`, `.claude`, `.cursor`) the project already has preselected; cancelling exits `130` and writes nothing. A `--client` other than `agents`, `claude` or `cursor` exits `2`. In CI, in a pipe or with `--json` there is no prompt and every folder is written, as before.
+Without `--for`, `install` and `update` on a terminal ask which agents to install for, with the agents whose folder (`.agents`, `.claude`, `.cursor`) the project already has preselected; cancelling exits `130` and writes nothing. A `--for` other than `agents`, `claude` or `cursor` exits `2`. In CI, in a pipe or with `--json` there is no prompt and every folder is written, as before.
 
 An agent folder may be a symlink to another one (`.claude/skills` to `.agents/skills`), and so may a single skill folder (`.claude/skills/permdock` to `.agents/skills/permdock`). `install` follows the link and writes the files once, at the target, and reports the linked folder as `linked .claude/skills/permdock to .agents/skills/permdock`. A link whose target does not exist yet gets the target created.
 

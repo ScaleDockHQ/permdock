@@ -107,7 +107,7 @@ describe("completion candidates", () => {
   });
 
   it("offers skill clients", async () => {
-    expect(await candidates(["skills", "install", "--client", "cur"])).toEqual([
+    expect(await candidates(["skills", "install", "--for", "cur"])).toEqual([
       "cursor",
     ]);
   });

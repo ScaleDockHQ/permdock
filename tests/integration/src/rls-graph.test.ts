@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock, memoryRelationSource } from "permdock";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { permissions } from "../fixtures/graph/permissions.ts";
 import { policy } from "../fixtures/graph/policy.ts";
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -181,7 +181,7 @@ describe("relationship graph in RLS (closure table)", () => {
   const out = join(dir, "graph.sql");
 
   beforeAll(async () => {
-    const generated = await run(
+    const generated = await runPipingDbUrl(
       ["rls", "generate", "--target", "sql", "--out", out],
       { cwd: FIXTURE },
     );
@@ -293,9 +293,12 @@ describe("relationship graph in RLS (closure table)", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    const result = await run(["rls", "verify", "--tree", "--db-url", db.uri], {
-      cwd: FIXTURE,
-    });
+    const result = await runPipingDbUrl(
+      ["rls", "verify", "--tree", "--db-url", db.uri],
+      {
+        cwd: FIXTURE,
+      },
+    );
     const counts =
       /verified (\d+) tree check\(s\) against the database \((\d+) granted\)/u.exec(
         result.stdout,

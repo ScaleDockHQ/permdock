@@ -91,7 +91,9 @@ export function missingHelpersInFiles(
 export async function missingHelpersInDb(
   db: string,
   manifest: SupabaseHookManifest,
-  connect: SqlConnect = pgConnector("permdock supabase hook generate --db-url"),
+  connect: SqlConnect = pgConnector(
+    "permdock supabase hook generate --db-url-stdin",
+  ),
 ): Promise<readonly string[]> {
   const client = await connect(db);
   try {

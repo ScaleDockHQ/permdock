@@ -148,7 +148,6 @@ const SHAPE_DEFAULTS: ShapeValues = {
   "helpers-only": false,
   shims: false,
   schemas: undefined,
-  "db-url": undefined,
   "db-url-stdin": false,
 };
 
@@ -280,8 +279,8 @@ export const importPolicies: Leaf = defineLeaf({
     if (sql === undefined && db === undefined) {
       throw missingInput(
         "rls import",
-        ["--sql", "--db-url"],
-        "pass one, or set DATABASE_URL",
+        ["--sql", "--db-url-stdin"],
+        "pass one, or set DATABASE_URL or SUPABASE_DB_URL",
       );
     }
     return runRls({
@@ -323,7 +322,7 @@ export const verify: Leaf = defineLeaf({
   async run(ctx, { flags }) {
     return runRls({
       ...(await rlsInput(ctx, "verify", flags, {
-        dbRequired: flags.introspect,
+        dbRequired: flags.introspect || flags.tree,
       })),
       fixtures: given(flags.fixtures),
       format: flags.kind,

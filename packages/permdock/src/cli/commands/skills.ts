@@ -6,8 +6,8 @@ import { checkFlag } from "../core/flags.ts";
 import { CANCELLED, pick } from "../core/prompt.ts";
 import { detectedAgents, runSkills, SKILL_AGENTS } from "../skills.ts";
 
-const clientFlag = {
-  client: {
+const forFlag = {
+  for: {
     type: "string",
     repeatable: true,
     description: "Agent folders to write: agents, claude or cursor",
@@ -39,13 +39,13 @@ async function installTo(
 }
 
 export const install: Leaf = defineLeaf({
-  flags: { ...clientFlag, ...checkFlag },
-  run: (ctx, { flags }) => installTo(ctx, "install", flags.client, flags.check),
+  flags: { ...forFlag, ...checkFlag },
+  run: (ctx, { flags }) => installTo(ctx, "install", flags.for, flags.check),
 });
 
 export const update: Leaf = defineLeaf({
-  flags: { ...clientFlag },
-  run: (ctx, { flags }) => installTo(ctx, "update", flags.client, false),
+  flags: { ...forFlag },
+  run: (ctx, { flags }) => installTo(ctx, "update", flags.for, false),
 });
 
 export const list: Leaf = defineLeaf({

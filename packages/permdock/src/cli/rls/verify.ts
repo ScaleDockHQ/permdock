@@ -77,11 +77,12 @@ export async function runRlsVerify(input: {
   /** Check a generated tree with restricted branches instead of fixtures; needs `db`. */
   readonly tree?: boolean;
   readonly io: CliIo;
-  /** Opens the `--db-url` connection; defaults to the `pg` peer. */
+  /** Opens the `--db-url-stdin` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
 }): Promise<CommandResult> {
   const connect =
-    input.connect ?? pgConnector("permdock rls verify --db-url", input.cwd);
+    input.connect ??
+    pgConnector("permdock rls verify --db-url-stdin", input.cwd);
   const policyPath = input.from ?? input.config.policy;
   if (policyPath === undefined) {
     return {
@@ -94,7 +95,8 @@ export async function runRlsVerify(input: {
     if (input.db === undefined) {
       return {
         code: 2,
-        output: "PermDock CLI: rls verify --tree needs --db-url",
+        output:
+          "PermDock CLI: rls verify --tree needs a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
       };
     }
     try {

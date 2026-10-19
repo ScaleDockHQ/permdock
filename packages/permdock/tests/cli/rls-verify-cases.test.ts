@@ -184,7 +184,7 @@ describe("rls verify --format pgtap", () => {
   });
 });
 
-describe("rls verify --db-url grant kinds and statements", () => {
+describe("rls verify --db-url-stdin grant kinds and statements", () => {
   it("verifies a sqlFunction through its twin, skips an opaque grant and runs custom actions as a select", async () => {
     const sql = fakeSql(rowsFor((call) => (call.values[0] === "p1" ? 1 : 0)));
     const cwd = app([
@@ -287,7 +287,7 @@ describe("rls verify --db-url grant kinds and statements", () => {
   });
 });
 
-describe("rls verify --db-url field views", () => {
+describe("rls verify --db-url-stdin field views", () => {
   it("passes when the view keeps what pick keeps, and a denied row reads nothing", async () => {
     const sql = fakeSql((call) => {
       if (call.sql.startsWith('select * from "post_visible"')) {
@@ -317,7 +317,7 @@ describe("rls verify --db-url field views", () => {
   });
 });
 
-describe("rls verify --db-url custom role seeds", () => {
+describe("rls verify --db-url-stdin custom role seeds", () => {
   it("seeds pinned, team and unknown-scope roles into the rbac schema", async () => {
     const sql = fakeSql(rowsFor(() => 1));
     const cwd = app({

@@ -61,9 +61,9 @@ export type GeneratedSql = GeneratedPolicies & {
   readonly migrationRel: string | undefined;
   readonly outRel: string;
   readonly backfill: string | undefined;
-  /** The index targets before `--db-url` prunes them. */
+  /** The index targets before `--db-url-stdin` prunes them. */
   readonly indexes: readonly IndexTarget[];
-  /** Each `--split` part's SQL, with the indexes left after `--db-url`. */
+  /** Each `--split` part's SQL, with the indexes left after `--db-url-stdin`. */
   readonly parts: (indexes: readonly IndexTarget[]) => SplitSql;
 };
 
@@ -448,7 +448,7 @@ function emitTarget(
   return { text, migration, migrationRel, outRel };
 }
 
-/** The generated SQL for one run, before `--db-url` prunes the index targets. */
+/** The generated SQL for one run, before `--db-url-stdin` prunes the index targets. */
 export function generateSql(
   input: RlsGenerateInput,
   policy: Policy,

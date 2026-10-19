@@ -17,19 +17,12 @@ export function redact(text: string, secrets: Iterable<string>): string {
 }
 
 /**
- * A secret a flag names, in order: `--<name>-stdin`, then `--<name>`, then
- * the environment variable when `useEnv` is set. Every value found is
- * registered for redaction.
+ * The secret piped in for `--<flag>-stdin`, when it was passed, registered
+ * for redaction.
  */
 export async function secretInput(
   ctx: CliContext,
-  input: {
-    readonly flag: string;
-    readonly value: string | undefined;
-    readonly stdin: boolean;
-    readonly env?: string;
-    readonly useEnv?: boolean;
-  },
+  input: { readonly flag: string; readonly stdin: boolean },
 ): Promise<string | undefined> {
   let value: string | undefined;
   if (input.stdin) {
@@ -44,11 +37,6 @@ export async function secretInput(
         },
       );
     }
-  } else if (input.value !== undefined && input.value !== "") {
-    value = input.value;
-  } else if (input.useEnv === true && input.env !== undefined) {
-    const fromEnv = ctx.env[input.env];
-    value = fromEnv === undefined || fromEnv === "" ? undefined : fromEnv;
   }
   if (value !== undefined) {
     ctx.addSecret(value);

@@ -13,7 +13,6 @@ import {
   plan,
   role,
 } from "permdock";
-import { run } from "permdock/cli";
 import {
   authzVersion,
   subjectFromSupabase,
@@ -26,6 +25,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, roles } from "../fixtures/named-scopes/policy.ts";
 import { sources } from "../fixtures/supabase-sources/sources.ts";
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -110,7 +110,7 @@ describe("permdock supabase hook generate against Postgres", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-sources-"));
     const out = join(dir, "hook.sql");
-    const helpers = await run(
+    const helpers = await runPipingDbUrl(
       [
         "rls",
         "generate",
@@ -130,9 +130,12 @@ describe("permdock supabase hook generate against Postgres", () => {
     if (helpers.code !== 0) {
       throw new Error(`rls generate: ${helpers.stdout}${helpers.stderr}`);
     }
-    const result = await run(["supabase", "hook", "generate", "--out", out], {
-      cwd: FIXTURE,
-    });
+    const result = await runPipingDbUrl(
+      ["supabase", "hook", "generate", "--out", out],
+      {
+        cwd: FIXTURE,
+      },
+    );
     if (result.code !== 0) {
       throw new Error(`hook generate: ${result.stdout}${result.stderr}`);
     }
@@ -473,7 +476,7 @@ describe("permdock supabase hook generate against Postgres", () => {
     expect(generated).not.toMatch(/service_role/iu);
   });
 
-  it("reports missing helpers from the database with --db-url (PD039)", async () => {
+  it("reports missing helpers from the database with --db-url-stdin (PD039)", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
@@ -484,7 +487,7 @@ describe("permdock supabase hook generate against Postgres", () => {
     await empty.connect();
     const dir = mkdtempSync(join(tmpdir(), "permdock-sources-db-"));
     const generate = () =>
-      run(
+      runPipingDbUrl(
         [
           "supabase",
           "hook",
@@ -497,7 +500,7 @@ describe("permdock supabase hook generate against Postgres", () => {
         { cwd: FIXTURE },
       );
     try {
-      const installed = await run(
+      const installed = await runPipingDbUrl(
         [
           "supabase",
           "hook",

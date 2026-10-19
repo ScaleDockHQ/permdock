@@ -36,7 +36,7 @@ const AGENT_FOLDERS: Readonly<Record<string, string>> = {
   cursor: ".cursor/skills",
 };
 
-/** The `--client` names `skills install` knows, with the folder each writes. */
+/** The `--for` names `skills install` knows, with the folder each writes. */
 export const SKILL_AGENTS: Readonly<Record<string, string>> = AGENT_FOLDERS;
 
 /** Agents whose config folder (`.claude`, `.cursor`, `.agents`) the project already has. */
@@ -58,7 +58,7 @@ export function runSkills(input: {
     const suggestion = didYouMean(unknown, Object.keys(AGENT_FOLDERS));
     return {
       code: 2,
-      output: `skills: unknown --client '${unknown}'.${suggestion === undefined ? "" : ` Did you mean ${suggestion}?`} Use ${Object.keys(AGENT_FOLDERS).join(", ")}.`,
+      output: `skills: unknown --for '${unknown}'.${suggestion === undefined ? "" : ` Did you mean ${suggestion}?`} Use ${Object.keys(AGENT_FOLDERS).join(", ")}.`,
     };
   }
   switch (input.action) {

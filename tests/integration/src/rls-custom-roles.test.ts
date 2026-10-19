@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { customRoleClaim } from "permdock";
-import { run } from "permdock/cli";
 import { authorizeSql } from "permdock/supabase";
 import { testRlsParity } from "permdock/testing";
 import { Client, DatabaseError } from "pg";
@@ -15,6 +14,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions } from "../fixtures/rls-custom-roles/permissions.ts";
 import { policy } from "../fixtures/rls-custom-roles/policy.ts";
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres, databaseUri, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -314,7 +314,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
     db = await startPostgres([ROLES]);
     for (const shape of SHAPES) {
       const out = join(dir, `${shape.name}.sql`);
-      const result = await run(
+      const result = await runPipingDbUrl(
         ["rls", "generate", "--target", "sql", "--out", out],
         { cwd: shape.cwd },
       );
@@ -384,7 +384,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
       if (db === undefined) {
         throw new Error("PermDock: Postgres was not started");
       }
-      const result = await run(
+      const result = await runPipingDbUrl(
         [
           "rls",
           "verify",
@@ -581,7 +581,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
       if (db === undefined) {
         throw new Error("PermDock: Postgres was not started");
       }
-      const emitted = await run(
+      const emitted = await runPipingDbUrl(
         ["rls", "verify", "--fixtures", fixturesPath, "--kind", "pgtap"],
         { cwd: shape.cwd },
       );
@@ -614,11 +614,11 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
     },
   );
 
-  it("verify --db-url keeps custom roles that already exist in the database", async () => {
+  it("verify --db-url-stdin keeps custom roles that already exist in the database", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    const emitted = await run(
+    const emitted = await runPipingDbUrl(
       ["rls", "verify", "--fixtures", fixturesPath, "--kind", "pgtap"],
       { cwd: FIXTURE },
     );
@@ -633,7 +633,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
     await client.connect();
     try {
       await client.query(seeds.join("\n"));
-      const result = await run(
+      const result = await runPipingDbUrl(
         ["rls", "verify", "--db-url", uri, "--fixtures", fixturesPath],
         { cwd: FIXTURE },
       );

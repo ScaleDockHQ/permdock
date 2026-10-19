@@ -80,8 +80,9 @@ const CODES: {
 };
 
 /** Every problem code, in the order the errors page lists them. */
-// SAFETY: CODES has exactly one key per ProblemCode.
-export const PROBLEM_CODES = Object.keys(CODES) as readonly ProblemCode[];
+export const PROBLEM_CODES: readonly ProblemCode[] = Object.keys(CODES).filter(
+  (code): code is ProblemCode => code in CODES,
+);
 
 /** Each code has a heading on this page, so `type` links to its explanation. */
 export const CLI_ERRORS_URL = "https://permdock.com/docs/cli/errors";

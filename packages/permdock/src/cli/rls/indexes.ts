@@ -159,7 +159,7 @@ export async function readTableIndexFacts(
   db: string,
   tables: readonly string[],
   connect: SqlConnect = (url) =>
-    connectPgPool(url, "permdock rls generate --db-url"),
+    connectPgPool(url, "permdock rls generate --db-url-stdin"),
 ): Promise<TableIndexFacts> {
   const client = await connect(db);
   try {

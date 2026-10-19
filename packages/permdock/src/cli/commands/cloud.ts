@@ -22,7 +22,7 @@ async function withStdinSecret(
   stdin: boolean,
   variable: string,
 ): Promise<Env> {
-  const value = await secretInput(ctx, { flag, value: undefined, stdin });
+  const value = await secretInput(ctx, { flag, stdin });
   return value === undefined ? ctx.env : { ...ctx.env, [variable]: value };
 }
 

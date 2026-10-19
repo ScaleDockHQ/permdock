@@ -271,10 +271,10 @@ describe("leaf help", () => {
     flags: {
       name: { type: "string", description: "A name" },
       internal: { type: "boolean", description: "Not shown", hidden: true },
-      token: {
-        type: "string",
-        description: "A token",
-        secret: { stdinFlag: "token-stdin" },
+      kind: {
+        type: "enum",
+        options: ["a", "b"],
+        description: "A kind",
       },
     },
     run: () => ({ code: 0, output: "" }),
@@ -298,14 +298,10 @@ describe("leaf help", () => {
     expect(text).not.toContain("Arguments");
   });
 
-  it("marks a secret flag without an environment variable", () => {
+  it("lists an enum flag's choices", () => {
     expect(leafJson(["demo"], entry, leaf)).toMatchObject({
       options: expect.arrayContaining([
-        expect.objectContaining({
-          name: "token",
-          secret: true,
-          stdinFlag: "token-stdin",
-        }),
+        expect.objectContaining({ name: "kind", choices: ["a", "b"] }),
       ]),
     });
   });
@@ -408,7 +404,7 @@ describe("run", () => {
     const cwd = mkdtempSync(join("/tmp", "permdock-skills-"));
     temps.push(cwd);
     const result = await run(
-      ["skills", "update", "--client", "cursor", "--json"],
+      ["skills", "update", "--for", "cursor", "--json"],
       {
         cwd,
       },

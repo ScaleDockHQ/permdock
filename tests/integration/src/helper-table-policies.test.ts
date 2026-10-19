@@ -2,11 +2,11 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -31,7 +31,7 @@ create policy "quote topics" on realtime.messages for select
   using (split_part(topic, ':', 2) in (select permdock.permitted_organization_ids('quote.read#2')));
 `;
 
-describe("rls verify --db-url and helper calls on storage and realtime", () => {
+describe("rls verify --db-url-stdin and helper calls on storage and realtime", () => {
   let db: Postgres | undefined;
   let dir = "";
 
@@ -50,7 +50,7 @@ describe("rls verify --db-url and helper calls on storage and realtime", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    const result = await run(
+    const result = await runPipingDbUrl(
       [
         "rls",
         "verify",

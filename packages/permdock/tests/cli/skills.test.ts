@@ -71,7 +71,7 @@ describe("skills", () => {
 
   it("list reports installed skills", async () => {
     const cwd = workspace();
-    await run(["skills", "install", "--client", "cursor"], { cwd });
+    await run(["skills", "install", "--for", "cursor"], { cwd });
     const result = await run(["skills", "list"], { cwd });
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("permdock-wire");
@@ -104,7 +104,7 @@ describe("runSkills", () => {
     expect(runSkills({ cwd, action: "update", agents: ["cursr"] })).toEqual({
       code: 2,
       output:
-        "skills: unknown --client 'cursr'. Did you mean cursor? Use agents, claude, cursor.",
+        "skills: unknown --for 'cursr'. Did you mean cursor? Use agents, claude, cursor.",
     });
   });
 
@@ -216,7 +216,7 @@ describe("skills --check", () => {
     );
     expect(existsSync(join(cwd, ".cursor/skills"))).toBe(false);
     expect(existsSync(join(cwd, ".permdock"))).toBe(false);
-    await run(["skills", "install", "--client", "cursor"], { cwd });
+    await run(["skills", "install", "--for", "cursor"], { cwd });
     expect(runSkillsCheck({ cwd, agents: [] })).toEqual({
       code: 0,
       output: "skills match permdock@0.0.0",
