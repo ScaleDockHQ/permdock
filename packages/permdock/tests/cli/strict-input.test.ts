@@ -105,8 +105,8 @@ describe("value checks", () => {
       { cwd: dir() },
     );
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain(
-      "unknown --framework 'nxt' (did you mean next?)",
+    expect(result.stderr).toBe(
+      "init: --framework 'nxt' is not one of next, hono, express, none. Did you mean next?\n",
     );
   });
 

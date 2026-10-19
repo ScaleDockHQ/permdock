@@ -38,6 +38,8 @@ export type EnumFlag = FlagBase & {
   readonly options: readonly string[];
   readonly default?: string;
   readonly repeatable?: boolean;
+  /** Help shows `<valueHint>` and lists the options in the description, for a list too long to read inline. */
+  readonly valueHint?: string;
 };
 
 export type Flag = BooleanFlag | StringFlag | EnumFlag;

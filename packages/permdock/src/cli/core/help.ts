@@ -22,11 +22,20 @@ function flagLabel(name: string, flag: Flag): string {
     return `${alias}--${name}`;
   }
   const hint =
-    flag.type === "enum" ? flag.options.join("|") : (flag.valueHint ?? "value");
+    flag.type === "enum"
+      ? (flag.valueHint ?? flag.options.join("|"))
+      : (flag.valueHint ?? "value");
   return `${alias}--${name} <${hint}>`;
 }
 
 function flagText(flag: Flag): string {
+  const text = notedText(flag);
+  return flag.type === "enum" && flag.valueHint !== undefined
+    ? `${text}; one of ${flag.options.join(", ")}`
+    : text;
+}
+
+function notedText(flag: Flag): string {
   const notes: string[] = [];
   if (flag.type !== "boolean" && flag.repeatable === true) {
     notes.push("repeatable");
