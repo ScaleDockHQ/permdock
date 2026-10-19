@@ -144,11 +144,18 @@ function rowMatches(row: Rename, old: string, next: string): boolean {
   return cellNames(old).includes(row.from) && cellNames(next).includes(row.to);
 }
 
-/** Every `.changeset/rename-*.md` `| Old | New |` row is a codemod map row, and every map row is in one. */
+/**
+ * Every `.changeset/rename-*.md` `| Old | New |` row is a codemod map row, and every map row is
+ * in one or in a released `packages/permdock/CHANGELOG.md` table, where versioning moves them.
+ */
 function changesetRenames(root: string): readonly string[] {
   const dir = join(root, ".changeset");
   const problems: string[] = [];
-  const all: (readonly [string, string])[] = [];
+  const all: (readonly [string, string])[] = tableRows(
+    read(join(root, "packages/permdock/CHANGELOG.md")),
+    "Old",
+    "New",
+  ).map(([old = "", next = ""]): readonly [string, string] => [old, next]);
   for (const name of globSync("rename-*.md", { cwd: dir }).toSorted()) {
     const text = read(join(dir, name));
     for (const [old = "", next = ""] of tableRows(text, "Old", "New")) {
@@ -163,7 +170,7 @@ function changesetRenames(root: string): readonly string[] {
   for (const row of RENAMES_0_5) {
     if (!all.some(([old, next]) => rowMatches(row, old, next))) {
       problems.push(
-        `renames-0.5.ts renames ${row.from} to ${row.to} (${row.entries.join(", ")}), which no .changeset/rename-*.md table lists`,
+        `renames-0.5.ts renames ${row.from} to ${row.to} (${row.entries.join(", ")}), which no .changeset/rename-*.md or CHANGELOG.md table lists`,
       );
     }
   }

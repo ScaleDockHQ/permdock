@@ -1,4 +1,4 @@
-permdock 0.4.0: Collect, export, diff and check the permissions a PermDock policy declares
+permdock <version>: Collect, export, diff and check the permissions a PermDock policy declares
 
 Usage  permdock <command> [flags]
 

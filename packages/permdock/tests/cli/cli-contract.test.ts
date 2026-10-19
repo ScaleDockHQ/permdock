@@ -12,12 +12,11 @@ const PATHS = leaves()
   .filter(({ entry }) => entry.hidden !== true)
   .map(({ path }) => path);
 const FIXTURE = join(import.meta.dirname, "fixtures/mini-app");
+const version: unknown = JSON.parse(
+  readFileSync(join(packageRoot(), "package.json"), "utf8"),
+).version;
 
 describe("permdock --version", () => {
-  const version: unknown = JSON.parse(
-    readFileSync(join(packageRoot(), "package.json"), "utf8"),
-  ).version;
-
   it.each([["--version"], ["-v"]])(
     "prints the package version for %s",
     async (flag) => {
@@ -34,7 +33,9 @@ describe("help", () => {
   it("matches the recorded root help", async () => {
     const { code, stdout } = await run(["--help", "--no-color"]);
     expect(code).toBe(0);
-    await expect(stdout).toMatchFileSnapshot("__snapshots__/help/root.txt");
+    await expect(
+      stdout.replace(`permdock ${String(version)}:`, "permdock <version>:"),
+    ).toMatchFileSnapshot("__snapshots__/help/root.txt");
   });
 
   it.each(PATHS)("matches the recorded help for %s", async (...path) => {
