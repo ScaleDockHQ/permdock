@@ -197,8 +197,8 @@ describe("permdock cloud pull", () => {
         io: io(reference, { PERMDOCK_CLOUD_TOKEN: reference.platform.token }),
       },
     );
-    expect(pulled.code).toBe(1);
-    expect(pulled.stdout).toMatch(/403/u);
+    expect(pulled.code).toBe(3);
+    expect(pulled.stderr).toMatch(/403/u);
   });
 });
 

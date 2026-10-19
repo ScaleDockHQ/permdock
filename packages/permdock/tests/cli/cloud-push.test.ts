@@ -312,17 +312,49 @@ export const permissions = definePermissions({
       // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- a fetch may reject with a non-Error
       fetch: () => Promise.reject(thrown),
     };
-    expect(await push(FIXTURE, { io })).toEqual({ code: 1, output });
+    await expect(push(FIXTURE, { io })).rejects.toMatchObject({
+      kind: "unavailable",
+      code: "network_error",
+      message: output,
+    });
+  });
+
+  it("asks for a write credential when the Cloud answers 401", async () => {
+    const io: CliIo = {
+      ...IO,
+      fetch: () => Promise.resolve(new Response(null, { status: 401 })),
+    };
+    await expect(push(FIXTURE, { io })).rejects.toMatchObject({
+      kind: "action",
+      code: "auth_required",
+      message:
+        "PermDock Cloud rejected the PERMDOCK_CLOUD_KEY for cloud push (HTTP 401)",
+    });
   });
 
   it("reports a rejected catalog with its status", async () => {
     const io: CliIo = {
       ...IO,
-      fetch: () => Promise.resolve(new Response(null, { status: 401 })),
+      fetch: () => Promise.resolve(new Response(null, { status: 422 })),
     };
     expect(await push(FIXTURE, { io })).toEqual({
       code: 1,
-      output: "PermDock Cloud rejected the catalog: HTTP 401",
+      output: "PermDock Cloud rejected the catalog: HTTP 422",
     });
+  });
+
+  it("sends the permdock-cli user agent", async () => {
+    const seen: (string | null)[] = [];
+    const io: CliIo = {
+      ...IO,
+      fetch: (_input, init) => {
+        seen.push(new Headers(init?.headers).get("user-agent"));
+        return Promise.resolve(new Response(null, { status: 201 }));
+      },
+    };
+    expect((await push(FIXTURE, { io })).code).toBe(0);
+    expect(seen).toEqual([
+      expect.stringMatching(/^permdock-cli\/\S+ node\/\S+ \S+$/u),
+    ]);
   });
 });

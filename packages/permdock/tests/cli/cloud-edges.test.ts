@@ -158,7 +158,6 @@ describe("permdock cloud pull against a failing Cloud", () => {
 
   it.each([
     [() => new Response("<html>", { status: 200 }), /not JSON/u],
-    [() => new Response(null, { status: 401 }), /rejected the credential/u],
     [
       () =>
         new Response(null, { status: 429, headers: { "retry-after": "7" } }),
@@ -174,6 +173,19 @@ describe("permdock cloud pull against a failing Cloud", () => {
     const result = await pull(stubCloud({ [`GET ${POLICY_PATH}`]: route }));
     expect(result.code).toBe(1);
     expect(result.stdout).toMatch(message);
+  });
+
+  it("asks for a login with exit 3 when the Cloud rejects the credential", async () => {
+    const result = await pull(
+      stubCloud({
+        [`GET ${POLICY_PATH}`]: () => new Response(null, { status: 401 }),
+      }),
+    );
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain(
+      "PermDock Cloud rejected the credential (HTTP 401)",
+    );
+    expect(result.stderr).toContain("permdock login");
   });
 
   it("keeps the Cloud's problem type under --json", async () => {
@@ -250,14 +262,14 @@ describe("the project a PERMDOCK_CLOUD_TOKEN reads", () => {
   it.each([
     [{ items: [{ id: "a" }, { id: "b" }] }, 200, 2, /reads 2 projects/u],
     [{ items: "none" }, 200, 2, /reads 0 projects/u],
-    [{}, 401, 1, /rejected the credential/u],
+    [{}, 401, 3, /rejected the credential/u],
   ] as const)("refuses %j", async (body, status, code, message) => {
     const result = await pull(
       stubCloud({ "GET /api/v1/projects": list(body, status) }),
       [],
     );
     expect(result.code).toBe(code);
-    expect(code === 1 ? result.stdout : result.stderr).toMatch(message);
+    expect(result.stderr).toMatch(message);
   });
 
   it("is required with a login", async () => {
@@ -395,8 +407,8 @@ describe("permdock rls generate --project against a failing Cloud", () => {
 
   it("passes a fetch failure through", async () => {
     const result = await generateRls(() => new Response(null, { status: 401 }));
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("rejected the credential");
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain("rejected the credential");
   });
 
   it("refuses a push that carried no policy, as Problem Details under --json", async () => {

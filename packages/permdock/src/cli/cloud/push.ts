@@ -7,12 +7,11 @@ import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { parseCatalog } from "../../catalog/parse.ts";
 import { pushedPolicy } from "../../catalog/pushed-policy.ts";
-import { timeoutSignal } from "../../core/timeout.ts";
 import { catalogFingerprint } from "../../index.ts";
 import { parseSupabaseManifest } from "../../supabase/manifest.ts";
-import { TERMINAL_TIMEOUT_MS } from "../../terminal/device.ts";
 import { runCatalog } from "../catalog.ts";
 import { describeError } from "../core/errors.ts";
+import { authFailure, httpRequest } from "../core/http.ts";
 import { cliVersion } from "../core/version.ts";
 import { MANIFEST_FILE } from "../manifest-json.ts";
 import { loadConfiguredPolicy } from "../project/load.ts";
@@ -106,34 +105,37 @@ export async function runCloud(input: {
     return { code: 0, output: describe("would push") };
   }
   const auth = await pushAuth(url, input.env, cliRuntime(input.io, input.env));
-  const fetchFn = input.io.fetch ?? globalThis.fetch.bind(globalThis);
-  let response: Response;
-  try {
-    response = await fetchFn(
-      `${url}/v1/environments/${encodeURIComponent(environment)}/catalog`,
+  const response = await httpRequest(input.io, {
+    url: `${url}/v1/environments/${encodeURIComponent(environment)}/catalog`,
+    method: "POST",
+    service: "PermDock Cloud",
+    headers: {
+      authorization: `Bearer ${auth.bearer}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      fingerprint,
+      catalog,
+      ...(policy === undefined ? {} : { policy }),
+      ...(manifest.manifest === undefined
+        ? {}
+        : { manifest: manifest.manifest }),
+      permdockVersion: cliVersion(),
+    }),
+  });
+  const denied = authFailure(
+    response,
+    `PermDock Cloud rejected the ${auth.source === "login" ? "login" : "PERMDOCK_CLOUD_KEY"} for cloud push`,
+    [
       {
-        method: "POST",
-        signal: timeoutSignal(TERMINAL_TIMEOUT_MS, input.io.signal),
-        headers: {
-          authorization: `Bearer ${auth.bearer}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          fingerprint,
-          catalog,
-          ...(policy === undefined ? {} : { policy }),
-          ...(manifest.manifest === undefined
-            ? {}
-            : { manifest: manifest.manifest }),
-          permdockVersion: cliVersion(),
-        }),
+        command: "permdock login --scope catalog:write",
+        when: "to log in on this machine",
       },
-    );
-  } catch (error) {
-    return {
-      code: 1,
-      output: `PermDock Cloud unreachable: ${describeError(error)}`,
-    };
+      { command: "export PERMDOCK_CLOUD_KEY=<write key>", when: "in CI" },
+    ],
+  );
+  if (denied !== undefined) {
+    throw denied;
   }
   if (!response.ok) {
     return {

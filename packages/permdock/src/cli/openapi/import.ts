@@ -8,6 +8,7 @@ import type { CliIo } from "../types.ts";
 import { isRecord } from "../../core/compact.ts";
 import { byCodePoint } from "../../core/compare.ts";
 import { applyFiles } from "../core/files.ts";
+import { httpRequest } from "../core/http.ts";
 import { readJsonFile } from "../files.ts";
 import {
   type GeneratedAction,
@@ -349,9 +350,8 @@ async function readSource(
   io: CliIo,
 ): Promise<{ readonly text: string; readonly local?: string } | string> {
   if (/^https?:\/\//u.test(doc)) {
-    const fetcher = io.fetch ?? globalThis.fetch;
     try {
-      const response = await fetcher(doc);
+      const response = await httpRequest(io, { url: doc, service: doc });
       if (!response.ok) {
         return `could not fetch ${doc}: HTTP ${response.status}`;
       }

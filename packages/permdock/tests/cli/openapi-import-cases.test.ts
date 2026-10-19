@@ -166,7 +166,10 @@ describe("openapi import from a URL", () => {
     );
     vi.stubGlobal("fetch", fetchStub);
     expect((await importDoc(workdir(), { doc: URL })).code).toBe(0);
-    expect(fetchStub).toHaveBeenCalledWith(URL);
+    expect(fetchStub).toHaveBeenCalledWith(
+      URL,
+      expect.objectContaining({ method: "GET" }),
+    );
   });
 
   it("reports an HTTP error and an unreachable host", async () => {

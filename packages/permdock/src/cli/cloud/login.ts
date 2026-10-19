@@ -8,8 +8,7 @@ import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
 
 import { dateAt, instantAt, secondsAt } from "../../core/time.ts";
-import { timeoutSignal } from "../../core/timeout.ts";
-import { runDeviceFlow, TERMINAL_TIMEOUT_MS } from "../../terminal/device.ts";
+import { runDeviceFlow } from "../../terminal/device.ts";
 import {
   credentialsPath,
   deleteCredentials,
@@ -17,6 +16,7 @@ import {
   writeCredentials,
 } from "../../terminal/storage.ts";
 import { CliError } from "../core/errors.ts";
+import { httpRequest } from "../core/http.ts";
 import {
   CREDENTIAL_SERVICE,
   cliRuntime,
@@ -67,14 +67,17 @@ async function revoke(
   endpoint: string,
   fields: Record<string, string>,
 ): Promise<boolean> {
-  const fetchImpl = runtime.fetch ?? fetch;
   try {
-    const response = await fetchImpl(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams(fields),
-      signal: timeoutSignal(TERMINAL_TIMEOUT_MS),
-    });
+    const response = await httpRequest(
+      runtime.fetch === undefined ? {} : { fetch: runtime.fetch },
+      {
+        url: endpoint,
+        method: "POST",
+        service: endpoint,
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(fields),
+      },
+    );
     return response.ok;
   } catch {
     return false;
