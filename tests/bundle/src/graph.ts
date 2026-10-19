@@ -105,6 +105,7 @@ export const TOOLING_PACKAGES = [
   "@clack/prompts",
   "citty",
   "diff",
+  "fastest-levenshtein",
   "jiti",
   "oxc-parser",
   "package-manager-detector",

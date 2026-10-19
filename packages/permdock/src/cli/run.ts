@@ -5,6 +5,7 @@ import {
   renderUsage,
   runCommand,
 } from "citty";
+import { statSync } from "node:fs";
 import { stripVTControlCharacters } from "node:util";
 
 import type { CommandResult } from "./shared/result.ts";
@@ -25,8 +26,10 @@ import {
   isCommand,
 } from "./commands/index.ts";
 import { type LoadedConfig, readConfig, resolveCwd } from "./config.ts";
+import { unknownFlagMessage, unknownFlags } from "./core/args.ts";
 import {
   type CliErrorKind,
+  type ExitCode,
   cliErrorKind,
   cliProblem,
   exitCodeOf,
@@ -69,7 +72,7 @@ export async function run(
       stderrChunks.push(line);
     }
   };
-  const done = (code: 0 | 1 | 2): RunResult => ({
+  const done = (code: ExitCode): RunResult => ({
     code,
     stdout: stdoutChunks.join(""),
     stderr: stderrChunks.join(""),
@@ -150,7 +153,13 @@ export async function run(
     return done(0);
   }
 
+  if (globals.cwd === "") {
+    return fail("usage", "--cwd needs a directory", name);
+  }
   const cwd = resolveCwd(stringArg(globals.cwd), options?.cwd ?? process.cwd());
+  if (!isDirectory(cwd)) {
+    return fail("usage", `--cwd ${cwd} is not a directory`, name);
+  }
   let loaded: LoadedConfig;
   try {
     loaded = await readConfig(cwd, configFile);
@@ -165,8 +174,13 @@ export async function run(
   try {
     const command = await load(name, contextFor(cwd, loaded));
     const rawArgs = withoutCommand(argv, name);
+    const def = await resolveArgs(command);
+    const [unknown] = unknownFlags(rawArgs, def);
+    if (unknown !== undefined) {
+      return fail("usage", unknownFlagMessage(name, unknown, def), name);
+    }
     await runCommand(command, {
-      rawArgs: normaliseValues(rawArgs, await resolveArgs(command)),
+      rawArgs: normaliseValues(rawArgs, def),
     });
   } catch (error) {
     if (!(error instanceof Error)) {
@@ -185,7 +199,7 @@ export async function run(
     return done(0);
   }
   if (json && result.code !== 0 && !isJson(result.output)) {
-    return fail(result.code === 2 ? "usage" : "failed", result.output, name);
+    return fail(kindOfCode(result.code), result.output, name);
   }
   writeOut(result.output);
   return done(result.code);
@@ -220,6 +234,32 @@ function rootCommand(): Command {
 
 async function load(name: CommandName, ctx: CliContext): Promise<Command> {
   return (await commands[name]())(ctx);
+}
+
+function kindOfCode(code: ExitCode): CliErrorKind {
+  switch (code) {
+    case 2:
+      return "usage";
+    case 130:
+    case 143:
+      return "cancelled";
+    case 0:
+    case 1:
+    case 3:
+      return "failed";
+    default: {
+      const never: never = code;
+      return never;
+    }
+  }
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 function isJson(text: string): boolean {

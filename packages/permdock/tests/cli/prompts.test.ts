@@ -48,11 +48,11 @@ describe("skills install prompt", () => {
     expect(existsSync(join(cwd, ".cursor/skills/permdock-wire"))).toBe(false);
   });
 
-  it("exits 2 and writes nothing when cancelled", async () => {
+  it("exits 130 and writes nothing when cancelled", async () => {
     const cwd = project({});
     prompts.multiselect.mockResolvedValue(CANCEL);
     const result = await run(["skills", "install"], { cwd, io: io(true) });
-    expect(result).toMatchObject({ code: 2, stdout: "Cancelled.\n" });
+    expect(result).toMatchObject({ code: 130, stdout: "Cancelled.\n" });
     expect(existsSync(join(cwd, ".permdock"))).toBe(false);
   });
 
@@ -83,11 +83,11 @@ describe("doctor --fix prompt", () => {
     expect(existsSync(join(cwd, ".permdock/skills-lock.json"))).toBe(true);
   });
 
-  it("exits 2 when cancelled", async () => {
+  it("exits 130 when cancelled", async () => {
     const cwd = project({});
     prompts.confirm.mockResolvedValue(CANCEL);
     const result = await run(["doctor", "--fix"], { cwd, io: io(true) });
-    expect(result.code).toBe(2);
+    expect(result.code).toBe(130);
     expect(existsSync(join(cwd, ".permdock"))).toBe(false);
   });
 

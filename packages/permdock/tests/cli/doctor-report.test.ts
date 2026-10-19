@@ -27,7 +27,7 @@ async function doctor(
     readonly strict?: boolean;
     readonly color?: boolean;
   } = {},
-): Promise<{ readonly code: 0 | 1 | 2; readonly output: string }> {
+): Promise<{ readonly code: number; readonly output: string }> {
   return runDoctor({
     cwd,
     config,

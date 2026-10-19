@@ -318,6 +318,7 @@
     "@standard-schema/spec": "catalog:",
     "citty": "catalog:",
     "diff": "catalog:",
+    "fastest-levenshtein": "catalog:",
     "jiti": "catalog:",
     "oxc-parser": "catalog:",
     "package-manager-detector": "catalog:",

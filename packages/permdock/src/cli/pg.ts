@@ -21,9 +21,9 @@ export type SqlConnect = (db: string) => Promise<SqlClient>;
 const CONNECT_TIMEOUT_MS = 10_000;
 const STATEMENT_TIMEOUT_MS = 60_000;
 
-function loadPg(command: string): Promise<typeof Pg> {
+function loadPg(command: string, cwd: string): Promise<typeof Pg> {
   // Lazy: pg is an optional peer that only the --db commands need.
-  return requirePeer(() => import("pg"), "pg", command);
+  return requirePeer(() => import("pg"), "pg", command, cwd);
 }
 
 function options(db: string): Pg.ClientConfig {
@@ -31,19 +31,6 @@ function options(db: string): Pg.ClientConfig {
     connectionString: db,
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
     statement_timeout: STATEMENT_TIMEOUT_MS,
-  };
-}
-
-/** Ctrl-C ends the connection, so a query that hangs cannot keep the process alive. */
-function endOnInterrupt(end: () => Promise<void>): () => Promise<void> {
-  const interrupt = (): void => {
-    void end().catch(() => undefined);
-    process.exitCode = 130;
-  };
-  process.once("SIGINT", interrupt);
-  return async () => {
-    process.off("SIGINT", interrupt);
-    await end();
   };
 }
 
@@ -60,13 +47,18 @@ function unreachable(command: string, cause: unknown): CliError {
 /** The default `connect` of a command: one connection, failing with a message that names `command`. */
 export function pgConnector(
   command: string,
+  cwd: string = process.cwd(),
 ): (db: string) => Promise<SqlClient> {
-  return (db) => connectPg(db, command);
+  return (db) => connectPg(db, command, cwd);
 }
 
 /** One connection, for commands that run a transaction. */
-async function connectPg(db: string, command: string): Promise<SqlClient> {
-  const pg = await loadPg(command);
+async function connectPg(
+  db: string,
+  command: string,
+  cwd: string,
+): Promise<SqlClient> {
+  const pg = await loadPg(command, cwd);
   const client = new pg.Client(options(db));
   try {
     await client.connect();
@@ -75,7 +67,7 @@ async function connectPg(db: string, command: string): Promise<SqlClient> {
   }
   return {
     query: (sql, values) => client.query(sql, values),
-    end: endOnInterrupt(() => client.end()),
+    end: () => client.end(),
   };
 }
 
@@ -83,8 +75,9 @@ async function connectPg(db: string, command: string): Promise<SqlClient> {
 export async function connectPgPool(
   db: string,
   command: string,
+  cwd: string = process.cwd(),
 ): Promise<SqlClient> {
-  const pg = await loadPg(command);
+  const pg = await loadPg(command, cwd);
   const pool = new pg.Pool({ ...options(db), max: 4 });
   try {
     (await pool.connect()).release();
@@ -94,6 +87,6 @@ export async function connectPgPool(
   }
   return {
     query: (sql, values) => pool.query(sql, values),
-    end: endOnInterrupt(() => pool.end()),
+    end: () => pool.end(),
   };
 }

@@ -1,6 +1,7 @@
 import type { CatalogUsage } from "../catalog/types.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type { RoleThrough } from "../supabase/types.ts";
+import type { ExitCode } from "./errors.ts";
 
 export type { RoleThrough } from "../supabase/types.ts";
 
@@ -735,10 +736,12 @@ export type CliIo = {
   readonly color?: boolean;
   /** A person at a terminal: commands may prompt. Unset never prompts. */
   readonly interactive?: boolean;
+  /** Aborted on SIGINT or SIGTERM. */
+  readonly signal?: AbortSignal;
 };
 
 export type RunResult = {
-  readonly code: 0 | 1 | 2;
+  readonly code: ExitCode;
   readonly stdout: string;
   readonly stderr: string;
 };

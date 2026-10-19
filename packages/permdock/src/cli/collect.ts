@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
 import type { Policy } from "../index.ts";
+import type { ExitCode } from "./errors.ts";
 import type {
   CatalogDocument,
   CliIo,
@@ -35,7 +36,7 @@ import { scanSources } from "./scan.ts";
 import { shortDiff } from "./text-diff.ts";
 
 export type CollectOutcome = {
-  readonly code: 0 | 1 | 2;
+  readonly code: ExitCode;
   readonly document: CatalogDocument | undefined;
   readonly scan: ScanResult | undefined;
   readonly outPath: string;
