@@ -1,3 +1,4 @@
+import { moduleIdType } from "better-supabase/sql";
 import { testAuthorizationProvider } from "better-supabase/testing";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -733,12 +734,22 @@ describe("authorizationProvider", () => {
           scopes: [{ ...supabaseHookManifestFixture.rls.scopes[0]!, type }],
         }),
       });
-    expect(scoped("int8").scopes).toEqual([
-      { name: "tenant", idType: "bigint" },
-    ]);
-    expect(scoped("INT4").scopes).toEqual([
-      { name: "tenant", idType: "integer" },
-    ]);
+    for (const type of [
+      "uuid",
+      "text",
+      "varchar",
+      "Character  Varying",
+      "bigint",
+      "int8",
+      "integer",
+      "int",
+      "INT4",
+    ]) {
+      expect(scoped(type).scopes).toEqual([
+        { name: "tenant", idType: moduleIdType(type) },
+      ]);
+    }
+    expect(moduleIdType("citext")).toBeUndefined();
     expect(scoped("citext").problems).toContainEqual(
       expect.stringContaining("ids of type citext"),
     );
