@@ -43,6 +43,14 @@ describe("a tenant row named like a declared role", () => {
     expect(source.sql.select("$1")).not.toContain("is not null and mk");
   });
 
+  it("lets the application's own copy of a declared role through when its skip column is set", () => {
+    const select =
+      source.guarded?.({ ...guard, skip: "is_system" })?.sql.select("$1") ?? "";
+    expect(select).toContain(
+      `case when mk."organization_id" is not null and not coalesce(mk."is_system", false) and mk."name"::text = any(`,
+    );
+  });
+
   it("leaves a source that reads another roles table alone", () => {
     const other = junctionMembershipSource({
       table: "organization_members",

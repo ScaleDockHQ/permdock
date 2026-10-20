@@ -61,6 +61,8 @@ export type RoleGuard = {
   readonly table: string;
   /** The tenant column of the roles table. */
   readonly tenant: string;
+  /** A tenant row with this column true is the application's own copy of a declared role. */
+  readonly skip?: string | undefined;
   readonly declared: readonly string[];
 };
 
@@ -163,7 +165,7 @@ function singleRole(
   const guard = options.guard;
   const key =
     guard !== undefined && qualifySqlTable(guard.table) === through
-      ? `case when ${keys}.${q(guard.tenant)} is not null and ${plain} = any(${sqlTextArray(guard.declared)}) then null else ${plain} end`
+      ? `case when ${keys}.${q(guard.tenant)} is not null${guard.skip === undefined ? "" : ` and not coalesce(${keys}.${q(guard.skip)}, false)`} and ${plain} = any(${sqlTextArray(guard.declared)}) then null else ${plain} end`
       : plain;
   return {
     column: ref,

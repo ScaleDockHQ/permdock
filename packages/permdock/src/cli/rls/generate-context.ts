@@ -152,6 +152,7 @@ export function buildContext(
       : {
           table: writeTable.table,
           tenant: writeTable.tenant,
+          skip: writeTable.skip,
           declared: [...roleNames(policy)].toSorted(),
         };
   const memberSources = (
