@@ -18,8 +18,19 @@ function catalog(extra: Readonly<Record<string, unknown>> = {}): string {
     version: 1,
     generatedAt: "2026-10-18T00:00:00Z",
     generator: "test",
-    resources: {},
-    permissions: [],
+    resources: { post: { id: "id", schema: null } },
+    permissions: [
+      {
+        key: "post.read",
+        resource: "post",
+        action: "read",
+        scope: "post:read",
+        meta: {},
+        arity: "instance",
+        usages: [],
+        rowConditions: false,
+      },
+    ],
     ...extra,
   });
 }

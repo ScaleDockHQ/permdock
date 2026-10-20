@@ -306,6 +306,150 @@ describe("parseCatalog", () => {
   });
 });
 
+describe("parseCatalog reference checks", () => {
+  function issuesOf(
+    mutate: Mutation,
+    options?: Parameters<typeof parseCatalog>[1],
+  ): readonly { message: string; path: string }[] {
+    try {
+      parseCatalog(mutated(mutate), options);
+    } catch (error) {
+      if (error instanceof PermDockValidationError) {
+        return error.issues.map((issue) => ({
+          message: issue.message,
+          path: (issue.path ?? [])
+            .map((segment) =>
+              typeof segment === "object"
+                ? String(segment.key)
+                : String(segment),
+            )
+            .join("."),
+        }));
+      }
+      throw error;
+    }
+    return [];
+  }
+
+  it("accepts the base catalog", () => {
+    expect(issuesOf(() => undefined)).toEqual([]);
+  });
+
+  it("reports a role on an undeclared scope, and accepts resource", () => {
+    expect(
+      issuesOf((doc) => {
+        doc["roles"] = [
+          { key: "admin", on: "team" },
+          { key: "editor", on: "resource" },
+        ];
+      }),
+    ).toEqual([
+      {
+        message:
+          "role 'admin' is on 'team', which is neither a declared scope nor resource",
+        path: "roles.0.on",
+      },
+    ]);
+  });
+
+  it("accepts tenant and team when no scopes are declared", () => {
+    expect(
+      issuesOf((doc) => {
+        delete doc["scopes"];
+        doc["roles"] = [
+          { key: "admin", on: "tenant" },
+          { key: "lead", on: "team" },
+        ];
+      }),
+    ).toEqual([]);
+  });
+
+  it("reports every undeclared permission key with its path", () => {
+    expect(
+      issuesOf((doc) => {
+        doc["operations"] = [
+          {
+            name: "listPosts",
+            permission: "post.list",
+            results: "post.view",
+            meta: {},
+          },
+        ];
+        doc["grants"] = [
+          {
+            permission: "post.delete",
+            effect: "allow",
+            role: "admin",
+            to: null,
+            scope: "tenant",
+          },
+        ];
+        doc["delegations"] = [
+          {
+            from: { kind: "user" },
+            to: { kind: "agent" },
+            permissions: ["post.draft"],
+          },
+        ];
+        doc["oauthScopes"] = [
+          { scope: "posts:read", permissions: ["post.update", "post.read"] },
+        ];
+      }).map((issue) => issue.path),
+    ).toEqual([
+      "operations.0.permission",
+      "operations.0.results",
+      "grants.0.permission",
+      "delegations.0.permissions.0",
+      "oauthScopes.0.permissions.1",
+    ]);
+  });
+
+  it("reports duplicate keys and names", () => {
+    expect(
+      issuesOf((doc) => {
+        doc["roles"] = [
+          { key: "admin", on: "tenant" },
+          { key: "admin", on: "tenant" },
+        ];
+        doc["scopes"] = [
+          { name: "tenant", key: "orgId" },
+          { name: "tenant", key: "orgId" },
+        ];
+        doc["plans"] = [{ key: "pro" }, { key: "pro" }];
+        const [first] = base.permissions;
+        doc["permissions"] = [...base.permissions, first];
+      }),
+    ).toEqual([
+      {
+        message: "duplicate key 'post.update' in permissions",
+        path: "permissions.2.key",
+      },
+      { message: "duplicate key 'admin' in roles", path: "roles.1.key" },
+      { message: "duplicate name 'tenant' in scopes", path: "scopes.1.name" },
+      { message: "duplicate key 'pro' in plans", path: "plans.1.key" },
+    ]);
+  });
+
+  it("requires meta fields only when asked", () => {
+    expect(issuesOf(() => undefined, { requireMeta: ["title"] })).toEqual([
+      {
+        message: "permission 'post.update' needs meta.title",
+        path: "permissions.0.meta.title",
+      },
+    ]);
+    expect(
+      issuesOf(() => undefined, { requireMeta: ["risk", "effects"] }).map(
+        (issue) => issue.path,
+      ),
+    ).toEqual([
+      "permissions.0.meta.risk",
+      "permissions.0.meta.effects",
+      "permissions.1.meta.risk",
+      "permissions.1.meta.effects",
+    ]);
+  });
+});
+
 describe("rowConditionKeys", () => {
   it("lists the permissions marked rowConditions: true", () => {
     const catalog: CatalogDocument = parseCatalog(base);

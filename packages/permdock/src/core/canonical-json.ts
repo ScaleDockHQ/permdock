@@ -7,10 +7,11 @@ import { isRecord } from "./compact.ts";
  * `"<n>n"`, and a repeated object on the current path `"[Circular]"`, so any
  * validated row serialises.
  */
-export function canonicalJson(
-  value: unknown,
-  path: Set<object> = new Set(),
-): string {
+export function canonicalJson(value: unknown): string {
+  return canonicalJsonOnPath(value, new Set());
+}
+
+function canonicalJsonOnPath(value: unknown, path: Set<object>): string {
   if (typeof value === "bigint") {
     return JSON.stringify(`${value}n`);
   }
@@ -27,7 +28,9 @@ export function canonicalJson(
     try {
       if (Array.isArray(value)) {
         return `[${value
-          .map((item) => canonicalJson(item === undefined ? null : item, path))
+          .map((item) =>
+            canonicalJsonOnPath(item === undefined ? null : item, path),
+          )
           .join(",")}]`;
       }
       if (isRecord(value)) {
@@ -36,7 +39,7 @@ export function canonicalJson(
           .filter((key) => value[key] !== undefined)
           .map(
             (key) =>
-              `${JSON.stringify(key)}:${canonicalJson(value[key], path)}`,
+              `${JSON.stringify(key)}:${canonicalJsonOnPath(value[key], path)}`,
           );
         return `{${entries.join(",")}}`;
       }

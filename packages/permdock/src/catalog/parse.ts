@@ -1,10 +1,12 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { CatalogMetaField } from "./references.ts";
 import type { CatalogDocument } from "./types.ts";
 
 import { freezeDeep } from "../core/freeze.ts";
 import { checkSchema, copyJson } from "../core/json-schema.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
+import { catalogReferenceIssues } from "./references.ts";
 import { catalogSchema } from "./schema.ts";
 
 type Issues = StandardSchemaV1.Issue[];
@@ -27,12 +29,23 @@ function invalid(issues: readonly StandardSchemaV1.Issue[]): never {
   });
 }
 
+export type ParseCatalogOptions = {
+  /** Permission `meta` fields every permission must carry; none by default. */
+  readonly requireMeta?: readonly CatalogMetaField[];
+};
+
 /**
- * Reads a `permissions.catalog.json` document (parsed, or the JSON text) and
- * validates it against `schemas/catalog-v1.json`. Returns a deep-frozen copy
- * built from own keys; throws `PermDockValidationError` with every issue.
+ * Reads a `permissions.catalog.json` document (parsed, or the JSON text),
+ * validates it against `schemas/catalog-v1.json`, then checks its references:
+ * role scopes, the permission keys operations, grants, delegations and OAuth
+ * scopes name, unique keys, and `requireMeta`. Returns a deep-frozen copy
+ * built from own keys; throws `PermDockValidationError` with every issue,
+ * each with its `path`.
  */
-export function parseCatalog(json: unknown): CatalogDocument {
+export function parseCatalog(
+  json: unknown,
+  options: ParseCatalogOptions = {},
+): CatalogDocument {
   const issues: Issues = [];
   let input = json;
   if (typeof json === "string") {
@@ -65,7 +78,12 @@ export function parseCatalog(json: unknown): CatalogDocument {
     invalid(issues);
   }
   // SAFETY: copy is plain JSON that passed catalogSchema, the schema CatalogDocument describes.
-  return freezeDeep(copy as CatalogDocument);
+  const catalog = copy as CatalogDocument;
+  const references = catalogReferenceIssues(catalog, options.requireMeta);
+  if (references.length > 0) {
+    invalid(references);
+  }
+  return freezeDeep(catalog);
 }
 
 /** Keys of the permissions the catalog marks `rowConditions: true`: the SQL helpers alone cannot enforce them. */

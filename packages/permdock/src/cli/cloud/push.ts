@@ -1,16 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { CatalogDocument } from "../../catalog/types.ts";
 import type { SupabaseManifest } from "../../supabase/manifest.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { parseCatalog } from "../../catalog/parse.ts";
 import { pushedPolicy } from "../../catalog/pushed-policy.ts";
+import { PermDockValidationError } from "../../core/validation-error.ts";
 import { catalogFingerprint } from "../../index.ts";
 import { parseSupabaseManifest } from "../../supabase/manifest.ts";
 import { runCatalog } from "../catalog.ts";
-import { describeError } from "../core/errors.ts";
+import { CliError, describeError } from "../core/errors.ts";
 import { authFailure, httpRequest } from "../core/http.ts";
 import { cliVersion } from "../core/version.ts";
 import { MANIFEST_FILE } from "../manifest-json.ts";
@@ -46,6 +48,29 @@ function readManifest(
   }
 }
 
+/** The built catalog, or a `catalog_invalid` problem listing every issue with its path. */
+function checkedCatalog(output: string): CatalogDocument {
+  try {
+    return parseCatalog(output);
+  } catch (error) {
+    if (!(error instanceof PermDockValidationError)) {
+      throw error;
+    }
+    const issues = error.issues.map((issue) => ({
+      path: (issue.path ?? []).map(String).join("."),
+      message: issue.message,
+    }));
+    throw new CliError(
+      "failed",
+      [
+        `permdock cloud push: the catalog has ${String(issues.length)} ${issues.length === 1 ? "issue" : "issues"}`,
+        ...issues.map((issue) => `  ${issue.path}: ${issue.message}`),
+      ].join("\n"),
+      { code: "catalog_invalid", extensions: { issues } },
+    );
+  }
+}
+
 export async function runCloud(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -74,7 +99,7 @@ export async function runCloud(input: {
   if (built.code !== 0) {
     return { code: built.code, output: built.output };
   }
-  const catalog = parseCatalog(built.output);
+  const catalog = checkedCatalog(built.output);
   const fingerprint = catalogFingerprint(catalog);
   const loaded = await loadConfiguredPolicy(input.cwd, input.config.policy);
   const policy = loaded === undefined ? undefined : pushedPolicy(loaded);

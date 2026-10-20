@@ -303,7 +303,8 @@
       "types": "./dist/unplugin/index.d.ts",
       "default": "./dist/unplugin/index.js"
     },
-    "./schemas/*": "./schemas/*"
+    "./schemas/*": "./schemas/*",
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public",

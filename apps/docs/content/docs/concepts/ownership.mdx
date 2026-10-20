@@ -200,7 +200,24 @@ supabase-js and PostgREST run each request in its own transaction, so a two-stat
 
 ## Catalog, Cloud and doctor
 
-The [catalog](/docs/concepts/wire-formats) lists each role's `min`, `max`, `transferOnly`, `assigns`, `for`, `exclusiveWith` and `audience`, so PermDock Cloud applies the same rules in its assignment checks. `permdock doctor` PD026 warns on a scope whose roles set no `min`; set `min: 0` on one of them to record that none has to stay, as the customer scope above does ([doctor](/docs/cli/doctor)).
+The [catalog](/docs/concepts/wire-formats) lists each role's `min`, `max`, `transferOnly`, `assigns`, `for`, `exclusiveWith` and `audience`, so PermDock Cloud applies the same rules in its assignment checks.
+
+A service that holds only the catalog checks a membership change with `checkRoleChange(role, { change, holders?, roles?, actorRoles? })` from `permdock`, the same function `decideRoleChange` runs after its actor, tenant and ceiling checks. `role` is the `CatalogRole` entry (`RoleRules`), `change` is `{ kind, target: { via?, roles? } }`, and `holders` is the instance's current holder count. `roles` is every catalog role: it adds the `exclusiveWith` other roles declare against this one, and with `actorRoles` (the roles the actor holds at the instance, highest rank first) the `assigns` rule. It answers `{ ok: true, by }` or `{ ok: false, denials }` with the reasons above (`last-holder`, `max-holders`, `transfer-only`, `not-allowed-for-membership`, `conflicting-role`, `not-assignable-by`, `validation`). The self-change, `managedBy: 'idp'`, ceiling and tenant rules need the actor's subject, so they stay with `decideRoleChange`.
+
+```ts
+import { checkRoleChange } from "permdock";
+
+const roles = catalog.roles ?? [];
+const owner = roles.find((role) => role.key === "owner");
+const check = checkRoleChange(owner, {
+  change: { kind: "revoke", target: { roles: ["owner"] } },
+  holders: 1,
+  roles,
+  actorRoles: ["owner"],
+}); // { ok: false, denials: [{ role: "owner", reason: "last-holder", … }] }
+```
+
+`permdock doctor` PD026 warns on a scope whose roles set no `min`; set `min: 0` on one of them to record that none has to stay, as the customer scope above does ([doctor](/docs/cli/doctor)).
 
 ## Why
 

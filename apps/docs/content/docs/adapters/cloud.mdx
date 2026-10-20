@@ -141,6 +141,28 @@ const permdock = await getPermDock(policy, user, {
 
 A snapshot source never delivers hosted grants, because a snapshot is a per-subject result the server computed, not a policy; a snapshot the application builds from an instance already reflects that instance's merged grants. Fetching the policy per request would put the Cloud on the decision path.
 
+#### Authoring hosted grants
+
+A grant editor checks candidates with the merge rules themselves, from `permdock/catalog`, against the policy `policyFromCatalog` rebuilds:
+
+- `checkHostedGrant(policy, grant)` answers `{ ok: true }` or `{ ok: false, reason }` for one candidate, with the `HostedGrantDropReason` `mergeHostedGrants` would report (`not-hostable`, `unknown-permission`, `unknown-grantee`, `non-portable`, `weaker-approval`, `invalid`). It needs no `PolicyDocument`. `hostedGrantFindings` is not a substitute: it reports drift between catalogs, so it skips `non-portable` and `invalid`, which a catalog change cannot cause.
+- `hostedGrantOptions(policy)` lists, per `hostable` permission, what a grant may say: `grantees.roles` (declared roles grouped by the scope they are held at, `global` for a role with no `on`), `grantees.plans`, `grantees.relations` (with `through: 'parent'` on a self-parented resource), `approval` (`required` and `meets` when a code allow carries an approval, `modes` `human` or `any`, the object-form `fields`, `staleOn` only on a resource with a `version`, and the approver kinds) and `conditions` (the portable subset, over the resource's schema `fields`).
+
+```ts
+import {
+  checkHostedGrant,
+  hostedGrantOptions,
+  policyFromCatalog,
+} from "permdock/catalog";
+
+const policy = policyFromCatalog(catalog, pushed);
+const options = hostedGrantOptions(policy); // fills the New grant form
+const check = checkHostedGrant(policy, candidate);
+if (!check.ok) {
+  // show check.reason; the Cloud API answers 422 with the same reason
+}
+```
+
 ## Purpose
 
 Four things are worth paying for around an embedded decision engine, in the order PermDock Cloud leads with them: a place where decisions accumulate as evidence, so an access review, an agent-activity review or "which agent did what for whom" is a query with a signed export rather than a log grep; a way for services that do not run TypeScript, and for API gateways, to enforce the same policy; a place where pending approvals wait for a person with a UI and notifications; and a hosted SCIM endpoint that relays directory provisioning into a store your application owns. PermDock Cloud provides all four as an Authorization Decision Service plus control plane, and `permdock/cloud` is the client for the first three (the fourth targets [`permdock/scim`](/docs/adapters/scim) in your app). The Supabase model applies: every capability has an interface in the open-source package with an in-process default, the Cloud is the managed implementation, and the interfaces are documented well enough to implement yourself ([approvals adapter](/docs/adapters/approvals), [audit](/docs/concepts/audit-and-observability)).
@@ -409,6 +431,21 @@ The Cloud runs the same `permdock/authzen` handler your app could run, against t
 - A resource schema keyword outside the supported JSON Schema subset rejects every value.
 - A support role has no one who may consent.
 - Grant levels and OAuth scopes are not in a catalog, so the rebuilt policy has neither.
+
+The grants a subject reaches are the instance's `snapshot()`, with no separate listing to keep in step. Build the instance from the rebuilt policy, pass the subject itself (the default `subject` of a rebuilt policy is the identity), and merge the live hosted grants through `policies`:
+
+```ts
+import { getPermDockSync, hostedPolicies, memoryPolicySource } from "permdock";
+import { policyFromCatalog } from "permdock/catalog";
+
+const policy = policyFromCatalog(catalog, pushed);
+const permdock = getPermDockSync(policy, principal, {
+  policies: hostedPolicies(memoryPolicySource(document)),
+});
+const { grants } = permdock.snapshot(); // code and hosted grants the subject reaches
+```
+
+A grant whose condition is application code is listed with `portable: false`; the rebuilt policy never grants through it, so a service that issues these grants leaves those entries out. Plans reach the catalog only when `permdock collect` finds them, so a hosted plan grant needs the plan in `catalog.plans`.
 
 Caller authentication is real authentication ([threat model](/docs/security/threat-model), invariant 9):
 

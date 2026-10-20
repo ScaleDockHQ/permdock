@@ -48,6 +48,7 @@ export type ProblemCode =
   | "dirty_worktree"
   | "write_failed"
   | "check_failed"
+  | "catalog_invalid"
   | "input_required"
   | "consent_required"
   | "cancelled"
@@ -73,6 +74,7 @@ const CODES: {
   dirty_worktree: ["Uncommitted changes", 3],
   write_failed: ["Write failed", 1],
   check_failed: ["Out of date", 1],
+  catalog_invalid: ["Invalid catalog", 1],
   input_required: ["Input required", 3],
   consent_required: ["Consent required", 3],
   cancelled: ["Cancelled", 130],

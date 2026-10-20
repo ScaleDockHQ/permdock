@@ -98,6 +98,10 @@ A file plan could not write one of its files and rolled back the rest. Exit code
 
 `--check` found a generated file that is missing or out of date. Run the command without `--check` to write it. Exit code 1.
 
+## `catalog_invalid`
+
+`cloud push` built a catalog that breaks a [validation rule](/docs/cli/catalog#validation-rules), such as a grant naming an undeclared permission key. `issues` lists each one as `{ path, message }`, and the text output prints one `path: message` line per issue. Nothing is sent, with or without `--dry-run`. Exit code 1.
+
 ## `input_required`
 
 The run needs a value it cannot prompt for. `missing` names the flags or positionals, `choices` the values they take when the set is known, and `next` the command line to run again with each placeholder filled in. Exit code 3.

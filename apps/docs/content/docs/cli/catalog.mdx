@@ -102,13 +102,28 @@ const sqlEnforceable = catalog.permissions.filter(
 );
 ```
 
-- `parseCatalog(json)` takes the JSON text or the parsed value. It checks it against `schemas/catalog-v1.json` and returns a deep-frozen copy built from own keys. A `__proto__` key stays an ordinary key, and an object with any other prototype, a cycle or a value JSON cannot carry is rejected. On failure it throws `PermDockValidationError` with `code: 'invalid-data'`, `boundary: 'catalog'` and every issue with its `path`.
+- `parseCatalog(json, { requireMeta? })` takes the JSON text or the parsed value. It checks it against `schemas/catalog-v1.json`, then runs the [validation rules](#validation-rules), and returns a deep-frozen copy built from own keys. A `__proto__` key stays an ordinary key, and an object with any other prototype, a cycle or a value JSON cannot carry is rejected. On failure it throws `PermDockValidationError` with `code: 'invalid-data'`, `boundary: 'catalog'` and every issue with its `path`.
 - `rowConditionKeys(catalog)` is the set of keys marked `rowConditions: true`: permissions whose code grants depend on more than role and scope, so a policy that calls only the SQL helpers would widen access ([RLS](/docs/adapters/rls#sql-helper-contract)).
 - `operationFindings(previous, next)` compares the `operations` of two catalogs by name and returns the `operation-risk-raised` and `operation-approval-removed` [findings](/docs/concepts/wire-formats#decision-event): a `meta.risk` that rose, or a permission that no longer lists `approvals`. A new or removed operation is not a finding.
 - `catalogPath(config, cwd, out?)` resolves the file the same way `collect` writes it: `out`, then `collect.out`, then `catalog.out`, then `permissions.catalog.json`.
 - The types (`CatalogDocument`, `CatalogPermission`, `CatalogResource`, `CatalogRole`, `CatalogScope`, `CatalogGrant`, `CatalogValidity`, `CatalogApproval`, `CatalogBreakGlass`, `CatalogActivation`, `CatalogSupportAccess`, `CatalogUsage`) are exported from both `permdock/catalog` and `permdock/cli`.
 
 The reader, the `$schema` file and `--kind json-schema` come from one schema constant, and a test checks the committed catalogs against both the reader and Ajv.
+
+### Validation rules
+
+After the schema passes, `parseCatalog` checks the references JSON Schema cannot express. It reports every broken rule at once, each issue with its `path`:
+
+| Rule                                                                                                  | Issue path                                                       |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| A role's `on` is a declared scope name, `resource`, or `tenant` or `team` when `scopes` is absent     | `roles[i].on`                                                    |
+| An operation's `permission` and `results` are declared permission keys                                | `operations[i].permission`, `.results`                           |
+| A grant's `permission` is a declared permission key                                                   | `grants[i].permission`                                           |
+| Every key a delegation or OAuth scope lists is a declared permission key                              | `delegations[i].permissions[j]`, `oauthScopes[i].permissions[j]` |
+| `permissions[].key`, `roles[].key`, `scopes[].name`, `plans[].key` and `operations[].name` are unique | the second entry's `key` or `name`                               |
+| With `requireMeta`, every permission carries those `meta` fields (`title`, `risk`, `effects`)         | `permissions[i].meta.<field>`                                    |
+
+`requireMeta` is off by default: `collect` writes `meta` from what the code declares, and an application without a hosted console needs none of it. A consumer that displays or approves on these fields, such as PermDock Cloud, passes `parseCatalog(json, { requireMeta: ['title', 'risk', 'effects'] })`. [`permdock cloud push --dry-run`](/docs/cli/cloud#push) prints the same issues before an upload.
 
 ## Markdown output
 

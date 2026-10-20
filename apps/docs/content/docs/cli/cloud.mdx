@@ -42,6 +42,16 @@ The request is `POST /v1/environments/:env/catalog` with the body `{ fingerprint
 
 A hosted policy document names the catalog it was authored against in its `catalog` field ([wire formats](/docs/concepts/wire-formats#policy-document)).
 
+Before it sends anything, push checks the built catalog against the [validation rules](/docs/cli/catalog#validation-rules), with or without `--dry-run`. A broken catalog prints every issue with its path and exits `1`:
+
+```txt
+permdock cloud push: the catalog has 2 issues
+  roles.0.on: role 'admin' is on 'workspace', which is neither a declared scope nor resource
+  grants.0.permission: grant 'post.delete' is not a declared permission key
+```
+
+With `--json`, `error` is a [`catalog_invalid`](/docs/cli/errors#catalog_invalid) Problem whose `issues` lists each one as `{ path, message }`. `cloud push --dry-run --json` in CI therefore fails on the same catalog the Cloud would refuse.
+
 ## Pull
 
 `cloud pull` calls `GET /v1/projects/:id/policy` ([projects API](/docs/adapters/cloud#projects-read-api)) and then:
@@ -53,7 +63,7 @@ A hosted policy document names the catalog it was authored against in its `catal
 
 The bearer is `PERMDOCK_CLOUD_TOKEN` when it is set, otherwise the stored login. With the token and no `--project`, `cloud pull` reads `GET /v1/projects` and uses its one project. A project with nothing pushed answers `404` with the `https://permdock.com/problems/policy-not-published` problem, and `cloud pull` exits `1`.
 
-Exit codes follow the shared contract: `0` pushed, pulled or `--dry-run`; `1` the Cloud was unreachable (`network_error`), answered with a non-2xx status, or sent bytes that failed the fingerprint check; `2` no key, token or login, or an unreadable definition module or manifest; `3` the Cloud rejected the credential with `401` or `403` (`auth_required`, with `permdock login` in `next`). In [agent mode](/docs/cli/agent-mode), `cloud push` without `--dry-run` first asks for the person's consent (`cloud:write`).
+Exit codes follow the shared contract: `0` pushed, pulled or `--dry-run`; `1` the catalog broke a validation rule (`catalog_invalid`), the Cloud was unreachable (`network_error`), answered with a non-2xx status, or sent bytes that failed the fingerprint check; `2` no key, token or login, or an unreadable definition module or manifest; `3` the Cloud rejected the credential with `401` or `403` (`auth_required`, with `permdock login` in `next`). In [agent mode](/docs/cli/agent-mode), `cloud push` without `--dry-run` first asks for the person's consent (`cloud:write`).
 
 ## In CI
 

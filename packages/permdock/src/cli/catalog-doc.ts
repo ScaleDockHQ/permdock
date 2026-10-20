@@ -20,6 +20,7 @@ import type {
 
 import { catalogSchema } from "../catalog/schema.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
+import { isRecord } from "../core/compact.ts";
 import { byCodePoint } from "../core/compare.ts";
 import { policyRowConditionKeys } from "../core/row-conditions.ts";
 import { wireValidity } from "../core/validity.ts";
@@ -492,6 +493,35 @@ export function formatCatalogJson(doc: CatalogDocument): string {
 export function catalogForCompare(doc: CatalogDocument): string {
   const { generatedAt: _generatedAt, generator: _generator, ...rest } = doc;
   return `${JSON.stringify(rest, null, 2)}\n`;
+}
+
+/**
+ * `catalogForCompare` without `usages[].line`: an edit above a call site moves
+ * its line without changing the contract, so `--check` does not fail on it.
+ */
+export function catalogForDrift(doc: CatalogDocument): string {
+  const permissions: unknown = doc.permissions;
+  if (!Array.isArray(permissions)) {
+    return catalogForCompare(doc);
+  }
+  const { generatedAt: _generatedAt, generator: _generator, ...rest } = doc;
+  const stripped = {
+    ...rest,
+    permissions: permissions.map((permission: unknown) => {
+      if (!isRecord(permission) || !Array.isArray(permission["usages"])) {
+        return permission;
+      }
+      const usages: unknown[] = permission["usages"].map((usage: unknown) => {
+        if (!isRecord(usage)) {
+          return usage;
+        }
+        const { line: _line, ...position } = usage;
+        return position;
+      });
+      return Object.assign({}, permission, { usages });
+    }),
+  };
+  return `${JSON.stringify(stripped, null, 2)}\n`;
 }
 
 export function formatCatalogMarkdown(doc: CatalogDocument): string {

@@ -23,7 +23,7 @@ The product rationale (the flag vocabulary, consent and agent mode) is in the `W
 
 - A script that checked for exit `2` on missing input sees `3`. 0.5.0 is the breaking release that carries it, with a changeset.
 - The parser, help, completion and the docs-flags test have one source, the manifest, which PermDock maintains instead of citty.
-- A change to the shared contract lands in both repositories. better-supabase publishes the contract in its decision 0047 (`docs/decisions/0047-cli-contract-for-other-clis.md`), which reserves `dirty_worktree` and `write_failed` as PermDock's own codes.
+- A change to the shared contract lands in both repositories. better-supabase publishes the contract in its decision 0047 (`docs/decisions/0047-cli-contract-for-other-clis.md`), which reserves `dirty_worktree` and `write_failed` as PermDock's own codes. `catalog_invalid` is PermDock's own too; it goes into that reservation with the next change to the contract.
 - `packages/permdock/tests/better-supabase/cli-contract.test.ts` checks PermDock against `cli-result-v1.json` from the pinned better-supabase release: every code is upstream, reserved or pending, a shared code keeps better-supabase's title and exit code, and the envelope validates against the published schema. A pending code that reaches the pin fails the test until it moves to the shared list.
 
 ## Alternatives considered

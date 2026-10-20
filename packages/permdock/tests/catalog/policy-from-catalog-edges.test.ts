@@ -238,14 +238,11 @@ describe("policyFromCatalog refusals", () => {
 
   it("refuses leaves of one resource on two paths", () => {
     refuses(
-      (catalog) => ({
-        ...catalog,
-        permissions: catalog.permissions.map((leaf) =>
-          leaf.key === "billing.invoice.void"
-            ? { ...leaf, key: "other.invoice.void" }
-            : leaf,
+      (catalog) =>
+        JSON.stringify(catalog).replaceAll(
+          '"billing.invoice.void"',
+          '"other.invoice.void"',
         ),
-      }),
       /sits apart from resource 'invoice'/u,
     );
   });
@@ -273,7 +270,7 @@ describe("policyFromCatalog refusals", () => {
       extra("patient.note.read", "note"),
       /nests under another resource/u,
     );
-    refuses(extra("billing.invoice.read", "dup"), /sits apart|collides/u);
+    refuses(extra("billing.invoice.read", "dup"), /duplicate key/u);
   });
 
   it("refuses what definePermissions refuses", () => {
@@ -307,7 +304,7 @@ describe("policyFromCatalog refusals", () => {
           { ...catalog.delegations?.[0], permissions: ["ghost.read"] },
         ],
       }),
-      /delegations\[0\] names unknown permission 'ghost.read'/u,
+      /delegations\.0\.permissions\.0: delegation 'ghost.read' is not a declared permission key/u,
     );
     refuses(
       (catalog) => ({
