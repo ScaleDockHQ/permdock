@@ -83,6 +83,29 @@ describe("permdock_replace_global_roles", () => {
     );
   });
 
+  it("keeps shared custom roles out of the global rows of the roles table", () => {
+    const sql = globalRolesSql({
+      ...base,
+      roles: {
+        table: "user_roles",
+        role: { through: "roles", on: { role_id: "id" }, column: "key" },
+      },
+      customRoles: {
+        declared: [],
+        assignable: [],
+        table: {
+          table: "roles",
+          key: "key",
+          tenant: "organization_id",
+          shared: "shared",
+        },
+      },
+    });
+    expect(sql).toContain(
+      `where not exists (select 1 from "public"."roles" k where k."key"::text = w.r and k."organization_id" is null and k."shared" is not true);`,
+    );
+  });
+
   it("leaves the lookup alone when the custom roles table is another table", () => {
     const sql = globalRolesSql({
       ...base,
