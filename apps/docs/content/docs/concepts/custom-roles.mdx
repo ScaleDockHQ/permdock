@@ -138,6 +138,8 @@ Nothing that fails resolution widens a role. `dropped` names each entry that was
 | `unknown-role`          | An `includes` entry names no declared role; reported as `{ role, reason }`                                                                                                                                |
 | `name-taken`            | A tenant custom role uses the name of a shared role passed to `validateCustomRole` as `shared`; reported as `{ role, reason }` and the role resolves to nothing                                           |
 
+A stored entry is `<permission>[@<level>]`. `parseCustomRoleEntry(policy, entry, { scope })` checks one entry the way the database does and answers `{ ok: true, permission, level? }` or `{ ok: false, cause }` with `unknown-permission`, `outside-ceiling` or `unknown-level`; the grammar of every stored grant key is in the [SQL helper contract](/docs/adapters/rls#sql-helper-contract). In `database` mode the backfill and the sync triggers drop an entry outside the ceiling and list it in one warning per legacy role, instead of refusing the whole role ([backfill](/docs/cli/rls#backfill-from-existing-tables)).
+
 `validateCustomRole(policy, role)` returns `{ ok, permissions, dropped, renamed }`, where `permissions` is the sorted list of keys the role allows after the ceiling. Call it in the server action that saves a custom role. `permdock doctor` PD023 runs it over the `customRoles` of the `doctor.memberships` fixture ([doctor](/docs/cli/doctor)).
 
 ### Renamed keys

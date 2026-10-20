@@ -290,6 +290,24 @@ attrs: {
 - The migration starts with a guard: when `anon` or `authenticated` can insert or update any listed column (`has_column_privilege`, which counts table-level and `public` grants), it raises `42501` and installs nothing. Grant clients column-level `update` on other columns only. `permdock doctor` PD028 reports the same from your migrations, before you run them.
 - The hook drops any `attrs` the incoming claims carry and writes its own, so an attribute is never whatever the client sent.
 
+## Teams
+
+`supabase.hook.teams` fills the `team_ids` claim, the uuid of every team the user belongs to, for a policy or an Edge Function that filters by team without a join:
+
+```ts
+teams: {
+  table: 'team_members',   // user and team columns of one table
+  user: 'user_id',
+  team: 'team_id',
+  tenant: 'organization_id', // optional: the active tenant's teams come first
+}
+```
+
+- The claim shares the `memberships` budget ([size budget](#size-budget)). The hook adds teams after the memberships, in order, and stops before the total would exceed the budget, then sets `memberships_truncated: true`, so a user in many teams gets a prefix.
+- A suspended user gets no `team_ids`, and the hook drops any `team_ids` the incoming claims carry.
+- `team_ids` is reserved: `hook.claims` cannot name it. `supabase-claims-v1.json` and `SupabaseClaims` type it as an array of strings.
+- The table's `user`, `team` and `tenant` columns are deciding columns in the manifest, and `supabase_auth_admin` gets a read policy on it. A client role that can write the table can choose its own `team_ids`, so revoke insert and update on it.
+
 ## Claims other packages own
 
 `supabase.hook.claims` adds claims PermDock does not own to the one hook Supabase allows, for example per-tenant plan features from a billing module. PermDock owns the hook and the claims the SQL helpers read; the other package owns its claim and the function that computes it ([better-supabase](/docs/adapters/better-supabase#memberships) shows one such split):
