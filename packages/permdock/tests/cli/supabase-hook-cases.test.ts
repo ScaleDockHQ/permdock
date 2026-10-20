@@ -178,6 +178,32 @@ describe("supabase.hook.api", () => {
   });
 });
 
+describe("supabase.hook.roles with a mapped role column", () => {
+  it("leaves out the values that map to no role", () => {
+    const { sql } = supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: {
+        hook: {
+          roles: {
+            table: "staff",
+            user: "user_id",
+            role: { column: "kind", map: { admin: "owner", user: null } },
+          },
+          memberships: [
+            junctionMembershipSource({
+              table: "organization_members",
+              scope: "organization",
+              id: "organization_id",
+              roles: "role",
+            }),
+          ],
+        },
+      },
+    });
+    expect(sql).toContain("is not null)");
+  });
+});
+
 describe("supabase.hook.teams", () => {
   const teams = {
     table: "team_members",
@@ -214,6 +240,27 @@ describe("supabase.hook.teams", () => {
     );
     expect(sql).toContain("claims - 'attrs' - 'team_ids'");
     expect(sql).toContain("permdock_auth_admin_read_teams");
+  });
+
+  it("orders the teams by id alone when the table has no tenant column", () => {
+    const { sql } = supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: {
+        hook: {
+          teams: { table: "team_members", user: "user_id", team: "team_id" },
+          memberships: [
+            junctionMembershipSource({
+              table: "organization_members",
+              scope: "organization",
+              id: "organization_id",
+              roles: "role",
+            }),
+          ],
+        },
+      },
+    });
+    expect(sql).toContain('order by t."team_id"');
+    expect(sql).not.toContain('(t."organization_id"::text is not distinct');
   });
 
   it("refuses team_ids as an extra claim name", () => {

@@ -23,12 +23,8 @@ export async function requirePeer<T>(
 ): Promise<T> {
   try {
     const loaded = await load();
-    const found = minimumMajor === undefined ? undefined : installedMajor(name);
-    if (
-      minimumMajor !== undefined &&
-      found !== undefined &&
-      found < minimumMajor
-    ) {
+    const found = installedMajor(name);
+    if (minimumMajor !== undefined && found < minimumMajor) {
       const agent = await packageManagerOf(cwd);
       throw new CliError(
         "unavailable",
@@ -65,23 +61,16 @@ export async function requirePeer<T>(
   }
 }
 
-/** The major version of the installed `name`, or `undefined` when its package.json cannot be read. */
-function installedMajor(name: string): number | undefined {
+/** The major version of the installed `name`; `NaN` when its package.json cannot be read, which no minimum rejects. */
+function installedMajor(name: string): number {
   try {
     const file = createRequire(import.meta.url).resolve(`${name}/package.json`);
-    const manifest: unknown = JSON.parse(readFileSync(file, "utf8"));
-    if (
-      typeof manifest !== "object" ||
-      manifest === null ||
-      !("version" in manifest) ||
-      typeof manifest.version !== "string"
-    ) {
-      return undefined;
-    }
-    const major = Math.trunc(Number(manifest.version.split(".")[0]));
-    return Number.isNaN(major) ? undefined : major;
+    const manifest: { readonly version?: unknown } = JSON.parse(
+      readFileSync(file, "utf8"),
+    );
+    return Math.trunc(Number(String(manifest.version).split(".")[0]));
   } catch {
-    return undefined;
+    return Number.NaN;
   }
 }
 

@@ -49,12 +49,9 @@ type ExplainInput = {
 
 function holds(
   table: NonNullable<
-    NonNullable<PermDockConfig["rls"]>["customRoleWrites"]
-  >["roles"],
+    NonNullable<NonNullable<PermDockConfig["rls"]>["customRoleWrites"]>["roles"]
+  >,
 ): readonly ("tenant" | "shared" | "global")[] {
-  if (table === undefined) {
-    return [];
-  }
   if (table.tenant === undefined) {
     return ["global"];
   }

@@ -225,6 +225,9 @@ describe("resolveCustomRole", () => {
       ok: false,
       cause: "unknown-level",
     });
+    expect(
+      parseCustomRoleEntry(policy, "post.read", { scope: "tenant" }),
+    ).toEqual({ ok: true, permission: "post.read" });
   });
 
   it("keeps only the included denies of its own scope", () => {

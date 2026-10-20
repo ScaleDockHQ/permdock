@@ -381,6 +381,32 @@ describe("rls generate --backfill-out", () => {
     expect(outcome.output).toContain("rls.customRoleWrites.roles");
   });
 
+  it("writes the sync triggers with sync: 'trigger' and no backfill", async () => {
+    const outcome = await generate({
+      customRoles: { from: { ...from, sync: "trigger" } },
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.text).toContain("permdock_sync_custom_role_permissions");
+    expect(outcome.text).toContain("permdock_sync_custom_role_includes");
+  });
+
+  it("refuses sync: 'trigger' with a mapping it cannot read", async () => {
+    const outcome = await generate({
+      customRoles: {
+        from: {
+          ...from,
+          sync: "trigger",
+          permissions: {
+            ...from.permissions,
+            role: { through: "roles", on: {}, column: "key" },
+          },
+        },
+      },
+    });
+    expect(outcome.code).toBe(2);
+    expect(outcome.output).toContain("on must map exactly one column");
+  });
+
   it("turns custom roles on with an object", async () => {
     const outcome = await generate({ customRoles: { from } });
     expect(outcome.code).toBe(0);

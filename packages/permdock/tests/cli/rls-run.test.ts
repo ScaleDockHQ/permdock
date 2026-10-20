@@ -15,6 +15,10 @@ const POLICY = path.join(
   import.meta.dirname,
   "fixtures/mini-app/src/policy.ts",
 );
+const NAMED_SCOPES = path.join(
+  import.meta.dirname,
+  "../fixtures/named-scopes.ts",
+);
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
 const cwd = mkdtempSync(path.join(TMP, "rls-run-"));
@@ -85,6 +89,59 @@ describe("runRls explain", () => {
     const result = await runRls(input({ rest: ["explain"] }));
     expect(result.output).toContain("table bindings:");
     expect(result.output).toContain("scopes:");
+  });
+
+  it("refuses an unknown dialect, a failed generate and an unreachable database", async () => {
+    expect(
+      await runRls(input({ rest: ["explain"], dialect: "mysql" })),
+    ).toEqual({
+      code: 2,
+      output:
+        "rls explain --dialect (or rls.dialect) must be supabase, neon or guc",
+    });
+    const refused = await runRls(
+      input({
+        rest: ["explain"],
+        config: {
+          policy: NAMED_SCOPES,
+          rls: {
+            authorize: "database",
+            memberships: {
+              tenant: {
+                table: "organization_members",
+                tenant: "organization_id",
+                user: "user_id",
+                role: "role",
+              },
+            },
+            customRoleWrites: {
+              roles: { table: "public.roles", key: "key" },
+            },
+            customRoles: {
+              from: {
+                sync: "trigger",
+                permissions: {
+                  table: "role_permissions",
+                  role: { through: "roles", on: {}, column: "key" },
+                  permission: "permission",
+                },
+              },
+            },
+          },
+        },
+      }),
+    );
+    expect(refused.code).toBe(2);
+    expect(refused.output).toContain("on must map exactly one column");
+    const unreachable = await runRls(
+      input({
+        rest: ["explain"],
+        db: "postgres://x",
+        connect: () => Promise.reject(new Error("refused")),
+      }),
+    );
+    expect(unreachable.code).not.toBe(0);
+    expect(unreachable.output).toContain("refused");
   });
 
   it("checks the bound tables against a database", async () => {

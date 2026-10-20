@@ -180,11 +180,8 @@ async function explain(input: RlsRunInput): Promise<CommandResult> {
     check: false,
     write: false,
   });
-  if (generated.code !== 0 || generated.explain === undefined) {
-    return {
-      code: generated.code === 0 ? 1 : generated.code,
-      output: generated.output,
-    };
+  if (generated.explain === undefined) {
+    return { code: generated.code, output: generated.output };
   }
   let report = generated.explain;
   if (input.db !== undefined) {

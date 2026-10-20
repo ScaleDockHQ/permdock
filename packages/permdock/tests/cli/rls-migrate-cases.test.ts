@@ -149,6 +149,28 @@ describe("a call inside a function body", () => {
     ]);
   });
 
+  it("reads quoted and bracketed arguments to build the suggestion", async () => {
+    const { report } = await migrate(
+      `create function f() returns boolean language sql as $$ select authorize('organization', (ids)[1], 'doc.read') $$;`,
+    );
+    expect(report.skipped[0]?.suggestion).toBe(
+      "(((ids)[1]) in (select public.permitted_org_ids('doc.read')))",
+    );
+    const quoted = await migrate(
+      `create function f() returns boolean language sql as $$ select is_member(coalesce(org_id, 'a,b)')) $$;`,
+    );
+    expect(quoted.report.skipped[0]?.suggestion).toBe(
+      "((coalesce(org_id, 'a,b)')) in (select public.member_org_ids()))",
+    );
+  });
+
+  it("has no suggestion when the call cannot be delimited", async () => {
+    const { report } = await migrate(
+      `create function f() returns boolean language sql as $$ select is_admin(E'\\'') $$;`,
+    );
+    expect(report.skipped[0]?.suggestion).toBeUndefined();
+  });
+
   it("has no suggestion when the call cannot be rewritten", async () => {
     const { report } = await migrate(
       `create function f() returns boolean language sql as $$ select is_admin('doc.audit') $$;`,

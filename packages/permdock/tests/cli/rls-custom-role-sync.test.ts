@@ -65,6 +65,23 @@ describe("customRoleSyncSql", () => {
     );
   });
 
+  it("accepts a schema-qualified through table", () => {
+    const qualifiedFrom: RlsCustomRolesFrom = {
+      sync: "trigger",
+      permissions: {
+        ...from.permissions,
+        role: {
+          through: "public.roles",
+          on: { role_id: "id" },
+          column: "key",
+        },
+      },
+    };
+    expect(customRoleSyncSql(ctx, qualifiedFrom, undefined)).toContain(
+      `create trigger "permdock_sync_custom_role_permissions"`,
+    );
+  });
+
   it("writes no includes trigger and keeps the stored includes without a mapped includes table", () => {
     const { includes: _includes, ...permissionsOnly } = from;
     const sql = customRoleSyncSql(ctx, permissionsOnly, undefined);

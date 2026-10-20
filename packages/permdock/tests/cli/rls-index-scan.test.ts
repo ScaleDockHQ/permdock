@@ -20,6 +20,24 @@ alter table public.teams add constraint teams_pkey primary key (id);
 create table other (code text unique, check (code <> ''), foreign key (code) references x(c));
 `;
 
+describe("indexKeysFromSql edge cases", () => {
+  it("skips an expression-first index, an unbalanced group and unquoted odd text", () => {
+    expect(
+      indexKeysFromSql(`
+create index on a ((lower(name)), id);
+create index on b (id;
+create index on c ("it""s" , 'a)b');
+create table d (note text default 'x(y', id uuid primary key, unique ((lower(note))));
+create table e (id uuid unique, unique ("co""de");
+create table f (name text default 'a;
+`),
+    ).toEqual({
+      "public.c": [['it"s']],
+      "public.d": [["id"]],
+    });
+  });
+});
+
 describe("indexKeysFromSql", () => {
   it("reads indexes, constraints and keys, cut at the first expression", () => {
     expect(indexKeysFromSql(SQL)).toEqual({

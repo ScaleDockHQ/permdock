@@ -45,9 +45,7 @@ export function generatedTriggers(sql: string): readonly GeneratedTrigger[] {
   for (const match of sql.matchAll(CREATE)) {
     const name = unquote(match[1] ?? "");
     const table = unquote(match[2] ?? "");
-    if (name !== "" && table !== "") {
-      found.push({ name, table, reason: reasonOf(name) });
-    }
+    found.push({ name, table, reason: reasonOf(name) });
   }
   return found;
 }

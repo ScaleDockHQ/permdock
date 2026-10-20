@@ -21,6 +21,18 @@ describe("requirePeer", () => {
     ).resolves.toEqual({ ok: true });
   });
 
+  it("accepts a peer whose version cannot be read", async () => {
+    await expect(
+      requirePeer(
+        () => Promise.resolve({ ok: true }),
+        "not-an-installed-package",
+        "permdock rls migrate",
+        process.cwd(),
+        1,
+      ),
+    ).resolves.toEqual({ ok: true });
+  });
+
   it("refuses an installed peer older than the minimum major", async () => {
     await expect(
       requirePeer(

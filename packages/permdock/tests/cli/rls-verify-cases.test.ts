@@ -231,6 +231,19 @@ describe("rls verify --format pgtap", () => {
     ]);
   });
 
+  it("refuses --out without --kind pgtap", async () => {
+    const outcome = await runRlsVerify({
+      cwd: app([]),
+      config: config(),
+      out: "x.sql",
+      io,
+    });
+    expect(outcome).toEqual({
+      code: 2,
+      output: "PermDock CLI: rls verify --out needs --kind pgtap",
+    });
+  });
+
   it("refuses to write a script when a fixture disagrees with can()", async () => {
     const cwd = app([
       { subject: author, row: own, action: "post.publish", expected: "denied" },

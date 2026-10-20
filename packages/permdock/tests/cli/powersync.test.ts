@@ -165,6 +165,33 @@ function queries(name: string, target = config): readonly string[] {
 }
 
 describe("powersync streams", () => {
+  it("compiles a mapped role column to the values that map to the roles", () => {
+    const mapped = (map: Record<string, string | null>): PermDockConfig => ({
+      ...config,
+      rls: {
+        ...config.rls,
+        memberships: {
+          scopes: {
+            organization: {
+              table: "organization_users",
+              user: "user_id",
+              role: { column: "kind", map },
+              columns: { organization: "organization_id" },
+            },
+          },
+        },
+      },
+    });
+    const some = queries("job", mapped({ boss: "admin", staff: null }));
+    expect(some).toContain(
+      "SELECT * FROM jobs WHERE jobs.org_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id() AND organization_users.kind IN ('boss'))",
+    );
+    expect(some.join("\n")).not.toContain("'staff'");
+    expect(queries("job", mapped({ staff: null }))[0]).toBe(
+      "SELECT * FROM jobs WHERE 1 = 0",
+    );
+  });
+
   it("streams the user's own memberships, the roles they reference and the tenant custom roles", () => {
     const plan = powersyncPlan(policy, {
       ...config,

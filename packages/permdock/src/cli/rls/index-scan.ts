@@ -39,7 +39,7 @@ function bare(part: string): string {
 /** `schema.table`, with `public` for an unqualified name. */
 function qualified(raw: string): string {
   const parts = raw.split(".").map(bare);
-  return parts.length === 1 ? `public.${parts[0] ?? ""}` : parts.join(".");
+  return parts.length === 1 ? `public.${parts.join("")}` : parts.join(".");
 }
 
 function stripComments(sql: string): string {
@@ -95,6 +95,16 @@ function splitTop(body: string): string[] {
   return items.map((item) => item.trim());
 }
 
+/** The first capture group of a match; every pattern here captures it. */
+function captured(match: RegExpMatchArray): string {
+  return match[1] ?? "";
+}
+
+/** The index just past a match. */
+function endOf(match: RegExpMatchArray): number {
+  return (match.index ?? 0) + match[0].length;
+}
+
 /** The plain key columns of an index column list, cut at the first expression. */
 function keyColumns(body: string): string[] {
   const columns: string[] = [];
@@ -103,7 +113,7 @@ function keyColumns(body: string): string[] {
     if (match === null || item.startsWith("(")) {
       break;
     }
-    columns.push(bare(match[1] ?? ""));
+    columns.push(bare(captured(match)));
   }
   return columns;
 }
@@ -121,15 +131,15 @@ export function indexKeysFromSql(
   };
   for (const pattern of [CREATE_INDEX, ADD_KEY]) {
     for (const match of text.matchAll(pattern)) {
-      const open = (match.index ?? 0) + match[0].length;
+      const open = endOf(match);
       const found = group(text, open);
       if (found !== undefined) {
-        add(match[1] ?? "", keyColumns(found.body));
+        add(captured(match), keyColumns(found.body));
       }
     }
   }
   for (const match of text.matchAll(CREATE_TABLE)) {
-    const found = group(text, (match.index ?? 0) + match[0].length);
+    const found = group(text, endOf(match));
     if (found === undefined) {
       continue;
     }
@@ -138,12 +148,12 @@ export function indexKeysFromSql(
         const open = item.indexOf("(") + 1;
         const inner = group(item, open);
         if (inner !== undefined) {
-          add(match[1] ?? "", keyColumns(inner.body));
+          add(captured(match), keyColumns(inner.body));
         }
       } else if (!NOT_A_COLUMN.test(item)) {
         const column = COLUMN_KEY.exec(item)?.[1];
         if (column !== undefined) {
-          add(match[1] ?? "", [bare(column)]);
+          add(captured(match), [bare(column)]);
         }
       }
     }

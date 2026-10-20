@@ -107,6 +107,55 @@ describe("unsatisfiedKinds", () => {
     expect(unsatisfiedKinds(context(undefined), policy)).toEqual([]);
   });
 
+  it("reads the kind of a mapped membership table and skips a source of another scope", () => {
+    const table = (via: string | { value: string }): RlsSqlContext => ({
+      ...context(undefined),
+      memberships: {
+        scopes: {
+          org: {
+            table: "org_members",
+            user: "user_id",
+            role: "role",
+            via,
+            columns: { org: "org_id" },
+          },
+        },
+      },
+    });
+    expect(unsatisfiedKinds(table({ value: "staff" }), policy)).toEqual([
+      {
+        role: "contact",
+        for: ["contact"],
+        sources: ["org_members (via staff)"],
+      },
+    ]);
+    expect(unsatisfiedKinds(table("kind"), policy)).toEqual([]);
+    const elsewhere = junctionMembershipSource({
+      table: "team_staff",
+      scope: "team",
+      roles: ["contact"],
+      via: "staff",
+    });
+    expect(unsatisfiedKinds(context([elsewhere]), policy)).toEqual([]);
+  });
+
+  it("skips a role that is not held on a scope", () => {
+    const base = context([staff]);
+    expect(
+      unsatisfiedKinds(
+        {
+          ...base,
+          ownership: {
+            kinds: { ghost: ["contact"] },
+            assigns: base.ownership?.assigns ?? {},
+            counted: [],
+          },
+        } as RlsSqlContext,
+        policy,
+      ),
+    ).toEqual([]);
+  });
+
   it("does not compare a source with no via", () => {
     const plain = junctionMembershipSource({
       table: "org_members",
@@ -114,6 +163,15 @@ describe("unsatisfiedKinds", () => {
       roles: ["contact"],
     });
     expect(unsatisfiedKinds(context([plain]), policy)).toEqual([]);
+  });
+});
+
+describe("PD073 inputs", () => {
+  it("is quiet without a policy and reads the hook's sources", async () => {
+    expect(await pd073({ cwd: ".", config: { rls: {} } })).toEqual([]);
+    expect(
+      await pd073({ cwd: ".", config: { policy: "missing.ts", rls: {} } }),
+    ).toEqual([]);
   });
 });
 
@@ -157,6 +215,18 @@ export default {
     expect(findings).toHaveLength(1);
     expect(findings[0]).toMatchObject({ code: "PD073", severity: "error" });
     expect(findings[0]?.message).toContain("org_staff (via staff)");
+    const viaHook = await pd073({
+      cwd,
+      config: {
+        permissions: "src/permissions.ts",
+        policy: "src/policy.ts",
+        rls: { dialect: "supabase", authorize: "database" },
+        supabase: { hook: { memberships: [staff] } },
+      },
+    });
+    expect(viaHook).toHaveLength(1);
+    const explained = await run(["rls", "explain"], { cwd });
+    expect(explained.code).toBe(2);
     const generated = await run(["rls", "generate", "--target", "sql"], {
       cwd,
     });

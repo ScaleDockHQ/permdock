@@ -80,6 +80,37 @@ function generate(rls: NonNullable<PermDockConfig["rls"]>) {
 }
 
 describe("rls generate options", () => {
+  it("splits the seed function into helpers and a seeds part that calls it", async () => {
+    const outcome = await runRlsGenerate({
+      cwd,
+      config: {
+        policy: "./manage.ts",
+        rls: { authorize: "database", memberships, seeds: "function" },
+      },
+      target: "sql",
+      dialect: "supabase",
+      rbac: false,
+      check: false,
+      skipClosures: false,
+      inlineFunctions: false,
+      io,
+      write: true,
+      split: "helpers,seeds",
+      out: "split/permdock_{part}.sql",
+      seedsOut: "split/permdock_seeds.sql",
+    });
+    expect(outcome.code).toBe(0);
+    expect(
+      readFileSync(path.join(cwd, "split/permdock_seeds.sql"), "utf8"),
+    ).toContain('select "permdock"."seed"();');
+    expect(
+      readFileSync(path.join(cwd, "split/permdock_helpers.sql"), "utf8"),
+    ).toContain('create or replace function "permdock".seed()');
+    expect(outcome.output).toContain(
+      "select permdock.seed(); after each deploy",
+    );
+  });
+
   it("exits 1, not 2, when --db-url-stdin cannot be reached", async () => {
     const outcome = await runRlsGenerate({
       cwd,

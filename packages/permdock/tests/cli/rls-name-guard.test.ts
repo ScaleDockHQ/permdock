@@ -100,6 +100,24 @@ describe("PD072", () => {
     expect(findings.map((finding) => finding.code)).toEqual(["PD072"]);
   });
 
+  it("reads the sources of the Supabase hook when rls names none", () => {
+    expect(
+      pd072({
+        cwd: ".",
+        config: {
+          rls: { customRoleWrites: { roles: table } },
+          supabase: { hook: { memberships: [source] } },
+        },
+      }).map((finding) => finding.code),
+    ).toEqual(["PD072"]);
+    expect(
+      pd072({
+        cwd: ".",
+        config: { rls: { customRoleWrites: { roles: table } } },
+      }),
+    ).toEqual([]);
+  });
+
   it("is quiet when the roles table has no tenant column or is not read", () => {
     expect(
       pd072({ cwd: ".", config: config({ table: "app_roles", key: "name" }) }),

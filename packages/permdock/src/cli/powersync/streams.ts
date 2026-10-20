@@ -431,7 +431,8 @@ function roleThroughs(
 ): readonly RoleThrough[] {
   const list = Array.isArray(role) ? role : [role];
   return list.filter(
-    (item): item is RoleThrough => typeof item === "object" && item !== null,
+    (item): item is RoleThrough =>
+      typeof item === "object" && item !== null && "through" in item,
   );
 }
 
