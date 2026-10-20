@@ -2,6 +2,11 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.6.0 (2026-10-20)
+
+- Add shared custom roles: a `CustomRole` with `shared: true` and no tenant, returned by `CustomRoleSource.sharedRoles()`, is held on a membership of its scope in every tenant, and its name wins over a tenant role's (`validateCustomRole(policy, role, { shared })` reports `name-taken`). Generated RLS resolves them from rows with a null `tenant_id` below the global scope, and `permdock_replace_custom_role_grants` writes them only for a caller holding `meta.manageRoles` through a global role.
+- The `better-supabase` peer range is `>=0.9.0` instead of `>=0.9.0 <0.10.0`, so `permdock/better-supabase` installs next to better-supabase 0.10 and later without a peer warning.
+
 ## 0.5.0 (2026-10-19)
 
 - A `deny` now applies to an update pair `{ current, next }` when either row matches it. `deny(permissions.invoice.update, { where: { locked: true } })` used to apply only when both rows were locked, so unlocking an invoice, or locking one, was granted in process and by `fromSnapshot` while the generated RLS refused it. A scoped deny likewise applies when the update moves the row into or out of its scope instance. Allows still need both rows to match, and `fromSnapshot` now also checks an update allow's `where` against the next row when the grant has no `check`, as `can` does.
