@@ -465,29 +465,33 @@ $$;`,
   };
 
   it("saves a role by id with the row's tenant and writes the audit row", async () => {
-    const db = started();
-    await db.admin.query("begin");
+    const pg = started();
+    await pg.admin.query("begin");
     const read = async () => {
-      await db.admin.query("set local role authenticated");
-      await db.admin.query(
+      await pg.admin.query("set local role authenticated");
+      await pg.admin.query(
         "select set_config('request.jwt.claims', $1, true)",
         [JSON.stringify({ sub: ADMIN, role: "authenticated" })],
       );
-      await db.admin.query(
+      await pg.admin.query(
         "select permdock.permdock_replace_custom_role_grants_by_id($1, $2)",
         [AUDITOR, ["job.read"]],
       );
-      await db.admin.query("reset role");
+      await pg.admin.query("reset role");
       return {
-        stored: await db.admin.query<{ entry: string }>(
+        stored: await pg.admin.query<{ entry: string }>(
           "select tenant_id || '/' || scope || '/' || role || '/' || permission as entry from permdock.custom_role_permissions where role = 'auditor'",
         ),
-        audit: await db.admin.query("select * from public.audit_log"),
+        audit: await pg.admin.query("select * from public.audit_log"),
       };
     };
-    const { stored, audit } = await read().finally(() =>
-      db.admin.query("rollback"),
-    );
+    let result: Awaited<ReturnType<typeof read>>;
+    try {
+      result = await read();
+    } finally {
+      await pg.admin.query("rollback");
+    }
+    const { stored, audit } = result;
     expect(stored.rows.map((row) => row.entry)).toEqual([
       "acme/tenant/auditor/job.read",
     ]);
@@ -526,10 +530,10 @@ $$;`,
   });
 
   it("keeps the trusted writer and reader away from client roles", async () => {
-    const db = started();
+    const pg = started();
     const codeAs = (role: string, sql: string): Promise<string> =>
-      db
-        .as({ role, settings: {} }, () => db.tester.query(sql, [[AUDITOR]]))
+      pg
+        .as({ role, settings: {} }, () => pg.tester.query(sql, [[AUDITOR]]))
         .then(
           () => "ok",
           (error: unknown) =>
