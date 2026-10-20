@@ -30,7 +30,7 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
   const roles =
     rows === undefined
       ? `  held := '[]'::jsonb;`
-      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}), '[]'::jsonb)
+      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}) filter (where ${rows.roleSql} is not null), '[]'::jsonb)
     into held
     from ${rows.from}
     where ${rows.userSql} = v_roles_user;`;

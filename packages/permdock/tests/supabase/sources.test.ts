@@ -62,10 +62,11 @@ describe("tableMembershipSource", () => {
     expect(sql.columns).toEqual(["user_id", "scope", "scope_id", "role"]);
     expect(sql.reads).toEqual([]);
     expect(sql.select("$1"))
-      .toBe(`select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+      .toBe(`select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
 from "public"."memberships" m
 where m."user_id" = $1
-group by m."scope"::text, m."scope_id"::text`);
+group by m."scope"::text, m."scope_id"::text
+having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null`);
     expect(sql.list()).toContain(
       'where m."scope"::text = $1::text and m."scope_id"::text = $2::text',
     );
@@ -424,7 +425,7 @@ describe("a role column through a roles table", () => {
     });
     const select = source.sql.select("$1");
     expect(select).toContain(
-      `jsonb_agg(distinct mk."key"::text order by mk."key"::text) as roles`,
+      `jsonb_agg(distinct mk."key"::text order by mk."key"::text) filter (where mk."key"::text is not null) as roles`,
     );
     expect(select).toContain(`from "identity"."memberships" m
 join "identity"."roles" mk on mk."id" = m."role_id"

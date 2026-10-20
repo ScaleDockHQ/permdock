@@ -47,7 +47,7 @@ export function hookSql(parts: Parts): string {
   const roles =
     rows === undefined
       ? `  held := '[]'::jsonb;`
-      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql})${rows.nullable ? ` filter (where ${rows.roleSql} is not null)` : ""}, '[]'::jsonb)
+      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}) filter (where ${rows.roleSql} is not null), '[]'::jsonb)
     into held
     from ${rows.from}
     where ${rows.userSql} = v_roles_user;`;

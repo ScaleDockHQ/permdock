@@ -38,13 +38,14 @@ grant select on auth.users to supabase_auth_admin;
 grant usage on schema public to authenticated, anon;
 insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(", ")};
 create table memberships (
-  user_id uuid not null, scope text not null, scope_id text not null, role text not null,
+  user_id uuid not null, scope text not null, scope_id text not null, role text,
   via text, expires_at timestamptz, managed_by text, seats text[]
 );
 insert into memberships values
   ('${OWNER}', 'organization', 'T', 'owner', 'staff', null, null, null),
   ('${OWNER}', 'organization', 'B', 'mechanic', 'staff', null, null, null),
   ('${OWNER}', 'organization', 'X', 'owner', 'staff', null, null, null),
+  ('${OWNER}', 'organization', 'N', null, 'staff', null, null, null),
   ('${SUSPENDED}', 'organization', 'T', 'admin', 'staff', null, null, null);
 create table customer_contacts (customer_id text not null, organization_id text not null, user_id uuid not null);
 insert into customer_contacts values ('A', 'T', '${CONTACT}');
@@ -154,6 +155,21 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
       memberships: [],
       customRoles: [],
     });
+  });
+
+  it("leaves out a membership whose role column is null instead of emitting roles: [null]", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const raw = await db.admin.query<{ subject: unknown; members: unknown }>(
+      `select permdock.subject_for('${OWNER}') as subject, permdock.members_of('organization', 'N') as members`,
+    );
+    expect(JSON.stringify(raw.rows[0]?.subject)).not.toContain("null");
+    expect(raw.rows[0]?.members).toEqual([]);
+    const ids = (
+      raw.rows[0]?.subject as { memberships: { id: string }[] }
+    ).memberships.map((membership) => membership.id);
+    expect(ids).not.toContain("N");
   });
 
   it("reads only the version through authz_version_for", async () => {
