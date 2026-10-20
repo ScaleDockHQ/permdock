@@ -421,9 +421,12 @@ export type {
   Vocabulary,
   VocabularyOptions,
 } from "./core/vocabulary.ts";
-export { decideRoleChange } from "./core/ownership.ts";
+export { checkRoleChange, decideRoleChange } from "./core/ownership.ts";
 export type {
   RoleChange,
+  RoleChangeCheck,
+  RoleChangeCheckInput,
+  RoleRules,
   RoleChangeDecision,
   RoleChangeOptions,
   RoleChangeTarget,

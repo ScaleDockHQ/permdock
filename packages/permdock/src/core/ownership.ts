@@ -197,18 +197,18 @@ function conflictsWith(policy: Policy, role: string): ReadonlySet<string> {
 
 /** What the change does to the instance's holder count. */
 function countRules(
-  binding: RoleBinding | undefined,
-  role: string,
+  rules: RoleRules,
   holders: number | undefined,
   delta: -1 | 0 | 1,
   deny: (reason: Denial["reason"], detail?: unknown) => void,
 ): void {
-  if (binding === undefined || delta === 0) {
+  const role = rules.key;
+  if (delta === 0) {
     return;
   }
-  const min = binding.min ?? 0;
+  const min = rules.min ?? 0;
   const counted =
-    min > 0 || binding.max !== undefined || binding.transferOnly === true;
+    min > 0 || rules.max !== undefined || rules.transferOnly === true;
   if (!counted) {
     return;
   }
@@ -218,7 +218,7 @@ function countRules(
     const reason =
       delta < 0 && min > 0
         ? "last-holder"
-        : delta > 0 && binding.max !== undefined
+        : delta > 0 && rules.max !== undefined
           ? "max-holders"
           : "transfer-only";
     deny(reason, { role, holders: null });
@@ -228,13 +228,147 @@ function countRules(
   if (delta < 0 && min > 0 && after < min) {
     deny("last-holder", { role, min, holders });
   }
-  if (delta > 0 && binding.max !== undefined && after > binding.max) {
-    deny("max-holders", { role, max: binding.max, holders });
+  if (delta > 0 && rules.max !== undefined && after > rules.max) {
+    deny("max-holders", { role, max: rules.max, holders });
   }
   // Creating the first holder and removing the last are not transfers; `min` guards the latter.
-  if (binding.transferOnly === true && holders > 0 && after > 0) {
+  if (rules.transferOnly === true && holders > 0 && after > 0) {
     deny("transfer-only", { role, holders });
   }
+}
+
+/** The holder-count, membership-kind, exclusivity and `assigns` rules of one role, as the catalog lists them (`CatalogRole`). */
+export type RoleRules = {
+  readonly key: string;
+  readonly min?: number;
+  readonly max?: number;
+  readonly transferOnly?: boolean;
+  readonly assigns?: readonly string[];
+  readonly for?: readonly string[];
+  readonly exclusiveWith?: readonly string[];
+};
+
+export type RoleChangeCheckInput = {
+  readonly change: {
+    readonly kind: "assign" | "revoke" | "transfer";
+    readonly target: Pick<RoleChangeTarget, "via" | "roles">;
+  };
+  /** How many principals hold the role in the instance now; without it a role with `min`, `max` or `transferOnly` is denied. */
+  readonly holders?: number;
+  /** Every declared role: adds the `exclusiveWith` other roles declare against this one, and with `actorRoles` the `assigns` rule. */
+  readonly roles?: readonly RoleRules[];
+  /** The roles the actor holds at the instance, highest rank first. With `roles` naming any `assigns`, one of them must assign this role. */
+  readonly actorRoles?: readonly string[];
+};
+
+/** `by` names the actor role whose `assigns` allowed the change, `null` when the rule did not apply. */
+export type RoleChangeCheck =
+  | { readonly ok: true; readonly by: string | null }
+  | { readonly ok: false; readonly denials: readonly Denial[] };
+
+/**
+ * The rules of a role change that need no subject: `assigns`, `for`,
+ * `exclusiveWith`, `min`, `max` and `transferOnly`, from holder counts and
+ * the target's roles alone. `decideRoleChange` runs the same function after
+ * its actor, tenant and ceiling checks; a service that holds only the
+ * catalog calls it with the `CatalogRole` entries.
+ */
+export function checkRoleChange(
+  role: RoleRules,
+  input: RoleChangeCheckInput,
+): RoleChangeCheck {
+  const name = role.key;
+  const denials: Denial[] = [];
+  const deny = (reason: Denial["reason"], detail?: unknown): void => {
+    denials.push(compact<Denial>({ role: name, reason, detail }));
+  };
+  const kind = input.change?.kind;
+  const target = input.change?.target;
+  if (
+    (kind !== "assign" && kind !== "revoke" && kind !== "transfer") ||
+    target === null ||
+    typeof target !== "object"
+  ) {
+    deny("validation");
+    return freezeDeep({ ok: false as const, denials });
+  }
+  const roles = input.roles ?? [];
+  const targetRoles = isReadonlyArray(target.roles) ? target.roles : [];
+  const already = targetRoles.includes(name);
+  let by: string | null = null;
+
+  if (
+    kind !== "transfer" &&
+    input.actorRoles !== undefined &&
+    roles.some((rules) => rules.assigns !== undefined)
+  ) {
+    const held = input.actorRoles;
+    by =
+      held.find(
+        (actorRole) =>
+          roles
+            .find((rules) => rules.key === actorRole)
+            ?.assigns?.includes(name) === true,
+      ) ?? null;
+    if (by === null) {
+      deny("not-assignable-by", { held });
+    }
+  }
+
+  if (kind !== "revoke" && !already) {
+    const kinds = role.for;
+    if (
+      kinds !== undefined &&
+      (target.via === undefined || !kinds.includes(target.via))
+    ) {
+      deny("not-allowed-for-membership", {
+        via: target.via ?? null,
+        for: kinds,
+      });
+    }
+    const conflicts = new Set(role.exclusiveWith ?? []);
+    for (const rules of roles) {
+      if (rules.exclusiveWith?.includes(name) === true) {
+        conflicts.add(rules.key);
+      }
+    }
+    const clash = targetRoles.filter((held) => conflicts.has(held));
+    if (clash.length > 0) {
+      deny("conflicting-role", { with: clash });
+    }
+  }
+
+  const delta: -1 | 0 | 1 =
+    kind === "assign"
+      ? already
+        ? 0
+        : 1
+      : kind === "revoke"
+        ? targetRoles.length > 0 && !already
+          ? 0
+          : -1
+        : already
+          ? -1
+          : 0;
+  countRules(role, input.holders, delta, deny);
+  return freezeDeep(
+    denials.length === 0
+      ? { ok: true as const, by }
+      : { ok: false as const, denials },
+  );
+}
+
+/** A declared binding's rules, by the name `checkRoleChange` reads. */
+function rulesOf(binding: RoleBinding): RoleRules {
+  return compact<RoleRules>({
+    key: binding.name,
+    min: binding.min,
+    max: binding.max,
+    transferOnly: binding.transferOnly,
+    assigns: binding.assigns,
+    for: binding.for,
+    exclusiveWith: binding.exclusiveWith,
+  });
 }
 
 export type RoleChangeOptions = {
@@ -441,9 +575,8 @@ function decideRoleChangeWith(
     return done(null);
   }
   const self = target.id === principal.id;
-  const targetRoles = isReadonlyArray(target.roles) ? target.roles : [];
-  const already = targetRoles.includes(name);
   let by: string | null = null;
+  let actorRoles: readonly string[] | undefined;
 
   if (kind === "transfer") {
     if (self) {
@@ -470,7 +603,7 @@ function decideRoleChangeWith(
     if (!allowed.assignable.has(name) && revocable !== true) {
       deny("not-assignable-by");
     } else if (custom === undefined && usesAssigns(policy) && !allowed.manage) {
-      const held = global
+      actorRoles = global
         ? rankRoles(
             policy,
             (principal.roles ?? []).filter((role) =>
@@ -478,54 +611,36 @@ function decideRoleChangeWith(
             ),
           )
         : rolesAtInstance(policy, principal, scopes, scope, id, within, now);
-      by =
-        held.find(
-          (role) => bindingOf(policy, role)?.assigns?.includes(name) === true,
-        ) ?? null;
-      if (by === null) {
-        deny("not-assignable-by", { held });
-      }
     }
   }
 
-  if (kind !== "revoke" && !already) {
-    const kinds =
-      custom === undefined ? binding?.for : customForKinds(policy, custom);
-    if (
-      kinds !== undefined &&
-      (target.via === undefined || !kinds.includes(target.via))
-    ) {
-      deny("not-allowed-for-membership", {
-        via: target.via ?? null,
-        for: kinds,
-      });
-    }
-    const conflicts =
-      custom === undefined
-        ? conflictsWith(policy, name)
-        : new Set(
-            includedRoles(custom).flatMap((include) =>
-              Array.from(conflictsWith(policy, include)),
-            ),
-          );
-    const clash = targetRoles.filter((role) => conflicts.has(role));
-    if (clash.length > 0) {
-      deny("conflicting-role", { with: clash });
-    }
+  const conflicts =
+    custom === undefined
+      ? conflictsWith(policy, name)
+      : new Set(
+          includedRoles(custom).flatMap((include) =>
+            Array.from(conflictsWith(policy, include)),
+          ),
+        );
+  const checked = checkRoleChange(
+    compact<RoleRules>({
+      ...(binding === undefined ? {} : rulesOf(binding)),
+      key: name,
+      for: custom === undefined ? binding?.for : customForKinds(policy, custom),
+      exclusiveWith: [...conflicts],
+      assigns: undefined,
+    }),
+    compact<RoleChangeCheckInput>({
+      change: { kind, target },
+      holders: change.holders,
+      roles: actorRoles === undefined ? undefined : policy.roles.map(rulesOf),
+      actorRoles,
+    }),
+  );
+  if (checked.ok) {
+    by = actorRoles === undefined ? by : checked.by;
+  } else {
+    denials.push(...checked.denials);
   }
-
-  const delta: -1 | 0 | 1 =
-    kind === "assign"
-      ? already
-        ? 0
-        : 1
-      : kind === "revoke"
-        ? targetRoles.length > 0 && !already
-          ? 0
-          : -1
-        : already
-          ? -1
-          : 0;
-  countRules(binding, name, change.holders, delta, deny);
   return done(by);
 }
