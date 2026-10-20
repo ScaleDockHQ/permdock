@@ -56,8 +56,8 @@ export type RlsSqlContext = {
   readonly inlineFunctions?: boolean;
   /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `permdock`, a schema the Data API does not expose. */
   readonly schema?: string;
-  /** `rls.seeds: 'function'`: the `role_permissions` rows are written by `<schema>.seed()`. */
-  readonly seeds?: "function";
+  /** `rls.seeds: 'function'`: the `role_permissions` rows are written by `<schema>.seed()`; `'view'`: `role_permissions` is a view over them. */
+  readonly seeds?: "function" | "view";
   /** Where the helpers read roles and memberships: tables (`database`) or claims (`jwt`, the default). */
   readonly authorize?: "database" | "jwt";
   /** Claim holding the global role (string or array). Default `user_role`. */

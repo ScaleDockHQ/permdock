@@ -234,7 +234,7 @@ export function buildContext(
       ? { anonymousSignIns: "deny" as const }
       : {}),
     ...(ownership === undefined ? {} : { ownership }),
-    ...(rls?.seeds === "function" ? { seeds: "function" as const } : {}),
+    ...(rls?.seeds === undefined ? {} : { seeds: rls.seeds }),
     ...(rls?.ownershipTriggers === undefined
       ? {}
       : {

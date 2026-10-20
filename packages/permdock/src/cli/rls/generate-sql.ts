@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 
+import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig, RlsShimsConfig } from "../types.ts";
 import type { GenerateContext } from "./generate-context.ts";
 import type { SplitSql } from "./generate-output.ts";
@@ -44,7 +45,7 @@ import {
   withHelperTables,
 } from "./generate-policies.ts";
 import { graphSql } from "./graph.ts";
-import { helpersSql, seedSql } from "./helpers.ts";
+import { type RolePermission, helpersSql, seedSql } from "./helpers.ts";
 import { type IndexTarget, indexTargets, indexesSql } from "./indexes.ts";
 import { ownershipSql } from "./ownership.ts";
 import { permissionHoldersSql } from "./permission-holders.ts";
@@ -338,6 +339,25 @@ function preambleSql(
   };
 }
 
+function seedsBody(
+  ctx: RlsSqlContext,
+  schema: string,
+  rows: readonly RolePermission[],
+): string {
+  switch (ctx.seeds) {
+    case "function":
+      return `select ${quoteQualified(`${schema}.seed`)}();`;
+    case "view":
+      return "-- rls.seeds: 'view': the role_permissions rows are in the helpers part";
+    case undefined:
+      return seedSql(ctx, rows);
+    default: {
+      const exhaustive: never = ctx.seeds;
+      return exhaustive;
+    }
+  }
+}
+
 function forceWarnings({ graph }: GenerateContext, warnings: string[]): void {
   for (const entry of graph.values()) {
     const own = [...entry.relations].filter(
@@ -526,7 +546,7 @@ export function generateSql(
         emitSql([], preamble, false, helpersOnly ? views : []),
         ctx.dialect,
       ),
-      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${ctx.seeds === "function" ? `select ${quoteQualified(`${built.schema}.seed`)}();` : seedSql(ctx, generated.compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,
+      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${seedsBody(ctx, built.schema, generated.compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,
       indexes: `${INDEXES_MARKER}\n${indexesSql(indexes)}\n`,
     }),
   };

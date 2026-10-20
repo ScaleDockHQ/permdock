@@ -60,17 +60,21 @@ function splitRefusal(
     readonly noSeeds: boolean;
     /** `rls.seeds: 'function'`: the rows live in `<schema>.seed()`, which the helpers part creates. */
     readonly seedFunction: boolean;
+    /** `rls.seeds: 'view'`: the rows are a view the helpers part creates. */
+    readonly seedView: boolean;
   },
 ): string | undefined {
   const seedsWithoutOut =
     plan.split.includes("seeds") &&
     plan.seedsOut === undefined &&
-    !plan.noSeeds;
+    !plan.noSeeds &&
+    !plan.seedView;
   const helpersWithoutSeeds =
     plan.split.includes("helpers") &&
     !plan.noSeeds &&
     !plan.split.includes("seeds") &&
-    !plan.seedFunction;
+    !plan.seedFunction &&
+    !plan.seedView;
   switch (mode) {
     case "pg-delta":
       if (plan.explicitOut && !plan.placeholder) {
@@ -157,6 +161,7 @@ export function outputFiles(plan: {
     seedsOut: input.seedsOut,
     noSeeds: input.noSeeds === true,
     seedFunction: input.config.rls?.seeds === "function",
+    seedView: input.config.rls?.seeds === "view",
   });
   if (refused !== undefined) {
     return refused;

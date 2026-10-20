@@ -195,6 +195,32 @@ ${keys}
 );`;
 }
 
+/**
+ * `role_permissions` as a view over the compiled rows (`rls.seeds: 'view'`).
+ * `security_invoker` makes the view read as its caller, so it adds no
+ * privilege; the table's revoke applies to the view the same way.
+ */
+function seedViewSql(
+  ctx: RlsSqlContext,
+  rows: readonly RolePermission[],
+): string {
+  const view = qualified(ctx, "role_permissions");
+  const columns = "role, permission, grant_key, scope, effect";
+  const body =
+    rows.length === 0
+      ? `select null::text, null::text, null::text, null::text, null::text where false`
+      : `select * from (values\n${rows
+          .map(
+            (row) =>
+              `  (${[row.role, row.permission, row.grantKey, row.scope, row.effect].map(quoteLiteral).join(", ")})`,
+          )
+          .join(",\n")}\n) as v(${columns})`;
+  return `-- rls.seeds: 'view': role_permissions is a view, so the rows travel with the schema
+create or replace view ${view} (${columns}) with (security_invoker = true) as
+${body};
+revoke all on table ${view} from anon, authenticated, public;`;
+}
+
 /** `<schema>.seed()`: the same upsert and delete as `seedSql`, for a declarative schema that carries no rows. */
 function seedFunctionSql(
   ctx: RlsSqlContext,
@@ -256,7 +282,10 @@ export function helpersSql(
   if (ctx.dialect === "supabase") {
     chunks.push(userIdSql(ctx, options.anonExecute === true));
   }
-  chunks.push(`create table if not exists ${rp} (
+  if (ctx.seeds === "view") {
+    chunks.push(seedViewSql(ctx, rows));
+  } else {
+    chunks.push(`create table if not exists ${rp} (
   role text not null,
   permission text not null,
   grant_key text not null,
@@ -266,9 +295,10 @@ export function helpersSql(
 );
 alter table ${rp} enable row level security;
 revoke all on table ${rp} from anon, authenticated, public;`);
+  }
   if (ctx.seeds === "function") {
     chunks.push(seedFunctionSql(ctx, rows));
-  } else if (options.withoutSeeds !== true) {
+  } else if (options.withoutSeeds !== true && ctx.seeds !== "view") {
     chunks.push(seedSql(ctx, rows));
   }
   if (

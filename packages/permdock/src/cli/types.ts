@@ -311,8 +311,12 @@ export type RlsConfig = {
    * `<schema>.seed()`, which the helpers part creates. Declarative workflows
    * (pg-delta, migra) then need no seeds migration: call
    * `select <schema>.seed();` after each deploy.
+   *
+   * `'view'`: `role_permissions` is a `security_invoker` view over a `values`
+   * list, so the rows travel with the declarative schema and need no seeding
+   * step. Nothing can write the rows, so the view cannot take hand-added ones.
    */
-  readonly seeds?: "function";
+  readonly seeds?: "function" | "view";
   readonly trustedReaders?: readonly string[];
   readonly treeValues?: Readonly<
     Record<string, Readonly<Record<string, unknown>>>
