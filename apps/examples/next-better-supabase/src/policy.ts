@@ -42,12 +42,17 @@ export const policy = definePolicy(
         { on: "customer", min: 0 },
       ),
     ],
-    // A better-supabase support session reaches only what the owner holds and this names;
-    // a `read_only` session keeps the read and list keys.
+    // A better-supabase support session or an agent token reaches only what the owner holds
+    // and this names; a `read_only` session keeps the read and list keys.
     delegations: [
       {
         from: roles.owner,
         to: actor("support"),
+        permissions: [permissions.quotes],
+      },
+      {
+        from: roles.owner,
+        to: actor("agent"),
         permissions: [permissions.quotes],
       },
     ],

@@ -605,6 +605,36 @@ Only better-supabase's checks narrow by token scope. PermDock's own SQL helpers 
 
 better-supabase's `createAgentRuntime({ toolApproval })` from `better-supabase/ai-sdk/agents` takes an AI SDK tool-approval function and combines it with the tenant's `ask` tools; the stricter answer wins. `toolApproval` and `composeToolApproval(...)` from [`permdock/ai-sdk`](/docs/adapters/ai-sdk) are such functions: a call PermDock answers `approval-required` asks for the user's approval, and a denied call is refused. `tests/better-supabase/agents.test-d.ts` type-checks the pairing.
 
+## Agent and team claims
+
+Three claims shape what an agent or a team member reaches. PermDock and better-supabase each read some of them, in different places:
+
+| Claim           | better-supabase                                                                                               | PermDock                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `act.read_only` | `actor_may_write()` guards module tables and its own security-definer writes                                  | `permdock_actor_may_write()` guards app tables under `rls.readOnlyActors`; in process, `readOnly` denies a permission without `readOnlyHint` |
+| `act.tools`     | `assertToolDelegated` in `better-supabase/ai-sdk/agents` throws `AGENT_TOOL_NOT_DELEGATED` before a tool runs | `subjectFromSupabase` maps it to `actor.tools`; the agent kernel and adapters deny any other tool with `agent-tool-not-delegated`            |
+| `team_ids`      | not read; module checks call `team_ids_of(auth.uid())` from the teams block                                   | the hook writes it from `supabase.hook.teams`; conditions read `principal.claims.team_ids` in process; generated RLS does not read it        |
+
+- **Read-only agents.** `authorizationProvider` sets `functions.actorMayWrite` to `permdock_actor_may_write()` when the manifest lists it, so both libraries answer the same for module tables. App tables follow `act.read_only` only when `rls.readOnlyActors` is set: each write policy then gets a restrictive `<table>_<verb>_read_only_actors` twin. Without it, a read-only agent token still writes every app table its user may write, because the generated policies do not read `act`.
+- **Tools.** Neither check exists in SQL. A delegated tool list stops an agent at the tool call, in the server; a token that reaches the Data API directly keeps its user's row access, narrowed only by `read_only`.
+- **Teams.** `team_ids` is a PermDock claim, and only process-side conditions read it; RLS on team rows joins the membership table instead. Keep `supabase.hook.teams` and better-supabase's teams block on the same membership table, so `team_ids_of()` and the claim list the same teams.
+
+An agent token also needs a policy delegation to `actor("agent")`; without one, `permdock/ai-sdk` denies every tool with `no-delegation`. The example delegates its owner's `quotes` permissions:
+
+```ts
+delegations: [
+  { from: roles.owner, to: actor("agent"), permissions: [permissions.quotes] },
+],
+```
+
+`apps/examples/next-better-supabase/src/agent/tools.ts` binds two tools, `quotes.read` and `quotes.update`, through `permdock/ai-sdk`. `tests/stack/agent.stack.test.ts` signs tokens through the PermDock hook against the local stack (`pnpm test:stack`):
+
+| Token `act`                                 | `quotes.read` | `quotes.update` tool       | `update public.quotes` as the token |
+| ------------------------------------------- | ------------- | -------------------------- | ----------------------------------- |
+| `read_only: true`, `tools: ["quotes.read"]` | rows          | `agent-tool-not-delegated` | 0 rows                              |
+| `read_only: true`, both tools               | rows          | denied                     | 0 rows                              |
+| `read_only: false`, both tools              | rows          | approved, the row changes  | every row the owner may update      |
+
 ## Module permission keys
 
 better-supabase's SQL modules check permission keys, such as `audit.read`, `api_keys.manage` and the AI, workflow and inbox modules' keys. Its doctor reports a key the provider's `permissions` lacks, so pass `catalog` and declare each key the installed modules check in the policy. Rename a key with `blocks.<block>.permissions` in `better-supabase.config.ts`. The example maps the audit block's `view` and `viewAll` to `audit.view`: a `read` action maps to `select`, so `audit.read` would make `rls generate` write policies for a `public.audit` table that does not exist.

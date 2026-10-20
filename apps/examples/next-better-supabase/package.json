@@ -17,8 +17,9 @@
     "supabase:start": "supabase start --runtime native",
     "supabase:stop": "supabase stop",
     "supabase:test": "supabase test db",
-    "test": "vitest run",
+    "test": "vitest run --exclude 'tests/stack/**'",
     "test:e2e": "playwright test",
+    "test:stack": "vitest run tests/stack",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -108,6 +108,10 @@ jobs:
       - name: pgTAP
         run: pnpm run supabase:test
 
+      # Signed agent tokens through the hook, permdock/ai-sdk and RLS.
+      - name: Agent stack test
+        run: pnpm run test:stack
+
       - name: Stop the local stack
         if: always()
         run: pnpm run supabase:stop
