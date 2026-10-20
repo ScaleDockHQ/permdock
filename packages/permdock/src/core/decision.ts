@@ -34,6 +34,7 @@ export type DenialReason =
   | "validation"
   | "tenant-mismatch"
   | "no-membership"
+  | "no-tenant"
   | "scope"
   | "expired-membership"
   | "stale-credentials"

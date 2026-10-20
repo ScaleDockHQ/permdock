@@ -328,6 +328,9 @@ function finishSubject(
   const plans = contact
     ? []
     : [...new Set([...(assembled.principal.plans ?? []), ...extra.plans])];
+  const activeTenant = contact
+    ? undefined
+    : activeTenantOf(policy, assembled, memberships, options);
   const withMemberships: Principal = freezeCopy(
     compact<Principal>({
       ...assembled.principal,
@@ -339,9 +342,8 @@ function finishSubject(
           : contact
             ? undefined
             : assembled.principal.plans,
-      tenant: contact
-        ? undefined
-        : activeTenantOf(policy, assembled, memberships, options),
+      tenant: activeTenant,
+      unheldTenant: activeTenant === undefined ? options.tenant : undefined,
     }),
   );
   return freezeCopy(

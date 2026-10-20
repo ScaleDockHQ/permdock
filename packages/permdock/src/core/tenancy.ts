@@ -260,6 +260,7 @@ export type ScopeMatch =
       readonly reason:
         | "tenant-mismatch"
         | "no-membership"
+        | "no-tenant"
         | "scope"
         | "expired-membership"
         | "relation-depth"
@@ -303,6 +304,7 @@ export function matchScopedMembership(
   let sawExpired = false;
   let sawWrongScope = false;
   let sawTenantMismatch = false;
+  let sawNoTenant = false;
   let sawGraph: "relation-depth" | "relation-unavailable" | undefined;
   for (const membership of memberships) {
     if (!rolesOf(membership).includes(roleName)) {
@@ -316,9 +318,14 @@ export function matchScopedMembership(
       if (
         findScope(scopes, scope) === undefined ||
         membership.scope !== scope ||
-        !inTeam(membership, scopes, team) ||
-        !activeFor(membership, scopes, principal.tenant)
+        !inTeam(membership, scopes, team)
       ) {
+        continue;
+      }
+      if (!activeFor(membership, scopes, principal.tenant)) {
+        sawNoTenant ||=
+          principal.tenant === undefined &&
+          principal.unheldTenant === undefined;
         continue;
       }
       if (instance && !nestedAppliesWithoutRow(membership, scopes, row, team)) {
@@ -390,6 +397,9 @@ export function matchScopedMembership(
   }
   if (sawTenantMismatch) {
     return { ok: false, reason: "tenant-mismatch" };
+  }
+  if (sawNoTenant && !sawWrongScope) {
+    return { ok: false, reason: "no-tenant" };
   }
   if (sawExpired && !sawWrongScope) {
     return { ok: false, reason: "expired-membership" };

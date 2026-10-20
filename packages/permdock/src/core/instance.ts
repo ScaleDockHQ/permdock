@@ -496,16 +496,18 @@ export function buildInstance(
           team,
         );
       }
+      const activeTenant = resolveActiveTenant(
+        subject.principal,
+        id,
+        scopeList(policy.scopes),
+      );
       const next = freezeDeep(
         compact<Subject>({
           ...subject,
           principal: compact<Principal>({
             ...subject.principal,
-            tenant: resolveActiveTenant(
-              subject.principal,
-              id,
-              scopeList(policy.scopes),
-            ),
+            tenant: activeTenant,
+            unheldTenant: activeTenant === undefined ? id : undefined,
           }),
         }),
       );
