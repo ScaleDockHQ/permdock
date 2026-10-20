@@ -1,0 +1,62 @@
+---
+title: MCP Apps
+description: How permdock/mcp decides who may see an MCP Apps ui:// view and call the tools it drives.
+---
+
+Draft posture: build (pinned to MCP Apps 2026-01-26, `specification/2026-01-26/apps.mdx` at `modelcontextprotocol/ext-apps` v2.0.3, per [watch list](/docs/standards/watch-list))
+
+## What it is
+
+MCP Apps (SEP-1865, extension id `io.modelcontextprotocol/ui`) lets an MCP server ship an interactive HTML view for a tool. The host renders the view in a sandboxed iframe and talks to it over JSON-RPC on `postMessage`:
+
+- A tool names its view in `_meta.ui.resourceUri`, a `ui://` resource whose `mimeType` is `text/html;profile=mcp-app`. The host fetches it with `resources/read`.
+- `_meta.ui.visibility` lists who may call the tool: `"model"` (the agent) and `"app"` (a view). The host hides a tool without `"model"` from the agent and rejects a view's call to a tool without `"app"`.
+- A view calls tools and reads resources through the host, which forwards `tools/call` and `resources/read` to the same server with the user's session.
+- The view declares the origins it fetches from in `_meta.ui.csp`; the host builds the iframe's Content Security Policy from them.
+
+## Why it matters for PermDock
+
+A view is a resource the server serves, and every tool it calls is a tool call. Both reach the server as ordinary MCP requests, so both need the same decision as the tool that opened the view. A view registered without a decision would show a user an interface for a tool they cannot call, and its HTML may embed data. An app-only tool is still a tool: the host hides it from the agent, but any client that holds the token can call it.
+
+## How PermDock uses it
+
+```ts
+guarded.registerTool(
+  "show_posts",
+  {
+    permission: permissions.post.list,
+    _meta: { ui: { resourceUri: "ui://posts/board" } },
+  },
+  listHandler,
+);
+
+guarded.registerResource(
+  "board",
+  "ui://posts/board",
+  { mimeType: "text/html;profile=mcp-app" },
+  readBoard,
+);
+```
+
+- A `ui://` view registered without a `permission` takes the permission of the tool whose `_meta.ui.resourceUri` names it, for `resources/list` and `resources/read` ([MCP Apps views](/docs/adapters/mcp#mcp-apps-views)).
+- A view no tool links is hidden and refused. Two tools that link one view under different permissions throw at registration.
+- Every `tools/call` is decided, whatever its `visibility`.
+- The deprecated flat `_meta["ui/resourceUri"]` key is not read; a view linked only through it needs its own `permission`.
+- The sandbox, the CSP and the `postMessage` bridge are the host's. PermDock does not render views.
+
+## Mapping table
+
+| MCP Apps concept                       | PermDock concept                                                           |
+| -------------------------------------- | -------------------------------------------------------------------------- |
+| `ui://` resource                       | `registerResource` on the guarded server; permission optional              |
+| `_meta.ui.resourceUri` on a tool       | Links the view to the tool's `permission`                                  |
+| `resources/list` and `resources/read`  | Filtered and decided with the linking tool's permission                    |
+| `_meta.ui.visibility: ["app"]`         | Host-side listing rule; `tools/call` is decided as for any tool            |
+| A view's `tools/call` through the host | The same `protectServer` decision, with the user's token                   |
+| `_meta.ui.csp`, sandbox proxy          | Host responsibility; out of PermDock's scope                               |
+| Graceful degradation (text `content`)  | Unchanged: refusals are text plus `structuredContent`, readable without UI |
+
+## Sources
+
+- [MCP Apps specification 2026-01-26](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx), sections Resource Discovery and Visibility.
+- [SEP-1865](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/1865).

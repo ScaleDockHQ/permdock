@@ -84,6 +84,17 @@ export type McpResourceConfig<TArgs extends readonly unknown[]> = Guard<TArgs> &
     readonly scopeChallenge?: ScopeChallengeHandler;
   };
 
+/**
+ * An MCP Apps view (`ui://`). Without `permission` it takes the permission of
+ * the tool whose `_meta.ui.resourceUri` names it, and denies while no tool does.
+ */
+export type McpUiResourceConfig = Omit<
+  McpResourceConfig<[uri: URL]>,
+  "permission"
+> & {
+  readonly permission?: Permission;
+};
+
 export type McpPromptConfig<
   TArgs extends StandardSchemaWithJSON | undefined = undefined,
 > = Guard<[args: InputOf<TArgs>]> & {
@@ -108,6 +119,12 @@ export type GuardedMcpServer = Omit<
     config: McpToolConfig<TInput, TOutput>,
     handler: ToolCallback<TInput>,
   ): RegisteredTool;
+  registerResource(
+    name: string,
+    uri: `ui://${string}`,
+    config: McpUiResourceConfig,
+    read: ReadResourceCallback,
+  ): RegisteredResource;
   registerResource(
     name: string,
     uri: string,

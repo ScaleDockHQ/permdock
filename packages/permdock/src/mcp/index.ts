@@ -13,6 +13,7 @@ export type {
   McpProcedureToolConfig,
   McpPromptConfig,
   McpResourceConfig,
+  McpUiResourceConfig,
   McpToolConfig,
   ProcedureMcpServer,
 } from "./types.ts";

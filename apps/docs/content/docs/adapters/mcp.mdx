@@ -37,7 +37,7 @@ guarded.registerTool(
 );
 ```
 
-- `createPermDock(policy, options)` returns `protectServer`, which takes an SDK v2 `McpServer` and returns the same server with permission-aware `registerTool`, `registerResource` and `registerPrompt`. Registering any of them without a `permission` throws a `TypeError` at startup. There is no separate `requireScopes()` export: a handler registered outside `protectServer` is not guarded.
+- `createPermDock(policy, options)` returns `protectServer`, which takes an SDK v2 `McpServer` and returns the same server with permission-aware `registerTool`, `registerResource` and `registerPrompt`. Registering any of them without a `permission` throws a `TypeError` at startup; a `ui://` view takes its tool's ([MCP Apps views](#mcp-apps-views)). There is no separate `requireScopes()` export: a handler registered outside `protectServer` is not guarded.
 - `permission` is required, and each tool declares exactly one, so a refusal's `alternatives` are always those of that permission's resource. Collection actions (`permissions.post.list`) need no `data`; instance actions take `data(args)` so the adapter evaluates `where` conditions against the real row. A `data` loader that throws or returns `null` is a `validation` denial, never a grant.
 - `subject` receives the SDK `AuthInfo` and returns the principal (or `null` for anonymous). `subjectFromMcp(authInfo, { claims, groupRoles, schema, delegation, actorKind })` is the ready-made mapper when the verifier puts token claims on `authInfo.extra`; it returns the anonymous subject for missing or malformed material and never throws. The adapter fills `actor` with `{ id: authInfo.clientId, kind: actorKind }` and `delegation` with `authInfo.scopes` and, when present, RFC 9396 `authorization_details`, so a decision is the principal's grants intersected with what the client was delegated.
 - `actorKind` (default `'mcp-client'`) is the `kind` of that actor; pass the same value to `subjectFromMcp`. `permdock/supabase`, `permdock/jwt` and `permdock/a2a` give an OAuth client `kind: 'oauth-client'`, so a server whose tools call the same app with the caller's token sets `actorKind: 'oauth-client'`: one `deny(..., { to: actor('oauth-client') })` or one policy delegation then covers the token on every surface, instead of one per kind. A kind that is not a non-empty string throws a `TypeError` from `createPermDock` and makes `subjectFromMcp` return the anonymous subject.
@@ -96,6 +96,38 @@ guarded.registerTool(
 - `data` and `longRunning` throw at registration in this mode: the procedure loads its own row and decides on its own terms.
 - Resources and prompts are still guarded at the call.
 - The mode applies to the whole server. Register tools the adapter should guard on a separate `McpServer`.
+
+### MCP Apps views
+
+An [MCP Apps](/docs/standards/mcp-apps) tool names its interactive view in `_meta.ui.resourceUri`, a `ui://` resource the host fetches and renders. Register the view without a `permission` and it takes the permission of the tool that links it:
+
+```ts
+guarded.registerTool(
+  "show_posts",
+  {
+    permission: permissions.post.list,
+    _meta: { ui: { resourceUri: "ui://posts/board" } },
+  },
+  listHandler,
+);
+
+guarded.registerResource(
+  "board",
+  "ui://posts/board",
+  { mimeType: "text/html;profile=mcp-app" },
+  (uri) => ({
+    contents: [
+      { uri: uri.href, mimeType: "text/html;profile=mcp-app", text: boardHtml },
+    ],
+  }),
+);
+```
+
+- `resources/list` shows the view and `resources/read` serves it only to a caller the linking tool is decided for. The order of the two registrations does not matter.
+- A `ui://` view no tool links is hidden from `resources/list`, and `resources/read` refuses it.
+- Two tools that link one view under different permissions throw a `TypeError` at registration. Give such a view its own `permission`, which then wins over the linking tool's.
+- A tool with `_meta.ui.visibility: ['app']` is hidden from the model by the host, not by PermDock. Its `tools/call` is decided like any other tool, because the view calls it with the user's token.
+- Any resource outside `ui://` still needs its own `permission`.
 
 ## Hosting
 
@@ -333,11 +365,13 @@ This is a recipe, not a package: PermDock composes with the bridge through the e
 - **The challenge names the operation's scopes, not the held set.** The 2026-07-28 authorization text says a runtime `insufficient_scope` challenge SHOULD carry the scopes the current operation needs, in one challenge, and makes accumulation a client responsibility. Echoing the held scopes back would look like the server granting them and would go stale as soon as the token changes.
 - **`input_required` only with somewhere to send the user.** MRTR lets a client retry at once when the result has no `inputRequests`, so an approval answered with a bare `requestState` would spin until the client's round limit. The adapter returns `input_required` only when it has a URL for a human (`approval.at`, `stepUp.at`) and the client declared URL elicitation; otherwise the structured refusal lets the model tell the user. The request state is the approval token, which already binds principal, actor, permission, resource and arguments, so a tampered value can only fail to match; a server that verifies request state passes its codec as `requestState`.
 - **Re-check at completion, opt-in.** A call that runs for minutes can outlive the grant that allowed it: a role is removed, a membership expires, the row changes owner. For those tools the adapter decides again before handing the result to the model and fails closed. It is opt-in because a second `data` load doubles the cost of every short call, and it is `longRunning` on the tool rather than tied to MCP tasks because SDK 2.x carries the task wire types but no task runtime; a tool that runs long today is an ordinary call that takes long. When the SDK ships task handlers, the same re-check runs before the task result is stored.
+- **A view inherits its tool's permission.** An MCP Apps view exists to render one tool's result, so a second permission on it would only drift from the tool's. Inheriting keeps the view and the tool shown to the same callers, and an unlinked view denies because nothing says who may see it.
 - **Delegation chains stay in the token layer.** The adapter reads `authInfo` only. Verifying an RFC 8693 `act` chain, and deciding how many hops are acceptable, belongs to the verifier that produced `authInfo` ([`permdock/jwt`](/docs/adapters/jwt) with `act` handling, or the SDK's bearer middleware). Doing it twice would let the two disagree about the same token.
 
 ## Related standards
 
 - [MCP authorization](/docs/standards/mcp-authorization): `scopeChallenge`, `requireScopes`, CIMD, RFC 9207, RFC 8707, EMA / ID-JAG, MRTR.
+- [MCP Apps](/docs/standards/mcp-apps): `ui://` views and app-only tools.
 - [OAuth agent delegation](/docs/standards/oauth-agent-delegation): RFC 9396 `authorization_details`, RFC 8693 token exchange, delegation chains.
 - [Approvals](/docs/security/approvals): `approval: 'human'`, replay-safe tokens.
 - [Problem Details](/docs/standards/problem-details): shared vocabulary for the `structuredContent` refusal body.
