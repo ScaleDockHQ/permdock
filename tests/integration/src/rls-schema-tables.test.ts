@@ -156,12 +156,28 @@ describe("rls.tables with schema-qualified names", () => {
   });
 
   it("writes pgTAP that names the schema-qualified tables", async () => {
-    const result = await runPipingDbUrl(
-      ["rls", "verify", "--kind", "pgtap", "--fixtures", fixturesPath],
-      { cwd: FIXTURE },
-    );
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain('update "app"."task" set');
-    expect(result.stdout).toContain('select "id" from "app"."project"');
+    const dir = mkdtempSync(join(tmpdir(), "permdock-pgtap-"));
+    try {
+      const out = join(dir, "permdock_rls.test.sql");
+      const result = await runPipingDbUrl(
+        [
+          "rls",
+          "verify",
+          "--kind",
+          "pgtap",
+          "--fixtures",
+          fixturesPath,
+          "--out",
+          out,
+        ],
+        { cwd: FIXTURE },
+      );
+      expect(result.code).toBe(0);
+      const script = readFileSync(out, "utf8");
+      expect(script).toContain('update "app"."task" set');
+      expect(script).toContain('select "id" from "app"."project"');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

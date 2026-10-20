@@ -1,4 +1,11 @@
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -7,6 +14,7 @@ import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlCall, SqlReply } from "../fakes/sql.ts";
 
 import { runRlsVerify } from "../../src/cli/rls/verify.ts";
+import { junctionMembershipSource } from "../../src/supabase/index.ts";
 import { fakeSql } from "../fakes/sql.ts";
 
 const FIXTURE = path.join(import.meta.dirname, "fixtures/mini-app");
@@ -86,8 +94,15 @@ describe("rls verify --format pgtap", () => {
       format: "pgtap",
       io,
     });
-    expect(outcome.code).toBe(0);
-    const lines = outcome.output.split("\n");
+    expect(outcome).toEqual({
+      code: 0,
+      output: "wrote supabase/tests/permdock_rls.test.sql",
+    });
+    const script = readFileSync(
+      path.join(cwd, "supabase/tests/permdock_rls.test.sql"),
+      "utf8",
+    );
+    const lines = script.split("\n");
     expect(lines.slice(0, 3)).toEqual([
       "begin;",
       "select plan(4);",
@@ -148,21 +163,72 @@ describe("rls verify --format pgtap", () => {
         authorize: "database",
       }),
       format: "pgtap",
+      out: "pgtap.sql",
       io,
     });
     expect(outcome.code).toBe(0);
-    expect(outcome.output).toContain(
+    const script = readFileSync(path.join(cwd, "pgtap.sql"), "utf8");
+    expect(script).toContain(
       `insert into "permdock"."custom_role_permissions" (tenant_id, scope, scope_id, role, permission, effect) values ('o1', 'tenant', null, 'editor', 'post.publish', 'allow') on conflict do nothing;`,
     );
-    expect(outcome.output).toContain(
+    expect(script).toContain(
       `insert into "permdock"."custom_role_includes" (tenant_id, scope, scope_id, role, include_role) values ('o1', 'tenant', null, 'editor', 'member') on conflict do nothing;`,
     );
-    expect(outcome.output).toContain(
-      "select set_config('app.user_id', 'u1', true);",
-    );
-    expect(outcome.output).toContain(
-      "select set_config('app.tenant_id', 'o1', true);",
-    );
+    expect(script).toContain("select set_config('app.user_id', 'u1', true);");
+    expect(script).toContain("select set_config('app.tenant_id', 'o1', true);");
+  });
+
+  it("inserts each fixture's memberships into the mapped tables and plain sources before binding the role", async () => {
+    const cwd = app([
+      {
+        subject: {
+          id: "u1",
+          tenant: "o1",
+          memberships: [{ tenant: "o1", roles: ["member", "editor"] }],
+        },
+        row: own,
+        action: "post.publish",
+      },
+    ]);
+    const outcome = await runRlsVerify({
+      cwd,
+      config: config({
+        authorize: "database",
+        memberships: {
+          tenant: {
+            table: "organization_members",
+            tenant: "organization_id",
+            user: "user_id",
+            role: "role",
+          },
+        },
+        membershipSources: [
+          junctionMembershipSource({
+            table: "app.staff",
+            scope: "tenant",
+            id: "org",
+            user: "person",
+            roles: "kind",
+          }),
+        ],
+      }),
+      format: "pgtap",
+      out: "pgtap.sql",
+      io,
+    });
+    expect(outcome.code).toBe(0);
+    const lines = readFileSync(path.join(cwd, "pgtap.sql"), "utf8").split("\n");
+    const savepoint = lines.indexOf("savepoint permdock_fixture;");
+    const role = lines.indexOf('set local role "authenticated";');
+    const inserts = lines
+      .slice(savepoint, role)
+      .filter((line) => line.startsWith("insert"));
+    expect(inserts).toEqual([
+      `insert into "organization_members" ("user_id", "organization_id", "role") values ('u1', 'o1', 'member') on conflict do nothing;`,
+      `insert into "organization_members" ("user_id", "organization_id", "role") values ('u1', 'o1', 'editor') on conflict do nothing;`,
+      `insert into "app"."staff" ("person", "org", "kind") values ('u1', 'o1', 'member') on conflict do nothing;`,
+      `insert into "app"."staff" ("person", "org", "kind") values ('u1', 'o1', 'editor') on conflict do nothing;`,
+    ]);
   });
 
   it("refuses to write a script when a fixture disagrees with can()", async () => {

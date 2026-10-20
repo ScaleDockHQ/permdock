@@ -291,7 +291,7 @@ export const SECTIONS: readonly Section[] = [
                 "permdock rls verify --introspect --db-url-stdin",
               ],
               docs: "rls",
-              effects: ["database:read"],
+              effects: ["files", "database:read"],
               config: true,
               load: async () => (await import("../commands/rls.ts")).verify,
             },

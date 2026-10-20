@@ -446,6 +446,7 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
         format,
         tree: input.tree,
         io: input.io,
+        ...(input.out === undefined ? {} : { out: input.out }),
         ...(input.fixtures === undefined ? {} : { fixtures: input.fixtures }),
         ...(input.db === undefined ? {} : { db: input.db }),
         ...(input.from === undefined ? {} : { from: input.from }),

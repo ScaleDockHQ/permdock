@@ -10,6 +10,7 @@ import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
+import { fixtureMembershipSql } from "./verify-pgtap-memberships.ts";
 
 /** A custom role's scope and pinned instance, as the `custom_role_*` tables store them. */
 function customRoleAt(
@@ -236,12 +237,13 @@ export function customRoleRows(
   return rows;
 }
 
-export function seedsCustomRoleTables(config: PermDockConfig): boolean {
+function databaseMode(config: PermDockConfig): boolean {
   const rls = config.rls;
-  return (
-    customRolesOn(rls) &&
-    (rls?.authorize ?? rls?.rbac?.authorize ?? "jwt") === "database"
-  );
+  return (rls?.authorize ?? rls?.rbac?.authorize ?? "jwt") === "database";
+}
+
+export function seedsCustomRoleTables(config: PermDockConfig): boolean {
+  return customRolesOn(config.rls) && databaseMode(config);
 }
 
 export function customRoleSchema(config: PermDockConfig): string {
@@ -275,6 +277,11 @@ export function emitPgtap(input: {
       lines.push(`${inlineStatement(row)};`);
     }
   }
+  const sources = (
+    input.config.rls?.membershipSources ??
+    input.config.supabase?.hook?.memberships ??
+    []
+  ).map((source) => source.sql.manifest);
   for (const [index, fixture] of input.fixtures.entries()) {
     const permission = findPermission(input.policy.permissions, fixture.action);
     const status = input.inProcess[index];
@@ -297,6 +304,9 @@ export function emitPgtap(input: {
     lines.push(
       `-- ${label}`,
       "savepoint permdock_fixture;",
+      ...(databaseMode(input.config)
+        ? fixtureMembershipSql(input.config, scopes, fixture, sources)
+        : []),
       'set local role "authenticated";',
       ...subjectSettings(fixture, subject).map(
         ([name, value]) =>

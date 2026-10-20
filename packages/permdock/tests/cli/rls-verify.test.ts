@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -72,8 +72,11 @@ export const policy = definePolicy(permissions, {
       { cwd },
     );
     expect(pgtap.stdout).toContain(
-      '"grants":{"reader":["post.read","post.delete"]}',
+      "wrote supabase/tests/permdock_rls.test.sql",
     );
+    expect(
+      readFileSync(join(cwd, "supabase/tests/permdock_rls.test.sql"), "utf8"),
+    ).toContain('"grants":{"reader":["post.read","post.delete"]}');
   });
 
   it("verify fixtures carry memberships and tenant and match can()", async () => {
@@ -150,13 +153,23 @@ export const policy = definePolicy(permissions, {
       ])}\n`,
     );
     const result = await run(
-      ["rls", "verify", "--fixtures", "rls.fixtures.json", "--kind", "pgtap"],
+      [
+        "rls",
+        "verify",
+        "--fixtures",
+        "rls.fixtures.json",
+        "--kind",
+        "pgtap",
+        "--out",
+        "pgtap.sql",
+      ],
       { cwd },
     );
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain("select plan(");
-    expect(result.stdout).toContain("tenant_id");
-    expect(result.stdout).toContain("memberships");
+    const script = readFileSync(join(cwd, "pgtap.sql"), "utf8");
+    expect(script).toContain("select plan(");
+    expect(script).toContain("tenant_id");
+    expect(script).toContain("memberships");
   });
 
   it("verify exits 1 when can() disagrees with expected", async () => {

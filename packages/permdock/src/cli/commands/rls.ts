@@ -308,7 +308,13 @@ export const verify: Leaf = defineLeaf({
     kind: {
       type: "enum",
       options: ["node", "pgtap"],
-      description: "Run the fixtures in Node or emit a pgTAP file",
+      description: "Run the fixtures in Node or write a pgTAP file",
+    },
+    out: {
+      type: "string",
+      description:
+        "With --kind pgtap, the file to write (default supabase/tests/permdock_rls.test.sql)",
+      valueHint: "file",
     },
     tree: { type: "boolean", description: "Check the relationship closure" },
     introspect: {
@@ -325,6 +331,7 @@ export const verify: Leaf = defineLeaf({
       ...(await rlsInput(ctx, "verify", flags, {
         dbRequired: flags.introspect || flags.tree,
       })),
+      out: fileOut("rls verify", flags.out),
       fixtures: given(flags.fixtures),
       format: flags.kind,
       tree: flags.tree,
