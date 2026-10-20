@@ -12,6 +12,7 @@ import {
   qualified,
   quoteIdent,
   quoteLiteral,
+  quoteQualified,
 } from "../sql/quote.ts";
 import { HELPERS, rootName } from "../sql/shared.ts";
 import { keyTenantSql, userIdHelperSql } from "../sql/subject.ts";
@@ -63,6 +64,7 @@ export function accessSql(
   scope: HelperScope,
   grantKey: string,
   column: string | undefined,
+  helper?: string,
 ): string {
   const key = quoteLiteral(grantKey);
   if (scope === "global") {
@@ -73,7 +75,39 @@ export function accessSql(
       `PermDock CLI: ${scope}-scoped grant needs definePolicy({ scopes.${scope} })`,
     );
   }
-  return `${quoteIdent(column)} in (select ${qualified(ctx, permittedIdsHelper(scope))}(${key}))`;
+  return `${quoteIdent(column)} in (select ${qualified(ctx, helper ?? permittedIdsHelper(scope))}(${key}))`;
+}
+
+/**
+ * `permitted_<parent>_ids(p_grant)` for each \`rls.tables\` \`via\`: the parent
+ * rows whose scope instance the grant reaches. \`security definer\`, so the
+ * caller needs no read on the parent, and called uncorrelated like
+ * \`permitted_<scope>_ids\`.
+ */
+function viaHelpersSql(ctx: RlsSqlContext, anonExecute: boolean): string[] {
+  const done = new Set<string>();
+  const chunks: string[] = [];
+  for (const via of Object.values(ctx.vias ?? {})) {
+    if (done.has(via.helper)) {
+      continue;
+    }
+    done.add(via.helper);
+    chunks.push(
+      `-- rows of ${via.table} whose ${via.column} is a ${via.scope} the grant reaches
+${helperFunction(
+  ctx,
+  via.helper,
+  `setof ${via.type}`,
+  sqlBody(
+    `  select p.${quoteIdent(via.id)}
+  from ${quoteQualified(via.table)} p
+  where p.${quoteIdent(via.column)} in (select ${qualified(ctx, permittedIdsHelper(via.scope))}(p_grant))`,
+  ),
+  anonExecute,
+)}`,
+    );
+  }
+  return chunks;
 }
 
 function userIdSql(ctx: RlsSqlContext, anonExecute: boolean): string {
@@ -195,6 +229,32 @@ ${keys}
 );`;
 }
 
+/**
+ * `role_permissions` as a view over the compiled rows (`rls.seeds: 'view'`).
+ * `security_invoker` makes the view read as its caller, so it adds no
+ * privilege; the table's revoke applies to the view the same way.
+ */
+function seedViewSql(
+  ctx: RlsSqlContext,
+  rows: readonly RolePermission[],
+): string {
+  const view = qualified(ctx, "role_permissions");
+  const columns = "role, permission, grant_key, scope, effect";
+  const body =
+    rows.length === 0
+      ? `select null::text, null::text, null::text, null::text, null::text where false`
+      : `select * from (values\n${rows
+          .map(
+            (row) =>
+              `  (${[row.role, row.permission, row.grantKey, row.scope, row.effect].map(quoteLiteral).join(", ")})`,
+          )
+          .join(",\n")}\n) as v(${columns})`;
+  return `-- rls.seeds: 'view': role_permissions is a view, so the rows travel with the schema
+create or replace view ${view} (${columns}) with (security_invoker = true) as
+${body};
+revoke all on table ${view} from anon, authenticated, public;`;
+}
+
 /** `<schema>.seed()`: the same upsert and delete as `seedSql`, for a declarative schema that carries no rows. */
 function seedFunctionSql(
   ctx: RlsSqlContext,
@@ -256,7 +316,10 @@ export function helpersSql(
   if (ctx.dialect === "supabase") {
     chunks.push(userIdSql(ctx, options.anonExecute === true));
   }
-  chunks.push(`create table if not exists ${rp} (
+  if (ctx.seeds === "view") {
+    chunks.push(seedViewSql(ctx, rows));
+  } else {
+    chunks.push(`create table if not exists ${rp} (
   role text not null,
   permission text not null,
   grant_key text not null,
@@ -266,9 +329,10 @@ export function helpersSql(
 );
 alter table ${rp} enable row level security;
 revoke all on table ${rp} from anon, authenticated, public;`);
+  }
   if (ctx.seeds === "function") {
     chunks.push(seedFunctionSql(ctx, rows));
-  } else if (options.withoutSeeds !== true) {
+  } else if (options.withoutSeeds !== true && ctx.seeds !== "view") {
     chunks.push(seedSql(ctx, rows));
   }
   if (
@@ -319,6 +383,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
       chunks.push(memberForFunction(ctx, scope.name, type));
     }
   }
+  chunks.push(...viaHelpersSql(ctx, anon));
   const forUser = forUserSql(ctx);
   if (forUser !== "") {
     chunks.push(forUser);

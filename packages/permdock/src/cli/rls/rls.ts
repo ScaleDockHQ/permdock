@@ -77,6 +77,7 @@ export type RlsRunInput = {
   readonly schemas?: string | undefined;
   readonly grantsOut: string | undefined;
   readonly seedsOut: string | undefined;
+  readonly noSeeds?: boolean;
   readonly backfillOut?: string | undefined;
   readonly retireOut?: string | undefined;
   readonly helpersOnly: boolean;
@@ -158,6 +159,7 @@ function generateInput(
     ...(isSupabaseSchemas(input.schemas) ? { schemas: input.schemas } : {}),
     ...(input.grantsOut === undefined ? {} : { grantsOut: input.grantsOut }),
     ...(input.seedsOut === undefined ? {} : { seedsOut: input.seedsOut }),
+    ...(input.noSeeds === true ? { noSeeds: true } : {}),
     ...(input.backfillOut === undefined
       ? {}
       : { backfillOut: input.backfillOut }),

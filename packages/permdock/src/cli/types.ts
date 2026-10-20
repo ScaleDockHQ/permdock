@@ -96,8 +96,36 @@ export type RlsFunctionMapping = {
   readonly args?: readonly string[];
 };
 
+/**
+ * A table whose rows reach their scope through a parent table
+ * (`rls.tables`, `via`): the table's `key` column holds the parent's id, and
+ * the parent's `column` holds the scope instance id. The generated policies
+ * call `permitted_<parent, singular>_ids(p_grant)`, a `security definer`
+ * helper that joins the parent to `permitted_<scope>_ids`.
+ */
+export type RlsTableVia = {
+  /** `schema.table` of the parent. */
+  readonly table: string;
+  /** The parent's column holding the scope instance id. */
+  readonly column: string;
+  /** This table's column holding the parent's id. Default `<parent table, singular>_id`. */
+  readonly key?: string;
+  /** The parent's id column. Default `id`. */
+  readonly id?: string;
+  /** SQL type of the parent's id column. Default `uuid` in the `supabase` dialect, else `text`. */
+  readonly type?: string;
+  /** The scope `column` holds. Default the policy's root scope. */
+  readonly scope?: string;
+};
+
+/** A resource's table: its `schema.table`, or an object that adds `via`. */
+export type RlsTable =
+  | string
+  | { readonly table?: string; readonly via: RlsTableVia };
+
 export type RlsConfig = {
-  readonly tables?: Readonly<Record<string, string>>;
+  /** Per resource, the table its policies target; the table is named after the resource when unset. */
+  readonly tables?: Readonly<Record<string, RlsTable>>;
   readonly dialect?: RlsDialect;
   readonly memberships?: RlsMemberships;
   /**
@@ -311,8 +339,12 @@ export type RlsConfig = {
    * `<schema>.seed()`, which the helpers part creates. Declarative workflows
    * (pg-delta, migra) then need no seeds migration: call
    * `select <schema>.seed();` after each deploy.
+   *
+   * `'view'`: `role_permissions` is a `security_invoker` view over a `values`
+   * list, so the rows travel with the declarative schema and need no seeding
+   * step. Nothing can write the rows, so the view cannot take hand-added ones.
    */
-  readonly seeds?: "function";
+  readonly seeds?: "function" | "view";
   readonly trustedReaders?: readonly string[];
   readonly treeValues?: Readonly<
     Record<string, Readonly<Record<string, unknown>>>

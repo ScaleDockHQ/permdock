@@ -14,6 +14,7 @@ import {
   rowConditionMessage,
 } from "../sql/helper-calls.ts";
 import { quoteIdent, quoteTable } from "../sql/quote.ts";
+import { tableNameOf } from "../sql/tables.ts";
 import { FIELD_VIEWS, viewName } from "./fields.ts";
 import {
   type InProcess,
@@ -196,8 +197,10 @@ export async function verifyAgainstDatabase(input: {
         notes.push(`${fixture.action}: opaque grant untestable app-side`);
         continue;
       }
-      const table =
-        input.config.rls?.tables?.[permission.resource] ?? permission.resource;
+      const table = tableNameOf(
+        input.config.rls?.tables?.[permission.resource],
+        permission.resource,
+      );
       await query("begin");
       try {
         if (seedsTables) {

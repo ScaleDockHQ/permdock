@@ -161,6 +161,8 @@ export type Principal = {
   /** The authorization version the token was minted at (`authz_ver`). */
   readonly authzVersion?: number;
   readonly tenant?: string;
+  /** Set by core when a requested tenant is not one the subject holds: the denial is then `no-membership`, not `no-tenant`. Never read from a token. */
+  readonly unheldTenant?: string;
   readonly assurance?: Assurance;
   readonly binding?: Binding;
   readonly [key: string]: unknown;

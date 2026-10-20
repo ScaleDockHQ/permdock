@@ -234,3 +234,53 @@ describe("tenancy", () => {
     ).toBe(false);
   });
 });
+
+describe("no-tenant denial", () => {
+  const permissions = definePermissions({
+    team: resource({
+      id: "id",
+      actions: ["manage"],
+      relations: { org: { field: "orgId", memberOf: "tenant" } },
+    }),
+  });
+  const roles = defineRoles({ admin: { on: "tenant" } });
+  const policy = definePolicy(
+    { permissions, roles },
+    {
+      scopes: { tenant: { key: "orgId" } },
+      subject: (user: Subject) => user.principal,
+      roles: [role(roles.admin, [allow(permissions.team.manage)])],
+    },
+  );
+  const subject: Subject = {
+    principal: {
+      id: "u1",
+      memberships: [{ tenant: "acme", roles: ["admin"] }],
+    },
+    context: {},
+  };
+  const row = { id: "t1", orgId: "acme" };
+  const reasonFor = (tenant: string | undefined, snapshot = false) => {
+    const options = tenant === undefined ? {} : { tenant };
+    const live = getPermDockSync(policy, subject, options);
+    const permdock = snapshot
+      ? fromSnapshot(parseSnapshot(JSON.stringify(live.snapshot())), options)
+      : live;
+    return permdock.decide(permissions.team.manage, row);
+  };
+
+  it("denies no-tenant when none is active and no-membership for a tenant not held", () => {
+    for (const snapshot of [false, true]) {
+      const none = reasonFor(undefined, snapshot);
+      const forged = reasonFor("other", snapshot);
+      expect(none.outcome).toBe("denied");
+      expect(forged.outcome).toBe("denied");
+      expect(none.outcome === "denied" && none.denials[0]?.reason).toBe(
+        "no-tenant",
+      );
+      expect(forged.outcome === "denied" && forged.denials[0]?.reason).toBe(
+        "no-membership",
+      );
+    }
+  });
+});

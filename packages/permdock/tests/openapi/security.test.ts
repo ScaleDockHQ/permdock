@@ -23,6 +23,16 @@ describe("securityFor", () => {
     }
   });
 
+  it("security: false emits only x-permdock-permissions", () => {
+    const list = [permissions.post.update, permissions.post.publish];
+    const bare = securityFor(list, { security: false });
+    expect(bare).toEqual({
+      "x-permdock-permissions": ["post.update", "post.publish"],
+    });
+    expect(Object.keys(bare)).toEqual(["x-permdock-permissions"]);
+    expect(Object.isFrozen(bare)).toBe(true);
+  });
+
   it("matches the emitter for a list, all-of and any-of", () => {
     const emitter = createPermDock(policy, { scheme });
     const list = [permissions.post.update, permissions.post.publish];

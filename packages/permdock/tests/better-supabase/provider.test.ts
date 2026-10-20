@@ -99,6 +99,22 @@ describe("authorizationProvider", () => {
     ]);
   });
 
+  it("reads a manifest without a token hook", () => {
+    const {
+      hook: _hook,
+      budget: _budget,
+      claims: _claims,
+      authzVersion: _authzVersion,
+      memberships: _memberships,
+      ...hookless
+    } = supabaseHookManifestFixture;
+    const provider = authorizationProvider({ manifest: hookless });
+    expect(provider.tokenHook).toBeUndefined();
+    expect(provider.scopes).toEqual(
+      authorizationProvider({ manifest: supabaseHookManifestFixture }).scopes,
+    );
+  });
+
   it("describes the token hook from the manifest's claims", () => {
     const { tokenHook } = authorizationProvider({
       manifest: supabaseHookManifestFixture,

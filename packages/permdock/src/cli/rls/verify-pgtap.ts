@@ -10,6 +10,7 @@ import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
+import { tableNameOf } from "../sql/tables.ts";
 import { fixtureMembershipSql } from "./verify-pgtap-memberships.ts";
 
 /** A custom role's scope and pinned instance, as the `custom_role_*` tables store them. */
@@ -296,8 +297,10 @@ export function emitPgtap(input: {
       continue;
     }
     const outcome = status.granted ? "granted" : "denied";
-    const table =
-      input.config.rls?.tables?.[permission.resource] ?? permission.resource;
+    const table = tableNameOf(
+      input.config.rls?.tables?.[permission.resource],
+      permission.resource,
+    );
     const statement = inlineStatement(
       statementFor(fixture, permission.action, table),
     );

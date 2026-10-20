@@ -111,6 +111,44 @@ describe("rls generate options", () => {
     );
   });
 
+  it("writes role_permissions as a security_invoker view and keeps the part names", async () => {
+    const outcome = await runRlsGenerate({
+      cwd,
+      config: {
+        policy: "./manage.ts",
+        rls: { authorize: "database", memberships, seeds: "view" },
+      },
+      target: "sql",
+      dialect: "supabase",
+      rbac: false,
+      check: false,
+      skipClosures: false,
+      inlineFunctions: false,
+      io,
+      write: true,
+      split: "helpers,seeds",
+      out: "view/permdock_{part}.sql",
+    });
+    expect(outcome.code).toBe(0);
+    const helpers = readFileSync(
+      path.join(cwd, "view/permdock_helpers.sql"),
+      "utf8",
+    );
+    expect(helpers).toMatch(
+      /create or replace view "?permdock"?\."?role_permissions"?/u,
+    );
+    expect(helpers).toContain("with (security_invoker = true)");
+    expect(helpers).not.toMatch(
+      /create table if not exists "?permdock"?\."?role_permissions"?/u,
+    );
+    expect(helpers).not.toMatch(
+      /insert into "?permdock"?\."?role_permissions"?/u,
+    );
+    expect(
+      readFileSync(path.join(cwd, "view/permdock_seeds.sql"), "utf8"),
+    ).toContain("rls.seeds: 'view'");
+  });
+
   it("exits 1, not 2, when --db-url-stdin cannot be reached", async () => {
     const outcome = await runRlsGenerate({
       cwd,

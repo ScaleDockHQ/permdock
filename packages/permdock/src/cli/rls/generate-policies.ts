@@ -18,6 +18,7 @@ import {
 import { scopeSources, scopeTable } from "../sql/names.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { subjectClaimJsonSql } from "../sql/subject.ts";
+import { tableNames } from "../sql/tables.ts";
 import { policySql } from "./emit.ts";
 import { type FieldView, fieldViews, rowBranches } from "./fields.ts";
 import {
@@ -116,7 +117,7 @@ export function generatePolicies(
   const compiled = compileGrants(
     policy,
     ctx,
-    rls?.tables,
+    tableNames(rls?.tables),
     warnings,
     input.skipClosures,
     rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0,

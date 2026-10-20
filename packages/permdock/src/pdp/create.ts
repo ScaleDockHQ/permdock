@@ -122,6 +122,7 @@ function isLocalShortCircuit(decision: Decision): boolean {
       case "relation-unavailable":
       case "tenant-mismatch":
       case "no-membership":
+      case "no-tenant":
       case "scope":
       case "expired-membership":
       case "stale-credentials":

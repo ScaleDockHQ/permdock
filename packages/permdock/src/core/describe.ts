@@ -31,6 +31,7 @@ export type DecisionDescription = {
 const TENANT_REASONS: ReadonlySet<string> = new Set([
   "tenant-mismatch",
   "no-membership",
+  "no-tenant",
   "expired-membership",
   "scope",
 ]);

@@ -98,7 +98,11 @@ function scopeOk(
       return {
         ok: false,
         reason:
-          principal.tenant === undefined ? "no-membership" : "tenant-mismatch",
+          principal.tenant === undefined && principal.unheldTenant === undefined
+            ? "no-tenant"
+            : principal.tenant === undefined
+              ? "no-membership"
+              : "tenant-mismatch",
       };
     }
     if (!inTeam(membership, scopes, team)) {

@@ -204,7 +204,8 @@ export function selectOf(
   return `select ${fields.join(", ")}
 from ${quoteQualifiedTable(shape.table)} m${shape.join}
 where ${where.join("\n  and ")}
-group by ${group.join(", ")}`;
+group by ${group.join(", ")}
+having ${shape.roles} is not null`;
 }
 
 function holdersOf(shape: Shape): MembershipHolders {

@@ -1,8 +1,10 @@
-import type { Decision, ExplainedDecision } from "./decision.ts";
+import type { Decision, ExplainedDecision, TraceSkip } from "./decision.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
+  DecideIdsOptions,
   DecideOptions,
   DeriveOptions,
+  LoadedRows,
   PermDock,
   SimulateOptions,
   SnapshotOptions,
@@ -16,9 +18,9 @@ import type { Role } from "./vocabulary.ts";
 
 import { assertDecision } from "./assert-decision.ts";
 import { type Assignable, assignableIn } from "./assignable.ts";
-import { compact, isReadonlyArray } from "./compact.ts";
-import { customGrantsFor } from "./custom-roles.ts";
-import { decideForTarget } from "./decide-for.ts";
+import { compact, isReadonlyArray, isRecord } from "./compact.ts";
+import { customGrantsFor, unknownLevelsFor } from "./custom-roles.ts";
+import { decideForTarget, deniedFor } from "./decide-for.ts";
 import { evaluate } from "./evaluate/index.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
@@ -66,6 +68,7 @@ export function buildInstance(
   const queuedAuth = [...envBase.queuedAuth];
   const queuedErrors = [...(envBase.queuedErrors ?? [])];
   const customGrants = customGrantsFor(policy, envBase.customRoles);
+  const unknownLevels = unknownLevelsFor(policy, envBase.customRoles);
   const relationCache: RelationCache = envBase.relationCache ?? new Map();
   const relations = relationReader(
     envBase.relations,
@@ -134,7 +137,28 @@ export function buildInstance(
       explain: true,
     });
     // SAFETY: evaluate attaches a trace to every decision made with explain: true.
-    return decision as ExplainedDecision;
+    const explained = decision as ExplainedDecision;
+    const named = unknownLevels.filter(
+      (entry) => entry.permission === permission.key,
+    );
+    return named.length === 0
+      ? explained
+      : {
+          ...explained,
+          trace: {
+            ...explained.trace,
+            skipped: [
+              ...explained.trace.skipped,
+              ...named.map((entry): TraceSkip => ({
+                role: entry.role,
+                permission: entry.permission,
+                effect: "allow",
+                why: "unknown-level",
+                level: entry.level,
+              })),
+            ],
+          },
+        };
   };
 
   const canImpl = (
@@ -185,6 +209,58 @@ export function buildInstance(
       return Object.freeze(
         rows.map((row) => decideImpl(permission, row, options)),
       );
+    },
+    async decideIds(
+      permission: Permission,
+      ids: readonly string[],
+      options: DecideIdsOptions,
+    ): Promise<readonly Decision[]> {
+      const { data, ...decide } = options;
+      const invalid = (): Decision => deniedFor(permission, "validation");
+      let loaded: LoadedRows;
+      try {
+        loaded = await data(ids);
+      } catch {
+        return Object.freeze(ids.map(invalid));
+      }
+      const resource = getResource(policy.permissions, permission.resource);
+      const scopes = scopeList(policy.scopes);
+      const root = scopes[0]?.name;
+      const rowOf = (id: string): unknown => {
+        if (loaded instanceof Map) {
+          return loaded.get(id);
+        }
+        return isReadonlyArray(loaded)
+          ? loaded.find(
+              (row) =>
+                isRecord(row) &&
+                resource !== undefined &&
+                row[resource.id] === id,
+            )
+          : undefined;
+      };
+      const tenantField =
+        root === undefined ? undefined : scopeField(resource, root, scopes);
+      const results: Decision[] = [];
+      for (const id of ids) {
+        const row = rowOf(id);
+        if (row === undefined || row === null) {
+          results.push(invalid());
+          continue;
+        }
+        const tenant =
+          tenantField !== undefined && isRecord(row)
+            ? row[tenantField]
+            : undefined;
+        const target =
+          typeof tenant === "string" && tenant !== ""
+            ? instance.tenant(tenant)
+            : instance;
+        results.push(
+          target.decide(permission, row, { ...decide, trusted: true }),
+        );
+      }
+      return Object.freeze(results);
     },
     decideFor(
       principalId: string,
@@ -474,16 +550,18 @@ export function buildInstance(
           team,
         );
       }
+      const activeTenant = resolveActiveTenant(
+        subject.principal,
+        id,
+        scopeList(policy.scopes),
+      );
       const next = freezeDeep(
         compact<Subject>({
           ...subject,
           principal: compact<Principal>({
             ...subject.principal,
-            tenant: resolveActiveTenant(
-              subject.principal,
-              id,
-              scopeList(policy.scopes),
-            ),
+            tenant: activeTenant,
+            unheldTenant: activeTenant === undefined ? id : undefined,
           }),
         }),
       );

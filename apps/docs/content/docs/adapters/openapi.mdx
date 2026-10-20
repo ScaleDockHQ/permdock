@@ -132,6 +132,8 @@ permissionsExtension(permissions.post.delete); // ['post.delete']
 
 `securityFor(permission)` returns the same object as the server adapters' `openapi.security(permission)`. It differs from `createPermDock(...).describe` in one case: without the policy it cannot tell that a permission is public, so it never returns an empty `security`. It also omits `x-permdock-conditions` and `x-permdock-approval`, which need the grants. Write those on the server or with `permdock openapi emit`. An empty list still returns `[{ oauth2: [] }]`, because an empty `security` array marks an operation public.
 
+`securityFor(permission, { security: false })` returns only `x-permdock-permissions`, with no `security` key. Use it when the document sets `security` itself, for example one OIDC bearer scheme for the whole API whose scopes are not PermDock's.
+
 ## Registry and namespace
 
 Every PermDock-specific field in a document is an OpenAPI extension under the `x-permdock-` prefix. PermDock registers the `permdock` namespace in the OAI [Namespace Registry](https://spec.openapis.org/registry/namespace/) (the pull request is described on [OpenAPI registries](/docs/standards/openapi-registry)). When the OpenAPI Initiative has already registered an extension for the same purpose (`x-oai-deprecated`, `x-oai-deviceAuthorization`, `x-oai-deviceAuthorizationUrl` for 3.1 targets) the adapter emits the registered name instead of inventing one; it never coins an `x-oai-*` name. The full extension table and the rules are on [OpenAPI registries](/docs/standards/openapi-registry).

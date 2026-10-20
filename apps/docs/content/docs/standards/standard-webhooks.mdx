@@ -46,10 +46,17 @@ const verifier = webhookVerifier({
   replay: memoryReplayStore(),
 });
 const delivery = await verifier.verify(request);
-if (!delivery.ok)
-  return new Response(null, {
-    status: delivery.cause === "invalid-signature" ? 403 : 400,
-  });
+if (!delivery.ok) {
+  const status =
+    delivery.cause === "invalid-signature"
+      ? 403
+      : delivery.cause === "keys-unavailable"
+        ? 503
+        : delivery.cause === "replayed"
+          ? 204
+          : 400;
+  return new Response(null, { status });
+}
 ```
 
 Behaviour:

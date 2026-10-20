@@ -9,7 +9,12 @@ import {
 import { configError } from "../core/errors.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
 import { activeRowSql } from "../sql/active.ts";
-import { quoteIdent, quoteLiteral } from "../sql/quote.ts";
+import {
+  quoteIdent,
+  quoteLiteral,
+  quoteQualified,
+  quoteTable,
+} from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { entriesSql, typedUsers } from "./memberships.ts";
 
@@ -30,7 +35,7 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
   const roles =
     rows === undefined
       ? `  held := '[]'::jsonb;`
-      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}), '[]'::jsonb)
+      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}) filter (where ${rows.roleSql} is not null), '[]'::jsonb)
     into held
     from ${rows.from}
     where ${rows.userSql} = v_roles_user;`;
@@ -46,6 +51,27 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
   select v.version into ver from ${schema}.${quoteIdent(AUTHZ_VERSION_TABLE)} v where v.user_id = uid;
   ver := coalesce(ver, 0);`
     : "";
+  const teamsConfig = parts.hook.teams;
+  const teams =
+    teamsConfig === undefined
+      ? ""
+      : `
+  select coalesce(jsonb_agg(to_jsonb(t.${quoteIdent(teamsConfig.team)}::text) order by t.${quoteIdent(teamsConfig.team)}), '[]'::jsonb)
+    into team_ids
+    from ${quoteQualified(teamsConfig.table)} t
+    where t.${quoteIdent(teamsConfig.user)} = uid;
+  if team_ids <> '[]'::jsonb then
+    claims := jsonb_set(claims, '{team_ids}', team_ids);
+  end if;`;
+  const extra = parts.extra
+    .map(
+      (entry) => `
+  extra := ${quoteTable(entry.fn)}(uid);
+  if extra is not null then
+    claims := jsonb_set(claims, ${quoteLiteral(`{${entry.claim}}`)}, extra);
+  end if;`,
+    )
+    .join("");
   const custom =
     customRolesOn(config.rls) && resolveAuthorize(config) === "database"
       ? customRolesOfSql(parts)
@@ -63,7 +89,8 @@ declare
   held jsonb;
   memberships jsonb;
   custom jsonb := '[]'::jsonb;
-  ver bigint;${typedUsers(parts)}
+  ver bigint;
+  claims jsonb := '{}'::jsonb;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${typedUsers(parts)}
 begin
   if uid is null or not exists (select 1 from auth.users u where u.id = uid) then
     return null;
@@ -73,8 +100,9 @@ ${roles}
     into memberships
     from (
 ${entriesSql(parts).replaceAll(/^/gmu, "      ")}
-    ) x;${custom}${version}
+    ) x;${custom}${version}${teams}${extra}
   return jsonb_strip_nulls(jsonb_build_object(
+    'claims', case when claims = '{}'::jsonb then null else claims end,
     'id', uid::text,
     'active', true,
     'roles', held,
@@ -88,8 +116,11 @@ revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
 }
 
 /**
- * The PostgREST wrappers `supabase.hook.api` asks for: one `security definer`
+ * The PostgREST wrappers `supabase.hook.api` asks for: one `security invoker`
  * function per reader, in the API schema, executable by `service_role` only.
+ * The `security definer` readers stay in the hook schema, which the Data API
+ * does not expose; `service_role` gets `usage` on it and `execute` on each
+ * reader, so no definer function sits in an exposed schema.
  */
 export function apiWrappersSql(parts: Parts): string {
   const api = parts.hook.api;
@@ -117,13 +148,16 @@ export function apiWrappersSql(parts: Parts): string {
 returns ${returns}
 language sql
 stable
-security definer
+security invoker
 set search_path = ''
 as $$ select ${source}.${inner}(${args}) $$;
 revoke execute on function ${fn}(${types}) from public, anon, authenticated;
-grant execute on function ${fn}(${types}) to service_role;`;
+grant execute on function ${fn}(${types}) to service_role;
+grant execute on function ${source}.${inner}(${types}) to service_role;`;
   };
-  return `-- supabase.hook.api: wrappers in ${quoteIdent(target)} for a backend that reaches the hook schema through the Data API; only service_role may execute them
+  return `-- supabase.hook.api: security invoker wrappers in ${quoteIdent(target)} for a backend that reaches the hook schema through the Data API; only service_role may execute them, and the security definer readers stay in ${source}
+grant usage on schema ${source} to service_role;
+
 ${wrapper(names.subjectFor, SUBJECT_FOR, "p_user uuid", "p_user", "uuid", "jsonb")}
 
 ${wrapper(names.membersOf, MEMBERS_OF, "p_scope text, p_id text", "p_scope, p_id", "text, text", "jsonb")}

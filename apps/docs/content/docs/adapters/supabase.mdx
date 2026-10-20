@@ -418,6 +418,24 @@ const subject = subjectFromSupabase(claims, {
 
 The user's own grants still decide inside that ceiling. A token that names permission scopes as well (`openid quote:read`) narrows the ceiling further, because token and policy delegations intersect. A client the policy does not name keeps reaching nothing.
 
+### OIDC-only OAuth clients
+
+A client that asks for `openid email profile` and no permission scopes gets a token with nothing to narrow it, so the policy is its whole ceiling. State that ceiling once, as one delegation from every authenticated user to the actor kind, with the permission subtrees the client may use:
+
+```ts
+delegations: [
+  {
+    from: authenticated(),
+    to: actor("oauth-client"),
+    permissions: [permissions.customer.read, permissions.quote],
+  },
+],
+```
+
+`subjectFromSupabase` drops the identity scopes, so the token's own delegation is empty and the policy delegation is the only ceiling. Inside it the user's grants decide: a client never reaches a permission its user does not hold. Add `to: { kind: "oauth-client", client: "cli" }` and `clients` to give one client a narrower list.
+
+Revocation reaches the ceiling through the user's grants, not through the delegation. With `claimsFirst` and `onStale: "reread"`, a token whose `authz_ver` is behind is read again for a `fresh` permission, and the reread replaces `memberships` and `roles`, so a revoked global role stops counting. With `onStale: "deny"` that `fresh` permission denies with `stale-credentials`; every other permission keeps the token's roles until it expires, which `jwt_expiry` bounds. Mark the sensitive permissions `fresh` ([authorization version](/docs/adapters/supabase-hook#authorization-version)).
+
 ### Session objects: `subjectFromSupabaseSession`
 
 `subjectFromSupabaseSession(session, options)` takes any verified session object shaped `{ kind, claims }` (`SupabaseSessionLike`), such as the session a session library builds from verified claims. It maps `kind: 'user'` through `subjectFromSupabase(session.claims, options)` and returns the anonymous subject for every other `kind` (`anon`, `service`, `invalid`, or anything unknown). PermDock imports nothing from the library that produced the session; the shape is the contract.

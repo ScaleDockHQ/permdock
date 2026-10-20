@@ -42,6 +42,7 @@ function scope(overrides: Partial<WhereScope> = {}): WhereScope {
     resource: "doc",
     scopes,
     partitioned: () => true,
+    fieldOf: (name) => scopes.find((item) => item.name === name)?.key,
     tenant: "o1",
     team: undefined,
     now: NOW,

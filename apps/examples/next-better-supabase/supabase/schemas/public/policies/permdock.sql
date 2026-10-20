@@ -9,7 +9,6 @@ alter table "public"."quotes" enable row level security;
 revoke all on table "public"."quotes" from anon, authenticated;
 grant select, update on table "public"."quotes" to authenticated;
 
-drop policy if exists "staff_select" on "public"."staff";
 create policy "staff_select"
   on "public"."staff"
   as permissive
@@ -17,7 +16,6 @@ create policy "staff_select"
   to authenticated
   using (("organization_id" in (select "permdock".permitted_organization_ids('staff.read'))) or ("organization_id" in (select "permdock".permitted_organization_ids('staff.list'))));
 
-drop policy if exists "quotes_select" on "public"."quotes";
 create policy "quotes_select"
   on "public"."quotes"
   as permissive
@@ -25,7 +23,6 @@ create policy "quotes_select"
   to authenticated
   using ((("organization_id" in (select "permdock".permitted_organization_ids('quotes.read'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.read')))) or (("organization_id" in (select "permdock".permitted_organization_ids('quotes.list'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.list')))));
 
-drop policy if exists "quotes_update" on "public"."quotes";
 create policy "quotes_update"
   on "public"."quotes"
   as permissive
@@ -34,7 +31,6 @@ create policy "quotes_update"
   using ("organization_id" in (select "permdock".permitted_organization_ids('quotes.update')))
   with check ("organization_id" in (select "permdock".permitted_organization_ids('quotes.update')));
 
-drop policy if exists "quotes_update_read_only_actors" on "public"."quotes";
 create policy "quotes_update_read_only_actors"
   on "public"."quotes"
   as restrictive

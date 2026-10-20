@@ -8,6 +8,7 @@ import type {
   CustomRole,
   CustomRoleGrant,
   Membership,
+  Principal,
   Subject,
 } from "../core/subject.ts";
 
@@ -88,6 +89,8 @@ export type SubjectRecord = {
   readonly memberships: readonly Membership[];
   readonly customRoles: readonly CustomRole[];
   readonly authzVersion?: number;
+  /** The token claims the hook adds besides the memberships: `team_ids` and each `supabase.hook.claims` entry. */
+  readonly claims?: Readonly<Record<string, unknown>>;
 };
 
 export type PostgrestSources = {
@@ -107,6 +110,15 @@ export type PostgrestSources = {
   customRoles(principal: { readonly id: string }): CustomRoleSource;
   /** The subject the hook would mint for `userId`: anonymous when the user is unknown or suspended. */
   subject(userId: string): Promise<Subject>;
+  /**
+   * `subject` with its principal read again: roles, memberships and
+   * authorization version come from the database, the token's other claims
+   * stay, and `actor`, `delegation`, `session`, `expiresAt` and the context
+   * are kept as they were, so a refreshed OAuth client keeps its ceiling. An
+   * unknown or suspended user becomes a subject with no principal that still
+   * carries the actor and delegation. A subject with no principal is returned as is.
+   */
+  refresh<P extends Principal>(subject: Subject<P>): Promise<Subject<P>>;
   /** The raw record, `undefined` for an unknown user. */
   record(userId: string): Promise<SubjectRecord | undefined>;
 };
@@ -222,6 +234,10 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
     authzVersion:
       typeof version === "number" && Number.isFinite(version)
         ? version
+        : undefined,
+    claims:
+      isRecord(value["claims"]) && Object.keys(value["claims"]).length > 0
+        ? value["claims"]
         : undefined,
   });
 }
@@ -344,6 +360,9 @@ export function postgrestSources(
           : version(principal.id);
       },
       list,
+      async globalRolesFor(principal) {
+        return [...((await live(principal.id))?.roles ?? [])];
+      },
     },
     customRoles(principal) {
       return {
@@ -384,9 +403,41 @@ export function postgrestSources(
           roles: found.roles,
           memberships: found.memberships,
           authzVersion: found.authzVersion,
+          claims: found.claims,
         }),
         context: {},
       };
+    },
+    async refresh<P extends Principal>(
+      subject: Subject<P>,
+    ): Promise<Subject<P>> {
+      const current = subject.principal;
+      if (current === null) {
+        return subject;
+      }
+      const found = await live(current.id);
+      if (found === undefined) {
+        const { stale: _stale, ...kept } = subject;
+        // SAFETY: a subject with no principal is a Subject of any principal type.
+        return { ...kept, principal: null } as unknown as Subject<P>;
+      }
+      const { membershipsTruncated: _truncated, ...rest } = current;
+      const { stale: _stale, ...kept } = subject;
+      // SAFETY: only roles, memberships and authzVersion change, so the principal keeps its type.
+      const principal = compact({
+        ...rest,
+        roles: found.roles,
+        memberships: found.memberships,
+        authzVersion: found.authzVersion,
+        claims:
+          found.claims === undefined
+            ? rest["claims"]
+            : {
+                ...(isRecord(rest["claims"]) ? rest["claims"] : {}),
+                ...found.claims,
+              },
+      }) as unknown as P;
+      return { ...kept, principal };
     },
     record,
   };

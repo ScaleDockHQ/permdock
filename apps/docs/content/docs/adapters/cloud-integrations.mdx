@@ -101,12 +101,19 @@ const verifier = webhookVerifier({
   replay: memoryReplayStore(),
 });
 
+const failureStatus = (cause: string): number =>
+  cause === "invalid-signature"
+    ? 403
+    : cause === "keys-unavailable"
+      ? 503
+      : cause === "replayed"
+        ? 204
+        : 400;
+
 export async function POST(request: Request) {
   const delivery = await verifyWebhook(request, { verifier });
   if (!delivery.ok)
-    return new Response(null, {
-      status: delivery.cause === "invalid-signature" ? 403 : 400,
-    });
+    return new Response(null, { status: failureStatus(delivery.cause) });
   for (const event of delivery.events) {
     if (event.type === "com.permdock.catalog.published")
       await permdockCloud.policies.refresh();
@@ -115,7 +122,7 @@ export async function POST(request: Request) {
 }
 ```
 
-Build the verifier once, outside the handler: a verifier built per call fetches the JWK Set again on every delivery. `verifyWebhook` never throws. It answers `{ ok: false, cause }` with a `WebhookFailureCause`: the verifier's `missing-headers` (no Standard Webhooks headers), `malformed`, `timestamp-out-of-range`, `invalid-signature`, `keys-unavailable` or `replayed` (a `webhook-id` the `ReplayStore` already holds), or `invalid-events` (a body that is not a CloudEvent or a batch, an event outside the closed `type` list, a data shape that does not match its `dataschema`, or a `__proto__`, `constructor` or `prototype` key). The `webhook-id` is claimed only after the signature verifies. `parseCloudEvent` is the same per-event check for events read from a queue.
+The example answers `403` for `invalid-signature`, `503` for `keys-unavailable`, `204` for `replayed` and `400` for the rest; it never answers `401`, which RFC 9110 pairs with a `WWW-Authenticate` scheme a webhook does not have. Build the verifier once, outside the handler: a verifier built per call fetches the JWK Set again on every delivery. `verifyWebhook` never throws. It answers `{ ok: false, cause }` with a `WebhookFailureCause`: the verifier's `missing-headers` (no Standard Webhooks headers), `malformed`, `timestamp-out-of-range`, `invalid-signature`, `keys-unavailable` or `replayed` (a `webhook-id` the `ReplayStore` already holds), or `invalid-events` (a body that is not a CloudEvent or a batch, an event outside the closed `type` list, a data shape that does not match its `dataschema`, or a `__proto__`, `constructor` or `prototype` key). The `webhook-id` is claimed only after the signature verifies. `parseCloudEvent` is the same per-event check for events read from a queue.
 
 To wake runs parked on an approval, mount `cloudApprovalWaiter(...).webhook` on the connector's URL instead of a hand-written handler ([PermDock Cloud](/docs/adapters/cloud#run-waits-delivery-and-signing)). It wakes the run for each `com.permdock.approval.resolved`, `.expired` and `.cancelled` event, and the run decides again with its token, so the webhook never approves anything.
 

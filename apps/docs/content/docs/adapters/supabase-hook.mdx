@@ -147,7 +147,7 @@ const permdock = await getPermDock(
 );
 ```
 
-`claimsFirst(sources, { version?, onStale? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`), or, with `onStale: 'reread'`, when the token's `authz_ver` is behind the version table (one version read, then one memberships read only when the token is behind). Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
+`claimsFirst(sources, { version?, onStale? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`), or, with `onStale: 'reread'`, when the token's `authz_ver` is behind the version table (one version read, then one memberships read only when the token is behind). Staleness applies only to permissions the policy marks `fresh`: with the default `onStale: 'deny'` every other permission keeps the token's claims, and only `'reread'` replaces the claims for every decision. A reread replaces `principal.roles` as well when the source has `globalRolesFor` (`postgrestSources().memberships` has it), so a revoked platform role is lost with the memberships; `actor`, `delegation`, `session` and the token's other claims stay on the subject. Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
 
 ### A stored user over PostgREST
 
@@ -164,7 +164,7 @@ supabase: {
 },
 ```
 
-That writes `public.permdock_subject_for(p_user uuid)`, `public.permdock_members_of(p_scope text, p_id text)` and `public.permdock_authz_version_for(p_user uuid)`. Each is a `security definer` function with an empty `search_path` that calls the function in the hook schema, revoked from `public`, `anon` and `authenticated` and granted to `service_role`: the only grant the hook makes to it, and only with `api`. Without `api`, no wrapper is written and nothing is granted to `service_role`. `generate` refuses an `api` that would replace the function it wraps (the hook schema with an empty prefix).
+That writes `public.permdock_subject_for(p_user uuid)`, `public.permdock_members_of(p_scope text, p_id text)` and `public.permdock_authz_version_for(p_user uuid)`. Each is a `security invoker` function with an empty `search_path` that calls the function in the hook schema, revoked from `public`, `anon` and `authenticated` and granted to `service_role`. The `security definer` readers stay in the `permdock` schema, which the Data API does not expose, so the API schema holds no definer function and a catalog test that forbids them passes without an allow-list. To let `service_role` reach them, `hook generate` also grants it `usage` on the hook schema and `execute` on the three readers: the only grants the hook makes to `service_role`, and only with `api`. The trade-off: a role that can execute a wrapper needs the grant on the inner function too, so granting a wrapper to another role means granting the reader. Without `api`, no wrapper is written and nothing is granted to `service_role`. `generate` refuses an `api` that would replace the function it wraps (the hook schema with an empty prefix).
 
 `postgrestSources(client, { api?, schema?, fn?, membersFn?, versionFn?, policy? })` in `permdock/supabase` calls `subject_for` once per user and `members_of` once per instance, and returns the three inputs `createPermDock` takes. `sources.memberships.version` calls `authz_version_for` (or the record already read), so `claimsFirst(sources.memberships, { onStale: "reread" })` checks the token's freshness with one cheap call per request and reads `subject_for` only when the token is behind. When the version function does not exist yet, `version` falls back to `subject_for`; regenerate the hook file to get it. Pass `policy` when the app has custom roles: `customRoles` then reads nothing while every role the subject holds is declared, and `version` calls `subject_for` instead of `authz_version_for` when the token claims a role the policy does not declare, because the custom roles need that record anyway. A current token with only declared roles costs one version call; a custom-role token costs one `subject_for` call, fresh or stale. `sources.memberships.list(query)` is the member list `countHolders` and `whoCan` read, so a role change can pass the holders `decideRoleChange` needs:
 
@@ -200,6 +200,10 @@ const holders = await countHolders(sources.memberships, {
 ```
 
 `api` sets the defaults of `schema`, `fn`, `membersFn` and `versionFn` to the wrappers `supabase.hook.api` writes; any of the four still overrides it. Without `api` they default to the hook schema's own functions, for a client that can reach it. `sources.memberships` answers `membershipsFor` and `version`, so `claimsFirst` freshness works without a `SqlQuery`. `sources.customRoles(principal)` returns the custom roles that principal holds; a role-management page that needs every role of a tenant composes [`customRoleSource`](/docs/concepts/extension-interfaces#membershipsource-and-rolesource) over its own read. `sources.subject(userId)` is the anonymous subject for a suspended or unknown user, and a failed call rejects, which `createPermDock` turns into a denial.
+
+`subject_for` also returns a `claims` object with the `team_ids` the hook would write (every team, with no budget) and each `supabase.hook.claims` entry, and `sources.subject(id)` and `sources.refresh(subject)` put them on `principal.claims`. A stale path therefore keeps team-scoped levels without the caller merging the claims back.
+
+`sources.refresh(subject)` rereads the principal of a token subject you already hold: roles, memberships and `authzVersion` come from `subject_for`, while `actor`, `delegation`, `session`, `expiresAt`, the context and the token's other claims are kept. Use it where `sources.subject(id)` would drop an OAuth client's `actor` and `delegation` and lift its ceiling. A user that is unknown or suspended becomes a subject with no principal that still carries the actor and delegation.
 
 ## Generate
 
@@ -252,6 +256,16 @@ uri = "pg-functions://postgres/public/custom_access_token_hook"
 ```
 
 `jwt_expiry = 900` bounds how long a demotion can take to reach a token: 15 minutes, set with `supabase.hook.jwtExpiry`. The command refuses a source whose scope the policy does not declare, a single-scope source without a `within` column for every ancestor (such a membership grants nothing), a non-positive budget and unsafe identifiers.
+
+## Hosted rollout
+
+`config.toml` configures the local stack and a branch. A hosted project takes the same settings from the Management API, and the order matters.
+
+1. Apply the migration that creates `custom_access_token_hook` and its grants. Auth calls the function as soon as the hook is enabled; a missing function makes every sign-in fail.
+2. Set the hook on the project: `hook_custom_access_token_enabled` to `true`, `hook_custom_access_token_uri` to `pg-functions://postgres/<schema>/custom_access_token_hook`, and `jwt_exp` to the lifetime `[auth] jwt_expiry` sets. `permdock supabase inspect` prints all three under `managementApi`, so the values to send come from the same run that wrote the SQL.
+3. Check a freshly issued token for `memberships`, `roles` and `authz_ver`. Tokens issued before the change keep their old claims until they expire.
+
+Supabase branching reapplies `config.toml` on every push, so a branch whose `[auth.hook.custom_access_token]` table is missing or disabled loses the hook. Doctor [PD074](/docs/cli/doctor#pd074-custom-access-token-hook-missing-from-configtoml) reports a `config.toml` that does not enable the generated function.
 
 ## Declarative schemas
 
@@ -430,16 +444,17 @@ A seat belongs to one membership, not the tenant: a Dev Mode seat in one organiz
 
 `permdock supabase inspect --out permdock.manifest.json` writes what the hook and helpers expect as one JSON file, and `--check` fails CI when it falls behind the config. It is the stable contract for packages that build on the hook: better-supabase reads it instead of PermDock's config or its generated SQL.
 
-| Field                                                                 | What a reader learns                                                                                                                                   |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `hook`, `markers`                                                     | Where `custom_access_token_hook` lives and the majors of the `-- permdock:hook` / `-- permdock:grants` lines its migrations start with                 |
-| `claims`, `tenantClaim`, `budget`, `authzVersion`, `authzVersionBump` | Every claim the hook writes, who owns it, what the budget measures, and the function that bumps `authz_ver` for a list of users                        |
-| `helpers`, `rls`                                                      | The helper schema, each helper's arguments, return type and the roles that may execute it, the RLS mode (`jwt` or `database`) and each scope's id type |
-| `memberships`                                                         | Each source's table and the columns (or fixed values) for user and role (each with the table it reads through), scope, id, `within`, `via` and expiry  |
-| `rls.memberships`                                                     | The same shape for the tables `member_<scope>_ids_for` reads, which differ from the hook's when `rls.memberships` or `rls.membershipSources` is set    |
-| `rls.helpers` (`_for` and assignment forms)                           | The `_for` helpers trusted SQL calls for a stored user, and `permdock_can_assign_any` with the other assignment checks when a role declares `assigns`  |
-| `rls.customRoles`, `rls.roles`, `rls.suspension`, `rls.assignments`   | Whether custom roles live in tables, the global-roles table, the suspension tables, and the tables the assignment triggers guard                       |
-| `decidingColumns`                                                     | Every `schema.table.column` a membership or an `attrs` claim is computed from, which clients must not be able to write                                 |
+| Field                                                                 | What a reader learns                                                                                                                                         |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `hook`, `markers`                                                     | Where `custom_access_token_hook` lives and the majors of the `-- permdock:hook` / `-- permdock:grants` lines its migrations start with                       |
+| `claims`, `tenantClaim`, `budget`, `authzVersion`, `authzVersionBump` | Every claim the hook writes, who owns it, what the budget measures, and the function that bumps `authz_ver` for a list of users                              |
+| `helpers`, `rls`                                                      | The helper schema, each helper's arguments, return type and the roles that may execute it, the RLS mode (`jwt` or `database`) and each scope's id type       |
+| `memberships`                                                         | Each source's table and the columns (or fixed values) for user and role (each with the table it reads through), scope, id, `within`, `via` and expiry        |
+| `rls.memberships`                                                     | The same shape for the tables `member_<scope>_ids_for` reads, which differ from the hook's when `rls.memberships` or `rls.membershipSources` is set          |
+| `rls.helpers` (`_for` and assignment forms)                           | The `_for` helpers trusted SQL calls for a stored user, and `permdock_can_assign_any` with the other assignment checks when a role declares `assigns`        |
+| `rls.customRoles`, `rls.roles`, `rls.suspension`, `rls.assignments`   | Whether custom roles live in tables, the global-roles table, the suspension tables, and the tables the assignment triggers guard                             |
+| `managementApi`                                                       | The Management API fields a hosted project needs for Auth to call the hook: `hook_custom_access_token_enabled`, `hook_custom_access_token_uri` and `jwt_exp` |
+| `decidingColumns`                                                     | Every `schema.table.column` a membership or an `attrs` claim is computed from, which clients must not be able to write                                       |
 
 The format, its JSON Schema (`schemas/supabase-manifest-v1.json`) and the versioning rule are on [wire formats](/docs/concepts/wire-formats#supabase-hook-manifest); `supabaseHookManifestFixture` in `permdock/testing` is a sample to test a reader against.
 

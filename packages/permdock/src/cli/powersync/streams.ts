@@ -22,6 +22,7 @@ import { tableFor } from "../sql/compile.ts";
 import { contextRefs } from "../sql/conditions.ts";
 import { type RlsGrant, collectGrants } from "../sql/grants.ts";
 import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
+import { tableNames } from "../sql/tables.ts";
 
 /**
  * How a stream query names the signed-in user, its claims and row columns.
@@ -603,7 +604,7 @@ export function powersyncPlan(
       });
       continue;
     }
-    const table = bare(tableFor(resource, config.rls?.tables));
+    const table = bare(tableFor(resource, tableNames(config.rls?.tables)));
     const { id } = node;
     const queries = new Set<string>();
     for (const item of items) {

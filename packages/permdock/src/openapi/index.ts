@@ -8,7 +8,12 @@ export {
 export type { OperationEntry, OperationPermissions } from "./operations.ts";
 export { problemDetails } from "./problem-details.ts";
 export { permissionsExtension, securityFor } from "./security.ts";
-export type { SecurityFor, SecurityForOptions } from "./security.ts";
+export type {
+  SecurityExtensionFor,
+  SecurityExtensionOptions,
+  SecurityFor,
+  SecurityForOptions,
+} from "./security.ts";
 export type {
   OpenApiDescribe,
   OpenApiDocsHints,

@@ -683,15 +683,32 @@ export function compileGrants(
     const grantKey = keys.get(entry);
     let accessExpr: string | undefined;
     if (access.kind === "role" && grantKey !== undefined) {
+      const via = ctx.vias?.[grant.permission.resource];
+      if (
+        via !== undefined &&
+        access.scope !== "global" &&
+        access.scope !== via.scope
+      ) {
+        throw configError(
+          `PermDock CLI: ${label}/${grant.permission.key} is granted at scope ${access.scope}, but rls.tables.${grant.permission.resource}.via reaches ${via.scope}; map the scope with via.scope or grant at ${via.scope}`,
+        );
+      }
       const column =
         access.scope === "global"
           ? undefined
-          : scopeField(
+          : (via?.key ??
+            scopeField(
               policy.resources.get(grant.permission.resource),
               access.scope,
               policy.scopes,
-            );
-      accessExpr = accessSql(ctx, access.scope, grantKey, column);
+            ));
+      accessExpr = accessSql(
+        ctx,
+        access.scope,
+        grantKey,
+        column,
+        access.scope === "global" ? undefined : via?.helper,
+      );
       if (column !== undefined) {
         filters(grant.permission.resource, table, column);
       }

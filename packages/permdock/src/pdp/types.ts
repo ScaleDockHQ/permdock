@@ -111,6 +111,7 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
   | "can"
   | "decide"
   | "decideEach"
+  | "decideIds"
   | "assert"
   | "explain"
   | "filter"

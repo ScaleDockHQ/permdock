@@ -22,7 +22,8 @@ const SETUP = `
 create role authenticated nologin;
 create role anon nologin;
 create role supabase_auth_admin nologin;
-grant authenticated, anon, supabase_auth_admin to tester;
+create role service_role nologin;
+grant authenticated, anon, supabase_auth_admin, service_role to tester;
 create schema auth;
 create table auth.users (id uuid primary key, raw_app_meta_data jsonb not null default '{}');
 create function auth.uid() returns uuid language sql stable as $$
@@ -37,13 +38,14 @@ grant select on auth.users to supabase_auth_admin;
 grant usage on schema public to authenticated, anon;
 insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(", ")};
 create table memberships (
-  user_id uuid not null, scope text not null, scope_id text not null, role text not null,
+  user_id uuid not null, scope text not null, scope_id text not null, role text,
   via text, expires_at timestamptz, managed_by text, seats text[]
 );
 insert into memberships values
   ('${OWNER}', 'organization', 'T', 'owner', 'staff', null, null, null),
   ('${OWNER}', 'organization', 'B', 'mechanic', 'staff', null, null, null),
   ('${OWNER}', 'organization', 'X', 'owner', 'staff', null, null, null),
+  ('${OWNER}', 'organization', 'N', null, 'staff', null, null, null),
   ('${SUSPENDED}', 'organization', 'T', 'admin', 'staff', null, null, null);
 create table customer_contacts (customer_id text not null, organization_id text not null, user_id uuid not null);
 insert into customer_contacts values ('A', 'T', '${CONTACT}');
@@ -155,6 +157,25 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     });
   });
 
+  it("leaves out a membership whose role column is null instead of emitting roles: [null]", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const raw = await db.admin.query<{ subject: unknown; members: unknown }>(
+      `select permdock.subject_for('${OWNER}') as subject, permdock.members_of('organization', 'N') as members`,
+    );
+    expect(JSON.stringify(raw.rows[0]?.subject)).not.toContain("null");
+    expect(raw.rows[0]?.members).toEqual([]);
+    const row = raw.rows[0];
+    if (row === undefined) {
+      throw new Error("PermDock: subject_for returned no row");
+    }
+    // SAFETY: subject_for returns the subject JSON, whose memberships are { id } objects.
+    const subject = row.subject as { memberships: { id: string }[] };
+    const ids = subject.memberships.map((membership) => membership.id);
+    expect(ids).not.toContain("N");
+  });
+
   it("reads only the version through authz_version_for", async () => {
     const sources = postgrestSources(client());
     expect(await sources.memberships.version?.({ id: OWNER })).toBe(1);
@@ -220,6 +241,38 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
         role: "owner",
       }),
     ).toBe(1);
+  });
+
+  it("puts only security invoker wrappers in the API schema and lets service_role call them", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    const definers = await target.admin.query<{ proname: string }>(
+      `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.prosecdef order by 1`,
+    );
+    expect(definers.rows).toEqual([]);
+    const wrappers = await target.admin.query<{ proname: string }>(
+      `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname like 'permdock\\_%' order by 1`,
+    );
+    expect(wrappers.rows.map((row) => row.proname)).toEqual([
+      "permdock_authz_version_for",
+      "permdock_members_of",
+      "permdock_subject_for",
+    ]);
+    const version = await target.as({ role: "service_role" }, async () =>
+      target.tester.query<{ v: string }>(
+        `select public.permdock_authz_version_for('${OWNER}') as v`,
+      ),
+    );
+    expect(Number(version.rows[0]?.v)).toBe(1);
+    await expect(
+      target.as({ role: "authenticated" }, async () =>
+        target.tester.query(`select public.permdock_subject_for('${OWNER}')`),
+      ),
+    ).rejects.toThrow(/permission denied/u);
   });
 
   it("is not executable by client roles", async () => {

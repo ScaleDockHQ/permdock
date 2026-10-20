@@ -6,6 +6,16 @@ export type SecurityForOptions = {
   readonly scheme?: string;
   /** Any one of the permissions suffices: one requirement per scope instead of one with every scope. */
   readonly anyOf?: boolean;
+  readonly security?: true;
+};
+
+/** `security: false` emits only `x-permdock-permissions`, for an API whose `security` is set elsewhere, such as OIDC-only bearer auth. */
+export type SecurityExtensionOptions = Omit<SecurityForOptions, "security"> & {
+  readonly security: false;
+};
+
+export type SecurityExtensionFor = {
+  readonly "x-permdock-permissions": readonly string[];
 };
 
 export type SecurityFor = {
@@ -40,9 +50,26 @@ export function permissionsExtension(
  */
 export function securityFor(
   permission: Permission | readonly Permission[],
-  options: SecurityForOptions = {},
-): SecurityFor {
+  options: SecurityExtensionOptions,
+): SecurityExtensionFor;
+export function securityFor(
+  permission: Permission | readonly Permission[],
+  options?: SecurityForOptions,
+): SecurityFor;
+export function securityFor(
+  permission: Permission | readonly Permission[],
+  options?: SecurityForOptions | SecurityExtensionOptions,
+): SecurityFor | SecurityExtensionFor;
+export function securityFor(
+  permission: Permission | readonly Permission[],
+  options: SecurityForOptions | SecurityExtensionOptions = {},
+): SecurityFor | SecurityExtensionFor {
   const leaves = listOf(permission);
+  if (options.security === false) {
+    return Object.freeze({
+      "x-permdock-permissions": permissionsExtension(leaves),
+    });
+  }
   const scheme = options.scheme ?? "oauth2";
   const security: readonly OpenApiSecurityRequirement[] =
     // An empty `security` list marks an operation public, so no permissions still requires the scheme.

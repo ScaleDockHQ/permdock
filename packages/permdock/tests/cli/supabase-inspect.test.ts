@@ -118,9 +118,28 @@ describe("permdock supabase inspect", () => {
         args: "p_users uuid[]",
       },
       markers: { hook: "v1", grants: "v1" },
+      managementApi: {
+        hook_custom_access_token_enabled: true,
+        hook_custom_access_token_uri:
+          "pg-functions://postgres/permdock/custom_access_token_hook",
+        jwt_exp: 3600,
+      },
     });
     const text = await run(["supabase", "inspect"], { cwd });
     expect(text.stdout).toContain("tenant claim tenant_id");
+    expect(text.stdout).toContain("hook_custom_access_token_enabled true");
+    expect(text.stdout).toContain(
+      "hook_custom_access_token_uri pg-functions://postgres/permdock/custom_access_token_hook",
+    );
+    expect(text.stdout).toContain("jwt_exp 3600");
+    mkdirSync(join(cwd, "supabase"), { recursive: true });
+    writeFileSync(
+      join(cwd, "supabase/config.toml"),
+      "[auth]\njwt_expiry = 900\n",
+    );
+    expect((await run(["supabase", "inspect"], { cwd })).stdout).toContain(
+      "jwt_exp 900",
+    );
   });
 
   it("lists the membership sources, the rls helpers and the deciding columns", async () => {
@@ -207,6 +226,55 @@ describe("permdock supabase inspect", () => {
     expect(jsonData(inspect.stdout)).toMatchObject({
       rls: { mode: "database" },
     });
+  });
+
+  it("writes the manifest in database mode without supabase.hook", async () => {
+    const database = await generate(
+      "undefined",
+      [],
+      `{ authorize: 'database', membershipSources: [${SOURCES}] }`,
+    );
+    const inspect = await run(
+      ["supabase", "inspect", "--out", "permdock.manifest.json"],
+      { cwd: database.cwd },
+    );
+    expect(inspect.stdout + inspect.stderr).toContain("wrote");
+    expect(inspect.code).toBe(0);
+    const written = JSON.parse(
+      readFileSync(join(database.cwd, "permdock.manifest.json"), "utf8"),
+    );
+    expect(written).not.toHaveProperty("hook");
+    expect(written).not.toHaveProperty("claims");
+    expect(written.rls.mode).toBe("database");
+    expect(written.rls.helpers.length).toBeGreaterThan(0);
+    const check = await run(
+      ["supabase", "inspect", "--out", "permdock.manifest.json", "--check"],
+      { cwd: database.cwd },
+    );
+    expect(check.code).toBe(0);
+  });
+
+  it("checks, prints and reports drift for the hookless manifest", async () => {
+    const database = await generate(
+      "undefined",
+      [],
+      `{ authorize: 'database', membershipSources: [${SOURCES}] }`,
+    );
+    const printed = await run(["supabase", "inspect"], { cwd: database.cwd });
+    expect(printed.code).toBe(0);
+    const json = await run(["supabase", "inspect", "--json"], {
+      cwd: database.cwd,
+    });
+    expect(jsonData(json.stdout)).not.toHaveProperty("hook");
+    const missing = await run(["supabase", "inspect", "--check"], {
+      cwd: database.cwd,
+    });
+    expect(missing.code).toBe(1);
+    await run(["supabase", "inspect", "--out"], { cwd: database.cwd });
+    const current = await run(["supabase", "inspect", "--check"], {
+      cwd: database.cwd,
+    });
+    expect(current.code).toBe(0);
   });
 
   it("lists the trusted and assignment helpers and the rls settings a package reads", async () => {

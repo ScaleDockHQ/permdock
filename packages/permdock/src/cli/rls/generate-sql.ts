@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 
+import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig, RlsShimsConfig } from "../types.ts";
 import type { GenerateContext } from "./generate-context.ts";
 import type { SplitSql } from "./generate-output.ts";
@@ -17,6 +18,7 @@ import {
   USER_ID_HELPER,
   sessionLiveHelperSql,
 } from "../sql/subject.ts";
+import { tableNames } from "../sql/tables.ts";
 import { approvalsSql } from "./approvals.ts";
 import { assignmentSql } from "./assignments.ts";
 import { backfillSql } from "./backfill.ts";
@@ -44,7 +46,7 @@ import {
   withHelperTables,
 } from "./generate-policies.ts";
 import { graphSql } from "./graph.ts";
-import { helpersSql, seedSql } from "./helpers.ts";
+import { type RolePermission, helpersSql, seedSql } from "./helpers.ts";
 import { type IndexTarget, indexTargets, indexesSql } from "./indexes.ts";
 import { ownershipSql } from "./ownership.ts";
 import { permissionHoldersSql } from "./permission-holders.ts";
@@ -187,7 +189,7 @@ function sectionsSql(
   } catch (cause) {
     return { refusal: describeError(cause) };
   }
-  const graphed = graphSql(ctx, graph, rls?.tables);
+  const graphed = graphSql(ctx, graph, tableNames(rls?.tables));
   let rowHelpers = "";
   if (rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0) {
     try {
@@ -201,14 +203,17 @@ function sectionsSql(
           ...compiled.actionBranches,
         ],
         rls?.rowHelpers ?? [],
-        rls?.tables,
+        tableNames(rls?.tables),
         warnings,
       );
     } catch (cause) {
       return { refusal: describeError(cause) };
     }
   }
-  const breakGlass = breakGlassSql(ctx, breakGlassEntries(policy, rls?.tables));
+  const breakGlass = breakGlassSql(
+    ctx,
+    breakGlassEntries(policy, tableNames(rls?.tables)),
+  );
   return [
     approvals,
     owned === "" ? undefined : owned,
@@ -336,6 +341,25 @@ function preambleSql(
       .join("\n"),
     audit,
   };
+}
+
+function seedsBody(
+  ctx: RlsSqlContext,
+  schema: string,
+  rows: readonly RolePermission[],
+): string {
+  switch (ctx.seeds) {
+    case "function":
+      return `select ${quoteQualified(`${schema}.seed`)}();`;
+    case "view":
+      return "-- rls.seeds: 'view': the role_permissions rows are in the helpers part";
+    case undefined:
+      return seedSql(ctx, rows);
+    default: {
+      const exhaustive: never = ctx.seeds;
+      return exhaustive;
+    }
+  }
 }
 
 function forceWarnings({ graph }: GenerateContext, warnings: string[]): void {
@@ -505,7 +529,7 @@ export function generateSql(
       ctx,
       tableColumns(
         generated.compiled.rowColumns,
-        rls?.tables,
+        tableNames(rls?.tables),
         helpersOnly,
         warnings,
       ),
@@ -526,7 +550,7 @@ export function generateSql(
         emitSql([], preamble, false, helpersOnly ? views : []),
         ctx.dialect,
       ),
-      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${ctx.seeds === "function" ? `select ${quoteQualified(`${built.schema}.seed`)}();` : seedSql(ctx, generated.compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,
+      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${seedsBody(ctx, built.schema, generated.compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,
       indexes: `${INDEXES_MARKER}\n${indexesSql(indexes)}\n`,
     }),
   };

@@ -35,6 +35,7 @@ export function subjectFromSnapshot(
           : compact<Principal>({
               ...principal,
               tenant: nextTenant,
+              unheldTenant: nextTenant === undefined ? tenant : undefined,
             }),
       delegation: fromWireDelegation(snapshot.subject.delegation),
       context: snapshot.subject.context,

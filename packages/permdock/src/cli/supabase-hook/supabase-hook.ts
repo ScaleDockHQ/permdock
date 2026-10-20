@@ -2,7 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Policy } from "../../core/policy-types.ts";
-import type { SupabaseHookManifest } from "../../supabase/manifest.ts";
+import type {
+  SupabaseDatabaseManifest,
+  SupabaseHookManifest,
+} from "../../supabase/manifest.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig, SupabaseSchemas } from "../types.ts";
 
@@ -19,12 +22,15 @@ import {
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { requirePolicy } from "../project/load.ts";
+import { hookUri, resolveAuthorize } from "../rls/rbac.ts";
+import { declarativeSql } from "../sql/declarative.ts";
 import {
   GRANTS_MARKER,
   HOOK_MARKER,
   hookMarkerFields,
 } from "../sql/markers.ts";
 import { splitUndiffed } from "../sql/statements.ts";
+import { supabaseConfig } from "../supabase-config.ts";
 import {
   isSupabaseSchemas,
   resolveSchemas,
@@ -42,7 +48,12 @@ import {
   subjectForSql,
 } from "./api.ts";
 import { attrsGuardSql } from "./claims.ts";
-import { defaultOut, hookMarker, manifestOf } from "./manifest.ts";
+import {
+  databaseManifestOf,
+  defaultOut,
+  hookMarker,
+  manifestOf,
+} from "./manifest.ts";
 import {
   type HookOverrides,
   configToml,
@@ -118,6 +129,44 @@ export function supabaseHookManifest(
 }
 
 /**
+ * The manifest of a project in `rls.authorize: 'database'` mode with no
+ * `supabase.hook`: the helpers, scopes, membership sources and grants, and no
+ * token hook.
+ */
+function supabaseDatabaseManifest(
+  scopes: readonly Scope[],
+  config: PermDockConfig,
+  overrides: HookOverrides & { readonly out?: string } = {},
+  policy?: Policy,
+): SupabaseDatabaseManifest {
+  const parts = hookParts(
+    scopes,
+    {
+      ...config,
+      supabase: {
+        ...config.supabase,
+        hook: { memberships: config.rls?.membershipSources ?? [] },
+      },
+    },
+    overrides,
+  );
+  return databaseManifestOf(
+    parts,
+    overrides.out ?? defaultOut(config),
+    config,
+    policy,
+  );
+}
+
+/** Whether the project is in the one case that has a manifest without a hook. */
+function hooklessDatabase(config: PermDockConfig): boolean {
+  return (
+    config.supabase?.hook === undefined &&
+    resolveAuthorize(config) === "database"
+  );
+}
+
+/**
  * The hook migration. With `grantsOut`, the statements `supabase db diff`
  * drops are left out of `sql` and returned in `grants` for that file.
  */
@@ -188,7 +237,26 @@ function markerDrift(
     : `supabase hook drift: ${changed.join("; ")}`;
 }
 
-function inspectText(manifest: SupabaseHookManifest): string {
+type ManagementApi = NonNullable<SupabaseHookManifest["managementApi"]>;
+
+/** Supabase's default access token lifetime when `[auth] jwt_expiry` is unset. */
+const DEFAULT_JWT_EXPIRY = 3600;
+
+function managementApi(
+  cwd: string,
+  manifest: SupabaseHookManifest,
+): ManagementApi {
+  return {
+    hook_custom_access_token_enabled: true,
+    hook_custom_access_token_uri: hookUri(manifest.hook.schema),
+    jwt_exp: supabaseConfig(cwd).jwtExpiry ?? DEFAULT_JWT_EXPIRY,
+  };
+}
+
+function inspectText(
+  manifest: SupabaseHookManifest,
+  api: ManagementApi,
+): string {
   return [
     `hook ${manifest.hook.schema}.${manifest.hook.function} (${manifest.hook.out})`,
     `helpers ${manifest.helpers.functions.map((fn) => `${manifest.helpers.schema}.${fn}`).join(", ")}`,
@@ -196,6 +264,17 @@ function inspectText(manifest: SupabaseHookManifest): string {
     `budget ${String(manifest.budget.bytes)} bytes of ${manifest.budget.measure}`,
     `claims ${manifest.claims.map((claim) => `${claim.name}${claim.source === "permdock" ? "" : ` (${claim.source})`}${claim.budget ? " [budget]" : ""}`).join(", ")}`,
     `authz_ver ${manifest.authzVersion ? "on" : "off"}`,
+    `hook_custom_access_token_enabled ${String(api.hook_custom_access_token_enabled)}`,
+    `hook_custom_access_token_uri ${api.hook_custom_access_token_uri}`,
+    `jwt_exp ${String(api.jwt_exp)}`,
+  ].join("\n");
+}
+
+function databaseInspectText(manifest: SupabaseDatabaseManifest): string {
+  return [
+    "no token hook (rls.authorize: database, no supabase.hook)",
+    `helpers ${manifest.helpers.functions.map((fn) => `${manifest.helpers.schema}.${fn}`).join(", ")}`,
+    `tenant claim ${manifest.tenantClaim}`,
   ].join("\n");
 }
 
@@ -206,7 +285,7 @@ function inspectText(manifest: SupabaseHookManifest): string {
 function manifestFile(
   cwd: string,
   rel: string,
-  manifest: SupabaseHookManifest,
+  manifest: SupabaseDatabaseManifest | SupabaseHookManifest,
   check: boolean,
 ): { readonly code: 0 | 1; readonly output: string } {
   const path = resolve(cwd, rel);
@@ -288,6 +367,29 @@ export async function runSupabase(input: {
   );
   if (area === "inspect" && action === undefined) {
     const policy = await loadHookPolicy(input.cwd, input.config);
+    if (hooklessDatabase(input.config)) {
+      const bare = supabaseDatabaseManifest(
+        scopeList(policy.scopes),
+        input.config,
+        overrides,
+        policy,
+      );
+      if (input.out !== undefined || input.check) {
+        return manifestFile(
+          input.cwd,
+          typeof input.out === "string" ? input.out : MANIFEST_FILE,
+          bare,
+          input.check,
+        );
+      }
+      return {
+        code: 0,
+        output:
+          input.json === true
+            ? JSON.stringify(bare, null, 2)
+            : databaseInspectText(bare),
+      };
+    }
     const manifest = supabaseHookManifest(
       scopeList(policy.scopes),
       input.config,
@@ -298,11 +400,12 @@ export async function runSupabase(input: {
       },
       policy,
     );
+    const api = managementApi(input.cwd, manifest);
     if (input.out !== undefined || input.check) {
       return manifestFile(
         input.cwd,
         typeof input.out === "string" ? input.out : MANIFEST_FILE,
-        manifest,
+        { ...manifest, managementApi: api },
         input.check,
       );
     }
@@ -310,8 +413,15 @@ export async function runSupabase(input: {
       code: 0,
       output:
         input.json === true
-          ? JSON.stringify(manifest, null, 2)
-          : inspectText(manifest),
+          ? JSON.stringify(
+              {
+                ...manifest,
+                managementApi: managementApi(input.cwd, manifest),
+              },
+              null,
+              2,
+            )
+          : inspectText(manifest, api),
     };
   }
   if (area !== "hook" || action !== "generate") {
@@ -324,12 +434,20 @@ export async function runSupabase(input: {
     };
   }
   const scopes = await loadScopes(input.cwd, input.config);
-  const { sql, grants, manifest } = supabaseHookSql(
+  const generated = supabaseHookSql(
     scopes,
     input.config,
     overrides,
     grantsLabel(input.grantsOut),
   );
+  const { grants, manifest } = generated;
+  // The file is declarative only at pg-delta's own path; `--out` and `supabase.hook.out` name a migration.
+  const sql =
+    schemas.mode === "pg-delta" &&
+    typeof input.out !== "string" &&
+    input.config.supabase?.hook?.out === undefined
+      ? declarativeSql(generated.sql)
+      : generated.sql;
   const outRel =
     typeof input.out === "string"
       ? input.out

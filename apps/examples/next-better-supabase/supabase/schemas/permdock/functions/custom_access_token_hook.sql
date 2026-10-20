@@ -35,7 +35,7 @@ declare
   ver bigint;
 begin
   claims := claims - 'attrs' - 'datetime_preferences' - 'features';
-  select coalesce(jsonb_agg(distinct r."role"::text order by r."role"::text), '[]'::jsonb)
+  select coalesce(jsonb_agg(distinct r."role"::text order by r."role"::text) filter (where r."role"::text is not null), '[]'::jsonb)
     into held
     from "permdock"."user_roles" r
     where r."user_id" = v_roles_user;
@@ -58,10 +58,11 @@ begin
           'managed_by', s.managed_by, 'entitlements', s.seats
         )) as entry
       from (
-        select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+        select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
         from "public"."memberships" m
         where m."user_id" = v_user_0
         group by m."scope"::text, m."scope_id"::text
+        having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
       ) s
       union all
       select 1 as ord,
@@ -77,6 +78,7 @@ begin
         from "public"."contacts" m
         where m."user_id" = v_user_1
         group by m."customer_id", m."organization_id"
+        having jsonb_build_array('contact') is not null
       ) s
     ) x
     order by (x.tenant is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
@@ -150,16 +152,13 @@ begin
 end;
 $$;
 revoke execute on function "permdock".permdock_bump_authz_version() from public, anon, authenticated;
-drop trigger if exists "permdock_authz_version" on "public"."memberships";
-create trigger "permdock_authz_version"
+create or replace trigger "permdock_authz_version"
   after insert or update or delete on "public"."memberships"
   for each row execute function "permdock".permdock_bump_authz_version('user_id');
-drop trigger if exists "permdock_authz_version" on "public"."contacts";
-create trigger "permdock_authz_version"
+create or replace trigger "permdock_authz_version"
   after insert or update or delete on "public"."contacts"
   for each row execute function "permdock".permdock_bump_authz_version('user_id');
-drop trigger if exists "permdock_authz_version" on "permdock"."user_roles";
-create trigger "permdock_authz_version"
+create or replace trigger "permdock_authz_version"
   after insert or update or delete on "permdock"."user_roles"
   for each row execute function "permdock".permdock_bump_authz_version('user_id');
 
@@ -177,6 +176,8 @@ declare
   memberships jsonb;
   custom jsonb := '[]'::jsonb;
   ver bigint;
+  claims jsonb := '{}'::jsonb;
+  extra jsonb;
   v_user_0 "public"."memberships"."user_id"%type := uid;
   v_user_1 "public"."contacts"."user_id"%type := uid;
   v_roles_user "permdock"."user_roles"."user_id"%type := uid;
@@ -184,7 +185,7 @@ begin
   if uid is null or not exists (select 1 from auth.users u where u.id = uid) then
     return null;
   end if;
-  select coalesce(jsonb_agg(distinct r."role"::text order by r."role"::text), '[]'::jsonb)
+  select coalesce(jsonb_agg(distinct r."role"::text order by r."role"::text) filter (where r."role"::text is not null), '[]'::jsonb)
     into held
     from "permdock"."user_roles" r
     where r."user_id" = v_roles_user;
@@ -200,10 +201,11 @@ begin
           'managed_by', s.managed_by, 'entitlements', s.seats
         )) as entry
       from (
-        select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+        select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
         from "public"."memberships" m
         where m."user_id" = v_user_0
         group by m."scope"::text, m."scope_id"::text
+        having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
       ) s
       union all
       select 1 as ord,
@@ -219,11 +221,21 @@ begin
         from "public"."contacts" m
         where m."user_id" = v_user_1
         group by m."customer_id", m."organization_id"
+        having jsonb_build_array('contact') is not null
       ) s
     ) x;
   select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
   ver := coalesce(ver, 0);
+  extra := "public"."datetime_preference_claims"(uid);
+  if extra is not null then
+    claims := jsonb_set(claims, '{datetime_preferences}', extra);
+  end if;
+  extra := "public"."feature_claims"(uid);
+  if extra is not null then
+    claims := jsonb_set(claims, '{features}', extra);
+  end if;
   return jsonb_strip_nulls(jsonb_build_object(
+    'claims', case when claims = '{}'::jsonb then null else claims end,
     'id', uid::text,
     'active', true,
     'roles', held,
@@ -275,15 +287,17 @@ as $$
       ))
     ) order by s.user_id, s.roles::text), '[]'::jsonb)
   from (
-      select m."user_id"::text as user_id, m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+      select m."user_id"::text as user_id, m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
       from "public"."memberships" m
       where m."scope"::text = $1::text and m."scope_id"::text = $2::text
       group by m."user_id", m."scope"::text, m."scope_id"::text
+      having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
       union all
       select m."user_id"::text as user_id, 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
       from "public"."contacts" m
       where $1::text = 'customer' and m."customer_id"::text = $2::text
       group by m."user_id", m."customer_id", m."organization_id"
+      having jsonb_build_array('contact') is not null
   ) s
 $$;
 revoke execute on function "permdock".members_of(text, text) from public, anon, authenticated;
@@ -299,25 +313,21 @@ grant execute on function "permdock".member_organization_ids_for(uuid) to supaba
 grant execute on function "permdock".member_customer_ids_for(uuid) to supabase_auth_admin;
 grant usage on schema "public" to supabase_auth_admin;
 grant select on table "public"."memberships" to supabase_auth_admin;
-drop policy if exists "permdock_auth_admin_read_memberships" on "public"."memberships";
 create policy "permdock_auth_admin_read_memberships" on "public"."memberships"
   as permissive for select
   to supabase_auth_admin
   using (true);
 grant select on table "public"."contacts" to supabase_auth_admin;
-drop policy if exists "permdock_auth_admin_read_memberships" on "public"."contacts";
 create policy "permdock_auth_admin_read_memberships" on "public"."contacts"
   as permissive for select
   to supabase_auth_admin
   using (true);
 grant select on table "permdock"."user_roles" to supabase_auth_admin;
-drop policy if exists "permdock_auth_admin_read_roles" on "permdock"."user_roles";
 create policy "permdock_auth_admin_read_roles" on "permdock"."user_roles"
   as permissive for select
   to supabase_auth_admin
   using (true);
 grant select on table "permdock"."permdock_authz_version" to supabase_auth_admin;
-drop policy if exists "permdock_auth_admin_read_version" on "permdock"."permdock_authz_version";
 create policy "permdock_auth_admin_read_version" on "permdock"."permdock_authz_version"
   as permissive for select
   to supabase_auth_admin

@@ -3,8 +3,11 @@ import { join, posix } from "node:path";
 import { parse } from "smol-toml";
 
 import type { DoctorFinding } from "./shared/doctor-types.ts";
+import type { PermDockConfig } from "./types.ts";
 
+import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 import { describeError } from "./core/errors.ts";
+import { hookUri } from "./rls/rbac.ts";
 
 /** The settings of `supabase/config.toml` doctor reads. */
 export type SupabaseConfig = {
@@ -14,6 +17,11 @@ export type SupabaseConfig = {
   readonly schemaPaths?: readonly string[];
   /** `[api] schemas`: the schemas the Data API exposes. */
   readonly apiSchemas?: readonly string[];
+  /** `[auth.hook.custom_access_token]`, when the file has the table. */
+  readonly customAccessTokenHook?: {
+    readonly enabled?: boolean;
+    readonly uri?: string;
+  };
   /**
    * The `[experimental.pgdelta]` table, when the file has one: declarative
    * schemas on pg-delta, which orders statements by their dependencies, so
@@ -68,6 +76,11 @@ export function readSupabaseConfig(
   const paths = table(table(root["db"])?.["migrations"])?.["schema_paths"];
   const schemaPaths = strings(paths);
   const apiSchemas = strings(table(root["api"])?.["schemas"]);
+  const hookTable = table(
+    table(table(root["auth"])?.["hook"])?.["custom_access_token"],
+  );
+  const hookEnabled = hookTable?.["enabled"];
+  const hookUriValue = hookTable?.["uri"];
   const pgDelta = table(table(root["experimental"])?.["pgdelta"]);
   const schemaPath = pgDelta?.["declarative_schema_path"];
   const enabled = pgDelta?.["enabled"];
@@ -77,6 +90,18 @@ export function readSupabaseConfig(
       ...(typeof expiry === "number" ? { jwtExpiry: expiry } : {}),
       ...(schemaPaths === undefined ? {} : { schemaPaths }),
       ...(apiSchemas === undefined ? {} : { apiSchemas }),
+      ...(hookTable === undefined
+        ? {}
+        : {
+            customAccessTokenHook: {
+              ...(typeof hookEnabled === "boolean"
+                ? { enabled: hookEnabled }
+                : {}),
+              ...(typeof hookUriValue === "string"
+                ? { uri: hookUriValue }
+                : {}),
+            },
+          }),
       ...(pgDelta === undefined
         ? {}
         : {
@@ -116,4 +141,45 @@ export function pd045(cwd: string): readonly DoctorFinding[] {
       fix: `fix the TOML syntax in ${SUPABASE_CONFIG}; until then PermDock assumes Supabase's defaults for jwt_expiry, schema_paths and [experimental.pgdelta], and generates for pg-delta`,
     },
   ];
+}
+
+/**
+ * PD074: `supabase.hook` is configured but `[auth.hook.custom_access_token]`
+ * in `supabase/config.toml` does not enable the generated function, so a
+ * local stack and every branch push issue tokens without memberships.
+ */
+export function pd074(
+  cwd: string,
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  const hook = config.supabase?.hook;
+  const read = readSupabaseConfig(cwd);
+  if (hook === undefined || read === undefined || !read.ok) {
+    return [];
+  }
+  const schema = hook.schema ?? config.rls?.schema ?? PERMDOCK_SCHEMA;
+  const expected = hookUri(schema);
+  const found = read.config.customAccessTokenHook;
+  const fix = `add to ${SUPABASE_CONFIG}:\n[auth.hook.custom_access_token]\nenabled = true\nuri = "${expected}"`;
+  if (found?.enabled !== true) {
+    return [
+      {
+        code: "PD074",
+        severity: "warning",
+        message: `supabase.hook is configured but ${SUPABASE_CONFIG} does not set [auth.hook.custom_access_token] enabled = true, so Auth never calls the hook`,
+        fix,
+      },
+    ];
+  }
+  if (found.uri !== expected) {
+    return [
+      {
+        code: "PD074",
+        severity: "warning",
+        message: `[auth.hook.custom_access_token] uri is ${found.uri ?? "missing"}, but the generated hook is ${expected}`,
+        fix: `set uri = "${expected}" in ${SUPABASE_CONFIG}`,
+      },
+    ];
+  }
+  return [];
 }

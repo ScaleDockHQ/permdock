@@ -123,6 +123,20 @@ describe("supabase.hook.teams", () => {
     expect(claims["memberships_truncated"]).toBe(true);
   });
 
+  it("returns every team in subject_for's claims, with no budget", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const record = await db.admin.query<{
+      readonly subject: { readonly claims?: { readonly team_ids?: string[] } };
+    }>(`select permdock.subject_for('${CROWDED}') as subject`);
+    expect(record.rows[0]?.subject.claims?.team_ids).toHaveLength(31);
+    const none = await db.admin.query<{
+      readonly subject: { readonly claims?: unknown };
+    }>(`select permdock.subject_for('${SUSPENDED}') as subject`);
+    expect(none.rows[0]?.subject.claims).toBeUndefined();
+  });
+
   it("writes no team_ids for a user in no team", async () => {
     expect((await mint(SUSPENDED))["team_ids"]).toBeUndefined();
   });

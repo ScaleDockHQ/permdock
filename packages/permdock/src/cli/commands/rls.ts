@@ -244,6 +244,11 @@ export const generate: Leaf = defineLeaf({
       description: "File for the role_permissions seeds",
       valueHint: "file",
     },
+    "no-seeds": {
+      type: "boolean",
+      description:
+        "Do not write the seeds part: the project seeds role_permissions itself",
+    },
     "backfill-out": {
       type: "string",
       description: "File for the rls.customRoles.from copy",
@@ -261,6 +266,7 @@ export const generate: Leaf = defineLeaf({
       split: given(flags.split),
       grantsOut: given(flags["grants-out"]),
       seedsOut: given(flags["seeds-out"]),
+      ...(flags["no-seeds"] ? { noSeeds: true } : {}),
       ...(backfillOut === undefined ? {} : { backfillOut }),
     });
   },

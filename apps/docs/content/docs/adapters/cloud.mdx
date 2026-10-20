@@ -20,7 +20,7 @@ PermDock Cloud itself, the hosted service, lives in the separate `PermDock-Cloud
 - **Metadata.** RFC 8414 metadata for an issuer with a path sits at `https://permdock.com/.well-known/oauth-authorization-server/api` (section 3.1); the Cloud also serves it at `https://permdock.com/api/.well-known/oauth-authorization-server`. Its `issuer` is `https://permdock.com/api`, and a client refuses metadata with any other `issuer`.
 - **Endpoints.** `/oauth/authorize` (authorization code with PKCE, `S256` only, including the RFC 8252 loopback redirect `http://127.0.0.1:<port>/callback`), `/oauth/device_authorization` (RFC 8628), `/oauth/token`, `/oauth/revoke` (RFC 7009) and `/oauth/register` (RFC 7591), all under the issuer.
 - **Clients.** The CLI is the public client `permdock-cli`. An MCP client registers itself through `/oauth/register` as a public client (`token_endpoint_auth_method: "none"`) with loopback or `https` redirect URIs; the Cloud MCP server names the issuer in its RFC 9728 metadata at `https://permdock.com/.well-known/oauth-protected-resource/mcp`.
-- **Scopes.** `projects:read` lists and reads the person's projects, `policy:read` reads a project's pushed catalog, manifest and policy, and `catalog:write` lets `permdock cloud push` publish with a login instead of `PERMDOCK_CLOUD_KEY`.
+- **Scopes.** `projects:read` lists and reads the person's projects, `policy:read` reads a project's pushed catalog, manifest and policy, `catalog:write` lets `permdock cloud push` publish with a login instead of `PERMDOCK_CLOUD_KEY`, `evidence:read` reads a project's decision log and exports, and `approvals:read` reads its approval requests and verdicts. `evidence:read` and `approvals:read` are read-only: no scope lets a login write decisions or resolve an approval.
 - **Revocation.** `/oauth/revoke` answers `200` for a revoked token and for one it does not know (RFC 7009 section 2.2); `permdock logout` sends the refresh token.
 
 ### Projects read API
@@ -29,7 +29,7 @@ A project is one Cloud environment and shares its id, so `/v1/projects/prj_123` 
 
 | Route                         | Scope           | Answer                                                                                                                                                                                    |
 | ----------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/projects`            | `projects:read` | `{ items: [{ id, name, environment, issuer?, catalog? }], next? }`; with `PERMDOCK_CLOUD_TOKEN`, the one project it reads                                                                 |
+| `GET /v1/projects`            | `projects:read` | `{ items: [{ id, name, slug?, environment, issuer?, catalog?, updatedAt? }], next? }`; with `PERMDOCK_CLOUD_TOKEN`, the one project it reads                                              |
 | `GET /v1/projects/:id`        | `projects:read` | One project; `catalog` is `{ version, fingerprint }` of the last push                                                                                                                     |
 | `GET /v1/projects/:id/policy` | `policy:read`   | The [project policy](/docs/concepts/wire-formats#project-policy) `{ v: 1, project, version, fingerprint, permdockVersion, catalog, manifest?, policy? }`, or `404` `policy-not-published` |
 
@@ -291,13 +291,14 @@ None of the three is consulted by `decide`. A wake ends a wait and the run decid
 
 ### Key kinds
 
-Each environment issues three kinds of API key. None of them holds the signing key or stands in for a subject:
+Each environment issues four kinds of API key. None of them holds the signing key or stands in for a subject:
 
 | Kind     | Variable                   | Reaches                                                                                                                            |
 | -------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `client` | `PERMDOCK_CLOUD_KEY`       | What the running application and CI call: `decisions`, `approvals`, `snapshot`, `policy`, `deliveries`, `sign` and `POST /catalog` |
 | `admin`  | `PERMDOCK_CLOUD_ADMIN_KEY` | Authoring: hosted grants, directory principals, groups and assignments, connectors. Never deployed with the application            |
 | `export` | Set per export destination | `GET /export` only                                                                                                                 |
+| `read`   | `PERMDOCK_CLOUD_TOKEN`     | One environment, read-only: `GET /v1/projects` and `cloud pull`. It never writes and holds no signing key                          |
 
 A leaked `client` key cannot widen access: it can push a catalog, but the application merges hosted grants only on permissions its own code marks `hostable`, and authoring a grant needs the `admin` key or the dashboard. It can ask for run, approval, capability and support-session tokens through `POST /sign`, so rotate it like a signing credential; it cannot mint a policy document, a snapshot, an evidence export or an approver token.
 

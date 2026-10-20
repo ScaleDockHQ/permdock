@@ -153,8 +153,17 @@ describe("supabase.hook.api", () => {
       `create or replace function "public"."permdock_subject_for"(p_user uuid)\nreturns jsonb`,
     );
     expect(sql).toContain(
-      `as $$ select "permdock".subject_for(p_user) $$;\nrevoke execute on function "public"."permdock_subject_for"(uuid) from public, anon, authenticated;\ngrant execute on function "public"."permdock_subject_for"(uuid) to service_role;`,
+      `as $$ select "permdock".subject_for(p_user) $$;\nrevoke execute on function "public"."permdock_subject_for"(uuid) from public, anon, authenticated;\ngrant execute on function "public"."permdock_subject_for"(uuid) to service_role;\ngrant execute on function "permdock".subject_for(uuid) to service_role;`,
     );
+    expect(sql).toContain('grant usage on schema "permdock" to service_role;');
+    const wrappers = sql
+      .split("create or replace function ")
+      .filter((chunk) => chunk.startsWith('"public"."permdock_'));
+    expect(wrappers).toHaveLength(3);
+    for (const wrapper of wrappers) {
+      expect(wrapper).toContain("security invoker");
+      expect(wrapper).not.toContain("security definer");
+    }
     expect(sql).toContain(
       `create or replace function "public"."permdock_members_of"(p_scope text, p_id text)`,
     );
@@ -203,6 +212,14 @@ describe("supabase.hook.teams", () => {
         },
       },
     });
+
+  it("returns team_ids and the extra claims from subject_for for a stale token", () => {
+    const { sql } = hook();
+    const subjectFor = sql.slice(sql.indexOf("subject_for(p_user uuid)"));
+    expect(subjectFor).toContain("into team_ids");
+    expect(subjectFor).toContain("jsonb_set(claims, '{team_ids}', team_ids)");
+    expect(subjectFor).toContain("'claims', case when claims");
+  });
 
   it("writes a budgeted team_ids claim, clears it for a suspended user and lets the hook read the table", () => {
     const { sql: hookSql, grants } = hook();

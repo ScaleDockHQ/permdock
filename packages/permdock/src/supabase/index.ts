@@ -47,10 +47,12 @@ export {
   subjectFromSupabase,
   subjectFromSupabaseSession,
 } from "./subject.ts";
-export { parseSupabaseManifest } from "./manifest.ts";
+export { hasTokenHook, parseSupabaseManifest } from "./manifest.ts";
 export type {
   SupabaseHookClaim,
+  SupabaseDatabaseManifest,
   SupabaseHookManifest,
+  SupabaseManifest,
   SupabaseManifestActiveRow,
   SupabaseManifestColumn,
   SupabaseManifestHelper,

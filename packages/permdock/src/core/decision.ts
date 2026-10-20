@@ -34,6 +34,7 @@ export type DenialReason =
   | "validation"
   | "tenant-mismatch"
   | "no-membership"
+  | "no-tenant"
   | "scope"
   | "expired-membership"
   | "stale-credentials"
@@ -150,6 +151,7 @@ export type TraceSkipReason =
   | "grantee"
   | "role"
   | "validity"
+  | "unknown-level"
   | "break-glass-inactive";
 
 export type TraceSkip = {
@@ -157,6 +159,8 @@ export type TraceSkip = {
   readonly permission: string;
   readonly effect: "allow" | "deny";
   readonly why: TraceSkipReason;
+  /** The level a custom role names that its resource does not declare, for `unknown-level`. */
+  readonly level?: string;
 };
 
 /**

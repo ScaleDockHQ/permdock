@@ -107,7 +107,7 @@ List and revoke sessions through Better Auth's session API (`listSessions`, `rev
 
 - Through PermDock, per the shared contract on [adapters](/docs/adapters). Better Auth's own `hasPermission` is not called on the request path, so there is one denial format.
 - Apps that keep calling `auth.api.hasPermission` for Better Auth plugin routes (organization management) continue to get Better Auth's boolean; the provider does not intercept those.
-- A user with no active organization yields a subject with `tenant` undefined; tenant-scoped grants are `denied` with `no-membership`, global roles still apply. A row from another organization is `denied` with `tenant-mismatch` ([tenancy](/docs/concepts/tenancy)).
+- A user with no active organization yields a subject with `tenant` undefined; tenant-scoped grants are `denied` with `no-tenant`, global roles still apply. A row from another organization is `denied` with `tenant-mismatch` ([tenancy](/docs/concepts/tenancy)).
 
 ## Example app
 

@@ -96,6 +96,45 @@ async function pushedProject(reference: Cloud): Promise<{
   };
 }
 
+describe("permdock cloud push manifest", () => {
+  const push = async (
+    manifest: string | undefined,
+    write?: string,
+  ): Promise<{ code: number; output: string }> => {
+    const reference = await cloud();
+    const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
+    expect((await run(["collect"], { cwd, io: io(reference, {}) })).code).toBe(
+      0,
+    );
+    if (write !== undefined) {
+      writeFileSync(join(cwd, MANIFEST), write);
+    }
+    const result = await run(
+      [
+        "cloud",
+        "push",
+        "--project",
+        reference.environment,
+        ...(manifest === undefined ? [] : ["--manifest", manifest]),
+      ],
+      { cwd, io: io(reference, { PERMDOCK_CLOUD_KEY: reference.keys.client }) },
+    );
+    return { code: result.code, output: result.stdout + result.stderr };
+  };
+
+  it("refuses a --manifest file that does not exist", async () => {
+    const result = await push("missing.json");
+    expect(result.code).not.toBe(0);
+    expect(result.output).toContain("missing.json does not exist");
+  });
+
+  it("refuses a manifest that does not parse", async () => {
+    const result = await push(undefined, "{}");
+    expect(result.code).not.toBe(0);
+    expect(result.output).toContain("is not a valid manifest");
+  });
+});
+
 describe("permdock cloud pull", () => {
   it("writes the bytes collect and supabase inspect --out write", async () => {
     const reference = await cloud();

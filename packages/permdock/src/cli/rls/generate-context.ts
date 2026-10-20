@@ -16,6 +16,7 @@ import { checkSuspension } from "../sql/active.ts";
 import { type RlsSqlContext, parseMembershipsFlag } from "../sql/context.ts";
 import { roleNames } from "../sql/grants.ts";
 import { customRolesOn } from "../sql/shared.ts";
+import { resolveVias, tableNames } from "../sql/tables.ts";
 import { apiKeysPlan } from "./api-keys.ts";
 import { customRoleSyncSql } from "./custom-role-sync.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
@@ -193,6 +194,12 @@ export function buildContext(
     new Set(roleNames(policy)),
     Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
   );
+  let vias: ReturnType<typeof resolveVias>;
+  try {
+    vias = resolveVias(rls?.tables, scopes, input.dialect);
+  } catch (cause) {
+    return { refusal: describeError(cause) };
+  }
   let ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
@@ -234,7 +241,7 @@ export function buildContext(
       ? { anonymousSignIns: "deny" as const }
       : {}),
     ...(ownership === undefined ? {} : { ownership }),
-    ...(rls?.seeds === "function" ? { seeds: "function" as const } : {}),
+    ...(rls?.seeds === undefined ? {} : { seeds: rls.seeds }),
     ...(rls?.ownershipTriggers === undefined
       ? {}
       : {
@@ -257,13 +264,16 @@ export function buildContext(
                 },
         }),
     ...(options.fieldsMode === undefined ? {} : { fields: options.fieldsMode }),
+    ...(vias === undefined ? {} : { vias }),
     ...(graph.size === 0
       ? {}
       : {
           graph: {
             closures: closureDepths(graph),
             resources: policy.resources,
-            ...(rls?.tables === undefined ? {} : { tables: rls.tables }),
+            ...(rls?.tables === undefined
+              ? {}
+              : { tables: tableNames(rls.tables) ?? {} }),
           },
         }),
   };

@@ -181,7 +181,7 @@ The rules are short and they are the whole story:
 2. Drop a scoped grant whose scope does not match the request: the row's tenant key must equal the membership's tenant and that tenant must be the active one; the row's team key must equal the membership's team; a resource role must be held on that row or an ancestor through a declared `parent`. Expired memberships contribute nothing. Global grants skip this step ([tenancy](/docs/concepts/tenancy)). Drop a grant outside its `validFrom` / `validUntil` window as of the decision clock ([validity](#validity)); an inactive allow records an `inactive-grant` denial.
 3. If any `deny` matches, the outcome is `denied`. Deny overrides allow, regardless of role, scope or declaration order.
 4. Otherwise, if any `allow` matches, the outcome is `granted` (or `approval-required` if the matched allow carries `approval`). Allows OR together, across scopes.
-5. Otherwise the outcome is `denied` with an empty match. Nothing granted means denied; there is no `not-applicable`. Denial reasons include `tenant-mismatch`, `no-membership`, `scope` and `expired-membership` so the UI can say why.
+5. Otherwise the outcome is `denied` with an empty match. Nothing granted means denied; there is no `not-applicable`. Denial reasons include `tenant-mismatch`, `no-membership`, `no-tenant`, `scope` and `expired-membership` so the UI can say why.
 6. For an agent subject, the result is then intersected with the delegated authority (see [subject](/docs/concepts/subject)).
 
 A grant "matches" when its condition evaluates to `true` for the given data and subject. An unconditional grant always matches. A closure that throws counts as not matching and is reported in the decision's `denials` with a reason. Evaluation never throws; `can` and `decide` are safe to call from render paths.
@@ -208,6 +208,8 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 ### Several rows or another principal
 
 `permdock.decideEach(permission, rows, options?)` returns one decision per row, in row order, for a bulk action. Each row is its own `decide` call: a [limit](#limits) is consumed once per granted row, so the rows past the cap are denied with `limit`, and each `approval-required` row carries its own token to resolve. A row the resource schema rejects is denied with `validation`, as with `decide`. `filter` is the quiet form that keeps the granted rows and consumes nothing.
+
+`await permdock.decideIds(permission, ids, { data })` decides ids the caller has not loaded, for a server action that receives only ids. `data(ids)` is the server's own loader and answers a map from id to row, or the rows carrying the resource's `id` field. Each row is trusted, skips schema validation, and is decided in the tenant its root scope field names, as `permdock.tenant(row.orgId)` would, so one call can span tenants. The result is a `Decision[]` in id order. An id the loader leaves out, a loader that throws and a missing row all deny with `validation`. A snapshot instance denies every id with `unsupported`. The loader reads rows; a row that names a tenant the subject does not hold denies with `no-membership`, and the tenant is never taken from anywhere but the loaded row.
 
 `await permdock.decideFor(principalId, permission, row)` answers what another principal would get, for a recipient list, a notification audience or a share dialog. It loads the principal from the `principals` option (a [`PrincipalSource`](/docs/concepts/extension-interfaces#principalsource)) with the instance's active tenant, and decides on a separate instance built from the same `memberships`, `customRoles`, `entitlements`, `relations`, `policies`, `approvalPolicies` and `limits`. That instance has no actor, no delegation and no sink, and it never consumes a limit.
 
@@ -243,7 +245,7 @@ const recipients = await Promise.all(
 
 ### Evaluation is synchronous
 
-`can`, `decide`, `decideEach`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. `decideFor` returns a promise because it loads another principal; an unawaited one has no `outcome`, so a check against `'granted'` fails closed. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource`, `CustomRoleSource`, `EntitlementSource` and `approvalPolicies` run once when the instance is built, and their output is frozen into the instance. Each check is then a pure function of frozen data.
+`can`, `decide`, `decideEach`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. `decideIds` and `decideFor` return a promise because it loads another principal; an unawaited one has no `outcome`, so a check against `'granted'` fails closed. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource`, `CustomRoleSource`, `EntitlementSource` and `approvalPolicies` run once when the instance is built, and their output is frozen into the instance. Each check is then a pure function of frozen data.
 
 `await getPermDock(policy, user, options)` waits for every input (the subject mapper, `context` and each source) and returns a `PermDock`. `getPermDockSync(policy, user, options)` takes the same arguments and returns the instance without a Promise; when an input answers with a Promise (an async mapper or `context`, or a source that reads a database), it throws and names `getPermDock`. `permdock/pdp` exports the same pair. Server adapters build each request's instance with `getPermDock`, so their sources may be async.
 
@@ -287,6 +289,24 @@ export const policy = definePolicy(permissions, {
 The same rule decides which roles a tenant may _assign_: a plan that lacks "Billing Manager" is expressed as `CustomRoleSource.assignable(tenant)` returning a smaller set, never as a grant ([tenancy](/docs/concepts/tenancy), custom roles).
 
 Three reasons to keep the split. The policy stays the single statement of who may do what; a flag flipping in a dashboard can only select a role the policy already declares, never widen a grant. Roles reach the snapshot, the SQL `where` and generated RLS the same way as any subject field, so the UI and the database agree, and `permdock usage` can show which grants a flag unlocks. And a flag is never a security control: a `denied` decision cannot be turned into `granted` by a flag, only a matching `allow` can, and `deny` still overrides. A flag evaluated asynchronously belongs in `context` with the role selection done there; the result is the same frozen subject. Provider permission arrays (WorkOS `permissions`, Kinde `permissions`, Auth0 `permissions`) and billing claims (Clerk Billing `fea`, Frontegg entitlements) follow the same rule as `delegation.scopes`, `context` or roles ([authentication](/docs/concepts/authentication), provider recipes; [Clerk provider](/docs/adapters/clerk)). No flag SDK gets an adapter; the vendor-neutral way to read a flag is [OpenFeature](https://openfeature.dev), the CNCF incubating standard whose JavaScript SDK evaluates `getBooleanValue(flag, default, evaluationContext)` against whichever provider is installed (LaunchDarkly, PostHog, Statsig, Unleash, Flagsmith, GrowthBook, Vercel Flags through community providers). A `subject` or `context` function that calls OpenFeature with the subject's id and organisation as the evaluation context works unchanged when the flag vendor changes, and the vendors named here are examples, not a list PermDock maintains.
+
+## Owner-only billing actions
+
+`billing.manage` is the permission behind opening a Stripe Checkout session or a Billing Portal session. Grant it to the owner role alone; the `permdock/testing` SaaS preset does the same (`billing.read` and `billing.manage` to `owner`, nothing to `admin`).
+
+```ts
+allow(permissions.billing.manage, { to: roles.owner });
+
+// In the route that creates the Stripe session:
+const decision = await permdock.can(permissions.billing.manage);
+if (decision.outcome !== "granted") return forbidden();
+const session = await stripe.billingPortal.sessions.create({
+  customer,
+  return_url,
+});
+```
+
+Stripe decides nothing here. The permission gates who may ask Stripe for a session; the Stripe customer comes from the subject's tenant, never from the request body.
 
 ## Limits
 

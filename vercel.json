@@ -93,6 +93,22 @@
       }
     },
     {
+      "source": "/api/(.*)",
+      "destination": "https://app.permdock.com/api/$1"
+    },
+    {
+      "source": "/mcp",
+      "destination": "https://app.permdock.com/mcp"
+    },
+    {
+      "source": "/.well-known/oauth-authorization-server/api",
+      "destination": "https://app.permdock.com/.well-known/oauth-authorization-server/api"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource/mcp",
+      "destination": "https://app.permdock.com/.well-known/oauth-protected-resource/mcp"
+    },
+    {
       "source": "/_next/(.*)",
       "destination": {
         "service": "marketing"

@@ -159,6 +159,11 @@ export function fromSnapshot(
         rows.map((row) => run(permission, row, decideOptions)),
       );
     },
+    decideIds(permission, ids) {
+      return Promise.resolve(
+        Object.freeze(ids.map(() => deniedFor(permission, "unsupported"))),
+      );
+    },
     decideFor(_principalId, permission) {
       return Promise.resolve(deniedFor(permission, "unsupported"));
     },

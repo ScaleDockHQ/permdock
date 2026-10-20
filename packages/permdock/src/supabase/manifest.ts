@@ -54,6 +54,12 @@ export type SupabaseHookManifest = {
     readonly function: "permdock_bump_authz_version_for";
     readonly args: "p_users uuid[]";
   };
+  /** The Management API fields that make a hosted project call the hook; `permdock supabase inspect` adds them. */
+  readonly managementApi?: {
+    readonly hook_custom_access_token_enabled: true;
+    readonly hook_custom_access_token_uri: string;
+    readonly jwt_exp: number;
+  };
   /** The `supabase.hook.memberships` sources, in the order the hook reads them. */
   readonly memberships: readonly SupabaseManifestMembership[];
   readonly rls: SupabaseManifestRls;
@@ -215,12 +221,38 @@ export type SupabaseManifestRls = {
 };
 
 /**
+ * The manifest of a project in `rls.authorize: 'database'` mode without
+ * `supabase.hook`: no token hook, so no `hook`, `budget`, `claims`,
+ * `authzVersion` or hook `memberships`.
+ */
+export type SupabaseDatabaseManifest = Omit<
+  SupabaseHookManifest,
+  | "authzVersion"
+  | "authzVersionBump"
+  | "budget"
+  | "claims"
+  | "hook"
+  | "managementApi"
+  | "memberships"
+>;
+
+/** What `parseSupabaseManifest` returns: a manifest with or without the token hook. */
+export type SupabaseManifest = SupabaseDatabaseManifest | SupabaseHookManifest;
+
+/** Whether the manifest describes a token hook. */
+export function hasTokenHook(
+  manifest: SupabaseManifest,
+): manifest is SupabaseHookManifest {
+  return "hook" in manifest;
+}
+
+/**
  * Reads a `permdock.manifest.json` document (parsed, or the JSON text) and
  * validates it against `schemas/supabase-manifest-v1.json`. Returns a
  * deep-frozen copy built from own keys; throws `PermDockValidationError`
  * with every issue, so a manifest of another major is refused.
  */
-export function parseSupabaseManifest(json: unknown): SupabaseHookManifest {
+export function parseSupabaseManifest(json: unknown): SupabaseManifest {
   const issues: StandardSchemaV1.Issue[] = [];
   let input = json;
   if (typeof json === "string") {
@@ -242,8 +274,8 @@ export function parseSupabaseManifest(json: unknown): SupabaseHookManifest {
   if (issues.length > 0) {
     invalidManifest(issues);
   }
-  // SAFETY: copy is plain JSON that passed supabaseManifestSchema, the schema SupabaseHookManifest describes.
-  return freezeDeep(copy as SupabaseHookManifest);
+  // SAFETY: copy is plain JSON that passed supabaseManifestSchema, the schema SupabaseManifest describes.
+  return freezeDeep(copy as SupabaseManifest);
 }
 
 function invalidManifest(issues: readonly StandardSchemaV1.Issue[]): never {

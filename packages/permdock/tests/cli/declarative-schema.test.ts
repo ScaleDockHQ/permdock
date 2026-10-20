@@ -82,6 +82,32 @@ const generate = (cwd: string, extra: readonly string[] = []) =>
   );
 
 describe("rls generate --split and --grants-out under migra", () => {
+  it("--no-seeds writes no seeds part and refuses --seeds-out beside it", async () => {
+    const cwd = project();
+    const result = await generate(cwd, ["--no-seeds"]);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("--no-seeds and --seeds-out exclude");
+    const bare = await run(
+      [
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--split",
+        "helpers,policies,hook",
+        "--out",
+        OUT,
+        "--grants-out",
+        GRANTS,
+        "--no-seeds",
+      ],
+      { cwd },
+    );
+    expect(bare.code).toBe(0);
+    expect(existsSync(join(cwd, SEEDS))).toBe(false);
+    expect(read(cwd, part("helpers"))).toContain("permdock_has(");
+  });
+
   it("writes helpers, policies and hook parts, and moves what db diff drops out", async () => {
     const cwd = project();
     const result = await generate(cwd);
@@ -485,6 +511,72 @@ describe("rls generate --split under pg-delta", () => {
     expect(hook).not.toContain("supabase db diff");
     expect(read(cwd, "supabase/schemas/permdock/helpers.sql")).toContain(
       'grant execute on function "permdock".permdock_has(text) to authenticated;',
+    );
+  });
+
+  it("writes no drop statement in a declarative file", async () => {
+    const cwd = project(
+      true,
+      ", authorize: 'database', customRoles: true, approvals: true, assignments: { tables: [{ table: 'invitations', scope: 'organization', id: 'organization_id', role: 'role' }] }",
+      null,
+    );
+    pgDelta(cwd);
+    const result = await run(
+      [
+        "rls",
+        "generate",
+        "--split",
+        "helpers,seeds,indexes,policies,hook",
+        "--seeds-out",
+        SEEDS,
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const declarative = [
+      "supabase/schemas/permdock/helpers.sql",
+      "supabase/schemas/permdock/indexes.sql",
+      "supabase/schemas/public/policies/permdock.sql",
+      "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
+    ];
+    for (const rel of declarative) {
+      expect(read(cwd, rel)).not.toMatch(/^\s*drop /mu);
+    }
+    const text = declarative.map((rel) => read(cwd, rel)).join("\n");
+    expect(text).toMatch(/^create or replace trigger /mu);
+    expect(text).not.toMatch(/^create trigger /mu);
+    expect(text).toContain("create policy");
+    const hook = await run(["supabase", "hook", "generate"], { cwd });
+    expect(hook.code).toBe(0);
+    expect(
+      read(
+        cwd,
+        "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
+      ),
+    ).not.toMatch(/^\s*drop /mu);
+  });
+
+  it("--check compares the declarative files and fails after a manual edit", async () => {
+    const cwd = project(true, "", null);
+    pgDelta(cwd);
+    const args = [
+      "rls",
+      "generate",
+      "--split",
+      "helpers,seeds,indexes,policies,hook",
+      "--seeds-out",
+      SEEDS,
+    ];
+    expect((await run(args, { cwd })).code).toBe(0);
+    const fresh = await run([...args, "--check"], { cwd });
+    expect(fresh.stdout + fresh.stderr).not.toContain("drift");
+    expect(fresh.code).toBe(0);
+    const file = join(cwd, "supabase/schemas/permdock/helpers.sql");
+    writeFileSync(file, `${readFileSync(file, "utf8")}-- hand edit\n`);
+    const edited = await run([...args, "--check"], { cwd });
+    expect(edited.code).toBe(1);
+    expect(edited.stdout + edited.stderr).toContain(
+      "supabase/schemas/permdock/helpers.sql",
     );
   });
 

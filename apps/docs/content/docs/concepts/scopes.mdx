@@ -70,6 +70,8 @@ export const permissions = definePermissions({
 
 A resource whose rows are the instances themselves, such as an `organizations` table whose own `id` is the organization id, declares that field instead of the key: `relations: { self: { field: "id", memberOf: "organization" } }`. When a resource has no `memberOf` relation on the scope's key, its one `memberOf` relation to the scope names the field, for `can`, `where()`, snapshots (`scopes[].fields`), `whoCan` and the generated RLS alike. A resource with several `memberOf` relations to a scope (`from_org`, `to_org`) must name one of them with the scope's key; `definePolicy` throws otherwise.
 
+The `self` relation needs no other relation and no row field besides the id, at the first scope and at a nested one: a `teams` row `{ id: 't1' }` is checked against the team membership, and `can`, `where()` and snapshots read the field through the same lookup.
+
 A row is checked against the membership's scope and every ancestor the resource declares, outermost first: a customer contact's quote must carry the contact's `customer_id`, and its `organization_id` must be the one in the membership's `within`. A mismatch on the first scope is `tenant-mismatch`; on a scope below it, `scope`.
 
 ## Memberships
@@ -171,6 +173,10 @@ create policy quote_select on public.quote for select to authenticated using (
 ```
 
 In `database` mode each helper reads its scope's membership table (`rls.memberships.scopes.<scope>`); in `jwt` mode it reads the `memberships` claim entries whose `scope` is its own. Both narrow memberships under the first scope to the active-tenant claim. A portal contact then sees only their customer's quotes and invoices with no security-definer RPC in the app. [RLS](/docs/cli/rls) has the configuration.
+
+## Tables reached through a parent
+
+Use a nested scope when the parent has memberships of its own: members of an environment who are not members of its organization, or roles granted on one environment. Use `rls.tables` with `via` when the parent only narrows the organization: the child table holds the parent's id and the parent holds the organization id, with no membership at the parent level. `permdock rls generate` then writes `permitted_<parent>_ids(p_grant)` instead of a membership helper ([RLS](/docs/adapters/rls#tables-reached-through-a-parent)).
 
 ## Suspension
 

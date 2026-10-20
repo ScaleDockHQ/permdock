@@ -84,7 +84,24 @@ export function composeMemberships(
 ): MembershipSource {
   const listing = sources.filter((source) => source.list !== undefined);
   const versioned = sources.filter((source) => source.version !== undefined);
+  const rolesReaders = sources.filter(
+    (source) => source.globalRolesFor !== undefined,
+  );
   return {
+    ...(rolesReaders.length === 0
+      ? {}
+      : {
+          globalRolesFor(principal) {
+            return then(
+              all(
+                rolesReaders.map(
+                  (source) => source.globalRolesFor?.(principal) ?? [],
+                ),
+              ),
+              (lists) => [...new Set(lists.flat())],
+            );
+          },
+        }),
     membershipsFor(principal, options) {
       return then(
         all(sources.map((source) => source.membershipsFor(principal, options))),
@@ -183,6 +200,12 @@ export function claimsFirst(
       ? {}
       : { list: (query) => inner.list?.(query) ?? [] }),
     ...(version === undefined ? {} : { version }),
+    ...(inner.globalRolesFor === undefined
+      ? {}
+      : {
+          globalRolesFor: (principal) =>
+            inner.globalRolesFor?.(principal) ?? [],
+        }),
     ...(options.onStale === "reread" ? { onStale: "reread" as const } : {}),
     claimsFirst: true,
   };

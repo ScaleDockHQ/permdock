@@ -567,6 +567,37 @@ function effectiveCustomRoles(
       );
 }
 
+/** A custom role grant whose `level` its resource does not declare, so it grants nothing. */
+export type UnknownLevel = {
+  readonly role: string;
+  readonly permission: string;
+  readonly level: string;
+};
+
+/** The grants of `roles` that name a level their resource does not declare. */
+export function unknownLevelsFor(
+  policy: Policy,
+  roles: readonly CustomRole[],
+): readonly UnknownLevel[] {
+  const declared = declaredRoleNames(policy);
+  const out: UnknownLevel[] = [];
+  for (const role of effectiveCustomRoles(roles)) {
+    if (declared.has(role.name)) {
+      continue;
+    }
+    for (const entry of resolveCustomRole(policy, role).dropped) {
+      if ("permission" in entry && entry.reason === "unknown-level") {
+        out.push({
+          role: role.name,
+          permission: entry.permission,
+          level: entry.level ?? "",
+        });
+      }
+    }
+  }
+  return out;
+}
+
 /** Every custom role's resolved grants, once per instance. Malformed roles resolve to nothing. */
 export function customGrantsFor(
   policy: Policy,

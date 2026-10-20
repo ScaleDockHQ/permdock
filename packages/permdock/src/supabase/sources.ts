@@ -225,8 +225,8 @@ function memberUser(
 }
 
 function roleAgg(role: RoleColumn): string {
-  const agg = `jsonb_agg(distinct ${role.sql} order by ${role.sql})`;
-  return role.nullable ? `${agg} filter (where ${role.sql} is not null)` : agg;
+  // A null key is no role: a member who holds only custom roles has a null role column.
+  return `jsonb_agg(distinct ${role.sql} order by ${role.sql}) filter (where ${role.sql} is not null)`;
 }
 
 function rowsOf(

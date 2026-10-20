@@ -119,6 +119,7 @@ const dispatcher: CustomRole = {
 ```
 
 - A level name matches `^[a-z][a-z0-9_]*$`, and only a resource with instance actions declares levels. `all: {}` adds no condition.
+- A grant whose `level` the resource does not declare allows nothing, including when the resource declares no levels at all. The instance reports `reason: 'schema'` with a cause starting `unknown-level` on `on('auth')`, and `explain()` lists the grant in `trace.skipped` with `why: 'unknown-level'` and the `level`.
 - An own allow with a `level` inherits each ceiling grant of the permission, as above, with the level's condition ANDed into its `where` and `check`. The ceiling condition still applies: `job.update` at `all` reaches only the rows the ceiling grant reaches.
 - Several allows of one permission at different levels are OR-ed. An allow without a level reaches every row the ceiling reaches.
 - A level is an allow refinement. A `deny` with a `level` is dropped as `condition-not-allowed` and removes the permission.
