@@ -57,7 +57,7 @@ Every package and app extends the shared configuration instead of copying it:
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/). Lefthook runs commitlint on `commit-msg`.
 
-Allowed types: `feat`, `fix`, `docs`, `chore`, `ci`, `refactor`, `test`, `perf`, `style`, `revert`. The subject is lower-case and the header is at most 150 characters.
+Allowed types: `feat`, `fix`, `docs`, `chore`, `ci`, `refactor`, `test`, `perf`, `style`, `revert`. The subject is lower-case. The header has no length limit.
 
 ```
 feat: add membership source interface

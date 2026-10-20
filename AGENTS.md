@@ -133,7 +133,7 @@ Each is a record in `docs/decisions`:
 - 0015 Ask AI input from `InputGroup`; 0016 Portless names; 0017 `permdock-<topic>` skills; 0018 blocked majors
 - 0019 `<Adapter>PermDock` and no `$` members; 0020 the CLI inside `permdock`; 0021 `^build` over `transit`
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
-- 0026 150-character headers; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
+- 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
 - 0029 no Turbopack cache in CI; 0030 `Vary` only on Markdown
 - 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038 better-supabase 0.9.0 release-age exclude
 

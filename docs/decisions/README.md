@@ -31,7 +31,7 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0023](./0023-code-fence-titles.md)                         | Code fences need a language, not a title                                                 |
 | [0024](./0024-version-packages-order.md)                    | The root changelog runs before `changeset version`                                       |
 | [0025](./0025-vercel-json-over-vercel-ts.md)                | `vercel.json` instead of `vercel.ts`                                                     |
-| [0026](./0026-commit-header-length.md)                      | Commit headers up to 150 characters                                                      |
+| [0026](./0026-commit-header-length.md)                      | Commit headers without a length limit                                                    |
 | [0027](./0027-dependabot-cooldown.md)                       | Dependabot waits 7 days                                                                  |
 | [0028](./0028-ox-config-over-ultracite.md)                  | `packages/ox-config` instead of Ultracite                                                |
 | [0029](./0029-no-turbopack-build-cache-in-ci.md)            | No Turbopack build cache on GitHub runners                                               |

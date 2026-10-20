@@ -1,7 +1,7 @@
-# 0026. Commit headers up to 150 characters
+# 0026. Commit headers without a length limit
 
 - Status: accepted
-- Date: 2026-10-16
+- Date: 2026-10-16, amended 2026-10-20
 
 ## Context
 
@@ -9,11 +9,11 @@ The standard's `commitlint.config.ts` sets `header-max-length` to 72. PermDock's
 
 ## Decision
 
-`commitlint.config.ts` sets `header-max-length` to 150. `git-workflow.mdc` and `AGENTS.md` state the same limit.
+`commitlint.config.ts` turns `header-max-length` off, so commit headers and PR titles have no length limit. The first version of this decision set 150. `git-workflow.mdc`, `writing.mdc`, `CONTRIBUTING.md` and `AGENTS.md` state the same.
 
 ## Consequences
 
-`git log --oneline` wraps on narrow terminals. Revisit if the standard raises its limit.
+`git log --oneline` wraps on narrow terminals for long titles. Authors keep titles short by judgment instead of by a check.
 
 ## Alternatives considered
 
