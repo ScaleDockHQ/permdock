@@ -106,10 +106,9 @@ export function explainRls(input: ExplainInput): RlsExplain {
       const via = ctx.vias?.[binding.resource];
       return via === undefined
         ? binding
-        : {
-            ...binding,
+        : Object.assign({}, binding, {
             via: `${via.helper} over ${via.table}.${via.column} (${binding.table}.${via.key})`,
-          };
+          });
     }),
     membershipSources: sources.map((source) => ({
       table: source.sql.table,

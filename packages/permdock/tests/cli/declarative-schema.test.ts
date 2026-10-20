@@ -540,7 +540,7 @@ describe("rls generate --split under pg-delta", () => {
       "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
     ];
     for (const rel of declarative) {
-      expect(read(cwd, rel), rel).not.toMatch(/^\s*drop /mu);
+      expect(read(cwd, rel)).not.toMatch(/^\s*drop /mu);
     }
     const text = declarative.map((rel) => read(cwd, rel)).join("\n");
     expect(text).toMatch(/^create or replace trigger /mu);
