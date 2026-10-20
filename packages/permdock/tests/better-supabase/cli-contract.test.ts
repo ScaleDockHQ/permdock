@@ -41,6 +41,7 @@ const upstreamCodes = new Set(problem.properties.code.enum);
 
 /** PermDock's own codes, which better-supabase never uses for another meaning. */
 const EXTENSIONS: ReadonlySet<ProblemCode> = new Set([
+  "catalog_invalid",
   "dirty_worktree",
   "write_failed",
 ]);
