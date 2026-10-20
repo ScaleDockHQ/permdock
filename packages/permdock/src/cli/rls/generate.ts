@@ -21,6 +21,7 @@ import {
 } from "../core/output-files.ts";
 import { requirePolicy } from "../project/load.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
+import { tableNames } from "../sql/tables.ts";
 import { bindingNotes, missingBindings, tableBindings } from "./bindings.ts";
 import { explainRls } from "./explain.ts";
 import { buildContext } from "./generate-context.ts";
@@ -176,7 +177,7 @@ export async function runRlsGenerate(
   let indexes = generated.indexes;
   const bindings = tableBindings(
     generated.compiled.rowColumns.map((item) => item.resource),
-    input.config.rls?.tables,
+    tableNames(input.config.rls?.tables),
     helpersOnly,
   );
   if (input.config.rls?.tables === undefined) {

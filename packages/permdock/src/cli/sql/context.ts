@@ -11,6 +11,7 @@ import type {
   RlsMembershipTable,
   RlsSuspension,
 } from "../types.ts";
+import type { ResolvedVia } from "./tables.ts";
 
 import { SQL_IDENT } from "../../core/sql.ts";
 
@@ -122,6 +123,8 @@ export type RlsSqlContext = {
   readonly roles?: GlobalRoles;
   /** Set when field views compile: grant keys also split by field set. */
   readonly fields?: "views";
+  /** `rls.tables` entries with `via`, by resource: policies filter on the parent's id through `via.helper`. */
+  readonly vias?: Readonly<Record<string, ResolvedVia>>;
   /** Graph grants: the closure depth kept for each walked resource. */
   readonly graph?: {
     readonly closures: Readonly<Record<string, number>>;

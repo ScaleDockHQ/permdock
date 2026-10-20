@@ -15,6 +15,7 @@ import { filesOf } from "../shared/doctor-files.ts";
 import { compileGrants } from "../sql/compile.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { group, sqlStatements } from "../sql/statements.ts";
+import { tableNames } from "../sql/tables.ts";
 import { policyOf } from "./inputs.ts";
 
 const SEED_INSERT =
@@ -129,15 +130,14 @@ export async function pd054(
   let expected: ReadonlySet<string>;
   try {
     expected = new Set(
-      compileGrants(policy, ctx, rls?.tables, [], true).rolePermissions.map(
-        (row) =>
-          rowKey([
-            row.role,
-            row.permission,
-            row.grantKey,
-            row.scope,
-            row.effect,
-          ]),
+      compileGrants(
+        policy,
+        ctx,
+        tableNames(rls?.tables),
+        [],
+        true,
+      ).rolePermissions.map((row) =>
+        rowKey([row.role, row.permission, row.grantKey, row.scope, row.effect]),
       ),
     );
   } catch {

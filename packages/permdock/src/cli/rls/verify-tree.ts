@@ -20,6 +20,7 @@ import { jsonSchemaOf } from "../catalog-doc.ts";
 import { columnTypesOf } from "../sql/columns.ts";
 import { commandFor } from "../sql/compile.ts";
 import { quoteIdent, quoteQualified } from "../sql/quote.ts";
+import { tableNames } from "../sql/tables.ts";
 import { graphPlan } from "./graph.ts";
 
 /** The clock and id source a generated tree reads. */
@@ -340,7 +341,7 @@ export async function verifyTree(input: {
 }): Promise<TreeVerification> {
   const { policy, query } = input;
   const entropy = input.entropy ?? SYSTEM_ENTROPY;
-  const tables = input.config.rls?.tables;
+  const tables = tableNames(input.config.rls?.tables);
   const treeValues = input.config.rls?.treeValues ?? {};
   const seed = (table: string, list: readonly Row[]): Promise<readonly Row[]> =>
     seedRows(query, table, list, treeValues[table] ?? {}, entropy);

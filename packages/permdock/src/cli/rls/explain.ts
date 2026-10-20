@@ -2,6 +2,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { GeneratedPolicies } from "./generate-policies.ts";
 
+import { tableNames } from "../sql/tables.ts";
 import { type TableBinding, tableBindings } from "./bindings.ts";
 import { type GeneratedTrigger, generatedTriggers } from "./trigger-notes.ts";
 
@@ -15,7 +16,11 @@ export type RlsExplain = {
     readonly within?: string;
   }[];
   /** The table each resource's policies target; `exists` is set with `--db-url-stdin`. */
-  readonly bindings: readonly (TableBinding & { readonly exists?: boolean })[];
+  readonly bindings: readonly (TableBinding & {
+    readonly exists?: boolean;
+    /** `rls.tables` `via`: the helper the policies call and the parent column it reads. */
+    readonly via?: string;
+  })[];
   readonly membershipSources: readonly {
     readonly table: string;
     /** The generated `select` of one user's memberships, with the role SQL as the helpers read it. */
@@ -67,7 +72,7 @@ export function explainRls(input: ExplainInput): RlsExplain {
   const rls = config.rls;
   const bindings = tableBindings(
     generated.compiled.rowColumns.map((item) => item.resource),
-    rls?.tables,
+    tableNames(rls?.tables),
     generated.helpersOnly,
   );
   const sources = ctx.memberSources ?? ctx.sources ?? [];
@@ -97,7 +102,15 @@ export function explainRls(input: ExplainInput): RlsExplain {
             within: scope.within,
           },
     ),
-    bindings,
+    bindings: bindings.map((binding) => {
+      const via = ctx.vias?.[binding.resource];
+      return via === undefined
+        ? binding
+        : {
+            ...binding,
+            via: `${via.helper} over ${via.table}.${via.column} (${binding.table}.${via.key})`,
+          };
+    }),
     membershipSources: sources.map((source) => ({
       table: source.sql.table,
       select: source.sql.select("$1"),
@@ -139,7 +152,7 @@ export function describeExplain(explain: RlsExplain): string {
     "table bindings:",
     ...explain.bindings.map(
       (binding) =>
-        `  ${binding.resource} -> ${binding.table}${binding.inferred ? " (named after the resource; set rls.tables to change)" : ""}${binding.exists === false ? " MISSING" : ""}`,
+        `  ${binding.resource} -> ${binding.table}${binding.inferred ? " (named after the resource; set rls.tables to change)" : ""}${binding.via === undefined ? "" : ` via ${binding.via}`}${binding.exists === false ? " MISSING" : ""}`,
     ),
   ];
   if (explain.membershipSources.length > 0) {

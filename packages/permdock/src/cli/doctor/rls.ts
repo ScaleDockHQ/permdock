@@ -23,6 +23,7 @@ import {
   rowConditionMessage,
 } from "../sql/helper-calls.ts";
 import { graphSqlName } from "../sql/names.ts";
+import { tableNames } from "../sql/tables.ts";
 import { policyOf } from "./inputs.ts";
 
 export async function pd027(
@@ -203,7 +204,7 @@ export async function pd030(
     if (columns.length === 0) {
       continue;
     }
-    const table = tableFor(resource, rls.tables);
+    const table = tableFor(resource, tableNames(rls.tables));
     if (rls.fields !== "views") {
       findings.push({
         code: "PD030",

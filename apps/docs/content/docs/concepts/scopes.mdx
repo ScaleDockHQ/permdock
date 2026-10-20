@@ -174,6 +174,10 @@ create policy quote_select on public.quote for select to authenticated using (
 
 In `database` mode each helper reads its scope's membership table (`rls.memberships.scopes.<scope>`); in `jwt` mode it reads the `memberships` claim entries whose `scope` is its own. Both narrow memberships under the first scope to the active-tenant claim. A portal contact then sees only their customer's quotes and invoices with no security-definer RPC in the app. [RLS](/docs/cli/rls) has the configuration.
 
+## Tables reached through a parent
+
+Use a nested scope when the parent has memberships of its own: members of an environment who are not members of its organization, or roles granted on one environment. Use `rls.tables` with `via` when the parent only narrows the organization: the child table holds the parent's id and the parent holds the organization id, with no membership at the parent level. `permdock rls generate` then writes `permitted_<parent>_ids(p_grant)` instead of a membership helper ([RLS](/docs/adapters/rls#tables-reached-through-a-parent)).
+
 ## Suspension
 
 A disabled organization or user is a subject input, like a membership. A `MembershipSource` (or the `subject` function) leaves out every membership of a suspended scope instance and returns no roles for a suspended user; `decide`, `where()`, snapshots and `filter` then deny every path, the portal contact's included.

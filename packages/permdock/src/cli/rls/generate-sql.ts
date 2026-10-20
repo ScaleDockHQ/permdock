@@ -18,6 +18,7 @@ import {
   USER_ID_HELPER,
   sessionLiveHelperSql,
 } from "../sql/subject.ts";
+import { tableNames } from "../sql/tables.ts";
 import { approvalsSql } from "./approvals.ts";
 import { assignmentSql } from "./assignments.ts";
 import { backfillSql } from "./backfill.ts";
@@ -188,7 +189,7 @@ function sectionsSql(
   } catch (cause) {
     return { refusal: describeError(cause) };
   }
-  const graphed = graphSql(ctx, graph, rls?.tables);
+  const graphed = graphSql(ctx, graph, tableNames(rls?.tables));
   let rowHelpers = "";
   if (rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0) {
     try {
@@ -202,14 +203,17 @@ function sectionsSql(
           ...compiled.actionBranches,
         ],
         rls?.rowHelpers ?? [],
-        rls?.tables,
+        tableNames(rls?.tables),
         warnings,
       );
     } catch (cause) {
       return { refusal: describeError(cause) };
     }
   }
-  const breakGlass = breakGlassSql(ctx, breakGlassEntries(policy, rls?.tables));
+  const breakGlass = breakGlassSql(
+    ctx,
+    breakGlassEntries(policy, tableNames(rls?.tables)),
+  );
   return [
     approvals,
     owned === "" ? undefined : owned,
@@ -525,7 +529,7 @@ export function generateSql(
       ctx,
       tableColumns(
         generated.compiled.rowColumns,
-        rls?.tables,
+        tableNames(rls?.tables),
         helpersOnly,
         warnings,
       ),

@@ -12,6 +12,7 @@ import {
   qualified,
   quoteIdent,
   quoteLiteral,
+  quoteQualified,
 } from "../sql/quote.ts";
 import { HELPERS, rootName } from "../sql/shared.ts";
 import { keyTenantSql, userIdHelperSql } from "../sql/subject.ts";
@@ -63,6 +64,7 @@ export function accessSql(
   scope: HelperScope,
   grantKey: string,
   column: string | undefined,
+  helper?: string,
 ): string {
   const key = quoteLiteral(grantKey);
   if (scope === "global") {
@@ -73,7 +75,39 @@ export function accessSql(
       `PermDock CLI: ${scope}-scoped grant needs definePolicy({ scopes.${scope} })`,
     );
   }
-  return `${quoteIdent(column)} in (select ${qualified(ctx, permittedIdsHelper(scope))}(${key}))`;
+  return `${quoteIdent(column)} in (select ${qualified(ctx, helper ?? permittedIdsHelper(scope))}(${key}))`;
+}
+
+/**
+ * `permitted_<parent>_ids(p_grant)` for each \`rls.tables\` \`via\`: the parent
+ * rows whose scope instance the grant reaches. \`security definer\`, so the
+ * caller needs no read on the parent, and called uncorrelated like
+ * \`permitted_<scope>_ids\`.
+ */
+function viaHelpersSql(ctx: RlsSqlContext, anonExecute: boolean): string[] {
+  const done = new Set<string>();
+  const chunks: string[] = [];
+  for (const via of Object.values(ctx.vias ?? {})) {
+    if (done.has(via.helper)) {
+      continue;
+    }
+    done.add(via.helper);
+    chunks.push(
+      `-- rows of ${via.table} whose ${via.column} is a ${via.scope} the grant reaches
+${helperFunction(
+  ctx,
+  via.helper,
+  `setof ${via.type}`,
+  sqlBody(
+    `  select p.${quoteIdent(via.id)}
+  from ${quoteQualified(via.table)} p
+  where p.${quoteIdent(via.column)} in (select ${qualified(ctx, permittedIdsHelper(via.scope))}(p_grant))`,
+  ),
+  anonExecute,
+)}`,
+    );
+  }
+  return chunks;
 }
 
 function userIdSql(ctx: RlsSqlContext, anonExecute: boolean): string {
@@ -349,6 +383,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
       chunks.push(memberForFunction(ctx, scope.name, type));
     }
   }
+  chunks.push(...viaHelpersSql(ctx, anon));
   const forUser = forUserSql(ctx);
   if (forUser !== "") {
     chunks.push(forUser);

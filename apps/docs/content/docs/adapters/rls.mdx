@@ -127,6 +127,34 @@ Other packages call the helpers from policies PermDock does not generate: better
 - **Exact-text ids.** Scope ids compare as exact text: the helpers never apply `lower()` or trim, and neither does `decide`. A producer writing ids into a claim or a membership table writes the id's canonical text, `uuid::text` for a uuid column (Postgres prints it in lower case). An upper-case uuid in a claim is a different id to `decide`, while a `uuid` cast in Postgres would still match it, so the application and the database would disagree.
 - **Claims.** In `jwt` mode the helpers read `user_role`, `memberships` and the active-tenant claim (`tenant_id` by default, `rls.tenantClaim`) from `auth.jwt()`, top-level or under `app_metadata`. `schemas/supabase-claims-v1.json` in the `permdock` package is their JSON Schema: a membership is `{ scope, id, within?, roles, via?, expiresAt?, grantedBy?, reason? }` with a non-empty `roles`, and the hook also writes `memberships_truncated`, `attrs` and `authz_ver`. `permdock supabase hook generate` is the one writer; `permdock supabase inspect --json` prints, under `data`, which claims it writes and where the helpers live.
 
+### Tables reached through a parent
+
+A table with no scope column of its own, such as one keyed by `environment_id` where `cloud.environments` carries `organization_id`, maps its resource with `via`:
+
+```ts
+rls: {
+  tables: {
+    deployment: {
+      table: 'cloud.deployments',
+      via: { table: 'cloud.environments', column: 'organization_id' },
+    },
+  },
+}
+```
+
+`rls generate` then writes `<schema>.permitted_environment_ids(p_grant text) returns setof uuid`, a `stable security definer` helper with `search_path = ''` that selects the parent's `id` where its `organization_id` is in `permitted_organization_ids(p_grant)`. The policies filter `environment_id in (select permitted_environment_ids('deployment.read'))`, uncorrelated, and the helper has the same grants as `permitted_<scope>_ids`. The caller needs no read on the parent table.
+
+| `via` field | Default                                            |
+| ----------- | -------------------------------------------------- |
+| `table`     | Required: the parent, `schema.table`               |
+| `column`    | Required: the parent's column holding the scope id |
+| `key`       | `<parent table, singular>_id` on this table        |
+| `id`        | `id`, the parent's id column                       |
+| `type`      | `uuid` in the `supabase` dialect, else `text`      |
+| `scope`     | The policy's root scope                            |
+
+The helper is named after the parent table with the plural dropped (`environments` gives `permitted_environment_ids`). Two resources may share a parent; two parents that give the same name are refused. A grant at a scope other than `via.scope` is refused. The in-process side needs no second mapping: the row carries its scope id, loaded through the relation the resource already declares. For a scope with its own membership and role grants, declare a nested scope instead ([Scopes](/docs/concepts/scopes#tables-reached-through-a-parent)).
+
 ### Row helpers
 
 `rls.rowHelpers: true` (or a list of resource names) writes `permitted_<resource>_rows(p_permission)` for each resource a grant reaches, with the resource name in snake_case. It returns the ids of the rows the caller may read, update or delete with that permission (the `select`, `update` and `delete` commands; an action with no SQL command gets an arm too, and so does `create`, checked as the insert policy's `with check`): one `case` arm per permission of the resource, the allows the generated policies would OR together for it, minus its denies. Closure walks, link hops, the restricted stop, `includes`, groups, [`requires`](/docs/concepts/policies#requires) and [`inherit()`](/docs/concepts/relationships#inheriting-a-permission-through-a-link) apply as they do in the policies, and an action with no SQL command (`archive`, `review`) gets an arm too, so a hand-written policy or a trusted function asks `id in (select permitted_doc_rows('doc.archive'))` instead of restating the graph. It works with `--helpers-only`, where it is the generated part a hand-written policy calls. Every resource an `inherit()` grant targets gets its helper whether or not `rls.rowHelpers` lists it, written first as an empty stub so helpers that call each other can be created in any order. An unknown key or a key of another resource answers no rows. For `create`, call the row-valued form from an insert policy: `with check (permitted_doc_row(new, 'doc.create'))` evaluates the same allows and denies as the generated insert policy against the new row; `permitted_doc_rows('doc.create')` lists the existing rows that would pass that check.
