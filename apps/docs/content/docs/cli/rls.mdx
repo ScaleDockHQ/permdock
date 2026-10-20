@@ -625,6 +625,32 @@ grant execute on function permdock.permdock_trusted_replace_custom_role_grants(u
 
 The argument types follow `rls.tenantType`. Grant only a role whose sessions the application controls: the trusted functions believe their caller.
 
+#### By role id
+
+An application whose role editor addresses a role by its row id sets `rls.customRoleWrites.roles.primaryKey`. `generate` then writes three functions keyed by that id; the row supplies the tenant, scope, instance and name, never the caller:
+
+| Function                                                                                               | Executable by                  | Does                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock_replace_custom_role_grants_by_id(p_role_id <table>.<primaryKey>%type, p_permissions text[])` | `authenticated`                | Replaces the role's allow entries through `permdock_replace_custom_role_grants`, so every caller and definition check applies; keeps the stored denies and includes; then calls `customRoleWrites.audit`                                                       |
+| `permdock_trusted_replace_custom_role_grants_by_id(p_role_id, p_permissions)`                          | no client role                 | The same through `permdock_trusted_replace_custom_role_grants`: definition checks, no caller checks                                                                                                                                                            |
+| `permdock_trusted_role_permissions_by_id(p_role_ids text[], p_tenant default null)`                    | the `rls.trustedReaders` roles | Returns `(role_id, permission)` for the declared allow keys of each role, under their current names (`key@level` with levels). An undeclared stored key is left out. With `p_tenant`, an id of another tenant raises `42501` `not-member`. Writes no audit row |
+
+A missing row raises `P0002` `unknown-role`; a row the `skip` column marks, or one named like a declared role, raises `22023` `declared-role`. A cross-tenant id fails the caller's membership check (`42501` `not-member`), and an undeclared key fails the entries check (`22023` `unknown-permission`). The reader takes ids as text, because Postgres before 17 has no array of a `%type`; pass `array[...]::text[]` from SQL, or a string array over the Data API.
+
+```ts title="permdock.config.ts"
+rls: {
+  authorize: "database",
+  customRoles: true,
+  trustedReaders: ["service_role"],
+  customRoleWrites: {
+    roles: { table: "roles", key: "key", tenant: "organization_id", skip: "is_system", primaryKey: "id" },
+    audit: { function: "better_supabase.audit_event_trusted", args: { source: "permdock" } },
+  },
+},
+```
+
+`customRoleWrites.audit` names the function the by-id writers call after a save, with `event_type => 'permdock.custom_role.replaced'`, `target_type => 'role'`, `record_id => p_role_id::text`, `tenant` (the row's tenant), `metadata => { operation: 'replace', role, permissions }` and each entry of `args` as a named text argument. `generate` exits `2` when `audit` is set without `roles.primaryKey`. `rls.trustedReaders` also gets `usage` on the helper schema, which an execute grant alone does not reach.
+
 #### Backfill from existing tables
 
 An application that already stores custom roles in its own tables names them in `rls.customRoles.from`, and `generate --backfill-out <file>|<dir>/|-` writes a data migration that copies them into `custom_role_permissions` and `custom_role_includes`. An object for `rls.customRoles` turns custom roles on like `true`. Each role row comes from `rls.customRoleWrites.roles`, which supplies the name, tenant, scope, instance and `skip` flag, so that key is required:

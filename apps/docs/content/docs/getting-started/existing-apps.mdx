@@ -142,6 +142,8 @@ In `jwt` mode there are no tables to fill: build the `grants` claim with `custom
 
 The app's `CustomRoleSource` reads the same rows. Roles stored under old keys keep resolving through `renamed`, so the copy does not have to rewrite keys.
 
+An app with hand-written SQL that maps a role id to its key before saving (`replace_role_permissions(role_id, permissions)`), or that reads keys for a list of role ids, sets `rls.customRoleWrites.roles.primaryKey` and calls the generated `permdock_replace_custom_role_grants_by_id` and `permdock_trusted_role_permissions_by_id` instead. They check the caller's tenant, refuse undeclared keys and write the audit row through `rls.customRoleWrites.audit` ([by role id](/docs/cli/rls#by-role-id)). Drop the wrappers once nothing calls them.
+
 ## Rename keys
 
 ```ts

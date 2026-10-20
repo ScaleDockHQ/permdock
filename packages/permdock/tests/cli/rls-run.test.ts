@@ -276,6 +276,7 @@ describe("runRls dispatch", () => {
     expect(
       server.text.split("\n").filter((line) => line.includes("service_role")),
     ).toEqual([
+      'grant usage on schema "permdock" to "service_role", "support";',
       'grant execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) to "service_role", "support";',
     ]);
   });

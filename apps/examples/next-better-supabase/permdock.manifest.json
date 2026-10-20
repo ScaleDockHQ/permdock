@@ -269,7 +269,7 @@
         "columns": ["user_id", "customer_id", "organization_id"]
       }
     ],
-    "customRoles": false,
+    "customRoles": true,
     "roles": {
       "table": "permdock.user_roles",
       "user": {

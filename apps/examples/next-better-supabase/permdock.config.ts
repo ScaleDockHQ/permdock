@@ -13,6 +13,21 @@ export default {
     tenantType: "uuid",
     tables: ["staff", "quotes"],
     readOnlyActors: true,
+    customRoles: true,
+    trustedReaders: ["service_role"],
+    customRoleWrites: {
+      roles: {
+        table: "roles",
+        key: "key",
+        tenant: "organization_id",
+        skip: "is_system",
+        primaryKey: "id",
+      },
+      audit: {
+        function: "better_supabase.audit_event_trusted",
+        args: { source: "permdock" },
+      },
+    },
     // supabase.channel(`org:${organizationId}:quotes`, { config: { private: true } })
     realtime: {
       topics: {

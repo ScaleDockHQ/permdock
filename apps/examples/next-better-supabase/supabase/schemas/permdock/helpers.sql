@@ -42,6 +42,133 @@ create table if not exists "permdock".user_roles (
 alter table "permdock".user_roles enable row level security;
 revoke all on table "permdock".user_roles from anon, authenticated, public;
 
+create table if not exists "permdock".custom_role_permissions (
+  tenant_id uuid,
+  scope text not null default 'organization',
+  scope_id text,
+  role text not null,
+  permission text not null,
+  effect text not null default 'allow' check (effect in ('allow', 'deny'))
+);
+-- global: no tenant or instance; a tenant role: a tenant; a shared role: no tenant or instance
+alter table "permdock".custom_role_permissions drop constraint if exists "custom_role_permissions_check";
+alter table "permdock".custom_role_permissions drop constraint if exists "custom_role_permissions_shape";
+alter table "permdock".custom_role_permissions add constraint "custom_role_permissions_shape" check (
+  case when scope = 'global' then tenant_id is null and scope_id is null
+  else tenant_id is not null or scope_id is null end
+);
+create unique index if not exists "custom_role_permissions_key"
+  on "permdock".custom_role_permissions (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, permission, effect);
+-- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
+alter table "permdock".custom_role_permissions add column if not exists id bigint generated always as identity primary key;
+alter table "permdock".custom_role_permissions enable row level security;
+revoke all on table "permdock".custom_role_permissions from anon, authenticated, public;
+
+create table if not exists "permdock".custom_role_includes (
+  tenant_id uuid,
+  scope text not null default 'organization',
+  scope_id text,
+  role text not null,
+  include_role text not null
+);
+-- global: no tenant or instance; a tenant role: a tenant; a shared role: no tenant or instance
+alter table "permdock".custom_role_includes drop constraint if exists "custom_role_includes_check";
+alter table "permdock".custom_role_includes drop constraint if exists "custom_role_includes_shape";
+alter table "permdock".custom_role_includes add constraint "custom_role_includes_shape" check (
+  case when scope = 'global' then tenant_id is null and scope_id is null
+  else tenant_id is not null or scope_id is null end
+);
+create unique index if not exists "custom_role_includes_key"
+  on "permdock".custom_role_includes (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, include_role);
+-- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
+alter table "permdock".custom_role_includes add column if not exists id bigint generated always as identity primary key;
+alter table "permdock".custom_role_includes enable row level security;
+revoke all on table "permdock".custom_role_includes from anon, authenticated, public;
+
+-- the ceiling: keys of assignable declared roles, and the denies of those roles on the same permissions
+create or replace view "permdock".permdock_ceiling with (security_invoker = true) as
+select rp.scope, rp.role, rp.permission, rp.grant_key, rp.effect
+from "permdock".role_permissions rp
+where rp.role = any(array['member', 'owner']::text[])
+  and exists (
+    select 1 from "permdock".role_permissions a
+    where a.role = rp.role
+      and a.permission = rp.permission
+      and a.scope = rp.scope
+      and a.effect = 'allow'
+  );
+revoke all on table "permdock".permdock_ceiling from anon, authenticated, public;
+
+-- one custom role: included ceiling keys and same-scope denies, plus every ceiling key of an allowed permission, minus denied permissions
+create or replace function "permdock".permdock_custom_keys(p_allow text[], p_deny text[], p_include text[], p_scope text)
+returns setof text
+language sql
+stable
+set search_path = ''
+as $$
+  with ceiling as (
+    select c.role, c.permission, c.grant_key, c.effect
+    from "permdock".permdock_ceiling c
+    where c.scope = p_scope
+  ),
+  included as (
+    select rp.role, rp.permission, rp.grant_key, rp.scope, rp.effect
+    from "permdock".role_permissions rp
+    where rp.role = any(coalesce(p_include, '{}'::text[]))
+  ),
+  kept as (
+    select i.permission, i.grant_key
+    from included i
+    where i.effect = 'allow'
+      and i.scope = p_scope
+      and exists (
+        select 1 from ceiling c
+        where c.role = i.role and c.grant_key = i.grant_key and c.effect = 'allow'
+      )
+  ),
+  wanted as (
+    select unnest(coalesce(p_allow, '{}'::text[])) as permission
+    union
+    select i.permission
+    from included i
+    where i.effect = 'allow'
+      and not (i.scope = p_scope and exists (
+        select 1 from ceiling c
+        where c.role = i.role and c.grant_key = i.grant_key and c.effect = 'allow'
+      ))
+  ),
+  allowed as (
+    select w.permission
+    from wanted w
+    where not (w.permission = any(coalesce(p_deny, '{}'::text[])))
+      and not exists (select 1 from kept k where k.permission = w.permission)
+  )
+  select k.grant_key from kept k
+  where not (k.permission = any(coalesce(p_deny, '{}'::text[])))
+  union
+  select i.grant_key from included i
+  where i.effect = 'deny' and i.scope = p_scope
+  union
+  select c.grant_key from ceiling c
+  where c.permission in (select a.permission from allowed a)
+$$;
+revoke execute on function "permdock".permdock_custom_keys(text[], text[], text[], text) from public, anon, authenticated;
+
+-- a shared custom role: rows with no tenant at a scope below global; its name wins over a tenant role's in every tenant
+create or replace function "permdock".permdock_is_shared_role(p_scope text, p_role text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_scope <> 'global' and (
+    exists (select 1 from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = p_scope and c.role = p_role)
+    or exists (select 1 from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = p_scope and c.role = p_role)
+  )
+$$;
+revoke execute on function "permdock".permdock_is_shared_role(text, text) from public, anon, authenticated;
+
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
 language sql
@@ -56,6 +183,18 @@ as $$
     where ur.user_id = (select "permdock".permdock_user_id())
       and rp.grant_key = p_grant
       and rp.scope = 'global'
+  )
+  or exists (
+    select 1
+    from "permdock".user_roles ur
+    where ur.user_id = (select "permdock".permdock_user_id())
+      and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+      and p_grant in (select "permdock".permdock_custom_keys(
+      array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+      array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+      array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+      'global'
+    ))
   )
 $$;
 revoke execute on function "permdock".permdock_has(text) from public, anon;
@@ -88,7 +227,29 @@ begin
     and ms.scope = 'organization'
     and rp.grant_key = p_grant
     and rp.scope = 'organization'
-    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''));
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+  union
+  select (ms.id)::uuid
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'organization'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and p_grant in (select "permdock".permdock_custom_keys(
+      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+      array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+      'organization'
+    ));
 end;
 $$;
 revoke execute on function "permdock".permitted_organization_ids(text) from public, anon;
@@ -183,7 +344,35 @@ begin
     and ms.scope = 'customer'
     and rp.grant_key = p_grant
     and rp.scope = 'customer'
-    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''));
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+  union
+  select (ms.id)::uuid
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'customer'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    and p_grant in (select "permdock".permdock_custom_keys(
+      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+      array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+      'customer'
+    ));
 end;
 $$;
 revoke execute on function "permdock".permitted_customer_ids(text) from public, anon;
@@ -274,6 +463,18 @@ as $$
       and rp.grant_key = p_grant
       and rp.scope = 'global'
   )
+  or exists (
+    select 1
+    from "permdock".user_roles ur
+    where ur.user_id = p_user
+      and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+      and p_grant in (select "permdock".permdock_custom_keys(
+      array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+      array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+      array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+      'global'
+    ))
+  )
 $$;
 revoke execute on function "permdock".permdock_has_for(uuid, text) from public, anon, authenticated;
 
@@ -303,7 +504,28 @@ begin
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'organization'
     and rp.grant_key = p_grant
-    and rp.scope = 'organization';
+    and rp.scope = 'organization'
+  union
+  select (ms.id)::uuid
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and p_grant in (select "permdock".permdock_custom_keys(
+      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+      array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+      'organization'
+    ));
 end;
 $$;
 revoke execute on function "permdock".permitted_organization_ids_for(uuid, text) from public, anon, authenticated;
@@ -341,10 +563,745 @@ begin
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'customer'
     and rp.grant_key = p_grant
-    and rp.scope = 'customer';
+    and rp.scope = 'customer'
+  union
+  select (ms.id)::uuid
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'customer'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and p_grant in (select "permdock".permdock_custom_keys(
+      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+      array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+      'customer'
+    ));
 end;
 $$;
 revoke execute on function "permdock".permitted_customer_ids_for(uuid, text) from public, anon, authenticated;
+
+-- custom-role writes: the permission keys of a definition the caller may not hand out in the tenant, as assignablePermissions computes them
+create or replace function "permdock".permdock_custom_role_beyond(p_tenant uuid, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
+returns setof text
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if false then
+    return;
+  end if;
+  return query
+  with resolved as (
+    select distinct rp.permission, k.key as grant_key
+    from "permdock".permdock_custom_keys(p_allow, p_deny, p_include, p_scope) k(key)
+    join "permdock".role_permissions rp on rp.grant_key = k.key and rp.effect = 'allow'
+  ),
+  held as (
+    select distinct rp.permission, rp.grant_key
+    from "permdock".role_permissions rp
+    where rp.effect = 'allow'
+      and rp.permission in (select r.permission from resolved r)
+      and ("permdock".permdock_has(rp.grant_key)
+        or (p_scope <> 'global'
+          and (p_tenant::text in (select x::text from "permdock".permitted_organization_ids(rp.grant_key) x)
+            or (case p_scope when 'organization' then false when 'customer' then p_scope_id in (select x::text from "permdock".permitted_customer_ids(rp.grant_key) x) else false end))))
+  )
+  select distinct r.permission
+  from resolved r
+  where not exists (select 1 from held h where h.permission = r.permission);
+end;
+$$;
+revoke execute on function "permdock".permdock_custom_role_beyond(uuid, text, text, text[], text[], text[]) from public, anon, authenticated;
+
+-- where a custom role may live: a scope of a tenant, a scope of every tenant (shared: no tenant or instance), or the platform (scope global, no tenant or instance), under an undeclared name
+create or replace function "permdock".permdock_custom_role_shape(p_tenant uuid, p_scope text, p_scope_id text, p_role text)
+returns void
+language plpgsql
+stable
+set search_path = ''
+as $$
+begin
+  if p_scope = 'global' then
+    if p_tenant is not null or p_scope_id is not null then
+      raise exception using
+        errcode = '22023',
+        message = 'permdock: a platform custom role has no tenant or instance',
+        hint = 'unknown-scope';
+    end if;
+  elsif not (p_scope = any(array['organization', 'customer']::text[])) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: custom roles are held at a scope of a tenant or at global, not ' || coalesce(p_scope, 'null'),
+      hint = 'unknown-scope';
+  elsif p_tenant is null and p_scope_id is not null then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: a shared custom role has no instance',
+      hint = 'unknown-scope';
+  end if;
+  if coalesce(p_role, '') = '' or p_role = any(array['contact', 'member', 'owner']::text[]) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || coalesce(p_role, 'null') || ' is not a custom role name',
+      hint = 'declared-role';
+  end if;
+end;
+$$;
+revoke execute on function "permdock".permdock_custom_role_shape(uuid, text, text, text) from public, anon, authenticated;
+
+-- a custom role the caller may change: membership of the tenant or the instance (a platform role, or a caller holding a manageRoles permission through a global role, needs none), and authority over the stored definition
+create or replace function "permdock".permdock_custom_role_guard(p_tenant uuid, p_scope text, p_scope_id text, p_role text)
+returns void
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_allow text[];
+  v_deny text[];
+  v_include text[];
+  v_beyond text;
+begin
+  perform "permdock".permdock_custom_role_shape(p_tenant, p_scope, p_scope_id, p_role);
+  if not (coalesce((select "permdock".permdock_user_id())::text, '') <> '' and (
+    false
+    or (p_scope <> 'global' and coalesce(p_tenant::text in (select x::text from "permdock".member_organization_ids() x)
+      or (case p_scope when 'organization' then false when 'customer' then p_scope_id in (select x::text from "permdock".member_customer_ids() x) else false end), false))
+  )) then
+    raise exception using
+      errcode = '42501',
+      message = 'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform'),
+      hint = 'not-member';
+  end if;
+  select array_agg(permission) filter (where c.effect = 'allow'),
+    array_agg(c.permission) filter (where c.effect = 'deny')
+  into v_allow, v_deny
+  from "permdock".custom_role_permissions c
+  where case when "permdock".permdock_is_shared_role(p_scope, p_role) then c.tenant_id is null else c.tenant_id is not distinct from p_tenant end and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  select array_agg(c.include_role) into v_include
+  from "permdock".custom_role_includes c
+  where case when "permdock".permdock_is_shared_role(p_scope, p_role) then c.tenant_id is null else c.tenant_id is not distinct from p_tenant end and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  select string_agg(b, ', ' order by b) into v_beyond
+  from "permdock".permdock_custom_role_beyond(p_tenant, p_scope, p_scope_id, v_allow, v_deny, v_include) b;
+  if v_beyond is not null then
+    raise exception using
+      errcode = '42501',
+      message = 'permdock: ' || p_role || ' allows ' || v_beyond || ', which the caller may not hand out',
+      hint = 'not-assignable-by';
+  end if;
+end;
+$$;
+revoke execute on function "permdock".permdock_custom_role_guard(uuid, text, text, text) from public, anon, authenticated;
+
+-- the same checks for a user the caller names: trusted SQL acting later for a stored user; no client role may execute them
+-- custom-role writes: the permission keys of a definition the caller may not hand out in the tenant, as assignablePermissions computes them
+create or replace function "permdock".permdock_custom_role_beyond_for(p_user uuid, p_tenant uuid, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
+returns setof text
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if false then
+    return;
+  end if;
+  return query
+  with resolved as (
+    select distinct rp.permission, k.key as grant_key
+    from "permdock".permdock_custom_keys(p_allow, p_deny, p_include, p_scope) k(key)
+    join "permdock".role_permissions rp on rp.grant_key = k.key and rp.effect = 'allow'
+  ),
+  held as (
+    select distinct rp.permission, rp.grant_key
+    from "permdock".role_permissions rp
+    where rp.effect = 'allow'
+      and rp.permission in (select r.permission from resolved r)
+      and ("permdock".permdock_has_for(p_user, rp.grant_key)
+        or (p_scope <> 'global'
+          and (p_tenant::text in (select x::text from "permdock".permitted_organization_ids_for(p_user, rp.grant_key) x)
+            or (case p_scope when 'organization' then false when 'customer' then p_scope_id in (select x::text from "permdock".permitted_customer_ids_for(p_user, rp.grant_key) x) else false end))))
+  )
+  select distinct r.permission
+  from resolved r
+  where not exists (select 1 from held h where h.permission = r.permission);
+end;
+$$;
+revoke execute on function "permdock".permdock_custom_role_beyond_for(uuid, uuid, text, text, text[], text[], text[]) from public, anon, authenticated;
+
+-- a custom role the caller may change: membership of the tenant or the instance (a platform role, or a caller holding a manageRoles permission through a global role, needs none), and authority over the stored definition
+create or replace function "permdock".permdock_custom_role_guard_for(p_user uuid, p_tenant uuid, p_scope text, p_scope_id text, p_role text)
+returns void
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_allow text[];
+  v_deny text[];
+  v_include text[];
+  v_beyond text;
+begin
+  perform "permdock".permdock_custom_role_shape(p_tenant, p_scope, p_scope_id, p_role);
+  if not (coalesce(p_user::text, '') <> '' and (
+    false
+    or (p_scope <> 'global' and coalesce(p_tenant::text in (select x::text from "permdock".member_organization_ids_for(p_user) x)
+      or (case p_scope when 'organization' then false when 'customer' then p_scope_id in (select x::text from "permdock".member_customer_ids_for(p_user) x) else false end), false))
+  )) then
+    raise exception using
+      errcode = '42501',
+      message = 'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform'),
+      hint = 'not-member';
+  end if;
+  select array_agg(permission) filter (where c.effect = 'allow'),
+    array_agg(c.permission) filter (where c.effect = 'deny')
+  into v_allow, v_deny
+  from "permdock".custom_role_permissions c
+  where case when "permdock".permdock_is_shared_role(p_scope, p_role) then c.tenant_id is null else c.tenant_id is not distinct from p_tenant end and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  select array_agg(c.include_role) into v_include
+  from "permdock".custom_role_includes c
+  where case when "permdock".permdock_is_shared_role(p_scope, p_role) then c.tenant_id is null else c.tenant_id is not distinct from p_tenant end and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  select string_agg(b, ', ' order by b) into v_beyond
+  from "permdock".permdock_custom_role_beyond_for(p_user, p_tenant, p_scope, p_scope_id, v_allow, v_deny, v_include) b;
+  if v_beyond is not null then
+    raise exception using
+      errcode = '42501',
+      message = 'permdock: ' || p_role || ' allows ' || v_beyond || ', which the caller may not hand out',
+      hint = 'not-assignable-by';
+  end if;
+end;
+$$;
+revoke execute on function "permdock".permdock_custom_role_guard_for(uuid, uuid, text, text, text) from public, anon, authenticated;
+
+-- null when an allow entry is a declared permission inside the ceiling of the scope; else unknown-permission, outside-ceiling
+create or replace function "permdock".permdock_custom_role_entry_problem(p_scope text, p_entry text)
+returns text
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_key text := p_entry;
+begin
+  if p_entry is null or not (v_key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])) then
+    return 'unknown-permission';
+  end if;
+  if not exists (
+    select 1 from "permdock".permdock_ceiling c
+    where c.scope = p_scope and c.effect = 'allow' and c.permission = v_key
+  ) then
+    return 'outside-ceiling';
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function "permdock".permdock_custom_role_entry_problem(text, text) from public, anon, authenticated;
+
+-- the entries of a definition: declared keys and levels inside the ceiling of the scope, and declared includes
+create or replace function "permdock".permdock_custom_role_entries(p_scope text, p_allow text[], p_deny text[], p_include text[])
+returns void
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_entry text;
+  v_key text;
+  v_problem text;
+begin
+  foreach v_entry in array coalesce(p_allow, '{}'::text[]) loop
+    v_key := v_entry;
+    v_problem := "permdock".permdock_custom_role_entry_problem(p_scope, v_entry);
+    if v_problem = 'unknown-permission' then
+      raise exception using
+        errcode = '22023',
+        message = 'permdock: ' || v_entry || ' is not a declared permission',
+        hint = 'unknown-permission';
+    end if;
+    if v_problem = 'outside-ceiling' then
+      raise exception using
+        errcode = '22023',
+        message = 'permdock: ' || v_key || ' is outside the ceiling of ' || p_scope,
+        hint = 'outside-ceiling';
+    end if;
+  end loop;
+  foreach v_entry in array coalesce(p_deny, '{}'::text[]) loop
+    if not (v_entry = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])) then
+      raise exception using
+        errcode = '22023',
+        message = 'permdock: ' || v_entry || ' is not a declared permission',
+        hint = 'unknown-permission';
+    end if;
+  end loop;
+  foreach v_entry in array coalesce(p_include, '{}'::text[]) loop
+    if not (v_entry = any(array['contact', 'member', 'owner']::text[])) then
+      raise exception using
+        errcode = '22023',
+        message = 'permdock: ' || v_entry || ' is not a declared role',
+        hint = 'unknown-role';
+    end if;
+  end loop;
+  select string_agg(distinct rp.permission, ', ') into v_key
+  from "permdock".role_permissions rp
+  where rp.role = any(coalesce(p_include, '{}'::text[]))
+    and rp.effect = 'allow'
+    and not exists (
+      select 1 from "permdock".permdock_ceiling c
+      where c.scope = p_scope and c.effect = 'allow' and c.permission = rp.permission
+    );
+  if v_key is not null then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: an included role allows ' || v_key || ', outside the ceiling of ' || p_scope,
+      hint = 'outside-ceiling';
+  end if;
+end;
+$$;
+revoke execute on function "permdock".permdock_custom_role_entries(text, text[], text[], text[]) from public, anon, authenticated;
+
+-- save a custom role: replace its grants and includes after checking each entry against the ceiling and the caller's own permissions
+create or replace function "permdock".permdock_replace_custom_role_grants(p_tenant uuid, p_scope text, p_scope_id text, p_role text, p_allow text[], p_deny text[], p_include text[])
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_beyond text;
+begin
+  perform "permdock".permdock_custom_role_guard(p_tenant, p_scope, p_scope_id, p_role);
+  perform "permdock".permdock_custom_role_entries(p_scope, p_allow, p_deny, p_include);
+  select string_agg(b, ', ' order by b) into v_beyond
+  from "permdock".permdock_custom_role_beyond(p_tenant, p_scope, p_scope_id, p_allow, p_deny, p_include) b;
+  if v_beyond is not null then
+    raise exception using
+      errcode = '42501',
+      message = 'permdock: ' || p_role || ' would allow ' || v_beyond || ', which the caller may not hand out',
+      hint = 'not-assignable-by';
+  end if;
+  if p_tenant is not null and "permdock".permdock_is_shared_role(p_scope, p_role) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || p_role || ' is the name of a shared custom role',
+      hint = 'name-taken';
+  end if;
+  delete from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  delete from "permdock".custom_role_includes c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  insert into "permdock".custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)
+  select distinct p_tenant, p_scope, p_scope_id, p_role, e, 'allow'
+  from unnest(coalesce(p_allow, '{}'::text[])) e
+  union
+  select distinct p_tenant, p_scope, p_scope_id, p_role, e, 'deny'
+  from unnest(coalesce(p_deny, '{}'::text[])) e;
+  insert into "permdock".custom_role_includes (tenant_id, scope, scope_id, role, include_role)
+  select distinct p_tenant, p_scope, p_scope_id, p_role, e
+  from unnest(coalesce(p_include, '{}'::text[])) e;
+end;
+$$;
+revoke execute on function "permdock".permdock_replace_custom_role_grants(uuid, text, text, text, text[], text[], text[]) from public, anon;
+grant execute on function "permdock".permdock_replace_custom_role_grants(uuid, text, text, text, text[], text[], text[]) to authenticated;
+
+-- rename a custom role: move its grants and includes to the new name
+create or replace function "permdock".permdock_rename_custom_role_grants(p_tenant uuid, p_scope text, p_scope_id text, p_from text, p_to text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  perform "permdock".permdock_custom_role_guard(p_tenant, p_scope, p_scope_id, p_from);
+  if p_tenant is not null and "permdock".permdock_is_shared_role(p_scope, p_to) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || p_to || ' is the name of a shared custom role',
+      hint = 'name-taken';
+  end if;
+  if coalesce(p_to, '') = '' or p_to = any(array['contact', 'member', 'owner']::text[]) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || coalesce(p_to, 'null') || ' is not a custom role name',
+      hint = 'declared-role';
+  end if;
+  if exists (select 1 from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_to)
+    or exists (select 1 from "permdock".custom_role_includes c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_to) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || p_to || ' already has grants',
+      hint = 'role-exists';
+  end if;
+  update "permdock".custom_role_permissions c set role = p_to where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_from;
+  update "permdock".custom_role_includes c set role = p_to where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_from;
+end;
+$$;
+revoke execute on function "permdock".permdock_rename_custom_role_grants(uuid, text, text, text, text) from public, anon;
+grant execute on function "permdock".permdock_rename_custom_role_grants(uuid, text, text, text, text) to authenticated;
+
+-- delete a custom role: remove its grants and includes
+create or replace function "permdock".permdock_delete_custom_role_grants(p_tenant uuid, p_scope text, p_scope_id text, p_role text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  perform "permdock".permdock_custom_role_guard(p_tenant, p_scope, p_scope_id, p_role);
+  delete from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  delete from "permdock".custom_role_includes c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+end;
+$$;
+revoke execute on function "permdock".permdock_delete_custom_role_grants(uuid, text, text, text) from public, anon;
+grant execute on function "permdock".permdock_delete_custom_role_grants(uuid, text, text, text) to authenticated;
+
+-- save a custom role for a trusted caller (a migration, a job, a backend role granted execute): the definition checks without the caller checks
+create or replace function "permdock".permdock_trusted_replace_custom_role_grants(p_tenant uuid, p_scope text, p_scope_id text, p_role text, p_allow text[], p_deny text[], p_include text[])
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  perform "permdock".permdock_custom_role_shape(p_tenant, p_scope, p_scope_id, p_role);
+  perform "permdock".permdock_custom_role_entries(p_scope, p_allow, p_deny, p_include);
+  if p_tenant is not null and "permdock".permdock_is_shared_role(p_scope, p_role) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || p_role || ' is the name of a shared custom role',
+      hint = 'name-taken';
+  end if;
+  delete from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  delete from "permdock".custom_role_includes c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  insert into "permdock".custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)
+  select distinct p_tenant, p_scope, p_scope_id, p_role, e, 'allow'
+  from unnest(coalesce(p_allow, '{}'::text[])) e
+  union
+  select distinct p_tenant, p_scope, p_scope_id, p_role, e, 'deny'
+  from unnest(coalesce(p_deny, '{}'::text[])) e;
+  insert into "permdock".custom_role_includes (tenant_id, scope, scope_id, role, include_role)
+  select distinct p_tenant, p_scope, p_scope_id, p_role, e
+  from unnest(coalesce(p_include, '{}'::text[])) e;
+end;
+$$;
+revoke execute on function "permdock".permdock_trusted_replace_custom_role_grants(uuid, text, text, text, text[], text[], text[]) from public, anon, authenticated;
+
+-- rename a custom role for a trusted caller
+create or replace function "permdock".permdock_trusted_rename_custom_role_grants(p_tenant uuid, p_scope text, p_scope_id text, p_from text, p_to text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  perform "permdock".permdock_custom_role_shape(p_tenant, p_scope, p_scope_id, p_from);
+  if p_tenant is not null and "permdock".permdock_is_shared_role(p_scope, p_to) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || p_to || ' is the name of a shared custom role',
+      hint = 'name-taken';
+  end if;
+  if coalesce(p_to, '') = '' or p_to = any(array['contact', 'member', 'owner']::text[]) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || coalesce(p_to, 'null') || ' is not a custom role name',
+      hint = 'declared-role';
+  end if;
+  if exists (select 1 from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_to)
+    or exists (select 1 from "permdock".custom_role_includes c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_to) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || p_to || ' already has grants',
+      hint = 'role-exists';
+  end if;
+  update "permdock".custom_role_permissions c set role = p_to where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_from;
+  update "permdock".custom_role_includes c set role = p_to where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_from;
+end;
+$$;
+revoke execute on function "permdock".permdock_trusted_rename_custom_role_grants(uuid, text, text, text, text) from public, anon, authenticated;
+
+-- delete a custom role for a trusted caller
+create or replace function "permdock".permdock_trusted_delete_custom_role_grants(p_tenant uuid, p_scope text, p_scope_id text, p_role text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  perform "permdock".permdock_custom_role_shape(p_tenant, p_scope, p_scope_id, p_role);
+  delete from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+  delete from "permdock".custom_role_includes c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role;
+end;
+$$;
+revoke execute on function "permdock".permdock_trusted_delete_custom_role_grants(uuid, text, text, text) from public, anon, authenticated;
+
+-- the application's roles table: renames, moves and deletes of a custom role carry its grants and includes
+create or replace function "permdock".permdock_cascade_custom_role()
+returns trigger
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_old_tenant uuid := old."organization_id"::uuid;
+  v_old_scope text := case when old."organization_id"::uuid is null then 'global' else 'organization' end;
+  v_old_id text := null::text;
+  v_old_key text := old."key"::text;
+  v_new_tenant uuid;
+  v_new_scope text;
+  v_new_id text;
+  v_new_key text;
+  v_checked boolean := coalesce((select "permdock".permdock_user_id())::text, '') <> '' and pg_trigger_depth() = 1;
+  v_allow text[];
+  v_deny text[];
+  v_include text[];
+begin
+  if (old."organization_id"::uuid is not null and coalesce(old."is_system", false)) then
+    return null;
+  end if;
+  if tg_op = 'UPDATE' and not (new."organization_id"::uuid is not null and coalesce(new."is_system", false)) then
+    v_new_tenant := new."organization_id"::uuid;
+    v_new_scope := case when new."organization_id"::uuid is null then 'global' else 'organization' end;
+    v_new_id := null::text;
+    v_new_key := new."key"::text;
+    if v_new_key = v_old_key
+      and v_new_tenant is not distinct from v_old_tenant
+      and v_new_scope = v_old_scope
+      and v_new_id is not distinct from v_old_id then
+      return null;
+    end if;
+  end if;
+  if not exists (select 1 from "permdock".custom_role_permissions c where c.tenant_id is not distinct from v_old_tenant and c.scope = v_old_scope and c.scope_id is not distinct from v_old_id and c.role = v_old_key)
+    and not exists (select 1 from "permdock".custom_role_includes c where c.tenant_id is not distinct from v_old_tenant and c.scope = v_old_scope and c.scope_id is not distinct from v_old_id and c.role = v_old_key) then
+    return null;
+  end if;
+  if v_checked then
+    perform "permdock".permdock_custom_role_guard(v_old_tenant, v_old_scope, v_old_id, v_old_key);
+  end if;
+  if v_new_key is null then
+    delete from "permdock".custom_role_permissions c where c.tenant_id is not distinct from v_old_tenant and c.scope = v_old_scope and c.scope_id is not distinct from v_old_id and c.role = v_old_key;
+    delete from "permdock".custom_role_includes c where c.tenant_id is not distinct from v_old_tenant and c.scope = v_old_scope and c.scope_id is not distinct from v_old_id and c.role = v_old_key;
+    return null;
+  end if;
+  if exists (select 1 from "permdock".custom_role_permissions c where c.tenant_id is not distinct from v_new_tenant and c.scope = v_new_scope and c.scope_id is not distinct from v_new_id and c.role = v_new_key)
+    or exists (select 1 from "permdock".custom_role_includes c where c.tenant_id is not distinct from v_new_tenant and c.scope = v_new_scope and c.scope_id is not distinct from v_new_id and c.role = v_new_key) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || v_new_key || ' already has grants',
+      hint = 'role-exists';
+  end if;
+  update "permdock".custom_role_permissions c set tenant_id = v_new_tenant, scope = v_new_scope, scope_id = v_new_id, role = v_new_key where c.tenant_id is not distinct from v_old_tenant and c.scope = v_old_scope and c.scope_id is not distinct from v_old_id and c.role = v_old_key;
+  update "permdock".custom_role_includes c set tenant_id = v_new_tenant, scope = v_new_scope, scope_id = v_new_id, role = v_new_key where c.tenant_id is not distinct from v_old_tenant and c.scope = v_old_scope and c.scope_id is not distinct from v_old_id and c.role = v_old_key;
+  if v_checked then
+    perform "permdock".permdock_custom_role_guard(v_new_tenant, v_new_scope, v_new_id, v_new_key);
+    select array_agg(c.permission) filter (where c.effect = 'allow'),
+      array_agg(c.permission) filter (where c.effect = 'deny')
+    into v_allow, v_deny
+    from "permdock".custom_role_permissions c
+    where c.tenant_id is not distinct from v_new_tenant and c.scope = v_new_scope and c.scope_id is not distinct from v_new_id and c.role = v_new_key;
+    select array_agg(c.include_role) into v_include
+    from "permdock".custom_role_includes c
+    where c.tenant_id is not distinct from v_new_tenant and c.scope = v_new_scope and c.scope_id is not distinct from v_new_id and c.role = v_new_key;
+    perform "permdock".permdock_custom_role_entries(v_new_scope, v_allow, v_deny, v_include);
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function "permdock".permdock_cascade_custom_role() from public, anon, authenticated;
+create or replace trigger "permdock_custom_role_cascade"
+  after update or delete on "public"."roles"
+  for each row execute function "permdock".permdock_cascade_custom_role();
+
+
+-- save a custom role by its row id: the row supplies tenant, scope, instance and name; the caller checks of permdock_replace_custom_role_grants apply, and stored denies and includes stay
+create or replace function "permdock".permdock_replace_custom_role_grants_by_id(p_role_id "public"."roles"."id"%type, p_permissions text[])
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_tenant uuid;
+  v_scope text;
+  v_scope_id text;
+  v_key text;
+  v_skipped boolean;
+  v_deny text[];
+  v_include text[];
+begin
+  select r."organization_id"::uuid, case when r."organization_id"::uuid is null then 'global' else 'organization' end, null::text, r."key"::text, (r."organization_id"::uuid is not null and coalesce(r."is_system", false))
+  into v_tenant, v_scope, v_scope_id, v_key, v_skipped
+  from "public"."roles" r
+  where r."id" = p_role_id;
+  if not found then
+    raise exception using
+      errcode = 'P0002',
+      message = 'permdock: no role row has id ' || coalesce(p_role_id::text, 'null'),
+      hint = 'unknown-role';
+  end if;
+  if v_skipped or v_key = any(array['contact', 'member', 'owner']::text[]) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || coalesce(v_key, 'null') || ' is a declared role, not a custom role',
+      hint = 'declared-role';
+  end if;
+  select array_agg(c.permission) into v_deny
+  from "permdock".custom_role_permissions c
+  where c.tenant_id is not distinct from v_tenant and c.scope = v_scope and c.scope_id is not distinct from v_scope_id and c.role = v_key and c.effect = 'deny';
+  select array_agg(c.include_role) into v_include
+  from "permdock".custom_role_includes c
+  where c.tenant_id is not distinct from v_tenant and c.scope = v_scope and c.scope_id is not distinct from v_scope_id and c.role = v_key;
+  perform "permdock".permdock_replace_custom_role_grants(v_tenant, v_scope, v_scope_id, v_key, p_permissions, v_deny, v_include);
+  perform "better_supabase"."audit_event_trusted"(event_type => 'permdock.custom_role.replaced', target_type => 'role', record_id => p_role_id::text, tenant => v_tenant, metadata => jsonb_build_object('operation', 'replace', 'role', v_key, 'permissions', p_permissions), "source" => 'permdock');
+end;
+$$;
+revoke execute on function "permdock".permdock_replace_custom_role_grants_by_id("public"."roles"."id"%type, text[]) from public, anon;
+grant execute on function "permdock".permdock_replace_custom_role_grants_by_id("public"."roles"."id"%type, text[]) to authenticated;
+
+-- save a custom role by its row id for a trusted caller: the definition checks without the caller checks
+create or replace function "permdock".permdock_trusted_replace_custom_role_grants_by_id(p_role_id "public"."roles"."id"%type, p_permissions text[])
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_tenant uuid;
+  v_scope text;
+  v_scope_id text;
+  v_key text;
+  v_skipped boolean;
+  v_deny text[];
+  v_include text[];
+begin
+  select r."organization_id"::uuid, case when r."organization_id"::uuid is null then 'global' else 'organization' end, null::text, r."key"::text, (r."organization_id"::uuid is not null and coalesce(r."is_system", false))
+  into v_tenant, v_scope, v_scope_id, v_key, v_skipped
+  from "public"."roles" r
+  where r."id" = p_role_id;
+  if not found then
+    raise exception using
+      errcode = 'P0002',
+      message = 'permdock: no role row has id ' || coalesce(p_role_id::text, 'null'),
+      hint = 'unknown-role';
+  end if;
+  if v_skipped or v_key = any(array['contact', 'member', 'owner']::text[]) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || coalesce(v_key, 'null') || ' is a declared role, not a custom role',
+      hint = 'declared-role';
+  end if;
+  select array_agg(c.permission) into v_deny
+  from "permdock".custom_role_permissions c
+  where c.tenant_id is not distinct from v_tenant and c.scope = v_scope and c.scope_id is not distinct from v_scope_id and c.role = v_key and c.effect = 'deny';
+  select array_agg(c.include_role) into v_include
+  from "permdock".custom_role_includes c
+  where c.tenant_id is not distinct from v_tenant and c.scope = v_scope and c.scope_id is not distinct from v_scope_id and c.role = v_key;
+  perform "permdock".permdock_trusted_replace_custom_role_grants(v_tenant, v_scope, v_scope_id, v_key, p_permissions, v_deny, v_include);
+  perform "better_supabase"."audit_event_trusted"(event_type => 'permdock.custom_role.replaced', target_type => 'role', record_id => p_role_id::text, tenant => v_tenant, metadata => jsonb_build_object('operation', 'replace', 'role', v_key, 'permissions', p_permissions), "source" => 'permdock');
+end;
+$$;
+revoke execute on function "permdock".permdock_trusted_replace_custom_role_grants_by_id("public"."roles"."id"%type, text[]) from public, anon, authenticated;
+
+-- the declared allow keys of custom roles by their row ids as text, for a trusted reader; with p_tenant, an id of another tenant is refused
+create or replace function "permdock".permdock_trusted_role_permissions_by_id(p_role_ids text[], p_tenant uuid default null)
+returns table (role_id text, permission text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if p_tenant is not null and exists (
+    select 1 from "public"."roles" r
+    where r."id"::text = any(p_role_ids) and r."organization_id"::uuid is distinct from p_tenant
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'permdock: a role id belongs to another tenant than ' || p_tenant::text,
+      hint = 'not-member';
+  end if;
+  return query
+  select distinct v.role_id, c.permission
+  from (
+    select r."id"::text as role_id, r."organization_id"::uuid as tenant_id, case when r."organization_id"::uuid is null then 'global' else 'organization' end as scope, null::text as scope_id, r."key"::text as role
+    from "public"."roles" r
+    where r."id"::text = any(p_role_ids)
+      and not (r."organization_id"::uuid is not null and coalesce(r."is_system", false))
+      and not (r."key"::text = any(array['contact', 'member', 'owner']::text[]))
+  ) v
+  join "permdock".custom_role_permissions c
+    on c.tenant_id is not distinct from v.tenant_id
+    and c.scope = v.scope
+    and c.scope_id is not distinct from v.scope_id
+    and c.role = v.role
+  where c.effect = 'allow'
+    and c.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])
+  order by 1, 2;
+end;
+$$;
+revoke execute on function "permdock".permdock_trusted_role_permissions_by_id(text[], uuid) from public, anon, authenticated;
+grant usage on schema "permdock" to "service_role";
+grant execute on function "permdock".permdock_trusted_role_permissions_by_id(text[], uuid) to "service_role";
+
+-- the application's roles table: a tenant row cannot take the name of a declared or a shared role
+create or replace function "permdock".permdock_custom_role_name_guard()
+returns trigger
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  if new."organization_id"::uuid is null or coalesce(new."is_system", false) then
+    return new;
+  end if;
+  if new."key"::text = any(array['contact', 'member', 'owner']::text[]) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || new."key"::text || ' is a declared role',
+      hint = 'declared-role';
+  end if;
+  if "permdock".permdock_is_shared_role(case when new."organization_id"::uuid is null then 'global' else 'organization' end, new."key"::text) then
+    raise exception using
+      errcode = '22023',
+      message = 'permdock: ' || new."key"::text || ' is a shared role',
+      hint = 'name-taken';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function "permdock".permdock_custom_role_name_guard() from public, anon, authenticated;
+create or replace trigger "permdock_custom_role_name_guard"
+  before insert or update on "public"."roles"
+  for each row execute function "permdock".permdock_custom_role_name_guard();
+
 
 -- every declared permission key
 create or replace function "permdock".permdock_permission_keys()
@@ -384,11 +1341,35 @@ security definer
 set search_path = ''
 as $$
 begin
-  perform p_tenant, p_scope_id; -- only a custom role reads them
-  return query
+  if p_role = any(array['contact', 'member', 'owner']::text[]) then
+    return query
   select distinct rp.permission, rp.effect
   from "permdock".role_permissions rp
   where rp.role = p_role and rp.scope = p_scope
+  order by 1, 2;
+    return;
+  end if;
+  perform "permdock".permdock_custom_role_shape(p_tenant, p_scope, p_scope_id, p_role);
+  if not (coalesce((select "permdock".permdock_user_id())::text, '') <> '' and (
+    false
+    or (p_scope <> 'global' and p_tenant is null and p_scope_id is null)
+    or (p_scope <> 'global' and (p_tenant::text in (select x::text from "permdock".member_organization_ids() x)
+      or (case p_scope when 'organization' then false when 'customer' then p_scope_id in (select x::text from "permdock".member_customer_ids() x) else false end)))
+  )) then
+    raise exception using
+      errcode = '42501',
+      message = 'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform'),
+      hint = 'not-member';
+  end if;
+  return query
+  select distinct rp.permission, rp.effect
+  from "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role),
+    p_scope
+  ) k(grant_key)
+  join "permdock".role_permissions rp on rp.grant_key = k.grant_key and rp.scope = p_scope
   order by 1, 2;
 end;
 $$;
@@ -403,15 +1384,30 @@ security definer
 set search_path = ''
 as $$
 begin
-  perform p_tenant, p_scope_id; -- only a custom role reads them
-  return query
+  if p_role = any(array['contact', 'member', 'owner']::text[]) then
+    return query
   select distinct rp.permission, rp.effect
   from "permdock".role_permissions rp
   where rp.role = p_role and rp.scope = p_scope
   order by 1, 2;
+    return;
+  end if;
+  perform "permdock".permdock_custom_role_shape(p_tenant, p_scope, p_scope_id, p_role);
+  return query
+  select distinct rp.permission, rp.effect
+  from "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role),
+    p_scope
+  ) k(grant_key)
+  join "permdock".role_permissions rp on rp.grant_key = k.grant_key and rp.scope = p_scope
+  order by 1, 2;
 end;
 $$;
 revoke execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) from public, anon, authenticated;
+grant usage on schema "permdock" to "service_role";
+grant execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) to "service_role";
 
 -- the grant keys a permission key reaches on one scope: its unconditional allows, with p_effect 'deny' every deny, and with 'conditioned-allow' or 'conditioned-deny' the allows or denies that carry a row condition
 create or replace function "permdock".grant_keys(p_permission text, p_scope text, p_effect text default 'allow')
@@ -494,6 +1490,17 @@ begin
   join "permdock".role_permissions rp on rp.role = ur.role::text
   where ur.user_id = (select "permdock".permdock_user_id())
     and rp.scope = 'global'
+  union
+  select ck.grant_key
+  from "permdock".user_roles ur
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+    'global'
+  ) ck(grant_key)
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -513,6 +1520,28 @@ begin
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
     and rp.scope = 'organization'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+  union
+  select (ms.id)::uuid, ck.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+    'organization'
+  ) ck(grant_key)
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'organization'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -565,6 +1594,17 @@ begin
   join "permdock".role_permissions rp on rp.role = ur.role::text
   where ur.user_id = (select "permdock".permdock_user_id())
     and rp.scope = 'global'
+  union
+  select ck.grant_key
+  from "permdock".user_roles ur
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+    'global'
+  ) ck(grant_key)
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -584,6 +1624,28 @@ begin
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
     and rp.scope = 'organization'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+  union
+  select (ms.id)::uuid, ck.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+    'organization'
+  ) ck(grant_key)
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'organization'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -680,6 +1742,17 @@ begin
   join "permdock".role_permissions rp on rp.role = ur.role::text
   where ur.user_id = (select "permdock".permdock_user_id())
     and rp.scope = 'global'
+  union
+  select ck.grant_key
+  from "permdock".user_roles ur
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+    'global'
+  ) ck(grant_key)
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -705,6 +1778,34 @@ begin
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
     and rp.scope = 'customer'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+  union
+  select (ms.id)::uuid, ck.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+    'customer'
+  ) ck(grant_key)
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'customer'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -753,6 +1854,17 @@ begin
   join "permdock".role_permissions rp on rp.role = ur.role::text
   where ur.user_id = (select "permdock".permdock_user_id())
     and rp.scope = 'global'
+  union
+  select ck.grant_key
+  from "permdock".user_roles ur
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+    'global'
+  ) ck(grant_key)
+  where ur.user_id = (select "permdock".permdock_user_id())
+    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -778,6 +1890,34 @@ begin
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
     and rp.scope = 'customer'
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+  union
+  select (ms.id)::uuid, ck.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+    'customer'
+  ) ck(grant_key)
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'customer'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -916,6 +2056,17 @@ begin
   join "permdock".role_permissions rp on rp.role = ur.role::text
   where ur.user_id = p_user
     and rp.scope = 'global'
+  union
+  select ck.grant_key
+  from "permdock".user_roles ur
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+    'global'
+  ) ck(grant_key)
+  where ur.user_id = p_user
+    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -935,6 +2086,27 @@ begin
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'organization'
     and rp.scope = 'organization'
+  union
+  select (ms.id)::uuid, ck.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+    'organization'
+  ) ck(grant_key)
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -985,6 +2157,17 @@ begin
   join "permdock".role_permissions rp on rp.role = ur.role::text
   where ur.user_id = p_user
     and rp.scope = 'global'
+  union
+  select ck.grant_key
+  from "permdock".user_roles ur
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+    'global'
+  ) ck(grant_key)
+  where ur.user_id = p_user
+    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -1004,6 +2187,27 @@ begin
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'organization'
     and rp.scope = 'organization'
+  union
+  select (ms.id)::uuid, ck.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+    'organization'
+  ) ck(grant_key)
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -1094,6 +2298,17 @@ begin
   join "permdock".role_permissions rp on rp.role = ur.role::text
   where ur.user_id = p_user
     and rp.scope = 'global'
+  union
+  select ck.grant_key
+  from "permdock".user_roles ur
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+    'global'
+  ) ck(grant_key)
+  where ur.user_id = p_user
+    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -1119,6 +2334,33 @@ begin
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'customer'
     and rp.scope = 'customer'
+  union
+  select (ms.id)::uuid, ck.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+    'customer'
+  ) ck(grant_key)
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'customer'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -1165,6 +2407,17 @@ begin
   join "permdock".role_permissions rp on rp.role = ur.role::text
   where ur.user_id = p_user
     and rp.scope = 'global'
+  union
+  select ck.grant_key
+  from "permdock".user_roles ur
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
+    'global'
+  ) ck(grant_key)
+  where ur.user_id = p_user
+    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -1190,6 +2443,33 @@ begin
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'customer'
     and rp.scope = 'customer'
+  union
+  select (ms.id)::uuid, ck.grant_key
+  from (
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."memberships" m
+    where m."user_id" = v_user_0
+    group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+    union all
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_1
+    group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral "permdock".permdock_custom_keys(
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
+    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
+    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
+    'customer'
+  ) ck(grant_key)
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'customer'
+    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),

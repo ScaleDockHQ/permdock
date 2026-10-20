@@ -176,6 +176,15 @@ export function buildContext(
   if (requires.error !== undefined) {
     return { refusal: requires.error };
   }
+  if (
+    rls?.customRoleWrites?.audit !== undefined &&
+    rls.customRoleWrites.roles?.primaryKey === undefined
+  ) {
+    return {
+      refusal:
+        "rls.customRoleWrites.audit needs rls.customRoleWrites.roles.primaryKey: only the by-id writers call it",
+    };
+  }
   const readers: unknown = rls?.trustedReaders;
   if (
     readers !== undefined &&
@@ -230,6 +239,9 @@ export function buildContext(
             ...(rls?.customRoleWrites?.roles === undefined
               ? {}
               : { table: rls.customRoleWrites.roles }),
+            ...(rls?.customRoleWrites?.audit === undefined
+              ? {}
+              : { audit: rls.customRoleWrites.audit }),
           },
         }
       : {}),

@@ -452,7 +452,7 @@ describe("helpersSql role readers", () => {
       trustedReaders: ["service_role", "support"],
     });
     expect(sql).toContain(
-      'revoke execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) from public, anon, authenticated;\ngrant execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) to "service_role", "support";',
+      'revoke execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) from public, anon, authenticated;\ngrant usage on schema "permdock" to "service_role", "support";\ngrant execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) to "service_role", "support";',
     );
     expect(readers({})).not.toContain(
       "permdock_trusted_role_permissions(text, text, uuid, text) to",

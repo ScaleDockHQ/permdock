@@ -11,6 +11,9 @@ const internal = [
   "user_roles",
   "role_permissions",
   "permdock_authz_version",
+  "roles",
+  "custom_role_permissions",
+  "custom_role_includes",
 ] as const;
 
 export default defineConfig({

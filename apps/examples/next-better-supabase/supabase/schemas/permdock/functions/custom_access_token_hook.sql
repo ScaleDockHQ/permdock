@@ -224,6 +224,45 @@ begin
         having jsonb_build_array('contact') is not null
       ) s
     ) x;
+  select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+      'name', c.role,
+      'shared', case when c.tenant_id is null and c.scope <> 'global' then true end,
+      'tenant', c.tenant_id::text,
+      'scope', c.scope,
+      'id', c.scope_id,
+      'grants', (
+        select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+            'permission', p.permission,
+            'effect', p.effect,
+            'level', to_jsonb(p) ->> 'level'
+          )) order by p.permission, p.effect), '[]'::jsonb)
+        from "permdock".custom_role_permissions p
+        where p.tenant_id is not distinct from c.tenant_id and p.scope = c.scope and p.scope_id is not distinct from c.scope_id and p.role = c.role
+      ),
+      'includes', (
+        select jsonb_agg(p.include_role order by p.include_role)
+        from "permdock".custom_role_includes p
+        where p.tenant_id is not distinct from c.tenant_id and p.scope = c.scope and p.scope_id is not distinct from c.scope_id and p.role = c.role
+      )
+    )) order by c.tenant_id::text, c.scope, c.scope_id, c.role), '[]'::jsonb)
+    into custom
+    from (
+      select tenant_id, scope, scope_id, role from "permdock".custom_role_permissions
+      union
+      select tenant_id, scope, scope_id, role from "permdock".custom_role_includes
+    ) c
+    where (c.scope = 'global' and c.tenant_id is null and held ? c.role)
+      or exists (
+        select 1
+        from jsonb_array_elements(memberships) m
+        where m -> 'roles' ? c.role
+          and m ->> 'scope' = c.scope
+          and (
+            (c.tenant_id is null and c.scope_id is null)
+            or c.tenant_id::text = case when m ->> 'scope' = 'organization' then m ->> 'id' else m -> 'within' ->> 'organization' end
+          )
+          and (c.scope_id is null or c.scope_id = m ->> 'id')
+      );
   select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
   ver := coalesce(ver, 0);
   extra := "public"."datetime_preference_claims"(uid);
