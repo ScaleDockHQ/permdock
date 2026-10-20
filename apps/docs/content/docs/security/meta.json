@@ -1,4 +1,11 @@
 {
   "title": "Security",
-  "pages": ["threat-model", "owasp-agentic", "approvals", "delegation"]
+  "pages": [
+    "threat-model",
+    "owasp-agentic",
+    "owasp-llm",
+    "owasp-api",
+    "approvals",
+    "delegation"
+  ]
 }

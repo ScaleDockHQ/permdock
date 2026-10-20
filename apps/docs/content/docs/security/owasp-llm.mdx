@@ -1,0 +1,35 @@
+---
+title: OWASP Top 10 for LLM Applications
+description: How PermDock features map to the OWASP Top 10 for LLM Applications 2025, entry by entry, and which entries other layers own.
+---
+
+The [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/) lists the risks of putting a language model in an application. Its central authorization entry is LLM06 Excessive Agency: a model given more functionality, permission or autonomy than its task needs. This page maps PermDock features to each entry; the [agentic list](/docs/security/owasp-agentic) covers autonomous agents in more depth.
+
+## Scope of this mapping
+
+PermDock decides what a model's tool calls, retrievals and model choices may reach, as the person the model acts for. It does not inspect prompts, filter model output for content, or train models. For injection, poisoning and misinformation its part is the blast radius: what a misled model can still do.
+
+## Mapping table
+
+| ID    | Name                             | PermDock mitigation                                                                                                                                                                                                                                                                                                                                  |
+| ----- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LLM01 | Prompt Injection                 | An injected instruction still runs through the same decision: the subject comes from verified credentials, never from model output, and destructive permissions carry `approval: 'human'`. PermDock does not detect injection.                                                                                                                       |
+| LLM02 | Sensitive Information Disclosure | An operation's `results` permission filters what a tool returns (`filterResults`), `pick` drops restricted fields, and generated RLS holds the model's token to the user's rows ([agents](/docs/concepts/agents#results-filter), [field-level grants](/docs/concepts/policies#field-level-grants)).                                                  |
+| LLM03 | Supply Chain                     | Runtime entries depend on `@standard-schema/spec` only, releases publish through npm trusted publishing with provenance, and every release attaches a CycloneDX SBOM ([threat model](/docs/security/threat-model)). Model provenance stays with the model host.                                                                                      |
+| LLM04 | Data and Model Poisoning         | Not PermDock's control. Decisions read `subject`, `context` and loaded rows from the application, never from training data or conversation memory, so poisoned data cannot grant.                                                                                                                                                                    |
+| LLM05 | Improper Output Handling         | Tool arguments are model output: `validate: 'boundary'` parses them against the resource schema before any rule runs, and a failure is `denied` with `issues` ([validation](/docs/concepts/validation)). Escaping output for HTML, SQL or a shell stays with the application.                                                                        |
+| LLM06 | Excessive Agency                 | One `permission` per tool; the decision is the user's grants intersected with the delegation, so an agent never exceeds its user; tool lists are filtered per caller; `approval` and `limit` bound autonomy ([OWASP agentic, ASI02 and ASI03](/docs/security/owasp-agentic)).                                                                        |
+| LLM07 | System Prompt Leakage            | Authorization never lives in the prompt. Grants are in the policy and decided outside the model, so a leaked system prompt reveals no credential and changes no decision.                                                                                                                                                                            |
+| LLM08 | Vector and Embedding Weaknesses  | Retrieval is a query like any other: `permdock.where` narrows a vector search to the rows the user may read, generated RLS applies to embedding tables, and `filterResults` drops chunks the `results` permission refuses, so one tenant's documents never reach another's context ([protected queries](/docs/concepts/policies#protected-queries)). |
+| LLM09 | Misinformation                   | Not PermDock's control. A `denied` decision carries `alternatives`, the permitted actions on the same resource, so a model reports what it can do instead of inventing it.                                                                                                                                                                           |
+| LLM10 | Unbounded Consumption            | `limit` grants cap calls per subject; the model gate (`decideModel`, `permittedModels`) restricts expensive models by permission; `gatewayOptions` attributes AI Gateway spend to the user and tenant ([agents](/docs/concepts/agents#model-gate)).                                                                                                  |
+
+## Using this page in an audit
+
+The `permdock-audit` skill and `permdock doctor` report tools registered without a `permission`, agent adapters without an `actor`, and destructive permissions without `approval`: the LLM06 checks. For LLM02 and LLM08, check that every retrieval tool either narrows its query with `permdock.where` or declares a `results` permission.
+
+## Sources
+
+- [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/), entry names LLM01:2025 to LLM10:2025.
+- [OWASP Top 10 for Agentic Applications](/docs/security/owasp-agentic) for ASI02 and ASI03 in depth.
+- [Threat model](/docs/security/threat-model) for the invariants referenced above.
