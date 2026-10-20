@@ -32,6 +32,7 @@ import {
 } from "./generate-options.ts";
 import { outputFiles } from "./generate-output.ts";
 import { generateSql } from "./generate-sql.ts";
+import { indexKeysFromProject, withoutServedTargets } from "./index-scan.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
 import { triggerNotes } from "./trigger-notes.ts";
 
@@ -182,6 +183,9 @@ export async function runRlsGenerate(
     warnings.push(...bindingNotes(bindings, input.db !== undefined));
   }
   warnings.push(...triggerNotes(text));
+  if (input.db === undefined) {
+    indexes = withoutServedTargets(indexes, indexKeysFromProject(input.cwd));
+  }
   if (input.db !== undefined) {
     try {
       const facts = await readTableIndexFacts(

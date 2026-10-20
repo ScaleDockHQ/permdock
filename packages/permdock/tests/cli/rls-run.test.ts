@@ -458,11 +458,11 @@ function catalogReply(
         })),
       };
     }
-    if (call.sql.includes("i.indkey[0]")) {
+    if (call.sql.includes("i.indnkeyatts")) {
       return {
         rows: expected.indexes.map((target) => ({
           target: target.table,
-          leading: target.columns[0],
+          columns: target.columns,
         })),
       };
     }

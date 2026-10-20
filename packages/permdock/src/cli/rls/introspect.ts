@@ -9,7 +9,7 @@ import {
   HELPER_TABLES,
   helperCallKeys,
 } from "../sql/helper-calls.ts";
-import { COLUMNS_SQL, type IndexTarget } from "./indexes.ts";
+import { COLUMNS_SQL, INDEX_COLUMNS_SQL, type IndexTarget } from "./indexes.ts";
 import { ACTOR_MAY_WRITE } from "./policies.ts";
 
 const ROLES = ["anon", "authenticated"] as const;
@@ -275,13 +275,6 @@ from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname || '.' || p.proname = any($1::text[])`;
 
-const INDEXES_SQL = `select n.nspname || '.' || c.relname as target, a.attname as leading
-from pg_index i
-join pg_class c on c.oid = i.indrelid
-join pg_namespace n on n.oid = c.relnamespace
-join pg_attribute a on a.attrelid = i.indrelid and a.attnum = i.indkey[0]
-where i.indpred is null and n.nspname || '.' || c.relname = any($1::text[])`;
-
 function commandOf(cmd: unknown): string {
   const text = String(cmd ?? "").toLowerCase();
   return text === "*" ? "all" : text;
@@ -309,7 +302,7 @@ export async function introspectRls(
         client.query(TABLES_SQL, [tables]),
         client.query(GRANTS_SQL, [tables]),
         client.query(HELPERS_SQL, [[...expected.helpers]]),
-        client.query(INDEXES_SQL, [indexed]),
+        client.query(INDEX_COLUMNS_SQL, [indexed]),
         client.query(COLUMNS_SQL, [indexed]),
       ]);
     const columnsOf: Record<string, string[]> = {};
@@ -318,9 +311,11 @@ export async function introspectRls(
     }
     const leadingColumns: Record<string, string[]> = {};
     for (const row of indexes.rows) {
-      (leadingColumns[String(row["target"])] ??= []).push(
-        String(row["leading"]),
-      );
+      const keyColumns = Array.isArray(row["columns"]) ? row["columns"] : [];
+      const lead = keyColumns.at(0);
+      if (typeof lead === "string") {
+        (leadingColumns[String(row["target"])] ??= []).push(lead);
+      }
     }
     const byTable: Record<string, Record<string, string[]>> = {};
     for (const row of grants.rows) {
