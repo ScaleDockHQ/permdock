@@ -399,6 +399,11 @@ export type {
   ScopeNames,
 } from "./core/scopes.ts";
 export {
+  normalizeMembership,
+  normalizeMemberships,
+  resolveScope,
+} from "./core/scope-helpers.ts";
+export {
   definePlans,
   defineRoles,
   findRole,
