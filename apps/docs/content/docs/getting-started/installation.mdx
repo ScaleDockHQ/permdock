@@ -92,6 +92,8 @@ All adapters live in the one `permdock` package. Import only what a bundle needs
 | `permdock/drizzle`, `permdock/prisma`, `permdock/kysely`                                         | `toWhere` condition compilers                                                                                                                                                                                                     |
 | `permdock/supabase`, `permdock/better-auth`, `permdock/clerk`, `permdock/convex`, `permdock/pdp` | Subject providers                                                                                                                                                                                                                 |
 
+`permdock/schemas/<name>.json` serves the JSON Schemas, and `permdock/package.json` the manifest, so a tool reads the installed version with `createRequire(import.meta.url)("permdock/package.json").version`.
+
 The full matrix with example apps and related standards is on the [adapters index](/docs/adapters).
 
 ## Optional peers
