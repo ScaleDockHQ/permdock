@@ -3,13 +3,13 @@ import type {
   DoctorFinding,
   DoctorInput,
 } from "../shared/doctor-types.ts";
-import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig } from "../types.ts";
 
-import { scopeList } from "../../core/scopes.ts";
-import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { rel, sqlFiles } from "../files.ts";
+import { buildContext } from "../rls/generate-context.ts";
+import { generateOptions, isRefusal } from "../rls/generate-options.ts";
+import { inheritTargets } from "../rls/rows.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { filesOf } from "../shared/doctor-files.ts";
 import { compileGrants } from "../sql/compile.ts";
@@ -28,6 +28,8 @@ const SEED_ROW = new RegExp(
   "gu",
 );
 
+const SEED_VIEW =
+  /^create\s+(?:or\s+replace\s+)?view\s+((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)\s*\([^)]*\)\s*with\s*\([^)]*\)\s*as\s+([\s\S]*)$/iu;
 const SEED_FUNCTION =
   /^create\s+(?:or\s+replace\s+)?function\s+(?:"[^"]+"|\w+)\.(?:"seed"|seed)\s*\(\s*\)[\s\S]*?\$(\w*)\$([\s\S]*)\$\1\$/iu;
 
@@ -61,7 +63,7 @@ function lastSeed(
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
     for (const { text } of seedStatements(files.read(file))) {
-      const insert = SEED_INSERT.exec(text);
+      const insert = SEED_INSERT.exec(text) ?? SEED_VIEW.exec(text);
       if (insert !== null && tableKey(group(insert, 1)) === table) {
         const rows = new Set<string>();
         for (const row of group(insert, 2).matchAll(SEED_ROW)) {
@@ -118,24 +120,34 @@ export async function pd054(
   if (policy === undefined) {
     return [];
   }
-  const ctx: RlsSqlContext = {
+  const generate = {
+    cwd,
+    config,
+    target: "sql",
     dialect: rls?.dialect ?? "supabase",
-    scopes: scopeList(policy.scopes),
-    tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
-    gucPrefix: rls?.gucPrefix ?? "app",
-    ...(rls?.actions === undefined ? {} : { actions: rls.actions }),
-    schema,
-    ...(rls?.fields === "views" ? { fields: "views" as const } : {}),
-  };
+    rbac: false,
+    check: false,
+    skipClosures: true,
+    inlineFunctions: false,
+    io: { stdout: () => undefined, stderr: () => undefined },
+  } as const;
   let expected: ReadonlySet<string>;
   try {
+    const options = generateOptions(generate);
+    const built = isRefusal(options)
+      ? options
+      : buildContext(generate, policy, options);
+    if (isRefusal(built)) {
+      return [];
+    }
     expected = new Set(
       compileGrants(
         policy,
-        ctx,
+        built.ctx,
         tableNames(rls?.tables),
         [],
         true,
+        rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0,
       ).rolePermissions.map((row) =>
         rowKey([row.role, row.permission, row.grantKey, row.scope, row.effect]),
       ),
