@@ -37,7 +37,9 @@ describe("run: groups", () => {
     expect(result.code).toBe(2);
     expect(errorOf(result.stdout)).toMatchObject({
       code: "usage",
-      choices: { "<command>": ["generate", "import", "verify", "migrate"] },
+      choices: {
+        "<command>": ["generate", "import", "verify", "migrate", "explain"],
+      },
     });
   });
 

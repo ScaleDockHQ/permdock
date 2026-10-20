@@ -68,6 +68,35 @@ function input(overrides: Partial<RlsRunInput>): RlsRunInput {
   };
 }
 
+describe("runRls explain", () => {
+  it("reports the table bindings, scopes and triggers as JSON", async () => {
+    const result = await runRls(input({ rest: ["explain"], json: true }));
+    expect(result.code).toBe(0);
+    const report = JSON.parse(result.output);
+    expect(report.bindings.length).toBeGreaterThan(0);
+    expect(report.bindings[0]).toEqual(
+      expect.objectContaining({ inferred: true }),
+    );
+    expect(report.scopes.length).toBeGreaterThan(0);
+    expect(report.triggers).toEqual(expect.any(Array));
+  });
+
+  it("prints the bindings as text", async () => {
+    const result = await runRls(input({ rest: ["explain"] }));
+    expect(result.output).toContain("table bindings:");
+    expect(result.output).toContain("scopes:");
+  });
+
+  it("checks the bound tables against a database", async () => {
+    const sql = fakeSql();
+    const result = await runRls(
+      input({ rest: ["explain"], db: "postgres://x", connect: sql.connect }),
+    );
+    expect(result.code).toBe(0);
+    expect(result.output).toContain("MISSING");
+  });
+});
+
 describe("runRls dispatch", () => {
   it.each([[[]], [["help"]], [["unknown"]]])(
     "prints help for %j",

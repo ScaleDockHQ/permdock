@@ -310,6 +310,20 @@ export const SECTIONS: readonly Section[] = [
               load: async () => (await import("../commands/rls.ts")).migrate,
             },
           ),
+          leaf(
+            "explain",
+            "Show the tables, membership sources and triggers the SQL binds to",
+            {
+              examples: [
+                "permdock rls explain",
+                "permdock rls explain --db-url-stdin --json",
+              ],
+              docs: "rls",
+              effects: ["database:read"],
+              config: true,
+              load: async () => (await import("../commands/rls.ts")).explain,
+            },
+          ),
         ],
       ),
       group(

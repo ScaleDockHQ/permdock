@@ -2,6 +2,7 @@ import type { ExitCode } from "../core/errors.ts";
 import type { OutputFile } from "../core/output-files.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { RlsExplain } from "./explain.ts";
 import type { RolePermission } from "./helpers.ts";
 import type { IndexTarget } from "./indexes.ts";
 
@@ -21,6 +22,7 @@ import {
 import { requirePolicy } from "../project/load.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
 import { bindingNotes, missingBindings, tableBindings } from "./bindings.ts";
+import { explainRls } from "./explain.ts";
 import { buildContext } from "./generate-context.ts";
 import {
   type RlsGenerateInput,
@@ -53,6 +55,8 @@ export type GenerateOutcome = {
   };
   readonly schema?: string;
   readonly helpersOnly?: boolean;
+  /** How the SQL binds to the application's schema; set when `write` is false. */
+  readonly explain?: RlsExplain;
 };
 
 function loadPolicy(
@@ -232,6 +236,14 @@ export async function runRlsGenerate(
       },
       schema: built.schema,
       helpersOnly,
+      explain: explainRls({
+        config: input.config,
+        ctx,
+        schema: built.schema,
+        authorize: built.authorize,
+        generated,
+        text,
+      }),
       ...extras,
     };
   }

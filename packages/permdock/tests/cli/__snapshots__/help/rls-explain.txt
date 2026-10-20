@@ -1,0 +1,37 @@
+permdock rls explain: Show the tables, membership sources and triggers the SQL binds to
+
+Usage  permdock rls explain [flags]
+
+Flags
+  --target <sql|drizzle|prisma>          Output form (default sql)
+  --dialect <supabase|neon|guc>          How the database reads the subject (default rls.dialect, else supabase)
+  --policy <module>                      Module exporting the policy (default policy in the config)
+  --memberships <table>                  Membership table as <table>:tenant,user,role
+  --rbac <supabase>                      Scaffold the role tables for this provider
+  --rbac-schema <name>                   Schema for the scaffolded role tables
+  --authorize <database|jwt>             Where roles are read
+  --skip-closures                        Skip grants with closures instead of failing
+  --inline-functions                     Inline helper calls into the policies
+  --force-rls                            Emit FORCE ROW LEVEL SECURITY so the table owner is held to the policies
+  --guc-prefix <prefix>                  guc dialect: setting prefix
+  --policy-per-role                      One policy per role instead of one per command
+  --policy-name <template>               Policy name template
+  --tenant-type <type>                   Postgres type of the tenant column
+  --custom-roles                         Emit the custom role tables and helpers
+  --capabilities                         Emit the link capability helpers
+  --fields <views>                       Field security
+  --revoke-columns                       Revoke restricted columns on the table
+  --helpers-only                         Write the helpers and keep the policies hand-written
+  --shims                                Wrap each rls.migrate helper under its legacy name
+  --schemas <pg-delta|migra|migrations>  Schema workflow (default supabase.schemas, else pg-delta)
+  --db-url-stdin                         Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock rls explain
+  permdock rls explain --db-url-stdin --json
+
+Side effects  database:read
+Docs  https://permdock.com/docs/cli/rls

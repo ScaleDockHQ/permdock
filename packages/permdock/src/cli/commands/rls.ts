@@ -334,6 +334,13 @@ export const verify: Leaf = defineLeaf({
   },
 });
 
+export const explain: Leaf = defineLeaf({
+  flags: { ...shapeFlags },
+  async run(ctx, { flags }) {
+    return runRls(await rlsInput(ctx, "explain", flags));
+  },
+});
+
 export const migrate: Leaf = defineLeaf({
   flags: {
     ...shapeFlags,
