@@ -392,7 +392,7 @@ describe("powersync streams", () => {
       { resource: "ghost", reason: "no grant of ghost.read" },
     ]);
     expect(plan.warnings).toContain(
-      "admin/job.read does not sync: no rls.memberships table without an expiry or disabledAt and with the kinds of admin for scope organization",
+      "admin/job.read does not sync: no rls.memberships table without an expiry or disabledAt and with the kinds of admin, and no membership source, for scope organization",
     );
     expect(plan.warnings).toContain(
       "editor/file.read does not sync: no rls.memberships.resource table for folder on the row",
@@ -457,7 +457,7 @@ describe("powersync streams", () => {
       },
     });
     expect(expiring.warnings).toContain(
-      "contractor/job.read does not sync: no rls.memberships table without an expiry or disabledAt and with the kinds of contractor for scope organization",
+      "contractor/job.read does not sync: no rls.memberships table without an expiry or disabledAt and with the kinds of contractor, and no membership source, for scope organization",
     );
     expect(expiring.warnings).toContain(
       "editor/folder.read does not sync: the folder memberships table has an expiry or disabledAt, or lacks via",

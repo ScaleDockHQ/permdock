@@ -82,6 +82,7 @@ export function powersyncFiles(
 ): {
   readonly files: readonly PowerSyncFile[];
   readonly warnings: readonly string[];
+  readonly publication?: string;
 } {
   const plan = powersyncPlan(policy, config);
   const files: PowerSyncFile[] = [
@@ -95,7 +96,13 @@ export function powersyncFiles(
       text: `${JSON.stringify(localSnapshotManifest(policy), null, 2)}\n`,
     });
   }
-  return { files, warnings: plan.warnings };
+  return {
+    files,
+    warnings: plan.warnings,
+    ...(plan.publication === undefined
+      ? {}
+      : { publication: plan.publication }),
+  };
 }
 
 /** The files whose content on disk is not what the policy compiles to, with `missing` for an absent one. */
@@ -303,9 +310,15 @@ export async function runPowerSync(input: {
     applyFiles(input.cwd, files);
     return {
       code: 0,
-      output: [...files.map((file) => `wrote ${file.path}`), ...warnings].join(
-        "\n",
-      ),
+      output: [
+        ...files.map((file) => `wrote ${file.path}`),
+        ...(compiled.publication === undefined
+          ? []
+          : [
+              `add the tables outside public to the powersync publication: ${compiled.publication}`,
+            ]),
+        ...warnings,
+      ].join("\n"),
     };
   }
   const mismatches: string[] = stale.map(
