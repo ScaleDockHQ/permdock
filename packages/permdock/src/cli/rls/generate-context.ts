@@ -8,13 +8,13 @@ import type {
 
 import { renamedKeys } from "../../core/permission-registry.ts";
 import { resolveScope, scopeList } from "../../core/scopes.ts";
-import { type Policy, listPermissions, listRoles } from "../../index.ts";
+import { type Policy, listPermissions } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { configError, describeError } from "../core/errors.ts";
 import { checkSuspension } from "../sql/active.ts";
 import { type RlsSqlContext, parseMembershipsFlag } from "../sql/context.ts";
-import { roleNames } from "../sql/grants.ts";
+import { assignableRoles, roleNames } from "../sql/grants.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import { resolveVias, tableNames } from "../sql/tables.ts";
@@ -85,13 +85,7 @@ function customRoleNames(
   requires: readonly string[] | undefined,
 ): NonNullable<RlsSqlContext["customRoles"]> {
   const declared = [...roleNames(policy)].toSorted();
-  const assignable = declared.filter(
-    (name) =>
-      policy.rolesByName.get(name)?.assignable ??
-      listRoles(policy.vocabulary.roles).some(
-        (leaf) => leaf.key === name && leaf.assignable,
-      ),
-  );
+  const assignable = assignableRoles(policy);
   const renamed = renamedKeys(policy.vocabulary.permissions);
   const leaves = listPermissions(policy.permissions);
   const manage = leaves

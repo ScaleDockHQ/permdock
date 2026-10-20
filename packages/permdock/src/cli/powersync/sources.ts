@@ -59,7 +59,7 @@ function pairOf(through: RoleThrough): readonly [string, string] {
   return pair;
 }
 
-function isFixed(
+export function isFixed(
   roles: MembershipStream["roles"],
 ): roles is { readonly value: readonly string[] } {
   return typeof roles === "object" && "value" in roles;
@@ -69,7 +69,7 @@ function isSourceList(roles: RoleSpec): roles is readonly RoleSource[] {
   return Array.isArray(roles);
 }
 
-function roleSources(roles: RoleSpec): readonly RoleSource[] {
+export function roleSources(roles: RoleSpec): readonly RoleSource[] {
   return isSourceList(roles) ? roles : [roles];
 }
 

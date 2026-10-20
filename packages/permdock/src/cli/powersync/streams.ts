@@ -28,6 +28,7 @@ import { type RlsGrant, collectGrants, roleNames } from "../sql/grants.ts";
 import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNames } from "../sql/tables.ts";
+import { customRoleItems } from "./levels.ts";
 import { bare, ident } from "./names.ts";
 import {
   ownRows,
@@ -263,11 +264,12 @@ function conditionSql(
       }
       return membershipSql(scope, left, condition.roles, ctx);
     }
+    case "sqlFunction":
+      return conditionSql(condition.twin, table, ctx);
     case "not":
     case "contains":
     case "related":
     case "opaque":
-    case "sqlFunction":
     case "liveSession":
       return undefined;
     default: {
@@ -719,10 +721,12 @@ export function powersyncPlan(
     const table = bare(tableFor(resource, tableNames(config.rls?.tables)));
     const { id } = node;
     const queries = new Set<string>();
-    for (const item of items) {
-      const label = `${item.label}/${key}`;
-      const skipped = unsupported(item);
-      const access = skipped ?? accessSql(item, table, ctx);
+    const compile = (
+      label: string,
+      item: RlsGrant,
+      reach: () => readonly (readonly string[])[] | string,
+    ): void => {
+      const access = unsupported(item) ?? reach();
       const where =
         typeof access === "string" || item.where === undefined
           ? [[]]
@@ -732,13 +736,13 @@ export function powersyncPlan(
       }
       if (typeof access === "string") {
         warnings.push(`${label} does not sync: ${access}`);
-        continue;
+        return;
       }
       if (where === undefined) {
         warnings.push(
           `${label} does not sync: its condition has no Sync Streams form`,
         );
-        continue;
+        return;
       }
       const columns =
         item.grant.fields === undefined
@@ -751,6 +755,18 @@ export function powersyncPlan(
           `SELECT ${columns} FROM ${table}${clauses.length === 0 ? "" : ` WHERE ${clauses.join(" AND ")}`}`,
         );
       }
+    };
+    for (const item of items) {
+      compile(`${item.label}/${key}`, item, () => accessSql(item, table, ctx));
+    }
+    const custom = customRoleItems(ctx, grants, resource, key, table);
+    for (const entry of custom) {
+      compile(entry.label, entry.item, () => entry.access);
+    }
+    if (custom.length > 0) {
+      warnings.push(
+        `custom role/${key}: a custom role's deny rows, includes and shared roles do not change its stream; the device still applies them`,
+      );
     }
     if (queries.size === 0) {
       omitted.push({ resource, reason: `no grant of ${key} compiles` });
