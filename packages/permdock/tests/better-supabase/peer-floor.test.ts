@@ -127,7 +127,7 @@ function missingImports(
 
 /** The lowest version the `better-supabase` peer range accepts. */
 function peerFloor(): string | undefined {
-  return /^\s+better-supabase: ">=(\S+) /mu.exec(
+  return /^\s+better-supabase: ">=([^\s"]+)/mu.exec(
     readFileSync(WORKSPACE, "utf8"),
   )?.[1];
 }
