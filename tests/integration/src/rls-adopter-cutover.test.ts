@@ -160,7 +160,7 @@ describe("RLS adopter cutover: database mode with an application roles table", (
       MAPPED,
     ]);
     db.admin.on("notice", (message) => {
-      notices.push(message.message);
+      notices.push(message.message ?? "");
     });
     await db.admin.query(readFileSync(backfill, "utf8"));
     backfillNotices = [...notices];

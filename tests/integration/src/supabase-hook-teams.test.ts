@@ -112,8 +112,10 @@ describe("supabase.hook.teams", () => {
       app_metadata: { active_tenant: "acme" },
     });
     const teams = claims["team_ids"];
-    expect(Array.isArray(teams)).toBe(true);
-    expect((teams as unknown[]).length).toBeLessThan(31);
+    if (!Array.isArray(teams)) {
+      throw new Error("team_ids is not an array");
+    }
+    expect(teams.length).toBeLessThan(31);
     expect(
       JSON.stringify(claims["memberships"]).length +
         JSON.stringify(teams).length,
