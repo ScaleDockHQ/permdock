@@ -57,11 +57,7 @@ function checkedCatalog(output: string): CatalogDocument {
       throw error;
     }
     const issues = error.issues.map((issue) => ({
-      path: (issue.path ?? [])
-        .map((segment) =>
-          typeof segment === "object" ? String(segment.key) : String(segment),
-        )
-        .join("."),
+      path: (issue.path ?? []).map(String).join("."),
       message: issue.message,
     }));
     throw new CliError(

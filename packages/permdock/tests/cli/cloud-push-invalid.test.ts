@@ -34,12 +34,12 @@ const OPERATIONS = `export const operations = {
 };
 `;
 
-function push(dryRun: boolean) {
+function push(dryRun: boolean, operations = OPERATIONS) {
   vi.stubGlobal("fetch", fetchSpy);
   return runCloud({
     cwd: project({
       "src/permissions.ts": PERMISSIONS,
-      "src/operations.ts": OPERATIONS,
+      "src/operations.ts": operations,
     }),
     config: {
       permissions: "src/permissions.ts",
@@ -57,8 +57,13 @@ function push(dryRun: boolean) {
   });
 }
 
-async function failure(dryRun: boolean): Promise<CliError> {
-  const error: unknown = await push(dryRun).catch((thrown: unknown) => thrown);
+async function failure(
+  dryRun: boolean,
+  operations?: string,
+): Promise<CliError> {
+  const error: unknown = await push(dryRun, operations).catch(
+    (thrown: unknown) => thrown,
+  );
   if (!(error instanceof CliError)) {
     throw new TypeError("expected a CliError");
   }
@@ -74,6 +79,19 @@ describe("cloud push on an invalid catalog", () => {
         "permdock cloud push: the catalog has 2 issues",
         "  operations.0.permission: operation 'archivePost' permission 'post.archive' is not a declared permission key",
         "  operations.0.results: operation 'archivePost' results 'ghost.list' is not a declared permission key",
+      ].join("\n"),
+    );
+  });
+
+  it("counts a single issue in the singular", async () => {
+    const one = `export const operations = {
+  readPost: { name: 'readPost', permission: ${leaf("post.read")}, results: ${leaf("ghost.list")}, meta: {} },
+};
+`;
+    expect((await failure(true, one)).message).toBe(
+      [
+        "permdock cloud push: the catalog has 1 issue",
+        "  operations.0.results: operation 'readPost' results 'ghost.list' is not a declared permission key",
       ].join("\n"),
     );
   });

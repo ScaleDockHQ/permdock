@@ -2,8 +2,13 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { CollectConfig, PermDockConfig } from "../../src/cli/types.ts";
+import type {
+  CatalogDocument,
+  CollectConfig,
+  PermDockConfig,
+} from "../../src/cli/types.ts";
 
+import { catalogForDrift } from "../../src/cli/catalog-doc.ts";
 import { catalogFile } from "../../src/cli/catalog.ts";
 import { runCollect } from "../../src/cli/collect.ts";
 import {
@@ -158,6 +163,41 @@ describe("runCollect", () => {
     ).toMatchObject({
       code: 1,
       data: { stale: true },
+    });
+  });
+
+  it("catalog --check compares Markdown as written and reports a missing file", () => {
+    const cwd = project({ "docs/permissions.md": "# Permissions\n" });
+    expect(
+      catalogFile(cwd, "docs/permissions.md", "# Permissions\n", true),
+    ).toMatchObject({ code: 0 });
+    expect(
+      catalogFile(cwd, "docs/permissions.md", "# Other\n", true),
+    ).toMatchObject({ code: 1, data: { stale: true } });
+    expect(catalogFile(cwd, "missing.md", "", true)).toMatchObject({
+      code: 1,
+      output: "catalog missing: missing.md",
+    });
+  });
+
+  it("catalogForDrift leaves shapes it cannot read alone", () => {
+    const odd = (value: unknown): string =>
+      // SAFETY: catalogForDrift reads files that may not be catalogs; this checks it tolerates any shape.
+      catalogForDrift(value as CatalogDocument);
+    expect(odd({ permissions: {} })).toBe('{\n  "permissions": {}\n}\n');
+    expect(
+      JSON.parse(
+        odd({
+          generator: "x",
+          permissions: [
+            1,
+            { usages: 2 },
+            { usages: [3, { line: 4, file: "a" }] },
+          ],
+        }),
+      ),
+    ).toEqual({
+      permissions: [1, { usages: 2 }, { usages: [3, { file: "a" }] }],
     });
   });
 

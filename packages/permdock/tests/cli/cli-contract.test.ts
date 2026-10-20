@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -128,6 +128,38 @@ describe("Problem Details under --json", () => {
         exitCode: 1,
       },
     });
+  });
+
+  it("reports positionsMoved when only usage lines changed", async () => {
+    const use = (above: string) =>
+      `import { permissions } from './permissions.ts';\n${above}export const check = (pd: { can(p: unknown): boolean }) => pd.can(permissions.post.read);\n`;
+    const cwd = project({
+      "permdock.config.ts":
+        "export default { permissions: './src/permissions.ts' };\n",
+      "src/permissions.ts": PERMISSIONS,
+      "src/use.ts": use(""),
+    });
+    expect((await run(["collect", "--cwd", cwd])).code).toBe(0);
+    writeFileSync(join(cwd, "src/use.ts"), use("\n"));
+    const result = await run(["collect", "--check", "--json", "--cwd", cwd]);
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      status: "success",
+      data: { stale: false, positionsMoved: true },
+    });
+  });
+
+  it("returns catalog's own failure before comparing --out", async () => {
+    const cwd = project({ "permdock.config.ts": "export default {};\n" });
+    const result = await run([
+      "catalog",
+      "--out",
+      "permissions.md",
+      "--check",
+      "--cwd",
+      cwd,
+    ]);
+    expect(result.code).toBe(2);
   });
 
   it("wraps a usage result's text as a usage problem", async () => {

@@ -291,9 +291,8 @@ function resolveSkillsRoot(cwd: string, bundled: string): string | undefined {
       "permdock",
       pathToFileURL(resolve(cwd, "package.json")),
     );
-    const root = pkg === undefined ? undefined : join(dirname(pkg), "skills");
-    if (root !== undefined && existsSync(root)) {
-      return root;
+    if (pkg !== undefined && existsSync(join(dirname(pkg), "skills"))) {
+      return join(dirname(pkg), "skills");
     }
   } catch {
     // fall through
