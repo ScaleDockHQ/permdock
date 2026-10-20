@@ -29,6 +29,7 @@ import {
   HOOK_MARKER,
   hookMarkerFields,
 } from "../sql/markers.ts";
+import { membershipSourcesOf } from "../sql/sources.ts";
 import { splitUndiffed } from "../sql/statements.ts";
 import { supabaseConfig } from "../supabase-config.ts";
 import {
@@ -145,7 +146,7 @@ function supabaseDatabaseManifest(
       ...config,
       supabase: {
         ...config.supabase,
-        hook: { memberships: config.rls?.membershipSources ?? [] },
+        hook: { memberships: membershipSourcesOf(config) },
       },
     },
     overrides,

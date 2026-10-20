@@ -20,6 +20,7 @@ import {
   quoteQualified,
   quoteTable,
 } from "../sql/quote.ts";
+import { membershipSourcesOf } from "../sql/sources.ts";
 import {
   type ExtraClaim,
   attrsPlan,
@@ -444,7 +445,7 @@ export function hookParts(
         ...(config.rls?.memberships === undefined
           ? {}
           : { memberships: config.rls.memberships }),
-        memberSources: config.rls?.membershipSources ?? hook.memberships,
+        memberSources: membershipSourcesOf(config),
       }),
     },
   };

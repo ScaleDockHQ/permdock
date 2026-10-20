@@ -16,6 +16,7 @@ import { checkSuspension } from "../sql/active.ts";
 import { type RlsSqlContext, parseMembershipsFlag } from "../sql/context.ts";
 import { roleNames } from "../sql/grants.ts";
 import { customRolesOn } from "../sql/shared.ts";
+import { membershipSourcesOf } from "../sql/sources.ts";
 import { resolveVias, tableNames } from "../sql/tables.ts";
 import { apiKeysPlan } from "./api-keys.ts";
 import { customRoleSyncSql } from "./custom-role-sync.ts";
@@ -156,9 +157,7 @@ export function buildContext(
           skip: writeTable.skip,
           declared: [...roleNames(policy)].toSorted(),
         };
-  const memberSources = (
-    rls?.membershipSources ?? input.config.supabase?.hook?.memberships
-  )?.map((source) =>
+  const memberSources = membershipSourcesOf(input.config).map((source) =>
     guard === undefined ? source : (source.guarded?.(guard) ?? source),
   );
   const sources = authorize === "database" ? memberSources : undefined;

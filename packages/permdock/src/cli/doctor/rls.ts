@@ -23,6 +23,7 @@ import {
   rowConditionMessage,
 } from "../sql/helper-calls.ts";
 import { graphSqlName } from "../sql/names.ts";
+import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNameOf, tableNames } from "../sql/tables.ts";
 import { policyOf } from "./inputs.ts";
 
@@ -513,10 +514,7 @@ export function pd072(input: DoctorInput): readonly DoctorFinding[] {
     return [];
   }
   const target = qualifySqlTable(roles.table);
-  const sources =
-    input.config.rls?.membershipSources ??
-    input.config.supabase?.hook?.memberships ??
-    [];
+  const sources = membershipSourcesOf(input.config);
   return sources
     .filter((source) =>
       source.sql.throughs.some((through) => through.table === target),
@@ -543,8 +541,7 @@ export async function pd073(
   }
   const scopes = scopeList(policy.scopes);
   const ownership = ownershipRules(policy, scopes);
-  const sources =
-    rls.membershipSources ?? input.config.supabase?.hook?.memberships;
+  const sources = membershipSourcesOf(input.config);
   const ctx: RlsSqlContext = {
     dialect: "supabase",
     scopes,

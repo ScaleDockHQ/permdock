@@ -10,6 +10,7 @@ import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
+import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNameOf } from "../sql/tables.ts";
 import { fixtureMembershipSql } from "./verify-pgtap-memberships.ts";
 
@@ -278,11 +279,9 @@ export function emitPgtap(input: {
       lines.push(`${inlineStatement(row)};`);
     }
   }
-  const sources = (
-    input.config.rls?.membershipSources ??
-    input.config.supabase?.hook?.memberships ??
-    []
-  ).map((source) => source.sql.manifest);
+  const sources = membershipSourcesOf(input.config).map(
+    (source) => source.sql.manifest,
+  );
   for (const [index, fixture] of input.fixtures.entries()) {
     const permission = findPermission(input.policy.permissions, fixture.action);
     const status = input.inProcess[index];
