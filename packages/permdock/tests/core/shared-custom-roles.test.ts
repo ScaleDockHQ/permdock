@@ -159,13 +159,13 @@ describe("shared custom roles", () => {
       { ...viewer, id: "acme" },
       { ...viewer, scope: "global" },
     ];
-    for (const role of forged) {
+    for (const shape of forged) {
       const permdock = getPermDockSync(policy, memberOf(["acme", ["viewer"]]), {
         tenant: "acme",
         customRoles: {
           rolesFor: () => [],
           // SAFETY: deliberately malformed input to check the runtime guard.
-          sharedRoles: () => [role as CustomRole],
+          sharedRoles: () => [shape as CustomRole],
         },
       });
       expect(permdock.can(permissions.post.read)).toBe(false);
@@ -239,14 +239,14 @@ describe("shared custom roles", () => {
 
   it("pass through customRoleSource, skipped with read: 'held' when only declared roles are held", () => {
     let calls = 0;
-    const reader = {
+    const sharedReader = {
       rolesFor: () => [],
       sharedRoles: () => {
         calls += 1;
         return [viewer];
       },
     };
-    const held = customRoleSource(reader, { read: "held", policy });
+    const held = customRoleSource(sharedReader, { read: "held", policy });
     getPermDockSync(policy, memberOf(["acme", ["editor"]]), {
       tenant: "acme",
       customRoles: held,
