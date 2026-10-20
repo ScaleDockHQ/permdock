@@ -20,7 +20,7 @@ const permissions = definePermissions(
   },
   {
     x: {
-      action: z.object({ tier: z.string() }),
+      permission: z.object({ tier: z.string() }),
       resource: z.object({ area: z.string() }),
     },
   },
