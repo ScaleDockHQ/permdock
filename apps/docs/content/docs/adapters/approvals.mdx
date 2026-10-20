@@ -73,7 +73,7 @@ interface ApprovalStore {
 - `list` returns one page, oldest `createdAt` first (ties broken by `token`): `limit` is 1 to 200 and defaults to 50, `next` is present only when more requests match, and passing it back as `cursor` returns the following page. The cursor is opaque to callers; an unreadable one returns an empty last page, never the first page again. `testApprovalStore` checks the order, the page boundary and the unreadable cursor. `cancelApprovals` and other callers that need every match follow `next`. A custom store reuses the built-in paging from `permdock/approvals`: `pageApprovals(matching, query)` pages requests it filtered in memory, `approvalPageSize(limit)`, `encodeApprovalCursor(request)` and `decodeApprovalCursor(cursor)` serve a store that pages in its own query (the cursor is the `(createdAt, token)` of the last item, `ApprovalCursorPosition`, and `null` means an unreadable one), and `listAllApprovals(store, filter)` follows `next` to the end.
 - `list({ tenant })` scopes the approver inbox to one tenant, which is how a tenant admin sees only their organisation's pending requests; `approvalsHandler` applies it from the approver's active tenant and the approver must hold a membership there ([tenancy](/docs/concepts/tenancy)).
 - `consume` is the atomic step that makes an approval single-use: it sets `consumedAt` on an approved, unexpired, unconsumed request and returns it, or returns `null`. Two concurrent calls never both succeed. Adapters call it when a resume enforces the call (`protect`, tool execution, MCP); the decision endpoint only inspects. A store without `consume` cannot resume.
-- A request with a tenant can be resolved only by an approver with a membership in that tenant, whether or not the grant names `approvers`. `assertApprover(request, by, requireDistinct, now?, relations?)` applies these checks, returns the stage the approval counts towards, and throws `ApprovalError`; custom stores call it in `resolve` with `verdict.relations`.
+- A request with a tenant can be resolved only by an approver with a membership in that tenant, whether or not the grant names `approvers` ([tenant membership](#tenant-membership)). `assertApprover(request, by, requireDistinct, now?, relations?)` applies these checks, returns the stage the approval counts towards, and throws `ApprovalError`; custom stores call it in `resolve` with `verdict.relations`.
 - `list` powers the approver UI and the `permdock/terminal` interactive prompt. `approvalsHandler`'s pending inbox lists the requested tenant, else the active tenant, else every tenant the approver holds a membership in; requests without a tenant appear only in the last case.
 - `expire` is called opportunistically by adapters and by `approvalsHandler`; a scheduled job may call it as well.
 - `requestApproval(store, decision, meta)` and `resolveApproval(store, token, verdict)` are the two internal helpers agent adapters share; applications rarely call them directly.
@@ -147,6 +147,48 @@ if (await managerChainApproves(request, approver)) {
 A `relation()` approver ([approval security](/docs/security/approvals#relation-approvers)) is a fact about the requested row, so the handler reads it at the verdict. With `relations` set, `approvalsHandler` calls `approverRelations(request, approver, { relations, permissions })` before `resolve`: it follows the approver's `through` links from the request's resource id, asks the `RelationSource` who holds the relation, and passes the matching approvers to `resolve` as `verdict.relations`. Each entry is `approverRelationKey(approver)`. The `GET /pending` inbox uses the same check, so a manager sees only their reports' requests.
 
 A custom resolve path calls `resolveApproval(store, token, verdict, { relations, permissions })`, which reads the facts the same way. Never fill `verdict.relations` from a request body: the facts must come from your own `RelationSource`.
+
+## Tenant membership
+
+The request's tenant is `subject.principal.tenant` at the time it was created. An approver belongs to it when one of these holds:
+
+- the approver's `principal.tenant` is that tenant;
+- one of the approver's memberships sits at the first scope with that id: `{ tenant }` without `team` in the shorthand, or `{ scope, id }` without `within` with named scopes.
+
+A membership at a nested scope does not count, even when its parent is the request's tenant. Holding `lead` on a team inside `org_1` does not make an approver part of `org_1`, because a team membership grants nothing at the organisation level ([scopes](/docs/concepts/scopes)). The same rule picks the tenants in the pending inbox.
+
+```ts
+const request = {
+  subject: { principal: { id: "u_1", roles: [], tenant: "org_1" } } /* … */,
+};
+
+// Refused: "approver does not belong to the request tenant" (approver-not-eligible).
+const teamLead = {
+  principal: {
+    id: "u_2",
+    roles: [],
+    memberships: [
+      { scope: "team", id: "team_7", within: "org_1", roles: ["lead"] },
+    ],
+  },
+  context: {},
+};
+
+// Accepted: the same person with a membership at the organisation.
+const member = {
+  principal: {
+    id: "u_2",
+    roles: [],
+    memberships: [
+      { scope: "org", id: "org_1", roles: ["member"] },
+      { scope: "team", id: "team_7", within: "org_1", roles: ["lead"] },
+    ],
+  },
+  context: {},
+};
+```
+
+The fix is data, not policy: give every approver a membership at the first scope of the tenant they approve in. `approvers.by` then decides which of those members may resolve the request. A role approver matches a global role or a role on that first-scope membership, never a role held only on a team, so an approver named by role needs the role on the organisation membership too.
 
 ## Approval policies as data
 

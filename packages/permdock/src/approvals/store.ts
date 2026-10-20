@@ -9,6 +9,7 @@ import { rootMembershipId } from "../core/scopes.ts";
 import { dateAt, durationOf, type Instant } from "../core/time.ts";
 import { ApprovalError } from "./errors.ts";
 import { pageApprovals } from "./page.ts";
+import { belongsToTenant } from "./tenancy.ts";
 import {
   type ApprovalCancelMeta,
   type ApprovalListFilter,
@@ -27,28 +28,6 @@ import {
 
 function tenantOf(request: ApprovalRequest): string | undefined {
   return request.subject.principal?.tenant;
-}
-
-function membershipTenants(subject: Subject): readonly string[] {
-  const principal = subject.principal;
-  if (principal === null) {
-    return [];
-  }
-  const tenants = new Set<string>();
-  if (principal.tenant !== undefined) {
-    tenants.add(principal.tenant);
-  }
-  for (const membership of principal.memberships ?? []) {
-    const tenant = rootMembershipId(membership);
-    if (tenant !== undefined) {
-      tenants.add(tenant);
-    }
-  }
-  return [...tenants];
-}
-
-function belongsToTenant(subject: Subject, tenant: string): boolean {
-  return membershipTenants(subject).includes(tenant);
 }
 
 function holdsRole(subject: Subject, role: string, tenant?: string): boolean {

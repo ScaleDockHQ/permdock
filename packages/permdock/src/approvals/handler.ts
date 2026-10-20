@@ -12,7 +12,6 @@ import type { ApprovalDelegationSource } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { problemType, statusProblem } from "../core/problem-types.ts";
-import { rootMembershipId } from "../core/scopes.ts";
 import { readBodyText } from "../server/body-text.ts";
 import { bodyTooLarge } from "../server/body.ts";
 import { hasCredentials } from "../server/http.ts";
@@ -36,6 +35,7 @@ import { heldPermissions } from "./permissions.ts";
 import { approverRelations } from "./relations.ts";
 import { signApproval } from "./signature.ts";
 import { assertApprover } from "./store.ts";
+import { belongsToTenant, membershipTenants } from "./tenancy.ts";
 
 export type ApprovalsHandlerOptions = {
   readonly subject: (
@@ -239,28 +239,6 @@ async function resolveSubject(
   } catch {
     return null;
   }
-}
-
-function membershipTenants(subject: Subject): readonly string[] {
-  const principal = subject.principal;
-  if (principal === null) {
-    return [];
-  }
-  const tenants = new Set<string>();
-  if (principal.tenant !== undefined) {
-    tenants.add(principal.tenant);
-  }
-  for (const membership of principal.memberships ?? []) {
-    const tenant = rootMembershipId(membership);
-    if (tenant !== undefined) {
-      tenants.add(tenant);
-    }
-  }
-  return [...tenants];
-}
-
-function belongsToTenant(subject: Subject, tenant: string): boolean {
-  return membershipTenants(subject).includes(tenant);
 }
 
 type Acting =
