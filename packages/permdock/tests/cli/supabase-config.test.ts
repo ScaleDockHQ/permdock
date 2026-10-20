@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import {
   pd045,
+  pd074,
   readSupabaseConfig,
   supabaseConfig,
 } from "../../src/cli/supabase-config.ts";
@@ -133,6 +134,48 @@ describe("PD045 unparseable config.toml", () => {
     expect(pd045(project({}))).toEqual([]);
     expect(
       pd045(project({ "supabase/config.toml": "[auth]\njwt_expiry = 1\n" })),
+    ).toEqual([]);
+  });
+});
+
+describe("PD074 custom access token hook in config.toml", () => {
+  // SAFETY: only supabase.hook and rls.schema are read.
+  const configured = { supabase: { hook: { memberships: [] } } } as never;
+  // SAFETY: an empty config; pd074 reads only supabase.hook.
+  const bare = {} as never;
+  const URI = "pg-functions://postgres/permdock/custom_access_token_hook";
+
+  it("warns when the table is missing or not enabled", () => {
+    for (const toml of [
+      "[auth]\njwt_expiry = 1\n",
+      `[auth.hook.custom_access_token]\nenabled = false\nuri = "${URI}"\n`,
+    ]) {
+      const findings = pd074(
+        project({ "supabase/config.toml": toml }),
+        configured,
+      );
+      expect(findings.map((finding) => finding.code)).toEqual(["PD074"]);
+      expect(findings[0]?.fix).toContain(URI);
+    }
+  });
+
+  it("warns when the uri names another function", () => {
+    const cwd = project({
+      "supabase/config.toml":
+        '[auth.hook.custom_access_token]\nenabled = true\nuri = "pg-functions://postgres/public/other"\n',
+    });
+    expect(pd074(cwd, configured)[0]?.message).toContain("public/other");
+  });
+
+  it("is silent for a matching stanza, no hook, no config.toml or an unparseable one", () => {
+    const ok = project({
+      "supabase/config.toml": `[auth.hook.custom_access_token]\nenabled = true\nuri = "${URI}"\n`,
+    });
+    expect(pd074(ok, configured)).toEqual([]);
+    expect(pd074(ok, bare)).toEqual([]);
+    expect(pd074(project({}), configured)).toEqual([]);
+    expect(
+      pd074(project({ "supabase/config.toml": "[auth\n" }), configured),
     ).toEqual([]);
   });
 });

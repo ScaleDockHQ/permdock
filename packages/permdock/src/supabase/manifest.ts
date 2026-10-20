@@ -54,6 +54,12 @@ export type SupabaseHookManifest = {
     readonly function: "permdock_bump_authz_version_for";
     readonly args: "p_users uuid[]";
   };
+  /** The Management API fields that make a hosted project call the hook; `permdock supabase inspect` adds them. */
+  readonly managementApi?: {
+    readonly hook_custom_access_token_enabled: true;
+    readonly hook_custom_access_token_uri: string;
+    readonly jwt_exp: number;
+  };
   /** The `supabase.hook.memberships` sources, in the order the hook reads them. */
   readonly memberships: readonly SupabaseManifestMembership[];
   readonly rls: SupabaseManifestRls;

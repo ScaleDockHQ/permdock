@@ -167,7 +167,7 @@ function assemblePrincipal(
       auth,
       source.globalRolesFor === undefined
         ? undefined
-        : () =>
+        : (): readonly string[] | Promise<readonly string[]> =>
             source.globalRolesFor?.(
               compact({ id: principal.id, kind: principal.kind }),
             ) ?? [],
@@ -239,20 +239,20 @@ function rereadStale(
   } catch {
     freshness = unknown();
   }
+  const failed = (): readonly string[] => {
+    auth.push({
+      reason: "source-threw",
+      source: "memberships",
+      ...sourceName(source),
+    });
+    return [];
+  };
   const rolesOf = (
     found: Freshness,
   ): readonly string[] | Promise<readonly string[] | undefined> | undefined => {
     if (found !== "reread" || readRoles === undefined) {
       return undefined;
     }
-    const failed = (): readonly string[] => {
-      auth.push({
-        reason: "source-threw",
-        source: "memberships",
-        ...sourceName(source),
-      });
-      return [];
-    };
     try {
       const roles = readRoles();
       return isThenable(roles) ? Promise.resolve(roles).catch(failed) : roles;

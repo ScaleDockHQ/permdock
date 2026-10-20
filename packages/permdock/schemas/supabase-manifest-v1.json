@@ -104,6 +104,24 @@
     "authzVersion": {
       "type": "boolean"
     },
+    "managementApi": {
+      "description": "The Management API fields that make a hosted project call the generated hook, as `permdock supabase inspect` prints and `--out` writes them.",
+      "type": "object",
+      "required": [
+        "hook_custom_access_token_enabled",
+        "hook_custom_access_token_uri",
+        "jwt_exp"
+      ],
+      "properties": {
+        "hook_custom_access_token_enabled": { "const": true },
+        "hook_custom_access_token_uri": { "type": "string" },
+        "jwt_exp": {
+          "description": "The access token lifetime in seconds: `[auth] jwt_expiry` of `supabase/config.toml`, or 3600 when it is unset.",
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
     "authzVersionBump": {
       "type": "object",
       "required": ["schema", "function", "args"],

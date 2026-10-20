@@ -13,7 +13,7 @@ import { DOCTOR_REPORT_SCHEMA } from "../core/version.ts";
 import { listSourceFiles, rel } from "../files.ts";
 import { type Project, loadProject } from "../project/project.ts";
 import { runSkillsInstall } from "../skills.ts";
-import { pd045 } from "../supabase-config.ts";
+import { pd045, pd074 } from "../supabase-config.ts";
 import { attrsPlan } from "../supabase-hook/claims.ts";
 import {
   hookOut,
@@ -297,6 +297,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd069(project.cwd, project.config, project.files),
   },
   { code: "PD045", groups: ["supabase"], run: (project) => pd045(project.cwd) },
+  {
+    code: "PD074",
+    groups: ["supabase", "helpers"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: (project) => pd074(project.cwd, project.config),
+  },
   ...SQL_CHECKS.map(([code, check]): DoctorCheck => ({
     code,
     groups: ["supabase", "sql"],

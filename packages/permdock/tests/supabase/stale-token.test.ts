@@ -147,12 +147,14 @@ describe("globalRolesFor", () => {
     const none = { membershipsFor: () => [] };
     const composed = composeMemberships([one, two, none]);
     expect(await composed.globalRolesFor?.({ id: "u" })).toEqual(["a", "b"]);
-    expect(claimsFirst(none).globalRolesFor).toBeUndefined();
+    expect(Reflect.get(claimsFirst(none), "globalRolesFor")).toBeUndefined();
     expect(await claimsFirst(composed).globalRolesFor?.({ id: "u" })).toEqual([
       "a",
       "b",
     ]);
-    expect(composeMemberships([none]).globalRolesFor).toBeUndefined();
+    expect(
+      Reflect.get(composeMemberships([none]), "globalRolesFor"),
+    ).toBeUndefined();
   });
 });
 
@@ -185,7 +187,7 @@ describe("claims carried by subject_for", () => {
       principal: { id: "u1", roles: [], claims: { other: 1, plan: "free" } },
       context: {},
     });
-    expect(refreshed.principal?.["claims"]).toEqual({
+    expect(refreshed.principal?.claims).toEqual({
       other: 1,
       plan: "pro",
       team_ids: ["t1", "t2"],

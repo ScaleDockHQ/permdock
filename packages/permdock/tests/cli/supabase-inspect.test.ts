@@ -118,9 +118,28 @@ describe("permdock supabase inspect", () => {
         args: "p_users uuid[]",
       },
       markers: { hook: "v1", grants: "v1" },
+      managementApi: {
+        hook_custom_access_token_enabled: true,
+        hook_custom_access_token_uri:
+          "pg-functions://postgres/permdock/custom_access_token_hook",
+        jwt_exp: 3600,
+      },
     });
     const text = await run(["supabase", "inspect"], { cwd });
     expect(text.stdout).toContain("tenant claim tenant_id");
+    expect(text.stdout).toContain("hook_custom_access_token_enabled true");
+    expect(text.stdout).toContain(
+      "hook_custom_access_token_uri pg-functions://postgres/permdock/custom_access_token_hook",
+    );
+    expect(text.stdout).toContain("jwt_exp 3600");
+    mkdirSync(join(cwd, "supabase"), { recursive: true });
+    writeFileSync(
+      join(cwd, "supabase/config.toml"),
+      "[auth]\njwt_expiry = 900\n",
+    );
+    expect((await run(["supabase", "inspect"], { cwd })).stdout).toContain(
+      "jwt_exp 900",
+    );
   });
 
   it("lists the membership sources, the rls helpers and the deciding columns", async () => {

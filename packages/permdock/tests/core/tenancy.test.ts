@@ -261,13 +261,10 @@ describe("no-tenant denial", () => {
   };
   const row = { id: "t1", orgId: "acme" };
   const reasonFor = (tenant: string | undefined, snapshot = false) => {
-    const live = getPermDockSync(policy, subject, {
-      ...(tenant === undefined ? {} : { tenant }),
-    });
+    const options = tenant === undefined ? {} : { tenant };
+    const live = getPermDockSync(policy, subject, options);
     const permdock = snapshot
-      ? fromSnapshot(parseSnapshot(JSON.stringify(live.snapshot())), {
-          ...(tenant === undefined ? {} : { tenant }),
-        })
+      ? fromSnapshot(parseSnapshot(JSON.stringify(live.snapshot())), options)
       : live;
     return permdock.decide(permissions.team.manage, row);
   };

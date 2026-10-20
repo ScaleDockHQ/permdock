@@ -19,12 +19,14 @@ import {
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { requirePolicy } from "../project/load.ts";
+import { hookUri } from "../rls/rbac.ts";
 import {
   GRANTS_MARKER,
   HOOK_MARKER,
   hookMarkerFields,
 } from "../sql/markers.ts";
 import { splitUndiffed } from "../sql/statements.ts";
+import { supabaseConfig } from "../supabase-config.ts";
 import {
   isSupabaseSchemas,
   resolveSchemas,
@@ -188,7 +190,26 @@ function markerDrift(
     : `supabase hook drift: ${changed.join("; ")}`;
 }
 
-function inspectText(manifest: SupabaseHookManifest): string {
+type ManagementApi = NonNullable<SupabaseHookManifest["managementApi"]>;
+
+/** Supabase's default access token lifetime when `[auth] jwt_expiry` is unset. */
+const DEFAULT_JWT_EXPIRY = 3600;
+
+function managementApi(
+  cwd: string,
+  manifest: SupabaseHookManifest,
+): ManagementApi {
+  return {
+    hook_custom_access_token_enabled: true,
+    hook_custom_access_token_uri: hookUri(manifest.hook.schema),
+    jwt_exp: supabaseConfig(cwd).jwtExpiry ?? DEFAULT_JWT_EXPIRY,
+  };
+}
+
+function inspectText(
+  manifest: SupabaseHookManifest,
+  api: ManagementApi,
+): string {
   return [
     `hook ${manifest.hook.schema}.${manifest.hook.function} (${manifest.hook.out})`,
     `helpers ${manifest.helpers.functions.map((fn) => `${manifest.helpers.schema}.${fn}`).join(", ")}`,
@@ -196,6 +217,9 @@ function inspectText(manifest: SupabaseHookManifest): string {
     `budget ${String(manifest.budget.bytes)} bytes of ${manifest.budget.measure}`,
     `claims ${manifest.claims.map((claim) => `${claim.name}${claim.source === "permdock" ? "" : ` (${claim.source})`}${claim.budget ? " [budget]" : ""}`).join(", ")}`,
     `authz_ver ${manifest.authzVersion ? "on" : "off"}`,
+    `hook_custom_access_token_enabled ${String(api.hook_custom_access_token_enabled)}`,
+    `hook_custom_access_token_uri ${api.hook_custom_access_token_uri}`,
+    `jwt_exp ${String(api.jwt_exp)}`,
   ].join("\n");
 }
 
@@ -298,11 +322,12 @@ export async function runSupabase(input: {
       },
       policy,
     );
+    const api = managementApi(input.cwd, manifest);
     if (input.out !== undefined || input.check) {
       return manifestFile(
         input.cwd,
         typeof input.out === "string" ? input.out : MANIFEST_FILE,
-        manifest,
+        { ...manifest, managementApi: api },
         input.check,
       );
     }
@@ -310,8 +335,15 @@ export async function runSupabase(input: {
       code: 0,
       output:
         input.json === true
-          ? JSON.stringify(manifest, null, 2)
-          : inspectText(manifest),
+          ? JSON.stringify(
+              {
+                ...manifest,
+                managementApi: managementApi(input.cwd, manifest),
+              },
+              null,
+              2,
+            )
+          : inspectText(manifest, api),
     };
   }
   if (area !== "hook" || action !== "generate") {
