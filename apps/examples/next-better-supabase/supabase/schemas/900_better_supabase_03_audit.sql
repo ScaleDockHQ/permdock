@@ -1,4 +1,4 @@
--- better-supabase module: audit (0.8.0)
+-- better-supabase module: audit (0.11.0)
 -- @bs-module audit@9 managed
 -- Records inserts, updates and deletes with the actor and changed columns for tables you register, plus semantic events through audit_event(), with redaction, an append-only guard, a tenant read policy and per-tenant retention as options.
 -- Managed by `better-supabase add`; re-running it overwrites this file.
@@ -22,6 +22,28 @@ alter table better_supabase.audited_tables add column if not exists tenant_colum
 alter table better_supabase.audited_tables add column if not exists label_column text;
 alter table better_supabase.audited_tables enable row level security;
 revoke all on better_supabase.audited_tables from anon, authenticated;
+
+-- The user a service caller acts for, from the x-bs-actor header. Null for
+-- every other caller, so the header cannot be spoofed with a user's token.
+create or replace function better_supabase.acting_member()
+returns uuid
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  header text;
+begin
+  if not (coalesce(nullif((select auth.jwt()) ->> 'role', ''), session_user::text) in ('service_role', 'postgres', 'supabase_admin')) then
+    return null;
+  end if;
+  header := nullif(current_setting('request.headers', true), '')::jsonb ->> 'x-bs-actor';
+  return case when header ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then header::uuid end;
+exception when others then
+  return null;
+end;
+$$;
+grant execute on function better_supabase.acting_member() to anon, authenticated, service_role;
 
 -- The request headers, or null outside a Data API request.
 create or replace function better_supabase.request_headers()
@@ -150,6 +172,8 @@ declare
   row_tenant uuid;
   v_jwt jsonb := auth.jwt();
   v_headers jsonb := better_supabase.request_headers();
+  path_value text;
+  path_step jsonb;
 begin
   if tg_nargs > 0 then
     settings := tg_argv[0]::jsonb;
@@ -166,17 +190,34 @@ begin
       array(select jsonb_array_elements_text(coalesce(settings -> 'redact', '[]'))) as redact,
       settings ->> 'category' as category, settings ->> 'event_prefix' as event_prefix,
       settings ->> 'target_type' as target_type, settings ->> 'tenant_column' as tenant_column,
-      settings ->> 'label_column' as label_column
+      settings ->> 'label_column' as label_column,
+      settings -> 'tenant_path' as tenant_path, settings ->> 'tenant_function' as tenant_function
     into entry;
   else
     select coalesce(a.ignore, '{}') as ignore, coalesce(a.key_columns, '{id}') as key_columns,
       coalesce(a.redact, '{}') as redact, a.category, a.event_prefix, a.target_type, a.tenant_column,
-      a.label_column
+      a.label_column, null::jsonb as tenant_path, null::text as tenant_function
     into entry
     from (select 1) one
     left join better_supabase.audited_tables a on a.target = tg_relid::regclass;
   end if;
   row_tenant := case when row_data ->> coalesce(entry.tenant_column, 'organization_id') ~* '^[0-9a-f-]{36}$' then (row_data ->> coalesce(entry.tenant_column, 'organization_id'))::uuid end;
+  -- A child row without a tenant column: follow the foreign-key path
+  -- registered through tenant_path, then the tenant function.
+  if row_tenant is null and entry.tenant_path is not null then
+    path_value := row_data ->> (entry.tenant_path ->> 'column');
+    for path_step in select * from jsonb_array_elements(entry.tenant_path -> 'steps') loop
+      exit when path_value is null;
+      execute format('select %I::text from %s where %I::text = $1 limit 1',
+        path_step ->> 'read', path_step ->> 'table', path_step ->> 'ref')
+        into path_value using path_value;
+    end loop;
+    row_tenant := case when path_value ~* '^[0-9a-f-]{36}$' then (path_value)::uuid end;
+  end if;
+  if row_tenant is null and entry.tenant_function is not null then
+    execute format('select %s($1)::text', (entry.tenant_function::regprocedure)::oid::regproc) into path_value using row_data;
+    row_tenant := case when path_value ~* '^[0-9a-f-]{36}$' then (path_value)::uuid end;
+  end if;
   old_row := old_row - entry.ignore;
   new_row := new_row - entry.ignore;
   if tg_op = 'UPDATE' then
@@ -198,7 +239,7 @@ begin
     old_row,
     new_row,
     changed_columns,
-    auth.uid(),
+    coalesce(auth.uid(), better_supabase.acting_member()),
     coalesce(v_jwt ->> 'role', current_user),
     row_tenant,
     case when v_jwt -> 'act' ->> 'sub' ~ '^[0-9a-f-]{36}$' then (v_jwt -> 'act' ->> 'sub')::uuid end,
@@ -267,12 +308,21 @@ revoke execute on function better_supabase.replace_equivalent_triggers(regclass,
 drop function if exists better_supabase.audit(regclass, text[]);
 drop function if exists better_supabase.audit(regclass, text[], boolean);
 drop function if exists better_supabase.audit(regclass, text[], boolean, text[], text, text, text, text);
+drop function if exists better_supabase.audit(regclass, text[], boolean, text[], text, text, text, text, text);
 
 -- select better_supabase.audit('public.customers', ignore => '{updated_at}');
 -- redact => '{api_key}' masks values but keeps them in changed;
 -- event_prefix, category and target_type name the entries (event_prefix.created);
 -- tenant_column overrides the module's tenant column for this table, and
 -- label_column names the column kept as the entry's target label.
+-- tenant_path resolves the tenant of a child row that has no tenant column
+-- through foreign keys: 'group_id -> directory_groups.organization_id' reads
+-- organization_id from the directory_groups row that group_id references,
+-- and further '-> table.column' hops continue from there. tenant_function
+-- names a function (jsonb) that returns the tenant of a row. The trigger
+-- tries the row's tenant column, then the path, then the function.
+-- ignore also keeps the update trigger from firing when only ignored columns
+-- change, so writes such as last_run_at cost nothing.
 -- replace_trigger => true drops another audit trigger on the table.
 create or replace function better_supabase.audit(
   target regclass,
@@ -283,7 +333,9 @@ create or replace function better_supabase.audit(
   event_prefix text default null,
   target_type text default null,
   tenant_column text default null,
-  label_column text default null
+  label_column text default null,
+  tenant_path text default null,
+  tenant_function regprocedure default null
 )
 returns void
 language plpgsql
@@ -291,7 +343,51 @@ set search_path = ''
 as $$
 declare
   keys text[];
+  path_steps jsonb := '[]';
+  path_column text;
+  parts text[];
+  cur_rel regclass := target;
+  cur_col text;
+  ref_rel regclass;
+  ref_col text;
+  segment text;
+  seg_table text;
+  seg_read text;
+  base_settings jsonb;
 begin
+  if audit.tenant_path is not null then
+    parts := regexp_split_to_array(btrim(audit.tenant_path), '\s*->\s*');
+    if coalesce(array_length(parts, 1), 0) < 2 then
+      raise exception 'tenant_path % needs a column and at least one table.column hop', audit.tenant_path;
+    end if;
+    path_column := parts[1];
+    cur_col := path_column;
+    for i in 2..array_length(parts, 1) loop
+      segment := parts[i];
+      seg_read := substring(segment from '[^.]+$');
+      seg_table := substring(segment from '^(.*)\.[^.]+$');
+      if seg_read is null or seg_table is null then
+        raise exception 'tenant_path hop % must be table.column', segment;
+      end if;
+      select con.confrelid::regclass, a.attname::text into ref_rel, ref_col
+      from pg_catalog.pg_constraint con
+      join pg_catalog.pg_attribute a on a.attrelid = con.confrelid and a.attnum = con.confkey[1]
+      where con.contype = 'f' and con.conrelid = cur_rel and array_length(con.conkey, 1) = 1
+        and con.conkey[1] = (
+          select c.attnum from pg_catalog.pg_attribute c
+          where c.attrelid = cur_rel and c.attname = cur_col and not c.attisdropped
+        );
+      if ref_rel is null then
+        raise exception 'tenant_path: % has no foreign key on column %', cur_rel, cur_col;
+      end if;
+      if pg_catalog.to_regclass(case when position('.' in seg_table) > 0 then seg_table else (select n.nspname from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace where c.oid = audit.target) || '.' || seg_table end) is distinct from ref_rel then
+        raise exception 'tenant_path: % does not reference %', cur_col, seg_table;
+      end if;
+      path_steps := path_steps || jsonb_build_array(jsonb_build_object('table', ref_rel::text, 'ref', ref_col, 'read', seg_read));
+      cur_rel := ref_rel;
+      cur_col := seg_read;
+    end loop;
+  end if;
   perform better_supabase.replace_equivalent_triggers(
     target, 'bs_audit', 'audit', replace_trigger
   );
@@ -301,21 +397,35 @@ begin
   join pg_catalog.pg_attribute c on c.attrelid = i.indrelid and c.attnum = k.attnum
   where i.indrelid = audit.target and i.indisprimary;
   delete from better_supabase.audited_tables a where a.target = audit.target;
+  base_settings := jsonb_strip_nulls(jsonb_build_object(
+    'ignore', to_jsonb(coalesce(audit.ignore, '{}')),
+    'redact', to_jsonb(coalesce(audit.redact, '{}')),
+    'key_columns', to_jsonb(keys),
+    'category', audit.category,
+    'event_prefix', audit.event_prefix,
+    'target_type', audit.target_type,
+    'tenant_column', audit.tenant_column,
+    'label_column', audit.label_column,
+    'tenant_path', case when audit.tenant_path is not null then jsonb_build_object('column', path_column, 'steps', path_steps) end,
+    'tenant_function', audit.tenant_function::text
+  ));
   execute format('drop trigger if exists bs_audit on %s', target);
-  execute format(
-    'create trigger bs_audit after insert or update or delete on %s for each row execute function better_supabase.audit_row_change(%L)',
-    target,
-    jsonb_strip_nulls(jsonb_build_object(
-      'ignore', to_jsonb(coalesce(audit.ignore, '{}')),
-      'redact', to_jsonb(coalesce(audit.redact, '{}')),
-      'key_columns', to_jsonb(keys),
-      'category', audit.category,
-      'event_prefix', audit.event_prefix,
-      'target_type', audit.target_type,
-      'tenant_column', audit.tenant_column,
-      'label_column', audit.label_column
-    ))::text
-  );
+  execute format('drop trigger if exists bs_audit_update on %s', target);
+  if cardinality(coalesce(audit.ignore, '{}')) > 0 then
+    execute format(
+      'create trigger bs_audit after insert or delete on %s for each row execute function better_supabase.audit_row_change(%L)',
+      target, base_settings::text
+    );
+    execute format(
+      'create trigger bs_audit_update after update on %s for each row when ((to_jsonb(old) - %L::text[]) is distinct from (to_jsonb(new) - %L::text[])) execute function better_supabase.audit_row_change(%L)',
+      target, audit.ignore, audit.ignore, base_settings::text
+    );
+  else
+    execute format(
+      'create trigger bs_audit after insert or update or delete on %s for each row execute function better_supabase.audit_row_change(%L)',
+      target, base_settings::text
+    );
+  end if;
 end;
 $$;
 
@@ -344,6 +454,7 @@ set search_path = ''
 as $$
 begin
   execute format('drop trigger if exists bs_audit on %s', target);
+  execute format('drop trigger if exists bs_audit_update on %s', target);
   delete from better_supabase.audited_tables a where a.target = unaudit.target;
 end;
 $$;
@@ -451,7 +562,7 @@ begin
 end;
 $$;
 
-revoke execute on function better_supabase.audit(regclass, text[], boolean, text[], text, text, text, text, text) from public, anon, authenticated;
+revoke execute on function better_supabase.audit(regclass, text[], boolean, text[], text, text, text, text, text, text, regprocedure) from public, anon, authenticated;
 revoke execute on function better_supabase.unaudit(regclass) from public, anon, authenticated;
 revoke execute on function better_supabase.unaudit(text) from public, anon, authenticated;
 revoke execute on function better_supabase.audit_forget_dropped() from public, anon, authenticated;
@@ -530,7 +641,7 @@ begin
       impersonation_reason := null;
     end if;
   elsif actor_id is null then
-    actor_id := auth.uid();
+    actor_id := coalesce(auth.uid(), better_supabase.acting_member());
   end if;
   if idempotency_key is not null then
     perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('better_supabase.audit_event'), pg_catalog.hashtext(coalesce(tenant::text, '') || ':' || idempotency_key));

@@ -135,7 +135,7 @@ Each is a record in `docs/decisions`:
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
 - 0029 no Turbopack cache in CI; 0030 `Vary` only on Markdown
-- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038 better-supabase 0.9.0 release-age exclude; 0039 better-supabase 0.10.0 release-age exclude
+- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038 and 0039 better-supabase 0.9.0 and 0.10.0 release-age excludes; 0040 better-supabase 0.11 floor, no cap, release-age exclude
 
 ## Pre-release pins
 

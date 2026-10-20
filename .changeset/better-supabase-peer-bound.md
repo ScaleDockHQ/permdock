@@ -1,5 +1,5 @@
 ---
-"permdock": patch
+"permdock": minor
 ---
 
-The `better-supabase` peer range is `>=0.9.0 <0.11.0`, which brings back the upper bound that the previous release dropped. CI now tests 0.9.0 and 0.10.0. A release that adds a new better-supabase minor to those tests raises the bound to the minor after it.
+Breaking: the `better-supabase` peer range is `>=0.11.0`, with no upper bound. Apps on better-supabase 0.9 or 0.10 must upgrade to 0.11 before they take this release; CI tests 0.11.0.

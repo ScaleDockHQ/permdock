@@ -1,6 +1,6 @@
--- better-supabase module: pgtap (0.8.0)
+-- better-supabase module: pgtap (0.11.0)
 -- @bs-module pgtap@1 managed
--- tests.create_user, tests.authenticate_as and tests.rls_enabled for `supabase test db`. Written to supabase/tests, never to your schema.
+-- tests.create_user, tests.authenticate_as and catalog checks (every_table_has_rls, policies_use, no_anon_policies, every_table_audited, partitions_have_rls) for `supabase test db`. Written to supabase/tests, never to your schema.
 -- Managed by `better-supabase add`; re-running it overwrites this file.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
@@ -76,8 +76,8 @@ begin
 end;
 $$;
 
--- select tests.rls_enabled('public');
-create or replace function tests.rls_enabled(schema_name text)
+-- select tests.every_table_has_rls('public');
+create or replace function tests.every_table_has_rls(schema_name text)
 returns text
 language sql
 set search_path = extensions, pg_catalog
@@ -91,6 +91,104 @@ as $$
     ),
     '{}'::text[],
     format('every table in %I has row level security enabled', schema_name)
+  )
+$$;
+
+-- Same check under its first name.
+create or replace function tests.rls_enabled(schema_name text)
+returns text
+language sql
+set search_path = extensions, pg_catalog
+as $$
+  select tests.every_table_has_rls(schema_name)
+$$;
+
+-- select tests.policies_use('public', 'organization_id');
+-- Every policy of the schema mentions the regular expression in its using or with check expression.
+create or replace function tests.policies_use(schema_name text, pattern text)
+returns text
+language sql
+set search_path = extensions, pg_catalog
+as $$
+  select extensions.is(
+    (
+      select coalesce(array_agg(p.tablename || '.' || p.policyname order by p.tablename, p.policyname), '{}')
+      from pg_catalog.pg_policies p
+      where p.schemaname = schema_name
+        and coalesce(p.qual, '') !~ pattern
+        and coalesce(p.with_check, '') !~ pattern
+    ),
+    '{}'::text[],
+    format('every policy in %I uses %s', schema_name, pattern)
+  )
+$$;
+
+-- select tests.no_anon_policies('public');
+-- No policy of the schema applies to anon, by name or through public.
+create or replace function tests.no_anon_policies(schema_name text)
+returns text
+language sql
+set search_path = extensions, pg_catalog
+as $$
+  select extensions.is(
+    (
+      select coalesce(array_agg(p.tablename || '.' || p.policyname order by p.tablename, p.policyname), '{}')
+      from pg_catalog.pg_policies p
+      where p.schemaname = schema_name and (p.roles::text[] && array['anon', 'public'])
+    ),
+    '{}'::text[],
+    format('no policy in %I applies to anon', schema_name)
+  )
+$$;
+
+-- select tests.every_table_audited('public', array['sessions', '%_archive']);
+-- Every table of the schema has an audit trigger, or its name matches an exempt LIKE pattern.
+create or replace function tests.every_table_audited(schema_name text, exempt text[] default '{}')
+returns text
+language sql
+set search_path = extensions, pg_catalog
+as $$
+  select extensions.is(
+    (
+      select coalesce(array_agg(c.relname::text order by c.relname), '{}')
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = schema_name
+        and c.relkind in ('r', 'p')
+        and not c.relispartition
+        and not exists (select 1 from unnest(exempt) e where c.relname::text like e)
+        and not exists (
+          select 1
+          from pg_catalog.pg_trigger t
+          join pg_catalog.pg_proc f on f.oid = t.tgfoid
+          where t.tgrelid = c.oid and not t.tgisinternal
+            and (left(t.tgname, 8) = 'bs_audit' or f.proname = 'audit_row_change')
+        )
+    ),
+    '{}'::text[],
+    format('every table in %I has an audit trigger or is exempt', schema_name)
+  )
+$$;
+
+-- select tests.partitions_have_rls('public');
+-- Every partition of a table with RLS has RLS too, the default partition included.
+create or replace function tests.partitions_have_rls(schema_name text)
+returns text
+language sql
+set search_path = extensions, pg_catalog
+as $$
+  select extensions.is(
+    (
+      select coalesce(array_agg(c.relname::text order by c.relname), '{}')
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      join pg_catalog.pg_inherits i on i.inhrelid = c.oid
+      join pg_catalog.pg_class parent on parent.oid = i.inhparent
+      where n.nspname = schema_name and c.relispartition
+        and parent.relrowsecurity and not c.relrowsecurity
+    ),
+    '{}'::text[],
+    format('every partition in %I has row level security enabled', schema_name)
   )
 $$;
 
