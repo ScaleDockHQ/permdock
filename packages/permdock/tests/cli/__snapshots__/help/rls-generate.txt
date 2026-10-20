@@ -32,6 +32,7 @@ Flags
   --split <parts>                        Write helpers, seeds, indexes, policies and hook as separate parts
   --grants-out <file>                    migra: file for the privileges supabase db diff drops
   --seeds-out <file>                     File for the role_permissions seeds
+  --no-seeds                             Do not write the seeds part: the project seeds role_permissions itself
   --backfill-out <file>                  File for the rls.customRoles.from copy
 
 Global flags

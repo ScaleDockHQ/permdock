@@ -6,6 +6,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
@@ -25,9 +26,21 @@ export type AppliedFile = {
   readonly outcome: FileOutcome;
 };
 
+/** `/dev/null` and its kin: a rename over a device is refused, so it is written in place. */
+function isCharacterDevice(abs: string): boolean {
+  try {
+    return statSync(abs).isCharacterDevice();
+  } catch {
+    return false;
+  }
+}
+
 function outcomeOf(abs: string, text: string): FileOutcome {
   if (!existsSync(abs)) {
     return "created";
+  }
+  if (isCharacterDevice(abs)) {
+    return "updated";
   }
   return readFileSync(abs, "utf8") === text ? "unchanged" : "updated";
 }
@@ -64,6 +77,10 @@ export function applyFiles(
         continue;
       }
       const target = resolve(cwd, file.path);
+      if (isCharacterDevice(target)) {
+        writeFileSync(target, file.text);
+        continue;
+      }
       const temp = `${target}.permdock-${String(process.pid)}.tmp`;
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(temp, file.text);

@@ -82,6 +82,32 @@ const generate = (cwd: string, extra: readonly string[] = []) =>
   );
 
 describe("rls generate --split and --grants-out under migra", () => {
+  it("--no-seeds writes no seeds part and refuses --seeds-out beside it", async () => {
+    const cwd = project();
+    const result = await generate(cwd, ["--no-seeds"]);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("--no-seeds and --seeds-out exclude");
+    const bare = await run(
+      [
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--split",
+        "helpers,policies,hook",
+        "--out",
+        OUT,
+        "--grants-out",
+        GRANTS,
+        "--no-seeds",
+      ],
+      { cwd },
+    );
+    expect(bare.code).toBe(0);
+    expect(existsSync(join(cwd, SEEDS))).toBe(false);
+    expect(read(cwd, part("helpers"))).toContain("permdock_has(");
+  });
+
   it("writes helpers, policies and hook parts, and moves what db diff drops out", async () => {
     const cwd = project();
     const result = await generate(cwd);

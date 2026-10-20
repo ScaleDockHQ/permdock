@@ -50,6 +50,8 @@ export type RlsGenerateInput = {
    * gets a new `<version>_permdock_seeds.sql` only when the rows changed.
    */
   readonly seedsOut?: string;
+  /** `--no-seeds`: the `seeds` part is not written; the project seeds `role_permissions` itself. */
+  readonly noSeeds?: boolean;
   /**
    * The `rls.customRoles.from` copy goes here (`-` prints it). A directory
    * gets a new `<version>_permdock_backfill.sql` only when the copy changed.

@@ -57,14 +57,18 @@ function splitRefusal(
     readonly outRel: string;
     readonly grantsOut: string | undefined;
     readonly seedsOut: string | undefined;
+    readonly noSeeds: boolean;
     /** `rls.seeds: 'function'`: the rows live in `<schema>.seed()`, which the helpers part creates. */
     readonly seedFunction: boolean;
   },
 ): string | undefined {
   const seedsWithoutOut =
-    plan.split.includes("seeds") && plan.seedsOut === undefined;
+    plan.split.includes("seeds") &&
+    plan.seedsOut === undefined &&
+    !plan.noSeeds;
   const helpersWithoutSeeds =
     plan.split.includes("helpers") &&
+    !plan.noSeeds &&
     !plan.split.includes("seeds") &&
     !plan.seedFunction;
   switch (mode) {
@@ -133,6 +137,9 @@ export function outputFiles(plan: {
     if (input.seedsOut !== undefined) {
       return "rls generate --seeds-out needs --split with the seeds part";
     }
+    if (input.noSeeds === true) {
+      return "rls generate --no-seeds needs --split: without it the seeds are part of the one file";
+    }
     return [{ part: "rls", rel: plan.outRel, text: plan.text }];
   }
   if (input.target !== "sql") {
@@ -148,6 +155,7 @@ export function outputFiles(plan: {
     outRel: plan.outRel,
     grantsOut: input.grantsOut,
     seedsOut: input.seedsOut,
+    noSeeds: input.noSeeds === true,
     seedFunction: input.config.rls?.seeds === "function",
   });
   if (refused !== undefined) {
@@ -163,6 +171,9 @@ export function outputFiles(plan: {
     !split.includes("helpers")
   ) {
     return "rls generate --grants-out needs the helpers or hook part in --split";
+  }
+  if (input.noSeeds === true && input.seedsOut !== undefined) {
+    return "rls generate --no-seeds and --seeds-out exclude each other: drop one";
   }
   if (input.seedsOut !== undefined && !split.includes("seeds")) {
     return "rls generate --seeds-out needs the seeds part in --split";
@@ -200,6 +211,12 @@ export function outputFiles(plan: {
         break;
       }
       case "seeds": {
+        if (input.noSeeds === true) {
+          if (relocated !== undefined && split.includes("policies")) {
+            return "rls generate --no-seeds cannot drop the seeds part under pg-delta with rls.realtime or rls.storage: their policies live in it";
+          }
+          break;
+        }
         const out = input.seedsOut;
         if (out !== undefined && isSeedsDirectory(input.cwd, out)) {
           const planned = seedsMigration(

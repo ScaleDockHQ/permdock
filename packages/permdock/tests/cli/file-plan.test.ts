@@ -205,4 +205,12 @@ describe("codemod on a dirty work tree", () => {
     const forced = await run(["codemod", "0.5", "--force"], { cwd });
     expect(forced.code).toBe(0);
   });
+
+  it("writes a character device in place instead of renaming over it", () => {
+    const cwd = dir();
+    const applied = applyFiles(cwd, [
+      { path: "/dev/null", text: "select 1;\n" },
+    ]);
+    expect(applied).toEqual([{ path: "/dev/null", outcome: "updated" }]);
+  });
 });
