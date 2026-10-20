@@ -23,7 +23,7 @@ import {
   rowConditionMessage,
 } from "../sql/helper-calls.ts";
 import { graphSqlName } from "../sql/names.ts";
-import { tableNames } from "../sql/tables.ts";
+import { tableNameOf, tableNames } from "../sql/tables.ts";
 import { policyOf } from "./inputs.ts";
 
 export async function pd027(
@@ -503,4 +503,44 @@ export async function pd073(
     message: `role ${item.role} is for ${item.for.join(", ")}, but its membership sources hold ${item.sources.join(", ")}: no membership can hold it`,
     fix: `set via on one of those sources to ${item.for.join(" or ")}, or change for on role ${item.role}`,
   }));
+}
+
+/**
+ * PD075: two resources that `rls.tables` maps to one table, each with its own
+ * keys and helpers for the same rows. `doctor.sharedTables` lists tables split
+ * on purpose (two resources over disjoint rows).
+ */
+export async function pd075(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  const rls = input.config.rls;
+  if (rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await policyOf(input);
+  if (policy === undefined) {
+    return [];
+  }
+  const allowed = new Set(
+    (input.config.doctor?.sharedTables ?? []).map(qualifySqlTable),
+  );
+  const byTable = new Map<string, Set<string>>();
+  for (const leaf of listPermissions(policy.vocabulary.permissions)) {
+    const table = qualifySqlTable(
+      tableNameOf(rls.tables?.[leaf.resource], leaf.resource),
+    );
+    byTable.set(table, (byTable.get(table) ?? new Set()).add(leaf.resource));
+  }
+  return [...byTable.entries()]
+    .filter(([table, resources]) => resources.size > 1 && !allowed.has(table))
+    .toSorted(byKey)
+    .map(([table, resources]) => {
+      const names = [...resources].toSorted();
+      return {
+        code: "PD075",
+        severity: "warning" as const,
+        message: `rls.tables maps ${names.join(" and ")} to ${table}, so the same rows carry two sets of keys and helpers`,
+        fix: `merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list ${table} in doctor.sharedTables when the resources cover disjoint rows`,
+      };
+    });
 }

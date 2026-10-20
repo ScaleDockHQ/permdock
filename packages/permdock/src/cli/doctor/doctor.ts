@@ -40,6 +40,7 @@ import {
   pd071,
   pd072,
   pd073,
+  pd075,
 } from "./rls.ts";
 import { pd054 } from "./seeds.ts";
 import {
@@ -223,6 +224,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   { code: "PD071", groups: ["rls"], run: pd071 },
   { code: "PD072", groups: ["rls"], run: pd072 },
   { code: "PD073", groups: ["rls", "ownership"], run: pd073 },
+  { code: "PD075", groups: ["rls"], run: pd075 },
   {
     code: "PD028",
     groups: ["attrs", "supabase"],
