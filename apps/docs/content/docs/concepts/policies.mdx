@@ -290,6 +290,24 @@ The same rule decides which roles a tenant may _assign_: a plan that lacks "Bill
 
 Three reasons to keep the split. The policy stays the single statement of who may do what; a flag flipping in a dashboard can only select a role the policy already declares, never widen a grant. Roles reach the snapshot, the SQL `where` and generated RLS the same way as any subject field, so the UI and the database agree, and `permdock usage` can show which grants a flag unlocks. And a flag is never a security control: a `denied` decision cannot be turned into `granted` by a flag, only a matching `allow` can, and `deny` still overrides. A flag evaluated asynchronously belongs in `context` with the role selection done there; the result is the same frozen subject. Provider permission arrays (WorkOS `permissions`, Kinde `permissions`, Auth0 `permissions`) and billing claims (Clerk Billing `fea`, Frontegg entitlements) follow the same rule as `delegation.scopes`, `context` or roles ([authentication](/docs/concepts/authentication), provider recipes; [Clerk provider](/docs/adapters/clerk)). No flag SDK gets an adapter; the vendor-neutral way to read a flag is [OpenFeature](https://openfeature.dev), the CNCF incubating standard whose JavaScript SDK evaluates `getBooleanValue(flag, default, evaluationContext)` against whichever provider is installed (LaunchDarkly, PostHog, Statsig, Unleash, Flagsmith, GrowthBook, Vercel Flags through community providers). A `subject` or `context` function that calls OpenFeature with the subject's id and organisation as the evaluation context works unchanged when the flag vendor changes, and the vendors named here are examples, not a list PermDock maintains.
 
+## Owner-only billing actions
+
+`billing.manage` is the permission behind opening a Stripe Checkout session or a Billing Portal session. Grant it to the owner role alone; the `permdock/testing` SaaS preset does the same (`billing.read` and `billing.manage` to `owner`, nothing to `admin`).
+
+```ts
+allow(permissions.billing.manage, { to: roles.owner });
+
+// In the route that creates the Stripe session:
+const decision = await permdock.can(permissions.billing.manage);
+if (decision.outcome !== "granted") return forbidden();
+const session = await stripe.billingPortal.sessions.create({
+  customer,
+  return_url,
+});
+```
+
+Stripe decides nothing here. The permission gates who may ask Stripe for a session; the Stripe customer comes from the subject's tenant, never from the request body.
+
 ## Limits
 
 `limit: { count, per }` is a quota grant. It is non-portable (it cannot appear as an evaluable snapshot grant or an RLS policy). Pass `limits: limits(memoryLimitStore())` (or your store) to `createPermDock`. `can`, `filter`, `simulate` and the `alternatives` of a denial never consume; they peek `remaining`. `decide` and `assert` consume, except when the matched grant is `approval: 'human'`. Exhausted remaining is `denied` with reason `limit`. A missing store, a throw, or a thenable from `consume` / `remaining` is `limit-unavailable`. A Promise is never treated as granted. The [OWASP Agentic Top 10](/docs/security/owasp-agentic) asks for a maximum rate per tool, which is the use case. See [extension interfaces](/docs/concepts/extension-interfaces).
