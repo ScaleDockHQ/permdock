@@ -31,6 +31,7 @@ import {
 import { outputFiles } from "./generate-output.ts";
 import { generateSql } from "./generate-sql.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
+import { triggerNotes } from "./trigger-notes.ts";
 
 export type GenerateOutcome = {
   readonly code: ExitCode;
@@ -176,6 +177,7 @@ export async function runRlsGenerate(
   if (input.config.rls?.tables === undefined) {
     warnings.push(...bindingNotes(bindings, input.db !== undefined));
   }
+  warnings.push(...triggerNotes(text));
   if (input.db !== undefined) {
     try {
       const facts = await readTableIndexFacts(
