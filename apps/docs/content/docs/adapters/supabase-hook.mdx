@@ -201,6 +201,8 @@ const holders = await countHolders(sources.memberships, {
 
 `api` sets the defaults of `schema`, `fn`, `membersFn` and `versionFn` to the wrappers `supabase.hook.api` writes; any of the four still overrides it. Without `api` they default to the hook schema's own functions, for a client that can reach it. `sources.memberships` answers `membershipsFor` and `version`, so `claimsFirst` freshness works without a `SqlQuery`. `sources.customRoles(principal)` returns the custom roles that principal holds; a role-management page that needs every role of a tenant composes [`customRoleSource`](/docs/concepts/extension-interfaces#membershipsource-and-rolesource) over its own read. `sources.subject(userId)` is the anonymous subject for a suspended or unknown user, and a failed call rejects, which `createPermDock` turns into a denial.
 
+`subject_for` also returns a `claims` object with the `team_ids` the hook would write (every team, with no budget) and each `supabase.hook.claims` entry, and `sources.subject(id)` and `sources.refresh(subject)` put them on `principal.claims`. A stale path therefore keeps team-scoped levels without the caller merging the claims back.
+
 `sources.refresh(subject)` rereads the principal of a token subject you already hold: roles, memberships and `authzVersion` come from `subject_for`, while `actor`, `delegation`, `session`, `expiresAt`, the context and the token's other claims are kept. Use it where `sources.subject(id)` would drop an OAuth client's `actor` and `delegation` and lift its ceiling. A user that is unknown or suspended becomes a subject with no principal that still carries the actor and delegation.
 
 ## Generate

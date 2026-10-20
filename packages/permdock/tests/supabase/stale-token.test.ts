@@ -155,3 +155,40 @@ describe("globalRolesFor", () => {
     expect(composeMemberships([none]).globalRolesFor).toBeUndefined();
   });
 });
+
+describe("claims carried by subject_for", () => {
+  const withClaims = {
+    schema: () => ({
+      rpc: async () => ({
+        data: {
+          id: "u1",
+          active: true,
+          roles: [],
+          memberships: [],
+          customRoles: [],
+          authzVersion: 2,
+          claims: { team_ids: ["t1", "t2"], plan: "pro" },
+        },
+        error: null,
+      }),
+    }),
+  };
+
+  it("puts team_ids and the hook's extra claims on subject() and refresh()", async () => {
+    const sources = postgrestSources(withClaims);
+    const built = await sources.subject("u1");
+    expect(built.principal?.["claims"]).toEqual({
+      team_ids: ["t1", "t2"],
+      plan: "pro",
+    });
+    const refreshed = await sources.refresh({
+      principal: { id: "u1", roles: [], claims: { other: 1, plan: "free" } },
+      context: {},
+    });
+    expect(refreshed.principal?.["claims"]).toEqual({
+      other: 1,
+      plan: "pro",
+      team_ids: ["t1", "t2"],
+    });
+  });
+});

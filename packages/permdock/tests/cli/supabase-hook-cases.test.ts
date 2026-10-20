@@ -213,6 +213,14 @@ describe("supabase.hook.teams", () => {
       },
     });
 
+  it("returns team_ids and the extra claims from subject_for for a stale token", () => {
+    const { sql } = hook();
+    const subjectFor = sql.slice(sql.indexOf("subject_for(p_user uuid)"));
+    expect(subjectFor).toContain("into team_ids");
+    expect(subjectFor).toContain("jsonb_set(claims, '{team_ids}', team_ids)");
+    expect(subjectFor).toContain("'claims', case when claims");
+  });
+
   it("writes a budgeted team_ids claim, clears it for a suspended user and lets the hook read the table", () => {
     const { sql: hookSql, grants } = hook();
     const sql = `${hookSql}\n${grants}`;

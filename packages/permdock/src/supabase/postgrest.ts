@@ -89,6 +89,8 @@ export type SubjectRecord = {
   readonly memberships: readonly Membership[];
   readonly customRoles: readonly CustomRole[];
   readonly authzVersion?: number;
+  /** The token claims the hook adds besides the memberships: `team_ids` and each `supabase.hook.claims` entry. */
+  readonly claims?: Readonly<Record<string, unknown>>;
 };
 
 export type PostgrestSources = {
@@ -232,6 +234,10 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
     authzVersion:
       typeof version === "number" && Number.isFinite(version)
         ? version
+        : undefined,
+    claims:
+      isRecord(value["claims"]) && Object.keys(value["claims"]).length > 0
+        ? value["claims"]
         : undefined,
   });
 }
@@ -397,6 +403,7 @@ export function postgrestSources(
           roles: found.roles,
           memberships: found.memberships,
           authzVersion: found.authzVersion,
+          claims: found.claims,
         }),
         context: {},
       };
@@ -422,6 +429,13 @@ export function postgrestSources(
         roles: found.roles,
         memberships: found.memberships,
         authzVersion: found.authzVersion,
+        claims:
+          found.claims === undefined
+            ? rest["claims"]
+            : {
+                ...(isRecord(rest["claims"]) ? rest["claims"] : {}),
+                ...found.claims,
+              },
       }) as unknown as P;
       return { ...kept, principal };
     },

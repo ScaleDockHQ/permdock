@@ -9,7 +9,12 @@ import {
 import { configError } from "../core/errors.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
 import { activeRowSql } from "../sql/active.ts";
-import { quoteIdent, quoteLiteral } from "../sql/quote.ts";
+import {
+  quoteIdent,
+  quoteLiteral,
+  quoteQualified,
+  quoteTable,
+} from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { entriesSql, typedUsers } from "./memberships.ts";
 
@@ -46,6 +51,27 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
   select v.version into ver from ${schema}.${quoteIdent(AUTHZ_VERSION_TABLE)} v where v.user_id = uid;
   ver := coalesce(ver, 0);`
     : "";
+  const teamsConfig = parts.hook.teams;
+  const teams =
+    teamsConfig === undefined
+      ? ""
+      : `
+  select coalesce(jsonb_agg(to_jsonb(t.${quoteIdent(teamsConfig.team)}::text) order by t.${quoteIdent(teamsConfig.team)}), '[]'::jsonb)
+    into team_ids
+    from ${quoteQualified(teamsConfig.table)} t
+    where t.${quoteIdent(teamsConfig.user)} = uid;
+  if team_ids <> '[]'::jsonb then
+    claims := jsonb_set(claims, '{team_ids}', team_ids);
+  end if;`;
+  const extra = parts.extra
+    .map(
+      (entry) => `
+  extra := ${quoteTable(entry.fn)}(uid);
+  if extra is not null then
+    claims := jsonb_set(claims, ${quoteLiteral(`{${entry.claim}}`)}, extra);
+  end if;`,
+    )
+    .join("");
   const custom =
     customRolesOn(config.rls) && resolveAuthorize(config) === "database"
       ? customRolesOfSql(parts)
@@ -63,7 +89,8 @@ declare
   held jsonb;
   memberships jsonb;
   custom jsonb := '[]'::jsonb;
-  ver bigint;${typedUsers(parts)}
+  ver bigint;
+  claims jsonb := '{}'::jsonb;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${typedUsers(parts)}
 begin
   if uid is null or not exists (select 1 from auth.users u where u.id = uid) then
     return null;
@@ -73,8 +100,9 @@ ${roles}
     into memberships
     from (
 ${entriesSql(parts).replaceAll(/^/gmu, "      ")}
-    ) x;${custom}${version}
+    ) x;${custom}${version}${teams}${extra}
   return jsonb_strip_nulls(jsonb_build_object(
+    'claims', case when claims = '{}'::jsonb then null else claims end,
     'id', uid::text,
     'active', true,
     'roles', held,
