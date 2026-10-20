@@ -31,6 +31,7 @@ export const CUSTOM_ROLES = {
   guardFor: "permdock_custom_role_guard_for",
   shape: "permdock_custom_role_shape",
   entries: "permdock_custom_role_entries",
+  entryProblem: "permdock_custom_role_entry_problem",
   replace: "permdock_replace_custom_role_grants",
   rename: "permdock_rename_custom_role_grants",
   remove: "permdock_delete_custom_role_grants",

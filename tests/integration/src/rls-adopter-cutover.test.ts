@@ -83,7 +83,9 @@ union all select 'acme', '${SHARED}'::uuid, id from public.app_roles where name 
 union all select 'acme', '${MEMBER}'::uuid, id from public.app_roles where name = 'member';
 insert into public.app_role_permissions (role_id, permission, level)
 select id, 'job.read', 'own' from public.app_roles where name in ('reader', 'sharedreader', 'sharedsys', 'staffrole')
-union all select id, 'invite.create', 'all' from public.app_roles where name = 'reader';
+union all select id, 'invite.create', 'all' from public.app_roles where name = 'reader'
+union all select id, 'job.delete', null from public.app_roles where name = 'reader'
+union all select id, 'job.bogus', null from public.app_roles where name = 'reader';
 `;
 
 const MAPPED = `
@@ -103,6 +105,7 @@ describe("RLS adopter cutover: database mode with an application roles table", (
   const dir = mkdtempSync(join(tmpdir(), "permdock-adopter-cutover-"));
   let db: Postgres | undefined;
   let notices: string[] = [];
+  let backfillNotices: string[] = [];
 
   const started = (): Postgres => {
     if (db === undefined) {
@@ -160,6 +163,10 @@ describe("RLS adopter cutover: database mode with an application roles table", (
       notices.push(message.message);
     });
     await db.admin.query(readFileSync(backfill, "utf8"));
+    backfillNotices = [...notices];
+    await db.admin.query(
+      "delete from public.app_role_permissions where permission in ('job.delete', 'job.bogus')",
+    );
   }, 240_000);
 
   afterAll(async () => {
@@ -175,6 +182,13 @@ describe("RLS adopter cutover: database mode with an application roles table", (
       "tenant:job.read@own:allow",
     ]);
     expect(await grants("member")).toEqual([]);
+  });
+
+  it("lists the entries the backfill drops once per legacy role", () => {
+    const warning = backfillNotices.find((line) => line.includes("dropped"));
+    expect(warning).toContain(
+      "reader: job.bogus, not a declared permission, job.delete, outside the ceiling of tenant",
+    );
   });
 
   it("reads the own level for a tenant role and a shared role through the id helpers and the row helper", async () => {
@@ -270,6 +284,21 @@ describe("RLS adopter cutover: database mode with an application roles table", (
       select id, 'job.delete', null from public.app_roles where name = 'reader'`);
     expect(await grants("reader")).toEqual(["tenant:job.read@own:allow"]);
     expect(notices.some((line) => line.includes("dropped 1 entr"))).toBe(true);
+  });
+
+  it("names the problem of a stored entry, and null for a valid one", async () => {
+    const problem = async (scope: string, entry: string): Promise<unknown> =>
+      (
+        await started().admin.query<{ problem: string | null }>(
+          "select permdock.permdock_custom_role_entry_problem($1, $2) as problem",
+          [scope, entry],
+        )
+      ).rows[0]?.problem;
+    expect(await problem("tenant", "job.read@own")).toBeNull();
+    expect(await problem("tenant", "invite.create")).toBeNull();
+    expect(await problem("tenant", "job.nope")).toBe("unknown-permission");
+    expect(await problem("tenant", "job.read@mine")).toBe("unknown-level");
+    expect(await problem("global", "job.update")).toBe("outside-ceiling");
   });
 
   it("refuses a tenant role named like a declared or a shared role", async () => {

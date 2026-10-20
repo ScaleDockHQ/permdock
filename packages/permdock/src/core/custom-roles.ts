@@ -462,6 +462,56 @@ export function validateCustomRole(
   });
 }
 
+/** The outcome of one stored allow entry, `<permission>[@<level>]`. */
+export type CustomRoleEntry =
+  | {
+      readonly ok: true;
+      /** The current key, after a `renamed` key resolves. */
+      readonly permission: string;
+      readonly level?: string;
+    }
+  | {
+      readonly ok: false;
+      readonly cause:
+        | "unknown-permission"
+        | "outside-ceiling"
+        | "unknown-level";
+    };
+
+/**
+ * Checks one stored allow entry, `<permission>[@<level>]`, the way
+ * `permdock_custom_role_entry_problem` does in SQL. `scope` defaults to the
+ * first scope; its ceiling is the allows of that scope's assignable roles.
+ */
+export function parseCustomRoleEntry(
+  policy: Policy,
+  entry: string,
+  options: { readonly scope?: string } = {},
+): CustomRoleEntry {
+  const at = entry.indexOf("@");
+  const raw = at === -1 ? entry : entry.slice(0, at);
+  const level = at === -1 ? undefined : entry.slice(at + 1);
+  const checked = validateCustomRole(policy, {
+    name: "entry",
+    tenant: "entry",
+    ...(options.scope === undefined ? {} : { scope: options.scope }),
+    grants: [{ permission: raw, ...(level === undefined ? {} : { level }) }],
+  });
+  const dropped = checked.dropped[0];
+  if (dropped !== undefined) {
+    const cause =
+      dropped.reason === "unknown-level" || dropped.reason === "outside-ceiling"
+        ? dropped.reason
+        : "unknown-permission";
+    return { ok: false, cause };
+  }
+  return {
+    ok: true,
+    permission: checked.renamed[0]?.to ?? raw,
+    ...(level === undefined ? {} : { level }),
+  };
+}
+
 function wellFormed(role: CustomRole): boolean {
   if (
     role === null ||

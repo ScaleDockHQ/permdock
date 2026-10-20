@@ -162,7 +162,7 @@ describe("helpersSql custom-role writes", () => {
     expect(fnBody(sql, "permdock_custom_role_shape")).toContain(
       "p_scope = any(array['org', 'team', 'region']::text[])",
     );
-    expect(fnBody(sql, "permdock_custom_role_entries")).toContain(
+    expect(fnBody(sql, "permdock_custom_role_entry_problem")).toContain(
       "v_key = any(array['member.assign', 'post.read']::text[])",
     );
   });

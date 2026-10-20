@@ -6,6 +6,7 @@ import type { CustomRole, Membership } from "../../src/core/subject.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import {
   customRoleClaim,
+  parseCustomRoleEntry,
   resolveCustomRole,
   validateCustomRole,
 } from "../../src/core/custom-roles.ts";
@@ -205,6 +206,25 @@ describe("resolveCustomRole", () => {
         grants: [{ permission: "invoice.void" }],
       }).ok,
     ).toBe(false);
+  });
+
+  it("parseCustomRoleEntry says why an entry cannot be stored", () => {
+    expect(parseCustomRoleEntry(policy, "post.read")).toEqual({
+      ok: true,
+      permission: "post.read",
+    });
+    expect(parseCustomRoleEntry(policy, "post.nope")).toEqual({
+      ok: false,
+      cause: "unknown-permission",
+    });
+    expect(parseCustomRoleEntry(policy, "invoice.void")).toEqual({
+      ok: false,
+      cause: "outside-ceiling",
+    });
+    expect(parseCustomRoleEntry(policy, "post.read@own")).toEqual({
+      ok: false,
+      cause: "unknown-level",
+    });
   });
 
   it("keeps only the included denies of its own scope", () => {
