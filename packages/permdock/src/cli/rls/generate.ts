@@ -20,6 +20,7 @@ import {
 } from "../core/output-files.ts";
 import { requirePolicy } from "../project/load.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
+import { bindingNotes, missingBindings, tableBindings } from "./bindings.ts";
 import { buildContext } from "./generate-context.ts";
 import {
   type RlsGenerateInput,
@@ -167,16 +168,33 @@ export async function runRlsGenerate(
   const { ctx } = built;
   const { text, migration, migrationRel, helpersOnly } = generated;
   let indexes = generated.indexes;
+  const bindings = tableBindings(
+    generated.compiled.rowColumns.map((item) => item.resource),
+    input.config.rls?.tables,
+    helpersOnly,
+  );
+  if (input.config.rls?.tables === undefined) {
+    warnings.push(...bindingNotes(bindings, input.db !== undefined));
+  }
   if (input.db !== undefined) {
     try {
-      const pruned = pruneIndexTargets(
-        indexes,
-        await readTableIndexFacts(
-          input.db,
-          [...new Set(indexes.map((target) => target.table))],
-          input.connect,
-        ),
+      const facts = await readTableIndexFacts(
+        input.db,
+        [
+          ...new Set([
+            ...indexes.map((target) => target.table),
+            ...bindings.map((binding) => binding.table),
+          ]),
+        ],
+        input.connect,
       );
+      const missing = missingBindings(bindings, facts.columns);
+      if (missing.length > 0) {
+        return refused(
+          `rls generate: ${missing.map((binding) => `resource ${binding.resource} is bound to ${binding.table}, which the database does not have`).join("; ")}; name the table in rls.tables`,
+        );
+      }
+      const pruned = pruneIndexTargets(indexes, facts);
       indexes = pruned.targets;
       warnings.push(...pruned.warnings);
     } catch (cause) {

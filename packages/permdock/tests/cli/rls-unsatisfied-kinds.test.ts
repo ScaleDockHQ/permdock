@@ -107,15 +107,13 @@ describe("unsatisfiedKinds", () => {
     expect(unsatisfiedKinds(context(undefined), policy)).toEqual([]);
   });
 
-  it("counts a source with no via as holding no kind", () => {
+  it("does not compare a source with no via", () => {
     const plain = junctionMembershipSource({
       table: "org_members",
       scope: "org",
       roles: ["contact"],
     });
-    expect(unsatisfiedKinds(context([plain]), policy)[0]?.sources).toEqual([
-      "org_members (via none)",
-    ]);
+    expect(unsatisfiedKinds(context([plain]), policy)).toEqual([]);
   });
 });
 

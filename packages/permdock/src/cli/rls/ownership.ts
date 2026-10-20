@@ -104,15 +104,15 @@ export function ownershipRules(
 export type UnsatisfiedKind = {
   readonly role: string;
   readonly for: readonly string[];
-  /** Each source as `<table> (via <kind>)`, or `(no via)`. */
+  /** Each source as `<table> (via <kind>)`. */
   readonly sources: readonly string[];
 };
 
 /**
  * The roles whose `for` lists kinds that no membership source of the role's
  * scope can hold: such a role resolves to no one. A `via` read from a column
- * can hold any kind, and a scope with no table or source is unknown, not
- * unsatisfied.
+ * can hold any kind, and so does a source with no `via` (it is not
+ * compared) and a scope with no table or source.
  */
 export function unsatisfiedKinds(
   ctx: RlsSqlContext,
@@ -133,7 +133,7 @@ export function unsatisfiedKinds(
       const via = memberVia(mapped);
       held.push({
         label: mapped.table,
-        via: typeof via === "string" ? undefined : via.value,
+        via: typeof via === "string" ? undefined : (via.value ?? undefined),
       });
     } else {
       for (const source of ctx.memberSources ?? ctx.sources ?? []) {
@@ -145,7 +145,7 @@ export function unsatisfiedKinds(
           label: source.sql.table,
           via:
             via === undefined
-              ? null
+              ? undefined
               : "value" in via && typeof via.value === "string"
                 ? via.value
                 : undefined,
@@ -163,9 +163,7 @@ export function unsatisfiedKinds(
     out.push({
       role,
       for: kinds,
-      sources: held.map(
-        (entry) => `${entry.label} (via ${entry.via ?? "none"})`,
-      ),
+      sources: held.map((entry) => `${entry.label} (via ${entry.via ?? ""})`),
     });
   }
   return out;

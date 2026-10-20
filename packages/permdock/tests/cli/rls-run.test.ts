@@ -252,6 +252,46 @@ describe("runRls dispatch", () => {
     expect(sql).not.toMatch(/service_role/u);
   });
 
+  it("prints the inferred table bindings and refuses a missing table with --db-url-stdin", async () => {
+    const without = await runRls(
+      input({ rest: ["generate"], dialect: "guc", out: "bind.sql" }),
+    );
+    expect(without.output).toContain(
+      "table bindings (no rls.tables entry, so the table is named after the resource): post -> public.post; run permdock rls explain",
+    );
+    const empty = fakeSql(() => ({ rows: [] }));
+    const refused = await runRls(
+      input({
+        rest: ["generate"],
+        dialect: "guc",
+        out: "bind.sql",
+        db: "postgres://fake",
+        connect: empty.connect,
+      }),
+    );
+    expect(refused.code).toBe(2);
+    expect(refused.output).toContain(
+      "resource post is bound to public.post, which the database does not have",
+    );
+    const present = fakeSql((call) =>
+      call.sql.includes("indnkeyatts")
+        ? { rows: [] }
+        : { rows: [{ target: "public.post", name: "id" }] },
+    );
+    const bound = await runRls(
+      input({
+        rest: ["generate"],
+        dialect: "guc",
+        out: "bind.sql",
+        db: "postgres://fake",
+        connect: present.connect,
+      }),
+    );
+    expect(bound.code).toBe(0);
+    expect(bound.output).toContain("post -> public.post");
+    expect(bound.output).not.toContain("explain");
+  });
+
   it("leaves out index suggestions the database already serves with --db-url-stdin", async () => {
     const reply =
       (columns: readonly string[], index: readonly string[]) =>
