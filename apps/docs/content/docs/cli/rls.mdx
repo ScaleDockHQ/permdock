@@ -778,6 +778,8 @@ Declarative Schemas 2.0 is the default. It needs Supabase CLI 2.119 or later and
 
 Under pg-delta, the files at its per-schema paths (no `--out`) carry no `drop` statement: pg-delta diffs the file itself, so a trigger is `create or replace trigger` and a policy a plain `create policy`. The `seeds` part, when it goes to `--seeds-out`, is a migration and keeps its re-runnable form.
 
+`rls generate --check` with the same `--split` compares each file byte for byte with the one at its pg-delta path, so it fails when a declarative file is edited by hand or generated from an older policy, and names the file. It compares against the files on disk, not against `supabase db schema declarative sync` output.
+
 | Part       | File                                              |
 | ---------- | ------------------------------------------------- |
 | `helpers`  | `<schema>/helpers.sql`                            |

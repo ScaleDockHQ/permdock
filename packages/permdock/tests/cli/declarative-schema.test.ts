@@ -556,6 +556,30 @@ describe("rls generate --split under pg-delta", () => {
     ).not.toMatch(/^\s*drop /mu);
   });
 
+  it("--check compares the declarative files and fails after a manual edit", async () => {
+    const cwd = project(true, "", null);
+    pgDelta(cwd);
+    const args = [
+      "rls",
+      "generate",
+      "--split",
+      "helpers,seeds,indexes,policies,hook",
+      "--seeds-out",
+      SEEDS,
+    ];
+    expect((await run(args, { cwd })).code).toBe(0);
+    const fresh = await run([...args, "--check"], { cwd });
+    expect(fresh.stdout + fresh.stderr).not.toContain("drift");
+    expect(fresh.code).toBe(0);
+    const file = join(cwd, "supabase/schemas/permdock/helpers.sql");
+    writeFileSync(file, `${readFileSync(file, "utf8")}-- hand edit\n`);
+    const edited = await run([...args, "--check"], { cwd });
+    expect(edited.code).toBe(1);
+    expect(edited.stdout + edited.stderr).toContain(
+      "supabase/schemas/permdock/helpers.sql",
+    );
+  });
+
   it("refuses --grants-out, since pg-delta keeps the grants in each part", async () => {
     const cwd = project(true, "", null);
     pgDelta(cwd);
