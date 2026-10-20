@@ -127,7 +127,7 @@ jobs:
         run: pnpm run test:integration --shard=${{ matrix.shard }}/3
 
   # The lowest and the latest better-supabase the peer range accepts; the peer's
-  # upper bound is the minor after the last entry (tests/better-supabase/peer-range.test.ts).
+  # upper bound is the minor after the last entry (tests/package/better-supabase-peer-range.test.ts).
   better-supabase:
     name: better-supabase ${{ matrix.better-supabase }}
     needs: build
