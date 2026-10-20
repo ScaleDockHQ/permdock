@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { MemoryEdge } from "../../core/memory-relations.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { RlsFinding } from "./verify-findings.ts";
 
 import {
   isEdgeRelation,
@@ -22,6 +23,7 @@ import { commandFor } from "../sql/compile.ts";
 import { quoteIdent, quoteQualified } from "../sql/quote.ts";
 import { tableNames } from "../sql/tables.ts";
 import { graphPlan } from "./graph.ts";
+import { rlsFinding } from "./verify-findings.ts";
 
 /** The clock and id source a generated tree reads. */
 export type TreeEntropy = {
@@ -320,7 +322,7 @@ export type TreeVerification = {
   readonly checked: number;
   /** Checks both sides granted, so a tree nobody reaches cannot pass by agreeing. */
   readonly granted: number;
-  readonly mismatches: readonly string[];
+  readonly mismatches: readonly RlsFinding[];
   readonly notes: readonly string[];
 };
 
@@ -471,7 +473,7 @@ export async function verifyTree(input: {
     }
   }
   const relations = memoryRelationSource(policy.permissions, { rows, edges });
-  const mismatches: string[] = [];
+  const mismatches: RlsFinding[] = [];
   let checked = 0;
   let granted = 0;
   const reads = listPermissions(policy.permissions).filter(
@@ -506,7 +508,12 @@ export async function verifyTree(input: {
         const allowed = permdock.can(permission as never, row);
         if (allowed !== seen.has(id)) {
           mismatches.push(
-            `${permission.key} ${id}: in-process ${allowed ? "granted" : "denied"}, database ${seen.has(id) ? "allowed" : "filtered"}`,
+            rlsFinding(
+              "tree-mismatch",
+              node.name,
+              permission.key,
+              `${permission.key} ${id}: in-process ${allowed ? "granted" : "denied"}, database ${seen.has(id) ? "allowed" : "filtered"}`,
+            ),
           );
         } else if (allowed) {
           granted += 1;

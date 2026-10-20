@@ -9,6 +9,8 @@ export type NextStep = {
 /** One finding a check reports, rendered as text, GitHub annotations or SARIF. */
 export type Finding = {
   readonly code: string;
+  /** Names this one finding across runs, so a baseline can accept it. */
+  readonly id?: string;
   readonly severity: "error" | "warning" | "info";
   readonly message: string;
   readonly fix?: string;

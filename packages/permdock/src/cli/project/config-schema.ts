@@ -42,6 +42,7 @@ const RLS = {
   inlineFunctions: true,
   force: true,
   fixtures: true,
+  verify: true,
   tenantClaim: true,
   tenantType: true,
   teamType: true,

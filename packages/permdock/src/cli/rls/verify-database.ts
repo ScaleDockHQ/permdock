@@ -2,6 +2,7 @@ import type { CommandResult } from "../core/result.ts";
 import type { RlsFixture } from "../fixtures.ts";
 import type { SqlConnect } from "../pg.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { RlsFinding } from "./verify-findings.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
@@ -17,6 +18,11 @@ import { quoteIdent, quoteTable } from "../sql/quote.ts";
 import { tableNameOf } from "../sql/tables.ts";
 import { FIELD_VIEWS, viewName } from "./fields.ts";
 import {
+  type VerifyIgnore,
+  rlsFinding,
+  verifyResult,
+} from "./verify-findings.ts";
+import {
   type InProcess,
   type Subject,
   customRoleRows,
@@ -28,6 +34,11 @@ import {
   subjectSettings,
 } from "./verify-pgtap.ts";
 import { verifyTree } from "./verify-tree.ts";
+
+/** A fixture's part of a finding id: its subject and row. */
+export function fixtureKey(fixture: RlsFixture): string {
+  return `${fixture.subject.id}/${String(rowId(fixture.row))}`;
+}
 
 /** Columns of `row` that hold a value; a masked column reads as null. */
 function valuedColumns(row: unknown): readonly string[] {
@@ -62,17 +73,23 @@ function fieldsMismatch(
   fixture: RlsFixture,
   want: readonly string[],
   seen: readonly string[] | string,
-): readonly string[] {
+): readonly RlsFinding[] {
   const kept = want.join(", ");
+  const mismatch = (message: string): RlsFinding =>
+    rlsFinding("field-mismatch", fixture.action, fixtureKey(fixture), message);
   if (typeof seen === "string") {
     return [
-      `${fixture.action}: field view read failed (${seen}), pick keeps [${kept}]`,
+      mismatch(
+        `${fixture.action}: field view read failed (${seen}), pick keeps [${kept}]`,
+      ),
     ];
   }
   return seen.join(", ") === kept
     ? []
     : [
-        `${fixture.action} ${String(rowId(fixture.row))}: field view returns [${seen.join(", ")}], pick keeps [${kept}]`,
+        mismatch(
+          `${fixture.action} ${String(rowId(fixture.row))}: field view returns [${seen.join(", ")}], pick keeps [${kept}]`,
+        ),
       ];
 }
 
@@ -145,7 +162,10 @@ export async function verifyAgainstDatabase(input: {
   readonly config: PermDockConfig;
   readonly inProcess: readonly InProcess[];
   readonly connect: SqlConnect;
-}): Promise<{ readonly mismatches: string[]; readonly notes: string[] }> {
+}): Promise<{
+  readonly mismatches: readonly RlsFinding[];
+  readonly notes: readonly string[];
+}> {
   const client = await input.connect(input.db);
   const seedsTables = seedsCustomRoleTables(input.config);
   const schema = customRoleSchema(input.config);
@@ -172,7 +192,7 @@ export async function verifyAgainstDatabase(input: {
       return { rows: [], rowCount: 0, ...(code === undefined ? {} : { code }) };
     }
   };
-  const mismatches: string[] = [];
+  const mismatches: RlsFinding[] = [];
   const notes: string[] = [];
   try {
     const conditioned = policyRowConditionKeys(input.policy);
@@ -181,7 +201,14 @@ export async function verifyAgainstDatabase(input: {
     )) {
       const keys = found.keys.filter((key) => conditioned.has(key));
       if (keys.length > 0) {
-        mismatches.push(`PD037 ${rowConditionMessage(found, keys)}`);
+        mismatches.push(
+          rlsFinding(
+            "condition-blind",
+            found.table,
+            found.name,
+            `PD037 ${rowConditionMessage(found, keys)}`,
+          ),
+        );
       }
     }
     for (const [index, fixture] of input.fixtures.entries()) {
@@ -221,7 +248,12 @@ export async function verifyAgainstDatabase(input: {
           : database === "filtered" || database === "rejected";
         if (!ok) {
           mismatches.push(
-            `${fixture.action}: in-process ${status.granted ? "granted" : "denied"}, database ${database}`,
+            rlsFinding(
+              "parity-mismatch",
+              fixture.action,
+              fixtureKey(fixture),
+              `${fixture.action}: in-process ${status.granted ? "granted" : "denied"}, database ${database}`,
+            ),
           );
         } else if (status.kind === "sqlFunction") {
           notes.push(`${fixture.action}: verified through twin`);
@@ -251,6 +283,7 @@ export async function verifyTreeAgainstDatabase(
   policy: Policy,
   config: PermDockConfig,
   connect: SqlConnect,
+  ignore: readonly VerifyIgnore[],
 ): Promise<CommandResult> {
   const client = await connect(db);
   const scopes = scopeList(policy.scopes);
@@ -281,20 +314,12 @@ export async function verifyTreeAgainstDatabase(
           subjectOf(config, [], scopes),
         ),
     });
-    if (result.mismatches.length > 0) {
-      return {
-        code: 1,
-        output: [...result.mismatches, ...result.notes].join("\n"),
-      };
-    }
-    const verified = `verified ${String(result.checked)} tree check(s) against the database (${String(result.granted)} granted)`;
-    return {
-      code: 0,
-      output:
-        result.notes.length === 0
-          ? verified
-          : `${verified}\n${result.notes.join("\n")}`,
-    };
+    return verifyResult({
+      findings: result.mismatches,
+      ignore,
+      notes: result.notes,
+      summary: `verified ${String(result.checked)} tree check(s) against the database (${String(result.granted)} granted)`,
+    });
   } catch (cause) {
     const message = describeError(cause);
     return {

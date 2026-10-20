@@ -4,15 +4,26 @@ import type { ActualRls } from "../../src/cli/rls/introspect.ts";
 
 import { run } from "../../src/cli/core/run.ts";
 import {
-  diffMixed,
-  diffRls,
+  diffMixed as diffMixedFindings,
+  diffRls as diffRlsFindings,
   expectedRls,
   introspectMixed,
   introspectRls,
-  missingIndexes,
+  missingIndexes as missingIndexFindings,
   normalizeTableName,
 } from "../../src/cli/rls/introspect.ts";
 import { fakeSql } from "../fakes/sql.ts";
+
+const messages = (items: readonly { readonly message: string }[]) =>
+  items.map((item) => item.message);
+const diffRls = (...args: Parameters<typeof diffRlsFindings>) =>
+  messages(diffRlsFindings(...args));
+const missingIndexes = (...args: Parameters<typeof missingIndexFindings>) =>
+  messages(missingIndexFindings(...args));
+const diffMixed = (...args: Parameters<typeof diffMixedFindings>) => {
+  const result = diffMixedFindings(...args);
+  return { drift: messages(result.drift), info: messages(result.info) };
+};
 
 const SQL = `create or replace function "app".permdock_has(p_grant text)
 returns boolean
@@ -134,7 +145,7 @@ describe("rls verify --introspect", () => {
         },
       }),
     ).toEqual([
-      "warning: app.memberships: no index starts with user_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes",
+      "app.memberships: no index starts with user_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes",
     ]);
   });
 
@@ -150,7 +161,7 @@ describe("rls verify --introspect", () => {
         columns: { "public.post": ["id", "author_id"] },
       }),
     ).toEqual([
-      "warning: public.post: no index starts with author_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes",
+      "public.post: no index starts with author_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes",
     ]);
   });
 

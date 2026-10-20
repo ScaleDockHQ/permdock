@@ -20,9 +20,16 @@ import { loadPolicyAt } from "../project/load.ts";
 import { commandFor } from "../sql/compile.ts";
 import {
   expectedFields,
+  fixtureKey,
   verifyAgainstDatabase,
   verifyTreeAgainstDatabase,
 } from "./verify-database.ts";
+import {
+  type RlsFinding,
+  type VerifyIgnore,
+  rlsFinding,
+  verifyResult,
+} from "./verify-findings.ts";
 import { type InProcess, emitPgtap } from "./verify-pgtap.ts";
 
 /** Where `rls verify --kind pgtap` writes, the folder `supabase test db` reads. */
@@ -87,7 +94,10 @@ export async function runRlsVerify(input: {
   readonly io: CliIo;
   /** Opens the `--db-url-stdin` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
+  /** Accepted findings: `rls.verify.ignore` and `--ignore`. */
+  readonly ignore?: readonly VerifyIgnore[];
 }): Promise<CommandResult> {
+  const ignore = input.ignore ?? [];
   if (input.out !== undefined && input.format !== "pgtap") {
     return {
       code: 2,
@@ -119,6 +129,7 @@ export async function runRlsVerify(input: {
         policy,
         input.config,
         connect,
+        ignore,
       );
     } catch (cause) {
       return usageResult(cause);
@@ -127,14 +138,21 @@ export async function runRlsVerify(input: {
   const fixturesPath =
     input.fixtures ?? input.config.rls?.fixtures ?? "rls.fixtures.json";
   const { fixtures, customRoles } = await loadFixtures(input.cwd, fixturesPath);
-  const mismatches: string[] = [];
+  const mismatches: RlsFinding[] = [];
   const notes: string[] = [];
   const inProcess: InProcess[] = [];
   const fieldsMode = input.config.rls?.fields === "views";
   for (const fixture of fixtures) {
     const permission = findPermission(policy.permissions, fixture.action);
     if (permission === undefined) {
-      mismatches.push(`${fixture.action}: unknown permission`);
+      mismatches.push(
+        rlsFinding(
+          "unknown-permission",
+          fixture.action,
+          fixtureKey(fixture),
+          `${fixture.action}: unknown permission`,
+        ),
+      );
       inProcess.push({
         action: fixture.action,
         granted: false,
@@ -158,7 +176,12 @@ export async function runRlsVerify(input: {
     const outcome = granted ? "granted" : "denied";
     if (fixture.expected !== undefined && fixture.expected !== outcome) {
       mismatches.push(
-        `${fixture.action}: in-process ${outcome}, expected ${fixture.expected}`,
+        rlsFinding(
+          "expected-mismatch",
+          fixture.action,
+          fixtureKey(fixture),
+          `${fixture.action}: in-process ${outcome}, expected ${fixture.expected}`,
+        ),
       );
     }
     if (kind === "opaque") {
@@ -188,10 +211,15 @@ export async function runRlsVerify(input: {
     });
   }
   if (input.format === "pgtap") {
-    if (mismatches.length > 0) {
-      return { code: 1, output: mismatches.join("\n") };
-    }
     const outRel = input.out ?? PGTAP_OUT;
+    const result = verifyResult({
+      findings: mismatches,
+      ignore,
+      summary: `wrote ${outRel}`,
+    });
+    if (result.code !== 0) {
+      return result;
+    }
     writeFileEnsuringDir(
       resolve(input.cwd, outRel),
       emitPgtap({
@@ -202,7 +230,7 @@ export async function runRlsVerify(input: {
         customRoles,
       }),
     );
-    return { code: 0, output: `wrote ${outRel}` };
+    return result;
   }
   if (input.db !== undefined) {
     try {
@@ -221,12 +249,10 @@ export async function runRlsVerify(input: {
       return usageResult(cause);
     }
   }
-  if (mismatches.length > 0) {
-    return { code: 1, output: [...mismatches, ...notes].join("\n") };
-  }
-  const verified = `verified ${String(fixtures.length)} fixture(s) ${input.db === undefined ? "in-process" : "in-process and against the database"}`;
-  return {
-    code: 0,
-    output: notes.length === 0 ? verified : `${verified}\n${notes.join("\n")}`,
-  };
+  return verifyResult({
+    findings: mismatches,
+    ignore,
+    notes,
+    summary: `verified ${String(fixtures.length)} fixture(s) ${input.db === undefined ? "in-process" : "in-process and against the database"}`,
+  });
 }

@@ -141,7 +141,9 @@ describe("verifyTree over other tree shapes", () => {
     expect(managers.every((id) => bound.includes(id))).toBe(true);
     expect(result.mismatches.length).toBeGreaterThan(0);
     expect(
-      result.mismatches.every((line) => line.includes("database filtered")),
+      result.mismatches.every(({ message }) =>
+        message.includes("database filtered"),
+      ),
     ).toBe(true);
   });
 

@@ -1059,6 +1059,34 @@ supabase test db
 
 `permdock/testing` exposes the same runner for Vitest.
 
+### Accepted findings
+
+Every line `verify` prints for a difference ends with the finding's id, `<code>:<table>:<key>`. The key is the policy name, the column, the helper, `role.privilege` for a grant, `role/effect/permission/scope` for a seed row, or `subject/row` for a fixture:
+
+```text
+public.post: policy post_update is missing [policy-missing:public.post:post_update]
+public.post: no index starts with author_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes [index-missing:public.post:author_id]
+```
+
+The id stays the same between runs, so it can be accepted. `rls.verify.ignore` is the committed baseline, and each entry needs a `reason`. `--ignore <id>` (repeatable) accepts one for a single run:
+
+```ts title="permdock.config.ts"
+export default defineConfig({
+  rls: {
+    verify: {
+      ignore: [
+        {
+          id: "policy-extra:public.post:post_select_legacy",
+          reason: "read-only view for the legacy export, removed in PLAT-412",
+        },
+      ],
+    },
+  },
+});
+```
+
+An accepted finding never fails the run; `verify` prints `ignored <id>: <reason>` instead. An entry that matches no finding prints `warning: ignore entry <id> matches no finding; remove it from rls.verify.ignore`, and does not fail the run either, so a fixed finding shows up as a baseline to prune. An entry without an `id` or a non-empty `reason` exits `2`. With `--json`, `data` is `{ findings, ignored, stale }`: each finding is `{ id, code, table, key, message, severity }`, each ignored one is `{ id, reason, message }`, and `stale` lists the unmatched `{ id, reason }` entries. `--format github` appends the id to each annotation, and `--format sarif` writes it as the `permdockId/v1` partial fingerprint, so code scanning tracks a finding across commits. `--advisors` findings come from the Supabase CLI and take no ids.
+
 ## Database-first CI
 
 When SQL is the authority, skip `generate`. Pin the TypeScript policy (with `sqlFunction` twins) and fail the job on mismatch:
@@ -1075,7 +1103,10 @@ When SQL is the authority, skip `generate`. Pin the TypeScript policy (with `sql
 - run: pnpm exec supabase db schema declarative sync --no-apply -f drift_check --strict-coverage # expect "No schema changes found"
 # migra: supabase db diff instead, and --grants-out in the generate step
 - run: printf %s "$DATABASE_URL" | pnpm exec permdock rls verify --db-url-stdin # in the job with a Postgres service
+- run: printf %s "$DATABASE_URL" | pnpm exec permdock rls verify --introspect --db-url-stdin --format github # annotations carry the finding id
 ```
+
+A finding the team accepts goes into `rls.verify.ignore` with its reason ([accepted findings](#accepted-findings)), so the job stays required.
 
 `tests/integration` in this repository runs `verify` against Postgres in testcontainers.
 

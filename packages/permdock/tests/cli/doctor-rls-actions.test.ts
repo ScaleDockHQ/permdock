@@ -134,7 +134,7 @@ describe("PD076", () => {
     expect(result.code).toBe(0);
     expect(result.output).toContain("info PD076");
     expect(result.output).toContain("0 errors, 0 warnings, 1 note");
-    expect(result.findings.map((finding) => finding.severity)).toEqual([
+    expect(result.findings?.map((finding) => finding.severity)).toEqual([
       "info",
     ]);
   });

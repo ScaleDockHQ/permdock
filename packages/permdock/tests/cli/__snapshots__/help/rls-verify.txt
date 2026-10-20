@@ -31,6 +31,7 @@ Flags
   --tree                                 Check the relationship closure
   --introspect                           Compare against the live database
   --advisors                             Run the Supabase security advisors
+  --ignore <id>                          Accept the finding with this id for one run; rls.verify.ignore is the committed baseline (repeatable)
 
 Global flags
   --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help

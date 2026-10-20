@@ -71,8 +71,13 @@ describe("custom-role functions keyed by role id", () => {
     expect(sql).toContain(
       `perform "better_supabase"."audit_event_trusted"(event_type => 'permdock.custom_role.replaced', target_type => 'role', record_id => p_role_id::text, tenant => v_tenant, metadata => jsonb_build_object('operation', 'replace', 'role', v_key, 'permissions', p_permissions), "actor_kind" => 'user');`,
     );
+    const base = ctx();
+    const { audit: _audit, ...unaudited } = base.customRoles ?? {
+      declared: [],
+      assignable: [],
+    };
     expect(
-      customRoleByIdSql(ctx({ audit: undefined }), undefined),
+      customRoleByIdSql({ ...base, customRoles: unaudited }, undefined),
     ).not.toContain('perform "better_supabase"');
   });
 
@@ -84,13 +89,10 @@ describe("custom-role functions keyed by role id", () => {
   });
 
   it("writes nothing without a primary key, custom roles or database mode", () => {
-    expect(
-      customRoleByIdSql(
-        ctx({ table: { ...roles, primaryKey: undefined } }),
-        [],
-      ),
-    ).toBe("");
+    const { primaryKey: _primaryKey, ...keyless } = roles;
+    expect(customRoleByIdSql(ctx({ table: keyless }), [])).toBe("");
     expect(customRoleByIdSql(ctx({}, { authorize: "jwt" }), [])).toBe("");
-    expect(customRoleByIdSql(ctx({}, { customRoles: undefined }), [])).toBe("");
+    const { customRoles: _customRoles, ...plain } = ctx();
+    expect(customRoleByIdSql(plain, [])).toBe("");
   });
 });

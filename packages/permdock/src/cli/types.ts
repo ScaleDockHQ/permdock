@@ -142,6 +142,17 @@ export type RlsConfig = {
   /** Emit FORCE ROW LEVEL SECURITY so the table owner is subject to the policies. */
   readonly force?: boolean;
   readonly fixtures?: string;
+  /**
+   * `rls verify` findings accepted as a baseline. `id` is the
+   * `<code>:<table>:<key>` the finding prints; `reason` is required. An entry
+   * no finding matches is a warning, so the baseline shrinks.
+   */
+  readonly verify?: {
+    readonly ignore?: readonly {
+      readonly id: string;
+      readonly reason: string;
+    }[];
+  };
   readonly tenantClaim?: string;
   /**
    * Which tenants the helpers and `memberOf` checks admit. `'active'`

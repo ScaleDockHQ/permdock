@@ -94,10 +94,12 @@ export function githubAnnotations(findings: readonly Finding[]): string {
         ...(finding.line === undefined ? [] : [`line=${String(finding.line)}`]),
         `title=${escapeProperty(finding.code)}`,
       ].join(",");
-      const message =
-        finding.fix === undefined
+      const text =
+        finding.id === undefined
           ? finding.message
-          : `${finding.message}\nFix: ${finding.fix}`;
+          : `${finding.message} [${finding.id}]`;
+      const message =
+        finding.fix === undefined ? text : `${text}\nFix: ${finding.fix}`;
       return `::${level} ${properties}::${escapeData(message)}`;
     })
     .join("\n");
@@ -131,6 +133,9 @@ export function sarifLog(
           ? "warning"
           : "note",
     message: { text: finding.message },
+    ...(finding.id === undefined
+      ? {}
+      : { partialFingerprints: { "permdockId/v1": finding.id } }),
     ...(finding.file === undefined
       ? {}
       : {
