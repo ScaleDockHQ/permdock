@@ -4,7 +4,7 @@ import type { PermDockConfig, RlsDialect } from "../types.ts";
 import { isRecord } from "../../core/compact.ts";
 import { customRoleScope, membershipsClaim } from "../../core/custom-roles.ts";
 import { type Scope, scopeList } from "../../core/scopes.ts";
-import { defaultSqlCommand } from "../../core/sql.ts";
+import { SQL_IDENT, defaultSqlCommand } from "../../core/sql.ts";
 import { type CustomRole, type Policy, findPermission } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
@@ -169,7 +169,26 @@ export function subjectSettings(
     subject.scopes,
   );
   if (subject.dialect === "guc") {
+    const fixed = new Set([
+      "user_id",
+      "sub",
+      "role",
+      "memberships",
+      subject.roleClaim,
+      subject.tenantClaim,
+    ]);
     const settings: (readonly [string, string])[] = [
+      ...Object.entries(fixture.subject.claims ?? {}).flatMap(
+        ([name, value]): (readonly [string, string])[] =>
+          fixed.has(name) || !SQL_IDENT.test(name)
+            ? []
+            : [
+                [
+                  `${subject.gucPrefix}.${name}`,
+                  typeof value === "string" ? value : JSON.stringify(value),
+                ],
+              ],
+      ),
       [`${subject.gucPrefix}.user_id`, fixture.subject.id],
       [`${subject.gucPrefix}.${subject.roleClaim}`, roles.join(",")],
       [`${subject.gucPrefix}.memberships`, JSON.stringify(memberships)],
