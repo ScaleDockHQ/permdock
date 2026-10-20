@@ -2619,6 +2619,9 @@ importers:
       sonner:
         specifier: 'catalog:'
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      temporal-polyfill:
+        specifier: 'catalog:'
+        version: 1.0.6
       tw-animate-css:
         specifier: 'catalog:'
         version: 1.4.0
