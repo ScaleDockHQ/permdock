@@ -14,6 +14,7 @@ import {
 import { type Shape, col, filters, selectOf, sqlOf } from "./membership-sql.ts";
 import {
   type RoleColumn,
+  type RoleGuard,
   type RoleKeys,
   type RoleSpec,
   columnManifest,
@@ -173,6 +174,8 @@ export type MembershipHolders = {
 
 export type SqlMembershipSource = MembershipSource & {
   readonly sql: MembershipSql;
+  /** The same source with the role keys of tenant rows of `guard.table` named like a declared role read as null. */
+  readonly guarded?: (guard: RoleGuard) => SqlMembershipSource;
 };
 
 const ident = (name: string): string => quoteSqlIdent(name);
@@ -185,8 +188,17 @@ function isFixed(
 }
 
 /** A role column of the membership table, aliased `m`; a `through` column joins its roles table as `mk`. */
-function memberRole(role: RoleSpec, table: string, label: string): RoleColumn {
-  return roleColumn(role, qualifySqlTable(table), "m", { label, indent: "" });
+function memberRole(
+  role: RoleSpec,
+  table: string,
+  label: string,
+  guard: RoleGuard | undefined,
+): RoleColumn {
+  return roleColumn(role, qualifySqlTable(table), "m", {
+    label,
+    indent: "",
+    ...(guard === undefined ? {} : { guard }),
+  });
 }
 
 /** The user of the membership table, aliased `m`; a `through` user joins its table as `mu`. */
@@ -359,6 +371,13 @@ export function supabasePostgresQuery(postgres: SupabasePostgres): SqlQuery {
 export function tableMembershipSource(
   options: MembershipTableOptions,
 ): SqlMembershipSource {
+  return tableSource(options, undefined);
+}
+
+function tableSource(
+  options: MembershipTableOptions,
+  guard: RoleGuard | undefined,
+): SqlMembershipSource {
   const c = options.columns ?? {};
   const scope = `${col(c.scope ?? "scope")}::text`;
   const id = `${col(c.id ?? "scope_id")}::text`;
@@ -372,6 +391,7 @@ export function tableMembershipSource(
     c.role ?? "role",
     options.table,
     "tableMembershipSource columns.role",
+    guard,
   );
   const shape: Shape = {
     table: options.table,
@@ -442,7 +462,10 @@ export function tableMembershipSource(
         c.disabledAt === undefined ? undefined : { column: c.disabledAt },
     }),
   };
-  return sourceOf(sqlOf(shape), options.query);
+  return {
+    ...sourceOf(sqlOf(shape), options.query),
+    guarded: (next) => tableSource(options, next),
+  };
 }
 
 /**
@@ -452,6 +475,13 @@ export function tableMembershipSource(
  */
 export function junctionMembershipSource(
   options: MembershipJunctionOptions,
+): SqlMembershipSource {
+  return junctionSource(options, undefined);
+}
+
+function junctionSource(
+  options: MembershipJunctionOptions,
+  guard: RoleGuard | undefined,
 ): SqlMembershipSource {
   if (!/^[a-z][a-z0-9_]*$/u.test(options.scope)) {
     throw new TypeError(`PermDock: unsafe scope name '${options.scope}'`);
@@ -471,6 +501,7 @@ export function junctionMembershipSource(
         typeof roles === "object" && "sources" in roles ? roles.sources : roles,
         options.table,
         "junctionMembershipSource roles",
+        guard,
       );
   const user = memberUser(
     options.user ?? "user_id",
@@ -598,7 +629,7 @@ export function junctionMembershipSource(
     }),
   };
   const sql = sqlOf(shape);
-  return sourceOf(
+  const source = sourceOf(
     {
       ...sql,
       scope: options.scope,
@@ -616,6 +647,7 @@ export function junctionMembershipSource(
     },
     options.query,
   );
+  return { ...source, guarded: (next) => junctionSource(options, next) };
 }
 
 export const AUTHZ_VERSION_TABLE = "permdock_authz_version";

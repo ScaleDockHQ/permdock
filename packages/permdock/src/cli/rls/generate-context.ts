@@ -144,8 +144,20 @@ export function buildContext(
     rbac: input.rbac,
     memberships,
   });
-  const memberSources =
-    rls?.membershipSources ?? input.config.supabase?.hook?.memberships;
+  const writeTable = rls?.customRoleWrites?.roles;
+  const guard =
+    writeTable?.tenant === undefined
+      ? undefined
+      : {
+          table: writeTable.table,
+          tenant: writeTable.tenant,
+          declared: [...roleNames(policy)].toSorted(),
+        };
+  const memberSources = (
+    rls?.membershipSources ?? input.config.supabase?.hook?.memberships
+  )?.map((source) =>
+    guard === undefined ? source : (source.guarded?.(guard) ?? source),
+  );
   const sources = authorize === "database" ? memberSources : undefined;
   const scopes = scopeList(policy.scopes);
   const suspension = checkSuspension(rls?.suspension, scopes);

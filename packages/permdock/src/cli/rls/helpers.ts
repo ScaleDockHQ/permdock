@@ -24,6 +24,7 @@ import {
 } from "./api-keys.ts";
 import { capabilitiesSql } from "./capabilities.ts";
 import { customRoleCascadeSql } from "./custom-role-cascade.ts";
+import { customRoleNameGuardSql } from "./custom-role-guard.ts";
 import { customRoleWritesSql } from "./custom-role-writes.ts";
 import { customRolesSql, roleReadersSql } from "./custom-roles.ts";
 import { globalRolesSql } from "./global-roles.ts";
@@ -307,6 +308,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     const cascade = customRoleCascadeSql(ctx);
     if (cascade !== "") {
       chunks.push(cascade);
+    }
+    const nameGuard = customRoleNameGuardSql(ctx);
+    if (nameGuard !== "") {
+      chunks.push(nameGuard);
     }
   }
   const globalRoles = globalRolesSql(ctx);

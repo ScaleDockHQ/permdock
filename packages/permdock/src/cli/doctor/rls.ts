@@ -5,6 +5,7 @@ import type { RlsActions } from "../types.ts";
 
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { scopeList } from "../../core/scopes.ts";
+import { qualifySqlTable } from "../../core/sql.ts";
 import { type Policy, hasConditionOp, listPermissions } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { sqlFiles } from "../files.ts";
@@ -440,4 +441,30 @@ export async function pd071(
     message: `action '${verb}' (${keys.toSorted().join(", ")}) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy`,
     fix: `map it on purpose in rls.actions: ${verb}: "insert", "update", "delete" or "none"`,
   }));
+}
+
+/**
+ * PD072: a membership source reads role keys through the table of custom
+ * roles (`rls.customRoleWrites.roles`), which tenants write.
+ */
+export function pd072(input: DoctorInput): readonly DoctorFinding[] {
+  const roles = input.config.rls?.customRoleWrites?.roles;
+  if (roles?.tenant === undefined) {
+    return [];
+  }
+  const target = qualifySqlTable(roles.table);
+  const sources =
+    input.config.rls?.membershipSources ??
+    input.config.supabase?.hook?.memberships ??
+    [];
+  return sources
+    .filter((source) =>
+      source.sql.throughs.some((through) => through.table === target),
+    )
+    .map((source) => ({
+      code: "PD072",
+      severity: "warning" as const,
+      message: `the ${source.sql.table} membership source reads role keys through ${target}, whose tenant rows tenants write: a tenant row named like a declared role must not grant it`,
+      fix: `keep the permdock_custom_role_name_guard trigger on ${target} (rls generate emits it with customRoleWrites.roles) and generate with this config, so helpers read a tenant row named like a declared role as no role`,
+    }));
 }

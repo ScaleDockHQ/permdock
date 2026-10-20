@@ -1,7 +1,12 @@
 import type { SupabaseManifestRole } from "./manifest.ts";
 import type { RoleThrough } from "./types.ts";
 
-import { quoteSqlIdent, quoteSqlTable } from "../core/sql.ts";
+import {
+  qualifySqlTable,
+  quoteSqlIdent,
+  quoteSqlTable,
+  sqlTextArray,
+} from "../core/sql.ts";
 
 /** A roles table a role column references, by `schema.table`. */
 export type RoleKeys = {
@@ -46,7 +51,21 @@ export type RoleSource = string | RoleThrough;
 /** A role source, or several the row holds at once. */
 export type RoleSpec = RoleSource | readonly RoleSource[];
 
+/**
+ * A roles table whose tenant rows are written by tenants. A role key read
+ * through it from a tenant row that is one of `declared` reads as null, so a
+ * tenant cannot claim the grants of a declared role by naming a role after it.
+ */
+export type RoleGuard = {
+  /** `schema.table`, or `public`. */
+  readonly table: string;
+  /** The tenant column of the roles table. */
+  readonly tenant: string;
+  readonly declared: readonly string[];
+};
+
 type RoleOptions = {
+  readonly guard?: RoleGuard;
   readonly label: string;
   readonly prefix?: string;
   readonly indent?: string;
@@ -140,11 +159,17 @@ function singleRole(
   const keys = options.joined ?? `${alias}k`;
   const target = quoteSqlTable(through, prefix);
   const keyed = { table: through, id, key: role.column, ref };
+  const plain = `${keys}.${q(role.column)}::text`;
+  const guard = options.guard;
+  const key =
+    guard !== undefined && qualifySqlTable(guard.table) === through
+      ? `case when ${keys}.${q(guard.tenant)} is not null and ${plain} = any(${sqlTextArray(guard.declared)}) then null else ${plain} end`
+      : plain;
   return {
     column: ref,
-    sql: `${keys}.${q(role.column)}::text`,
+    sql: key,
     join: `${options.indent === undefined ? " " : `\n${options.indent}`}join ${target} ${keys} on ${keys}.${q(id)} = ${alias}.${q(ref)}`,
-    lookup: `(select ${keys}.${q(role.column)}::text from ${target} ${keys} where ${keys}.${q(id)} = ${alias}.${q(ref)})`,
+    lookup: `(select ${key} from ${target} ${keys} where ${keys}.${q(id)} = ${alias}.${q(ref)})`,
     through: keyed,
     columns: [ref],
     throughs: [keyed],
