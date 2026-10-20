@@ -143,7 +143,13 @@ export function referencePlatform(options: Options): ReferencePlatform {
       token_endpoint: `${base}/oauth/token`,
       revocation_endpoint: `${base}/oauth/revoke`,
       registration_endpoint: `${base}/oauth/register`,
-      scopes_supported: ["projects:read", "policy:read", "catalog:write"],
+      scopes_supported: [
+        "projects:read",
+        "policy:read",
+        "catalog:write",
+        "evidence:read",
+        "approvals:read",
+      ],
       code_challenge_methods_supported: ["S256"],
       grant_types_supported: [
         "authorization_code",

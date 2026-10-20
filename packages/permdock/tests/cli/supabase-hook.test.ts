@@ -90,6 +90,14 @@ describe("permdock supabase hook generate", () => {
     expect(meta.sql).toContain(`claims -> 'app_metadata' ->> 'org'`);
   });
 
+  it("reports a missing hook file under --check", async () => {
+    const missing = await generate(`{ memberships: [${SOURCES}] }`, [
+      "--check",
+    ]);
+    expect(missing.code).toBe(1);
+    expect(missing.output).toContain("supabase hook drift: missing");
+  });
+
   it("refuses configurations it cannot compile", async () => {
     expect((await generate("undefined")).code).toBe(2);
     expect((await generate("{ memberships: [] }")).output).toContain(

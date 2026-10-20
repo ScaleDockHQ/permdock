@@ -48,6 +48,9 @@ function singular(name: string): string {
   if (name.endsWith("ies")) {
     return `${name.slice(0, -3)}y`;
   }
+  if (name.endsWith("sses")) {
+    return name.slice(0, -2);
+  }
   return name.endsWith("s") && !name.endsWith("ss") ? name.slice(0, -1) : name;
 }
 

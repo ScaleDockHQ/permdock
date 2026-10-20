@@ -254,6 +254,29 @@ describe("permdock supabase inspect", () => {
     expect(check.code).toBe(0);
   });
 
+  it("checks, prints and reports drift for the hookless manifest", async () => {
+    const database = await generate(
+      "undefined",
+      [],
+      `{ authorize: 'database', membershipSources: [${SOURCES}] }`,
+    );
+    const printed = await run(["supabase", "inspect"], { cwd: database.cwd });
+    expect(printed.code).toBe(0);
+    const json = await run(["supabase", "inspect", "--json"], {
+      cwd: database.cwd,
+    });
+    expect(jsonData(json.stdout)).not.toHaveProperty("hook");
+    const missing = await run(["supabase", "inspect", "--check"], {
+      cwd: database.cwd,
+    });
+    expect(missing.code).toBe(1);
+    await run(["supabase", "inspect", "--out"], { cwd: database.cwd });
+    const current = await run(["supabase", "inspect", "--check"], {
+      cwd: database.cwd,
+    });
+    expect(current.code).toBe(0);
+  });
+
   it("lists the trusted and assignment helpers and the rls settings a package reads", async () => {
     const database = await generate(
       `{ memberships: [${SOURCES}] }`,
