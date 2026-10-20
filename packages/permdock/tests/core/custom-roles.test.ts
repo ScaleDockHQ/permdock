@@ -933,3 +933,42 @@ describe("snapshot parity", () => {
     );
   });
 });
+
+describe("a custom role grant with an undeclared level", () => {
+  const leveled: CustomRole = {
+    tenant: "acme",
+    name: "all-reader",
+    grants: [{ permission: "post.read", level: "all" }],
+  };
+
+  it("denies, reports unknown-level on auth and names the level in explain", () => {
+    const auth: unknown[] = [];
+    const permdock = getPermDockSync(
+      policy,
+      subjectIn([{ tenant: "acme", roles: ["all-reader"] }]),
+      { tenant: "acme", customRoles: memoryCustomRoleSource([leveled]) },
+    );
+    permdock.on("auth", (event) => {
+      auth.push(event);
+    });
+    const explained = permdock.explain(permissions.post.read, {
+      id: "p1",
+      orgId: "acme",
+    });
+    expect(explained.outcome).toBe("denied");
+    expect(explained.trace.skipped).toContainEqual({
+      role: "all-reader",
+      permission: "post.read",
+      effect: "allow",
+      why: "unknown-level",
+      level: "all",
+    });
+    expect(auth).toEqual([
+      expect.objectContaining({
+        reason: "schema",
+        source: "customRoles",
+        cause: expect.stringContaining("unknown-level: all-reader"),
+      }),
+    ]);
+  });
+});

@@ -40,6 +40,7 @@ import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 
 import { withApp } from "./app.ts";
 import { compact } from "./compact.ts";
+import { unknownLevelsFor } from "./custom-roles.ts";
 import { buildInstance } from "./instance.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { resolveSubject } from "./resolve-subject.ts";
@@ -428,8 +429,15 @@ function instantiate(
     roles: readonly CustomRole[],
     names: ReadonlyMap<string, readonly string[]> | undefined,
     approvalPolicies: LoadedApprovalPolicies | undefined,
-  ): PermDock =>
-    buildInstance(
+  ): PermDock => {
+    for (const entry of unknownLevelsFor(policy, roles)) {
+      auth.push({
+        reason: "schema",
+        source: "customRoles",
+        cause: `unknown-level: ${entry.role} grants ${entry.permission} at '${entry.level}', which its resource does not declare`,
+      });
+    }
+    return buildInstance(
       policy,
       subject,
       compact<InstanceEnv>({
@@ -467,6 +475,7 @@ function instantiate(
           ),
       }),
     );
+  };
   if (
     isThenable(customRoles) ||
     isThenable(assignable) ||

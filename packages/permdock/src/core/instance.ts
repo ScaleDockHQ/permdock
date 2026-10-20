@@ -1,4 +1,4 @@
-import type { Decision, ExplainedDecision } from "./decision.ts";
+import type { Decision, ExplainedDecision, TraceSkip } from "./decision.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
   DecideOptions,
@@ -17,7 +17,7 @@ import type { Role } from "./vocabulary.ts";
 import { assertDecision } from "./assert-decision.ts";
 import { type Assignable, assignableIn } from "./assignable.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
-import { customGrantsFor } from "./custom-roles.ts";
+import { customGrantsFor, unknownLevelsFor } from "./custom-roles.ts";
 import { decideForTarget } from "./decide-for.ts";
 import { evaluate } from "./evaluate/index.ts";
 import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
@@ -66,6 +66,7 @@ export function buildInstance(
   const queuedAuth = [...envBase.queuedAuth];
   const queuedErrors = [...(envBase.queuedErrors ?? [])];
   const customGrants = customGrantsFor(policy, envBase.customRoles);
+  const unknownLevels = unknownLevelsFor(policy, envBase.customRoles);
   const relationCache: RelationCache = envBase.relationCache ?? new Map();
   const relations = relationReader(
     envBase.relations,
@@ -134,7 +135,28 @@ export function buildInstance(
       explain: true,
     });
     // SAFETY: evaluate attaches a trace to every decision made with explain: true.
-    return decision as ExplainedDecision;
+    const explained = decision as ExplainedDecision;
+    const named = unknownLevels.filter(
+      (entry) => entry.permission === permission.key,
+    );
+    return named.length === 0
+      ? explained
+      : {
+          ...explained,
+          trace: {
+            ...explained.trace,
+            skipped: [
+              ...explained.trace.skipped,
+              ...named.map((entry): TraceSkip => ({
+                role: entry.role,
+                permission: entry.permission,
+                effect: "allow",
+                why: "unknown-level",
+                level: entry.level,
+              })),
+            ],
+          },
+        };
   };
 
   const canImpl = (
