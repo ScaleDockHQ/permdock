@@ -29,7 +29,7 @@ export function rowsHelper(resource: string): string {
   return helper;
 }
 
-/** The branches a row check of a permission reads: its allows and denies on rows that exist, for signed-in callers. */
+/** The branches a row check of a permission reads: its allows and denies, inserts included, for signed-in callers. */
 function rowBranchesOf(
   branches: readonly CompiledBranch[],
   resource: string,
@@ -38,7 +38,6 @@ function rowBranchesOf(
   for (const branch of branches) {
     if (
       branch.resource !== resource ||
-      branch.command === "insert" ||
       branch.coverage === true ||
       !branch.roles.includes("authenticated")
     ) {
@@ -52,8 +51,16 @@ function rowBranchesOf(
   return out;
 }
 
+/** What a branch asks of a row: the `with check` of an insert, which sees the new row, the `using` of every other command. */
+function clauseOf(branch: CompiledBranch): string {
+  const clauses = branchClauses(branch);
+  return (
+    (branch.command === "insert" ? clauses.check : clauses.using) ?? "true"
+  );
+}
+
 function usingOf(branches: readonly CompiledBranch[]): string | undefined {
-  const parts = branches.map((branch) => branchClauses(branch).using ?? "true");
+  const parts = branches.map(clauseOf);
   return parts.length === 0 ? undefined : orSql(parts);
 }
 
