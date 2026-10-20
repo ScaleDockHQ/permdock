@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.9 as a peer (`>=0.9.0 <0.10.0`): `authorizationHooks` and the provider's `permitted`, `operations`, `holdersOf`, `actorMayWrite` and `delegation` fields exist only from 0.9. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
+The entry needs `better-supabase` 0.9 or later as a peer (`>=0.9.0`): `authorizationHooks` and the provider's `permitted`, `operations`, `holdersOf`, `actorMayWrite` and `delegation` fields exist only from 0.9. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
 ## Why
 
