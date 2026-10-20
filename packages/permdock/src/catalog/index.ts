@@ -11,6 +11,8 @@ export type { CatalogDriftInput } from "./drift.ts";
 export { resourceSchemaFromJson } from "./json-schema-validator.ts";
 export { operationFindings } from "./operation-findings.ts";
 export { parseCatalog, rowConditionKeys } from "./parse.ts";
+export type { ParseCatalogOptions } from "./parse.ts";
+export type { CatalogMetaField } from "./references.ts";
 export { policyFromCatalog } from "./policy-from-catalog.ts";
 export type { PolicyFromCatalogOptions } from "./policy-from-catalog.ts";
 export {

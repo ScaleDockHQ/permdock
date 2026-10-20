@@ -894,7 +894,7 @@ describe("authorizationProvider", () => {
           { scope: "mcp:read", permissions: ["task.read"] },
           {
             scope: "mcp:write",
-            permissions: ["task.update", "task.read", "task.gone"],
+            permissions: ["task.update", "task.read"],
           },
           { scope: "task:read", permissions: ["task.update"] },
         ],
@@ -910,5 +910,15 @@ describe("authorizationProvider", () => {
         "task:update": ["task.update"],
       },
     });
+    expect(() =>
+      authorizationProvider({
+        manifest: supabaseHookManifestFixture,
+        catalog: {
+          ...emptyCatalog,
+          permissions: [leaf("task.read")],
+          oauthScopes: [{ scope: "mcp:read", permissions: ["task.gone"] }],
+        },
+      }),
+    ).toThrow(/'task.gone' is not a declared permission key/u);
   });
 });
