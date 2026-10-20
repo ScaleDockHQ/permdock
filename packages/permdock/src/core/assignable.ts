@@ -8,7 +8,9 @@ import { byCodePoint } from "./compare.ts";
 import {
   type CustomGrant,
   ceilingGrants,
+  customRoleOf,
   customRoleScope,
+  isSharedCustomRole,
   resolveCustomRole,
   roleAllowKeys,
   tenantCustomRoles,
@@ -297,7 +299,7 @@ function assignableCustomRoles(
   const out = new Map<string, Role>();
   const inert = new Set<string>();
   for (const role of tenantCustomRoles(policy, customRoles)) {
-    if (role.tenant !== tenant || out.has(role.name)) {
+    if (!customRoleOf(role, tenant) || out.has(role.name)) {
       continue;
     }
     const at = customRoleScope(role, scopes);
@@ -324,13 +326,18 @@ function assignableCustomRoles(
               role.meta,
               treeXSchema(policy.vocabulary?.roles),
             ),
+            shared: isSharedCustomRole(role) ? true : undefined,
           }),
         ),
       );
     }
   }
   return {
-    roles: [...out.values()].toSorted((a, b) => byCodePoint(a.key, b.key)),
+    roles: [...out.values()].toSorted(
+      (a, b) =>
+        Number(a.shared !== true) - Number(b.shared !== true) ||
+        byCodePoint(a.key, b.key),
+    ),
     inert: [...inert].filter((name) => !out.has(name)).toSorted(),
   };
 }

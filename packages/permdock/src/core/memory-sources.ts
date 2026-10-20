@@ -89,7 +89,12 @@ export function memoryCustomRoleSource(
 ): CustomRoleSource {
   const byTenant = new Map<string, CustomRole[]>();
   const global: CustomRole[] = [];
+  const shared: CustomRole[] = [];
   for (const role of customRoles) {
+    if (role.shared === true) {
+      shared.push(role);
+      continue;
+    }
     if (role.tenant === undefined) {
       global.push(role);
       continue;
@@ -104,6 +109,9 @@ export function memoryCustomRoleSource(
     },
     globalRoles(): CustomRole[] {
       return [...global];
+    },
+    sharedRoles(): CustomRole[] {
+      return [...shared];
     },
   };
 }

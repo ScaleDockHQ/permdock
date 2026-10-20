@@ -173,7 +173,7 @@ function customScope(
   scopes: ReturnType<typeof scopeList>,
 ): string | undefined {
   if (role.scope === "global") {
-    return "global";
+    return role.shared === true ? undefined : "global";
   }
   if (role.scope !== undefined) {
     return resolveScope(scopes, role.scope);
@@ -274,12 +274,21 @@ export function buildLocalSnapshot(
       }
     }
   }
-  const custom = (data.customRoles ?? []).filter(
+  const formed = (data.customRoles ?? []).filter(
     (role) =>
       role !== null &&
       typeof role === "object" &&
       typeof role.name === "string" &&
       !declared.has(role.name),
+  );
+  const sharedNames = new Set(
+    formed.filter((role) => role.shared === true).map((role) => role.name),
+  );
+  const custom = formed.filter(
+    (role) =>
+      role.shared === true ||
+      role.scope === "global" ||
+      !sharedNames.has(role.name),
   );
   for (const role of custom) {
     const scope = customScope(role, scopes);
@@ -303,8 +312,12 @@ export function buildLocalSnapshot(
     for (const membership of memberships) {
       if (
         membership.scope === scope &&
-        typeof role.tenant === "string" &&
-        tenantOf(membership, scopes) === role.tenant &&
+        (role.shared === true
+          ? role.tenant === undefined &&
+            id === undefined &&
+            tenantOf(membership, scopes) !== undefined
+          : typeof role.tenant === "string" &&
+            tenantOf(membership, scopes) === role.tenant) &&
         (id === undefined || membership.id === id) &&
         membership.roles.includes(role.name)
       ) {

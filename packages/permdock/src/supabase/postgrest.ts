@@ -353,6 +353,14 @@ export function postgrestSources(
             (role) => role.scope === "global",
           );
         },
+        async sharedRoles(context) {
+          if (onlyDeclared(context?.held)) {
+            return [];
+          }
+          return ((await live(principal.id))?.customRoles ?? []).filter(
+            (role) => role.shared === true,
+          );
+        },
       };
     },
     async subject(userId) {

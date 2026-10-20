@@ -110,6 +110,7 @@ export type TenantCustomRole = CustomRoleBody & {
   readonly id?: string;
   /** Input only: `scope` = the second scope, `id` = this team. */
   readonly team?: string;
+  readonly shared?: undefined;
 };
 
 /**
@@ -122,9 +123,25 @@ export type GlobalCustomRole = CustomRoleBody & {
   readonly tenant?: undefined;
   readonly id?: undefined;
   readonly team?: undefined;
+  readonly shared?: undefined;
 };
 
-export type CustomRole = TenantCustomRole | GlobalCustomRole;
+/**
+ * A role the platform defines once for every tenant, held on memberships of
+ * its scope in any tenant. Tenant admins assign it but never edit it. Its
+ * ceiling is the assignable declared roles of its scope; its name wins over
+ * a tenant custom role of the same name.
+ */
+export type SharedCustomRole = CustomRoleBody & {
+  readonly shared: true;
+  /** The scope the role is held at, never `'global'`; defaults to the first scope. */
+  readonly scope?: string;
+  readonly tenant?: undefined;
+  readonly id?: undefined;
+  readonly team?: undefined;
+};
+
+export type CustomRole = TenantCustomRole | SharedCustomRole | GlobalCustomRole;
 
 export type Principal = {
   readonly id: string;
