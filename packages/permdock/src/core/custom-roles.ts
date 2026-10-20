@@ -500,7 +500,7 @@ function wellFormed(role: CustomRole): boolean {
  * The well-formed roles, without a tenant role that a shared role of the same
  * name shadows: the shared role is the one every tenant sees.
  */
-export function effectiveCustomRoles(
+function effectiveCustomRoles(
   roles: readonly CustomRole[],
 ): readonly CustomRole[] {
   const formed = roles.filter(wellFormed);

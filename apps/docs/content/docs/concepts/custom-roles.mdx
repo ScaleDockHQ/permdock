@@ -1,17 +1,18 @@
 ---
 title: Custom roles
-description: Tenant-defined roles composed from declared roles and single permissions, bounded by a ceiling of assignable declared roles; how grants inherit declared conditions, how levels narrow them, how denies subtract, what assignableRoles and assignablePermissions return, how snapshots carry the result, and a matrix-editor recipe.
+description: Tenant-defined and shared roles composed from declared roles and single permissions, bounded by a ceiling of assignable declared roles; how grants inherit declared conditions, how levels narrow them, how denies subtract, what assignableRoles and assignablePermissions return, how snapshots carry the result, and a matrix-editor recipe.
 ---
 
 A custom role is a role a tenant admin defines at runtime. It is data from a `CustomRoleSource`, never code, and it can only reach what the code already declared: every permission it grants is bounded by a **ceiling** built from the declared roles marked `assignable`.
 
 ```ts
 type CustomRole = {
-  tenant: string; // absent when scope is 'global'
+  tenant: string; // absent when scope is 'global' or shared is true
+  shared?: true; // held in every tenant, defined once by the platform
   scope?: string; // the named scope it is held at, or 'global'; default the first scope
   id?: string; // pins it to one instance of that scope
   team?: string; // input only: scope = the second scope, id = this team
-  name: string; // unique within the tenant; a declared role name always wins
+  name: string; // unique within the tenant; a declared, then a shared role name wins
   includes?: string[]; // declared roles to start from
   grants?: { permission: string; effect?: "allow" | "deny"; level?: string }[]; // declared permission keys
   meta?: RoleMeta; // { title?, description?, audience?, x?, ... }
@@ -56,6 +57,23 @@ const tier2: CustomRole = {
   grants: [{ permission: "tenant.suspend" }],
 };
 ```
+
+### Shared custom roles
+
+A custom role with `shared: true` and no `tenant`, `team` or `id` is a shared role: the platform defines it once and every tenant offers it, such as a "Billing contact" that staff maintain for all customers. `scope` names the scope it is held at and defaults to the first scope; `'global'` is not allowed, because a global role is already held everywhere. Its ceiling is the ceiling of that scope, as for a tenant custom role. A member holds it by name on a membership of that scope in any tenant: `{ tenant: 'o_acme', roles: ['billing-contact'] }`.
+
+```ts
+const billingContact: CustomRole = {
+  shared: true,
+  name: "billing-contact",
+  includes: ["billing"],
+  grants: [{ permission: "invoice.refund", effect: "deny" }],
+};
+```
+
+- `CustomRoleSource.sharedRoles()` returns these roles. It is read once per subject that holds a membership in some tenant, and a role it returns with a `tenant`, `team`, `id` or scope `global` is ignored. `memoryCustomRoleSource` routes a role with `shared: true` there.
+- Names resolve declared role first, then shared role, then tenant role. A tenant custom role with a shared role's name is ignored, so a tenant cannot redefine a shared role it sees as locked. `validateCustomRole(policy, role, { shared })` refuses such a tenant role with `name-taken`.
+- A tenant admin assigns and revokes a shared role like a tenant custom role. Editing its definition is for the platform: the save action requires a `meta.manageRoles` permission held through a global role, and the generated SQL enforces the same rule ([row level security](#row-level-security)).
 
 `permdock catalog` lists the assignable roles with the permissions each contains; the permission keys of the ceiling are what a role editor offers.
 
@@ -118,6 +136,7 @@ Nothing that fails resolution widens a role. `dropped` names each entry that was
 | `condition-not-allowed` | The entry carries a field other than `permission`, `effect` and `level` (a `where`, an `approval`, a `limit`), an unknown `effect`, or a `level` on a deny. The permission is still removed, as if denied |
 | `unknown-level`         | The `level` is not declared on the permission's resource, or the permission is a collection action. Reported with `level`; the permission is removed, as if denied                                        |
 | `unknown-role`          | An `includes` entry names no declared role; reported as `{ role, reason }`                                                                                                                                |
+| `name-taken`            | A tenant custom role uses the name of a shared role passed to `validateCustomRole` as `shared`; reported as `{ role, reason }` and the role resolves to nothing                                           |
 
 `validateCustomRole(policy, role)` returns `{ ok, permissions, dropped, renamed }`, where `permissions` is the sorted list of keys the role allows after the ceiling. Call it in the server action that saves a custom role. `permdock doctor` PD023 runs it over the `customRoles` of the `doctor.memberships` fixture ([doctor](/docs/cli/doctor)).
 
@@ -138,7 +157,7 @@ Both answer for the active tenant unless `tenant` is passed, and both follow the
 
 - `assignablePermissions` is the tenant ceiling intersected with the permissions the subject holds in that tenant, through declared roles, custom roles or global grants. It is empty without a tenant.
 - `assignableRoles` lists the declared assignable roles the subject holds there, plus those whose every allow the subject holds. A role without allows is assignable only by its holders, because hosted grants may give it permissions later. Once any role declares `assigns`, the graph replaces this rule: the list is exactly the roles the held roles' `assigns` name, in rank order ([ownership](/docs/concepts/ownership)).
-- `assignableRoles` also lists the tenant's custom roles from the `CustomRoleSource` that the subject may hand out. The source has to return every custom role of the tenant, not only those the subject holds; `customRoleSource` builds one from a store read ([extension interfaces](/docs/concepts/extension-interfaces#membershipsource-and-rolesource)). A custom role qualifies when the subject may assign a declared role at the custom role's scope (any scope with `meta.manageRoles`) and may hand out every permission and level the custom role allows at that scope: the ceiling of that scope intersected with what the subject holds. A custom role comes after the declared roles, sorted by name, as a `Role` with `on` set to its scope. A custom role that allows nothing after the ceiling, because it is empty, only denies, or every entry is dropped (`outside-ceiling`, `unknown-permission`, `unknown-level`), is never offered and `decideRoleChange` refuses to assign it (`not-assignable-by`): it would grant nothing. An actor who may assign at its scope can still revoke it, so stale memberships can be cleaned up; `validateCustomRole` reports why its entries were dropped.
+- `assignableRoles` also lists the tenant's custom roles from the `CustomRoleSource` that the subject may hand out. The source has to return every custom role of the tenant, not only those the subject holds; `customRoleSource` builds one from a store read ([extension interfaces](/docs/concepts/extension-interfaces#membershipsource-and-rolesource)). A custom role qualifies when the subject may assign a declared role at the custom role's scope (any scope with `meta.manageRoles`) and may hand out every permission and level the custom role allows at that scope: the ceiling of that scope intersected with what the subject holds. A custom role comes after the declared roles as a `Role` with `on` set to its scope: shared roles first with `shared: true`, then tenant roles, each sorted by name. A custom role that allows nothing after the ceiling, because it is empty, only denies, or every entry is dropped (`outside-ceiling`, `unknown-permission`, `unknown-level`), is never offered and `decideRoleChange` refuses to assign it (`not-assignable-by`): it would grant nothing. An actor who may assign at its scope can still revoke it, so stale memberships can be cleaned up; `validateCustomRole` reports why its entries were dropped.
 - `assignableRoles({ scope: 'global' })` lists the global roles (declared without `on`) with `assignable: true` that the subject may hand out through its global roles, by the same rules without a tenant, and no custom role. It is the list `decideRoleChange` checks a `scope: 'global'` change against.
 - `CustomRoleSource.assignable(tenant)`, when the source implements it, narrows both to those role names. A custom role does not need to be listed: it is bounded by the narrowed ceiling instead. A source that throws assigns nothing and emits `on('auth')` with `source-threw`.
 - Holding a declared role with `meta.manageRoles: true`, or being granted a permission with `meta.manageRoles: true` (typically `member.assignRole`), lifts the intersection: the full ceiling, narrowed by `CustomRoleSource.assignable`, is assignable.
@@ -163,9 +182,10 @@ For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide
 
 - `database` mode reads `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)` (plus a nullable `level` column when the policy declares levels) and `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`, written by the application from the same data its `CustomRoleSource` reads. Both tables carry an identity `id` primary key for the application's own triggers, such as an audit trigger ([triggers and audit](/docs/cli/rls#triggers-and-audit)). An application that already stores custom roles in its own tables copies them in once with `rls generate --backfill-out` ([backfill](/docs/cli/rls#backfill-from-existing-tables)).
 - `jwt` mode reads a compact `grants` map on each membership of the `memberships` claim, `{ "billing-manager": ["@billing", "post.read", "-invoice.refund"] }`, built with `customRoleClaim(roles)`. A leveled allow is written `job.read@team`. It is off unless `--custom-roles` is set, and it grows every token.
+- Shared custom roles live in the same tables with a null `tenant_id` and `scope_id` and a scope below `global`. `permdock_is_shared_role(scope, role)` reports whether a shared row exists, and the helpers then read the shared rows instead of the tenant's own, so the precedence matches in-process. In `jwt` mode their entries ride each membership's `grants` map like a tenant custom role. A table that stores custom roles as roles rows marks shared rows with the boolean `rls.customRoleWrites.roles.shared` column.
 - Platform custom roles live in the same tables with `scope = 'global'` and a null `tenant_id` and `scope_id`. In `jwt` mode their entries ride the top-level `role_grants` claim, keyed by role name and built with `customRoleClaim(roles)`. `permdock_has` unions them into every tenant check.
 - Both intersect with the generated `permdock_ceiling` view, so a row or claim entry naming a permission outside the ceiling reaches nothing.
-- In `database` mode, `permdock_replace_custom_role_grants(tenant, scope, scope_id, role, allow, deny, include)` saves a custom role with the rules of `validateCustomRole` and `assignablePermissions`, checked against the signed-in caller, and `permdock_rename_custom_role_grants` and `permdock_delete_custom_role_grants` move or remove its rows ([RLS](/docs/cli/rls#saving-a-custom-role)). A platform custom role passes a null tenant and scope `global`, and takes a `meta.manageRoles` permission held through a global role. `rls.customRoleWrites.requires` adds the check the editor's server action makes with `assert`: the caller must hold one of the named permissions before any write. The `permdock_trusted_*` variants keep the definition checks and drop the caller checks, for migrations, jobs and backends; only the owner executes them until the application grants a role ([trusted callers](/docs/cli/rls#trusted-callers)).
+- In `database` mode, `permdock_replace_custom_role_grants(tenant, scope, scope_id, role, allow, deny, include)` saves a custom role with the rules of `validateCustomRole` and `assignablePermissions`, checked against the signed-in caller, and `permdock_rename_custom_role_grants` and `permdock_delete_custom_role_grants` move or remove its rows ([RLS](/docs/cli/rls#saving-a-custom-role)). A platform custom role passes a null tenant and scope `global`, and takes a `meta.manageRoles` permission held through a global role. A shared custom role passes a null tenant, its scope and a null scope id, under the same rule. A tenant role with a shared role's name is refused with `name-taken`. `rls.customRoleWrites.requires` adds the check the editor's server action makes with `assert`: the caller must hold one of the named permissions before any write. The `permdock_trusted_*` variants keep the definition checks and drop the caller checks, for migrations, jobs and backends; only the owner executes them until the application grants a role ([trusted callers](/docs/cli/rls#trusted-callers)).
 - With levels declared, the ceiling gains one grant key per level, `job.read@own`, whose policy branch ANDs the level's condition into the ceiling grant. A stored level the code does not declare removes the permission, as in-process.
 - With `--rbac supabase`, `authorize(permission, tenant)` answers from custom roles too.
 - A membership table that stores a role id reads the key through the app's roles table (`role: { through: 'roles', on: { role_id: 'id' }, column: 'key' }`). Custom roles are then roles rows owned by a tenant, with a key unique within it; the tables above match that key and the membership's tenant, so two tenants may each define `dispatcher` ([RLS](/docs/cli/rls#role-checks-per-statement-helpers)).
@@ -219,7 +239,9 @@ export async function saveRole(input: unknown) {
       .assignablePermissions({ tenant: role.tenant })
       .map((leaf) => leaf.key),
   );
-  const result = validateCustomRole(policy, role);
+  const result = validateCustomRole(policy, role, {
+    shared: await db.customRoles.shared(),
+  });
   const beyond = result.permissions.filter((key) => !offered.has(key));
   if (!result.ok || beyond.length > 0)
     return { dropped: result.dropped, beyond };
@@ -230,5 +252,6 @@ export async function saveRole(input: unknown) {
 
 - Render `dropped` next to the column so the admin sees why a key did not stick, instead of silently losing it.
 - Save through the application's own table; PermDock never writes a custom role from TypeScript. The `CustomRoleSource` reads the same table on the next request. With generated RLS in `database` mode, call `permdock_replace_custom_role_grants` from the action instead of writing `custom_role_permissions` and `custom_role_includes`: the database repeats these checks for the signed-in caller.
+- For a shared role, also `assert` a global permission with `meta.manageRoles`; a tenant admin may hold `member.assignRole` but must not edit what every tenant sees.
 - Include a declared role (`includes`) when the admin wants its conditions, such as "own posts only"; toggle single permissions (`grants`) for everything else.
 - Offer `assignableLevels(leaf)` as a select per cell when the resource declares levels, and save the choice as `{ permission, level }`.
