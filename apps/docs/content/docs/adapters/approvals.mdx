@@ -557,6 +557,43 @@ Other surfaces implement the same three steps (send, wait, resolve with a verifi
 | Email and notification infrastructure (Knock, Novu, Courier, Twilio) | Send a message with a link to `approvalsHandler`                                                                              | The approver's session on the approval page                                                             | A channel only; a link is never an approval by itself, and the approver always authenticates on the page  |
 | PermDock Cloud                                                       | Inbox UI plus Slack and Teams delivery                                                                                        | Cloud authentication and the platform signature                                                         | The hosted implementation of the same store and the same delivery ([Cloud adapter](/docs/adapters/cloud)) |
 
+## Recipe: approval through CIBA
+
+OpenID Connect [Client-Initiated Backchannel Authentication](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html) (CIBA Core 1.0) asks a user to authenticate on their own device while the client waits. It can fulfil an `approval-required` decision: the backend sends the request to the identity provider, the approver confirms on their phone, and the ID token that comes back is the authenticated approver `resolve` needs. PermDock does not drive CIBA; the backend does, with the provider's client library.
+
+```ts
+import { resolveApproval } from "permdock/approvals";
+import { subjectFromJwt } from "permdock/jwt";
+
+const request = await store.get(decision.token);
+const started = await ciba.backchannelAuthenticate({
+  scope: "openid",
+  login_hint: approverEmail, // who must approve, chosen by the app from request.approvers
+  binding_message:
+    `Approve ${request.permission} ${request.resource.id ?? ""}`.slice(0, 64),
+});
+
+const result = await ciba.poll(started.auth_req_id); // grant_type=urn:openid:params:grant-type:ciba
+if (result.id_token !== undefined) {
+  const approver = await subjectFromJwt(result.id_token, {
+    discovery: "https://login.example.com",
+    audience: CIBA_CLIENT_ID,
+    accept: "id-token",
+  });
+  await resolveApproval(store, decision.token, {
+    status: "approved",
+    by: approver,
+  });
+}
+```
+
+- The approver is the ID token's `sub`, verified by `subjectFromJwt`. `resolveApproval` runs every eligibility and separation check, so a token for the wrong person is refused like a wrong click in the inbox.
+- CIBA carries no authenticated "no": `access_denied` comes without an ID token, so it cannot resolve the request as `rejected`. Leave the request pending until its `expiresAt`, and tell the agent the user declined.
+- CIBA often asks the user the agent acts for. That user is the request's principal, who may approve only when the grant sets `approvers: { distinct: false }` ([approvals](/docs/security/approvals)).
+- The `binding_message` is shown on both devices. Build it from the stored request, never from model output, and keep it short: providers cap its length.
+- An expired `auth_req_id` (`expired_token`) also leaves the request pending.
+- `ciba` stands for the provider's client. Auth0, Okta, Ping and Keycloak implement CIBA; check that the provider's CIBA client may use the poll or ping mode the backend expects.
+
 ## Delegation
 
 A delegate may approve whatever the delegator could approve, inside a time window. PermDock records the approval as the delegate's, acting for the delegator. There is one hop: a delegate's own delegations are never followed.
