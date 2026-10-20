@@ -21,6 +21,11 @@ import {
 } from "./introspect.ts";
 import { readOnlyActorKinds } from "./policies.ts";
 import { parseRbacAuthorize } from "./rbac.ts";
+import {
+  type VerifyIgnore,
+  verifyIgnores,
+  verifyResult,
+} from "./verify-findings.ts";
 import { runRlsVerify } from "./verify.ts";
 
 /** `rls migrate` and `rls import` read the pgsql-parser 18 AST. */
@@ -93,6 +98,8 @@ export type RlsRunInput = {
   readonly advisors?: boolean;
   /** Starts the Supabase CLI for `--advisors`; defaults to `spawn`. */
   readonly exec?: CliExec;
+  /** `verify --ignore`: finding ids to accept for this run. */
+  readonly ignore?: readonly string[];
 };
 
 function asTarget(value: string | undefined): RlsTarget | undefined {
@@ -274,6 +281,7 @@ async function introspectHelpersOnly(
   generated: GenerateOutcome,
   connect: SqlConnect | undefined,
   readOnlyActors: boolean,
+  ignore: readonly VerifyIgnore[],
 ): Promise<CommandResult> {
   const schema = generated.schema ?? PERMDOCK_SCHEMA;
   try {
@@ -286,29 +294,26 @@ async function introspectHelpersOnly(
         seeds: generated.seeds ?? [],
         permissions: generated.keys?.permissions ?? [],
         rowConditions: generated.keys?.rowConditions ?? [],
+        levels: generated.keys?.levels ?? [],
         readOnlyActors,
       },
       await introspectMixed(db, schema, connect),
     );
-    const drift = [...helpers, ...mixed.drift];
-    const info = mixed.info.map((line) => `info: ${line}`);
-    return drift.length > 0
-      ? { code: 1, output: [...drift, ...warnings, ...info].join("\n") }
-      : {
-          code: 0,
-          output: [
-            ...warnings,
-            ...info,
-            `introspected ${String(expected.helpers.length)} helper(s) and ${String(generated.seeds?.length ?? 0)} seeded row(s), helpers only: no drift`,
-          ].join("\n"),
-        };
+    return verifyResult({
+      findings: [...helpers, ...mixed.drift, ...warnings, ...mixed.info],
+      ignore,
+      summary: `introspected ${String(expected.helpers.length)} helper(s) and ${String(generated.seeds?.length ?? 0)} seeded row(s), helpers only: no drift`,
+    });
   } catch (cause) {
     return usageResult(cause);
   }
 }
 
 /** `verify --introspect`: the catalogs against what `generate` would write with the same flags. */
-async function introspect(input: RlsRunInput): Promise<CommandResult> {
+async function introspect(
+  input: RlsRunInput,
+  ignore: readonly VerifyIgnore[],
+): Promise<CommandResult> {
   if (input.db === undefined) {
     return {
       code: 2,
@@ -344,6 +349,7 @@ async function introspect(input: RlsRunInput): Promise<CommandResult> {
       generated,
       input.connect,
       readOnlyActorKinds(input.config.rls?.readOnlyActors) !== undefined,
+      ignore,
     );
   }
   try {
@@ -351,14 +357,11 @@ async function introspect(input: RlsRunInput): Promise<CommandResult> {
     const drift = diffRls(expected, actual, {
       columnGrants: (input.fields ?? input.config.rls?.fields) === "views",
     });
-    const warnings = missingIndexes(expected, actual);
-    if (drift.length > 0) {
-      return { code: 1, output: [...drift, ...warnings].join("\n") };
-    }
-    return {
-      code: 0,
-      output: `${warnings.map((line) => `${line}\n`).join("")}introspected ${String(expected.policies.length)} policies on ${String(expected.tables.length)} table(s) and ${String(expected.helpers.length)} helper(s): no drift`,
-    };
+    return verifyResult({
+      findings: [...drift, ...missingIndexes(expected, actual)],
+      ignore,
+      summary: `introspected ${String(expected.policies.length)} policies on ${String(expected.tables.length)} table(s) and ${String(expected.helpers.length)} helper(s): no drift`,
+    });
   } catch (cause) {
     return usageResult(cause);
   }
@@ -432,8 +435,9 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
           ...(input.exec === undefined ? {} : { exec: input.exec }),
         });
       }
+      const ignore = verifyIgnores(input.config, input.ignore);
       if (input.introspect) {
-        return introspect(input);
+        return introspect(input, ignore);
       }
       const format = input.format ?? "node";
       if (format !== "node" && format !== "pgtap") {
@@ -450,6 +454,7 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
         ...(input.db === undefined ? {} : { db: input.db }),
         ...(input.from === undefined ? {} : { from: input.from }),
         ...(input.connect === undefined ? {} : { connect: input.connect }),
+        ignore,
       });
       return verified;
     }

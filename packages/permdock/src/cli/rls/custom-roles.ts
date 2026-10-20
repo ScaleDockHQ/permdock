@@ -5,7 +5,12 @@ import { sqlTextArray } from "../../core/sql.ts";
 import { byKey } from "../shared/compare.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
 import { hasMemberFor, memberIdsHelper } from "../sql/names.ts";
-import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
+import {
+  helperSchema,
+  qualified,
+  quoteIdent,
+  quoteLiteral,
+} from "../sql/quote.ts";
 import {
   CUSTOM_ROLES,
   HELPERS,
@@ -480,7 +485,7 @@ grant execute on function ${reader}(text, text, ${tenantType}, text) to authenti
   const grants =
     trustedReaders === undefined || trustedReaders.length === 0
       ? ""
-      : `\ngrant execute on function ${trusted}(${signature}) to ${trustedReaders.map(quoteIdent).join(", ")};`;
+      : `\n${trustedReaderGrants(ctx, `${trusted}(${signature})`, trustedReaders)}`;
   chunks.push(`create or replace function ${trusted}(p_role text, p_scope text, p_tenant ${tenantType} default null, p_scope_id text default null)
 returns table (permission text, effect text)
 language plpgsql
@@ -565,7 +570,7 @@ export function perScope(
 
 export function raiseSql(
   indent: string,
-  errcode: "22023" | "42501",
+  errcode: "22023" | "42501" | "P0002",
   message: string,
   hint: string,
 ): string {
@@ -582,4 +587,19 @@ export function hasCustomRoleChecksFor(ctx: RlsSqlContext): boolean {
     ctx.scopes.length > 0 &&
     ctx.scopes.every((scope) => hasMemberFor(ctx, scope.name))
   );
+}
+
+/**
+ * The grants a `rls.trustedReaders` role needs for one reader: usage on the
+ * helper schema, which no client role reaches through these lines, and
+ * execute on the function.
+ */
+export function trustedReaderGrants(
+  ctx: RlsSqlContext,
+  fn: string,
+  readers: readonly string[],
+): string {
+  const to = readers.map(quoteIdent).join(", ");
+  return `grant usage on schema ${quoteIdent(helperSchema(ctx))} to ${to};
+grant execute on function ${fn} to ${to};`;
 }

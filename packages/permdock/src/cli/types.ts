@@ -142,6 +142,17 @@ export type RlsConfig = {
   /** Emit FORCE ROW LEVEL SECURITY so the table owner is subject to the policies. */
   readonly force?: boolean;
   readonly fixtures?: string;
+  /**
+   * `rls verify` findings accepted as a baseline. `id` is the
+   * `<code>:<table>:<key>` the finding prints; `reason` is required. An entry
+   * no finding matches is a warning, so the baseline shrinks.
+   */
+  readonly verify?: {
+    readonly ignore?: readonly {
+      readonly id: string;
+      readonly reason: string;
+    }[];
+  };
   readonly tenantClaim?: string;
   /**
    * Which tenants the helpers and `memberOf` checks admit. `'active'`
@@ -219,6 +230,13 @@ export type RlsConfig = {
      * path (a migration, a job, a nested trigger) moves the rows directly.
      */
     readonly roles?: RlsCustomRoleTable;
+    /**
+     * The audit function the by-id writers call after a save
+     * (`permdock_replace_custom_role_grants_by_id`), with `event_type`,
+     * `target_type`, `record_id`, `tenant` and `metadata` plus `args`.
+     * Needs `roles.primaryKey`.
+     */
+    readonly audit?: RlsCustomRoleAudit;
   };
   /**
    * Let link capabilities reach resource-scoped grants: `anon` policies that call
@@ -436,6 +454,8 @@ export type RlsCustomRoleTable = {
   readonly scope?: string;
   /** A column pinning the role to one instance of its scope. */
   readonly id?: string;
+  /** The row's id column: turns on the by-id write and read functions (`permdock_replace_custom_role_grants_by_id`). */
+  readonly primaryKey?: string;
   /** A boolean column marking rows that are not custom roles (declared or system roles); those rows are skipped. */
   readonly skip?: string;
   /** A boolean column marking a row with no tenant as a shared custom role, held at `scope` (default the first scope) in every tenant. Without it a row with no tenant is a platform role. */
@@ -508,6 +528,14 @@ export type RlsAudit = {
   /** Generated tables, without the schema. Default the custom-role tables and `user_roles`, those this run creates. */
   readonly tables?: readonly string[];
   /** Named text arguments: `{ tenant_column: 'tenant_id' }` passes `tenant_column => 'tenant_id'`. */
+  readonly args?: Readonly<Record<string, string>>;
+};
+
+/** `rls.customRoleWrites.audit`: the function a by-id custom-role save calls. */
+export type RlsCustomRoleAudit = {
+  /** `schema.function` taking named `event_type`, `target_type`, `record_id`, `tenant` and `metadata` arguments. */
+  readonly function: string;
+  /** Extra named text arguments: `{ actor_kind: 'user' }` passes `actor_kind => 'user'`. */
   readonly args?: Readonly<Record<string, string>>;
 };
 
@@ -716,6 +744,8 @@ export type DoctorConfig = {
   readonly migrations?: readonly string[];
   /** A JSON array of sample decoded token claims; PD039 measures each `supabase.hook.claims` entry in it. */
   readonly claims?: string;
+  /** Tables two resources map to on purpose, over disjoint rows; PD075 skips them. */
+  readonly sharedTables?: readonly string[];
 };
 
 export type PermDockConfig = {

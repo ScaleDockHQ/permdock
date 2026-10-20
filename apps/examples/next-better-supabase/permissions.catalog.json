@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-17T00:26:00.321Z",
-  "generator": "permdock@0.4.0",
-  "fingerprint": "sha-256:I7BeIWTF8XmjqUUnob8t1UR4l5GUbDc4lWVJzCcKmEs",
+  "generatedAt": "2026-10-20T20:11:56.125Z",
+  "generator": "permdock@0.6.0",
+  "fingerprint": "sha-256:Ngp0Dm0q8Acj12rT3-kfO_mIUkChYvEKYE-a-FYaED0",
   "resources": {
     "staff": {
       "id": "id",
@@ -155,6 +155,11 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/agent/tools.ts",
+          "line": 80,
+          "call": "tools"
+        },
+        {
           "file": "src/app/[locale]/(app)/[orgSlug]/nav.tsx",
           "line": 29,
           "call": "tools"
@@ -211,6 +216,11 @@
       "arity": "instance",
       "meta": {},
       "usages": [
+        {
+          "file": "src/agent/tools.ts",
+          "line": 82,
+          "call": "tools"
+        },
         {
           "file": "src/policy.ts",
           "line": 27,
@@ -430,6 +440,21 @@
     }
   ],
   "delegations": [
+    {
+      "from": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "to": {
+        "kind": "agent"
+      },
+      "permissions": [
+        "quotes.list",
+        "quotes.read",
+        "quotes.update"
+      ]
+    },
     {
       "from": {
         "kind": "role",

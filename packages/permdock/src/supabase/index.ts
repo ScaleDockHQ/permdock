@@ -36,6 +36,7 @@ export type {
   MembershipHolders,
   MembershipJunctionOptions,
   MembershipSql,
+  MembershipStream,
   MembershipTableOptions,
   SqlMembershipSource,
   SqlQuery,

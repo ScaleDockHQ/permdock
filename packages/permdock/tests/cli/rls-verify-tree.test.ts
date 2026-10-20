@@ -111,9 +111,10 @@ describe("verifyTree", () => {
     });
     expect(result.granted).toBeGreaterThan(0);
     expect(result.mismatches.length).toBeGreaterThan(0);
-    expect(result.mismatches[0]).toMatch(
+    expect(result.mismatches[0]?.message).toMatch(
       /: in-process denied, database allowed$/u,
     );
+    expect(result.mismatches[0]?.code).toBe("tree-mismatch");
     expect(result.granted + result.mismatches.length).toBe(result.checked);
   });
 
@@ -127,8 +128,8 @@ describe("verifyTree", () => {
     });
     expect(result.granted).toBe(0);
     expect(
-      result.mismatches.every((line) =>
-        line.endsWith("in-process granted, database filtered"),
+      result.mismatches.every(({ message }) =>
+        message.endsWith("in-process granted, database filtered"),
       ),
     ).toBe(true);
   });

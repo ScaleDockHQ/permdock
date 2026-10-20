@@ -94,7 +94,7 @@ describe("runRls explain", () => {
   it("refuses an unknown dialect, a failed generate and an unreachable database", async () => {
     expect(
       await runRls(input({ rest: ["explain"], dialect: "mysql" })),
-    ).toEqual({
+    ).toMatchObject({
       code: 2,
       output:
         "rls explain --dialect (or rls.dialect) must be supabase, neon or guc",
@@ -158,7 +158,7 @@ describe("runRls dispatch", () => {
   it.each([[[]], [["help"]], [["unknown"]]])(
     "prints help for %j",
     async (rest) => {
-      expect(await runRls(input({ rest }))).toEqual({
+      expect(await runRls(input({ rest }))).toMatchObject({
         code: 2,
         output: RLS_HELP,
       });
@@ -175,16 +175,18 @@ describe("runRls dispatch", () => {
       "rls generate --dialect (or rls.dialect) must be supabase, neon or guc",
     ],
   ])("refuses generate with %j", async (flags, output) => {
-    expect(await runRls(input({ rest: ["generate"], ...flags }))).toEqual({
-      code: 2,
-      output,
-    });
+    expect(await runRls(input({ rest: ["generate"], ...flags }))).toMatchObject(
+      {
+        code: 2,
+        output,
+      },
+    );
   });
 
   it("refuses an unknown --schemas value before any action runs", async () => {
     expect(
       await runRls(input({ rest: ["generate"], schemas: "flyway" })),
-    ).toEqual({
+    ).toMatchObject({
       code: 2,
       output:
         "rls generate --schemas must be pg-delta, migra, migrations (got flyway)",
@@ -192,7 +194,9 @@ describe("runRls dispatch", () => {
   });
 
   it("refuses an unknown verify format", async () => {
-    expect(await runRls(input({ rest: ["verify"], format: "tap" }))).toEqual({
+    expect(
+      await runRls(input({ rest: ["verify"], format: "tap" })),
+    ).toMatchObject({
       code: 2,
       output: "rls verify --format must be pgtap or node",
     });
@@ -276,6 +280,7 @@ describe("runRls dispatch", () => {
     expect(
       server.text.split("\n").filter((line) => line.includes("service_role")),
     ).toEqual([
+      'grant usage on schema "permdock" to "service_role", "support";',
       'grant execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) to "service_role", "support";',
     ]);
   });
@@ -295,7 +300,7 @@ describe("runRls dispatch", () => {
       }),
     );
     expect(seen[0]).toContain("postgresql://localhost/postgres");
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       code: 0,
       output: "supabase db advisors: no security findings",
     });
@@ -602,7 +607,7 @@ describe("runRls verify --introspect", () => {
   ])("refuses %j", async (flags, output) => {
     expect(
       await runRls(input({ rest: ["verify"], introspect: true, ...flags })),
-    ).toEqual({
+    ).toMatchObject({
       code: 2,
       output,
     });
@@ -619,7 +624,7 @@ describe("runRls verify --introspect", () => {
         connect: sql.connect,
       }),
     );
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       code: 0,
       output: `introspected ${String(expected.policies.length)} policies on ${String(expected.tables.length)} table(s) and ${String(expected.helpers.length)} helper(s): no drift`,
     });
@@ -658,7 +663,7 @@ describe("runRls verify --introspect", () => {
         },
       }),
     );
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       code: 2,
       output: "PermDock CLI: rls verify --introspect could not connect",
     });
@@ -714,11 +719,11 @@ describe("runRls verify --introspect", () => {
         connect: clean.connect,
       }),
     );
-    expect(ok).toEqual({
+    expect(ok).toMatchObject({
       code: 0,
       output: [
-        "info: public.legacy: no policy calls a PermDock helper",
-        "info: storage.objects: no policy calls a PermDock helper",
+        "info: public.legacy: no policy calls a PermDock helper [helper-uncalled:public.legacy:table]",
+        "info: storage.objects: no policy calls a PermDock helper [helper-uncalled:storage.objects:table]",
         `introspected ${String(expected.helpers.length)} helper(s) and ${String(seeds.length)} seeded row(s), helpers only: no drift`,
       ].join("\n"),
     });

@@ -2,8 +2,15 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { RlsActions } from "../../src/cli/types.ts";
 
-import { pd071 } from "../../src/cli/doctor/rls.ts";
-import { policyModule, project, removeProjects } from "./doctor-kit.ts";
+import { runDoctor } from "../../src/cli/doctor/doctor.ts";
+import { pd071, pd076 } from "../../src/cli/doctor/rls.ts";
+import {
+  NOW,
+  policyModule,
+  project,
+  quietIo,
+  removeProjects,
+} from "./doctor-kit.ts";
 
 afterEach(removeProjects);
 
@@ -68,6 +75,87 @@ describe("PD071", () => {
       await pd071({
         cwd: invoices(),
         config: { permissions: "src/permissions.ts", policy: "src/policy.ts" },
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("PD076", () => {
+  it("reports 'none' on a verb that compiles to none anyway, and verbs no permission uses", async () => {
+    const findings = await pd076({
+      cwd: invoices(),
+      config: config({
+        export: "none",
+        market: "none",
+        aprove: "update",
+        approve: "none",
+        read: "none",
+        markPaid: "update",
+      }),
+    });
+    expect(findings).toEqual([
+      {
+        code: "PD076",
+        severity: "info",
+        message:
+          "rls.actions sets export, market to 'none', which is already what those verbs compile to",
+        fix: "delete these entries: export, market",
+      },
+      {
+        code: "PD076",
+        severity: "info",
+        message: "rls.actions maps aprove, which no permission uses",
+        fix: "delete these entries, or fix the verb's spelling: aprove",
+      },
+    ]);
+  });
+
+  it("keeps a write-sounding 'none', which silences PD071, and a 'none' on a default verb", async () => {
+    expect(
+      await pd076({
+        cwd: invoices(),
+        config: config({ approve: "none", update: "none", read: "none" }),
+      }),
+    ).toEqual([]);
+  });
+
+  it("is a hint that --fail-on warning does not fail on", async () => {
+    const result = await runDoctor({
+      cwd: invoices(),
+      config: config({ export: "none" }),
+      only: ["pd076"],
+      json: false,
+      fix: false,
+      strict: true,
+      color: false,
+      now: NOW,
+      io: quietIo,
+    });
+    expect(result.code).toBe(0);
+    expect(result.output).toContain("info PD076");
+    expect(result.output).toContain("0 errors, 0 warnings, 1 note");
+    expect(result.findings?.map((finding) => finding.severity)).toEqual([
+      "info",
+    ]);
+    const two = await runDoctor({
+      cwd: invoices(),
+      config: config({ export: "none", aprove: "update" }),
+      only: ["pd076"],
+      json: false,
+      fix: false,
+      strict: false,
+      color: false,
+      now: NOW,
+      io: quietIo,
+    });
+    expect(two.output).toContain("0 errors, 0 warnings, 2 notes");
+  });
+
+  it("finds nothing when the policy does not load", async () => {
+    expect(
+      await pd076({
+        cwd: invoices(),
+        config: { ...config({ export: "none" }), policy: "src/missing.ts" },
       }),
     ).toEqual([]);
   });

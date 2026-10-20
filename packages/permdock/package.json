@@ -271,6 +271,10 @@
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
     },
+    "./testing/core": {
+      "types": "./dist/testing/core.d.ts",
+      "default": "./dist/testing/core.js"
+    },
     "./testing/saas": {
       "types": "./dist/testing/saas/index.d.ts",
       "default": "./dist/testing/saas/index.js"

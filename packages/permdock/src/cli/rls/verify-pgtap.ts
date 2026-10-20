@@ -4,12 +4,13 @@ import type { PermDockConfig, RlsDialect } from "../types.ts";
 import { isRecord } from "../../core/compact.ts";
 import { customRoleScope, membershipsClaim } from "../../core/custom-roles.ts";
 import { type Scope, scopeList } from "../../core/scopes.ts";
-import { defaultSqlCommand } from "../../core/sql.ts";
+import { SQL_IDENT, defaultSqlCommand } from "../../core/sql.ts";
 import { type CustomRole, type Policy, findPermission } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
+import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNameOf } from "../sql/tables.ts";
 import { fixtureMembershipSql } from "./verify-pgtap-memberships.ts";
 
@@ -168,7 +169,26 @@ export function subjectSettings(
     subject.scopes,
   );
   if (subject.dialect === "guc") {
+    const fixed = new Set([
+      "user_id",
+      "sub",
+      "role",
+      "memberships",
+      subject.roleClaim,
+      subject.tenantClaim,
+    ]);
     const settings: (readonly [string, string])[] = [
+      ...Object.entries(fixture.subject.claims ?? {}).flatMap(
+        ([name, value]): (readonly [string, string])[] =>
+          fixed.has(name) || !SQL_IDENT.test(name)
+            ? []
+            : [
+                [
+                  `${subject.gucPrefix}.${name}`,
+                  typeof value === "string" ? value : JSON.stringify(value),
+                ],
+              ],
+      ),
       [`${subject.gucPrefix}.user_id`, fixture.subject.id],
       [`${subject.gucPrefix}.${subject.roleClaim}`, roles.join(",")],
       [`${subject.gucPrefix}.memberships`, JSON.stringify(memberships)],
@@ -278,11 +298,9 @@ export function emitPgtap(input: {
       lines.push(`${inlineStatement(row)};`);
     }
   }
-  const sources = (
-    input.config.rls?.membershipSources ??
-    input.config.supabase?.hook?.memberships ??
-    []
-  ).map((source) => source.sql.manifest);
+  const sources = membershipSourcesOf(input.config).map(
+    (source) => source.sql.manifest,
+  );
   for (const [index, fixture] of input.fixtures.entries()) {
     const permission = findPermission(input.policy.permissions, fixture.action);
     const status = input.inProcess[index];

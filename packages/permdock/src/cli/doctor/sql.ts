@@ -221,10 +221,32 @@ function revokedExecute(
   return revoked;
 }
 
+/** `supabase.hook.claims` and `hook.before` functions, by key, with the argument type the hook calls them with. */
+function hookClaimFunctions(
+  config: PermDockConfig,
+): ReadonlyMap<string, "uuid" | "jsonb"> {
+  const hook = config.supabase?.hook;
+  const before = hook?.before;
+  const functions = new Map<string, "uuid" | "jsonb">();
+  for (const fn of Object.values(hook?.claims ?? {})) {
+    if (typeof fn === "string") {
+      functions.set(tableKey(fn), "uuid");
+    }
+  }
+  for (const fn of typeof before === "string" ? [before] : (before ?? [])) {
+    if (typeof fn === "string") {
+      functions.set(tableKey(fn), "jsonb");
+    }
+  }
+  return functions;
+}
+
 /**
  * PD049: a `security definer` function `public` (every role) or, in Supabase's
  * `public` schema, `anon` may still execute: Postgres grants `execute` to
  * `public` on create, and Supabase's default privileges grant it to `anon`.
+ * A hook claim function returns any user's claims, so `authenticated` must
+ * not execute it either, definer or not.
  */
 export function pd049(
   cwd: string,
@@ -236,11 +258,14 @@ export function pd049(
   }
   const statements = migrationStatements(files, cwd, config);
   const revoked = revokedExecute(statements);
+  const hookFunctions = hookClaimFunctions(config);
   const findings: DoctorFinding[] = [];
   for (const fn of createdFunctions(statements)) {
+    const hookArgument = hookFunctions.get(fn.key);
     if (
-      !/\bsecurity\s+definer\b/iu.test(fn.head) ||
-      /\breturns\s+(?:event_)?trigger\b/iu.test(fn.head)
+      hookArgument === undefined &&
+      (!/\bsecurity\s+definer\b/iu.test(fn.head) ||
+        /\breturns\s+(?:event_)?trigger\b/iu.test(fn.head))
     ) {
       continue;
     }
@@ -250,9 +275,20 @@ export function pd049(
       ...(revoked.get(`${schema}.*`) ?? []),
       ...(revoked.get("*.*") ?? []),
     ]);
-    const missing = ["public", ...(schema === "public" ? ["anon"] : [])].filter(
-      (role) => !from.has(role),
-    );
+    const roles =
+      hookArgument === undefined
+        ? ["public", ...(schema === "public" ? ["anon"] : [])]
+        : ["public", "anon", "authenticated"];
+    const missing = roles.filter((role) => !from.has(role));
+    if (missing.length > 0 && hookArgument !== undefined) {
+      findings.push({
+        code: "PD049",
+        severity: "warning",
+        message: `${fn.file}:${String(fn.line)} hook claim function ${fn.key} returns any user's claims and can be executed by ${missing.join(" and ")}`,
+        fix: `regenerate the hook (permdock rls generate), which revokes it, or add revoke all on function ${fn.key}(${hookArgument}) from public, anon, authenticated;`,
+      });
+      continue;
+    }
     if (missing.length > 0) {
       findings.push({
         code: "PD049",

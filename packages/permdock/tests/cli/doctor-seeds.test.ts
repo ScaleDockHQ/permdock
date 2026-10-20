@@ -18,6 +18,26 @@ const config: PermDockConfig = {
   rls: { dialect: "supabase" },
 };
 
+const LEVELLED = `import { allow, definePermissions, definePolicy, principal, resource, role } from 'permdock';
+
+export const permissions = definePermissions({
+  job: resource({
+    id: 'id',
+    actions: ['read', 'update'],
+    relations: { org: { field: 'orgId', memberOf: 'tenant' } },
+    levels: { own: { ownerId: principal.id }, all: {} },
+  }),
+});
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('admin', [allow([permissions.job.read, permissions.job.update])], { on: 'tenant' }),
+  ],
+  scopes: { tenant: { key: 'orgId' } },
+  subject: () => null,
+});
+`;
+
 async function seeded(): Promise<string> {
   const cwd = project({
     "permdock.config.ts": `export default ${JSON.stringify(config)};\n`,
@@ -70,6 +90,26 @@ describe("PD054 stale role_permissions seeds", () => {
     expect(finding?.message).toMatch(/: \d+ missing, such as/u);
   });
 
+  it("leaves a config rls generate refuses or cannot compile to rls generate", async () => {
+    const cwd = await seeded();
+    writeFileSync(
+      path.join(cwd, SEEDS),
+      "delete from permdock.role_permissions;\n",
+    );
+    expect(
+      await pd054({
+        cwd,
+        config: { ...config, rls: { ...config.rls, revokeColumns: true } },
+      }),
+    ).toEqual([]);
+    expect(
+      await pd054({
+        cwd,
+        config: { ...config, rls: { ...config.rls, trustedReaders: [""] } },
+      }),
+    ).toEqual([]);
+  });
+
   it("compiles a supabase-only config with Supabase defaults and names stale rows alone", async () => {
     const cwd = await seeded();
     const file = path.join(cwd, SEEDS);
@@ -106,6 +146,68 @@ describe("PD054 stale role_permissions seeds", () => {
       }),
     ).toEqual([]);
   });
+
+  it.each([
+    ["unset", undefined, SEEDS],
+    [
+      "'function'",
+      "function",
+      "supabase/migrations/20260101000001_helpers.sql",
+    ],
+    ["'view'", "view", "supabase/migrations/20260101000001_helpers.sql"],
+  ] as const)(
+    "compiles a levelled resource as generate does with rls.seeds %s",
+    async (_label, seeds, file) => {
+      const levelConfig: PermDockConfig = {
+        permissions: "./src/levels.ts",
+        policy: "./src/levels.ts",
+        rls: {
+          dialect: "supabase",
+          tenantType: "text",
+          customRoles: true,
+          rowHelpers: true,
+          memberships: {
+            tenant: {
+              table: "organization_members",
+              tenant: "organization_id",
+              user: "user_id",
+              role: "role",
+            },
+          },
+          ...(seeds === undefined ? {} : { seeds }),
+        },
+      };
+      const cwd = project({
+        "permdock.config.ts": `export default ${JSON.stringify(levelConfig)};\n`,
+        "src/levels.ts": LEVELLED,
+      });
+      const result = await run(
+        [
+          "rls",
+          "generate",
+          "--split",
+          seeds === undefined ? "helpers,seeds" : "helpers",
+          "--out",
+          "supabase/migrations/20260101000001_{part}.sql",
+          ...(seeds === undefined ? ["--seeds-out", SEEDS] : []),
+        ],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      expect(await pd054({ cwd, config: levelConfig })).toEqual([]);
+
+      const target = path.join(cwd, file);
+      const sql = readFileSync(target, "utf8");
+      const ghost = "  ('ghost', 'job.read', 'job.read', 'tenant', 'allow'),\n";
+      const edited = sql.replace(/values\n/u, `values\n${ghost}`);
+      expect(edited).not.toBe(sql);
+      writeFileSync(target, edited);
+      const [finding] = await pd054({ cwd, config: levelConfig });
+      expect(finding?.message).toContain(
+        "1 stale, such as (ghost job.read job.read tenant allow)",
+      );
+    },
+  );
 
   it("generates the seed function with the helpers, and PD054 reads its body", async () => {
     const fnConfig: PermDockConfig = {

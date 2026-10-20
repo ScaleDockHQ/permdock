@@ -2,7 +2,8 @@ import type { Policy } from "../../index.ts";
 import type { CollectOutcome } from "../collect.ts";
 import type { PermDockConfig } from "../types.ts";
 
-export type DoctorSeverity = "error" | "warning";
+/** `info` is a hint: `--fail-on warning` never fails on it. */
+export type DoctorSeverity = "error" | "warning" | "info";
 
 export type DoctorFinding = {
   readonly code: string;

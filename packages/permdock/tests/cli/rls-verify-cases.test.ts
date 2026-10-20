@@ -94,7 +94,7 @@ describe("rls verify --format pgtap", () => {
       format: "pgtap",
       io,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 0,
       output: "wrote supabase/tests/permdock_rls.test.sql",
     });
@@ -239,7 +239,7 @@ describe("rls verify --format pgtap", () => {
       out: "x.sql",
       io,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 2,
       output: "PermDock CLI: rls verify --out needs --kind pgtap",
     });
@@ -256,10 +256,10 @@ describe("rls verify --format pgtap", () => {
       format: "pgtap",
       io,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 1,
       output:
-        "post.publish: in-process granted, expected denied\npost.nope: unknown permission",
+        "post.publish: in-process granted, expected denied [expected-mismatch:post.publish:u1/p1]\npost.nope: unknown permission [unknown-permission:post.nope:u1/p1]",
     });
   });
 });
@@ -331,7 +331,7 @@ describe("rls verify --db-url-stdin grant kinds and statements", () => {
       io,
       connect: async () => client,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 0,
       output:
         "verified 2 fixture(s) in-process and against the database\npost.update: opaque grant untestable app-side\npost.update: opaque grant untestable app-side",
@@ -348,7 +348,7 @@ describe("rls verify --db-url-stdin grant kinds and statements", () => {
       io,
       connect: fakeSql().connect,
     });
-    expect(unsafe).toEqual({
+    expect(unsafe).toMatchObject({
       code: 2,
       output: "PermDock CLI: unsafe SQL identifier 'post; drop'",
     });
@@ -389,7 +389,7 @@ describe("rls verify --db-url-stdin field views", () => {
       io,
       connect: sql.connect,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 0,
       output:
         "verified 2 fixture(s) in-process and against the database\npost.read: verified through twin\npost.read: verified through twin",
@@ -497,7 +497,7 @@ describe("rls verify --tree failures", () => {
           throw cause;
         },
       });
-    expect(await failed(new Error("no route"))).toEqual({
+    expect(await failed(new Error("no route"))).toMatchObject({
       code: 2,
       output: "no route",
     });
@@ -531,6 +531,8 @@ describe("rls verify --tree failures", () => {
       connect: sql.connect,
     });
     expect(outcome.code).toBe(1);
-    expect(outcome.output).toMatch(/: in-process denied, database allowed$/mu);
+    expect(outcome.output).toMatch(
+      /: in-process denied, database allowed \[tree-mismatch:[a-z]+:[a-z.]+\]$/mu,
+    );
   });
 });

@@ -14,7 +14,7 @@ permdock doctor --only imports,references
 permdock doctor --fix          # apply safe fixes (install skills, regenerate the catalog)
 ```
 
-Exit code `1` on any error, `0` otherwise; warnings only fail with `--fail-on warning`.
+Exit code `1` on any error, `0` otherwise; warnings only fail with `--fail-on warning`. A finding is an `error`, a `warning` or an `info` hint. `info` never fails the run, renders as `::notice` with `--format github` and as a SARIF `note`, and the summary counts it as a note.
 
 Without `--fix`, doctor only reads: it never writes the catalog or any other file. On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `130`. In CI, in a pipe or with `--json` it fixes without asking. The report lists each fix it applied first, as `fixed` in the JSON report. An `--only` value that names no check code or group exits `2` with the nearest match.
 
@@ -84,7 +84,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD046` | The PermDock helper schema (`rls.schema`) is listed in `[api] schemas`, so the Data API serves the `security definer` helpers as RPCs                                                                                                                                                                      | warning         |
 | `PD047` | A SQL migration reads `raw_user_meta_data` or `user_metadata`, which a user can set for themselves                                                                                                                                                                                                         | warning         |
 | `PD048` | A SQL function sets no `search_path`                                                                                                                                                                                                                                                                       | warning         |
-| `PD049` | A `security definer` function whose `execute` is not revoked from `public` (and, in the `public` schema, from `anon`)                                                                                                                                                                                      | warning         |
+| `PD049` | A `security definer` function whose `execute` is not revoked from `public` (and, in the `public` schema, from `anon`), or a hook claim function a client role can execute                                                                                                                                  | warning         |
 | `PD050` | A migration creates a table in `public` without enabling row level security                                                                                                                                                                                                                                | error           |
 | `PD051` | A policy calls `auth.uid()` or `auth.jwt()` bare instead of `(select auth.uid())`, so Postgres calls it once per row                                                                                                                                                                                       | warning         |
 | `PD052` | An update policy has `using` and no `with check`                                                                                                                                                                                                                                                           | warning         |
@@ -93,7 +93,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD055` | A custom role in the `doctor.memberships` fixture stores a permission under a key it was renamed from                                                                                                                                                                                                      | warning         |
 | `PD056` | A migration still calls an `rls.migrate` helper by its legacy name                                                                                                                                                                                                                                         | warning         |
 | `PD057` | `rls.anonymousSignIns` is `'deny'`, but a `subjectFromSupabase` or `subjectFromSupabaseSession` call does not pass `anonymousSignIns: 'deny'`                                                                                                                                                              | warning         |
-| `PD058` | `sync-config.yaml` or the `powersync.manifest` file is missing or differs from what the policy compiles to, or the config does not compile                                                                                                                                                                 | warning         |
+| `PD058` | `sync-config.yaml` or the `powersync.manifest` file is missing or differs from what the policy compiles to, or the config does not compile, or a synced scope's membership source has no stream form                                                                                                       | warning         |
 | `PD059` | The configured `policy` module throws or exports no policy, so every check that reads the policy is skipped                                                                                                                                                                                                | error           |
 | `PD060` | A source file under `collect.srcPath` has a syntax error, so the catalog and the usage report miss what it references                                                                                                                                                                                      | warning         |
 | `PD061` | `rls.suspension.scopes.<scope>.keep` or `rls.suspension.memberships.keep` lets suspended members keep permissions: the kept keys, and any key the definitions do not declare                                                                                                                               | warning         |
@@ -109,7 +109,9 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD071` | An action verb whose name reads as a write (`create…`, `update…`, `approve…`, `markPaid`) has no `rls.actions` entry and no default, so it compiles to `'none'`                                                                                                                                            | warning         |
 | `PD072` | A membership source reads role keys through `rls.customRoleWrites.roles`, whose tenant rows tenants write, so a tenant row named like a declared role could grant it                                                                                                                                       | warning         |
 | `PD073` | A role's `for` lists kinds that no membership source of its scope can hold                                                                                                                                                                                                                                 | error           |
-| `PD074` | `supabase.hook` is set, but `supabase/config.toml` does not enable `[auth.hook.custom_access_token]` or names another function                                                                                                                                                                             |
+| `PD074` | `supabase.hook` is set, but `supabase/config.toml` does not enable `[auth.hook.custom_access_token]` or names another function                                                                                                                                                                             | warning         |
+| `PD075` | Two resources that `rls.tables` maps to one table, so the same rows carry two sets of keys and helpers; `doctor.sharedTables` lists tables split on purpose                                                                                                                                                | warning         |
+| `PD076` | `rls.actions` entries set to `'none'` on a verb that compiles to `'none'` anyway, or entries for a verb no permission uses                                                                                                                                                                                 | info            |
 
 ### PD001: server-only imports in client entries
 
@@ -337,6 +339,8 @@ A function resolves unqualified names through the caller's `search_path`, so a c
 
 Postgres grants `execute` on every new function to `public`, and Supabase also grants it to `anon` in the `public` schema. The check names each `security definer` function, trigger functions excepted, that no later `revoke execute` (on the function, on all functions in its schema, or through `alter default privileges`) takes from `public` and, in `public`, from `anon`. Revoke both and grant `execute` to `authenticated` only where a client must call it, as the generated `authorize` does.
 
+A function named in `supabase.hook.claims` or `supabase.hook.before` is a hook claim function: it returns the claims of any user id or event it is given, so the check names it, `security definer` or not, until `public`, `anon` and `authenticated` are all revoked. Regenerate the hook with `permdock rls generate`, which writes `revoke all on function <fn>(uuid) from public, anon, authenticated` (`jsonb` for a `before` function) before the `supabase_auth_admin` grant ([Supabase hook](/docs/adapters/supabase-hook#claims-other-packages-own)).
+
 ### PD050: tables without row level security
 
 Supabase's Data API serves every table in an exposed schema, and the default privileges let `anon` and `authenticated` read and write it, so a `public` table without row level security is open to anyone with the anon key. The check names each `create table` in `public` that no `alter table ... enable row level security` in the migrations follows and no later `drop table` removes. It is an error: there is no safe reading of an open table.
@@ -355,7 +359,7 @@ Postgres indexes the referenced key but not the referencing column. A policy tha
 
 ### PD054: stale `role_permissions` seeds
 
-The helpers answer from `role_permissions`, so a policy change reaches the database only when a migration seeds the new rows. With `--split ...,seeds` those rows are a versioned migration of their own, and a policy change without a new one leaves the helpers on the old grants. With an `rls` or `supabase` config, the check finds the last statement in the migration folders that seeds `role_permissions` in `rls.schema` (or clears it), compiles the policy's rows, and names how many are missing and how many are stale, with examples. Run `permdock rls generate` and apply the new seeds; with declarative schemas, `--seeds-out supabase/migrations/` writes them as a new migration. `--only seeds` (or `--only supabase`) runs PD054.
+The helpers answer from `role_permissions`, so a policy change reaches the database only when a migration seeds the new rows. With `--split ...,seeds` those rows are a versioned migration of their own, and a policy change without a new one leaves the helpers on the old grants. With an `rls` or `supabase` config, the check finds the last statement in the migration folders that seeds `role_permissions` in `rls.schema` (or clears it), compiles the policy's rows from the same `rls` settings `rls generate` reads (levels, custom roles, row helpers), and names how many are missing and how many are stale, with examples. The seeds may be inserts, the body of `<schema>.seed()` (`rls.seeds: 'function'`) or the `values` of the `role_permissions` view (`rls.seeds: 'view'`). Run `permdock rls generate` and apply the new seeds; with declarative schemas, `--seeds-out supabase/migrations/` writes them as a new migration. `--only seeds` (or `--only supabase`) runs PD054.
 
 ### PD055: custom roles stored under a former key
 
@@ -371,7 +375,7 @@ With `rls.anonymousSignIns: 'deny'`, the generated policies refuse a `signInAnon
 
 ### PD058: stale Sync Streams
 
-With `powersync` in the config, the check compiles the policy to Sync Streams and compares the result with `powersync.out` (default `sync-config.yaml`). A missing or different file means the PowerSync service syncs by an older policy: a revoked grant still syncs rows to devices. With `powersync.manifest` set, the manifest file is compared as JSON with `localSnapshotManifest(policy)`: a stale one makes the device build snapshots by an older policy. A config that does not compile to Sync Streams is a finding with the compiler's message. Run `permdock powersync generate` and deploy the files. `--only powersync` runs PD058.
+With `powersync` in the config, the check compiles the policy to Sync Streams and compares the result with `powersync.out` (default `sync-config.yaml`). A missing or different file means the PowerSync service syncs by an older policy: a revoked grant still syncs rows to devices. With `powersync.manifest` set, the manifest file is compared as JSON with `localSnapshotManifest(policy)`: a stale one makes the device build snapshots by an older policy. A config that does not compile to Sync Streams is a finding with the compiler's message. A membership source of a synced scope that has no stream form is a finding that names its table and why: it has `expiresAt` or `disabledAt`, or it was not built with the two helpers: build it with `tableMembershipSource` or `junctionMembershipSource` without `expiresAt` or `disabledAt`, or serve its members from the server. Run `permdock powersync generate` and deploy the files. `permdock powersync verify --db-url-stdin` also reports PD058 for a synced table outside `public` that the `powersync` publication leaves out. `--only powersync` runs PD058.
 
 ### PD059: policy module did not load
 
@@ -434,6 +438,29 @@ A role declared with `for: ['employee']` can only be held through a membership w
 ### PD074: custom access token hook missing from `config.toml`
 
 `supabase.hook` generates `custom_access_token_hook`, but Auth calls it only when `supabase/config.toml` has `[auth.hook.custom_access_token]` with `enabled = true` and `uri = "pg-functions://postgres/<schema>/custom_access_token_hook"`. Without it a local stack and every Supabase branch push issue tokens with no `memberships`, and tenant-scoped checks deny. The check warns on a missing table, `enabled` not `true` and a `uri` for another function, and stays silent without a `config.toml`. The fix prints the stanza; [hosted rollout](/docs/adapters/supabase-hook#hosted-rollout) covers a hosted project.
+
+### PD075: two resources on one table
+
+Two resources that `rls.tables` maps to the same table give the same rows two sets of permission keys (`file.read` and `fileNode.read`), two row helpers and two catalog entries, and a check of the wrong key denies or grants a different set of rows. One resource can carry both the organisation-wide role grant (a `memberOf` relation) and the per-row relation grants, so the check names both resources and the table and points to [merging resources](/docs/guides/merge-resources). A `via` entry counts through its `table`. When the two resources cover disjoint rows of one table on purpose, list the table in `doctor.sharedTables`:
+
+```ts title="permdock.config.ts"
+export default defineConfig({
+  doctor: { sharedTables: ["public.documents"] },
+});
+```
+
+`--only rls` runs PD075.
+
+### PD076: `rls.actions` entries that change nothing
+
+An `rls.actions` entry set to `'none'` changes nothing when the verb is not one of the six default verbs and does not read as a write: `generate` already compiles it to no policy. An entry for a verb no permission uses changes nothing either, and is often a misspelling. PD076 lists both kinds in one hint each, with the entries to delete:
+
+```text
+info PD076  rls.actions sets export, market to 'none', which is already what those verbs compile to
+            fix: delete these entries: export, market
+```
+
+A `'none'` entry on a verb that reads as a write (`approve`, `markPaid`) stays, because it is how you tell [PD071](#pd071-write-verbs-without-an-rlsactions-entry) the verb is mapped on purpose. A `'none'` entry on a default verb (`read`, `update`) stays too, because it changes what that verb compiles to. PD076 is `info`, so `--fail-on warning` does not fail on it. `--only rls` runs PD076.
 
 ## Side effects
 

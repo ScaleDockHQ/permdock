@@ -131,6 +131,65 @@ export type LocalSnapshotManifest = {
   readonly grants: readonly SnapshotGrant[];
   /** Per custom-role scope (`global` for platform roles): the grants each entry resolves to. */
   readonly custom: Readonly<Record<string, LocalCustomRoleTable>>;
+  /** The synced tables a device reads the user's memberships, roles and custom roles from; `permdock powersync generate` adds it. */
+  readonly rows?: LocalSnapshotRows;
+};
+
+/** A column of a synced table, or a value every row has. */
+export type LocalRowValue =
+  | { readonly column: string }
+  | { readonly value: string };
+
+/**
+ * A column that holds a role key or user id: the value itself, the `column`
+ * of the synced `through` table whose `id` it references, or a value each
+ * maps to a role key (`null` for no role).
+ */
+export type LocalRowColumn =
+  | { readonly column: string }
+  | {
+      readonly column: string;
+      readonly through: {
+        readonly table: string;
+        readonly id: string;
+        readonly column: string;
+      };
+    }
+  | {
+      readonly column: string;
+      readonly map: Readonly<Record<string, string | null>>;
+    };
+
+/** One synced membership table. Table names are the device's table names. */
+export type LocalMembershipRows = {
+  readonly table: string;
+  readonly user: LocalRowColumn;
+  readonly scope: LocalRowValue;
+  readonly id: string;
+  /** The role columns (the row holds every non-null key), or the fixed roles every row holds. */
+  readonly roles:
+    | readonly LocalRowColumn[]
+    | { readonly value: readonly string[] };
+  readonly via?: LocalRowValue;
+  /** A row with a value in one of these columns is no membership on the device. */
+  readonly expiresAt?: string;
+  readonly disabledAt?: string;
+};
+
+export type LocalSnapshotRows = {
+  readonly memberships: readonly LocalMembershipRows[];
+  /** The global roles table: one row per user and role. */
+  readonly roles?: {
+    readonly table: string;
+    readonly user: string;
+    /** The role columns; the row holds every non-null key. */
+    readonly roles: readonly LocalRowColumn[];
+  };
+  /** The custom-role tables (`tenant_id`, `scope`, `scope_id`, `role`, and `permission`, `effect`, `level` or `include_role`). */
+  readonly customRoles?: {
+    readonly permissions: string;
+    readonly includes: string;
+  };
 };
 
 /** Grants a custom role entry resolves to, held by a placeholder role the client renames. */

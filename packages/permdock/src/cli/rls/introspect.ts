@@ -1,5 +1,7 @@
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { RolePermission } from "./helpers.ts";
+import type { LevelKey } from "./rows.ts";
+import type { RlsFinding } from "./verify-findings.ts";
 
 import { escapeSqlIdent } from "../../core/sql.ts";
 import { type SqlClient, type SqlConnect, connectPgPool } from "../pg.ts";
@@ -11,6 +13,7 @@ import {
 } from "../sql/helper-calls.ts";
 import { COLUMNS_SQL, INDEX_COLUMNS_SQL, type IndexTarget } from "./indexes.ts";
 import { ACTOR_MAY_WRITE } from "./policies.ts";
+import { rlsFinding } from "./verify-findings.ts";
 
 const ROLES = ["anon", "authenticated"] as const;
 /** Neon's `anonymous` is the role `rls generate` writes as `anon` for the other dialects. */
@@ -141,7 +144,7 @@ export function expectedRls(
 export function missingIndexes(
   expected: ExpectedRls,
   actual: ActualRls,
-): readonly string[] {
+): readonly RlsFinding[] {
   return expected.indexes.flatMap((target) => {
     const column = target.columns[0];
     const columns = actual.columns?.[target.table];
@@ -150,7 +153,13 @@ export function missingIndexes(
       actual.leadingColumns[target.table]?.includes(column) === true
       ? []
       : [
-          `warning: ${target.table}: no index starts with ${column}, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes`,
+          rlsFinding(
+            "index-missing",
+            target.table,
+            column,
+            `${target.table}: no index starts with ${column}, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes`,
+            "warning",
+          ),
         ];
   });
 }
@@ -161,35 +170,57 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
   return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
-/** One line per difference; policy expressions are not compared, since Postgres rewrites their text. */
+/** One finding per difference; policy expressions are not compared, since Postgres rewrites their text. */
 export function diffRls(
   expected: ExpectedRls,
   actual: ActualRls,
   options: { readonly columnGrants?: boolean } = {},
-): readonly string[] {
-  const out: string[] = [];
+): readonly RlsFinding[] {
+  const out: RlsFinding[] = [];
   const found = new Map(
     actual.policies.map((item) => [`${item.table}\u0000${item.name}`, item]),
   );
   for (const want of expected.policies) {
     const have = found.get(`${want.table}\u0000${want.name}`);
     if (have === undefined) {
-      out.push(`${want.table}: policy ${want.name} is missing`);
+      out.push(
+        rlsFinding(
+          "policy-missing",
+          want.table,
+          want.name,
+          `${want.table}: policy ${want.name} is missing`,
+        ),
+      );
       continue;
     }
     if (have.command !== want.command) {
       out.push(
-        `${want.table}: policy ${want.name} is for ${have.command}, expected ${want.command}`,
+        rlsFinding(
+          "policy-command",
+          want.table,
+          want.name,
+          `${want.table}: policy ${want.name} is for ${have.command}, expected ${want.command}`,
+        ),
       );
     }
     if (have.permissive !== want.permissive) {
       out.push(
-        `${want.table}: policy ${want.name} is ${have.permissive ? "permissive" : "restrictive"}, expected ${want.permissive ? "permissive" : "restrictive"}`,
+        rlsFinding(
+          "policy-mode",
+          want.table,
+          want.name,
+          `${want.table}: policy ${want.name} is ${have.permissive ? "permissive" : "restrictive"}, expected ${want.permissive ? "permissive" : "restrictive"}`,
+        ),
       );
     }
     if (!sameList(have.roles, want.roles)) {
       out.push(
-        `${want.table}: policy ${want.name} applies to ${have.roles.join(", ")}, expected ${want.roles.join(", ")}`,
+        rlsFinding(
+          "policy-roles",
+          want.table,
+          want.name,
+          `${want.table}: policy ${want.name} applies to ${have.roles.join(", ")}, expected ${want.roles.join(", ")}`,
+        ),
       );
     }
   }
@@ -202,7 +233,12 @@ export function diffRls(
       !wanted.has(`${have.table}\u0000${have.name}`)
     ) {
       out.push(
-        `${have.table}: policy ${have.name} is not generated (${have.permissive ? "permissive" : "restrictive"} ${have.command}); a permissive one widens access`,
+        rlsFinding(
+          "policy-extra",
+          have.table,
+          have.name,
+          `${have.table}: policy ${have.name} is not generated (${have.permissive ? "permissive" : "restrictive"} ${have.command}); a permissive one widens access`,
+        ),
       );
     }
   }
@@ -210,8 +246,18 @@ export function diffRls(
     if (actual.rlsEnabled[table] !== true) {
       out.push(
         actual.rlsEnabled[table] === undefined
-          ? `${table}: table is missing`
-          : `${table}: row level security is disabled`,
+          ? rlsFinding(
+              "table-missing",
+              table,
+              "table",
+              `${table}: table is missing`,
+            )
+          : rlsFinding(
+              "rls-disabled",
+              table,
+              "table",
+              `${table}: row level security is disabled`,
+            ),
       );
       continue;
     }
@@ -224,7 +270,12 @@ export function diffRls(
           !(privilege === "select" && options.columnGrants === true)
         ) {
           out.push(
-            `${table}: ${role} lacks ${privilege}, so the policy answers 42501 instead of filtering`,
+            rlsFinding(
+              "grant-missing",
+              table,
+              `${role}.${privilege}`,
+              `${table}: ${role} lacks ${privilege}, so the policy answers 42501 instead of filtering`,
+            ),
           );
         }
       }
@@ -232,7 +283,12 @@ export function diffRls(
         // SAFETY: widening the privilege union to string only lets includes() accept a catalog value.
         if (!(want as readonly string[]).includes(privilege)) {
           out.push(
-            `${table}: ${role} holds ${privilege}, which no generated policy allows`,
+            rlsFinding(
+              "grant-extra",
+              table,
+              `${role}.${privilege}`,
+              `${table}: ${role} holds ${privilege}, which no generated policy allows`,
+            ),
           );
         }
       }
@@ -241,14 +297,35 @@ export function diffRls(
   for (const helper of expected.helpers) {
     const have = actual.helpers[helper];
     if (have === undefined) {
-      out.push(`${helper}: helper is missing`);
+      out.push(
+        rlsFinding(
+          "helper-missing",
+          helper,
+          "helper",
+          `${helper}: helper is missing`,
+        ),
+      );
       continue;
     }
     if (!have.securityDefiner) {
-      out.push(`${helper}: helper is not security definer`);
+      out.push(
+        rlsFinding(
+          "helper-definer",
+          helper,
+          "helper",
+          `${helper}: helper is not security definer`,
+        ),
+      );
     }
     if (!have.emptySearchPath) {
-      out.push(`${helper}: helper does not set search_path = ''`);
+      out.push(
+        rlsFinding(
+          "helper-search-path",
+          helper,
+          "helper",
+          `${helper}: helper does not set search_path = ''`,
+        ),
+      );
     }
   }
   return out;
@@ -369,6 +446,8 @@ export type ExpectedMixed = {
   readonly seeds: readonly RolePermission[];
   readonly permissions: readonly string[];
   readonly rowConditions: readonly string[];
+  /** Declared `<permission>@<level>` keys a custom role may hold. */
+  readonly levels?: readonly LevelKey[];
   /** `rls.readOnlyActors` is set: every write a client role reaches calls `permdock_actor_may_write()`. */
   readonly readOnlyActors?: boolean;
 };
@@ -399,8 +478,8 @@ const WRITES = ["insert", "update", "delete"] as const;
 function unguardedWrites(
   policies: ActualMixed["policies"],
   fn: string,
-): readonly string[] {
-  const out: string[] = [];
+): readonly RlsFinding[] {
+  const out: RlsFinding[] = [];
   const tables = [...new Set(policies.map((policy) => policy.table))];
   for (const table of tables) {
     for (const command of WRITES) {
@@ -426,7 +505,12 @@ function unguardedWrites(
         ) || permissive.every((policy) => calls(policy.expression));
       if (!guarded) {
         out.push(
-          `${table}: ${command} policies for authenticated do not call ${fn}(), so a read-only support or impersonation session can write (rls.readOnlyActors)`,
+          rlsFinding(
+            "write-unguarded",
+            table,
+            command,
+            `${table}: ${command} policies for authenticated do not call ${fn}(), so a read-only support or impersonation session can write (rls.readOnlyActors)`,
+          ),
         );
       }
     }
@@ -467,26 +551,52 @@ function seedLine(row: RolePermission): string {
   return `${row.role} ${row.effect} ${row.grantKey} on ${row.scope}`;
 }
 
+function seedKey(line: string): string {
+  return line.replace(" on ", " ").replaceAll(" ", "/");
+}
+
 /** Drift is an error; `info` names RLS tables whose policies call no PermDock helper. */
 export function diffMixed(
   expected: ExpectedMixed,
   actual: ActualMixed,
-): { readonly drift: readonly string[]; readonly info: readonly string[] } {
-  const drift: string[] = [];
+): {
+  readonly drift: readonly RlsFinding[];
+  readonly info: readonly RlsFinding[];
+} {
+  const drift: RlsFinding[] = [];
+  const seeds = `${expected.schema}.role_permissions`;
   const want = new Set(expected.seeds.map(seedLine));
   const have = new Set(actual.seeds.map(seedLine));
   for (const line of want) {
     if (!have.has(line)) {
-      drift.push(`${expected.schema}.role_permissions: missing ${line}`);
+      drift.push(
+        rlsFinding(
+          "seed-missing",
+          seeds,
+          seedKey(line),
+          `${seeds}: missing ${line}`,
+        ),
+      );
     }
   }
   for (const line of have) {
     if (!want.has(line)) {
-      drift.push(`${expected.schema}.role_permissions: unexpected ${line}`);
+      drift.push(
+        rlsFinding(
+          "seed-extra",
+          seeds,
+          seedKey(line),
+          `${seeds}: unexpected ${line}`,
+        ),
+      );
     }
   }
   const permissions = new Set(expected.permissions);
   const conditioned = new Set(expected.rowConditions);
+  const levels = new Map(
+    (expected.levels ?? []).map((level) => [level.key, level]),
+  );
+  const notes: RlsFinding[] = [];
   const covered = new Set<string>();
   for (const policy of actual.policies) {
     if (callsHelper(policy.expression)) {
@@ -494,13 +604,36 @@ export function diffMixed(
     }
     const blind = new Set(helperCallKeys(policy.expression, true));
     for (const key of helperCallKeys(policy.expression)) {
-      if (!permissions.has(key)) {
+      const level = levels.get(key);
+      if (level !== undefined) {
+        if (level.conditioned) {
+          notes.push(
+            rlsFinding(
+              "level-unconditioned",
+              policy.table,
+              `${policy.name}/${key}`,
+              `${policy.table}: policy ${policy.name} passes ${key}, which skips the level's row condition, so holders of it are denied there; use ${level.rowHelper}(${policy.table.slice(policy.table.lastIndexOf(".") + 1)}, '${level.permission}')`,
+              "info",
+            ),
+          );
+        }
+      } else if (!permissions.has(key)) {
         drift.push(
-          `${policy.table}: policy ${policy.name} passes ${key}, which the policy does not declare, so it always denies`,
+          rlsFinding(
+            "undeclared-key",
+            policy.table,
+            `${policy.name}/${key}`,
+            `${policy.table}: policy ${policy.name} passes ${key}, which the policy does not declare, so it always denies`,
+          ),
         );
       } else if (conditioned.has(key) && blind.has(key)) {
         drift.push(
-          `${policy.table}: policy ${policy.name} passes ${key}, whose grants carry row conditions the helpers do not check: the policy grants more than the application does`,
+          rlsFinding(
+            "condition-blind",
+            policy.table,
+            `${policy.name}/${key}`,
+            `${policy.table}: policy ${policy.name} passes ${key}, whose grants carry row conditions the helpers do not check: the policy grants more than the application does`,
+          ),
         );
       }
     }
@@ -508,9 +641,20 @@ export function diffMixed(
   if (expected.readOnlyActors === true) {
     drift.push(...unguardedWrites(actual.policies, ACTOR_MAY_WRITE));
   }
-  const info = actual.rlsTables
-    .filter((table) => !covered.has(table))
-    .map((table) => `${table}: no policy calls a PermDock helper`);
+  const info = [
+    ...notes,
+    ...actual.rlsTables
+      .filter((table) => !covered.has(table))
+      .map((table) =>
+        rlsFinding(
+          "helper-uncalled",
+          table,
+          "table",
+          `${table}: no policy calls a PermDock helper`,
+          "info",
+        ),
+      ),
+  ];
   return { drift, info };
 }
 

@@ -17,6 +17,12 @@ insert into public.memberships (user_id, scope, scope_id, role) values
   ('00000000-0000-4000-8000-0000000000a4', 'organization', '00000000-0000-4000-8000-0000000000b2', 'owner'),
   ('00000000-0000-4000-8000-0000000000a2', 'organization', '00000000-0000-4000-8000-0000000000b1', 'member');
 
+-- Acme's custom role; system rows mirror declared roles and are not editable.
+insert into public.roles (id, organization_id, key, is_system) values
+  ('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000b1', 'estimator', false),
+  ('00000000-0000-4000-8000-0000000000e2', '00000000-0000-4000-8000-0000000000b2', 'reviewer', false),
+  ('00000000-0000-4000-8000-0000000000e3', '00000000-0000-4000-8000-0000000000b1', 'owner', true);
+
 insert into public.customers (id, organization_id, name) values
   ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000b1', 'Initech'),
   ('00000000-0000-4000-8000-0000000000c2', '00000000-0000-4000-8000-0000000000b1', 'Umbrella'),

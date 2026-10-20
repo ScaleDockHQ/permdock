@@ -1,5 +1,9 @@
 import type { RoleSource } from "../../supabase/roles.ts";
 import type {
+  MembershipStream,
+  SqlMembershipSource,
+} from "../../supabase/sources.ts";
+import type {
   GlobalRoles,
   PermDockConfig,
   RlsMembershipTable,
@@ -20,9 +24,26 @@ import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { ownershipRules } from "../rls/ownership.ts";
 import { tableFor } from "../sql/compile.ts";
 import { contextRefs } from "../sql/conditions.ts";
-import { type RlsGrant, collectGrants } from "../sql/grants.ts";
+import { type RlsGrant, collectGrants, roleNames } from "../sql/grants.ts";
 import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
+import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNames } from "../sql/tables.ts";
+import { customRoleItems } from "./levels.ts";
+import {
+  CUSTOM_ROLE,
+  type TableNames,
+  bare,
+  fromTable,
+  ident,
+  renames,
+} from "./names.ts";
+import {
+  ownRows,
+  roleTableRows,
+  scopeSourcesOf,
+  sourceIn,
+  streamOf,
+} from "./sources.ts";
 
 /**
  * How a stream query names the signed-in user, its claims and row columns.
@@ -36,16 +57,8 @@ export type StreamDialect = {
   /** A row column; `numeric` keeps its type for a comparison with a number. */
   column(table: string, name: string, numeric?: boolean): string;
   literal(value: string | number | boolean): string;
+  readonly names?: TableNames;
 };
-
-function ident(name: string): string {
-  if (!SQL_IDENT.test(name)) {
-    throw new TypeError(
-      `PermDock CLI: '${name}' is not a plain identifier, which Sync Streams need`,
-    );
-  }
-  return name;
-}
 
 export const POWERSYNC: StreamDialect = {
   user: "auth.user_id()",
@@ -96,6 +109,27 @@ export type PowerSyncPlan = {
     readonly reason: string;
   }[];
   readonly warnings: readonly string[];
+  /** Device names of the tables outside `public` renamed to `<schema>_<table>`, by `schema.table`. */
+  readonly devices: ReadonlyMap<string, string>;
+  /** The grant behind each `does not sync` and `under-syncs` warning; `powersync verify` excuses a granted, unsynced fixture only through one. */
+  readonly unsynced: readonly PowerSyncGap[];
+  /** The synced tables outside `public`, as `schema.table`. */
+  readonly outside: readonly string[];
+  /** `alter publication powersync add table …;` for the synced tables outside `public`, which a `for all tables in schema public` publication leaves out. */
+  readonly publication?: string;
+};
+
+/**
+ * A grant a stream leaves rows of out: a declared role (or `anyone`,
+ * `authenticated`) by `role`; a custom role's allow at `level` (`null` for
+ * no level, absent for every level); or, with `composed`, any custom role
+ * with includes or a shared or global scope.
+ */
+export type PowerSyncGap = {
+  readonly permission: string;
+  readonly role: string;
+  readonly level?: string | null;
+  readonly composed?: true;
 };
 
 /** At most this many queries per stream; a wider `or` product is left out rather than truncated. */
@@ -107,6 +141,10 @@ type Ctx = {
   readonly scopes: readonly Scope[];
   readonly kinds: Readonly<Record<string, readonly string[]>>;
   readonly dialect: StreamDialect;
+  /** The membership sources, read through the custom-role name guard. */
+  readonly sources: readonly SqlMembershipSource[];
+  /** Why a source the grant being compiled reads does not sync; the caller turns them into warnings. */
+  readonly gaps: string[];
 };
 
 /** Every combination of one clause list from each input, ANDed. */
@@ -129,14 +167,6 @@ function every<T>(parts: readonly (T | undefined)[]): readonly T[] | undefined {
     out.push(part);
   }
   return out;
-}
-
-/** The table as a stream query names it: unqualified in `public`, `schema.table` otherwise. */
-function bare(table: string): string {
-  const name = table.startsWith("public.")
-    ? table.slice("public.".length)
-    : table;
-  return name.split(".").map(ident).join(".");
 }
 
 /** A row value: a literal, or a principal ref the token carries. `undefined` when neither. */
@@ -261,11 +291,12 @@ function conditionSql(
       }
       return membershipSql(scope, left, condition.roles, ctx);
     }
+    case "sqlFunction":
+      return conditionSql(condition.twin, table, ctx);
     case "not":
     case "contains":
     case "related":
     case "opaque":
-    case "sqlFunction":
     case "liveSession":
       return undefined;
     default: {
@@ -286,7 +317,7 @@ function membershipIn(
   if (table.expiresAt !== undefined || table.disabledAt !== undefined) {
     return undefined;
   }
-  const name = bare(table.table);
+  const name = bare(table.table, ctx.dialect);
   const sources: readonly RoleSource[] = Array.isArray(table.role)
     ? table.role
     : [table.role];
@@ -311,7 +342,7 @@ function membershipIn(
   return sources.map((source) => {
     if (typeof source === "string") {
       return [
-        `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${name} WHERE ${[...filters, `${ctx.dialect.column(name, source)} IN (${list})`].join(" AND ")})`,
+        `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${fromTable(table.table, ctx.dialect)} WHERE ${[...filters, `${ctx.dialect.column(name, source)} IN (${list})`].join(" AND ")})`,
       ];
     }
     if ("map" in source) {
@@ -322,18 +353,19 @@ function membershipIn(
         return ["1 = 0"];
       }
       return [
-        `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${name} WHERE ${[...filters, `${ctx.dialect.column(name, source.column)} IN (${values.join(", ")})`].join(" AND ")})`,
+        `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${fromTable(table.table, ctx.dialect)} WHERE ${[...filters, `${ctx.dialect.column(name, source.column)} IN (${values.join(", ")})`].join(" AND ")})`,
       ];
     }
     const [pair] = Object.entries(source.on);
-    const keys = bare(source.through);
+    const keys = bare(source.through, ctx.dialect);
     const [ref, id] = pair ?? ["", ""];
     return [
-      `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${name} INNER JOIN ${keys} ON ${ctx.dialect.column(keys, id)} = ${ctx.dialect.column(name, ref)} WHERE ${[...filters, `${ctx.dialect.column(keys, source.column)} IN (${list})`].join(" AND ")})`,
+      `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${fromTable(table.table, ctx.dialect)} INNER JOIN ${fromTable(source.through, ctx.dialect)} ON ${ctx.dialect.column(keys, id)} = ${ctx.dialect.column(name, ref)} WHERE ${[...filters, `${ctx.dialect.column(keys, source.column)} IN (${list})`].join(" AND ")})`,
     ];
   });
 }
 
+/** The membership filter of scope `scope`: its `rls.memberships` table, else the union of its membership sources. */
 function membershipSql(
   scope: string,
   left: string,
@@ -345,11 +377,24 @@ function membershipSql(
     ctx.scopes,
     scope,
   );
-  const idColumn =
-    table === undefined ? undefined : scopeColumn(table, ctx.scopes, scope);
-  return table === undefined || idColumn === undefined
-    ? undefined
-    : membershipIn(table, idColumn, left, roles, ctx);
+  if (table !== undefined) {
+    const idColumn = scopeColumn(table, ctx.scopes, scope);
+    return idColumn === undefined
+      ? undefined
+      : membershipIn(table, idColumn, left, roles, ctx);
+  }
+  const sources = scopeSourcesOf(ctx.sources, scope);
+  if (sources.length === 0) {
+    return undefined;
+  }
+  return sources.flatMap((source) => {
+    const stream = streamOf(source);
+    if (typeof stream === "string") {
+      ctx.gaps.push(stream);
+      return [];
+    }
+    return sourceIn(stream, scope, left, roles, ctx);
+  });
 }
 
 /** Who the grant reaches, as alternatives of clauses; `undefined` when Sync Streams cannot express it. */
@@ -380,7 +425,7 @@ function accessSql(
           [access.role],
           ctx,
         ) ??
-        `no rls.memberships table without an expiry or disabledAt and with the kinds of ${access.role} for scope ${access.scope}`
+        `no rls.memberships table without an expiry or disabledAt and with the kinds of ${access.role}, and no membership source, for scope ${access.scope}`
       );
     }
     case "resource": {
@@ -419,10 +464,12 @@ function accessSql(
   }
 }
 
-/** `permdock_<table>`, with a schema joined by `_`; a table in the `permdock` schema keeps one prefix. */
+/** A table outside `public` as `quotedTable` writes it. */
+const QUOTED_TABLE = /"(\w+)"\."(\w+)"/gu;
+
+/** `permdock_<table>`; a table in the `permdock` schema, `permdock_<table>` already, keeps one prefix. */
 function subjectStreamName(table: string): string {
-  const name = table.replaceAll(".", "_");
-  return name.startsWith("permdock_") ? name : `permdock_${name}`;
+  return table.startsWith("permdock_") ? table : `permdock_${table}`;
 }
 
 type SubjectRows = { user: string | undefined; readonly queries: Set<string> };
@@ -435,6 +482,65 @@ function roleThroughs(
     (item): item is RoleThrough =>
       typeof item === "object" && item !== null && "through" in item,
   );
+}
+
+/**
+ * The `SELECT`s of the root-scope ids the user is a member of: the root
+ * scope's `rls.memberships` table, else each of its sources that can filter a
+ * stream.
+ */
+function userTenantIds(ctx: Ctx): readonly string[] {
+  const { dialect } = ctx;
+  const root = ctx.scopes[0]?.name;
+  if (root === undefined) {
+    return [];
+  }
+  const tenants = scopeMembershipTable(
+    ctx.config.rls?.memberships,
+    ctx.scopes,
+    root,
+  );
+  if (tenants !== undefined) {
+    const column = scopeColumn(tenants, ctx.scopes, root);
+    const members = bare(tenants.table, dialect);
+    return column === undefined
+      ? []
+      : [
+          `SELECT ${dialect.column(members, column)} FROM ${fromTable(tenants.table, dialect)} WHERE ${dialect.column(members, tenants.user)} = ${dialect.user}`,
+        ];
+  }
+  return scopeSourcesOf(ctx.sources, root).flatMap((source) => {
+    const stream = streamOf(source);
+    if (typeof stream === "string") {
+      return [];
+    }
+    const rows = ownRows(stream, dialect, root);
+    return [
+      `SELECT ${dialect.column(rows.table, stream.id)} FROM ${rows.from} WHERE ${rows.where.join(" AND ")}`,
+    ];
+  });
+}
+
+/** The stream forms of the sources of every scope `rls.memberships` maps no table for. */
+function unmappedStreams(ctx: Ctx): readonly MembershipStream[] {
+  const out = new Set<MembershipStream>();
+  for (const scope of ctx.scopes) {
+    if (
+      scopeMembershipTable(
+        ctx.config.rls?.memberships,
+        ctx.scopes,
+        scope.name,
+      ) !== undefined
+    ) {
+      continue;
+    }
+    for (const source of scopeSourcesOf(ctx.sources, scope.name)) {
+      if (source.sql.stream !== undefined) {
+        out.add(source.sql.stream);
+      }
+    }
+  }
+  return [...out];
 }
 
 /**
@@ -465,11 +571,11 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
     user: string,
     role: RlsMembershipTable["role"] | GlobalRoles["role"],
   ): void => {
-    const name = bare(table);
+    const name = bare(table, dialect);
     const mine = `${dialect.column(name, user)} = ${dialect.user}`;
-    add(name, `SELECT * FROM ${name} WHERE ${mine}`, user);
+    add(name, `SELECT * FROM ${fromTable(table, dialect)} WHERE ${mine}`, user);
     for (const through of roleThroughs(role)) {
-      const keys = bare(through.through);
+      const keys = bare(through.through, dialect);
       const [pair] = Object.entries(through.on);
       if (pair === undefined) {
         continue;
@@ -477,7 +583,7 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
       const [ref, id] = pair;
       add(
         keys,
-        `SELECT * FROM ${keys} WHERE ${dialect.column(keys, id)} IN (SELECT ${dialect.column(name, ref)} FROM ${name} WHERE ${mine})`,
+        `SELECT * FROM ${fromTable(through.through, dialect)} WHERE ${dialect.column(keys, id)} IN (SELECT ${dialect.column(name, ref)} FROM ${fromTable(table, dialect)} WHERE ${mine})`,
       );
     }
   };
@@ -489,6 +595,27 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
     ...Object.values(memberships?.resource ?? {}),
   ]) {
     own(table.table, table.user, table.role);
+  }
+  for (const stream of unmappedStreams(ctx)) {
+    const rows = ownRows(stream, dialect);
+    add(
+      rows.table,
+      typeof stream.user === "string"
+        ? `SELECT * FROM ${rows.from} WHERE ${rows.where.join(" AND ")}`
+        : `SELECT ${rows.table}.* FROM ${rows.from} WHERE ${rows.where.join(" AND ")}`,
+      typeof stream.user === "string" ? stream.user : undefined,
+    );
+    if (typeof stream.user !== "string") {
+      const users = bare(stream.user.through, dialect);
+      add(
+        users,
+        `SELECT * FROM ${fromTable(stream.user.through, dialect)} WHERE ${dialect.column(users, stream.user.column)} = ${dialect.user}`,
+        stream.user.column,
+      );
+    }
+    for (const keys of roleTableRows(stream, dialect)) {
+      add(keys.table, keys.query);
+    }
   }
   const schema = rls?.schema ?? PERMDOCK_SCHEMA;
   const database = rls?.authorize === "database";
@@ -502,31 +629,25 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
     );
   }
   if (database && customRolesOn(rls)) {
-    const root = ctx.scopes[0]?.name;
-    const tenants =
-      root === undefined
-        ? undefined
-        : scopeMembershipTable(memberships, ctx.scopes, root);
-    const column =
-      tenants === undefined || root === undefined
-        ? undefined
-        : scopeColumn(tenants, ctx.scopes, root);
+    const tenantIds = userTenantIds(ctx);
     for (const name of [CUSTOM_ROLES.permissions, CUSTOM_ROLES.includes]) {
-      const table = bare(`${schema}.${name}`);
+      const qualified = `${schema}.${name}`;
+      const table = bare(qualified, dialect);
+      const from = fromTable(qualified, dialect);
       const tenant = dialect.column(table, "tenant_id");
-      add(table, `SELECT * FROM ${table} WHERE ${tenant} IS NULL`);
-      if (tenants !== undefined && column !== undefined) {
-        const members = bare(tenants.table);
-        add(
-          table,
-          `SELECT * FROM ${table} WHERE ${tenant} IN (SELECT ${dialect.column(members, column)} FROM ${members} WHERE ${dialect.column(members, tenants.user)} = ${dialect.user})`,
-        );
+      add(table, `SELECT * FROM ${from} WHERE ${tenant} IS NULL`);
+      for (const ids of tenantIds) {
+        add(table, `SELECT * FROM ${from} WHERE ${tenant} IN (${ids})`);
       }
     }
   }
   const out: SubjectStream[] = [];
+  const names = new Set<string>();
   for (const [table, entry] of tables) {
-    const name = subjectStreamName(table);
+    const short = subjectStreamName(table);
+    // `public.user_roles` and `permdock.user_roles` share the short name.
+    const name = names.has(short) ? `permdock_${table}` : short;
+    names.add(name);
     const queries = [...entry.queries];
     out.push(
       entry.user === undefined
@@ -535,6 +656,26 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
     );
   }
   return out;
+}
+
+/** The membership sources as `rls generate` reads them: a tenant row of the custom roles table named like a declared role is no role. */
+function guardedSources(
+  policy: Policy,
+  config: PermDockConfig,
+): readonly SqlMembershipSource[] {
+  const roles = config.rls?.customRoleWrites?.roles;
+  const guard =
+    roles?.tenant === undefined
+      ? undefined
+      : {
+          table: roles.table,
+          tenant: roles.tenant,
+          skip: roles.skip,
+          declared: [...roleNames(policy)].toSorted(),
+        };
+  return membershipSourcesOf(config).map((source) =>
+    guard === undefined ? source : (source.guarded?.(guard) ?? source),
+  );
 }
 
 /** Why a grant cannot become a stream query, before its conditions are compiled. */
@@ -567,6 +708,25 @@ export function powersyncPlan(
   config: PermDockConfig,
   dialect: StreamDialect = POWERSYNC,
 ): PowerSyncPlan {
+  const seen = new Set<string>();
+  const first = planWith(policy, config, {
+    ...dialect,
+    names: { renamed: new Map(), seen },
+  });
+  const renamed = renames(seen);
+  return renamed.size === 0
+    ? first
+    : planWith(policy, config, {
+        ...dialect,
+        names: { renamed, seen: new Set() },
+      });
+}
+
+function planWith(
+  policy: Policy,
+  config: PermDockConfig,
+  dialect: StreamDialect,
+): PowerSyncPlan {
   const scopes = scopeList(policy.scopes);
   const ctx: Ctx = {
     policy,
@@ -574,6 +734,8 @@ export function powersyncPlan(
     scopes,
     kinds: ownershipRules(policy, scopes)?.kinds ?? {},
     dialect,
+    sources: guardedSources(policy, config),
+    gaps: [],
   };
   const action = config.powersync?.action ?? "read";
   const grants = collectGrants(policy);
@@ -589,6 +751,7 @@ export function powersyncPlan(
   const streams: PowerSyncStream[] = [];
   const omitted: { resource: string; reason: string }[] = [];
   const warnings: string[] = [];
+  const unsynced: PowerSyncGap[] = [];
   for (const resource of resources) {
     const node = policy.resources.get(resource);
     const key = `${resource}.${action}`;
@@ -604,24 +767,41 @@ export function powersyncPlan(
       });
       continue;
     }
-    const table = bare(tableFor(resource, tableNames(config.rls?.tables)));
+    const source = tableFor(resource, tableNames(config.rls?.tables));
+    const table = bare(source, ctx.dialect);
     const { id } = node;
     const queries = new Set<string>();
-    for (const item of items) {
-      const label = `${item.label}/${key}`;
-      const skipped = unsupported(item);
-      const access = skipped ?? accessSql(item, table, ctx);
+    const compile = (
+      label: string,
+      gap: PowerSyncGap,
+      item: RlsGrant,
+      reach: () => readonly (readonly string[])[] | string,
+    ): void => {
+      const access = unsupported(item) ?? reach();
+      const where =
+        typeof access === "string" || item.where === undefined
+          ? [[]]
+          : conditionSql(item.where, table, ctx);
+      const gaps = [...new Set(ctx.gaps.splice(0))];
+      for (const reason of gaps) {
+        warnings.push(`${label} under-syncs: ${reason}`);
+      }
       if (typeof access === "string") {
         warnings.push(`${label} does not sync: ${access}`);
-        continue;
-      }
-      const where =
-        item.where === undefined ? [[]] : conditionSql(item.where, table, ctx);
-      if (where === undefined) {
+      } else if (where === undefined) {
         warnings.push(
           `${label} does not sync: its condition has no Sync Streams form`,
         );
-        continue;
+      }
+      if (
+        gaps.length > 0 ||
+        typeof access === "string" ||
+        where === undefined
+      ) {
+        unsynced.push(gap);
+      }
+      if (typeof access === "string" || where === undefined) {
+        return;
       }
       const columns =
         item.grant.fields === undefined
@@ -631,9 +811,48 @@ export function powersyncPlan(
               .join(", ");
       for (const clauses of product([access, where])) {
         queries.add(
-          `SELECT ${columns} FROM ${table}${clauses.length === 0 ? "" : ` WHERE ${clauses.join(" AND ")}`}`,
+          `SELECT ${columns} FROM ${fromTable(source, ctx.dialect)}${clauses.length === 0 ? "" : ` WHERE ${clauses.join(" AND ")}`}`,
         );
       }
+    };
+    for (const item of items) {
+      compile(
+        `${item.label}/${key}`,
+        { permission: key, role: item.label },
+        item,
+        () => accessSql(item, table, ctx),
+      );
+    }
+    const { items: custom, skipped } = customRoleItems(
+      ctx,
+      grants,
+      resource,
+      key,
+      table,
+    );
+    if (skipped !== undefined) {
+      ctx.gaps.push(skipped);
+    }
+    for (const entry of custom) {
+      compile(
+        entry.label,
+        { permission: key, role: CUSTOM_ROLE, level: entry.level },
+        entry.item,
+        () => entry.access,
+      );
+    }
+    const dropped = [...new Set(ctx.gaps.splice(0))];
+    for (const reason of dropped) {
+      warnings.push(`${CUSTOM_ROLE}/${key} does not sync: ${reason}`);
+    }
+    if (dropped.length > 0) {
+      unsynced.push({ permission: key, role: CUSTOM_ROLE });
+    }
+    if (custom.length > 0) {
+      warnings.push(
+        `${CUSTOM_ROLE}/${key}: a custom role's deny rows, includes and shared roles do not change its stream; the device still applies them`,
+      );
+      unsynced.push({ permission: key, role: CUSTOM_ROLE, composed: true });
     }
     if (queries.size === 0) {
       omitted.push({ resource, reason: `no grant of ${key} compiles` });
@@ -652,13 +871,51 @@ export function powersyncPlan(
       });
     }
   }
-  return { streams, subject: subjectStreams(ctx), omitted, warnings };
+  const subject = subjectStreams(ctx);
+  const outside = [
+    ...new Set(
+      [...streams, ...subject].flatMap((stream) =>
+        stream.queries.flatMap((query) =>
+          [...query.matchAll(QUOTED_TABLE)].map(
+            ([, schema, name]) => `${schema ?? ""}.${name ?? ""}`,
+          ),
+        ),
+      ),
+    ),
+  ].toSorted();
+  return {
+    streams,
+    subject,
+    omitted,
+    warnings,
+    unsynced,
+    devices: dialect.names?.renamed ?? new Map(),
+    outside,
+    ...(outside.length === 0
+      ? {}
+      : {
+          publication: `alter publication powersync add table ${outside.join(", ")};`,
+        }),
+  };
+}
+
+/** A YAML scalar quoted as oxfmt and Prettier write it: single quotes around a `"`, unless a backslash needs a double-quoted escape. */
+function yamlString(text: string): string {
+  return text.includes('"') && !text.includes("\\")
+    ? `'${text.replaceAll("'", "''")}'`
+    : JSON.stringify(text);
 }
 
 /** `sync-config.yaml`: edition 3 Sync Streams, one auto-subscribed stream per synced resource. */
 export function powersyncYaml(plan: PowerSyncPlan): string {
   const lines = [
     "# Generated by permdock powersync generate from the policy. Do not edit.",
+    ...(plan.publication === undefined
+      ? []
+      : [
+          "# Tables outside public must be in the powersync publication:",
+          `# ${plan.publication}`,
+        ]),
     "config:",
     "  edition: 3",
     "",
@@ -672,7 +929,7 @@ export function powersyncYaml(plan: PowerSyncPlan): string {
       `  ${stream.name}:`,
       "    auto_subscribe: true",
       "    queries:",
-      ...stream.queries.map((query) => `      - ${JSON.stringify(query)}`),
+      ...stream.queries.map((query) => `      - ${yamlString(query)}`),
     );
   }
   for (const item of plan.omitted) {

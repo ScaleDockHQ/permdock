@@ -293,6 +293,7 @@ export const SECTIONS: readonly Section[] = [
               docs: "rls",
               effects: ["files", "database:read"],
               config: true,
+              findings: true,
               load: async () => (await import("../commands/rls.ts")).verify,
             },
           ),

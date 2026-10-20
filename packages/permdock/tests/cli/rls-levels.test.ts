@@ -29,6 +29,7 @@ function appWith(
   authorize: "database" | "jwt",
   renamed = false,
   manager = false,
+  create = false,
 ): string {
   mkdirSync(TMP, { recursive: true });
   const dir = mkdtempSync(join(TMP, "rls-levels-"));
@@ -41,7 +42,7 @@ function appWith(
 export const permissions = definePermissions({
   job: resource({
     id: 'id',
-    actions: ['read', 'update'],
+    actions: ['read', 'update'${create ? ", 'create'" : ""}],
     relations: { org: { field: 'orgId', memberOf: 'tenant' } },
     ${levels ? "levels: { own: { ownerId: principal.id }, all: {} }," : ""}
   }),
@@ -49,7 +50,7 @@ export const permissions = definePermissions({
 
 export const policy = definePolicy(permissions, {
   roles: [
-    role('admin', [allow([permissions.job.read, permissions.job.update]), deny(permissions.job.update, { where: { locked: true } })], { on: 'tenant' }),
+    role('admin', [allow([permissions.job.read, permissions.job.update${create ? ", permissions.job.create" : ""}]), deny(permissions.job.update, { where: { locked: true } })], { on: 'tenant' }),
     role('owner', [allow(permissions.job.update)], { on: 'tenant', assignable: false }),${
       manager
         ? "\n    role('manager', [allow(permissions.job.update, { where: { ownerId: principal.id } })], { on: 'tenant' }),"
@@ -70,7 +71,7 @@ export const policy = definePolicy(permissions, {
     dialect: 'supabase',
     tenantType: 'text',
     authorize: '${authorize}',
-    customRoles: true,
+    customRoles: true,${create ? "\n    rowHelpers: true," : ""}
     ${
       authorize === "database"
         ? "memberships: { tenant: { table: 'organization_members', tenant: 'organization_id', user: 'user_id', role: 'role' } },"
@@ -177,6 +178,17 @@ describe("rls generate with resource levels", () => {
     expect(reach).not.toContain("('job.update#3', 'all')");
     expect(reach).not.toContain("'job.update#3@all'");
     expect(reach).toContain("('job.update#1', 'all'), ('job.update#1', 'own')");
+  });
+
+  it("gives an instance create one row-helper branch per level", async () => {
+    const sql = await generate(appWith(true, "database", false, false, true));
+    const arm = /\n {4}when 'job\.create' then ([^\n]+)/u.exec(sql)?.[1];
+    expect(arm).toBe(
+      `coalesce((("orgId" in (select "permdock".permitted_tenant_ids('job.create'))) or (("orgId" in (select "permdock".permitted_tenant_ids('job.create@own'))) and ("ownerId" = (select "permdock".permdock_user_id()))) or ("orgId" in (select "permdock".permitted_tenant_ids('job.create@all')))), false)`,
+    );
+    expect(sql).toContain(
+      'create or replace function "permdock".permitted_job_row(p_row "public"."job", p_permission text)',
+    );
   });
 
   it("passes levels to the rbac scaffold", async () => {

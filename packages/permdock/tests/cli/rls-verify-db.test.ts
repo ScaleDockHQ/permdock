@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlCall, SqlReply } from "../fakes/sql.ts";
 
+import { expectedFields } from "../../src/cli/rls/verify-database.ts";
 import { runRlsVerify } from "../../src/cli/rls/verify.ts";
 import { HELPER_TABLE_POLICIES_SQL } from "../../src/cli/sql/helper-calls.ts";
 import { fakeSql } from "../fakes/sql.ts";
@@ -77,7 +78,7 @@ describe("rls verify --db-url-stdin through an injected client", () => {
       io,
       connect: sql.connect,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 0,
       output: "verified 2 fixture(s) in-process and against the database",
     });
@@ -113,9 +114,28 @@ describe("rls verify --db-url-stdin through an injected client", () => {
       io,
       connect: sql.connect,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 1,
-      output: "post.update: in-process denied, database allowed",
+      output:
+        "post.update: in-process denied, database allowed [parity-mismatch:post.update:u1/p2]",
+    });
+  });
+
+  it("reports a granted fixture the database filters", async () => {
+    const sql = fakeSql(rowsFor(() => 0));
+    const cwd = app([{ subject: author, row: own, action: "post.update" }]);
+    const outcome = await runRlsVerify({
+      cwd,
+      config: config(),
+      db: "postgres://fake",
+      format: "node",
+      io,
+      connect: sql.connect,
+    });
+    expect(outcome).toMatchObject({
+      code: 1,
+      output:
+        "post.update: in-process granted, database filtered [parity-mismatch:post.update:u1/p1]",
     });
   });
 
@@ -252,7 +272,7 @@ describe("rls verify --db-url-stdin through an injected client", () => {
     expect(sql.statements()).toContain("rollback to savepoint permdock_fields");
     expect(outcome.code).toBe(1);
     expect(outcome.output).toBe(
-      "post.read p1: field view returns [authorId, id, orgId], pick keeps [authorId, id, orgId, published]",
+      "post.read p1: field view returns [authorId, id, orgId], pick keeps [authorId, id, orgId, published] [field-mismatch:post.read:u1/p1]",
     );
   });
 
@@ -409,7 +429,7 @@ describe("rls verify --db-url-stdin through an injected client", () => {
           ),
         ),
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 2,
       output: "PermDock CLI: rls verify --db-url-stdin could not connect",
     });
@@ -426,9 +446,10 @@ describe("rls verify --db-url-stdin through an injected client", () => {
       io,
       connect: sql.connect,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 1,
-      output: "post.nope: unknown permission",
+      output:
+        "post.nope: unknown permission [unknown-permission:post.nope:u1/p1]",
     });
     expect(sql.statements()).toEqual([HELPER_TABLE_POLICIES_SQL]);
   });
@@ -499,9 +520,10 @@ describe("rls verify fixtures", () => {
       format: "node",
       io,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 1,
-      output: "post.read: in-process granted, expected denied",
+      output:
+        "post.read: in-process granted, expected denied [expected-mismatch:post.read:u1/p1]",
     });
   });
 });
@@ -517,7 +539,7 @@ describe("rls verify --tree through an injected client", () => {
         format: "node",
         io,
       }),
-    ).toEqual({
+    ).toMatchObject({
       code: 2,
       output:
         "PermDock CLI: rls verify --tree needs a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
@@ -536,7 +558,7 @@ describe("rls verify --tree through an injected client", () => {
       io,
       connect: sql.connect,
     });
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       code: 0,
       output:
         "verified 0 tree check(s) against the database (0 granted)\nno graph grant walks a self-parented resource",
@@ -585,5 +607,21 @@ describe("rls verify --tree through an injected client", () => {
       "rls verify --tree could not seed the tree (SQLSTATE 42501)",
     );
     expect(sql.statements().at(-1)).toBe("rollback");
+  });
+});
+
+describe("expectedFields", () => {
+  it("adds the key column only when the row has a value for it", () => {
+    expect(expectedFields(true, { title: "t" }, "id", { id: "p1" })).toEqual([
+      "id",
+      "title",
+    ]);
+    expect(expectedFields(true, { title: "t" }, "id", { id: null })).toEqual([
+      "title",
+    ]);
+    expect(expectedFields(true, { title: "t" }, "id", "p1")).toEqual(["title"]);
+    expect(expectedFields(false, { title: "t" }, "id", { id: "p1" })).toEqual(
+      [],
+    );
   });
 });

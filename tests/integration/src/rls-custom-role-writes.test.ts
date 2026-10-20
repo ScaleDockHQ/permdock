@@ -13,6 +13,7 @@ import { startPostgres } from "./support/postgres.ts";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/custom-role-writes");
 const REQUIRES_FIXTURE = join(HERE, "../fixtures/custom-role-writes-requires");
+const BY_ID_FIXTURE = join(HERE, "../fixtures/custom-role-by-id");
 
 const ADMIN = "00000000-0000-4000-8000-0000000000a1";
 const MANAGER = "00000000-0000-4000-8000-0000000000b2";
@@ -377,5 +378,209 @@ describe("rls.customRoleWrites.requires", () => {
     expect(await save(OPERATOR, "acme", "tenant")).toBe("ok");
     expect(await save(OPERATOR, null, "global")).toBe("ok");
     expect(await save(STEWARD, null, "global")).toBe("42501 not-member");
+  });
+});
+
+describe("custom-role functions keyed by the role row id", () => {
+  let db: Postgres | undefined;
+  const dir = mkdtempSync(join(tmpdir(), "permdock-custom-role-by-id-"));
+  const AUDITOR = "00000000-0000-4000-8000-00000000e001";
+  const OUTSIDER = "00000000-0000-4000-8000-00000000e002";
+  const SYSTEM = "00000000-0000-4000-8000-00000000e003";
+  const MISSING = "00000000-0000-4000-8000-00000000e009";
+
+  beforeAll(async () => {
+    const out = join(dir, "rls.sql");
+    const result = await run(
+      ["rls", "generate", "--target", "sql", "--out", out],
+      { cwd: BY_ID_FIXTURE },
+    );
+    if (result.code !== 0) {
+      throw new Error(`rls generate: ${result.stdout}`);
+    }
+    db = await startPostgres([
+      `${SETUP}
+create role role_reader nologin;
+grant role_reader to tester;
+create table public.roles (
+  id uuid primary key,
+  organization_id text,
+  key text not null,
+  is_system boolean not null default false
+);
+insert into public.roles values
+  ('${AUDITOR}', 'acme', 'auditor', false),
+  ('${OUTSIDER}', 'other', 'outsider', false),
+  ('${SYSTEM}', 'acme', 'admin', true);
+create table public.audit_log (event_type text, target_type text, record_id text, tenant text, metadata jsonb, source text);
+create function public.audit_event(event_type text, target_type text, record_id text, tenant text, metadata jsonb, source text)
+returns void language sql security definer set search_path = '' as $$
+  insert into public.audit_log values (event_type, target_type, record_id, tenant, metadata, source)
+$$;`,
+      readFileSync(out, "utf8"),
+    ]);
+  }, 180_000);
+
+  afterAll(async () => {
+    rmSync(dir, { recursive: true, force: true });
+    await db?.stop();
+  });
+
+  const started = (): Postgres => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    return db;
+  };
+
+  const saveById = async (
+    sub: string,
+    id: string,
+    permissions: readonly string[],
+  ): Promise<string> => {
+    try {
+      await started().as(
+        {
+          role: "authenticated",
+          settings: {
+            "request.jwt.claims": JSON.stringify({
+              sub,
+              role: "authenticated",
+            }),
+          },
+        },
+        async () => {
+          await started().tester.query(
+            "select permdock.permdock_replace_custom_role_grants_by_id($1, $2)",
+            [id, [...permissions]],
+          );
+        },
+      );
+      return "ok";
+    } catch (error) {
+      return error instanceof DatabaseError
+        ? `${error.code ?? ""} ${error.hint ?? ""}`.trim()
+        : String(error);
+    }
+  };
+
+  it("saves a role by id with the row's tenant and writes the audit row", async () => {
+    const pg = started();
+    await pg.admin.query("begin");
+    const read = async () => {
+      await pg.admin.query("set local role authenticated");
+      await pg.admin.query(
+        "select set_config('request.jwt.claims', $1, true)",
+        [JSON.stringify({ sub: ADMIN, role: "authenticated" })],
+      );
+      await pg.admin.query(
+        "select permdock.permdock_replace_custom_role_grants_by_id($1, $2)",
+        [AUDITOR, ["job.read"]],
+      );
+      await pg.admin.query("reset role");
+      return {
+        stored: await pg.admin.query<{ entry: string }>(
+          "select tenant_id || '/' || scope || '/' || role || '/' || permission as entry from permdock.custom_role_permissions where role = 'auditor'",
+        ),
+        audit: await pg.admin.query("select * from public.audit_log"),
+      };
+    };
+    let result: Awaited<ReturnType<typeof read>>;
+    try {
+      result = await read();
+    } finally {
+      await pg.admin.query("rollback");
+    }
+    const { stored, audit } = result;
+    expect(stored.rows.map((row) => row.entry)).toEqual([
+      "acme/tenant/auditor/job.read",
+    ]);
+    expect(audit.rows).toEqual([
+      {
+        event_type: "permdock.custom_role.replaced",
+        target_type: "role",
+        record_id: AUDITOR,
+        tenant: "acme",
+        metadata: {
+          operation: "replace",
+          role: "auditor",
+          permissions: ["job.read"],
+        },
+        source: "permdock",
+      },
+    ]);
+  });
+
+  it("refuses a role id of another tenant, an unknown key, a missing row and a system row", async () => {
+    expect(await saveById(ADMIN, OUTSIDER, ["job.read"])).toBe(
+      "42501 not-member",
+    );
+    expect(await saveById(ADMIN, AUDITOR, ["job.delete"])).toBe(
+      "22023 unknown-permission",
+    );
+    expect(await saveById(ADMIN, MISSING, ["job.read"])).toBe(
+      "P0002 unknown-role",
+    );
+    expect(await saveById(ADMIN, SYSTEM, ["job.read"])).toBe(
+      "22023 declared-role",
+    );
+    expect(await saveById(MANAGER, AUDITOR, ["job.update@all"])).toBe(
+      "42501 not-assignable-by",
+    );
+  });
+
+  it("keeps the trusted writer and reader away from client roles", async () => {
+    const pg = started();
+    const codeAs = (role: string, sql: string): Promise<string> =>
+      pg
+        .as({ role, settings: {} }, () => pg.tester.query(sql, [[AUDITOR]]))
+        .then(
+          () => "ok",
+          (error: unknown) =>
+            error instanceof DatabaseError ? (error.code ?? "") : "",
+        );
+    const write =
+      "select permdock.permdock_trusted_replace_custom_role_grants_by_id(($1::uuid[])[1], array['job.read'])";
+    const read =
+      "select * from permdock.permdock_trusted_role_permissions_by_id($1::text[])";
+    expect(await codeAs("authenticated", write)).toBe("42501");
+    expect(await codeAs("authenticated", read)).toBe("42501");
+    expect(await codeAs("anon", read)).toBe("42501");
+  });
+
+  it("reads declared allow keys by id for a trusted reader and drops the rest", async () => {
+    await started().admin.query(
+      "select permdock.permdock_trusted_replace_custom_role_grants_by_id($1, $2)",
+      [AUDITOR, ["job.read", "job.update@own"]],
+    );
+    await started().admin.query(
+      "insert into permdock.custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect) values ('acme', 'tenant', null, 'auditor', 'job.archive', 'allow')",
+    );
+    const read = (tenant: string | null) =>
+      started().as({ role: "role_reader", settings: {} }, () =>
+        started().tester.query<{ role_id: string; permission: string }>(
+          "select * from permdock.permdock_trusted_role_permissions_by_id($1::text[], $2)",
+          [[AUDITOR, SYSTEM], tenant],
+        ),
+      );
+    expect((await read("acme")).rows).toEqual([
+      { role_id: AUDITOR, permission: "job.read" },
+      { role_id: AUDITOR, permission: "job.update@own" },
+    ]);
+    const refused = await started()
+      .as({ role: "role_reader", settings: {} }, () =>
+        started().tester.query(
+          "select * from permdock.permdock_trusted_role_permissions_by_id($1::text[], 'acme')",
+          [[OUTSIDER]],
+        ),
+      )
+      .then(
+        () => "ok",
+        (error: unknown) =>
+          error instanceof DatabaseError
+            ? `${error.code ?? ""} ${error.hint ?? ""}`
+            : String(error),
+      );
+    expect(refused).toBe("42501 not-member");
   });
 });

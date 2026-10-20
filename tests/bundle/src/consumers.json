@@ -2,7 +2,7 @@
   "core definePolicy + getPermDockSync": 40715,
   "react PermDockProvider + usePermission": 19393,
   "react-native PermDockProvider + usePermission": 20667,
-  "react-native PermDockProvider + localSnapshot": 21879,
+  "react-native PermDockProvider + localSnapshot": 21876,
   "next createPermDock": 44937,
   "server createPermDock": 40833,
   "server createPermDock + webBotAuthVerifier": 42530,

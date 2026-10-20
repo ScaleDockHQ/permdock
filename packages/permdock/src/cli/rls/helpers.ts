@@ -24,6 +24,7 @@ import {
   serviceKeyIdsSql,
 } from "./api-keys.ts";
 import { capabilitiesSql } from "./capabilities.ts";
+import { customRoleByIdSql } from "./custom-role-by-id.ts";
 import { customRoleCascadeSql } from "./custom-role-cascade.ts";
 import { customRoleNameGuardSql } from "./custom-role-guard.ts";
 import { customRoleWritesSql } from "./custom-role-writes.ts";
@@ -398,6 +399,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     const sync = ctx.customRoles?.sync;
     if (sync !== undefined) {
       chunks.push(sync);
+    }
+    const byId = customRoleByIdSql(ctx, options.trustedReaders);
+    if (byId !== "") {
+      chunks.push(byId);
     }
     const nameGuard = customRoleNameGuardSql(ctx);
     if (nameGuard !== "") {

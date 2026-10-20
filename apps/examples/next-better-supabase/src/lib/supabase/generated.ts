@@ -213,6 +213,7 @@ export type Models = {
       customers: { table: "customers"; kind: "many"; nullable: true };
       organization_features: { table: "organization_features"; kind: "many"; nullable: true };
       quotes: { table: "quotes"; kind: "many"; nullable: true };
+      roles: { table: "roles"; kind: "many"; nullable: true };
       staff: { table: "staff"; kind: "many"; nullable: true };
     };
     PrimaryKey: "id";
@@ -262,6 +263,39 @@ export type Models = {
     UniqueKeys: Record<never, never>;
     Checks: "quotes_amount_minor_check" | "quotes_currency_check";
     ForeignKeys: "quotes_customer_id_fkey" | "quotes_organization_id_fkey";
+    Flags: Record<never, never>;
+  };
+  roles: {
+    Row: {
+      id: string;
+      organization_id: string;
+      key: string;
+      is_system: boolean;
+      created_at: string;
+    };
+    Insert: {
+      id?: string;
+      organization_id: string;
+      key: string;
+      is_system?: boolean;
+      created_at?: string;
+    };
+    Update: {
+      id?: string;
+      organization_id?: string;
+      key?: string;
+      is_system?: boolean;
+      created_at?: string;
+    };
+    Relations: {
+      organization: { table: "organizations"; kind: "one"; nullable: false };
+    };
+    PrimaryKey: "id";
+    UniqueKeys: {
+      roles_organization_id_key_key: readonly ["organization_id", "key"];
+    };
+    Checks: never;
+    ForeignKeys: "roles_organization_id_fkey";
     Flags: Record<never, never>;
   };
   staff: {

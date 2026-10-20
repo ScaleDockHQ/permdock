@@ -331,6 +331,13 @@ export const verify: Leaf = defineLeaf({
       type: "boolean",
       description: "Run the Supabase security advisors",
     },
+    ignore: {
+      type: "string",
+      repeatable: true,
+      description:
+        "Accept the finding with this id for one run; rls.verify.ignore is the committed baseline",
+      valueHint: "id",
+    },
   },
   async run(ctx, { flags }) {
     return runRls({
@@ -343,6 +350,7 @@ export const verify: Leaf = defineLeaf({
       tree: flags.tree,
       introspect: flags.introspect,
       advisors: flags.advisors,
+      ignore: flags.ignore,
     });
   },
 });

@@ -126,5 +126,19 @@ describe("value checks", () => {
     expect(result.output).toMatch(
       /^doctor: --only pd00 names no check code or group\. Did you mean pd0\d\d\?$/u,
     );
+    const far = await runDoctor({
+      cwd: dir(),
+      config: {},
+      only: ["zzzzzzzzzzzz"],
+      json: false,
+      fix: false,
+      strict: false,
+      color: false,
+      now: new Date(0),
+      io: { stdout: () => undefined, stderr: () => undefined },
+    });
+    expect(far.output).toBe(
+      "doctor: --only zzzzzzzzzzzz names no check code or group",
+    );
   });
 });

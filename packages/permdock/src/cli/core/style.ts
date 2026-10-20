@@ -8,6 +8,7 @@ export type Style = {
   readonly paint: (format: Format, text: string) => string;
   readonly errorMark: string;
   readonly warnMark: string;
+  readonly infoMark: string;
   readonly okMark: string;
 };
 
@@ -19,6 +20,7 @@ export function createStyle(color: boolean): Style {
     paint,
     errorMark: color ? paint("red", "✖") : "error",
     warnMark: color ? paint("yellow", "⚠") : "warn",
+    infoMark: color ? paint("cyan", "ℹ") : "info",
     okMark: color ? paint("green", "✔") : "ok",
   };
 }

@@ -625,6 +625,32 @@ grant execute on function permdock.permdock_trusted_replace_custom_role_grants(u
 
 The argument types follow `rls.tenantType`. Grant only a role whose sessions the application controls: the trusted functions believe their caller.
 
+#### By role id
+
+An application whose role editor addresses a role by its row id sets `rls.customRoleWrites.roles.primaryKey`. `generate` then writes three functions keyed by that id; the row supplies the tenant, scope, instance and name, never the caller:
+
+| Function                                                                                               | Executable by                  | Does                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permdock_replace_custom_role_grants_by_id(p_role_id <table>.<primaryKey>%type, p_permissions text[])` | `authenticated`                | Replaces the role's allow entries through `permdock_replace_custom_role_grants`, so every caller and definition check applies; keeps the stored denies and includes; then calls `customRoleWrites.audit`                                                       |
+| `permdock_trusted_replace_custom_role_grants_by_id(p_role_id, p_permissions)`                          | no client role                 | The same through `permdock_trusted_replace_custom_role_grants`: definition checks, no caller checks                                                                                                                                                            |
+| `permdock_trusted_role_permissions_by_id(p_role_ids text[], p_tenant default null)`                    | the `rls.trustedReaders` roles | Returns `(role_id, permission)` for the declared allow keys of each role, under their current names (`key@level` with levels). An undeclared stored key is left out. With `p_tenant`, an id of another tenant raises `42501` `not-member`. Writes no audit row |
+
+A missing row raises `P0002` `unknown-role`; a row the `skip` column marks, or one named like a declared role, raises `22023` `declared-role`. A cross-tenant id fails the caller's membership check (`42501` `not-member`), and an undeclared key fails the entries check (`22023` `unknown-permission`). The reader takes ids as text, because Postgres before 17 has no array of a `%type`; pass `array[...]::text[]` from SQL, or a string array over the Data API.
+
+```ts title="permdock.config.ts"
+rls: {
+  authorize: "database",
+  customRoles: true,
+  trustedReaders: ["service_role"],
+  customRoleWrites: {
+    roles: { table: "roles", key: "key", tenant: "organization_id", skip: "is_system", primaryKey: "id" },
+    audit: { function: "better_supabase.audit_event_trusted", args: { source: "permdock" } },
+  },
+},
+```
+
+`customRoleWrites.audit` names the function the by-id writers call after a save, with `event_type => 'permdock.custom_role.replaced'`, `target_type => 'role'`, `record_id => p_role_id::text`, `tenant` (the row's tenant), `metadata => { operation: 'replace', role, permissions }` and each entry of `args` as a named text argument. `generate` exits `2` when `audit` is set without `roles.primaryKey`. `rls.trustedReaders` also gets `usage` on the helper schema, which an execute grant alone does not reach.
+
 #### Backfill from existing tables
 
 An application that already stores custom roles in its own tables names them in `rls.customRoles.from`, and `generate --backfill-out <file>|<dir>/|-` writes a data migration that copies them into `custom_role_permissions` and `custom_role_includes`. An object for `rls.customRoles` turns custom roles on like `true`. Each role row comes from `rls.customRoleWrites.roles`, which supplies the name, tenant, scope, instance and `skip` flag, so that key is required:
@@ -1005,7 +1031,7 @@ printf %s "$DATABASE_URL" | permdock rls verify --advisors --db-url-stdin --json
 
 `--introspect` (needs a database: `--db-url-stdin`, `DATABASE_URL` or `SUPABASE_DB_URL`) compares the live catalogs with what `rls generate` would write from the same config and generate flags, without running fixtures. It reads `pg_policies`, `pg_class.relrowsecurity`, the `anon` and `authenticated` table grants and `pg_proc`, with catalog queries modelled on postgres-meta's (not a dependency), and prints one line per difference: a generated policy that is missing, or whose command, `permissive` / `restrictive` mode or roles differ; a policy on a generated table that generate does not write (a hand-written permissive policy widens access); a table without row level security; a missing grant (which answers `42501` instead of filtering) or a grant no policy allows; a `security definer` helper that is missing, is no longer `security definer`, or no longer sets `search_path = ''`. Policy expressions are not compared, since Postgres rewrites their text; the fixtures and `--tree` check what they do. It also prints a `warning:` for each column the generated SQL filters on that no index starts with (the same columns as the `indexes` part; an expression or partial index does not count, and a column the table does not have is skipped). A missing index slows the policy down but grants nothing, so the warnings do not fail the command. It prints `introspected <n> policies on <t> table(s) and <h> helper(s): no drift`, or exits `1` with the list.
 
-With `--helpers-only` there are no generated policies to compare, so `--introspect` checks a mixed setup instead: the helpers as above, the `role_permissions` rows against the seeds exactly (`missing` and `unexpected` rows), and every policy outside the Supabase system schemas (plus `storage.objects` and `realtime.messages`) by the keys it passes to the helpers. A key the policy does not declare always denies, and a key whose grants carry row conditions grants more than the application does; both are drift. A table with row level security whose policies call no helper is printed as `info:` and does not fail the command. With `rls.readOnlyActors`, a write command that `authenticated` reaches without `permdock_actor_may_write()` is drift ([read-only actors](#read-only-actors)).
+With `--helpers-only` there are no generated policies to compare, so `--introspect` checks a mixed setup instead: the helpers as above, the `role_permissions` rows against the seeds exactly (`missing` and `unexpected` rows), and every policy outside the Supabase system schemas (plus `storage.objects` and `realtime.messages`) by the keys it passes to the helpers. A key the policy does not declare always denies, and a key whose grants carry row conditions grants more than the application does; both are drift. A `<permission>@<level>` key of a level the resource declares is accepted. When that level has a row condition (`own`, `team`), the call is printed as `info:` and names `permitted_<resource>_row(<table>, '<permission>')`, which applies the condition. A table with row level security whose policies call no helper is printed as `info:` and does not fail the command. With `rls.readOnlyActors`, a write command that `authenticated` reaches without `permdock_actor_may_write()` is drift ([read-only actors](#read-only-actors)).
 
 With `rls.fields: 'views'`, every instance read fixture also reads its row from `<table>_visible` (or the table itself when no view exists) and compares the columns that hold a value with those `pick` keeps, plus the key, which always passes through; a denied row must return nothing. Fixture rows are compared column by column, so give each read fixture the whole row as the database holds it. Statements read back only the key (`returning "id"`), so a table closed with `--revoke-columns` does not reject them.
 
@@ -1033,6 +1059,34 @@ supabase test db
 
 `permdock/testing` exposes the same runner for Vitest.
 
+### Accepted findings
+
+Every line `verify` prints for a difference ends with the finding's id, `<code>:<table>:<key>`. The key is the policy name, the column, the helper, `role.privilege` for a grant, `role/effect/permission/scope` for a seed row, or `subject/row` for a fixture:
+
+```text
+public.post: policy post_update is missing [policy-missing:public.post:post_update]
+public.post: no index starts with author_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes [index-missing:public.post:author_id]
+```
+
+The id stays the same between runs, so it can be accepted. `rls.verify.ignore` is the committed baseline, and each entry needs a `reason`. `--ignore <id>` (repeatable) accepts one for a single run:
+
+```ts title="permdock.config.ts"
+export default defineConfig({
+  rls: {
+    verify: {
+      ignore: [
+        {
+          id: "policy-extra:public.post:post_select_legacy",
+          reason: "read-only view for the legacy export, removed in PLAT-412",
+        },
+      ],
+    },
+  },
+});
+```
+
+An accepted finding never fails the run; `verify` prints `ignored <id>: <reason>` instead. An entry that matches no finding prints `warning: ignore entry <id> matches no finding; remove it from rls.verify.ignore`, and does not fail the run either, so a fixed finding shows up as a baseline to prune. An entry without an `id` or a non-empty `reason` exits `2`. With `--json`, `data` is `{ findings, ignored, stale }`: each finding is `{ id, code, table, key, message, severity }`, each ignored one is `{ id, reason, message }`, and `stale` lists the unmatched `{ id, reason }` entries. `--format github` appends the id to each annotation, and `--format sarif` writes it as the `permdockId/v1` partial fingerprint, so code scanning tracks a finding across commits. `--advisors` findings come from the Supabase CLI and take no ids.
+
 ## Database-first CI
 
 When SQL is the authority, skip `generate`. Pin the TypeScript policy (with `sqlFunction` twins) and fail the job on mismatch:
@@ -1049,7 +1103,10 @@ When SQL is the authority, skip `generate`. Pin the TypeScript policy (with `sql
 - run: pnpm exec supabase db schema declarative sync --no-apply -f drift_check --strict-coverage # expect "No schema changes found"
 # migra: supabase db diff instead, and --grants-out in the generate step
 - run: printf %s "$DATABASE_URL" | pnpm exec permdock rls verify --db-url-stdin # in the job with a Postgres service
+- run: printf %s "$DATABASE_URL" | pnpm exec permdock rls verify --introspect --db-url-stdin --format github # annotations carry the finding id
 ```
+
+A finding the team accepts goes into `rls.verify.ignore` with its reason ([accepted findings](#accepted-findings)), so the job stays required.
 
 `tests/integration` in this repository runs `verify` against Postgres in testcontainers.
 

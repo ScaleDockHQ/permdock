@@ -203,6 +203,19 @@ export function collectGrants(policy: Policy): readonly RlsGrant[] {
   });
 }
 
+/** The declared roles a custom role may draw grants from: the custom-role ceiling. */
+export function assignableRoles(policy: Policy): readonly string[] {
+  return [...roleNames(policy)]
+    .toSorted()
+    .filter(
+      (name) =>
+        policy.rolesByName.get(name)?.assignable ??
+        listRoles(policy.vocabulary.roles).some(
+          (leaf) => leaf.key === name && leaf.assignable,
+        ),
+    );
+}
+
 /** Declared role names (bindings and `defineRoles` leaves) plus any role a top-level grant names. */
 export function roleNames(policy: Policy): readonly string[] {
   const names = new Set(policy.roles.map((item) => item.name));

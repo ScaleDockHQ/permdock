@@ -151,6 +151,32 @@ export type MembershipSql = {
   readonly manifest: SupabaseManifestMembership;
   /** What the ownership triggers count; absent on a source that is not a table. */
   readonly holders?: MembershipHolders;
+  /** The rows as plain columns, for Sync Streams and `powerSyncSource`; a source without it does not sync. */
+  readonly stream?: MembershipStream;
+};
+
+/**
+ * One membership source as columns a Sync Streams query can filter on.
+ * Tables are `schema.table`; a `through` table is qualified in the source's
+ * schema when it names none.
+ */
+export type MembershipStream = {
+  readonly table: string;
+  /** The user id column, or the reference to the table that holds the user id. */
+  readonly user: string | RoleThrough;
+  /** The scope column, or the scope every row is a membership of. */
+  readonly scope: { readonly column: string } | { readonly value: string };
+  readonly id: string;
+  /** The role sources (the row holds every non-null key), or the fixed roles every row holds. */
+  readonly roles: RoleSpec | { readonly value: readonly string[] };
+  /** The membership kind column, or the kind every row has. */
+  readonly via?: { readonly column: string } | { readonly value: string };
+  readonly expiresAt?: string;
+  readonly disabledAt?: string;
+  /** A row may hold no role key: such a row is no membership, and a reader drops it. */
+  readonly nullableRoles: boolean;
+  /** The guard the source reads its roles table with: a tenant row named like a declared role is no role. */
+  readonly guard?: RoleGuard;
 };
 
 /**
@@ -222,6 +248,40 @@ function memberUser(
         ? col(column.column)
         : `mu.${ident(column.through.key)}`,
   };
+}
+
+/** `through` tables qualified in the schema of `table`. */
+function throughIn(through: RoleThrough, table: string): RoleThrough {
+  const schema = qualifySqlTable(table).split(".")[0] ?? "public";
+  return {
+    ...through,
+    through: through.through.includes(".")
+      ? through.through
+      : `${schema}.${through.through}`,
+  };
+}
+
+function qualifiedThrough(source: RoleSource, table: string): RoleSource {
+  return typeof source === "string" || "map" in source
+    ? source
+    : throughIn(source, table);
+}
+
+function streamUser(
+  user: string | RoleThrough,
+  table: string,
+): string | RoleThrough {
+  return typeof user === "string" ? user : throughIn(user, table);
+}
+
+function isSourceList(role: RoleSpec): role is readonly RoleSource[] {
+  return Array.isArray(role);
+}
+
+function streamRoles(role: RoleSpec, table: string): RoleSpec {
+  return isSourceList(role)
+    ? role.map((source) => qualifiedThrough(source, table))
+    : qualifiedThrough(role, table);
 }
 
 function roleAgg(role: RoleColumn): string {
@@ -465,8 +525,20 @@ function tableSource(
         c.disabledAt === undefined ? undefined : { column: c.disabledAt },
     }),
   };
+  const stream = compact<MembershipStream>({
+    table: qualifySqlTable(options.table),
+    user: streamUser(c.user ?? "user_id", options.table),
+    scope: { column: c.scope ?? "scope" },
+    id: c.id ?? "scope_id",
+    roles: streamRoles(c.role ?? "role", options.table),
+    via: c.via === undefined ? undefined : { column: c.via },
+    expiresAt: c.expiresAt,
+    disabledAt: c.disabledAt,
+    nullableRoles: true,
+    guard,
+  });
   return {
-    ...sourceOf(sqlOf(shape), options.query),
+    ...sourceOf({ ...sqlOf(shape), stream }, options.query),
     guarded: (next) => tableSource(options, next),
   };
 }
@@ -632,9 +704,30 @@ function junctionSource(
     }),
   };
   const sql = sqlOf(shape);
+  const stream = compact<MembershipStream>({
+    table: qualifySqlTable(options.table),
+    user: streamUser(options.user ?? "user_id", options.table),
+    scope: { value: options.scope },
+    id: idColumn,
+    roles:
+      fixed === undefined
+        ? streamRoles(
+            typeof roles === "object" && "sources" in roles
+              ? roles.sources
+              : roles,
+            options.table,
+          )
+        : { value: [...fixed] },
+    via: options.via === undefined ? undefined : { value: options.via },
+    expiresAt: options.expiresAt,
+    disabledAt: options.disabledAt,
+    nullableRoles: fixed === undefined,
+    guard,
+  });
   const source = sourceOf(
     {
       ...sql,
+      stream,
       scope: options.scope,
       holds: [options.scope, ...withinEntries.map(([name]) => name)],
       list: (keep = sql.keeps) =>

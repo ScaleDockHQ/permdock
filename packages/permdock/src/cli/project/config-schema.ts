@@ -42,6 +42,7 @@ const RLS = {
   inlineFunctions: true,
   force: true,
   fixtures: true,
+  verify: true,
   tenantClaim: true,
   tenantType: true,
   teamType: true,
@@ -106,6 +107,7 @@ const DOCTOR = {
   migrations: true,
   claims: true,
   srcPath: true,
+  sharedTables: true,
 } as const satisfies Record<keyof DoctorConfig, true>;
 
 const SECTIONS: Readonly<Record<Section, Readonly<Record<string, true>>>> = {

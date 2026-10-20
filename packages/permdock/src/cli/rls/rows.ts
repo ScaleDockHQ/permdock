@@ -2,6 +2,8 @@ import type { Policy, ResourceNode } from "../../index.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { flattenGrantee } from "../../core/grantee.ts";
+import { listPermissions } from "../../core/permission-registry.ts";
+import { policyLevels } from "../../core/policy.ts";
 import { configError } from "../core/errors.ts";
 import { branchClauses } from "../sql/clauses.ts";
 import { type CompiledBranch, tableFor } from "../sql/compile.ts";
@@ -27,6 +29,37 @@ export function rowsHelper(resource: string): string {
     );
   }
   return helper;
+}
+
+/** A `<permission>@<level>` key a custom role may hold, with the row helper that applies its condition. */
+export type LevelKey = {
+  readonly key: string;
+  readonly permission: string;
+  /** `false` for a level without a row condition, such as `all: {}`. */
+  readonly conditioned: boolean;
+  /** `permitted_<resource>_row`, unqualified. */
+  readonly rowHelper: string;
+};
+
+/** Every declared `<permission>@<level>` of an instance permission on a resource with levels. */
+export function levelKeys(policy: Policy): readonly LevelKey[] {
+  const out: LevelKey[] = [];
+  for (const leaf of listPermissions(policy.vocabulary.permissions)) {
+    if (leaf.kind !== "instance") {
+      continue;
+    }
+    for (const [level, condition] of policyLevels(policy, leaf.resource)) {
+      out.push({
+        key: `${leaf.key}@${level}`,
+        permission: leaf.key,
+        conditioned: !(
+          condition.op === "and" && condition.conditions.length === 0
+        ),
+        rowHelper: `permitted_${graphSqlName(leaf.resource) ?? leaf.resource}_row`,
+      });
+    }
+  }
+  return out;
 }
 
 /** The branches a row check of a permission reads: its allows and denies, inserts included, for signed-in callers. */

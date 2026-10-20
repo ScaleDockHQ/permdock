@@ -205,6 +205,39 @@ describe("rls generate options", () => {
     );
   });
 
+  it("writes the by-id custom-role functions for roles.primaryKey and refuses an audit without it", async () => {
+    const roles = { table: "app_roles", key: "name", tenant: "org_id" };
+    const outcome = await generate({
+      customRoleWrites: { roles: { ...roles, primaryKey: "id" } },
+    });
+    expect(outcome.text).toContain("permdock_replace_custom_role_grants_by_id");
+    const served = await generate({
+      trustedReaders: ["service_role"],
+      customRoleWrites: { roles: { ...roles, primaryKey: "id" } },
+    });
+    expect(served.code).toBe(0);
+    expect(
+      served.text
+        .split("\n")
+        .filter(
+          (line) =>
+            line.startsWith("grant execute") && line.includes("service_role"),
+        )
+        .map((line) => /permdock_trusted_\w+/u.exec(line)?.[0]),
+    ).toEqual([
+      "permdock_trusted_role_permissions_by_id",
+      "permdock_trusted_role_permissions",
+    ]);
+    expect(
+      (await generate({ customRoleWrites: { roles } })).text,
+    ).not.toContain("_by_id");
+    const refused = await generate({
+      customRoleWrites: { roles, audit: { function: "app.audit" } },
+    });
+    expect(refused.code).toBe(2);
+    expect(refused.output).toContain("rls.customRoleWrites.audit needs");
+  });
+
   it("leaves holder triggers out per scope and refuses an unknown scope", async () => {
     const off = await generate({ ownershipTriggers: { tenant: false } });
     expect(off.text).toContain(
@@ -213,6 +246,9 @@ describe("rls generate options", () => {
     await expect(
       generate({ ownershipTriggers: { region: false } }),
     ).rejects.toThrow("rls.ownershipTriggers.region names a scope");
+    expect((await generate({ ownershipTriggers: false })).text).toContain(
+      "-- tenant: rls.ownershipTriggers leaves out the triggers",
+    );
   });
 
   it("checks custom roles in the assignment triggers", async () => {

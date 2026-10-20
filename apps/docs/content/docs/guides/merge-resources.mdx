@@ -1,0 +1,94 @@
+---
+title: Merge resources
+description: Merge an org-level resource and a per-row resource over one table into one resource, with a renamed key per removed permission, one row helper and one catalog entry.
+---
+
+Two resources that `rls.tables` maps to one table, such as `file` for organisation-wide access and `fileNode` for shared rows, double every key, helper and catalog entry for the same rows. A single resource carries both kinds of grant: a role grant scoped through a `memberOf` relation reaches every row of the tenant, and relation grants on the same leaf reach single rows. `permdock doctor` reports each such pair as [PD075](/docs/cli/doctor#pd075-two-resources-on-one-table).
+
+## Before and after
+
+```ts title="src/permissions.ts (before)"
+export const permissions = definePermissions({
+  file: resource({
+    actions: ["read", "update", "delete"],
+    collection: ["create"],
+    relations: { org: { field: "organization_id", memberOf: "organization" } },
+  }),
+  fileNode: resource({
+    actions: ["read", "comment", "update"],
+    parent: { field: "parent_id", resource: "fileNode" },
+    relations: {
+      org: { field: "organization_id", memberOf: "organization" },
+      viewer: {
+        edge: "file_node_grants",
+        object: "node_id",
+        subject: "user_id",
+      },
+    },
+  }),
+});
+```
+
+```ts title="src/permissions.ts (after)"
+export const permissions = definePermissions(
+  {
+    file: resource({
+      actions: ["read", "comment", "update", "delete"],
+      collection: ["create"],
+      parent: { field: "parent_id", resource: "file" },
+      relations: {
+        org: { field: "organization_id", memberOf: "organization" },
+        viewer: {
+          edge: "file_node_grants",
+          object: "node_id",
+          subject: "user_id",
+        },
+      },
+    }),
+  },
+  {
+    renamed: {
+      "fileNode.read": "file.read",
+      "fileNode.comment": "file.comment",
+      "fileNode.update": "file.update",
+    },
+  },
+);
+```
+
+The role grant `allow(permissions.file.read)` on an organisation role still reaches every row of the organisation. The relation grant `allow(permissions.file.read, { to: relation(permissions.file, "viewer", { through: "parent" }) })`, formerly on `fileNode.read`, reaches the rows shared with the user. The RLS policy on `file_nodes` ORs both branches, so one key answers both questions.
+
+## Steps
+
+1. **Move the relations.** Copy the per-row resource's relations, `parent` and `restricted` onto the surviving resource, then delete the per-row resource. One resource has one table and one `id` column; a pair that needs two is two resources by definition, so list its table in `doctor.sharedTables` instead.
+2. **Decide each verb.** Use the table below. Every removed key gets a `renamed` entry that names its survivor.
+3. **Rename the keys.** `definePermissions(tree, { renamed })` keeps stored custom roles, OAuth scopes in their `:` form, AuthZEN actions and hosted grants resolving ([renamed keys](/docs/concepts/permissions#renamed-keys)). `rls generate` seeds `role_permissions` under the former keys too, and `permdock diff` reports each one as `renamed`, which is not breaking.
+4. **Rewrite references.** Change `permissions.fileNode.read` to `permissions.file.read`. The removed leaf no longer exists, so the type checker lists every site; `permdock codemod` covers only release renames.
+5. **Replace the helpers.** With `rls.rowHelpers`, replace the per-row resource in the list with the survivor: `rowHelpers: ["file"]`. `rls generate` then writes one `permitted_file_rows(p_permission)` with one `case` arm per permission, each arm ORing the role branch and the relation branches. Replace `permitted_file_node_rows` calls in hand-written SQL with `permitted_file_rows`, and drop the old function in a migration: `rls generate` stops writing it but does not remove it from the database.
+6. **Regenerate the catalog.** `permdock collect` writes one resource entry with every relation and one set of permissions. Each surviving permission lists the keys it replaced in `renamedFrom`; the catalog format is unchanged.
+7. **Drop the aliases.** One major later, remove the `renamed` entries. `permdock diff` reports each as `alias-removed`, a breaking change, so the release notes name it.
+
+## Decide each verb
+
+A verb either merges into a verb the survivor already has, joins the survivor as a new instance action, or moves to `collection` when it never touches a row. Merging two verbs means their grants now reach the same rows: a user who held only the per-row key keeps the rows shared with them, and an organisation member who held only the org-level key keeps every row of the organisation.
+
+| Pair                                | Verb               | Decision                                                                                                     |
+| ----------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `file` + `fileNode`                 | `read`, `update`   | Merge: `fileNode.read` to `file.read`, `fileNode.update` to `file.update`                                    |
+| `file` + `fileNode`                 | `comment`          | Join `file` as an instance action: `fileNode.comment` to `file.comment`                                      |
+| `file` + `fileNode`                 | `delete`, `create` | Keep on `file`; `create` stays in `collection`                                                               |
+| `knowledge` + `knowledgeCollection` | `read`             | Merge: `knowledgeCollection.read` to `knowledge.read`; move `creator` and `member` onto `knowledge`          |
+| `workflow` + `workflowDefinition`   | `read`             | Merge: `workflowDefinition.read` to `workflow.read`; `run`, `update` and `delete` stay org-level role grants |
+| `chat` + `thread`                   | `read`             | Merge: `thread.read` to `chat.read`; `owner` and `participant` join `org` on `chat`                          |
+
+An organisation member who should see only the rows shared with them can no longer get that by holding the per-row key alone. Leave the role grant out for that role, or add a `deny` with a row condition.
+
+## Prove the merge
+
+Generate both versions and compare who sees what: for every user and verb, the merged `file.<verb>` must reach the union of the split `file.<verb>` and `fileNode.<verb>` rows. `tests/integration/src/rls-merged-resource.test.ts` in the PermDock repository does this against Postgres, and `permdock rls verify` with fixtures for each kind of user does the same against your database.
+
+## Why
+
+- **The grantee already says the level.** A role grant through `memberOf` is organisation-wide and a relation grant is per row, so a `level: "org" | "row"` flag on each action would repeat what the grant says and add a concept the evaluator must interpret ([decision 0036](https://github.com/ScaleDockHQ/PermDock/blob/main/docs/decisions/0036-org-and-row-access-on-one-resource.md)).
+- **One helper per resource.** Generating both helpers from one resource would keep the doubled SQL surface the merge removes.
+- **The doctor reports, the adopter decides.** Two resources whose action sets differ on purpose need a decision per verb, which no check can make.

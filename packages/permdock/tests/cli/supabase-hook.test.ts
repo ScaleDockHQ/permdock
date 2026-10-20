@@ -1,3 +1,5 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
@@ -98,6 +100,31 @@ describe("permdock supabase hook generate", () => {
     expect(missing.output).toContain("supabase hook drift: missing");
   });
 
+  it("names what changed in the marker line under --check", async () => {
+    const { cwd, sql } = await generate(`{ memberships: [${SOURCES}] }`);
+    const file = join(cwd, "hook.sql");
+    const check = async (text: string): Promise<string> => {
+      writeFileSync(file, text);
+      return (
+        await run(
+          ["supabase", "hook", "generate", "--out", "hook.sql", "--check"],
+          {
+            cwd,
+          },
+        )
+      ).stdout;
+    };
+    expect(await check(`${sql}-- edited\n`)).toContain("supabase hook drift\n");
+    expect(await check(sql.replace(/budget=\d+/u, "budget=1"))).toMatch(
+      /supabase hook drift: budget 1 -> \d+/u,
+    );
+    expect(
+      await check(sql.replace(/^-- permdock:hook v1.*\n/mu, "")),
+    ).toContain(
+      "supabase hook drift: hook.sql has no -- permdock:hook v1 line",
+    );
+  });
+
   it("refuses configurations it cannot compile", async () => {
     expect((await generate("undefined")).code).toBe(2);
     expect((await generate("{ memberships: [] }")).output).toContain(
@@ -184,7 +211,7 @@ describe("permdock supabase hook generate", () => {
     );
     expect(sql).toContain(`claims := claims - 'attrs' - 'features';`);
     expect(sql).toContain(
-      'grant execute on function "billing"."feature_claims"(uuid) to supabase_auth_admin;',
+      'revoke all on function "billing"."feature_claims"(uuid) from public, anon, authenticated;\ngrant execute on function "billing"."feature_claims"(uuid) to supabase_auth_admin;',
     );
     expect(sql).toContain(
       'grant usage on schema "billing" to supabase_auth_admin;',
@@ -251,8 +278,13 @@ describe("permdock supabase hook generate", () => {
         /grant usage on schema "auth_checks" to supabase_auth_admin;/gu,
       ),
     ).toHaveLength(1);
+    for (const fn of ["require_sso", "require_mfa"]) {
+      expect(sql).toContain(
+        `revoke all on function "auth_checks"."${fn}"(jsonb) from public, anon, authenticated;\ngrant execute on function "auth_checks"."${fn}"(jsonb) to supabase_auth_admin;`,
+      );
+    }
     expect(sql).toContain(
-      'grant execute on function "auth_checks"."require_sso"(jsonb) to supabase_auth_admin;',
+      'revoke all on function "auth_checks"."feature_claims"(uuid) from public, anon, authenticated;',
     );
     const manifest: SupabaseHookManifest = jsonData(
       (await run(["supabase", "inspect", "--json"], { cwd })).stdout,

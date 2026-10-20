@@ -139,6 +139,8 @@ allow(permissions.doc.review, {
 
 `through` is `'parent'` or a list of link names followed in order, each on the resource the previous one reached. With a list, `depth` walks the last resource's parent chain from where the links end; without it the grant reads that one instance. Each link counts towards the 32-hop limit. A restricted row stops a link walk when its `restricted` closes that link, the default ([what a restricted row stops](#what-a-restricted-row-stops)).
 
+One resource carries both levels of access: a role grant scoped through a `memberOf` relation reaches every row of the tenant, and relation grants reach single rows. Declare one resource per table rather than an org-level and a per-row resource over the same rows; [merge resources](/docs/guides/merge-resources) moves an existing pair onto one, and `permdock doctor` PD075 reports a pair.
+
 ## Granting through the graph
 
 `relation(resource, name, options?)` keeps its signature. Without options the relation must be declared on the row's own resource and reads only the row. With `through: 'parent'` the grant follows the row's parent chain upward: to the parent resource when the relation is declared there, then along that resource's self-parent for up to `depth` hops.

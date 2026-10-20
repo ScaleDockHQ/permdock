@@ -2,6 +2,7 @@
   "title": "Guides",
   "pages": [
     "extending",
+    "merge-resources",
     "next-cache-components",
     "scenario-testing",
     "support-access"

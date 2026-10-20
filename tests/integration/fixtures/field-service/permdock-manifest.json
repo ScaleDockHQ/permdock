@@ -615,5 +615,50 @@
         ]
       }
     }
+  },
+  "rows": {
+    "memberships": [
+      {
+        "table": "organization_users",
+        "user": {
+          "column": "user_id"
+        },
+        "scope": {
+          "value": "organization"
+        },
+        "id": "organization_id",
+        "roles": [
+          {
+            "column": "tier"
+          },
+          {
+            "column": "role_id",
+            "through": {
+              "table": "roles",
+              "id": "id",
+              "column": "key"
+            }
+          }
+        ]
+      }
+    ],
+    "roles": {
+      "table": "user_roles",
+      "user": "user_id",
+      "roles": [
+        {
+          "column": "role_id",
+          "through": {
+            "table": "roles",
+            "id": "id",
+            "column": "key"
+          }
+        }
+      ]
+    },
+    "customRoles": {
+      "permissions": "custom_role_permissions",
+      "includes": "custom_role_includes"
+    }
   }
 }

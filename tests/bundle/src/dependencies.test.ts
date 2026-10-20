@@ -29,6 +29,10 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
     expect(packageImports(walk(ENTRIES["."]))).toEqual([]);
   });
 
+  it("keeps permdock/testing/core free of vitest and every other package", () => {
+    expect(packageImports(walk(ENTRIES["./testing/core"]))).toEqual([]);
+  });
+
   it("keeps the feature entries free of every vendor package", () => {
     for (const entry of [
       "./agent",

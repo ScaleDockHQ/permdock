@@ -5,6 +5,7 @@ import type {
   GlobalRoles,
   RlsActions,
   RlsAssignmentTable,
+  RlsCustomRoleAudit,
   RlsCustomRoleTable,
   RlsDialect,
   RlsMemberships,
@@ -86,6 +87,8 @@ export type RlsSqlContext = {
     readonly requires?: readonly string[];
     /** The application's roles table whose renames, moves and deletes cascade to the custom-role tables (`rls.customRoleWrites.roles`). */
     readonly table?: RlsCustomRoleTable;
+    /** The function the by-id writers call after a save (`rls.customRoleWrites.audit`). */
+    readonly audit?: RlsCustomRoleAudit;
     /**
      * Set when a resource declares levels: stored allows may carry a level
      * (`custom_role_permissions.level`, `key@level` in claims), and the

@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { rowHelpersSql, rowsHelper } from "../../src/cli/rls/rows.ts";
+import {
+  levelKeys,
+  rowHelpersSql,
+  rowsHelper,
+} from "../../src/cli/rls/rows.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
@@ -10,6 +14,7 @@ import {
   definePermissions,
   definePolicy,
   deny,
+  principal,
   relation,
   resource,
   role,
@@ -135,5 +140,35 @@ describe("permitted_<resource>_rows", () => {
     expect(() => rowsHelper("odd-name")).toThrow(/cannot name a helper/u);
     expect(() => rowsHelper(`r${"x".repeat(50)}`)).toThrow(/at most 45 bytes/u);
     expect(rowsHelper("chatThread")).toBe("permitted_chat_thread_rows");
+  });
+});
+
+describe("levelKeys", () => {
+  it("lists each level of an instance permission and whether it has a condition", () => {
+    const levelled = definePermissions({
+      job: resource({
+        actions: ["read"],
+        collection: ["create"],
+        levels: { own: { ownerId: principal.id }, all: {} },
+      }),
+    });
+    const jobs = definePolicy(levelled, {
+      subject: () => null,
+      roles: [role("owner", [allow(levelled.job.read)])],
+    });
+    expect(levelKeys(jobs)).toEqual([
+      {
+        key: "job.read@own",
+        permission: "job.read",
+        conditioned: true,
+        rowHelper: "permitted_job_row",
+      },
+      {
+        key: "job.read@all",
+        permission: "job.read",
+        conditioned: false,
+        rowHelper: "permitted_job_row",
+      },
+    ]);
   });
 });

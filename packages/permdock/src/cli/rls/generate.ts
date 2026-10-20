@@ -5,6 +5,7 @@ import type { PermDockConfig } from "../types.ts";
 import type { RlsExplain } from "./explain.ts";
 import type { RolePermission } from "./helpers.ts";
 import type { IndexTarget } from "./indexes.ts";
+import type { LevelKey } from "./rows.ts";
 
 import { policyFromCatalog } from "../../catalog/policy-from-catalog.ts";
 import { renamedKeys } from "../../core/permission-registry.ts";
@@ -35,6 +36,7 @@ import { outputFiles } from "./generate-output.ts";
 import { generateSql } from "./generate-sql.ts";
 import { indexKeysFromProject, withoutServedTargets } from "./index-scan.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
+import { levelKeys } from "./rows.ts";
 import { triggerNotes } from "./trigger-notes.ts";
 
 export type GenerateOutcome = {
@@ -52,6 +54,8 @@ export type GenerateOutcome = {
   readonly keys?: {
     readonly permissions: readonly string[];
     readonly rowConditions: readonly string[];
+    /** Declared `<permission>@<level>` keys of levelled resources. */
+    readonly levels: readonly LevelKey[];
     /** Former key to current key (`definePermissions` `renamed`). */
     readonly renamed?: Readonly<Record<string, string>>;
   };
@@ -240,6 +244,7 @@ export async function runRlsGenerate(
           (leaf) => leaf.key,
         ),
         rowConditions: [...policyRowConditionKeys(policy)],
+        levels: levelKeys(policy),
         renamed: Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
       },
       schema: built.schema,

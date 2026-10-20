@@ -163,6 +163,56 @@ Three optional grant fields were added within `v: 1`. They carry app data and ch
 }
 ```
 
+## Local snapshot manifest
+
+`localSnapshotManifest(policy)` writes what a device needs to build a snapshot without the policy: `v`, the `scopes`, the declared `roles` and `grants`, and per custom-role scope the grants each permission, level and include resolves to (`custom`). `localSnapshot` in `permdock/react-native` reads it ([local snapshot](/docs/adapters/react-native#local-snapshot)); the `LocalSnapshotManifest` type in `permdock` describes it.
+
+`permdock powersync generate` adds `rows`: the synced tables a device reads the user's memberships, global roles and custom roles from, under the device's table names ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powerSyncSource` reads them when the app passes no queries.
+
+```json
+{
+  "rows": {
+    "memberships": [
+      {
+        "table": "tenant_users",
+        "user": { "column": "user_id" },
+        "scope": { "value": "tenant" },
+        "id": "tenant_id",
+        "roles": [{ "column": "tier_role" }]
+      },
+      {
+        "table": "user_roles",
+        "user": { "column": "user_id" },
+        "scope": { "value": "tenant" },
+        "id": "tenant_id",
+        "roles": [
+          {
+            "column": "role_id",
+            "through": { "table": "roles", "id": "id", "column": "key" }
+          }
+        ]
+      }
+    ],
+    "roles": {
+      "table": "permdock_user_roles",
+      "user": "user_id",
+      "roles": [{ "column": "role" }]
+    },
+    "customRoles": {
+      "permissions": "custom_role_permissions",
+      "includes": "custom_role_includes"
+    }
+  }
+}
+```
+
+- `memberships` holds one entry per membership table or membership source. `user`, `scope` and `via` are a column or a fixed `value`; `roles` lists role columns, or a fixed `value` of roles every row holds.
+- A role column is the key itself, a `through` table whose `column` holds the key, or a `map` from the stored value to a role key (`null` for no role).
+- A row with a value in `expiresAt` or `disabledAt` is no membership on the device.
+- `customRoles` names the device's `custom_role_permissions` and `custom_role_includes` tables.
+
+Fields are only added within `v: 1`.
+
 ## Membership and custom role
 
 Carried inside the principal and exchanged with `MembershipSource` and `CustomRoleSource` implementations ([tenancy](/docs/concepts/tenancy)). PermDock publishes both as Standard JSON Schema for validating edits at a boundary.

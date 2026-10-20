@@ -108,6 +108,33 @@ create function public.audit() returns trigger language plpgsql security definer
     );
     expect(pd049(schemaWide, config)).toEqual([]);
   });
+
+  it("PD049 reports a hook claim function any client role may execute", () => {
+    const hook: PermDockConfig = {
+      supabase: {
+        hook: {
+          memberships: [],
+          claims: { features: "billing.feature_claims" },
+          before: "auth_checks.require_sso",
+        },
+      },
+    };
+    const create = `create function billing.feature_claims(uid uuid) returns jsonb language sql stable set search_path = '' as $$ select '{}'::jsonb $$;
+create function auth_checks.require_sso(event jsonb) returns jsonb language sql security definer set search_path = '' as $$ select event $$;
+revoke execute on function auth_checks.require_sso(jsonb) from public, anon;`;
+    const findings = pd049(migration(create), hook);
+    expect(messages(findings)).toEqual([
+      `${MIGRATION}:1 hook claim function billing.feature_claims returns any user's claims and can be executed by public and anon and authenticated`,
+      `${MIGRATION}:2 hook claim function auth_checks.require_sso returns any user's claims and can be executed by authenticated`,
+    ]);
+    expect(findings[0]?.fix).toBe(
+      "regenerate the hook (permdock rls generate), which revokes it, or add revoke all on function billing.feature_claims(uuid) from public, anon, authenticated;",
+    );
+    const revoked = migration(
+      `${create}\nrevoke all on function billing.feature_claims(uuid) from public, anon, authenticated;\nrevoke all on function auth_checks.require_sso(jsonb) from public, anon, authenticated;`,
+    );
+    expect(pd049(revoked, hook)).toEqual([]);
+  });
 });
 
 describe("PD050 tables without row level security", () => {

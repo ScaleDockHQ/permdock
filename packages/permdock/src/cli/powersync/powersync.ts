@@ -23,13 +23,16 @@ import { type SqlConnect, pgConnector } from "../pg.ts";
 import { requirePolicy } from "../project/load.ts";
 import { canFixture } from "../rls/verify.ts";
 import { quoteIdent } from "../sql/quote.ts";
+import { localRows } from "./rows.ts";
 import {
   POSTGRES,
+  type PowerSyncPlan,
   type PowerSyncStream,
   type SubjectStream,
   powersyncPlan,
   powersyncYaml,
 } from "./streams.ts";
+import { warnedFor } from "./verify-gaps.ts";
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
 permdock powersync verify [--db-url-stdin] [--fixtures rls.fixtures.json]`;
@@ -82,6 +85,7 @@ export function powersyncFiles(
 ): {
   readonly files: readonly PowerSyncFile[];
   readonly warnings: readonly string[];
+  readonly publication?: string;
 } {
   const plan = powersyncPlan(policy, config);
   const files: PowerSyncFile[] = [
@@ -92,10 +96,23 @@ export function powersyncFiles(
     files.push({
       path: manifest,
       json: true,
-      text: `${JSON.stringify(localSnapshotManifest(policy), null, 2)}\n`,
+      text: `${JSON.stringify(
+        {
+          ...localSnapshotManifest(policy),
+          rows: localRows(policy, config, plan.devices),
+        },
+        null,
+        2,
+      )}\n`,
     });
   }
-  return { files, warnings: plan.warnings };
+  return {
+    files,
+    warnings: plan.warnings,
+    ...(plan.publication === undefined
+      ? {}
+      : { publication: plan.publication }),
+  };
 }
 
 /** The files whose content on disk is not what the policy compiles to, with `missing` for an absent one. */
@@ -151,15 +168,15 @@ async function leaks(
   return false;
 }
 
-/** Whether the stream holds the fixture's row for its subject. */
+/** Whether the stream holds the fixture's row for its subject; `undefined` for a row with no id. */
 async function synced(
   query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
   stream: PowerSyncStream,
   fixture: RlsFixture,
-): Promise<boolean> {
+): Promise<boolean | undefined> {
   const value = rowValue(fixture.row, stream.id);
   if (value === undefined) {
-    return false;
+    return undefined;
   }
   for (const text of stream.queries) {
     // Every parameter is typed in the outer query, so a stream query that uses none still prepares.
@@ -240,20 +257,78 @@ async function verifyStreams(input: {
         fixtureRow(fixture, permission.kind),
       );
       const holds = await synced(query, stream, fixture);
-      if (holds && !granted) {
+      if (holds === undefined) {
+        notes.push(
+          `${fixture.action} for ${fixture.subject.id}: not checked against stream ${stream.name}: the fixture row has no ${stream.id}`,
+        );
+      } else if (holds && !granted) {
         mismatches.push(
           `${fixture.action} for ${fixture.subject.id}: stream ${stream.name} syncs a row the policy denies`,
         );
-      } else if (granted && !holds) {
+      } else if (
+        granted &&
+        !holds &&
+        warnedFor(
+          plan.unsynced,
+          permission.key,
+          fixture.subject,
+          input.customRoles,
+        )
+      ) {
         notes.push(
           `${fixture.action} for ${fixture.subject.id}: granted, not synced (the app reads it from the server)`,
         );
+      } else if (granted && !holds) {
+        mismatches.push(
+          `${fixture.action} for ${fixture.subject.id}: granted, but stream ${stream.name} does not sync the row and generate gave no warning for it`,
+        );
       }
     }
+    await checkPublication(query, plan, mismatches, notes);
   } finally {
     await client.end();
   }
   return { mismatches, notes };
+}
+
+/** PD058 when the `powersync` publication leaves out a synced table outside `public`; a note when the database has no such publication. */
+async function checkPublication(
+  query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
+  plan: PowerSyncPlan,
+  mismatches: string[],
+  notes: string[],
+): Promise<void> {
+  if (plan.outside.length === 0) {
+    return;
+  }
+  const publication = await query(
+    "select 1 from pg_catalog.pg_publication where pubname = 'powersync'",
+    [],
+  );
+  if (publication.length === 0) {
+    notes.push(
+      `this database has no powersync publication; PowerSync needs the synced tables in it: ${plan.publication ?? ""}`,
+    );
+    return;
+  }
+  const published = new Set(
+    (
+      await query(
+        "select schemaname || '.' || tablename as name from pg_catalog.pg_publication_tables where pubname = 'powersync'",
+        [],
+      )
+    ).flatMap((row) => {
+      const name = rowValue(row, "name");
+      return name === undefined ? [] : [name];
+    }),
+  );
+  for (const table of plan.outside) {
+    if (!published.has(table)) {
+      mismatches.push(
+        `PD058: ${table} is not in the powersync publication, so PowerSync syncs none of its rows: ${plan.publication ?? ""}`,
+      );
+    }
+  }
 }
 
 export async function runPowerSync(input: {
@@ -303,9 +378,15 @@ export async function runPowerSync(input: {
     applyFiles(input.cwd, files);
     return {
       code: 0,
-      output: [...files.map((file) => `wrote ${file.path}`), ...warnings].join(
-        "\n",
-      ),
+      output: [
+        ...files.map((file) => `wrote ${file.path}`),
+        ...(compiled.publication === undefined
+          ? []
+          : [
+              `add the tables outside public to the powersync publication: ${compiled.publication}`,
+            ]),
+        ...warnings,
+      ].join("\n"),
     };
   }
   const mismatches: string[] = stale.map(

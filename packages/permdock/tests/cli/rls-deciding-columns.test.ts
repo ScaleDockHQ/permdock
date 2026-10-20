@@ -15,7 +15,7 @@ describe("tableKey", () => {
 });
 
 describe("membershipColumns", () => {
-  it("prefers the hook sources over rls.membershipSources", () => {
+  it("reads rls.membershipSources and the hook sources the claims come from", () => {
     const hook = tableMembershipSource({ table: "memberships" });
     const rls = tableMembershipSource({ table: "other_members" });
     const config = {
@@ -24,8 +24,21 @@ describe("membershipColumns", () => {
       rls: { membershipSources: [rls] },
     };
     expect([...membershipColumns(config).keys()]).toEqual([
+      "public.other_members",
       "public.memberships",
     ]);
+  });
+
+  it("counts a source both lists share once", () => {
+    const shared = tableMembershipSource({ table: "memberships" });
+    const config = {
+      policy: "p.ts",
+      supabase: { hook: { memberships: [shared] } },
+      rls: { membershipSources: [shared] },
+    };
+    expect([
+      ...(membershipColumns(config).get("public.memberships") ?? []),
+    ]).toEqual(shared.sql.columns);
   });
 
   it("falls back to rls.membershipSources, then to nothing", () => {

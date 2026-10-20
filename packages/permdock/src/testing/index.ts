@@ -1,14 +1,27 @@
 export { expectTypeOf } from "vitest";
 export { describePolicy } from "./describe-policy.ts";
-export { testRlsParity } from "./rls-parity.ts";
-export { testOrmParity } from "./orm-parity.ts";
+export { policyMatrix, testOrmParity, testRlsParity } from "./core.ts";
 export type {
+  DescribePolicyConfig,
+  MatrixCell,
+  MatrixOutcome,
   OrmParityCase,
   OrmParityOptions,
   OrmParityReport,
   OrmParityRunInput,
   OrmParityScenario,
-} from "./orm-parity.ts";
+  PolicyMatrixCell,
+  PolicyMatrixReport,
+  RlsDbOutcome,
+  RlsFieldsOutcome,
+  RlsParityCase,
+  RlsParityFixture,
+  RlsParityOptions,
+  RlsParityReport,
+  RlsParitySubject,
+  RlsQueryFn,
+  RlsQueryResult,
+} from "./core.ts";
 export { testClientParity } from "./client-parity.ts";
 export { testLegacyParity } from "./legacy-parity.ts";
 export type { LegacyParityCase } from "./legacy-parity.ts";
@@ -21,22 +34,6 @@ export type {
   ClientStoreHandle,
   ClientStoreStatus,
 } from "./client-store.ts";
-export type {
-  RlsDbOutcome,
-  RlsFieldsOutcome,
-  RlsParityCase,
-  RlsParityFixture,
-  RlsParityOptions,
-  RlsParityReport,
-  RlsParitySubject,
-  RlsQueryFn,
-  RlsQueryResult,
-} from "./rls-parity.ts";
-export type {
-  DescribePolicyConfig,
-  MatrixCell,
-  MatrixOutcome,
-} from "./describe-policy.ts";
 export { snapshotFixture } from "./snapshot-fixture.ts";
 export { testHttpAdapter } from "./http-adapter/scenarios.ts";
 export type {
