@@ -218,7 +218,26 @@ With `snapshotUrl` set as well, the latest answer wins: the server snapshot afte
 
 ### PowerSync source
 
-With PowerSync, `permdock powersync generate` writes the manifest to `powersync.manifest` and adds `permdock_*` streams for the rows `read` needs ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powerSyncSource(db, { manifest, queries, read })` replaces the hand-written `read` and `subscribe`: `get` runs every query with `db.getAll`, and one `db.watch` per query reports changes. `permdock/react-native` never imports `@powersync/*`; the app passes its `PowerSyncDatabase`.
+With PowerSync, `permdock powersync generate` writes the manifest to `powersync.manifest` and adds `permdock_*` streams for the rows `read` needs ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powerSyncSource` replaces the hand-written `read` and `subscribe`: `get` runs every query with `db.getAll`, and one `db.watch` per query reports changes. `permdock/react-native` never imports `@powersync/*`; the app passes its `PowerSyncDatabase`.
+
+`powerSyncSource(db, { manifest, user, tenant?, attributes? })` reads the tables the manifest's `rows` section names ([wire formats](/docs/concepts/wire-formats#local-snapshot-manifest)): the user's memberships from every membership table and source, the global roles, and the tenant's custom roles with their levels. A row with a null role, or a value in `expiresAt` or `disabledAt`, holds no role. `tenant` is the active tenant and `attributes` the principal values conditions read, such as `{ claims: { team_ids } }`. A manifest without `rows` throws a `TypeError`; run `generate` with `powersync.manifest` set.
+
+```tsx
+import {
+  powerSyncSource,
+  type LocalSnapshotManifest,
+} from "permdock/react-native";
+import manifest from "./permdock-manifest.json";
+
+const source = powerSyncSource(db, {
+  manifest: manifest as LocalSnapshotManifest, // a JSON import widens `v: 1` to number
+  user: userId,
+  tenant: tenantId,
+  attributes: { claims: { team_ids: teamIds } },
+});
+```
+
+For tables the manifest does not describe, pass `queries` and `read` instead:
 
 ```tsx
 import {

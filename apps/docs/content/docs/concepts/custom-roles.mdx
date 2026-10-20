@@ -197,6 +197,8 @@ For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide
 
 The parity suite runs `permdock rls verify --db-url-stdin` over every custom role, table and command in both modes, including a custom role that adds one permission and denies one.
 
+**Offline.** In `database` mode with membership sources, `permdock powersync generate` syncs a tenant custom role's rows per level, and the custom-role tables, to the device; `powerSyncSource` resolves them there ([PowerSync](/docs/cli/powersync#what-compiles)). A deny row does not remove synced rows; `can()` on the device applies it.
+
 ## Recipe: a permission matrix editor
 
 A matrix editor shows permissions as rows and custom roles as columns, and saves each column as a `CustomRole`.
