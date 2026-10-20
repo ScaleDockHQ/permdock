@@ -28,7 +28,7 @@ permdock rls generate --target sql --rbac supabase --out supabase/schemas/permdo
   --backfill-out supabase/migrations/   # copy rls.customRoles.from into the custom-role tables
 ```
 
-Inputs: the policy module from `permdock.config.ts` (roles as data) and a mapping from resources to tables. The mapping is declared in the config as `rls.tables`. Without `rls.tables`, every resource is a table of the same name in `public`. With it, a resource it does not name is not assumed to be a table: with `--helpers-only` it gets no index and `generate` prints `no index is suggested for resources without an rls.tables entry: <resources>`; otherwise its policies still target `public.<resource>` and `generate` prints that it does. Map every resource that is a table; a resource that only names permissions (an analytics area, a settings page) needs no entry. A table name without a schema is in `public`; `schema.table` names a table in another schema, such as one a package installs in its own schema (`{ webhook: 'integrations.webhook_endpoints' }`). `generate`, `verify` (with `--db-url-stdin` and in the pgTAP output) and `verify --tree` use the qualified name as written, and the default Drizzle export and Prisma model name is the table name without its schema. The same holds for the tables in `rls.memberships` and `rls.assignments`.
+Inputs: the policy module from `permdock.config.ts` (roles as data) and a mapping from resources to tables. The mapping is declared in the config as `rls.tables`. Without `rls.tables`, every resource is a table of the same name in `public`. `generate` prints one `table bindings` note listing each resource bound that way. With `--db-url-stdin` it reads the database and exits `2` when an inferred table is missing, naming the resource and the table (name it in `rls.tables`); without a database the note points to `permdock rls explain`. With it, a resource it does not name is not assumed to be a table: with `--helpers-only` it gets no index and `generate` prints `no index is suggested for resources without an rls.tables entry: <resources>`; otherwise its policies still target `public.<resource>` and `generate` prints that it does. Map every resource that is a table; a resource that only names permissions (an analytics area, a settings page) needs no entry. A table name without a schema is in `public`; `schema.table` names a table in another schema, such as one a package installs in its own schema (`{ webhook: 'integrations.webhook_endpoints' }`). `generate`, `verify` (with `--db-url-stdin` and in the pgTAP output) and `verify --tree` use the qualified name as written, and the default Drizzle export and Prisma model name is the table name without its schema. The same holds for the tables in `rls.memberships` and `rls.assignments`.
 
 Targets:
 
@@ -162,6 +162,8 @@ rls: {
 Every object that reads the membership role joins the roles table and compares its key: `permitted_<scope>_ids`, `member_<scope>_ids` and `member_<scope>_ids_for`, the custom-role match, the ownership triggers, `permdock_can_assign`, `authorize()` and the `exists` of a role-bound `memberOf` (a scalar subquery there, so the roles table cannot capture a column the policy names unqualified). A membership whose reference matches no roles row holds no role. In `jwt` mode the helpers read keys from the `memberships` claim, which the token hook mints through the same join. A tenant's custom role is a roles row whose key is unique within its tenant; the membership holds that key and resolves as a [custom role](/docs/concepts/custom-roles) of the tenant. Keep tenant keys apart from the declared role names (a check constraint on the roles table): a tenant row keyed `owner` would hold the declared `owner` role.
 
 An `rls.memberships` table whose rows hold roles in several columns lists them: `role: ['tier', { through: 'roles', on: { role_id: 'id' }, column: 'key' }]`. A row holds every non-null key. The helpers, the `memberOf` `exists`, `permdock_can_assign` and the ownership triggers expand each row into one row per key, so `min`, `max` and `transferOnly` count a user who holds `approver` in both columns once, and setting either column moves the holder count. The token hook maps the table with the same sources.
+
+A role column whose values are not role keys maps them with `{ column: 'kind', map: { admin: 'owner', user: null } }`: each value becomes the role key it stands for, `null` is no role, and an unlisted value is no role. The helpers write the mapping as `case "kind"::text when 'admin' then 'owner' ... else null end` and filter the null out, the hook and `supabase inspect` read the same `map` under `role`, and the PowerSync streams mirror it. A mapped column also sits in a list with plain and `through` sources.
 
 A membership source may also read its user through another table (`tableMembershipSource` `columns.user`, `junctionMembershipSource` `user`), for portal contacts whose login lives on a profile: `user: { through: 'contact_profiles', on: { contact_profile_id: 'id' }, column: 'user_id' }`. In `database` mode, `permitted_<scope>_ids`, `member_<scope>_ids`, `member_<scope>_ids_for` and `permdock_can_assign` join the profile table and compare its user column with the caller, and `rls.suspension` applies to that user and to the source's instances as for any other source: a suspended organization voids its customers' contact memberships. A row whose profile is missing or has no user holds no membership. `--indexes` adds the profile's user column and the reference. In `jwt` mode the helpers read the `memberships` claim, which the hook mints through the same join ([token hook](/docs/adapters/supabase-hook#sources)).
 
@@ -471,6 +473,8 @@ When a role declares [`min`, `max`, `transferOnly`, `assigns` or `for`](/docs/co
 | `permdock_can_assign_any(p_role text, p_tenant, p_scope text, p_scope_id text) returns boolean`             | One check for any role: `permdock_can_assign(p_role, p_scope_id)` for a declared role and, with `rls.customRoles` in `database` mode, `permdock_can_assign_custom_role(p_tenant, p_scope, p_scope_id, p_role)` for a custom one. `p_scope` `'global'` (null tenant and instance) assigns a platform role. `p_tenant` has the tenant type. `execute` for `authenticated` only                                                     |
 | `permdock_can_assign_any_for(p_user, p_role text, p_tenant, p_scope text, p_scope_id text) returns boolean` | `database` mode: the same over the `_for` forms, for trusted SQL acting for a stored user. Written when every function it calls has a `_for` form. No client role may execute it                                                                                                                                                                                                                                                 |
 
+`generate` prints one `triggers` note listing each trigger it writes on a table of the application (the holder, transfer-only, assignment, name guard, cascade and sync triggers) with the option that asks for it, so a migration review sees which tables gain a trigger and how to leave it out. `permdock rls explain` lists the same triggers.
+
 The triggers sit on the scope's table in `rls.memberships`. A scope with no mapped table gets them from its membership sources (`rls.membershipSources`, default `supabase.hook.memberships`, in either mode): one function per scope counts holders over every `tableMembershipSource` and `junctionMembershipSource` source that can hold the scope, and the same trigger names go on each source table. A `tableMembershipSource` row counts for the scope its `scope` column names, a `junctionMembershipSource` row for its own scope with its fixed or column roles, expired rows count for no one, and suspension does not change the count. The source tables must be base tables, because Postgres puts no constraint or transition-table triggers on a view. A source whose `sql` carries no `holders` (a `SqlMembershipSource` you build yourself rather than with `tableMembershipSource` or `junctionMembershipSource`) has no table PermDock knows how to read row by row, so its scope gets no triggers. Without a table or a source, the output says so and only `decideRoleChange` checks the counts. `rls.ownershipTriggers: false` leaves the holder-count and transfer-only triggers out everywhere, and `rls.ownershipTriggers: { organization: false }` for the scopes it names, for an application that enforces the counts its own way; `decideRoleChange` still checks them and `permdock_can_assign` is still written. PermDock generates no policies on your membership tables. Use the helper in your own (for a role column `through` a roles table, pass the key: `(select key from public.roles where id = role_id)`):
 
 ```sql
@@ -588,12 +592,12 @@ customRoleWrites: {
     shared: "shared", // optional boolean column: a row with no tenant is a shared role at `scope`
     scope: "scope", // optional text column naming the scope; default the first scope
     id: "scope_id", // optional: the instance the role is pinned to
-    skip: "builtin", // optional boolean column: rows that are declared or system roles
+    skip: "builtin", // optional boolean column: tenant rows that are declared or system roles
   },
 },
 ```
 
-A rename, or a move to another tenant, scope or instance, carries the role's grants and includes along, refusing a target that already has rows (`role-exists`); a delete removes them; rows the `skip` column marks are ignored. A signed-in caller at trigger depth 1 passes the write functions' checks: membership and authority over the stored definition where the role was, and after a move, membership and authority where it lands and entries inside that scope's ceiling. A migration, a job or a nested trigger moves the rows as the function owner. The roles table's own RLS still decides who may update or delete its rows.
+A rename, or a move to another tenant, scope or instance, carries the role's grants and includes along, refusing a target that already has rows (`role-exists`); a delete removes them; tenant rows the `skip` column marks are ignored. A row with no tenant (a global or a shared role) is never skipped and stores no instance, so a staff-created role with `is_system` set is copied and cascaded like any other; only a declared role name excludes it. A signed-in caller at trigger depth 1 passes the write functions' checks: membership and authority over the stored definition where the role was, and after a move, membership and authority where it lands and entries inside that scope's ceiling. A migration, a job or a nested trigger moves the rows as the function owner. The roles table's own RLS still decides who may update or delete its rows.
 
 ```sql
 select permdock.permdock_replace_custom_role_grants(
@@ -601,6 +605,12 @@ select permdock.permdock_replace_custom_role_grants(
   array['job.read', 'job.update@own'], array['job.delete'], array['viewer']
 );
 ```
+
+With `rls.customRoleWrites.roles.tenant`, `generate` also writes `permdock_custom_role_name_guard`, a `before insert or update` trigger on the roles table. It refuses a tenant row whose key is a declared role (`declared-role`) or the key of a shared role (`name-taken`). A row with no tenant is not checked, and the `skip` column excludes a tenant row from the guard only when its key is not a declared name. The membership source helpers read a tenant row named like a declared role as no role as well, so a row that predates the trigger cannot grant `owner` ([PD072](/docs/cli/doctor#pd072-tenant-written-role-rows-read-through-a-source)).
+
+`permdock_custom_role_entry_problem(p_scope text, p_entry text)` returns the reason one stored allow entry, `<permission>[@<level>]`, cannot be held (`unknown-permission`, `outside-ceiling`, `unknown-level`) or null. The save functions call it for each entry. `parseCustomRoleEntry(policy, entry, { scope })` from `permdock` answers the same in process, with `{ ok: true, permission, level? }` or `{ ok: false, cause }`, so an editor can validate before it writes. The entry grammar is in the [SQL helper contract](/docs/adapters/rls#sql-helper-contract).
+
+The ceiling is the allows of the `assignable` declared roles in the role's scope, plus `global`. A key no assignable role allows in that scope is outside it: the save functions refuse it and the backfill and the sync triggers drop it. Declare the role that may hand it out as `assignable` in that scope; a `global` role needs an assignable global role of its own ([custom roles](/docs/concepts/custom-roles#the-ceiling)).
 
 #### Trusted callers
 
@@ -643,9 +653,13 @@ rls: {
 },
 ```
 
-The migration starts with `-- permdock:backfill v1` and holds one `do` block. For each roles-table row that is not skipped and is not a declared role, it maps every stored key the way [`migrate`](#migrate) does (`rls.migrate.keys`, then `renamed`, then the longest `rls.migrate.prefixes` match) and saves the role through `permdock_trusted_replace_custom_role_grants`, so the same definition checks apply. An entry PermDock cannot hold is left out: an effect other than `allow` or `deny`, an undeclared key or level, a key outside the scope's ceiling, an undeclared include or one that allows more than the ceiling. The block ends with a notice counting the copied roles and one warning listing up to 50 dropped entries.
+The migration starts with `-- permdock:backfill v1` and holds one `do` block. For each roles-table row that is not a skipped tenant row and is not a declared role, it maps every stored key the way [`migrate`](#migrate) does (`rls.migrate.keys`, then `renamed`, then the longest `rls.migrate.prefixes` match) and saves the role through `permdock_trusted_replace_custom_role_grants`, so the same definition checks apply. An entry PermDock cannot hold is left out: an effect other than `allow` or `deny`, an undeclared key or level, a key outside the scope's ceiling, an undeclared include or one that allows more than the ceiling. The block ends with a notice counting the copied roles and one warning that lists up to 50 dropped entries grouped per legacy role (`dispatcher: job.delete (outside the ceiling of organization); viewer: x.read (undeclared)`), so the fix for each role is in one line.
 
-A role that already has rows in either table is skipped, so running the migration again copies nothing and keeps any edit made after the copy. A directory output gets a new versioned file only when the newest `permdock:backfill` file differs, and `--check` reports a stale one, as with [`--seeds-out`](#declarative-schemas). `generate` exits `2` when `--backfill-out` is set without `rls.customRoles.from`, in `jwt` mode (build the claim with `customRoleClaim` instead), without `rls.customRoleWrites.roles`, or when a `through` or `column` is not that table and its key.
+A stored `level` on a permission with no levels is ignored, so a row such as `scope = 'all'` on `users.invite` copies as the plain key; a level on a permission that has levels must be declared. A role that already has rows in either table is skipped, so running the migration again copies nothing and keeps any edit made after the copy. A directory output gets a new versioned file only when the newest `permdock:backfill` file differs, and `--check` reports a stale one, as with [`--seeds-out`](#declarative-schemas). `generate` exits `2` when `--backfill-out` is set without `rls.customRoles.from`, in `jwt` mode (build the claim with `customRoleClaim` instead), without `rls.customRoleWrites.roles`, or when a `through` or `column` is not that table and its key.
+
+#### Keep the copy current
+
+`rls.customRoles.from.sync: 'trigger'` keeps the copy current instead of copying once. `generate` writes after-row triggers `permdock_sync_custom_role_permissions` (and `permdock_sync_custom_role_includes` when `from.includes` is mapped) on the application's own permission and include tables. Each write rebuilds the affected role through `permdock_trusted_replace_custom_role_grants`, with the same key mapping and reads as the backfill, so the PermDock grants follow the application's role editor. An entry outside the ceiling is dropped with a `warning` instead of aborting the legacy write, and a tenant role whose name a shared role holds is skipped with a warning (`name-taken`). The rebuild replaces all of a role's entries, so a legacy row that was never copied appears after the next write to that role. Use the backfill for the first copy and the triggers until the application writes through `permdock_replace_custom_role_grants`; the `triggers` note of `generate` and `permdock rls explain` list them.
 
 ### Triggers and audit
 
@@ -747,6 +761,10 @@ export default {
 The `role_permissions` rows are data, which no schema diff carries. Under `pg-delta` and `migra` the `helpers` part therefore needs the `seeds` part, and the `seeds` part needs `--seeds-out <file>|<dir>/|-`, a versioned migration. Every policy change that changes a grant key needs a new seeds migration, and doctor PD054 warns when the last seeds in the migrations differ from what the policy compiles to. `--check` compares every part, the grants and the seeds file, and names each part that drifted (`rls generate drift: policies: missing supabase/schemas/public/policies/permdock.sql`). Without `--split`, `--out` is one file as before.
 
 `--seeds-out` may name the migrations directory instead of a file (a path that ends in `/` or an existing directory). `generate` then compares the rows with the newest migration there that starts with `-- permdock:seeds v1` and writes a new `<version>_permdock_seeds.sql` only when they differ, numbered one second after the newest versioned migration in the directory (the clock is read only when the directory has none), so the same directory always gives the same name and a repeated `--check` names the same file, so an unchanged policy writes nothing and an applied migration is never rewritten in place. When `--seeds-out` and `--backfill-out` name the same directory and both write in one run, the backfill is numbered one second after the new seeds migration, so the two never share a version. With `--check` it fails when that newest migration is missing or out of date. Run it after `declarative sync` or `db diff`, so the new migration sorts after the one that creates `role_permissions`; doctor PD054 warns when the newest seeds migration no longer matches the policy.
+
+#### Seeds as a function
+
+`rls.seeds: 'function'` moves the rows into `<schema>.seed()`. The `helpers` part then creates `create or replace function <schema>.seed() returns void`, a `security definer` function with `search_path = ''` that holds the same upsert and delete as the seeds migration and is revoked from `public`, `anon` and `authenticated`. The function body is code, so a declarative diff carries it and the plan stays empty. Under `pg-delta` and `migra`, `--split helpers` then needs no `seeds` part and no `--seeds-out`; `generate` prints `run select <schema>.seed(); after each deploy`. With `--split ...,seeds`, the seeds part is the one statement `select <schema>.seed();`. Doctor PD054 reads the rows from the function body, and `rls verify --introspect` with `--helpers-only` reports `missing` and `unexpected` rows when the stored table differs from the seeds, which is what a deploy without the call looks like.
 
 #### pg-delta
 
@@ -867,19 +885,21 @@ A `role` helper checks role names, not permissions. `rls.roleValues` maps each v
 
 The rewritten forms are uncorrelated, so Postgres runs each helper once per statement. A call is reported and left as written, with its file, line and reason, when the rewrite could change what it admits:
 
-| Reason                 | When                                                                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `not-a-column`         | The id is an expression, a function call or a parameter, not a plain column                                                                                                    |
-| `dynamic-key`          | The key is not a string literal                                                                                                                                                |
-| `unknown-key`          | The mapped key is not in the policy; the command exits `1` while one remains                                                                                                   |
-| `row-conditions`       | The key's grants carry row conditions the helpers do not apply; let `generate` write that table's policy                                                                       |
-| `not-granted-on-scope` | No role holds an allow for the key on that scope (a deny seed does not count), or its action is not one `generate` seeds (`read`, `list`, `get`, `create`, `update`, `delete`) |
-| `missing-helper`       | `generate` writes no such helper, such as `member_<scope>_ids` for a scope without a membership source, or `member_<scope>_ids(p_roles text[])` when no `role` helper names it |
-| `dynamic-role`         | A role argument is not a string literal                                                                                                                                        |
-| `unknown-role`         | A role, after `rls.roleValues`, is not one `role_permissions` lists                                                                                                            |
-| `function-body`        | The call is inside a `create function` or `do` body, which runs with its own privileges                                                                                        |
-| `not-in-policy`        | The call is in a view, a trigger or any statement other than a policy                                                                                                          |
-| `unparsed`             | The file does not parse                                                                                                                                                        |
+| Reason                 | When                                                                                                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `not-a-column`         | The id is neither a column nor an expression whose text can be read from the file                                                                                               |
+| `dynamic-key`          | The key is not a string literal                                                                                                                                                 |
+| `unknown-key`          | The mapped key is not in the policy; the command exits `1` while one remains                                                                                                    |
+| `row-conditions`       | The key's grants carry row conditions the helpers do not apply; let `generate` write that table's policy                                                                        |
+| `not-granted-on-scope` | No role holds an allow for the key on that scope (a deny seed does not count), or its action is not one `generate` seeds (`read`, `list`, `get`, `create`, `update`, `delete`)  |
+| `missing-helper`       | `generate` writes no such helper, such as `member_<scope>_ids` for a scope without a membership source, or `member_<scope>_ids(p_roles text[])` when no `role` helper names it  |
+| `dynamic-role`         | A role argument is not a string literal                                                                                                                                         |
+| `unknown-role`         | A role, after `rls.roleValues`, is not one `role_permissions` lists                                                                                                             |
+| `function-body`        | The call is inside a `create function` or `do` body, which runs with its own privileges; the skip carries the exact replacement call as `suggestion`, printed as `; use <call>` |
+| `not-in-policy`        | The call is in a view, a trigger or any statement other than a policy                                                                                                           |
+| `unparsed`             | The file does not parse                                                                                                                                                         |
+
+An id that is an expression (`org_ids_with_permission` called as `has_org_permission(coalesce(a, b), 'k')`) is rewritten with the expression wrapped in parentheses, as written. `pnpm exec permdock rls migrate` only reads the pgsql-parser 18 AST, so an older `pgsql-parser` is refused with `needs pgsql-parser 18 or later` (`rls import` likewise).
 
 A key renamed with `definePermissions(..., { renamed })` maps to its current key without a `keys` entry: `keys` wins, then `renamed`, then `prefixes`. `generate` also seeds every `role_permissions` row again under each former key, so SQL that still passes an old key keeps the access the current key has until the alias is removed.
 
@@ -940,12 +960,30 @@ Field views are read back too. A `security_invoker` view named `<table>_visible`
 
 No other tool imports RLS into application permissions; Kysera's `@kysera/rls` is the only dual-mode prior art and does not read from the database.
 
+## explain
+
+```bash
+permdock rls explain
+permdock rls explain --db-url-stdin --json
+```
+
+`explain` shows how `generate` binds the policy to the application's schema, without writing a file: the generate flags and config decide it. It prints:
+
+- the schema, the authorize mode and the scopes with their key columns;
+- the table each resource's policies target, marking a table named after its resource (set `rls.tables` to change it) and, with `--db-url-stdin`, one that does not exist (`MISSING`);
+- for each membership source, the `select` of one user's memberships as the helpers read it, with the role SQL (a `through` join or a `map` case);
+- the custom roles table `rls.customRoleWrites.roles` names and which kinds of role it holds (`tenant`, `shared`, `global`);
+- the permissions each `rls.rowHelpers` helper decides;
+- every trigger `generate` writes on a table of the application and the option that asks for it.
+
+With `--json`, the report is printed as JSON. `explain` writes no file and reads the database only with `--db-url-stdin`.
+
 ## verify
 
 ```bash
 permdock rls verify --fixtures rls.fixtures.json
 printf %s "$DATABASE_URL" | permdock rls verify --db-url-stdin --fixtures rls.fixtures.json
-permdock rls verify --fixtures rls.fixtures.json --kind pgtap > tests/rls.sql
+permdock rls verify --fixtures rls.fixtures.json --kind pgtap
 permdock rls verify --tree
 permdock rls verify --introspect
 printf %s "$DATABASE_URL" | permdock rls verify --advisors --db-url-stdin --json
@@ -974,10 +1012,12 @@ With `rls.fields: 'views'`, every instance read fixture also reads its row from 
 
 The repository runs Splinter's lints itself on the SQL `rls generate` writes: `tests/integration` applies several fixtures on the `supabase/postgres` image, as `postgres`, and fails on any `WARN` or `ERROR` row about an object the generated SQL created.
 
-`--kind pgtap` writes the same checks as a pgTAP script for `supabase test db` or `pg_prove`, so CI can run them without Node or the `pg` peer. `verify` first decides every fixture in-process; a fixture that disagrees with its `expected` or names an unknown permission prints the mismatch and exits `1` without a script. The script then plans one test per fixture and, inside one transaction that it rolls back, creates `pg_temp.permdock_decision(statement text)`, writes the fixture custom roles as above, and for each fixture opens a savepoint, runs `set local role authenticated`, binds the subject with the same settings as `--db-url-stdin`, and asserts `is(pg_temp.permdock_decision('<statement>'), 'granted' | 'denied', ...)` with the outcome `can()` gave. The statement is the one `--db-url-stdin` runs, with the fixture values inlined as untyped literals, and `permdock_decision` answers `granted` when it returns a row and `denied` when it returns none or fails, the same rule as `--db-url-stdin`. An opaque grant becomes `skip()`. The field-view comparison (`rls.fields: 'views'`) and `--tree` run only with `--db-url-stdin`. The fixture rows must already exist in the database the script runs against, as with `--db-url-stdin`.
+`--kind pgtap` writes the same checks as a pgTAP script for `supabase test db` or `pg_prove`, so CI can run them without Node or the `pg` peer. `--out <file>` names the script; it defaults to `supabase/tests/permdock_rls.test.sql`, the folder `supabase test db` reads, and the command prints `wrote <file>`. `verify` first decides every fixture in-process; a fixture that disagrees with its `expected` or names an unknown permission prints the mismatch and exits `1` without a script. The script then plans one test per fixture and, inside one transaction that it rolls back, creates `pg_temp.permdock_decision(statement text)`, writes the fixture custom roles as above, and for each fixture opens a savepoint, inserts the fixture's memberships (see below), runs `set local role authenticated`, binds the subject with the same settings as `--db-url-stdin`, and asserts `is(pg_temp.permdock_decision('<statement>'), 'granted' | 'denied', ...)` with the outcome `can()` gave. The statement is the one `--db-url-stdin` runs, with the fixture values inlined as untyped literals, and `permdock_decision` answers `granted` when it returns a row and `denied` when it returns none or fails, the same rule as `--db-url-stdin`. An opaque grant becomes `skip()`. The field-view comparison (`rls.fields: 'views'`) and `--tree` run only with `--db-url-stdin`. The fixture rows must already exist in the database the script runs against, as with `--db-url-stdin`.
+
+With `rls.authorize: 'database'`, the helpers read memberships from tables, so each fixture's savepoint first inserts one row per role into the table `rls.memberships` maps for the membership's scope, and into each `rls.membershipSources` (or `supabase.hook.memberships`) source whose columns are plain (no `through` or `map` role column), with `on conflict do nothing`. The insert runs before `set local role`, as the connecting role, and the savepoint rolls it back. A membership that no table or source can hold (an `on` membership, a mapped role column) stays a comment in the script and is not seeded.
 
 ```bash
-permdock rls verify --fixtures rls.fixtures.json --kind pgtap > supabase/tests/permdock_rls_test.sql
+permdock rls verify --fixtures rls.fixtures.json --kind pgtap
 supabase test db
 ```
 
@@ -1011,8 +1051,9 @@ What each command may change; [side effects](/docs/cli#side-effects) explains ea
 | ----------------------- | ----------------------------------- |
 | `permdock rls generate` | `files`, `database:read`, `network` |
 | `permdock rls import`   | `files`, `database:read`            |
-| `permdock rls verify`   | `database:read`                     |
+| `permdock rls verify`   | `files`, `database:read`            |
 | `permdock rls migrate`  | `rewrite`, `files`                  |
+| `permdock rls explain`  | `database:read`                     |
 
 ## Related
 

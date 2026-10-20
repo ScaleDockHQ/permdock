@@ -26,7 +26,8 @@ Flags
   --schemas <pg-delta|migra|migrations>  Schema workflow (default supabase.schemas, else pg-delta)
   --db-url-stdin                         Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
   --fixtures <file>                      Fixtures file
-  --kind <node|pgtap>                    Run the fixtures in Node or emit a pgTAP file
+  --kind <node|pgtap>                    Run the fixtures in Node or write a pgTAP file
+  --out <file>                           With --kind pgtap, the file to write (default supabase/tests/permdock_rls.test.sql)
   --tree                                 Check the relationship closure
   --introspect                           Compare against the live database
   --advisors                             Run the Supabase security advisors
@@ -39,5 +40,5 @@ Examples
   permdock rls verify --kind pgtap
   permdock rls verify --introspect --db-url-stdin
 
-Side effects  database:read
+Side effects  files, database:read
 Docs  https://permdock.com/docs/cli/rls

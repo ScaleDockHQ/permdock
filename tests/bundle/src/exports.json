@@ -120,6 +120,7 @@
     "parseCloudEvent",
     "parseCloudEventBatch",
     "parseCredential",
+    "parseCustomRoleEntry",
     "parseLocalSnapshotManifest",
     "parsePermDockDigest",
     "parsePolicyDocument",

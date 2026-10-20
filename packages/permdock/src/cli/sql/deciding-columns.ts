@@ -1,4 +1,4 @@
-import type { PermDockConfig } from "../types.ts";
+import type { PermDockConfig, SupabaseHookConfig } from "../types.ts";
 
 /** `schema.table`, unquoted and lower case; `public` when unqualified. */
 export function tableKey(name: string): string {
@@ -48,6 +48,7 @@ export function membershipColumns(
 export function decidingColumns(
   config: PermDockConfig,
   attrs?: { readonly table?: string; readonly columns: readonly string[] },
+  teams?: SupabaseHookConfig["teams"],
 ): readonly string[] {
   const entries = new Set<string>();
   for (const [table, columns] of membershipColumns(config)) {
@@ -59,6 +60,14 @@ export function decidingColumns(
     const table = tableKey(attrs.table);
     for (const column of attrs.columns) {
       entries.add(`${table}.${column}`);
+    }
+  }
+  if (teams !== undefined) {
+    const table = tableKey(teams.table);
+    for (const column of [teams.user, teams.team, teams.tenant]) {
+      if (column !== undefined) {
+        entries.add(`${table}.${column}`);
+      }
     }
   }
   return [...entries].toSorted();

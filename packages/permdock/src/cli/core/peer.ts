@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import {
   type Agent,
   detect,
@@ -17,9 +19,29 @@ export async function requirePeer<T>(
   name: string,
   command: string,
   cwd: string = process.cwd(),
+  minimumMajor?: number,
 ): Promise<T> {
   try {
-    return await load();
+    const loaded = await load();
+    const found = installedMajor(name);
+    if (minimumMajor !== undefined && found < minimumMajor) {
+      const agent = await packageManagerOf(cwd);
+      throw new CliError(
+        "unavailable",
+        `PermDock CLI: ${command} needs ${name} ${String(minimumMajor)} or later; ${String(found)} is installed. Upgrade it with: ${addLine(agent, [`${name}@latest`], { dev: true })}`,
+        {
+          code: "dependency_missing",
+          extensions: { package: name, minimum: minimumMajor, found },
+          next: [
+            {
+              command: addLine(agent, [`${name}@latest`], { dev: true }),
+              when: "to upgrade it",
+            },
+          ],
+        },
+      );
+    }
+    return loaded;
   } catch (error) {
     if (!isMissingModule(error)) {
       throw error;
@@ -36,6 +58,19 @@ export async function requirePeer<T>(
         },
       ],
     });
+  }
+}
+
+/** The major version of the installed `name`; `NaN` when its package.json cannot be read, which no minimum rejects. */
+function installedMajor(name: string): number {
+  try {
+    const file = createRequire(import.meta.url).resolve(`${name}/package.json`);
+    const manifest: { readonly version?: unknown } = JSON.parse(
+      readFileSync(file, "utf8"),
+    );
+    return Math.trunc(Number(String(manifest.version).split(".")[0]));
+  } catch {
+    return Number.NaN;
   }
 }
 

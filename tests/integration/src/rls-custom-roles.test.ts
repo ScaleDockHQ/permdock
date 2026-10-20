@@ -317,6 +317,34 @@ language sql as $$ select null::text where false $$;
 grant usage on schema public to authenticated;
 `;
 
+/** `rls verify --kind pgtap` run in `cwd`, written to a temporary file; `stdout` is the script. */
+async function pgtapScript(
+  cwd: string,
+  fixturesPath: string,
+): Promise<{ readonly stdout: string }> {
+  const dir = mkdtempSync(join(tmpdir(), "permdock-pgtap-"));
+  try {
+    const out = join(dir, "permdock_rls.test.sql");
+    const result = await runPipingDbUrl(
+      [
+        "rls",
+        "verify",
+        "--fixtures",
+        fixturesPath,
+        "--kind",
+        "pgtap",
+        "--out",
+        out,
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    return { stdout: readFileSync(out, "utf8") };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 async function runPgtap(uri: string, script: string): Promise<string[]> {
   const client = new Client({ connectionString: uri });
   await client.connect();
@@ -630,11 +658,12 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
       if (db === undefined) {
         throw new Error("PermDock: Postgres was not started");
       }
-      const emitted = await runPipingDbUrl(
-        ["rls", "verify", "--fixtures", fixturesPath, "--kind", "pgtap"],
-        { cwd: shape.cwd },
-      );
-      expect(emitted.code).toBe(0);
+      const emitted = await pgtapScript(shape.cwd, fixturesPath);
+      if (shape.name === "custom_database") {
+        expect(emitted.stdout).toMatch(
+          /^insert into "[^"]*"?\.?"?organization_members"/mu,
+        );
+      }
       const admin = databaseUri(db.uri, shape.name);
       const setup = new Client({ connectionString: admin });
       await setup.connect();
@@ -667,10 +696,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    const emitted = await runPipingDbUrl(
-      ["rls", "verify", "--fixtures", fixturesPath, "--kind", "pgtap"],
-      { cwd: FIXTURE },
-    );
+    const emitted = await pgtapScript(FIXTURE, fixturesPath);
     const seeds = emitted.stdout
       .split("\n")
       .filter((line) =>

@@ -473,9 +473,11 @@ function groupOf(
 }
 
 /**
- * One entry per level for every allow of an assignable role on a resource
- * with levels, keyed `<grant key>@<level>`. Only `permdock_custom_keys`
- * hands these keys out, to a custom role whose stored allow names the level.
+ * One entry per level for every allow of a role on a resource with levels,
+ * keyed `<grant key>@<level>`, whether or not the role is assignable: every
+ * role holds the same leveled keys, and `permdock_ceiling` keeps only the
+ * assignable roles'. Only `permdock_custom_keys` hands these keys out, to a
+ * custom role whose stored allow names the level.
  */
 function levelEntries(
   policy: Policy,
@@ -489,7 +491,6 @@ function levelEntries(
   if (custom?.levels !== true) {
     return [];
   }
-  const assignable = new Set(custom.assignable);
   const out: Prepared[] = [];
   // The loop adds the leveled keys to `keys`, so it walks a copy.
   for (const [entry, grantKey] of Array.from(keys)) {
@@ -498,8 +499,7 @@ function levelEntries(
     if (
       item.access.kind !== "role" ||
       grant.effect !== "allow" ||
-      grant.permission.kind !== "instance" ||
-      !assignable.has(item.access.role)
+      grant.permission.kind !== "instance"
     ) {
       continue;
     }

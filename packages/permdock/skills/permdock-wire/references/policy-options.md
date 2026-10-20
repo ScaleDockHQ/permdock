@@ -36,6 +36,7 @@ Adopting PermDock in an app with its own keys, SQL helpers and tokens is a step-
 - Put application-owned metadata in `meta.x`; PermDock carries it and never reads it (see App data below).
 - Rename a key later with `definePermissions(tree, { renamed: { "old.key": "new.key" } })`. Remove the alias only when `permdock doctor` PD055 and PD056 are quiet; `permdock diff` reports the removal as the breaking `alias-removed`.
 - Generate helpers beside legacy SQL with `permdock rls generate --helpers-only --shims`, then rewrite policies with `permdock rls migrate`.
+- `permdock rls migrate` and `rls import` need `pgsql-parser` 18 or later; the CLI names the installed version when it is older. A hook that should carry team ids sets `supabase.hook.teams: { table, user, team, tenant? }` and writes the `team_ids` claim within the same size budget as `memberships`.
 
 ## App data and app obligations
 

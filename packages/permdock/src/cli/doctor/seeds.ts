@@ -27,6 +27,9 @@ const SEED_ROW = new RegExp(
   "gu",
 );
 
+const SEED_FUNCTION =
+  /^create\s+(?:or\s+replace\s+)?function\s+(?:"[^"]+"|\w+)\.(?:"seed"|seed)\s*\(\s*\)[\s\S]*?\$(\w*)\$([\s\S]*)\$\1\$/iu;
+
 type Seeded = {
   readonly file: string;
   readonly rows: ReadonlySet<string>;
@@ -34,6 +37,14 @@ type Seeded = {
 
 function rowKey(values: readonly string[]): string {
   return values.join(" ");
+}
+
+/** The statements of a file, with the body of `<schema>.seed()` (`rls.seeds: 'function'`) in place of its `create function`. */
+function seedStatements(sql: string): readonly { readonly text: string }[] {
+  return sqlStatements(sql).flatMap((statement) => {
+    const fn = SEED_FUNCTION.exec(statement.text);
+    return fn === null ? [statement] : sqlStatements(group(fn, 2));
+  });
 }
 
 /** The rows of the last statement that seeds or clears `table`, in migration order. */
@@ -48,7 +59,7 @@ function lastSeed(
     cwd,
     config.doctor?.migrations ?? MIGRATION_DIRS,
   )) {
-    for (const { text } of sqlStatements(files.read(file))) {
+    for (const { text } of seedStatements(files.read(file))) {
       const insert = SEED_INSERT.exec(text);
       if (insert !== null && tableKey(group(insert, 1)) === table) {
         const rows = new Set<string>();

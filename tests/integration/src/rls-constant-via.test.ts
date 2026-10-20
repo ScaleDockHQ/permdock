@@ -34,10 +34,7 @@ grant usage on schema public to authenticated;
 grant select on doc to authenticated;
 `;
 
-const SHAPES = [
-  { name: "staff_table", cwd: FIXTURE, via: "staff" },
-  { name: "contact_table", cwd: join(FIXTURE, "contact"), via: "contact" },
-] as const;
+const SHAPES = [{ name: "staff_table", cwd: FIXTURE, via: "staff" }] as const;
 
 describe("a constant via on an rls.memberships table", () => {
   let db: Postgres | undefined;
@@ -84,13 +81,7 @@ describe("a constant via on an rls.memberships table", () => {
       const sql = generated.get(shape.name) ?? "";
       expect(sql).not.toMatch(/case [^\n]* when 'admin' then/u);
       expect(sql).not.toContain(`coalesce('${shape.via}'::text`);
-      if (shape.via === "staff") {
-        expect(sql).not.toContain(`not (m."role"`);
-      } else {
-        expect(sql).toContain(
-          `not (m."role"::text = any(array['admin']::text[]))`,
-        );
-      }
+      expect(sql).not.toContain(`not (m."role"`);
     },
   );
 
@@ -129,10 +120,20 @@ describe("a constant via on an rls.memberships table", () => {
           }),
         );
         expect(visible).toEqual(expected);
-        expect(visible).toEqual(shape.via === "staff" ? ["d1"] : []);
+        expect(visible).toEqual(["d1"]);
       } finally {
         await client.end();
       }
     },
   );
+
+  it("refuses a constant kind that no role lists, as PD073", async () => {
+    const result = await run(["rls", "generate", "--target", "sql"], {
+      cwd: join(FIXTURE, "contact"),
+    });
+    expect(result.code).toBe(2);
+    expect(result.stdout + result.stderr).toContain(
+      "role admin is for staff, but its membership sources hold contact_members (via contact)",
+    );
+  });
 });

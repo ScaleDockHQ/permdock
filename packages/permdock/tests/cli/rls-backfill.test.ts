@@ -93,7 +93,7 @@ describe("backfillSql", () => {
     expect(sql).toContain(
       `select r."organization_id"::uuid as tenant_id, case when r."organization_id"::uuid is null then 'global' else 'organization' end as scope, null::text as scope_id, r."key"::text as role, r."id" as permissions_ref, r."id" as includes_ref
     from "public"."roles" r
-    where not coalesce(r."builtin", false) and not (r."key"::text = any(array['admin', 'member', 'owner', 'viewer']::text[]))`,
+    where not (r."organization_id"::uuid is not null and coalesce(r."builtin", false)) and not (r."key"::text = any(array['admin', 'member', 'owner', 'viewer']::text[]))`,
     );
     expect(sql).toContain(
       `select (select xk."key"::text from "public"."permissions" xk where xk."id" = x."permission_id") as legacy, coalesce(lower(x."effect"::text), 'allow') as effect, null::text as level
@@ -201,6 +201,44 @@ describe("backfillSql", () => {
       "array_agg(distinct j.key || coalesce('@' || j.level, ''))",
     );
   });
+
+  it("ignores the stored level of a permission no ceiling key carries a level for", () => {
+    const sql = backfillSql(
+      {
+        ...ctx,
+        customRoles: {
+          ...(ctx.customRoles ?? { declared: [], assignable: [] }),
+          levels: true,
+        },
+      },
+      { permissions: { ...from.permissions, level: "level" } },
+      undefined,
+    );
+    expect(sql).toContain("case when exists (select 1 from");
+    expect(sql).toContain("position('@' in c.grant_key) > 0");
+    expect(sql).toContain("then m.level end as level");
+    expect(sql).toContain("m.level is not null and exists (select 1 from");
+  });
+
+  it("applies skip to rows with a tenant only", () => {
+    const sql = backfillSql(ctx, from, undefined);
+    expect(sql).toContain(
+      `where not (r."organization_id"::uuid is not null and coalesce(r."builtin", false))`,
+    );
+    expect(
+      backfillSql(
+        {
+          ...ctx,
+          customRoles: {
+            ...(ctx.customRoles ?? { declared: [], assignable: [] }),
+            table: { table: "roles", key: "key", skip: "builtin" },
+          },
+        },
+        from,
+        undefined,
+      ),
+    ).toContain("where not false");
+  });
 });
 
 describe("backfillSql with platform-only roles in another schema", () => {
@@ -227,7 +265,7 @@ describe("backfillSql with platform-only roles in another schema", () => {
       prefixes: { "ab.": "", "aa.": "x." },
     });
     expect(sql).toContain(
-      `select null::uuid as tenant_id, case when null::uuid is null then 'global' else r."scope"::text end as scope, r."scope_id"::text as scope_id`,
+      `select null::uuid as tenant_id, case when null::uuid is null then 'global' else r."scope"::text end as scope, null::text as scope_id`,
     );
     expect(sql).toContain('from "app"."roles" r\n    where not false');
     expect(sql).toContain("not (m.key = any(array['a.old', 'b.old']::text[]))");
@@ -341,6 +379,32 @@ describe("rls generate --backfill-out", () => {
     });
     expect(outcome.code).toBe(2);
     expect(outcome.output).toContain("rls.customRoleWrites.roles");
+  });
+
+  it("writes the sync triggers with sync: 'trigger' and no backfill", async () => {
+    const outcome = await generate({
+      customRoles: { from: { ...from, sync: "trigger" } },
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.text).toContain("permdock_sync_custom_role_permissions");
+    expect(outcome.text).toContain("permdock_sync_custom_role_includes");
+  });
+
+  it("refuses sync: 'trigger' with a mapping it cannot read", async () => {
+    const outcome = await generate({
+      customRoles: {
+        from: {
+          ...from,
+          sync: "trigger",
+          permissions: {
+            ...from.permissions,
+            role: { through: "roles", on: {}, column: "key" },
+          },
+        },
+      },
+    });
+    expect(outcome.code).toBe(2);
+    expect(outcome.output).toContain("on must map exactly one column");
   });
 
   it("turns custom roles on with an object", async () => {

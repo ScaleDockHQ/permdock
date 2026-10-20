@@ -11,14 +11,15 @@ import { resolveScope, scopeList } from "../../core/scopes.ts";
 import { type Policy, listPermissions, listRoles } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
-import { configError } from "../core/errors.ts";
+import { configError, describeError } from "../core/errors.ts";
 import { checkSuspension } from "../sql/active.ts";
 import { type RlsSqlContext, parseMembershipsFlag } from "../sql/context.ts";
 import { roleNames } from "../sql/grants.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { apiKeysPlan } from "./api-keys.ts";
+import { customRoleSyncSql } from "./custom-role-sync.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
-import { ownershipRules } from "./ownership.ts";
+import { ownershipRules, unsatisfiedKinds } from "./ownership.ts";
 import { type RbacAuthorizeMode, resolveAuthorize } from "./rbac.ts";
 
 /** The scopes an `rls.migrate` `role` helper names, so `rls generate` writes their role-filtered member helper. */
@@ -144,8 +145,21 @@ export function buildContext(
     rbac: input.rbac,
     memberships,
   });
-  const memberSources =
-    rls?.membershipSources ?? input.config.supabase?.hook?.memberships;
+  const writeTable = rls?.customRoleWrites?.roles;
+  const guard =
+    writeTable?.tenant === undefined
+      ? undefined
+      : {
+          table: writeTable.table,
+          tenant: writeTable.tenant,
+          skip: writeTable.skip,
+          declared: [...roleNames(policy)].toSorted(),
+        };
+  const memberSources = (
+    rls?.membershipSources ?? input.config.supabase?.hook?.memberships
+  )?.map((source) =>
+    guard === undefined ? source : (source.guarded?.(guard) ?? source),
+  );
   const sources = authorize === "database" ? memberSources : undefined;
   const scopes = scopeList(policy.scopes);
   const suspension = checkSuspension(rls?.suspension, scopes);
@@ -179,7 +193,7 @@ export function buildContext(
     new Set(roleNames(policy)),
     Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
   );
-  const ctx: RlsSqlContext = {
+  let ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
     tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
@@ -220,6 +234,7 @@ export function buildContext(
       ? { anonymousSignIns: "deny" as const }
       : {}),
     ...(ownership === undefined ? {} : { ownership }),
+    ...(rls?.seeds === "function" ? { seeds: "function" as const } : {}),
     ...(rls?.ownershipTriggers === undefined
       ? {}
       : {
@@ -252,5 +267,26 @@ export function buildContext(
           },
         }),
   };
+  const from =
+    typeof rls?.customRoles === "object" ? rls.customRoles.from : undefined;
+  if (from?.sync === "trigger" && ctx.customRoles !== undefined) {
+    try {
+      ctx = {
+        ...ctx,
+        customRoles: {
+          ...ctx.customRoles,
+          sync: customRoleSyncSql(ctx, from, rls?.migrate),
+        },
+      };
+    } catch (cause) {
+      return { refusal: describeError(cause) };
+    }
+  }
+  const [unsatisfied] = unsatisfiedKinds(ctx, policy);
+  if (unsatisfied !== undefined) {
+    return {
+      refusal: `role ${unsatisfied.role} is for ${unsatisfied.for.join(", ")}, but its membership sources hold ${unsatisfied.sources.join(", ")}: no membership can hold it; set via on a source to one of those kinds`,
+    };
+  }
   return { ctx, graph, ownership, schema, authorize };
 }

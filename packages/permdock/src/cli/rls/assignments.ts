@@ -2,6 +2,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type {
   PermDockConfig,
   RlsAssignmentTable,
+  RoleMap,
   RoleThrough,
 } from "../types.ts";
 
@@ -165,13 +166,15 @@ export function guardedTables(
 
 function isRoleList(
   role: RlsAssignmentTable["role"],
-): role is readonly (string | RoleThrough)[] {
+): role is readonly (string | RoleMap | RoleThrough)[] {
   return Array.isArray(role);
 }
 
 /** The role keys a row variable holds, one scalar per role source. */
 function rowRoles(entry: AssignedTable, row: string): readonly string[] {
-  const parts: readonly (string | RoleThrough)[] = isRoleList(entry.role)
+  const parts: readonly (string | RoleMap | RoleThrough)[] = isRoleList(
+    entry.role,
+  )
     ? entry.role
     : [entry.role];
   return parts.map(

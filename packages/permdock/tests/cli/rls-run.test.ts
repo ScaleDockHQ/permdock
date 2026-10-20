@@ -15,6 +15,10 @@ const POLICY = path.join(
   import.meta.dirname,
   "fixtures/mini-app/src/policy.ts",
 );
+const NAMED_SCOPES = path.join(
+  import.meta.dirname,
+  "../fixtures/named-scopes.ts",
+);
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
 const cwd = mkdtempSync(path.join(TMP, "rls-run-"));
@@ -67,6 +71,88 @@ function input(overrides: Partial<RlsRunInput>): RlsRunInput {
     ...overrides,
   };
 }
+
+describe("runRls explain", () => {
+  it("reports the table bindings, scopes and triggers as JSON", async () => {
+    const result = await runRls(input({ rest: ["explain"], json: true }));
+    expect(result.code).toBe(0);
+    const report = JSON.parse(result.output);
+    expect(report.bindings.length).toBeGreaterThan(0);
+    expect(report.bindings[0]).toEqual(
+      expect.objectContaining({ inferred: true }),
+    );
+    expect(report.scopes.length).toBeGreaterThan(0);
+    expect(report.triggers).toEqual(expect.any(Array));
+  });
+
+  it("prints the bindings as text", async () => {
+    const result = await runRls(input({ rest: ["explain"] }));
+    expect(result.output).toContain("table bindings:");
+    expect(result.output).toContain("scopes:");
+  });
+
+  it("refuses an unknown dialect, a failed generate and an unreachable database", async () => {
+    expect(
+      await runRls(input({ rest: ["explain"], dialect: "mysql" })),
+    ).toEqual({
+      code: 2,
+      output:
+        "rls explain --dialect (or rls.dialect) must be supabase, neon or guc",
+    });
+    const refused = await runRls(
+      input({
+        rest: ["explain"],
+        config: {
+          policy: NAMED_SCOPES,
+          rls: {
+            authorize: "database",
+            memberships: {
+              tenant: {
+                table: "organization_members",
+                tenant: "organization_id",
+                user: "user_id",
+                role: "role",
+              },
+            },
+            customRoleWrites: {
+              roles: { table: "public.roles", key: "key" },
+            },
+            customRoles: {
+              from: {
+                sync: "trigger",
+                permissions: {
+                  table: "role_permissions",
+                  role: { through: "roles", on: {}, column: "key" },
+                  permission: "permission",
+                },
+              },
+            },
+          },
+        },
+      }),
+    );
+    expect(refused.code).toBe(2);
+    expect(refused.output).toContain("on must map exactly one column");
+    const unreachable = await runRls(
+      input({
+        rest: ["explain"],
+        db: "postgres://x",
+        connect: () => Promise.reject(new Error("refused")),
+      }),
+    );
+    expect(unreachable.code).not.toBe(0);
+    expect(unreachable.output).toContain("refused");
+  });
+
+  it("checks the bound tables against a database", async () => {
+    const sql = fakeSql();
+    const result = await runRls(
+      input({ rest: ["explain"], db: "postgres://x", connect: sql.connect }),
+    );
+    expect(result.code).toBe(0);
+    expect(result.output).toContain("MISSING");
+  });
+});
 
 describe("runRls dispatch", () => {
   it.each([[[]], [["help"]], [["unknown"]]])(
@@ -252,6 +338,46 @@ describe("runRls dispatch", () => {
     expect(sql).not.toMatch(/service_role/u);
   });
 
+  it("prints the inferred table bindings and refuses a missing table with --db-url-stdin", async () => {
+    const without = await runRls(
+      input({ rest: ["generate"], dialect: "guc", out: "bind.sql" }),
+    );
+    expect(without.output).toContain(
+      "table bindings (no rls.tables entry, so the table is named after the resource): post -> public.post; run permdock rls explain",
+    );
+    const empty = fakeSql(() => ({ rows: [] }));
+    const refused = await runRls(
+      input({
+        rest: ["generate"],
+        dialect: "guc",
+        out: "bind.sql",
+        db: "postgres://fake",
+        connect: empty.connect,
+      }),
+    );
+    expect(refused.code).toBe(2);
+    expect(refused.output).toContain(
+      "resource post is bound to public.post, which the database does not have",
+    );
+    const present = fakeSql((call) =>
+      call.sql.includes("indnkeyatts")
+        ? { rows: [] }
+        : { rows: [{ target: "public.post", name: "id" }] },
+    );
+    const bound = await runRls(
+      input({
+        rest: ["generate"],
+        dialect: "guc",
+        out: "bind.sql",
+        db: "postgres://fake",
+        connect: present.connect,
+      }),
+    );
+    expect(bound.code).toBe(0);
+    expect(bound.output).toContain("post -> public.post");
+    expect(bound.output).not.toContain("explain");
+  });
+
   it("leaves out index suggestions the database already serves with --db-url-stdin", async () => {
     const reply =
       (columns: readonly string[], index: readonly string[]) =>
@@ -389,11 +515,11 @@ function catalogReply(
         })),
       };
     }
-    if (call.sql.includes("i.indkey[0]")) {
+    if (call.sql.includes("i.indnkeyatts")) {
       return {
         rows: expected.indexes.map((target) => ({
           target: target.table,
-          leading: target.columns[0],
+          columns: target.columns,
         })),
       };
     }

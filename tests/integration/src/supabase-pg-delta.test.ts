@@ -125,4 +125,37 @@ describe("supabase db schema declarative sync over rls generate (pg-delta)", () 
       }
     });
   }
+
+  it("keeps the role_permissions rows out of the plan and fills them through permdock.seed()", async () => {
+    const [schema = ""] = await generated(
+      [
+        "rls",
+        "generate",
+        "--target",
+        "sql",
+        "--split",
+        "helpers",
+        "--out",
+        "{dir}/{part}.sql",
+      ],
+      ["helpers.sql"],
+      { cwd: join(HERE, "../fixtures/rls-seed-function") },
+    );
+    const migrated = await database([CUSTOM_ROLES]);
+    const declared = await database([CUSTOM_ROLES, schema]);
+    await query(migrated, `${await migration(migrated, declared)};`);
+    expect(await migration(migrated, declared)).toBe("");
+    const rows = `select count(*)::int as n from permdock.role_permissions`;
+    expect(await query(migrated, rows)).toEqual([{ n: 0 }]);
+    await query(migrated, "select permdock.seed()");
+    const [seeded] = await query<{ readonly n: number }>(migrated, rows);
+    expect(seeded?.n).toBeGreaterThan(0);
+    expect(await migration(migrated, declared)).toBe("");
+    expect(
+      await query(
+        migrated,
+        `select has_function_privilege('authenticated', 'permdock.seed()', 'execute') as granted`,
+      ),
+    ).toEqual([{ granted: false }]);
+  });
 });

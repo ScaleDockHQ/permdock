@@ -58,7 +58,7 @@ create policy "orgs_disable" on public.organization for update to authenticated
 `;
 
 const UNSAFE = `create policy "computed_id" on public.asset for select to authenticated
-  using (public.has_org_permission(public.current_org(), 'organization.asset.update'));
+  using (public.has_org_permission(public.current_org(), format('organization.%s', 'asset.update')));
 
 create policy "dynamic_key" on public.asset for select to authenticated
   using (organization_id in (select public.org_ids_with_permission(format('organization.%s', 'asset.read'))));
@@ -224,8 +224,8 @@ create policy "orgs_disable" on public.organization for update to authenticated
     ).toEqual([
       [
         2,
-        "not-a-column",
-        "public.has_org_permission(public.current_org(), 'organization.asset.update')",
+        "dynamic-key",
+        "public.has_org_permission(public.current_org(), format('organization.%s', 'asset.update'))",
       ],
       [
         5,

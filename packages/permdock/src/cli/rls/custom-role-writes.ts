@@ -222,6 +222,7 @@ export function customRoleWritesSql(
   const guard = qualified(ctx, CUSTOM_ROLES.guard);
   const shape = qualified(ctx, CUSTOM_ROLES.shape);
   const entries = qualified(ctx, CUSTOM_ROLES.entries);
+  const problem = qualified(ctx, CUSTOM_ROLES.entryProblem);
   const renames = Object.entries(custom.renamed ?? {}).toSorted(byKey);
   const current = (expr: string): string => currentKeyExpr(renames, expr);
   const known = sqlTextArray([
@@ -330,6 +331,42 @@ ${callerFunctionsSql(ctx, custom, root, levelReach, true).guard}
 `
     : ""
 }
+-- null when an allow entry is a declared permission inside the ceiling of the scope${leveled ? ", at a level the resource declares" : ""}; else unknown-permission, outside-ceiling${leveled ? " or unknown-level" : ""}
+create or replace function ${problem}(p_scope text, p_entry text)
+returns text
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_key text := ${current(leveled ? "split_part(p_entry, '@', 1)" : "p_entry")};
+begin
+  if p_entry is null or not (v_key = any(${known})) then
+    return 'unknown-permission';
+  end if;
+  if not exists (
+    select 1 from ${ceiling} c
+    where c.scope = p_scope and c.effect = 'allow' and ${current("c.permission")} = v_key
+  ) then
+    return 'outside-ceiling';
+  end if;${
+    leveled
+      ? `
+  if strpos(p_entry, '@') > 0 and not exists (
+    select 1 from ${ceiling} c
+    where c.scope = p_scope and c.effect = 'allow' and ${current("c.permission")} = v_key
+      and split_part(c.grant_key, '@', 2) = split_part(p_entry, '@', 2)
+  ) then
+    return 'unknown-level';
+  end if;`
+      : ""
+  }
+  return null;
+end;
+$$;
+revoke execute on function ${problem}(text, text) from public, anon, authenticated;
+
 -- the entries of a definition: declared keys and levels inside the ceiling of the scope, and declared includes
 create or replace function ${entries}(p_scope text, p_allow text[], p_deny text[], p_include text[])
 returns void
@@ -341,25 +378,20 @@ as $$
 declare
   v_entry text;
   v_key text;
+  v_problem text;
 begin
   foreach v_entry in array coalesce(p_allow, '{}'::text[]) loop
     v_key := ${current(leveled ? "split_part(v_entry, '@', 1)" : "v_entry")};
-    if not (v_key = any(${known})) then
+    v_problem := ${problem}(p_scope, v_entry);
+    if v_problem = 'unknown-permission' then
 ${raiseSql("      ", "22023", `'permdock: ' || v_entry || ' is not a declared permission'`, "unknown-permission")}
     end if;
-    if not exists (
-      select 1 from ${ceiling} c
-      where c.scope = p_scope and c.effect = 'allow' and ${current("c.permission")} = v_key
-    ) then
+    if v_problem = 'outside-ceiling' then
 ${raiseSql("      ", "22023", `'permdock: ' || v_key || ' is outside the ceiling of ' || p_scope`, "outside-ceiling")}
     end if;${
       leveled
         ? `
-    if strpos(v_entry, '@') > 0 and not exists (
-      select 1 from ${ceiling} c
-      where c.scope = p_scope and c.effect = 'allow' and ${current("c.permission")} = v_key
-        and split_part(c.grant_key, '@', 2) = split_part(v_entry, '@', 2)
-    ) then
+    if v_problem = 'unknown-level' then
 ${raiseSql("      ", "22023", `'permdock: ' || v_entry || ' names a level the resource does not declare'`, "unknown-level")}
     end if;`
         : ""

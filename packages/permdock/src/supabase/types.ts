@@ -31,6 +31,16 @@ export type RoleThrough = {
   readonly column: string;
 };
 
+/**
+ * A role column whose values are not role keys: each value maps to a role key,
+ * or to `null` for no role, and an unlisted value is no role
+ * (`{ column: 'kind', map: { admin: 'owner', user: null } }`).
+ */
+export type RoleMap = {
+  readonly column: string;
+  readonly map: Readonly<Record<string, string | null>>;
+};
+
 export type SupabaseMembershipTable = {
   readonly table: string;
   readonly user: string;
@@ -38,7 +48,11 @@ export type SupabaseMembershipTable = {
    * The role key column, a reference to a roles table that holds the key, or
    * several of them: the row holds every non-null key.
    */
-  readonly role: string | RoleThrough | readonly (string | RoleThrough)[];
+  readonly role:
+    | string
+    | RoleThrough
+    | RoleMap
+    | readonly (string | RoleThrough | RoleMap)[];
   /** Per scope name, the column holding that scope's id: the table's own scope and its ancestors. */
   readonly columns?: Readonly<Record<string, string>>;
   readonly tenant?: string;

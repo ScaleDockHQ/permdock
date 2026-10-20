@@ -11,6 +11,7 @@ import { type Policy, listPermissions } from "../../index.ts";
 import { describeError } from "../core/errors.ts";
 import { INDEXES_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { graphHelper, scopeTable } from "../sql/names.ts";
+import { quoteQualified } from "../sql/quote.ts";
 import {
   SESSION_LIVE_HELPER,
   USER_ID_HELPER,
@@ -525,7 +526,7 @@ export function generateSql(
         emitSql([], preamble, false, helpersOnly ? views : []),
         ctx.dialect,
       ),
-      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${seedSql(ctx, generated.compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,
+      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${ctx.seeds === "function" ? `select ${quoteQualified(`${built.schema}.seed`)}();` : seedSql(ctx, generated.compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,
       indexes: `${INDEXES_MARKER}\n${indexesSql(indexes)}\n`,
     }),
   };

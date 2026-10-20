@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
@@ -11,6 +13,7 @@ import {
   type Policy,
 } from "../../index.ts";
 import { usageResult } from "../core/errors.ts";
+import { writeFileEnsuringDir } from "../files.ts";
 import { fixtureRow, fixtureSubject, loadFixtures } from "../fixtures.ts";
 import { pgConnector, type SqlConnect } from "../pg.ts";
 import { loadPolicyAt } from "../project/load.ts";
@@ -21,6 +24,9 @@ import {
   verifyTreeAgainstDatabase,
 } from "./verify-database.ts";
 import { type InProcess, emitPgtap } from "./verify-pgtap.ts";
+
+/** Where `rls verify --kind pgtap` writes, the folder `supabase test db` reads. */
+const PGTAP_OUT = "supabase/tests/permdock_rls.test.sql";
 
 export function canFixture(
   permdock: PermDock,
@@ -74,12 +80,20 @@ export async function runRlsVerify(input: {
   readonly db?: string;
   readonly from?: string;
   readonly format: "node" | "pgtap";
+  /** `format: 'pgtap'`: the file to write, default {@link PGTAP_OUT}. */
+  readonly out?: string;
   /** Check a generated tree with restricted branches instead of fixtures; needs `db`. */
   readonly tree?: boolean;
   readonly io: CliIo;
   /** Opens the `--db-url-stdin` connection; defaults to the `pg` peer. */
   readonly connect?: SqlConnect;
 }): Promise<CommandResult> {
+  if (input.out !== undefined && input.format !== "pgtap") {
+    return {
+      code: 2,
+      output: "PermDock CLI: rls verify --out needs --kind pgtap",
+    };
+  }
   const connect =
     input.connect ??
     pgConnector("permdock rls verify --db-url-stdin", input.cwd);
@@ -174,18 +188,21 @@ export async function runRlsVerify(input: {
     });
   }
   if (input.format === "pgtap") {
-    return mismatches.length > 0
-      ? { code: 1, output: mismatches.join("\n") }
-      : {
-          code: 0,
-          output: emitPgtap({
-            fixtures,
-            inProcess,
-            policy,
-            config: input.config,
-            customRoles,
-          }),
-        };
+    if (mismatches.length > 0) {
+      return { code: 1, output: mismatches.join("\n") };
+    }
+    const outRel = input.out ?? PGTAP_OUT;
+    writeFileEnsuringDir(
+      resolve(input.cwd, outRel),
+      emitPgtap({
+        fixtures,
+        inProcess,
+        policy,
+        config: input.config,
+        customRoles,
+      }),
+    );
+    return { code: 0, output: `wrote ${outRel}` };
   }
   if (input.db !== undefined) {
     try {

@@ -56,6 +56,8 @@ export type RlsSqlContext = {
   readonly inlineFunctions?: boolean;
   /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `permdock`, a schema the Data API does not expose. */
   readonly schema?: string;
+  /** `rls.seeds: 'function'`: the `role_permissions` rows are written by `<schema>.seed()`. */
+  readonly seeds?: "function";
   /** Where the helpers read roles and memberships: tables (`database`) or claims (`jwt`, the default). */
   readonly authorize?: "database" | "jwt";
   /** Claim holding the global role (string or array). Default `user_role`. */
@@ -89,6 +91,8 @@ export type RlsSqlContext = {
      * assignable roles' grants get one `<grant key>@<level>` key per level.
      */
     readonly levels?: true;
+    /** The sync triggers (`rls.customRoles.from.sync`) as SQL, built from the legacy tables. */
+    readonly sync?: string;
   };
   /** Set when link capabilities compile: resource-scoped grants also get `anon` branches. */
   readonly capabilities?: true;

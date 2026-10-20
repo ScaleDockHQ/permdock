@@ -313,6 +313,17 @@ function membershipIn(
         `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${name} WHERE ${[...filters, `${ctx.dialect.column(name, source)} IN (${list})`].join(" AND ")})`,
       ];
     }
+    if ("map" in source) {
+      const values = Object.entries(source.map)
+        .filter(([, key]) => key !== null && roles.includes(key))
+        .map(([value]) => ctx.dialect.literal(value));
+      if (values.length === 0) {
+        return ["1 = 0"];
+      }
+      return [
+        `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${name} WHERE ${[...filters, `${ctx.dialect.column(name, source.column)} IN (${values.join(", ")})`].join(" AND ")})`,
+      ];
+    }
     const [pair] = Object.entries(source.on);
     const keys = bare(source.through);
     const [ref, id] = pair ?? ["", ""];
@@ -420,7 +431,8 @@ function roleThroughs(
 ): readonly RoleThrough[] {
   const list = Array.isArray(role) ? role : [role];
   return list.filter(
-    (item): item is RoleThrough => typeof item === "object" && item !== null,
+    (item): item is RoleThrough =>
+      typeof item === "object" && item !== null && "through" in item,
   );
 }
 

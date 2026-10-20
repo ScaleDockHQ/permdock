@@ -2,6 +2,7 @@ import type { ExitCode } from "../core/errors.ts";
 import type { OutputFile } from "../core/output-files.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { RlsExplain } from "./explain.ts";
 import type { RolePermission } from "./helpers.ts";
 import type { IndexTarget } from "./indexes.ts";
 
@@ -20,6 +21,8 @@ import {
 } from "../core/output-files.ts";
 import { requirePolicy } from "../project/load.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
+import { bindingNotes, missingBindings, tableBindings } from "./bindings.ts";
+import { explainRls } from "./explain.ts";
 import { buildContext } from "./generate-context.ts";
 import {
   type RlsGenerateInput,
@@ -29,7 +32,9 @@ import {
 } from "./generate-options.ts";
 import { outputFiles } from "./generate-output.ts";
 import { generateSql } from "./generate-sql.ts";
+import { indexKeysFromProject, withoutServedTargets } from "./index-scan.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
+import { triggerNotes } from "./trigger-notes.ts";
 
 export type GenerateOutcome = {
   readonly code: ExitCode;
@@ -51,6 +56,8 @@ export type GenerateOutcome = {
   };
   readonly schema?: string;
   readonly helpersOnly?: boolean;
+  /** How the SQL binds to the application's schema; set when `write` is false. */
+  readonly explain?: RlsExplain;
 };
 
 function loadPolicy(
@@ -167,16 +174,40 @@ export async function runRlsGenerate(
   const { ctx } = built;
   const { text, migration, migrationRel, helpersOnly } = generated;
   let indexes = generated.indexes;
+  const bindings = tableBindings(
+    generated.compiled.rowColumns.map((item) => item.resource),
+    input.config.rls?.tables,
+    helpersOnly,
+  );
+  if (input.config.rls?.tables === undefined) {
+    warnings.push(...bindingNotes(bindings, input.db !== undefined));
+  }
+  warnings.push(...triggerNotes(text));
+  if (ctx.seeds === "function") {
+    warnings.push(`run select ${built.schema}.seed(); after each deploy`);
+  }
+  if (input.db === undefined) {
+    indexes = withoutServedTargets(indexes, indexKeysFromProject(input.cwd));
+  }
   if (input.db !== undefined) {
     try {
-      const pruned = pruneIndexTargets(
-        indexes,
-        await readTableIndexFacts(
-          input.db,
-          [...new Set(indexes.map((target) => target.table))],
-          input.connect,
-        ),
+      const facts = await readTableIndexFacts(
+        input.db,
+        [
+          ...new Set([
+            ...indexes.map((target) => target.table),
+            ...bindings.map((binding) => binding.table),
+          ]),
+        ],
+        input.connect,
       );
+      const missing = missingBindings(bindings, facts.columns);
+      if (missing.length > 0) {
+        return refused(
+          `rls generate: ${missing.map((binding) => `resource ${binding.resource} is bound to ${binding.table}, which the database does not have`).join("; ")}; name the table in rls.tables`,
+        );
+      }
+      const pruned = pruneIndexTargets(indexes, facts);
       indexes = pruned.targets;
       warnings.push(...pruned.warnings);
     } catch (cause) {
@@ -212,6 +243,14 @@ export async function runRlsGenerate(
       },
       schema: built.schema,
       helpersOnly,
+      explain: explainRls({
+        config: input.config,
+        ctx,
+        schema: built.schema,
+        authorize: built.authorize,
+        generated,
+        text,
+      }),
       ...extras,
     };
   }

@@ -112,6 +112,73 @@ describe("migrateTarget", () => {
   });
 });
 
+describe("an id that is an expression", () => {
+  it.each([
+    [
+      "a cast of an indirection",
+      `create policy p on storage.objects using (has_org((storage.foldername(name))[1]::uuid, 'doc.read'));`,
+      `create policy p on storage.objects using ((((storage.foldername(name))[1]::uuid) in (select public.permitted_org_ids('doc.read'))));`,
+    ],
+    [
+      "a function call with commas",
+      `create policy p on t using (is_member(coalesce(org_id, other_id)));`,
+      `create policy p on t using (((coalesce(org_id, other_id)) in (select public.member_org_ids())));`,
+    ],
+    [
+      "a scoped id",
+      `create policy p on t using (authorize('organization', lower(org_id), 'doc.read'));`,
+      `create policy p on t using (((lower(org_id)) in (select public.permitted_org_ids('doc.read'))));`,
+    ],
+  ])("is copied into the rewrite: %s", async (_label, sql, expected) => {
+    const { report, text } = await migrate(sql);
+    expect(report.skipped).toEqual([]);
+    expect(text).toBe(expected);
+  });
+});
+
+describe("a call inside a function body", () => {
+  it("is skipped with the call it would become", async () => {
+    const { report } = await migrate(
+      `create function f() returns boolean language sql as $$ select is_member(org_id) $$;`,
+    );
+    expect(report.skipped).toEqual([
+      expect.objectContaining({
+        reason: "function-body",
+        suggestion: "(org_id in (select public.member_org_ids()))",
+      }),
+    ]);
+  });
+
+  it("reads quoted and bracketed arguments to build the suggestion", async () => {
+    const { report } = await migrate(
+      `create function f() returns boolean language sql as $$ select authorize('organization', (ids)[1], 'doc.read') $$;`,
+    );
+    expect(report.skipped[0]?.suggestion).toBe(
+      "(((ids)[1]) in (select public.permitted_org_ids('doc.read')))",
+    );
+    const quoted = await migrate(
+      `create function f() returns boolean language sql as $$ select is_member(coalesce(org_id, 'a,b)')) $$;`,
+    );
+    expect(quoted.report.skipped[0]?.suggestion).toBe(
+      "((coalesce(org_id, 'a,b)')) in (select public.member_org_ids()))",
+    );
+  });
+
+  it("has no suggestion when the call cannot be delimited", async () => {
+    const { report } = await migrate(
+      `create function f() returns boolean language sql as $$ select is_admin(E'\\'') $$;`,
+    );
+    expect(report.skipped[0]?.suggestion).toBeUndefined();
+  });
+
+  it("has no suggestion when the call cannot be rewritten", async () => {
+    const { report } = await migrate(
+      `create function f() returns boolean language sql as $$ select is_admin('doc.audit') $$;`,
+    );
+    expect(report.skipped[0]?.suggestion).toBeUndefined();
+  });
+});
+
 describe("mapKey without prefixes", () => {
   it("keeps an unmapped key", () => {
     expect(mapKey({ helpers: {} }, "doc.read")).toBe("doc.read");
@@ -165,14 +232,6 @@ describe("runRlsMigrate skips", () => {
       [
         "missing-helper",
         "rls generate writes no member_team_ids: team has no membership source",
-      ],
-    ],
-    [
-      "a membership id that is an expression",
-      `create policy p on t using (is_member(lower(org_id)));`,
-      [
-        "not-a-column",
-        "the id is an expression, not a plain column; rewrite it by hand",
       ],
     ],
     [

@@ -229,6 +229,7 @@ export { mayAccess } from "./core/may-access.ts";
 export type { PermittedIdsOptions } from "./core/may-use.ts";
 export {
   customRoleClaim,
+  parseCustomRoleEntry,
   resolveCustomRole,
   validateCustomRole,
 } from "./core/custom-roles.ts";
@@ -241,6 +242,7 @@ export type {
   CustomRoleDrop,
   CustomRoleDropReason,
   CustomRoleRename,
+  CustomRoleEntry,
   CustomRoleValidation,
   ResolvedCustomRole,
   ValidateCustomRoleOptions,

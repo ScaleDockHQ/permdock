@@ -6,7 +6,13 @@ import { byKey } from "../shared/compare.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
 import { hasMemberFor, memberIdsHelper } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
-import { CUSTOM_ROLES, HELPERS, rootName, signedIn } from "../sql/shared.ts";
+import {
+  CUSTOM_ROLES,
+  HELPERS,
+  allowEntry,
+  rootName,
+  signedIn,
+} from "../sql/shared.ts";
 
 /** The readers every helpers file ends with. Names are part of the SQL contract. */
 const READERS = {
@@ -428,10 +434,7 @@ end;`;
           and ${qualified(ctx, HELPERS.has)}(m.grant_key)
       )`;
     const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id and c.role = p_role`;
-    const allowEntryOf =
-      custom.levels === true
-        ? "c.permission || coalesce('@' || c.level, '')"
-        : "c.permission";
+    const allowEntryOf = `c.${allowEntry(ctx)}`;
     const checked = (gate: string): string => `begin
   if p_role = any(${sqlTextArray(custom.declared)}) then
     return query

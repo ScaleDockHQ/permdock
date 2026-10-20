@@ -1,7 +1,13 @@
 import type { SupabaseManifestRole } from "./manifest.ts";
-import type { RoleThrough } from "./types.ts";
+import type { RoleMap, RoleThrough } from "./types.ts";
 
-import { quoteSqlIdent, quoteSqlTable } from "../core/sql.ts";
+import {
+  qualifySqlTable,
+  quoteSqlIdent,
+  quoteSqlLiteral,
+  quoteSqlTable,
+  sqlTextArray,
+} from "../core/sql.ts";
 
 /** A roles table a role column references, by `schema.table`. */
 export type RoleKeys = {
@@ -38,15 +44,35 @@ export type RoleColumn = {
    * role, so `lookup` is the same as `sql` and needs the `join`.
    */
   readonly lateral: boolean;
+  /** The `map` of a mapped column: `sql` is then null for an unlisted value. */
+  readonly map?: Readonly<Record<string, string | null>>;
+  /** Whether `sql` can be null for a row, so an aggregate has to leave those out. */
+  readonly nullable: boolean;
 };
 
 /** One role source of a membership row: a key column, or a reference to a roles table. */
-export type RoleSource = string | RoleThrough;
+export type RoleSource = string | RoleThrough | RoleMap;
 
 /** A role source, or several the row holds at once. */
 export type RoleSpec = RoleSource | readonly RoleSource[];
 
+/**
+ * A roles table whose tenant rows are written by tenants. A role key read
+ * through it from a tenant row that is one of `declared` reads as null, so a
+ * tenant cannot claim the grants of a declared role by naming a role after it.
+ */
+export type RoleGuard = {
+  /** `schema.table`, or `public`. */
+  readonly table: string;
+  /** The tenant column of the roles table. */
+  readonly tenant: string;
+  /** A tenant row with this column true is the application's own copy of a declared role. */
+  readonly skip?: string | undefined;
+  readonly declared: readonly string[];
+};
+
 type RoleOptions = {
+  readonly guard?: RoleGuard;
   readonly label: string;
   readonly prefix?: string;
   readonly indent?: string;
@@ -101,6 +127,7 @@ export function roleColumn(
     columns: [...new Set(parts.map((part) => part.column))],
     throughs: parts.flatMap((part) => part.throughs),
     lateral: true,
+    nullable: false,
   };
 }
 
@@ -121,6 +148,25 @@ function singleRole(
       columns: [role],
       throughs: [],
       lateral: false,
+      nullable: false,
+    };
+  }
+  if ("map" in role) {
+    const arms = Object.entries(role.map).map(
+      ([value, key]) =>
+        `when ${quoteSqlLiteral(value)} then ${key === null ? "null" : quoteSqlLiteral(key)}`,
+    );
+    const mapped = `case ${alias}.${q(role.column)}::text ${arms.join(" ")} else null end`;
+    return {
+      column: role.column,
+      sql: mapped,
+      join: "",
+      lookup: mapped,
+      columns: [role.column],
+      throughs: [],
+      lateral: false,
+      map: role.map,
+      nullable: true,
     };
   }
   const pairs = Object.entries(role.on);
@@ -140,15 +186,22 @@ function singleRole(
   const keys = options.joined ?? `${alias}k`;
   const target = quoteSqlTable(through, prefix);
   const keyed = { table: through, id, key: role.column, ref };
+  const plain = `${keys}.${q(role.column)}::text`;
+  const guard = options.guard;
+  const key =
+    guard !== undefined && qualifySqlTable(guard.table) === through
+      ? `case when ${keys}.${q(guard.tenant)} is not null${guard.skip === undefined ? "" : ` and not coalesce(${keys}.${q(guard.skip)}, false)`} and ${plain} = any(${sqlTextArray(guard.declared)}) then null else ${plain} end`
+      : plain;
   return {
     column: ref,
-    sql: `${keys}.${q(role.column)}::text`,
+    sql: key,
     join: `${options.indent === undefined ? " " : `\n${options.indent}`}join ${target} ${keys} on ${keys}.${q(id)} = ${alias}.${q(ref)}`,
-    lookup: `(select ${keys}.${q(role.column)}::text from ${target} ${keys} where ${keys}.${q(id)} = ${alias}.${q(ref)})`,
+    lookup: `(select ${key} from ${target} ${keys} where ${keys}.${q(id)} = ${alias}.${q(ref)})`,
     through: keyed,
     columns: [ref],
     throughs: [keyed],
     lateral: false,
+    nullable: false,
   };
 }
 
@@ -156,7 +209,11 @@ function singleRole(
 function sourceManifest(
   column: string,
   through: RoleKeys | undefined,
+  map?: Readonly<Record<string, string | null>>,
 ): SupabaseManifestRole {
+  if (map !== undefined) {
+    return { column, map };
+  }
   return through === undefined
     ? { column }
     : {
@@ -175,7 +232,7 @@ export function roleManifest(
   role: RoleColumn,
 ): SupabaseManifestRole | readonly SupabaseManifestRole[] {
   if (!role.lateral) {
-    return sourceManifest(role.column, role.through);
+    return sourceManifest(role.column, role.through, role.map);
   }
   return role.columns.map((column) =>
     sourceManifest(

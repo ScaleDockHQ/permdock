@@ -228,3 +228,20 @@ describe("rls generate with resource levels", () => {
     }
   });
 });
+
+describe("leveled grant keys across roles", () => {
+  it("gives an assignable and a non-assignable role the same leveled keys", async () => {
+    const sql = await generate(appWith(true, "database"));
+    const keys = (role: string): string[] =>
+      [
+        ...sql.matchAll(
+          new RegExp(`\\('${role}', 'job\\.update', '([^']+)',`, "gu"),
+        ),
+      ]
+        .map((match) => match[1] ?? "")
+        .filter((key) => key.includes("@"))
+        .toSorted();
+    expect(keys("owner")).toEqual(["job.update#1@all", "job.update#1@own"]);
+    expect(keys("admin")).toEqual(keys("owner"));
+  });
+});

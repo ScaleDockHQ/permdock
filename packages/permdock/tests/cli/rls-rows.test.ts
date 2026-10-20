@@ -82,7 +82,9 @@ describe("permitted_<resource>_rows", () => {
       `when 'doc.archive' then coalesce(("ownerId" = (select "permdock".permdock_user_id())), false)`,
     );
     expect(sql).toContain(`when 'doc.update' then`);
-    expect(sql).not.toContain(`when 'doc.create'`);
+    expect(sql).toContain(
+      `when 'doc.create' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.create'))), false)`,
+    );
     expect(sql).toContain("    else false");
     expect(sql).toContain(
       '"permdock".permitted_doc_rows_for(p_user uuid, p_permission text, p_claims jsonb',

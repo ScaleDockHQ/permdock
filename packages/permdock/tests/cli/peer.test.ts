@@ -21,6 +21,41 @@ describe("requirePeer", () => {
     ).resolves.toEqual({ ok: true });
   });
 
+  it("accepts a peer whose version cannot be read", async () => {
+    await expect(
+      requirePeer(
+        () => Promise.resolve({ ok: true }),
+        "not-an-installed-package",
+        "permdock rls migrate",
+        process.cwd(),
+        1,
+      ),
+    ).resolves.toEqual({ ok: true });
+  });
+
+  it("refuses an installed peer older than the minimum major", async () => {
+    await expect(
+      requirePeer(
+        () => Promise.resolve({}),
+        "vitest",
+        "permdock rls migrate",
+        process.cwd(),
+        999,
+      ),
+    ).rejects.toThrow(
+      /permdock rls migrate needs vitest 999 or later; \d+ is installed/u,
+    );
+    await expect(
+      requirePeer(
+        () => Promise.resolve({ ok: true }),
+        "vitest",
+        "permdock rls migrate",
+        process.cwd(),
+        1,
+      ),
+    ).resolves.toEqual({ ok: true });
+  });
+
   it("turns a missing peer into the install line", async () => {
     await expect(
       requirePeer(

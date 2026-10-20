@@ -135,7 +135,7 @@ join pg_namespace n on n.oid = c.relnamespace
 where a.attnum > 0 and not a.attisdropped
   and n.nspname || '.' || c.relname = any($1::text[])`;
 
-const INDEX_COLUMNS_SQL = `select n.nspname || '.' || c.relname as target,
+export const INDEX_COLUMNS_SQL = `select n.nspname || '.' || c.relname as target,
   array(
     select a.attname::text
     from unnest(i.indkey) with ordinality k(attnum, ord)

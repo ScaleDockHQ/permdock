@@ -107,6 +107,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD069` | Under pg-delta, `[db.migrations] schema_paths` is still set, or a numbered `NNN_permdock_*.sql` part from migra is still there                                                                                                                                                                             | warning         |
 | `PD070` | The policy declares `oauthScopes` and the catalog on disk lists none or another set, so better-supabase's SQL checks deny a token that holds only a coarse scope                                                                                                                                           | warning         |
 | `PD071` | An action verb whose name reads as a write (`create…`, `update…`, `approve…`, `markPaid`) has no `rls.actions` entry and no default, so it compiles to `'none'`                                                                                                                                            | warning         |
+| `PD072` | A membership source reads role keys through `rls.customRoleWrites.roles`, whose tenant rows tenants write, so a tenant row named like a declared role could grant it                                                                                                                                       | warning         |
+| `PD073` | A role's `for` lists kinds that no membership source of its scope can hold                                                                                                                                                                                                                                 | error           |
 
 ### PD001: server-only imports in client entries
 
@@ -419,6 +421,14 @@ With `operations` set in `permdock.config.ts`, the check reads the `operations` 
 ### PD071: write verbs without an rls.actions entry
 
 A verb with no `rls.actions` entry and no default compiles to `'none'`: no SQL policy, and its grants are still seeded for `permdock_has` ([action verbs](/docs/cli/rls#action-verbs)). That default never adds a write, but a verb that writes rows through the API role then has no policy that lets the write through. The check lists each unmapped verb that starts with `create`, `update`, `delete`, `remove`, `send`, `mark`, `cancel`, `approve`, `receive`, `fulfill`, `reimburse`, `withdraw`, `writeOff`, `confirm` or `pause`, followed by the end of the name, a capital, a digit, `_` or `-`, with the permissions that use it. Map each one on purpose, to a command or to `'none'`. `--only rls` runs PD071.
+
+### PD072: tenant-written role rows read through a source
+
+A membership source whose role column is a `through` reference to `rls.customRoleWrites.roles` reads keys from a table tenants write. A tenant row named `owner` would then grant the declared `owner` role. The helpers `rls generate` writes read such a row as no role, and the `permdock_custom_role_name_guard` trigger on the roles table refuses it (`declared-role`, `name-taken`); a row with no tenant (a global or shared role) is not affected. The check reports each source that reads through the table, so a hand-written helper or a config that predates the guard is regenerated ([custom role writes](/docs/cli/rls#custom-role-writes)). `--only rls` runs PD072.
+
+### PD073: role `for` that no source can hold
+
+A role declared with `for: ['employee']` can only be held through a membership whose kind is in that list, and a membership gets its kind from the `via` of its source. When no source of the role's scope has a `via` that matches, nobody can hold the role, and the check reports it as an error, naming the role, its `for` list and the kinds the sources hold. Set `via` on the source, or change `for` ([ownership](/docs/concepts/ownership)). `--only rls` and `--only ownership` run PD073.
 
 ## Side effects
 

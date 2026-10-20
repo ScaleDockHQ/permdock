@@ -549,7 +549,7 @@ ${rows}
 ${customKeysJoin(
   ctx,
   scope,
-  entries(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'allow'"),
+  entries(CUSTOM_ROLES.permissions, allowEntry(ctx), " and c.effect = 'allow'"),
   entries(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
   entries(CUSTOM_ROLES.includes, "include_role", ""),
 )}
@@ -571,7 +571,7 @@ ${rows}
 ${customKeysSql(
   ctx,
   scope,
-  entries(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'allow'"),
+  entries(CUSTOM_ROLES.permissions, allowEntry(ctx), " and c.effect = 'allow'"),
   entries(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
   entries(CUSTOM_ROLES.includes, "include_role", ""),
 )}`,

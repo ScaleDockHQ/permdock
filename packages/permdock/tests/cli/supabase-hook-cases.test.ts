@@ -177,3 +177,69 @@ describe("supabase.hook.api", () => {
     );
   });
 });
+
+describe("supabase.hook.teams", () => {
+  const teams = {
+    table: "team_members",
+    user: "user_id",
+    team: "team_id",
+    tenant: "organization_id",
+  };
+  const hook = (claims?: Record<string, string>) =>
+    supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: {
+        hook: {
+          teams,
+          ...(claims === undefined ? {} : { claims }),
+          memberships: [
+            junctionMembershipSource({
+              table: "organization_members",
+              scope: "organization",
+              id: "organization_id",
+              roles: "role",
+            }),
+          ],
+        },
+      },
+    });
+
+  it("writes a budgeted team_ids claim, clears it for a suspended user and lets the hook read the table", () => {
+    const { sql: hookSql, grants } = hook();
+    const sql = `${hookSql}\n${grants}`;
+    expect(sql).toContain("team_ids jsonb := '[]'::jsonb;");
+    expect(sql).toContain('from "public"."team_members" t');
+    expect(sql).toContain(
+      "claims := jsonb_set(claims, '{team_ids}', team_ids);",
+    );
+    expect(sql).toContain("claims - 'attrs' - 'team_ids'");
+    expect(sql).toContain("permdock_auth_admin_read_teams");
+  });
+
+  it("orders the teams by id alone when the table has no tenant column", () => {
+    const { sql } = supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: {
+        hook: {
+          teams: { table: "team_members", user: "user_id", team: "team_id" },
+          memberships: [
+            junctionMembershipSource({
+              table: "organization_members",
+              scope: "organization",
+              id: "organization_id",
+              roles: "role",
+            }),
+          ],
+        },
+      },
+    });
+    expect(sql).toContain('order by t."team_id"');
+    expect(sql).not.toContain('(t."organization_id"::text is not distinct');
+  });
+
+  it("refuses team_ids as an extra claim name", () => {
+    expect(() => hook({ team_ids: "public.team_claims" })).toThrow(
+      "supabase.hook.claims names team_ids, which PermDock or Supabase Auth writes",
+    );
+  });
+});

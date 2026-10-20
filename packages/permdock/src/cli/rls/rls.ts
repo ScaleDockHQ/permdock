@@ -3,11 +3,13 @@ import type { SqlConnect } from "../pg.ts";
 import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from "../types.ts";
 
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
-import { usageResult } from "../core/errors.ts";
+import { describeError, exitCodeOfError, usageResult } from "../core/errors.ts";
 import { requirePeer } from "../core/peer.ts";
 import { isSupabaseSchemas, schemasRefusal } from "../supabase-schemas.ts";
 import { type CliExec, runRlsAdvisors } from "./advisors.ts";
+import { describeExplain } from "./explain.ts";
 import { type GenerateOutcome, runRlsGenerate } from "./generate.ts";
+import { readTableIndexFacts } from "./indexes.ts";
 import {
   diffMixed,
   diffRls,
@@ -21,12 +23,16 @@ import { readOnlyActorKinds } from "./policies.ts";
 import { parseRbacAuthorize } from "./rbac.ts";
 import { runRlsVerify } from "./verify.ts";
 
-export const RLS_HELP = `permdock rls generate | import | verify | migrate
+/** `rls migrate` and `rls import` read the pgsql-parser 18 AST. */
+const PGSQL_PARSER_MAJOR = 18;
+
+export const RLS_HELP = `permdock rls generate | import | verify | migrate | explain
 
   generate  Compile the policy into RLS policies and helpers
   import    Turn existing policies (--sql or --db-url-stdin) into a permissions module
   verify    Run the fixtures, or compare a live database with --introspect
   migrate   Rewrite the rls.migrate helpers' calls onto the generated helpers
+  explain   Show the tables, membership sources, custom roles and triggers the SQL binds to
 
 Run permdock rls <command> --help for its flags.
 Never emits service_role, except in the execute grant rls.trustedReaders asks for. memberOf compiles through the dialect memberships mapping.
@@ -160,6 +166,50 @@ function generateInput(
   };
 }
 
+async function explain(input: RlsRunInput): Promise<CommandResult> {
+  const dialect = asDialect(input.dialect ?? input.config.rls?.dialect);
+  if (dialect === undefined) {
+    return {
+      code: 2,
+      output:
+        "rls explain --dialect (or rls.dialect) must be supabase, neon or guc",
+    };
+  }
+  const generated = await runRlsGenerate({
+    ...generateInput(input, "sql", dialect),
+    check: false,
+    write: false,
+  });
+  if (generated.explain === undefined) {
+    return { code: generated.code, output: generated.output };
+  }
+  let report = generated.explain;
+  if (input.db !== undefined) {
+    try {
+      const facts = await readTableIndexFacts(
+        input.db,
+        report.bindings.map((binding) => binding.table),
+        input.connect,
+      );
+      report = {
+        ...report,
+        bindings: report.bindings.map((binding) => ({
+          ...binding,
+          exists: facts.columns[binding.table] !== undefined,
+        })),
+      };
+    } catch (cause) {
+      return { code: exitCodeOfError(cause), output: describeError(cause) };
+    }
+  }
+  return {
+    code: 0,
+    output: input.json
+      ? JSON.stringify(report, null, 2)
+      : describeExplain(report),
+  };
+}
+
 async function migrate(input: RlsRunInput): Promise<CommandResult> {
   const config = input.config.rls?.migrate;
   if (config === undefined) {
@@ -193,6 +243,7 @@ async function migrate(input: RlsRunInput): Promise<CommandResult> {
     "pgsql-parser",
     "permdock rls migrate",
     input.cwd,
+    PGSQL_PARSER_MAJOR,
   );
   // Lazy: the migrate code loads only after its peer check passes.
   const { migrateTarget, runRlsMigrate } = await import("./migrate.ts");
@@ -350,6 +401,7 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
         "pgsql-parser",
         "permdock rls import",
         input.cwd,
+        PGSQL_PARSER_MAJOR,
       );
       // Lazy: the import code loads only after its peer check passes.
       const { runRlsImport } = await import("./import.ts");
@@ -391,6 +443,7 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
         format,
         tree: input.tree,
         io: input.io,
+        ...(input.out === undefined ? {} : { out: input.out }),
         ...(input.fixtures === undefined ? {} : { fixtures: input.fixtures }),
         ...(input.db === undefined ? {} : { db: input.db }),
         ...(input.from === undefined ? {} : { from: input.from }),
@@ -400,6 +453,8 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
     }
     case "migrate":
       return migrate(input);
+    case "explain":
+      return explain(input);
     default:
       return { code: 2, output: RLS_HELP };
   }
