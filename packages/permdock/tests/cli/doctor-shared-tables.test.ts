@@ -104,4 +104,16 @@ describe("PD075", () => {
       }),
     ).toEqual([]);
   });
+
+  it("does nothing when the policy does not load", async () => {
+    expect(
+      await pd075({
+        cwd: files(),
+        config: {
+          ...config({ file: "files", fileNode: "files" }),
+          policy: "src/missing.ts",
+        },
+      }),
+    ).toEqual([]);
+  });
 });

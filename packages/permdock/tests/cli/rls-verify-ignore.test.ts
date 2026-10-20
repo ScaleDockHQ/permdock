@@ -180,6 +180,38 @@ describe("rls verify finding ids", () => {
     ).toThrow("needs an id and a non-empty reason");
   });
 
+  it("refuses an ignore list that is not an array", () => {
+    expect(() =>
+      verifyIgnores(
+        config({
+          // SAFETY: the config is loaded from user JS, so the shape must be checked at run time.
+          verify: { ignore: { id: MISMATCH } as never },
+        }),
+      ),
+    ).toThrow("rls.verify.ignore must be a list of { id, reason }");
+  });
+
+  it("keeps the first reason of an id listed twice and prefixes info findings", () => {
+    const result = verifyResult({
+      findings: [
+        rlsFinding("policy-missing", "public.post", "post_select", "missing"),
+        rlsFinding("note", "public.post", "post_note", "a note", "info"),
+      ],
+      ignore: [
+        { id: "policy-missing:public.post:post_select", reason: "first" },
+        { id: "policy-missing:public.post:post_select", reason: "second" },
+      ],
+      summary: "done",
+    });
+    expect(result.output).toBe(
+      [
+        "info: a note [note:public.post:post_note]",
+        "ignored policy-missing:public.post:post_select: first",
+        "done",
+      ].join("\n"),
+    );
+  });
+
   it("carries the id into GitHub annotations and SARIF fingerprints", () => {
     const result = verifyResult({
       findings: [

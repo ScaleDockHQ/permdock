@@ -246,6 +246,9 @@ describe("rls generate options", () => {
     await expect(
       generate({ ownershipTriggers: { region: false } }),
     ).rejects.toThrow("rls.ownershipTriggers.region names a scope");
+    expect((await generate({ ownershipTriggers: false })).text).toContain(
+      "-- tenant: rls.ownershipTriggers leaves out the triggers",
+    );
   });
 
   it("checks custom roles in the assignment triggers", async () => {

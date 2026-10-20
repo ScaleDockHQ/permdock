@@ -137,5 +137,26 @@ describe("PD076", () => {
     expect(result.findings?.map((finding) => finding.severity)).toEqual([
       "info",
     ]);
+    const two = await runDoctor({
+      cwd: invoices(),
+      config: config({ export: "none", aprove: "update" }),
+      only: ["pd076"],
+      json: false,
+      fix: false,
+      strict: false,
+      color: false,
+      now: NOW,
+      io: quietIo,
+    });
+    expect(two.output).toContain("0 errors, 0 warnings, 2 notes");
+  });
+
+  it("finds nothing when the policy does not load", async () => {
+    expect(
+      await pd076({
+        cwd: invoices(),
+        config: { ...config({ export: "none" }), policy: "src/missing.ts" },
+      }),
+    ).toEqual([]);
   });
 });

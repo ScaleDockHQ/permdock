@@ -15,6 +15,7 @@ import type { PermDockConfig } from "../../src/cli/types.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { pd058 } from "../../src/cli/doctor/powersync.ts";
 import { runPowerSync } from "../../src/cli/powersync/powersync.ts";
+import { junctionMembershipSource } from "../../src/supabase/index.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TMP = join(HERE, "../../tmp");
@@ -280,6 +281,96 @@ describe("permdock powersync", () => {
       connect: fakeDb((values) => values.length === 3),
     });
     expect(own.code).toBe(0);
+  });
+
+  it("checks the powersync publication for the tables outside public", async () => {
+    const cwd = project();
+    writeFileSync(
+      join(cwd, "policy.ts"),
+      `import { allow, definePermissions, definePolicy, resource, role } from '${join(HERE, "../../src/index.ts")}';
+
+export const permissions = definePermissions({
+  job: resource({ id: 'id', actions: ['read'], relations: { tenant: { field: 'tenant_id', memberOf: 'tenant' } } }),
+});
+
+export const policy = definePolicy(permissions, {
+  scopes: { tenant: { key: 'tenant_id' } },
+  subject: () => null,
+  roles: [role('owner', [allow(permissions.job.read)], { on: 'tenant' })],
+});
+`,
+    );
+    writeFileSync(
+      join(cwd, "rls.fixtures.json"),
+      JSON.stringify([
+        {
+          subject: { id: "u9" },
+          action: "job.read",
+          row: { id: "j1", tenant_id: "t1" },
+        },
+      ]),
+    );
+    const config: PermDockConfig = {
+      policy: "policy.ts",
+      rls: {
+        authorize: "database",
+        customRoles: true,
+        tables: { job: "jobs" },
+        membershipSources: [
+          junctionMembershipSource({
+            table: "tenant_users",
+            scope: "tenant",
+            id: "tenant_id",
+            roles: "tier_role",
+          }),
+        ],
+      },
+      powersync: {},
+    };
+    const base = { cwd, config, check: false };
+    expect(
+      (await runPowerSync({ ...base, rest: ["generate"] })).output,
+    ).toContain(
+      "add the tables outside public to the powersync publication: alter publication powersync add table permdock.custom_role_includes, permdock.custom_role_permissions, permdock.user_roles;",
+    );
+    const publication =
+      (published: readonly (string | null)[] | undefined) =>
+      async (): Promise<SqlClient> => ({
+        query: async (sql) => ({
+          rows: sql.includes("pg_publication_tables")
+            ? (published ?? []).map((name) => ({ name }))
+            : sql.includes("pg_publication")
+              ? published === undefined
+                ? []
+                : [{ "?column?": 1 }]
+              : [],
+        }),
+        end: async () => undefined,
+      });
+    const verify = (published: readonly (string | null)[] | undefined) =>
+      runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: publication(published),
+      });
+    const none = await verify(undefined);
+    expect(none.code).toBe(0);
+    expect(none.output).toContain(
+      "this database has no powersync publication; PowerSync needs the synced tables in it: alter publication powersync add table",
+    );
+    const partial = await verify(["public.jobs", null]);
+    expect(partial.code).toBe(1);
+    expect(partial.output).toContain(
+      "PD058: permdock.custom_role_permissions is not in the powersync publication, so PowerSync syncs none of its rows",
+    );
+    const full = await verify([
+      "permdock.custom_role_includes",
+      "permdock.custom_role_permissions",
+      "permdock.user_roles",
+    ]);
+    expect(full.code).toBe(0);
+    expect(full.output).not.toContain("publication");
   });
 
   it("rejects fixture claims that are not an object", async () => {

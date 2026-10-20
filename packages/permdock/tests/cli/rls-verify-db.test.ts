@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlCall, SqlReply } from "../fakes/sql.ts";
 
+import { expectedFields } from "../../src/cli/rls/verify-database.ts";
 import { runRlsVerify } from "../../src/cli/rls/verify.ts";
 import { HELPER_TABLE_POLICIES_SQL } from "../../src/cli/sql/helper-calls.ts";
 import { fakeSql } from "../fakes/sql.ts";
@@ -117,6 +118,24 @@ describe("rls verify --db-url-stdin through an injected client", () => {
       code: 1,
       output:
         "post.update: in-process denied, database allowed [parity-mismatch:post.update:u1/p2]",
+    });
+  });
+
+  it("reports a granted fixture the database filters", async () => {
+    const sql = fakeSql(rowsFor(() => 0));
+    const cwd = app([{ subject: author, row: own, action: "post.update" }]);
+    const outcome = await runRlsVerify({
+      cwd,
+      config: config(),
+      db: "postgres://fake",
+      format: "node",
+      io,
+      connect: sql.connect,
+    });
+    expect(outcome).toMatchObject({
+      code: 1,
+      output:
+        "post.update: in-process granted, database filtered [parity-mismatch:post.update:u1/p1]",
     });
   });
 
@@ -588,5 +607,21 @@ describe("rls verify --tree through an injected client", () => {
       "rls verify --tree could not seed the tree (SQLSTATE 42501)",
     );
     expect(sql.statements().at(-1)).toBe("rollback");
+  });
+});
+
+describe("expectedFields", () => {
+  it("adds the key column only when the row has a value for it", () => {
+    expect(expectedFields(true, { title: "t" }, "id", { id: "p1" })).toEqual([
+      "id",
+      "title",
+    ]);
+    expect(expectedFields(true, { title: "t" }, "id", { id: null })).toEqual([
+      "title",
+    ]);
+    expect(expectedFields(true, { title: "t" }, "id", "p1")).toEqual(["title"]);
+    expect(expectedFields(false, { title: "t" }, "id", { id: "p1" })).toEqual(
+      [],
+    );
   });
 });

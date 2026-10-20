@@ -101,6 +101,27 @@ describe("policyMatrix", () => {
     expect(report.missing).toEqual([permissions.doc.list.key]);
   });
 
+  it("names a denial role, the alternatives and a denial with no named deny", async () => {
+    const report = await policyMatrix(policy, {
+      subjects,
+      exhaustive: false,
+      matrix: {
+        [permissions.doc.update.key]: {
+          vera: {
+            denials: [{ reason: "no-grant", role: "editor" }],
+            alternatives: [permissions.doc.list.key],
+            deniedBy: "freeze",
+          },
+        },
+      },
+    });
+    expect(report.cells[0]?.failures).toEqual([
+      "no denial no-grant for role editor; got [no-grant]",
+      "alternatives: expected [doc.list], got [doc.read, doc.list]",
+      "deniedBy: expected freeze, explain answered denied",
+    ]);
+  });
+
   it("leaves missing empty when the matrix is not exhaustive", async () => {
     const report = await policyMatrix(policy, {
       subjects,

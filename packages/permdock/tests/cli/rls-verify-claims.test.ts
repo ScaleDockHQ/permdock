@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { subjectSettings } from "../../src/cli/rls/verify-pgtap.ts";
+import {
+  customRoleRows,
+  subjectSettings,
+} from "../../src/cli/rls/verify-pgtap.ts";
 
 const subject = {
   dialect: "guc" as const,
@@ -37,6 +40,41 @@ describe("rls verify subject settings", () => {
       ["app.user_role", ""],
       ["app.memberships", "[]"],
       ["app.tenant_id", "acme"],
+    ]);
+  });
+
+  it("sets no tenant GUC for a subject without a tenant", () => {
+    expect(
+      subjectSettings(
+        { subject: { id: "u1" }, action: "job.read", row: {} },
+        subject,
+      ),
+    ).toEqual([
+      ["app.user_id", "u1"],
+      ["app.user_role", ""],
+      ["app.memberships", "[]"],
+    ]);
+  });
+});
+
+describe("rls verify custom-role rows", () => {
+  it("writes a global role's grants and includes with no tenant or scope id", () => {
+    expect(
+      customRoleRows(
+        "permdock",
+        [
+          {
+            name: "auditor",
+            scope: "global",
+            grants: [{ permission: "job.read" }],
+            includes: ["viewer"],
+          },
+        ],
+        [],
+      ).map((row) => row.values),
+    ).toEqual([
+      [null, "global", null, "auditor", "job.read", "allow"],
+      [null, "global", null, "auditor", "viewer"],
     ]);
   });
 });

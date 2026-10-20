@@ -88,6 +88,36 @@ describe("custom-role functions keyed by role id", () => {
     );
   });
 
+  it("refuses an empty primary key", () => {
+    expect(() =>
+      customRoleByIdSql(ctx({ table: { ...roles, primaryKey: "" } }), []),
+    ).toThrow("rls.customRoleWrites.roles.primaryKey names no column");
+  });
+
+  it("reads a roles table without a tenant column as platform roles", () => {
+    const { tenant: _tenant, ...platform } = roles;
+    const { permissions: _permissions, ...rest } = ctx().customRoles ?? {
+      declared: [],
+      assignable: [],
+    };
+    const sql = customRoleByIdSql(
+      {
+        ...ctx(),
+        customRoles: {
+          ...rest,
+          table: platform,
+          audit: { function: "audit.write" },
+        },
+      },
+      undefined,
+    );
+    expect(sql).toContain("null::text");
+    expect(sql).not.toContain("is_system");
+    expect(sql).toContain(
+      `perform "audit"."write"(event_type => 'permdock.custom_role.replaced', target_type => 'role', record_id => p_role_id::text, tenant => v_tenant, metadata => jsonb_build_object('operation', 'replace', 'role', v_key, 'permissions', p_permissions));`,
+    );
+  });
+
   it("writes nothing without a primary key, custom roles or database mode", () => {
     const { primaryKey: _primaryKey, ...keyless } = roles;
     expect(customRoleByIdSql(ctx({ table: keyless }), [])).toBe("");

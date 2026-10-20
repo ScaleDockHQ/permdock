@@ -90,6 +90,26 @@ describe("PD054 stale role_permissions seeds", () => {
     expect(finding?.message).toMatch(/: \d+ missing, such as/u);
   });
 
+  it("leaves a config rls generate refuses or cannot compile to rls generate", async () => {
+    const cwd = await seeded();
+    writeFileSync(
+      path.join(cwd, SEEDS),
+      "delete from permdock.role_permissions;\n",
+    );
+    expect(
+      await pd054({
+        cwd,
+        config: { ...config, rls: { ...config.rls, revokeColumns: true } },
+      }),
+    ).toEqual([]);
+    expect(
+      await pd054({
+        cwd,
+        config: { ...config, rls: { ...config.rls, trustedReaders: [""] } },
+      }),
+    ).toEqual([]);
+  });
+
   it("compiles a supabase-only config with Supabase defaults and names stale rows alone", async () => {
     const cwd = await seeded();
     const file = path.join(cwd, SEEDS);

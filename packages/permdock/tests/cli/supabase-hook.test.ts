@@ -1,3 +1,5 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
@@ -96,6 +98,31 @@ describe("permdock supabase hook generate", () => {
     ]);
     expect(missing.code).toBe(1);
     expect(missing.output).toContain("supabase hook drift: missing");
+  });
+
+  it("names what changed in the marker line under --check", async () => {
+    const { cwd, sql } = await generate(`{ memberships: [${SOURCES}] }`);
+    const file = join(cwd, "hook.sql");
+    const check = async (text: string): Promise<string> => {
+      writeFileSync(file, text);
+      return (
+        await run(
+          ["supabase", "hook", "generate", "--out", "hook.sql", "--check"],
+          {
+            cwd,
+          },
+        )
+      ).stdout;
+    };
+    expect(await check(`${sql}-- edited\n`)).toContain("supabase hook drift\n");
+    expect(await check(sql.replace(/budget=\d+/u, "budget=1"))).toMatch(
+      /supabase hook drift: budget 1 -> \d+/u,
+    );
+    expect(
+      await check(sql.replace(/^-- permdock:hook v1.*\n/mu, "")),
+    ).toContain(
+      "supabase hook drift: hook.sql has no -- permdock:hook v1 line",
+    );
   });
 
   it("refuses configurations it cannot compile", async () => {
