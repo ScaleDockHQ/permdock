@@ -125,7 +125,7 @@ function missingImports(
   });
 }
 
-/** The lowest version the `better-supabase` peer range accepts. */
+/** The lowest version the `better-supabase` peer range accepts; `peer-range.test.ts` checks the upper bound. */
 function peerFloor(): string | undefined {
   return /^\s+better-supabase: ">=([^\s"]+)/mu.exec(
     readFileSync(WORKSPACE, "utf8"),

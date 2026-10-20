@@ -126,6 +126,50 @@ jobs:
       - name: Integration
         run: pnpm run test:integration --shard=${{ matrix.shard }}/3
 
+  # The lowest and the latest better-supabase the peer range accepts; the peer's
+  # upper bound is the minor after the last entry (tests/better-supabase/peer-range.test.ts).
+  better-supabase:
+    name: better-supabase ${{ matrix.better-supabase }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        better-supabase: ["0.9.0", "0.10.0"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+
+      - name: Install better-supabase ${{ matrix.better-supabase }}
+        env:
+          VERSION: ${{ matrix.better-supabase }}
+        run: |
+          sed -i -E "s/^  better-supabase: [0-9.]+$/  better-supabase: $VERSION/" pnpm-workspace.yaml
+          pnpm install --no-frozen-lockfile
+          node -p "require('./packages/permdock/node_modules/better-supabase/package.json').version" | grep -qx "$VERSION"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: packages
+
+      - name: Provider tests
+        run: pnpm exec vitest run tests/better-supabase
+        working-directory: packages/permdock
+
+      - name: Provider integration
+        run: pnpm exec vitest run --project integration src/better-supabase-
+        working-directory: tests/integration
+
   runtimes:
     name: Runtimes (Bun, Deno, workerd)
     needs: build

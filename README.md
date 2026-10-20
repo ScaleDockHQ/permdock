@@ -151,7 +151,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 
 ## CI and release
 
-- `ci.yml` runs on pushes to `main` and on pull requests. It calls `verify.yml`, a matrix of format, lint, Knip, typecheck (with the TypeScript 5.9 / 6 / 7 type matrix), unit tests, boundaries, `audit:high`, catalog, docs and OpenAPI drift, `permdock doctor` over the examples, bundle size and publish checks, affected-only on pull requests. Integration and runtimes run against the built `dist/`. There are no end-to-end or browser tests: unit, integration, runtime, type and bundle tests cover the package.
+- `ci.yml` runs on pushes to `main` and on pull requests. It calls `verify.yml`, a matrix of format, lint, Knip, typecheck (with the TypeScript 5.9 / 6 / 7 type matrix), unit tests, boundaries, `audit:high`, catalog, docs and OpenAPI drift, `permdock doctor` over the examples, bundle size and publish checks, affected-only on pull requests. Integration and runtimes run against the built `dist/`. A `better-supabase` matrix runs the provider tests against the lowest and the latest version of the `better-supabase` peer range, and `database.yml` runs the `next-better-supabase` stack against both. There are no end-to-end or browser tests: unit, integration, runtime, type and bundle tests cover the package.
 - `release.yml` runs `verify` and Changesets on `main`. Pending changesets open a `chore: version packages` pull request (`pnpm version-packages` also updates the root `CHANGELOG.md`); merging it publishes `permdock` to npm with trusted publishing (OIDC and provenance, no npm token) once the `NPM_PUBLISH` repository variable is `true`.
 
 ## Deploy
