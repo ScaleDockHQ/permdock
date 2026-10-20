@@ -305,5 +305,10 @@
       "storage.file_buckets.update_file",
       "storage.file_buckets.upload"
     ]
+  },
+  "managementApi": {
+    "hook_custom_access_token_enabled": true,
+    "hook_custom_access_token_uri": "pg-functions://postgres/permdock/custom_access_token_hook",
+    "jwt_exp": 3600
   }
 }
