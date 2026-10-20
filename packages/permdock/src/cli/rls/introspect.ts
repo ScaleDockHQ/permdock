@@ -1,5 +1,6 @@
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { RolePermission } from "./helpers.ts";
+import type { LevelKey } from "./rows.ts";
 
 import { escapeSqlIdent } from "../../core/sql.ts";
 import { type SqlClient, type SqlConnect, connectPgPool } from "../pg.ts";
@@ -369,6 +370,8 @@ export type ExpectedMixed = {
   readonly seeds: readonly RolePermission[];
   readonly permissions: readonly string[];
   readonly rowConditions: readonly string[];
+  /** Declared `<permission>@<level>` keys a custom role may hold. */
+  readonly levels?: readonly LevelKey[];
   /** `rls.readOnlyActors` is set: every write a client role reaches calls `permdock_actor_may_write()`. */
   readonly readOnlyActors?: boolean;
 };
@@ -487,6 +490,10 @@ export function diffMixed(
   }
   const permissions = new Set(expected.permissions);
   const conditioned = new Set(expected.rowConditions);
+  const levels = new Map(
+    (expected.levels ?? []).map((level) => [level.key, level]),
+  );
+  const notes: string[] = [];
   const covered = new Set<string>();
   for (const policy of actual.policies) {
     if (callsHelper(policy.expression)) {
@@ -494,7 +501,14 @@ export function diffMixed(
     }
     const blind = new Set(helperCallKeys(policy.expression, true));
     for (const key of helperCallKeys(policy.expression)) {
-      if (!permissions.has(key)) {
+      const level = levels.get(key);
+      if (level !== undefined) {
+        if (level.conditioned) {
+          notes.push(
+            `${policy.table}: policy ${policy.name} passes ${key}, which skips the level's row condition, so holders of it are denied there; use ${level.rowHelper}(${policy.table.slice(policy.table.lastIndexOf(".") + 1)}, '${level.permission}')`,
+          );
+        }
+      } else if (!permissions.has(key)) {
         drift.push(
           `${policy.table}: policy ${policy.name} passes ${key}, which the policy does not declare, so it always denies`,
         );
@@ -508,9 +522,12 @@ export function diffMixed(
   if (expected.readOnlyActors === true) {
     drift.push(...unguardedWrites(actual.policies, ACTOR_MAY_WRITE));
   }
-  const info = actual.rlsTables
-    .filter((table) => !covered.has(table))
-    .map((table) => `${table}: no policy calls a PermDock helper`);
+  const info = [
+    ...notes,
+    ...actual.rlsTables
+      .filter((table) => !covered.has(table))
+      .map((table) => `${table}: no policy calls a PermDock helper`),
+  ];
   return { drift, info };
 }
 

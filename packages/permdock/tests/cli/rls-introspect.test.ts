@@ -515,6 +515,50 @@ describe("diffMixed", () => {
     ]);
   });
 
+  it("accepts declared <permission>@<level> keys and points a conditioned one to the row helper", () => {
+    const level = (key: string, conditioned: boolean) => ({
+      key,
+      permission: "jobs.create",
+      conditioned,
+      rowHelper: "permitted_jobs_row",
+    });
+    const result = diffMixed(
+      {
+        ...mixed,
+        seeds: [seed],
+        permissions: [...mixed.permissions, "jobs.create"],
+        levels: [
+          level("jobs.create@own", true),
+          level("jobs.create@all", false),
+        ],
+      },
+      {
+        seeds: [seed],
+        policies: [
+          {
+            table: "public.jobs",
+            name: "jobs_insert",
+            expression:
+              "((organization_id IN ( SELECT public.permitted_organization_ids('jobs.create@all'::text))) OR (organization_id IN ( SELECT public.permitted_organization_ids('jobs.create@own'::text))))",
+          },
+          {
+            table: "public.jobs",
+            name: "jobs_insert_team",
+            expression:
+              "(organization_id IN ( SELECT public.permitted_organization_ids('jobs.create@team'::text)))",
+          },
+        ],
+        rlsTables: ["public.jobs"],
+      },
+    );
+    expect(result.drift).toEqual([
+      "public.jobs: policy jobs_insert_team passes jobs.create@team, which the policy does not declare, so it always denies",
+    ]);
+    expect(result.info).toEqual([
+      "public.jobs: policy jobs_insert passes jobs.create@own, which skips the level's row condition, so holders of it are denied there; use permitted_jobs_row(jobs, 'jobs.create')",
+    ]);
+  });
+
   it("counts a key-less member helper call as coverage", () => {
     const result = diffMixed(mixed, {
       seeds: [seed],

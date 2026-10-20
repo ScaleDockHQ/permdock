@@ -124,6 +124,7 @@ const dispatcher: CustomRole = {
 - Several allows of one permission at different levels are OR-ed. An allow without a level reaches every row the ceiling reaches.
 - A level is an allow refinement. A `deny` with a `level` is dropped as `condition-not-allowed` and removes the permission.
 - An unknown level, a level on a collection permission, or a level on a key outside the ceiling is dropped as `unknown-level`. The permission is then removed from the role, even when an include grants it, so a typo denies instead of widening.
+- `create` takes a level only when it is an instance action (`actions: ["create"]`), where the level's condition applies to the new row's `check`: `job.create` at `own` creates jobs whose `ownerId` is the caller. A collection `create` (`collection: ["create"]`) has no row to narrow, so a level on it is `unknown-level`. In SQL, the insert policy and the `create` arm of `permitted_<resource>_row` apply each level's condition to the new row ([row helpers](/docs/adapters/rls#row-helpers)).
 - `permdock catalog` lists the levels of each permission (`levels` in `catalog-v1.json`), and `permdock diff` reports a removed level as breaking (`level-removed`): a stored role that picks it starts denying ([diff](/docs/cli/diff)).
 
 ### Dropped entries

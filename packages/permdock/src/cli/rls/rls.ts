@@ -286,6 +286,7 @@ async function introspectHelpersOnly(
         seeds: generated.seeds ?? [],
         permissions: generated.keys?.permissions ?? [],
         rowConditions: generated.keys?.rowConditions ?? [],
+        levels: generated.keys?.levels ?? [],
         readOnlyActors,
       },
       await introspectMixed(db, schema, connect),
