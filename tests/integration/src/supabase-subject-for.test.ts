@@ -22,7 +22,8 @@ const SETUP = `
 create role authenticated nologin;
 create role anon nologin;
 create role supabase_auth_admin nologin;
-grant authenticated, anon, supabase_auth_admin to tester;
+create role service_role nologin;
+grant authenticated, anon, supabase_auth_admin, service_role to tester;
 create schema auth;
 create table auth.users (id uuid primary key, raw_app_meta_data jsonb not null default '{}');
 create function auth.uid() returns uuid language sql stable as $$
@@ -220,6 +221,38 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
         role: "owner",
       }),
     ).toBe(1);
+  });
+
+  it("puts only security invoker wrappers in the API schema and lets service_role call them", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    const definers = await target.admin.query<{ proname: string }>(
+      `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.prosecdef order by 1`,
+    );
+    expect(definers.rows).toEqual([]);
+    const wrappers = await target.admin.query<{ proname: string }>(
+      `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname like 'permdock\\_%' order by 1`,
+    );
+    expect(wrappers.rows.map((row) => row.proname)).toEqual([
+      "permdock_authz_version_for",
+      "permdock_members_of",
+      "permdock_subject_for",
+    ]);
+    const version = await target.as({ role: "service_role" }, async () =>
+      target.tester.query<{ v: string }>(
+        `select public.permdock_authz_version_for('${OWNER}') as v`,
+      ),
+    );
+    expect(Number(version.rows[0]?.v)).toBe(1);
+    await expect(
+      target.as({ role: "authenticated" }, async () =>
+        target.tester.query(`select public.permdock_subject_for('${OWNER}')`),
+      ),
+    ).rejects.toThrow(/permission denied/u);
   });
 
   it("is not executable by client roles", async () => {

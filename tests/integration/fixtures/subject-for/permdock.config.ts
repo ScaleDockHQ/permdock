@@ -13,6 +13,6 @@ export default {
     suspension,
   },
   supabase: {
-    hook: { memberships: sources(), suspension },
+    hook: { memberships: sources(), suspension, api: {} },
   },
 };

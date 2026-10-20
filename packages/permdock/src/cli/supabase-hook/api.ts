@@ -88,8 +88,11 @@ revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
 }
 
 /**
- * The PostgREST wrappers `supabase.hook.api` asks for: one `security definer`
+ * The PostgREST wrappers `supabase.hook.api` asks for: one `security invoker`
  * function per reader, in the API schema, executable by `service_role` only.
+ * The `security definer` readers stay in the hook schema, which the Data API
+ * does not expose; `service_role` gets `usage` on it and `execute` on each
+ * reader, so no definer function sits in an exposed schema.
  */
 export function apiWrappersSql(parts: Parts): string {
   const api = parts.hook.api;
@@ -117,13 +120,16 @@ export function apiWrappersSql(parts: Parts): string {
 returns ${returns}
 language sql
 stable
-security definer
+security invoker
 set search_path = ''
 as $$ select ${source}.${inner}(${args}) $$;
 revoke execute on function ${fn}(${types}) from public, anon, authenticated;
-grant execute on function ${fn}(${types}) to service_role;`;
+grant execute on function ${fn}(${types}) to service_role;
+grant execute on function ${source}.${inner}(${types}) to service_role;`;
   };
-  return `-- supabase.hook.api: wrappers in ${quoteIdent(target)} for a backend that reaches the hook schema through the Data API; only service_role may execute them
+  return `-- supabase.hook.api: security invoker wrappers in ${quoteIdent(target)} for a backend that reaches the hook schema through the Data API; only service_role may execute them, and the security definer readers stay in ${source}
+grant usage on schema ${source} to service_role;
+
 ${wrapper(names.subjectFor, SUBJECT_FOR, "p_user uuid", "p_user", "uuid", "jsonb")}
 
 ${wrapper(names.membersOf, MEMBERS_OF, "p_scope text, p_id text", "p_scope, p_id", "text, text", "jsonb")}
