@@ -31,8 +31,8 @@ export const decisions: Promise<readonly Decision[]> = permdock.decideIds(
 // @ts-expect-error `data` is required: the server must load the rows itself.
 permdock.decideIds(permissions.post.read, ["p1"], {});
 
-// @ts-expect-error `trusted` is always true for loaded rows.
 permdock.decideIds(permissions.post.read, ["p1"], {
   ...options,
+  // @ts-expect-error `trusted` is always true for loaded rows.
   trusted: false,
 });

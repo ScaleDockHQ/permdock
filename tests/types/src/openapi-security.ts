@@ -22,3 +22,10 @@ export const keys: readonly string[] = permissionsExtension([
 
 // @ts-expect-error a permission key string is not a permission reference
 securityFor("job.read");
+
+export const bare: readonly string[] = securityFor(jobs.job.read, {
+  security: false,
+})["x-permdock-permissions"];
+
+// @ts-expect-error `security: false` leaves no `security` key to read
+securityFor(jobs.job.read, { security: false }).security;
