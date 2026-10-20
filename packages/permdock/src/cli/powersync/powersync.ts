@@ -23,6 +23,7 @@ import { type SqlConnect, pgConnector } from "../pg.ts";
 import { requirePolicy } from "../project/load.ts";
 import { canFixture } from "../rls/verify.ts";
 import { quoteIdent } from "../sql/quote.ts";
+import { localRows } from "./rows.ts";
 import {
   POSTGRES,
   type PowerSyncStream,
@@ -89,16 +90,23 @@ export function powersyncFiles(
     { path: powersyncOut(config, out), text: powersyncYaml(plan) },
   ];
   const manifest = config.powersync?.manifest;
+  const warnings = [...plan.warnings];
   if (manifest !== undefined) {
+    const local = localRows(policy, config);
+    warnings.push(...local.warnings);
     files.push({
       path: manifest,
       json: true,
-      text: `${JSON.stringify(localSnapshotManifest(policy), null, 2)}\n`,
+      text: `${JSON.stringify(
+        { ...localSnapshotManifest(policy), rows: local.rows },
+        null,
+        2,
+      )}\n`,
     });
   }
   return {
     files,
-    warnings: plan.warnings,
+    warnings,
     ...(plan.publication === undefined
       ? {}
       : { publication: plan.publication }),

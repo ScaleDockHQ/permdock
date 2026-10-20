@@ -53,6 +53,76 @@ function isCustomTable(value: unknown): boolean {
   );
 }
 
+function isText(value: unknown): value is string {
+  return typeof value === "string" && value !== "";
+}
+
+function isValue(value: unknown): boolean {
+  return isRecord(value) && isText(value["column"]) !== isText(value["value"]);
+}
+
+function isColumn(value: unknown): boolean {
+  if (!isRecord(value) || !isText(value["column"])) {
+    return false;
+  }
+  const through = value["through"];
+  const map = value["map"];
+  if (through !== undefined && map !== undefined) {
+    return false;
+  }
+  return (
+    (through === undefined ||
+      (isRecord(through) &&
+        isText(through["table"]) &&
+        isText(through["id"]) &&
+        isText(through["column"]))) &&
+    (map === undefined ||
+      (isRecord(map) &&
+        Object.values(map).every((key) => key === null || isText(key))))
+  );
+}
+
+function isMembershipRows(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const roles = value["roles"];
+  return (
+    isText(value["table"]) &&
+    isColumn(value["user"]) &&
+    isValue(value["scope"]) &&
+    isText(value["id"]) &&
+    (Array.isArray(roles)
+      ? roles.length > 0 && roles.every(isColumn)
+      : isRecord(roles) && isStrings(roles["value"])) &&
+    (value["via"] === undefined || isValue(value["via"])) &&
+    (value["expiresAt"] === undefined || isText(value["expiresAt"])) &&
+    (value["disabledAt"] === undefined || isText(value["disabledAt"]))
+  );
+}
+
+function isRows(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const { memberships, roles, customRoles } = value;
+  return (
+    Array.isArray(memberships) &&
+    memberships.every(isMembershipRows) &&
+    (roles === undefined ||
+      (isRecord(roles) &&
+        isText(roles["table"]) &&
+        isText(roles["user"]) &&
+        Array.isArray(roles["roles"]) &&
+        roles["roles"].length > 0 &&
+        roles["roles"].every(isColumn))) &&
+    (customRoles === undefined ||
+      (isRecord(customRoles) &&
+        isText(customRoles["permissions"]) &&
+        isText(customRoles["includes"])))
+  );
+}
+
 /**
  * Whether `value` has the shape `localSnapshotManifest(policy)` writes, with
  * no prototype keys. A JSON import widens `v: 1` to `number`; this narrows it
@@ -72,6 +142,7 @@ export function parseLocalSnapshotManifest(
     isGrants(value["grants"]) &&
     isRecord(value["custom"]) &&
     Object.values(value["custom"]).every(isCustomTable) &&
+    (value["rows"] === undefined || isRows(value["rows"])) &&
     safeKeys(value)
   );
 }

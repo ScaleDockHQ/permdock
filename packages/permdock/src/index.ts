@@ -177,7 +177,11 @@ export type {
 } from "./core/interfaces.ts";
 export type {
   LocalCustomRoleTable,
+  LocalMembershipRows,
+  LocalRowColumn,
+  LocalRowValue,
   LocalSnapshotManifest,
+  LocalSnapshotRows,
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,

@@ -50,7 +50,13 @@ export { appStateForeground, netInfoOnline } from "./subscriptions.ts";
 export type { AppStateModule, NetInfoModule } from "./subscriptions.ts";
 export { connectSource, nativeStore } from "./store.ts";
 export type { SnapshotSource } from "../core/interfaces.ts";
-export type { LocalSnapshotManifest } from "../core/snapshot-types.ts";
+export type {
+  LocalMembershipRows,
+  LocalRowColumn,
+  LocalRowValue,
+  LocalSnapshotManifest,
+  LocalSnapshotRows,
+} from "../core/snapshot-types.ts";
 export type {
   ReactNativePermDockProviderProps,
   NativeRevalidate,
