@@ -22,7 +22,7 @@ describe("tableNameOf", () => {
     expect(tableNameOf("app.posts", "post")).toBe("app.posts");
     expect(
       tableNameOf(
-        { ...(via("p") as object), table: "app.t" } as RlsTable,
+        { table: "app.t", via: { table: "p", column: "org_id" } },
         "post",
       ),
     ).toBe("app.t");
