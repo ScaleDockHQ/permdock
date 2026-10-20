@@ -27,7 +27,7 @@ type IsApproverInput = {
    * Whether the listed helper takes `p_requester, p_resource`, which
    * `rls.approvals.delegations` writes. The template then passes
    * better-supabase's `{requester}`, so a delegate inside an active cover
-   * matches; better-supabase 0.9.0 or later fills it.
+   * matches.
    */
   readonly covers?: boolean;
   readonly tenantScope: string;

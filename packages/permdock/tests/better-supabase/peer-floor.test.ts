@@ -125,7 +125,7 @@ function missingImports(
   });
 }
 
-/** The lowest version the `better-supabase` peer range accepts; `tests/package/better-supabase-peer-range.test.ts` checks the upper bound. */
+/** The lowest version the `better-supabase` peer range accepts; `tests/package/better-supabase-peer-range.test.ts` checks it against the CI matrices. */
 function peerFloor(): string | undefined {
   return /^\s+better-supabase: ">=([^\s"]+)/mu.exec(
     readFileSync(WORKSPACE, "utf8"),
@@ -149,8 +149,8 @@ const sources = readdirSync(SOURCE)
   }));
 
 describe("better-supabase peer floor", () => {
-  it("declares a 0.9 floor", () => {
-    expect(peerFloor()).toBe("0.9.0");
+  it("declares a 0.11 floor", () => {
+    expect(peerFloor()).toBe("0.11.0");
   });
 
   it("imports only names the lowest peer version exports", () => {

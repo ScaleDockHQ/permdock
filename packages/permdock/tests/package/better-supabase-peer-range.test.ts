@@ -34,12 +34,13 @@ function matrixOf(file: string): readonly string[] {
   return list.split(",").map((entry) => entry.trim().replaceAll('"', ""));
 }
 
-const peer = /^\s+better-supabase: ">=([\d.]+) <([\d.]+)"$/mu.exec(workspace);
+const peer = /^\s+better-supabase: "([^"]*)"$/mu.exec(workspace)?.[1];
+const floor = /^>=(\d+\.\d+\.\d+)$/u.exec(peer ?? "")?.[1];
 const catalog = /^ {2}better-supabase: ([\d.]+)$/mu.exec(workspace)?.[1];
 
 describe("better-supabase peer range", () => {
-  it("has a floor and an upper bound", () => {
-    expect(peer).not.toBeNull();
+  it("has a floor and no upper bound", () => {
+    expect(floor).toBeDefined();
   });
 
   for (const file of WORKFLOWS) {
@@ -52,12 +53,7 @@ describe("better-supabase peer range", () => {
       });
 
       it("tests the floor of the peer range", () => {
-        expect(sorted[0]).toBe(peer?.[1]);
-      });
-
-      it("bounds the range below the minor after the latest version tested", () => {
-        const latest = parse(sorted.at(-1) ?? "0.0.0");
-        expect(peer?.[2]).toBe(`${latest[0]}.${latest[1] + 1}.0`);
+        expect(sorted[0]).toBe(floor);
       });
 
       it("tests the catalog pin as the latest version", () => {
