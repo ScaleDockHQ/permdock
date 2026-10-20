@@ -54,6 +54,14 @@ import { parseSnapshot } from "./snapshot.ts";
 import { heldRoleNamesIn, tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 
+/** Rows the server loaded for `decideIds`: by id, or a list carrying the resource id field. */
+export type LoadedRows = ReadonlyMap<string, unknown> | readonly unknown[];
+
+export type DecideIdsOptions = Omit<DecideOptions, "trusted" | "boundary"> & {
+  /** Loads the rows for `ids`; ids it leaves out are denied with `validation`. */
+  readonly data: (ids: readonly string[]) => LoadedRows | Promise<LoadedRows>;
+};
+
 export type DecideOptions = {
   /** `true` skips schema validation for a row the server loaded itself. Otherwise `data` is validated against the resource schema first (`validate: 'boundary'`), and a failure denies with reason `validation`. */
   readonly trusted?: boolean;
@@ -185,6 +193,20 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     rows: readonly unknown[],
     options?: DecideOptions,
   ) => readonly Decision[];
+  /**
+   * `decide` for each id, in id order, on rows the server loads itself:
+   * `options.data(ids)` answers a map from id to row, or the rows with their
+   * resource id field. Each row is trusted (no schema check) and decided in
+   * the tenant its own root scope field names, as `permdock.tenant(<that
+   * value>)` would, so one call can span tenants. An id with no loaded row,
+   * a loader that throws and a row of another resource are denied with
+   * `validation`. A snapshot instance denies every id with `unsupported`.
+   */
+  readonly decideIds: (
+    permission: Permission,
+    ids: readonly string[],
+    options: DecideIdsOptions,
+  ) => Promise<readonly Decision[]>;
   /**
    * What `permission` on `row` decides for the principal `principalId`,
    * loaded from `principals` in this instance's active tenant with no actor

@@ -252,7 +252,9 @@ export { snapshotFor } from "./core/snapshot-for.ts";
 export type { SnapshotForOptions } from "./core/snapshot-for.ts";
 export type {
   PermDockOptions,
+  DecideIdsOptions,
   DecideOptions,
+  LoadedRows,
   DeriveOptions,
   PermDock,
   RowPair,
