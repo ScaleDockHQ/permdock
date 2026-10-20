@@ -168,7 +168,12 @@ const teamLead = {
     id: "u_2",
     roles: [],
     memberships: [
-      { scope: "team", id: "team_7", within: "org_1", roles: ["lead"] },
+      {
+        scope: "team",
+        id: "team_7",
+        within: { org: "org_1" },
+        roles: ["lead"],
+      },
     ],
   },
   context: {},
@@ -181,7 +186,12 @@ const member = {
     roles: [],
     memberships: [
       { scope: "org", id: "org_1", roles: ["member"] },
-      { scope: "team", id: "team_7", within: "org_1", roles: ["lead"] },
+      {
+        scope: "team",
+        id: "team_7",
+        within: { org: "org_1" },
+        roles: ["lead"],
+      },
     ],
   },
   context: {},

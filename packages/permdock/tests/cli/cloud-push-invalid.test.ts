@@ -1,44 +1,16 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-import type { CliIo } from "../../src/cli/types.ts";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { runCloud } from "../../src/cli/cloud/push.ts";
 import { CliError, problemOf } from "../../src/cli/core/errors.ts";
+import {
+  NOW,
+  PERMISSIONS,
+  project,
+  quietIo,
+  removeProjects,
+} from "./doctor-kit.ts";
 
-const catalog = {
-  $schema: "https://permdock.com/schemas/catalog-v1.json",
-  version: 1,
-  generatedAt: "2026-10-01T00:00:00.000Z",
-  generator: "permdock@0.1.0",
-  resources: { post: { id: "id", schema: null } },
-  permissions: [
-    {
-      key: "post.read",
-      scope: "post:read",
-      resource: "post",
-      action: "read",
-      arity: "instance",
-      meta: {},
-      usages: [],
-      rowConditions: false,
-    },
-  ],
-  roles: [{ key: "admin", on: "workspace" }],
-  grants: [
-    {
-      permission: "post.delete",
-      effect: "allow",
-      role: "admin",
-      to: null,
-      scope: "tenant",
-    },
-  ],
-};
-
-vi.mock("../../src/cli/catalog.ts", () => ({
-  runCatalog: () =>
-    Promise.resolve({ code: 0, output: JSON.stringify(catalog) }),
-}));
+afterAll(removeProjects);
 
 const fetchSpy = vi.fn<typeof fetch>();
 
@@ -47,11 +19,32 @@ afterEach(() => {
   fetchSpy.mockReset();
 });
 
+const leaf = (key: string) =>
+  JSON.stringify({
+    key,
+    scope: key.replace(".", ":"),
+    resource: key.split(".")[0],
+    action: key.split(".")[1],
+    meta: {},
+  });
+
+/** Operations over leaves of another tree, so the catalog names keys it never declares. */
+const OPERATIONS = `export const operations = {
+  archivePost: { name: 'archivePost', permission: ${leaf("post.archive")}, results: ${leaf("ghost.list")}, meta: {} },
+};
+`;
+
 function push(dryRun: boolean) {
   vi.stubGlobal("fetch", fetchSpy);
   return runCloud({
-    cwd: import.meta.dirname,
-    config: {},
+    cwd: project({
+      "src/permissions.ts": PERMISSIONS,
+      "src/operations.ts": OPERATIONS,
+    }),
+    config: {
+      permissions: "src/permissions.ts",
+      operations: "src/operations.ts",
+    },
     url: undefined,
     dryRun,
     json: false,
@@ -59,9 +52,8 @@ function push(dryRun: boolean) {
       PERMDOCK_CLOUD_URL: "https://cloud.permdock.test",
       PERMDOCK_CLOUD_KEY: "key",
     },
-    now: new Date("2026-10-01T00:00:00.000Z"),
-    // SAFETY: runCatalog is mocked, so nothing reads from io.
-    io: {} as CliIo,
+    now: NOW,
+    io: quietIo,
   });
 }
 
@@ -80,8 +72,8 @@ describe("cloud push on an invalid catalog", () => {
     expect(error.message).toBe(
       [
         "permdock cloud push: the catalog has 2 issues",
-        "  roles.0.on: role 'admin' is on 'workspace', which is neither a declared scope nor resource",
-        "  grants.0.permission: grant 'post.delete' is not a declared permission key",
+        "  operations.0.permission: operation 'archivePost' permission 'post.archive' is not a declared permission key",
+        "  operations.0.results: operation 'archivePost' results 'ghost.list' is not a declared permission key",
       ].join("\n"),
     );
   });
@@ -94,8 +86,8 @@ describe("cloud push on an invalid catalog", () => {
       code: "catalog_invalid",
       exitCode: 1,
       issues: [
-        { path: "roles.0.on", message: expect.any(String) },
-        { path: "grants.0.permission", message: expect.any(String) },
+        { path: "operations.0.permission", message: expect.any(String) },
+        { path: "operations.0.results", message: expect.any(String) },
       ],
     });
   });

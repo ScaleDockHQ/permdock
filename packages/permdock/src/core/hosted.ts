@@ -540,12 +540,11 @@ function buildGrant(
   } catch {
     return { ok: false, reason: "invalid" };
   }
-  if (effect === "allow") {
-    if (
-      !approvalAtLeast(built.approval, codeApprovals(policy, permission.key))
-    ) {
-      return { ok: false, reason: "weaker-approval" };
-    }
+  if (
+    effect === "allow" &&
+    !approvalAtLeast(built.approval, codeApprovals(policy, permission.key))
+  ) {
+    return { ok: false, reason: "weaker-approval" };
   }
   return {
     ok: true,

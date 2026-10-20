@@ -511,16 +511,14 @@ export function catalogForDrift(doc: CatalogDocument): string {
       if (!isRecord(permission) || !Array.isArray(permission["usages"])) {
         return permission;
       }
-      return {
-        ...permission,
-        usages: permission["usages"].map((usage: unknown) => {
-          if (!isRecord(usage)) {
-            return usage;
-          }
-          const { line: _line, ...position } = usage;
-          return position;
-        }),
-      };
+      const usages: unknown[] = permission["usages"].map((usage: unknown) => {
+        if (!isRecord(usage)) {
+          return usage;
+        }
+        const { line: _line, ...position } = usage;
+        return position;
+      });
+      return Object.assign({}, permission, { usages });
     }),
   };
   return `${JSON.stringify(stripped, null, 2)}\n`;
