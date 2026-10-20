@@ -105,14 +105,35 @@ export function hookSql(parts: Parts): string {
   end if;`,
     )
     .join("");
+  const dropTeams = parts.hook.teams === undefined ? "" : " - 'team_ids'";
   const suspended =
     parts.users === undefined
       ? ""
       : `
   if not ${activeRowSql(parts.users, "uid")} then
-    claims := claims - 'memberships_truncated' - 'attrs' - ${quoteLiteral(parts.tenantClaim)}${dropExtra};
+    claims := claims - 'memberships_truncated' - 'attrs'${dropTeams} - ${quoteLiteral(parts.tenantClaim)}${dropExtra};
     claims := claims || jsonb_build_object('user_role', '[]'::jsonb, 'roles', '[]'::jsonb, 'memberships', '[]'::jsonb);${version}
     return jsonb_set(event, '{claims}', claims);
+  end if;`;
+  const teamsConfig = parts.hook.teams;
+  const teams =
+    teamsConfig === undefined
+      ? ""
+      : `
+  for team in
+    select t.${quoteIdent(teamsConfig.team)}::text as id
+    from ${quoteQualified(teamsConfig.table)} t
+    where t.${quoteIdent(teamsConfig.user)} = uid
+    order by ${teamsConfig.tenant === undefined ? "" : `(t.${quoteIdent(teamsConfig.tenant)}::text is not distinct from active) desc, `}t.${quoteIdent(teamsConfig.team)}
+  loop
+    if octet_length(kept::text) + used + octet_length((team_ids || to_jsonb(team.id))::text) > budget then
+      truncated := true;
+      exit;
+    end if;
+    team_ids := team_ids || jsonb_build_array(team.id);
+  end loop;
+  if team_ids <> '[]'::jsonb then
+    claims := jsonb_set(claims, '{team_ids}', team_ids);
   end if;`;
   const create =
     parts.schema === "public"
@@ -134,9 +155,9 @@ declare
   in_active boolean := false;
   budget integer := ${String(parts.budget)};
   used integer := 0;
-  item record;${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
+  item record;${teamsConfig === undefined ? "" : "\n  team record;\n  team_ids jsonb := '[]'::jsonb;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
 begin${beforeSql(parts.before)}${suspended}
-  claims := claims - 'attrs'${dropExtra};
+  claims := claims - 'attrs'${dropTeams}${dropExtra};
 ${roles}
   claims := jsonb_set(claims, '{roles}', held);
   if jsonb_array_length(held) = 1 then
@@ -159,7 +180,7 @@ ${entriesSql(parts).replaceAll(/^/gmu, "      ")}
     kept := kept || jsonb_build_array(item.entry);
     in_active := in_active or (active is not null and item.current);
   end loop;
-  claims := jsonb_set(claims, '{memberships}', kept);
+  claims := jsonb_set(claims, '{memberships}', kept);${teams}
   if truncated then
     claims := jsonb_set(claims, '{memberships_truncated}', 'true'::jsonb);
   else
@@ -272,6 +293,12 @@ function readsSql(parts: Parts): string {
     if (through !== undefined) {
       reads.set(through.table, reads.get(through.table) ?? "role_keys");
     }
+  }
+  if (parts.hook.teams !== undefined) {
+    reads.set(
+      parts.hook.teams.table,
+      reads.get(parts.hook.teams.table) ?? "teams",
+    );
   }
   if (parts.attrs?.table !== undefined && parts.attrs.columns.length > 0) {
     reads.set(parts.attrs.table, reads.get(parts.attrs.table) ?? "attrs");

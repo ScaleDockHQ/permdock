@@ -1,9 +1,9 @@
 import type { CatalogUsage } from "../catalog/types.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
-import type { RoleThrough } from "../supabase/types.ts";
+import type { RoleMap, RoleThrough } from "../supabase/types.ts";
 import type { ExitCode } from "./core/errors.ts";
 
-export type { RoleThrough } from "../supabase/types.ts";
+export type { RoleMap, RoleThrough } from "../supabase/types.ts";
 
 export type CollectConfig = {
   readonly srcPath?: readonly string[];
@@ -26,7 +26,11 @@ export type RlsMembershipTable = {
    * The role key column, a reference to a roles table that holds the key, or
    * several of them: the row holds every non-null key.
    */
-  readonly role: string | RoleThrough | readonly (string | RoleThrough)[];
+  readonly role:
+    | string
+    | RoleMap
+    | RoleThrough
+    | readonly (string | RoleMap | RoleThrough)[];
   /** Per scope name, the column holding that scope's id: the table's own scope and its ancestors. */
   readonly columns?: Readonly<Record<string, string>>;
   /** Column of the first scope's id; shorthand for `columns[<first scope>]`. */
@@ -380,7 +384,11 @@ export type RlsAssignmentTable = {
   /** The tenant column for a scope below the first; defaults to `id` at the first scope. */
   readonly tenant?: string;
   /** The role key column, a reference to a roles table that holds the key, or several of them. */
-  readonly role: string | RoleThrough | readonly (string | RoleThrough)[];
+  readonly role:
+    | string
+    | RoleMap
+    | RoleThrough
+    | readonly (string | RoleMap | RoleThrough)[];
   /** The column holding the user the row assigns to, which `ownRole` compares with the caller. */
   readonly user?: string;
 };
@@ -596,6 +604,19 @@ export type SupabaseHookConfig = {
    * suspended user gets none.
    */
   readonly claims?: Readonly<Record<string, string>>;
+  /**
+   * The `team_ids` claim: the uuid of every team the user belongs to, read
+   * from `table` (`user` and `team` columns; `tenant` puts the active
+   * tenant's teams first). It shares the `memberships` budget, so a user with
+   * many teams gets a prefix and `memberships_truncated`. A suspended user
+   * gets none. Clients must not write the table.
+   */
+  readonly teams?: {
+    readonly table: string;
+    readonly user: string;
+    readonly team: string;
+    readonly tenant?: string;
+  };
   readonly before?: string | readonly string[];
   /**
    * Check the claims the hook wrote against `supabase-claims-v1.json` with

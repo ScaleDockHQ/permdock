@@ -24,6 +24,12 @@ export const PERMDOCK_CLAIMS_SCHEMA: Readonly<Record<string, unknown>> = {
           description: "true when the size budget cut memberships or attrs.",
           type: "boolean",
         },
+        team_ids: {
+          description:
+            "The uuid of every team the user belongs to (supabase.hook.teams), cut by the memberships budget.",
+          type: "array",
+          items: { type: "string" },
+        },
         tenant_id: {
           description:
             "The active tenant (the default rls.tenantClaim): the canonical text of one instance of the first scope.",

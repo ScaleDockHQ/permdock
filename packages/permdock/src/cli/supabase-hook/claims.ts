@@ -99,6 +99,7 @@ const RESERVED_CLAIMS: ReadonlySet<string> = new Set([
   "user_role",
   "memberships",
   "memberships_truncated",
+  "team_ids",
   "attrs",
   "authz_ver",
   "sub",
@@ -210,6 +211,7 @@ export function validateSql(parts: Parts): string {
     "roles",
     "memberships",
     "memberships_truncated",
+    ...(parts.hook.teams === undefined ? [] : ["team_ids"]),
     "attrs",
     "authz_ver",
     parts.tenantClaim,
@@ -269,6 +271,9 @@ export function hookClaims(parts: Parts): readonly SupabaseHookClaim[] {
     permdockClaim("memberships", true),
     permdockClaim("memberships_truncated"),
     permdockClaim(parts.tenantClaim),
+    ...(parts.hook.teams === undefined
+      ? []
+      : [permdockClaim("team_ids", true)]),
     ...(parts.attrs === undefined ? [] : [permdockClaim("attrs", true)]),
     ...(parts.version ? [permdockClaim("authz_ver")] : []),
     ...parts.extra.map((entry) => ({

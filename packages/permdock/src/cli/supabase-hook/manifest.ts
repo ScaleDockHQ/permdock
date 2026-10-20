@@ -395,6 +395,7 @@ export function manifestOf(
               : { table: parts.attrs.table }),
             columns: parts.attrs.columns,
           },
+      parts.hook.teams,
     ),
     markers: { hook: "v1", grants: "v1" },
     requires: requiredCapabilities(config, policy),
