@@ -95,6 +95,18 @@ describe("rls generate with rls.tokenScopes", () => {
     );
   });
 
+  it("lets anon execute the helper with rls.anonExecute", async () => {
+    const { code, sql } = await generate({
+      dialect: "supabase",
+      tokenScopes: true,
+      anonExecute: true,
+    });
+    expect(code).toBe(0);
+    expect(sql).toContain(
+      `grant execute on function "permdock".permdock_token_scope_allows(text) to anon, authenticated;`,
+    );
+  });
+
   it("reads the scope claim as text on the GUC dialect", async () => {
     const { code, sql } = await generate({
       dialect: "guc",

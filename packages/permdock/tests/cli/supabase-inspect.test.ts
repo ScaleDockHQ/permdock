@@ -450,6 +450,35 @@ describe("permdock supabase inspect", () => {
     expect(validate.errors ?? []).toEqual([]);
   });
 
+  it("advertises rls.tokenScopes and its helper", async () => {
+    const scoped = await generate(
+      `{ memberships: [${SOURCES}] }`,
+      [],
+      `{ tokenScopes: true }`,
+    );
+    const manifest: SupabaseHookManifest = jsonData(
+      (await run(["supabase", "inspect", "--json"], { cwd: scoped.cwd }))
+        .stdout,
+    );
+    expect(manifest.rls.tokenScopes).toBe(true);
+    expect(manifest.rls.helpers).toContainEqual({
+      name: "permdock_token_scope_allows",
+      args: "p_grant text",
+      returns: "boolean",
+      execute: ["authenticated"],
+    });
+    const validate = new Ajv2020({ strict: false }).compile(
+      JSON.parse(
+        readFileSync(
+          new URL("../../schemas/supabase-manifest-v1.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    validate(manifest);
+    expect(validate.errors ?? []).toEqual([]);
+  });
+
   it("lists the membership sources behind member_<scope>_ids_for in rls.memberships", async () => {
     const hookOnly = await generate(`{ memberships: [${SOURCES}] }`);
     const fromHook: SupabaseHookManifest = jsonData(
