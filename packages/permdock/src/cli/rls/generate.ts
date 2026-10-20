@@ -183,6 +183,9 @@ export async function runRlsGenerate(
     warnings.push(...bindingNotes(bindings, input.db !== undefined));
   }
   warnings.push(...triggerNotes(text));
+  if (ctx.seeds === "function") {
+    warnings.push(`run select ${built.schema}.seed(); after each deploy`);
+  }
   if (input.db === undefined) {
     indexes = withoutServedTargets(indexes, indexKeysFromProject(input.cwd));
   }

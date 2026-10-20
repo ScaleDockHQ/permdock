@@ -195,6 +195,25 @@ ${keys}
 );`;
 }
 
+/** `<schema>.seed()`: the same upsert and delete as `seedSql`, for a declarative schema that carries no rows. */
+export function seedFunctionSql(
+  ctx: RlsSqlContext,
+  rows: readonly RolePermission[],
+): string {
+  const fn = qualified(ctx, "seed");
+  return `-- rls.seeds: 'function': the role_permissions rows are data, so a declarative diff leaves them out; run select ${fn}(); after each deploy
+create or replace function ${fn}()
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $permdock$
+${seedSql(ctx, rows)}
+$permdock$;
+revoke execute on function ${fn}() from public, anon, authenticated;`;
+}
+
 export type HelpersOptions = {
   /** Emit a `user_roles` table for `database` mode; off when the RBAC scaffold owns it. */
   readonly userRoles: boolean;
@@ -247,7 +266,9 @@ export function helpersSql(
 );
 alter table ${rp} enable row level security;
 revoke all on table ${rp} from anon, authenticated, public;`);
-  if (options.withoutSeeds !== true) {
+  if (ctx.seeds === "function") {
+    chunks.push(seedFunctionSql(ctx, rows));
+  } else if (options.withoutSeeds !== true) {
     chunks.push(seedSql(ctx, rows));
   }
   if (

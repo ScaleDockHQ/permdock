@@ -57,12 +57,16 @@ function splitRefusal(
     readonly outRel: string;
     readonly grantsOut: string | undefined;
     readonly seedsOut: string | undefined;
+    /** `rls.seeds: 'function'`: the rows live in `<schema>.seed()`, which the helpers part creates. */
+    readonly seedFunction: boolean;
   },
 ): string | undefined {
   const seedsWithoutOut =
     plan.split.includes("seeds") && plan.seedsOut === undefined;
   const helpersWithoutSeeds =
-    plan.split.includes("helpers") && !plan.split.includes("seeds");
+    plan.split.includes("helpers") &&
+    !plan.split.includes("seeds") &&
+    !plan.seedFunction;
   switch (mode) {
     case "pg-delta":
       if (plan.explicitOut && !plan.placeholder) {
@@ -144,6 +148,7 @@ export function outputFiles(plan: {
     outRel: plan.outRel,
     grantsOut: input.grantsOut,
     seedsOut: input.seedsOut,
+    seedFunction: input.config.rls?.seeds === "function",
   });
   if (refused !== undefined) {
     return refused;

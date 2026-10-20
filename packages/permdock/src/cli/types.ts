@@ -302,6 +302,13 @@ export type RlsConfig = {
    * row ids the caller may act on, as the generated policies decide them.
    */
   readonly rowHelpers?: true | readonly string[];
+  /**
+   * `'function'`: the `role_permissions` rows live in
+   * `<schema>.seed()`, which the helpers part creates. Declarative workflows
+   * (pg-delta, migra) then need no seeds migration: call
+   * `select <schema>.seed();` after each deploy.
+   */
+  readonly seeds?: "function";
   readonly trustedReaders?: readonly string[];
   readonly treeValues?: Readonly<
     Record<string, Readonly<Record<string, unknown>>>

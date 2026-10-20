@@ -106,4 +106,49 @@ describe("PD054 stale role_permissions seeds", () => {
       }),
     ).toEqual([]);
   });
+
+  it("generates the seed function with the helpers, and PD054 reads its body", async () => {
+    const fnConfig: PermDockConfig = {
+      ...config,
+      rls: { dialect: "supabase", seeds: "function" },
+    };
+    const cwd = project({
+      "permdock.config.ts": `export default ${JSON.stringify(fnConfig)};\n`,
+    });
+    const result = await run(
+      [
+        "rls",
+        "generate",
+        "--split",
+        "helpers",
+        "--out",
+        "supabase/migrations/20260101000001_permdock_{part}.sql",
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    const file = path.join(
+      cwd,
+      "supabase/migrations/20260101000001_permdock_helpers.sql",
+    );
+    const sql = readFileSync(file, "utf8");
+    expect(sql).toContain('create or replace function "permdock".seed()');
+    expect(sql).toContain("security definer");
+    expect(sql).toContain(
+      'revoke execute on function "permdock".seed() from public, anon, authenticated;',
+    );
+    expect(await pd054({ cwd, config: fnConfig })).toEqual([]);
+
+    writeFileSync(
+      file,
+      sql.replace(
+        "values\n",
+        "values\n  ('ghost', 'quote.read', 'quote.read', 'organization', 'allow'),\n",
+      ),
+    );
+    const [finding] = await pd054({ cwd, config: fnConfig });
+    expect(finding?.message).toContain(
+      "1 stale, such as (ghost quote.read quote.read organization allow)",
+    );
+  });
 });

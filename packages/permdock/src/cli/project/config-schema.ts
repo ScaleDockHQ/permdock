@@ -68,6 +68,7 @@ const RLS = {
   actions: true,
   helpersOnly: true,
   rowHelpers: true,
+  seeds: true,
   treeValues: true,
   trustedReaders: true,
   migrate: true,
