@@ -13,13 +13,8 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
   required: [
     "$schema",
     "version",
-    "hook",
     "helpers",
     "tenantClaim",
-    "budget",
-    "claims",
-    "authzVersion",
-    "memberships",
     "rls",
     "decidingColumns",
     "markers",

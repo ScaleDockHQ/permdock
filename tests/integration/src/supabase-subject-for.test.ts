@@ -166,9 +166,13 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     );
     expect(JSON.stringify(raw.rows[0]?.subject)).not.toContain("null");
     expect(raw.rows[0]?.members).toEqual([]);
-    const ids = (
-      raw.rows[0]?.subject as { memberships: { id: string }[] }
-    ).memberships.map((membership) => membership.id);
+    const row = raw.rows[0];
+    if (row === undefined) {
+      throw new Error("PermDock: subject_for returned no row");
+    }
+    // SAFETY: subject_for returns the subject JSON, whose memberships are { id } objects.
+    const subject = row.subject as { memberships: { id: string }[] };
+    const ids = subject.memberships.map((membership) => membership.id);
     expect(ids).not.toContain("N");
   });
 

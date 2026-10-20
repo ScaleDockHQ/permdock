@@ -21,9 +21,11 @@ import { freezeDeep } from "../core/freeze.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import {
   type SupabaseHookManifest,
+  type SupabaseManifest,
   type SupabaseManifestActiveRow,
   type SupabaseManifestHelper,
   type SupabaseManifestMembership,
+  hasTokenHook,
   parseSupabaseManifest,
 } from "../supabase/manifest.ts";
 import {
@@ -215,7 +217,7 @@ const argTypes = (args: string): string =>
     .join(", ");
 
 function tenantScopeOf(
-  manifest: SupabaseHookManifest,
+  manifest: SupabaseManifest,
   explicit: string | undefined,
 ): string {
   const names = manifest.rls.scopes.map((scope) => scope.name);
@@ -687,7 +689,7 @@ export function authorizationProvider(
       ? { delegation: { scopes: delegated } }
       : {}),
     decidingColumns: manifest.decidingColumns,
-    tokenHook: tokenHookOf(manifest),
+    ...(hasTokenHook(manifest) ? { tokenHook: tokenHookOf(manifest) } : {}),
     ...(problems.length > 0 ? { problems } : {}),
   });
 }

@@ -1,5 +1,6 @@
 import type { Policy } from "../../core/policy-types.ts";
 import type {
+  SupabaseDatabaseManifest,
   SupabaseHookManifest,
   SupabaseManifestActiveRow,
   SupabaseManifestHelper,
@@ -400,6 +401,25 @@ export function manifestOf(
     markers: { hook: "v1", grants: "v1" },
     requires: requiredCapabilities(config, policy),
   };
+}
+
+/** The manifest without the token hook: what a project with no `supabase.hook` records. */
+export function databaseManifestOf(
+  parts: Parts,
+  out: string,
+  config: PermDockConfig,
+  policy?: Policy,
+): SupabaseDatabaseManifest {
+  const {
+    hook: _hook,
+    budget: _budget,
+    claims: _claims,
+    authzVersion: _authzVersion,
+    authzVersionBump: _authzVersionBump,
+    memberships: _memberships,
+    ...rest
+  } = manifestOf(parts, out, config, policy);
+  return rest;
 }
 
 /** The first line of the generated hook: fields `--check` compares before the full text. */

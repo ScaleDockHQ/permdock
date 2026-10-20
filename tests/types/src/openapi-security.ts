@@ -28,4 +28,4 @@ export const bare: readonly string[] = securityFor(jobs.job.read, {
 })["x-permdock-permissions"];
 
 // @ts-expect-error `security: false` leaves no `security` key to read
-securityFor(jobs.job.read, { security: false }).security;
+export const missing = securityFor(jobs.job.read, { security: false }).security;

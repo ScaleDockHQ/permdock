@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { SupabaseHookManifest } from "../../supabase/manifest.ts";
+import type { SupabaseManifest } from "../../supabase/manifest.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
@@ -25,7 +25,7 @@ function readManifest(
   cwd: string,
   flag: string | undefined,
 ):
-  | { readonly ok: true; readonly manifest: SupabaseHookManifest | undefined }
+  | { readonly ok: true; readonly manifest: SupabaseManifest | undefined }
   | { readonly ok: false; readonly output: string } {
   const path = resolve(cwd, flag ?? MANIFEST_FILE);
   if (!existsSync(path)) {

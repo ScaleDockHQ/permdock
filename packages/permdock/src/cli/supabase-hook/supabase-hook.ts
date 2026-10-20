@@ -2,7 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Policy } from "../../core/policy-types.ts";
-import type { SupabaseHookManifest } from "../../supabase/manifest.ts";
+import type {
+  SupabaseDatabaseManifest,
+  SupabaseHookManifest,
+} from "../../supabase/manifest.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig, SupabaseSchemas } from "../types.ts";
 
@@ -19,7 +22,7 @@ import {
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { requirePolicy } from "../project/load.ts";
-import { hookUri } from "../rls/rbac.ts";
+import { hookUri, resolveAuthorize } from "../rls/rbac.ts";
 import {
   GRANTS_MARKER,
   HOOK_MARKER,
@@ -44,7 +47,12 @@ import {
   subjectForSql,
 } from "./api.ts";
 import { attrsGuardSql } from "./claims.ts";
-import { defaultOut, hookMarker, manifestOf } from "./manifest.ts";
+import {
+  databaseManifestOf,
+  defaultOut,
+  hookMarker,
+  manifestOf,
+} from "./manifest.ts";
 import {
   type HookOverrides,
   configToml,
@@ -117,6 +125,44 @@ export function supabaseHookManifest(
   return overrides.schemas === undefined
     ? manifest
     : { ...manifest, hook: { ...manifest.hook, schemas: overrides.schemas } };
+}
+
+/**
+ * The manifest of a project in `rls.authorize: 'database'` mode with no
+ * `supabase.hook`: the helpers, scopes, membership sources and grants, and no
+ * token hook.
+ */
+export function supabaseDatabaseManifest(
+  scopes: readonly Scope[],
+  config: PermDockConfig,
+  overrides: HookOverrides & { readonly out?: string } = {},
+  policy?: Policy,
+): SupabaseDatabaseManifest {
+  const parts = hookParts(
+    scopes,
+    {
+      ...config,
+      supabase: {
+        ...config.supabase,
+        hook: { memberships: config.rls?.membershipSources ?? [] },
+      },
+    },
+    overrides,
+  );
+  return databaseManifestOf(
+    parts,
+    overrides.out ?? defaultOut(config),
+    config,
+    policy,
+  );
+}
+
+/** Whether the project is in the one case that has a manifest without a hook. */
+function hooklessDatabase(config: PermDockConfig): boolean {
+  return (
+    config.supabase?.hook === undefined &&
+    resolveAuthorize(config) === "database"
+  );
 }
 
 /**
@@ -223,6 +269,14 @@ function inspectText(
   ].join("\n");
 }
 
+function databaseInspectText(manifest: SupabaseDatabaseManifest): string {
+  return [
+    "no token hook (rls.authorize: database, no supabase.hook)",
+    `helpers ${manifest.helpers.functions.map((fn) => `${manifest.helpers.schema}.${fn}`).join(", ")}`,
+    `tenant claim ${manifest.tenantClaim}`,
+  ].join("\n");
+}
+
 /**
  * Writes the manifest to `rel`, or with `check` compares it as JSON, so a
  * formatter that reflows the file is not drift.
@@ -230,7 +284,7 @@ function inspectText(
 function manifestFile(
   cwd: string,
   rel: string,
-  manifest: SupabaseHookManifest,
+  manifest: SupabaseDatabaseManifest | SupabaseHookManifest,
   check: boolean,
 ): { readonly code: 0 | 1; readonly output: string } {
   const path = resolve(cwd, rel);
@@ -312,6 +366,29 @@ export async function runSupabase(input: {
   );
   if (area === "inspect" && action === undefined) {
     const policy = await loadHookPolicy(input.cwd, input.config);
+    if (hooklessDatabase(input.config)) {
+      const bare = supabaseDatabaseManifest(
+        scopeList(policy.scopes),
+        input.config,
+        overrides,
+        policy,
+      );
+      if (input.out !== undefined || input.check) {
+        return manifestFile(
+          input.cwd,
+          typeof input.out === "string" ? input.out : MANIFEST_FILE,
+          bare,
+          input.check,
+        );
+      }
+      return {
+        code: 0,
+        output:
+          input.json === true
+            ? JSON.stringify(bare, null, 2)
+            : databaseInspectText(bare),
+      };
+    }
     const manifest = supabaseHookManifest(
       scopeList(policy.scopes),
       input.config,

@@ -7,13 +7,8 @@
   "required": [
     "$schema",
     "version",
-    "hook",
     "helpers",
     "tenantClaim",
-    "budget",
-    "claims",
-    "authzVersion",
-    "memberships",
     "rls",
     "decidingColumns",
     "markers"
