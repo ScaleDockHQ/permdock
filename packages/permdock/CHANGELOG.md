@@ -1,5 +1,15 @@
 # permdock
 
+## 0.6.0
+
+### Minor Changes
+
+- [#187](https://github.com/ScaleDockHQ/permdock/pull/187) [`9e5ef47`](https://github.com/ScaleDockHQ/permdock/commit/9e5ef4762a38f186c88b87d5d33416117e7cd33a) Thanks [@martijn00](https://github.com/martijn00)! - Add shared custom roles: a `CustomRole` with `shared: true` and no tenant, returned by `CustomRoleSource.sharedRoles()`, is held on a membership of its scope in every tenant, and its name wins over a tenant role's (`validateCustomRole(policy, role, { shared })` reports `name-taken`). Generated RLS resolves them from rows with a null `tenant_id` below the global scope, and `permdock_replace_custom_role_grants` writes them only for a caller holding `meta.manageRoles` through a global role.
+
+### Patch Changes
+
+- [#188](https://github.com/ScaleDockHQ/permdock/pull/188) [`17d57b1`](https://github.com/ScaleDockHQ/permdock/commit/17d57b1e9d70dcc6a65a5dff608c750201686a67) Thanks [@martijn00](https://github.com/martijn00)! - The `better-supabase` peer range is `>=0.9.0` instead of `>=0.9.0 <0.10.0`, so `permdock/better-supabase` installs next to better-supabase 0.10 and later without a peer warning.
+
 ## 0.5.0
 
 ### Minor Changes
