@@ -308,7 +308,8 @@ function undeclaredKind(_grantee: never): false {
   return false;
 }
 
-function declaredGrantee(
+/** Whether a hosted grant may name `grantee` on a permission of `permissionResource`. */
+export function declaredGrantee(
   policy: Policy,
   grantee: Grantee,
   permissionResource: string,
@@ -430,6 +431,21 @@ function granteesAcceptable(
   );
 }
 
+/** The approvals the code allows on `key` carry; a hosted allow must meet each one. */
+export function codeApprovals(
+  policy: Policy,
+  key: string,
+): readonly Grant["approval"][] {
+  return policy.grants
+    .filter(
+      (grant) =>
+        grant.effect === "allow" &&
+        grant.hosted === undefined &&
+        grant.permission.key === key,
+    )
+    .map((grant) => grant.approval);
+}
+
 type Built =
   | { readonly ok: true; readonly grant: Grant }
   | { readonly ok: false; readonly reason: HostedGrantDropReason };
@@ -525,15 +541,9 @@ function buildGrant(
     return { ok: false, reason: "invalid" };
   }
   if (effect === "allow") {
-    const codeApprovals = policy.grants
-      .filter(
-        (grant) =>
-          grant.effect === "allow" &&
-          grant.hosted === undefined &&
-          grant.permission.key === permission.key,
-      )
-      .map((grant) => grant.approval);
-    if (!approvalAtLeast(built.approval, codeApprovals)) {
+    if (
+      !approvalAtLeast(built.approval, codeApprovals(policy, permission.key))
+    ) {
       return { ok: false, reason: "weaker-approval" };
     }
   }
@@ -544,6 +554,32 @@ function buildGrant(
       hosted: { document: document.fingerprint, grant: raw["id"] },
     }),
   };
+}
+
+export type HostedGrantCheck =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: HostedGrantDropReason };
+
+const CHECKED_DOCUMENT: PolicyDocument = Object.freeze({
+  v: 1,
+  id: "",
+  fingerprint: "",
+  catalog: "",
+  issuedAt: "",
+  grants: Object.freeze([]),
+});
+
+/**
+ * Whether `mergeHostedGrants` would keep one candidate hosted grant, and the
+ * drop reason it would report when not. Needs no `PolicyDocument`, so a
+ * grant form can check a grant before it publishes one.
+ */
+export function checkHostedGrant(
+  policy: Policy,
+  grant: unknown,
+): HostedGrantCheck {
+  const result = buildGrant(policy, CHECKED_DOCUMENT, grant);
+  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
 }
 
 /** One hosted grant `mergeHostedGrants` would drop, with the permission key it names. */
