@@ -126,6 +126,8 @@ The AI SDK case deserves a note: the SDK gives PermDock the agent's identity but
 
 One OAuth access token can reach an application through several adapters: an MCP tool that calls the app's own API with the caller's token is decided by `permdock/mcp` and then by `permdock/supabase` (or `permdock/jwt`). Those adapters name the client `oauth-client`, and `permdock/mcp` names it `mcp-client` unless `actorKind` says otherwise. Set `actorKind: 'oauth-client'` on the MCP adapter and on `subjectFromMcp` so the token is one actor kind everywhere and one policy delegation or `actor('oauth-client')` grant covers it; keep `'mcp-client'` when MCP clients should get rules of their own.
 
+The same token can also reach Postgres directly, through PostgREST or a backend that forwards it. [`rls.tokenScopes`](/docs/cli/rls#token-scopes) holds it there to the permissions its `scope` claim reaches, through the map better-supabase reads. A policy delegation does not compile into SQL, so a client whose rights come only from one holds nothing on the Data API with that option on.
+
 ## RAR `authorization_details`
 
 Every permission reference carries a `scope` and an `authorizationDetails` type. This lets PermDock participate in RFC 9396 Rich Authorization Requests in both directions:

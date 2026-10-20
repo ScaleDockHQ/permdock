@@ -460,6 +460,26 @@ rls: {
 
 `claim`, `scopes`, `tenant` and `roles` rename the claim and its fields for a key format that uses other names, such as `{ tenant: 'organization_id' }`. On Supabase the helpers and policies read the subject through [`permdock_user_id()`](#generate), which reads an empty `sub` as no user where `auth.uid()` fails. The claim is trusted as the token is: only a backend that verified the key may set it, never a client. The Supabase manifest lists the settings as `rls.apiKeys` and the helper in `rls.helpers`.
 
+### Token scopes
+
+A delegated token is one with a `client_id` claim, or an `act` claim that is not a support or impersonation session: an OAuth client, an MCP client or an agent acting for its user. In process, such a token holds only what its `scope` claim delegates ([delegation](/docs/security/delegation)). `rls.tokenScopes` gives the database the same rule:
+
+```ts title="permdock.config.ts"
+rls: {
+  tokenScopes: true,
+},
+```
+
+- `rls generate` writes `permdock_token_scope_allows(p_grant)`. `permdock_has` and every `permitted_<scope>_ids` return nothing for a grant key whose permission none of the token's scopes reaches. The by-permission and `permission_keys` helpers inherit the check, and hand-written policies that call the helpers get it with them.
+- Allows that call no helper (`authenticated()`, resource memberships, relations) get the same check with the permission key in their policy, for the permission and each key it `requires`.
+- A scope reaches a permission through its own scope (`task:read` for `task.read`), the scope of a key it was renamed from, or a policy [`oauthScopes`](/docs/standards/oauth-agent-delegation) entry. The map is the one better-supabase reads as `delegation.scopes` ([better-supabase OAuth scopes](/docs/adapters/better-supabase#oauth-scopes)), compiled into the helper as a JSON literal; regenerate after changing `oauthScopes` or a permission.
+- `scope` is a space-separated string or a JSON array; on the `guc` dialect it is the string. Identity scopes such as `openid` reach nothing. A delegated token without a `scope` claim holds nothing.
+- A [policy delegation](/docs/security/delegation#policy-delegations) does not compile into SQL. A Supabase OAuth client that carries only identity scopes and relies on one in process holds nothing on the Data API with this option on ([Supabase](/docs/adapters/supabase#actor-and-delegation-actorof-and-delegationof)).
+- Denies always apply. A token without `client_id` or `act`, and a support or impersonation session, is not limited; use [read-only actors](#read-only-actors) for those.
+- The `_for` helpers name their user and ignore the token.
+
+The check chains with [API keys](#api-keys) when both are set. The Supabase manifest lists `rls.tokenScopes` and the helper in `rls.helpers`, and `verify --introspect` reports drift when the helper is missing. `tests/integration/src/rls-token-scopes.test.ts` runs the same tokens through better-supabase's `member_can` and the generated table policies and asserts that they agree.
+
 ### Ownership rules
 
 When a role declares [`min`, `max`, `transferOnly`, `assigns` or `for`](/docs/concepts/ownership), the output adds, next to the helpers:

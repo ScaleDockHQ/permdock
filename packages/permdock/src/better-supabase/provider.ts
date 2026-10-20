@@ -16,8 +16,8 @@ import type { Permission } from "../core/permission-types.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { holder } from "../core/approvers.ts";
-import { byCodePoint } from "../core/compare.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { delegatedScopeMap } from "../core/oauth-scopes.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import {
   type SupabaseHookManifest,
@@ -465,34 +465,11 @@ function operationsOf(
   return operations;
 }
 
-/**
- * better-supabase's `delegation.scopes`: each permission's own scope, and
- * each coarse scope the catalog's `oauthScopes` lists, to the permission keys
- * it reaches, sorted by code point. A key the catalog does not list is
- * dropped, so a stale `oauthScopes` entry grants nothing.
- */
+/** better-supabase's `delegation.scopes`, the same map `rls.tokenScopes` compiles. */
 function delegatedScopes(
   catalog: CatalogDocument | undefined,
 ): Record<string, string[]> {
-  const delegated: Record<string, Set<string>> = {};
-  const known = new Set<string>();
-  for (const permission of catalog?.permissions ?? []) {
-    known.add(permission.key);
-    (delegated[permission.scope] ??= new Set()).add(permission.key);
-  }
-  for (const entry of catalog?.oauthScopes ?? []) {
-    for (const key of entry.permissions) {
-      if (known.has(key)) (delegated[entry.scope] ??= new Set()).add(key);
-    }
-  }
-  return Object.fromEntries(
-    Object.keys(delegated)
-      .toSorted(byCodePoint)
-      .map((scope) => [
-        scope,
-        [...(delegated[scope] ?? [])].toSorted(byCodePoint),
-      ]),
-  );
+  return delegatedScopeMap(catalog?.permissions ?? [], catalog?.oauthScopes);
 }
 
 /**

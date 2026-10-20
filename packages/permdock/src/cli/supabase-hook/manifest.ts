@@ -28,6 +28,7 @@ import { permittedUsersHelper } from "../rls/permission-holders.ts";
 import { permissionKeysForHelper } from "../rls/permission-keys.ts";
 import { ACTOR_MAY_WRITE, readOnlyActorKinds } from "../rls/policies.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
+import { TOKEN_SCOPE_ALLOWS } from "../rls/token-scopes.ts";
 import { checkSuspension } from "../sql/active.ts";
 import { scopeTypeOf, tenantTypeOf } from "../sql/columns.ts";
 import { decidingColumns } from "../sql/deciding-columns.ts";
@@ -142,6 +143,9 @@ function trustedHelpers(
     ...(config.rls?.apiKeys === undefined
       ? []
       : [helperEntry(API_KEY_ALLOWS, "p_grant text", "boolean", client)]),
+    ...(config.rls?.tokenScopes === true
+      ? [helperEntry(TOKEN_SCOPE_ALLOWS, "p_grant text", "boolean", client)]
+      : []),
     ...(readOnlyActorKinds(config.rls?.readOnlyActors) === undefined
       ? []
       : [helperEntry(ACTOR_MAY_WRITE, "", "boolean", client)]),
@@ -233,7 +237,12 @@ function rlsSettings(
   config: PermDockConfig,
 ): Pick<
   SupabaseManifestRls,
-  "customRoles" | "roles" | "suspension" | "assignments" | "apiKeys"
+  | "customRoles"
+  | "roles"
+  | "suspension"
+  | "assignments"
+  | "apiKeys"
+  | "tokenScopes"
 > {
   const rls = config.rls;
   const suspension = checkSuspension(rls?.suspension, parts.scopes);
@@ -278,6 +287,7 @@ function rlsSettings(
     ...(rls?.apiKeys === undefined
       ? {}
       : { apiKeys: apiKeyFields(rls.apiKeys) }),
+    ...(rls?.tokenScopes === true ? { tokenScopes: true } : {}),
   };
 }
 

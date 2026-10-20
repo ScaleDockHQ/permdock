@@ -42,6 +42,7 @@ import {
   memberFunction,
   memberRolesFunction,
 } from "./helper-members.ts";
+import { tokenScopeAllowsCall, tokenScopeAllowsSql } from "./token-scopes.ts";
 
 /** `'global'` or a scope name. */
 export type HelperScope = string;
@@ -359,6 +360,9 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   if (keys !== undefined) {
     chunks.push(apiKeyAllowsSql(ctx, keys, anon));
   }
+  if (ctx.tokenScopes !== undefined) {
+    chunks.push(tokenScopeAllowsSql(ctx, ctx.tokenScopes, anon));
+  }
   const bodies = grantBodies(ctx);
   chunks.push(helperFunction(ctx, HELPERS.has, "boolean", bodies.has, anon));
   const capabilities = capabilitiesSql(ctx);
@@ -429,29 +433,39 @@ export function grantBodies(ctx: RlsSqlContext): {
   readonly ids: (scope: string) => Body;
 } {
   const keys = ctx.apiKeys;
+  const scoped = ctx.tokenScopes !== undefined;
   const set = ctx.grantSet === true;
-  const allows = apiKeyAllowsCall(ctx, set ? "ids.grant_key" : "p_grant");
-  const keyTenant = keyTenantSql(ctx, undefined) ?? "true";
+  const ceiling = (grant: string): string | undefined => {
+    const calls = [
+      ...(keys === undefined ? [] : [apiKeyAllowsCall(ctx, grant)]),
+      ...(scoped ? [tokenScopeAllowsCall(ctx, grant)] : []),
+    ];
+    return calls.length === 0 ? undefined : calls.join(" and ");
+  };
+  const allows = ceiling(set ? "ids.grant_key" : "p_grant");
+  const keyTenant =
+    keys === undefined ? "" : ` and ${keyTenantSql(ctx, undefined) ?? "true"}`;
+  const hasAllows = ceiling(set ? "g.grant_key" : "p_grant");
   return {
     has: sqlBody(
-      keys === undefined
+      hasAllows === undefined
         ? hasBody(ctx)
         : set
           ? `  select g.grant_key
   from (
 ${hasBody(ctx)}
   ) g(grant_key)
-  where ${apiKeyAllowsCall(ctx, "g.grant_key")} and ${keyTenant}`
-          : ceilingHasSql(hasBody(ctx), `${allows} and ${keyTenant}`),
+  where ${hasAllows}${keyTenant}`
+          : ceilingHasSql(hasBody(ctx), `${hasAllows}${keyTenant}`),
     ),
     ids: (scope) => {
       const type = scopeTypeOf(ctx, scope);
       const body = scopedBody(ctx, scope, type);
-      if (keys === undefined) {
+      if (allows === undefined) {
         return body;
       }
       const sql =
-        scope === rootName(ctx)
+        keys !== undefined && scope === rootName(ctx)
           ? `${body.sql}\n  union\n${serviceKeyIdsSql(ctx, keys, scope, type)}`
           : body.sql;
       return {
@@ -469,6 +483,6 @@ ${sql}
 }
 
 export function forUserContext(ctx: RlsSqlContext): RlsSqlContext {
-  const { apiKeys: _apiKeys, ...unkeyed } = ctx;
+  const { apiKeys: _apiKeys, tokenScopes: _tokenScopes, ...unkeyed } = ctx;
   return { ...unkeyed, subjectId: "p_user", tenants: "all" };
 }

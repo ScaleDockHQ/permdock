@@ -921,4 +921,29 @@ describe("authorizationProvider", () => {
       }),
     ).toThrow(/'task.gone' is not a declared permission key/u);
   });
+
+  it("maps a renamed permission's former scope in delegation.scopes", () => {
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog: {
+        ...emptyCatalog,
+        permissions: [
+          {
+            key: "doc.read",
+            scope: "doc:read",
+            resource: "doc",
+            action: "read",
+            arity: "collection",
+            meta: {},
+            usages: [],
+            rowConditions: false,
+            renamedFrom: ["doc.view"],
+          },
+        ],
+      },
+    });
+    expect(provider.delegation).toEqual({
+      scopes: { "doc:read": ["doc.read"], "doc:view": ["doc.read"] },
+    });
+  });
 });

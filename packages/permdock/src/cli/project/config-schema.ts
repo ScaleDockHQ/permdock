@@ -83,6 +83,7 @@ const RLS = {
   ownershipTriggers: true,
   readOnlyActors: true,
   apiKeys: true,
+  tokenScopes: true,
   realtime: true,
   storage: true,
 } as const satisfies Record<keyof RlsConfig, true>;

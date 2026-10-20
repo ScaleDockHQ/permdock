@@ -24,6 +24,7 @@ import { capabilityAccessSql } from "../rls/capabilities.ts";
 import { type RolePermission, accessSql } from "../rls/helpers.ts";
 import { indexedFields } from "../rls/indexes.ts";
 import { requiresSql } from "../rls/permission-keys.ts";
+import { tokenScopeAllowsCall } from "../rls/token-scopes.ts";
 import { andSql, validitySql, wrapSql } from "./clauses.ts";
 import { arrayColumnsOf, columnTypesOf } from "./columns.ts";
 import {
@@ -751,7 +752,7 @@ export function compileGrants(
       accessExpr = andSql(accessExpr, PERMANENT_USER);
     }
     if (
-      ctx.apiKeys !== undefined &&
+      (ctx.apiKeys !== undefined || ctx.tokenScopes !== undefined) &&
       grant.effect === "allow" &&
       access.kind !== "anyone" &&
       access.kind !== "role"
@@ -759,8 +760,12 @@ export function compileGrants(
       const covered = requiresStandIn(grant)
         ? (grant.requires ?? [])
         : [grant.permission.key, ...(grant.requires ?? [])];
-      const calls = covered.map(
-        (key) => `(select ${apiKeyAllowsCall(ctx, quoteLiteral(key))})`,
+      const ceilings = [
+        ...(ctx.apiKeys === undefined ? [] : [apiKeyAllowsCall]),
+        ...(ctx.tokenScopes === undefined ? [] : [tokenScopeAllowsCall]),
+      ];
+      const calls = covered.flatMap((key) =>
+        ceilings.map((call) => `(select ${call(ctx, quoteLiteral(key))})`),
       );
       accessExpr = andSql(
         accessExpr,

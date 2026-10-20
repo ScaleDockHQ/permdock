@@ -434,6 +434,8 @@ delegations: [
 
 `subjectFromSupabase` drops the identity scopes, so the token's own delegation is empty and the policy delegation is the only ceiling. Inside it the user's grants decide: a client never reaches a permission its user does not hold. Add `to: { kind: "oauth-client", client: "cli" }` and `clients` to give one client a narrower list.
 
+A policy delegation lives in process only; the generated SQL does not compile it. Without [`rls.tokenScopes`](/docs/cli/rls#token-scopes), such a token reaches the Data API with its user's row access. With it, the helpers read the token's `scope` claim, so a client that carries only identity scopes holds nothing there. Issue the client the permission scopes or `oauthScopes` it needs when it must reach tables directly.
+
 Revocation reaches the ceiling through the user's grants, not through the delegation. With `claimsFirst` and `onStale: "reread"`, a token whose `authz_ver` is behind is read again for a `fresh` permission, and the reread replaces `memberships` and `roles`, so a revoked global role stops counting. With `onStale: "deny"` that `fresh` permission denies with `stale-credentials`; every other permission keeps the token's roles until it expires, which `jwt_expiry` bounds. Mark the sensitive permissions `fresh` ([authorization version](/docs/adapters/supabase-hook#authorization-version)).
 
 ### Session objects: `subjectFromSupabaseSession`
