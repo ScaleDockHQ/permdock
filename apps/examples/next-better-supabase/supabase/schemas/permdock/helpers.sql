@@ -74,10 +74,11 @@ begin
   return query
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -106,10 +107,11 @@ begin
   return query
   select distinct (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
@@ -133,10 +135,11 @@ begin
   return query
   select distinct (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'organization'
@@ -160,15 +163,17 @@ begin
   return query
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
     union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
     where m."user_id" = v_user_1
     group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -198,15 +203,17 @@ begin
   return query
   select distinct (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
     union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
     where m."user_id" = v_user_1
     group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
   ) ms
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
@@ -231,15 +238,17 @@ begin
   return query
   select distinct (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
     union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
     where m."user_id" = v_user_1
     group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
   ) ms
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'customer'
@@ -281,10 +290,11 @@ begin
   return query
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -312,15 +322,17 @@ begin
   return query
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
     union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
     where m."user_id" = v_user_1
     group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -488,10 +500,11 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -558,10 +571,11 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -672,15 +686,17 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
     union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
     where m."user_id" = v_user_1
     group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -743,15 +759,17 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
     union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
     where m."user_id" = v_user_1
     group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -904,10 +922,11 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -972,10 +991,11 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -1080,15 +1100,17 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
     union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
     where m."user_id" = v_user_1
     group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -1149,15 +1171,17 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."memberships" m
     where m."user_id" = v_user_0
     group by m."scope"::text, m."scope_id"::text
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
     union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
     where m."user_id" = v_user_1
     group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
@@ -1321,8 +1345,7 @@ begin
   return null;
 end;
 $$;
-drop trigger if exists "permdock_holders_organization" on "public"."memberships";
-create constraint trigger "permdock_holders_organization"
+create or replace constraint trigger "permdock_holders_organization"
   after insert or update or delete on "public"."memberships"
   deferrable initially deferred
   for each row execute function "permdock".permdock_holders_organization();

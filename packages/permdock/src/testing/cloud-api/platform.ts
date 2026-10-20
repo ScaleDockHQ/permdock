@@ -15,6 +15,9 @@ export const PLATFORM_SCOPES: Readonly<Record<string, string>> = {
   "projects:read": "List and read the projects the person belongs to",
   "policy:read": "Read a project's pushed catalog, manifest and policy",
   "catalog:write": "Push a catalog and policy with permdock cloud push",
+  "evidence:read":
+    "Read a project's decision log and exports, the evidence an access review uses",
+  "approvals:read": "Read a project's approval requests and their verdicts",
 };
 
 const ref = (name: string): Node => ({ $ref: `#/components/schemas/${name}` });
@@ -142,6 +145,10 @@ export const PLATFORM_SCHEMAS: Readonly<Record<string, Node>> = {
     properties: {
       id: { type: "string", minLength: 1 },
       name: { type: "string" },
+      slug: {
+        type: "string",
+        description: "The project's URL-safe name, unique in its organization",
+      },
       environment: { type: "string", minLength: 1 },
       issuer: {
         type: "string",
@@ -154,6 +161,11 @@ export const PLATFORM_SCHEMAS: Readonly<Record<string, Node>> = {
           version: { type: "integer", minimum: 1 },
           fingerprint: { type: "string" },
         },
+      },
+      updatedAt: {
+        type: "string",
+        format: "date-time",
+        description: "When the project last changed, RFC 3339",
       },
     },
   },

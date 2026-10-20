@@ -133,7 +133,7 @@ export function supabaseHookManifest(
  * `supabase.hook`: the helpers, scopes, membership sources and grants, and no
  * token hook.
  */
-export function supabaseDatabaseManifest(
+function supabaseDatabaseManifest(
   scopes: readonly Scope[],
   config: PermDockConfig,
   overrides: HookOverrides & { readonly out?: string } = {},
