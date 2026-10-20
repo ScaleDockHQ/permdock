@@ -57,6 +57,8 @@ export type MigrateSkip = {
   readonly call: string;
   readonly reason: MigrateSkipReason;
   readonly detail: string;
+  /** The exact replacement call, when only the place the call sits in blocks the rewrite. */
+  readonly suggestion?: string;
 };
 
 export type MigrateReport = {
@@ -172,6 +174,33 @@ function callEnd(text: string, start: number): number {
   return -1;
 }
 
+/** The top-level arguments of the call at `start`, as written; `end` is past its closing paren. */
+function argTexts(text: string, start: number, end: number): string[] {
+  const open = text.indexOf("(", start);
+  const args: string[] = [];
+  let from = open + 1;
+  let depth = 0;
+  for (let index = open; index < end; index += 1) {
+    const char = text[index];
+    if (char === "'" || char === '"') {
+      index = Math.max(text.indexOf(char, index + 1), index);
+      continue;
+    }
+    if (char === "(" || char === "[") {
+      depth += 1;
+    } else if (char === ")" || char === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        args.push(text.slice(from, index));
+      }
+    } else if (char === "," && depth === 1) {
+      args.push(text.slice(from, index));
+      from = index + 1;
+    }
+  }
+  return args.map((arg) => arg.trim());
+}
+
 const IDENTIFIER = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*)`;
 const COLUMN = new RegExp(
   String.raw`${IDENTIFIER}(?:\s*\.\s*${IDENTIFIER})*`,
@@ -245,6 +274,8 @@ class Rewriter {
   readonly #target: MigrateTarget;
   readonly #text: string;
   readonly #at: (byte: number) => number;
+  /** The written arguments of the call being rewritten. */
+  #args: readonly string[] = [];
 
   public constructor(
     config: RlsMigrateConfig,
@@ -303,14 +334,17 @@ class Rewriter {
     return { to: literal(key) };
   }
 
-  #column(arg: unknown): Outcome {
+  #column(arg: unknown, index: number): Outcome {
     const ref = child(arg, "ColumnRef");
     const location = child(ref, "location");
     if (typeof location !== "number") {
-      return skip(
-        "not-a-column",
-        "the id is an expression, not a plain column; rewrite it by hand",
-      );
+      const written = this.#args[index];
+      return written === undefined || written === ""
+        ? skip(
+            "not-a-column",
+            "the id is an expression whose text could not be read; rewrite it by hand",
+          )
+        : { to: `(${written})` };
     }
     const text = columnText(this.#text, this.#at(location));
     return text === undefined
@@ -330,8 +364,13 @@ class Rewriter {
     return "to" in key ? { to: `${helper}(${key.to})` } : key;
   }
 
-  #row(scope: string, idArg: unknown, keyArg: unknown): Outcome {
-    const column = this.#column(idArg);
+  #row(
+    scope: string,
+    idArg: unknown,
+    keyArg: unknown,
+    idIndex: number,
+  ): Outcome {
+    const column = this.#column(idArg, idIndex);
     if (!("to" in column)) {
       return column;
     }
@@ -360,7 +399,7 @@ class Rewriter {
         `rls generate writes no member_${scope}_ids: ${scope} has no membership source`,
       );
     }
-    const column = this.#column(idArg);
+    const column = this.#column(idArg, 0);
     return "to" in column
       ? { to: `(${column.to} in (select ${helper}()))` }
       : column;
@@ -398,7 +437,7 @@ class Rewriter {
       }
       mapped.push(declared);
     }
-    const column = this.#column(idArg);
+    const column = this.#column(idArg, 0);
     return "to" in column
       ? {
           to: `(${column.to} in (select ${helper}(array[${mapped.map(literal).join(", ")}])))`,
@@ -421,17 +460,18 @@ class Rewriter {
     ) {
       return this.#global(keyArg, selected);
     }
-    return this.#row(this.#config.scopes?.[named] ?? named, idArg, keyArg);
+    return this.#row(this.#config.scopes?.[named] ?? named, idArg, keyArg, 1);
   }
 
   /** `selected`: the call is already a `select` target, so `permdock_has` needs no wrapping subquery. */
   public rewrite(call: Call, selected: boolean): Outcome {
     const { helper, args } = call;
+    this.#args = argTexts(this.#text, call.start, call.end);
     switch (helper.form) {
       case "ids":
         return this.#ids(helper.scope, args[0]);
       case "row":
-        return this.#row(helper.scope, args[0], args[1]);
+        return this.#row(helper.scope, args[0], args[1], 0);
       case "membership":
         return this.#membership(helper.scope, args[0]);
       case "role":
@@ -505,6 +545,34 @@ function bodyStrings(statement: unknown): readonly string[] {
     }
   }
   return found;
+}
+
+/** What `call`, written inside a function body, becomes: the rewrite that its place keeps from being applied. */
+async function suggest(
+  call: string,
+  config: RlsMigrateConfig,
+  target: MigrateTarget,
+): Promise<string | undefined> {
+  const sql = `select ${call}`;
+  let tree: unknown;
+  try {
+    tree = await parse(sql);
+  } catch {
+    return undefined;
+  }
+  const first = child(list(child(tree, "stmts"))[0], "stmt");
+  const target0 = list(child(child(first, "SelectStmt"), "targetList"))[0];
+  const node = child(child(child(target0, "ResTarget"), "val"), "FuncCall");
+  if (!isRecord(node)) {
+    return undefined;
+  }
+  const rewriter = new Rewriter(config, target, sql);
+  const found = rewriter.call(node);
+  if (found === undefined || found.end === -1) {
+    return undefined;
+  }
+  const outcome = rewriter.rewrite(found, true);
+  return "to" in outcome ? outcome.to : undefined;
 }
 
 /** Rewrites the configured helper calls in one file's policies; everything else is reported. */
@@ -599,17 +667,23 @@ async function migrateSql(
       for (const body of bodyStrings(child(statement, kind))) {
         const bodyStart = text.indexOf(body, statementStart);
         for (const match of body.matchAll(called)) {
+          const matchAt = match.index ?? 0;
+          const end = callEnd(body, matchAt);
+          const suggestion =
+            end === -1
+              ? undefined
+              : await suggest(body.slice(matchAt, end), config, target);
           skipped.push({
             file,
             line: lineOf(
               text,
-              (bodyStart === -1 ? statementStart : bodyStart) +
-                (match.index ?? 0),
+              (bodyStart === -1 ? statementStart : bodyStart) + matchAt,
             ),
             call: match[1] ?? "",
             reason: "function-body",
             detail:
               "the call is inside a function body, which runs with its own privileges; rewrite it by hand",
+            ...(suggestion === undefined ? {} : { suggestion }),
           });
         }
       }
@@ -661,7 +735,7 @@ function describe(report: MigrateReport, write: boolean): string {
     ),
     ...report.skipped.map(
       (item) =>
-        `skipped ${item.file}:${String(item.line)}  ${item.call}: ${item.detail}`,
+        `skipped ${item.file}:${String(item.line)}  ${item.call}: ${item.detail}${item.suggestion === undefined ? "" : `; use ${item.suggestion}`}`,
     ),
   ];
   const files = new Set(report.rewrites.map((item) => item.file)).size;
