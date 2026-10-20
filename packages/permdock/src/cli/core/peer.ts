@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import {
   type Agent,
   detect,
@@ -17,9 +19,33 @@ export async function requirePeer<T>(
   name: string,
   command: string,
   cwd: string = process.cwd(),
+  minimumMajor?: number,
 ): Promise<T> {
   try {
-    return await load();
+    const loaded = await load();
+    const found = minimumMajor === undefined ? undefined : installedMajor(name);
+    if (
+      minimumMajor !== undefined &&
+      found !== undefined &&
+      found < minimumMajor
+    ) {
+      const agent = await packageManagerOf(cwd);
+      throw new CliError(
+        "unavailable",
+        `PermDock CLI: ${command} needs ${name} ${String(minimumMajor)} or later; ${String(found)} is installed. Upgrade it with: ${addLine(agent, [`${name}@latest`], { dev: true })}`,
+        {
+          code: "dependency_missing",
+          extensions: { package: name, minimum: minimumMajor, found },
+          next: [
+            {
+              command: addLine(agent, [`${name}@latest`], { dev: true }),
+              when: "to upgrade it",
+            },
+          ],
+        },
+      );
+    }
+    return loaded;
   } catch (error) {
     if (!isMissingModule(error)) {
       throw error;
@@ -36,6 +62,26 @@ export async function requirePeer<T>(
         },
       ],
     });
+  }
+}
+
+/** The major version of the installed `name`, or `undefined` when its package.json cannot be read. */
+function installedMajor(name: string): number | undefined {
+  try {
+    const file = createRequire(import.meta.url).resolve(`${name}/package.json`);
+    const manifest: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (
+      typeof manifest !== "object" ||
+      manifest === null ||
+      !("version" in manifest) ||
+      typeof manifest.version !== "string"
+    ) {
+      return undefined;
+    }
+    const major = Math.trunc(Number(manifest.version.split(".")[0]));
+    return Number.isNaN(major) ? undefined : major;
+  } catch {
+    return undefined;
   }
 }
 

@@ -23,6 +23,9 @@ import { readOnlyActorKinds } from "./policies.ts";
 import { parseRbacAuthorize } from "./rbac.ts";
 import { runRlsVerify } from "./verify.ts";
 
+/** `rls migrate` and `rls import` read the pgsql-parser 18 AST. */
+const PGSQL_PARSER_MAJOR = 18;
+
 export const RLS_HELP = `permdock rls generate | import | verify | migrate | explain
 
   generate  Compile the policy into RLS policies and helpers
@@ -243,6 +246,7 @@ async function migrate(input: RlsRunInput): Promise<CommandResult> {
     "pgsql-parser",
     "permdock rls migrate",
     input.cwd,
+    PGSQL_PARSER_MAJOR,
   );
   // Lazy: the migrate code loads only after its peer check passes.
   const { migrateTarget, runRlsMigrate } = await import("./migrate.ts");
@@ -400,6 +404,7 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
         "pgsql-parser",
         "permdock rls import",
         input.cwd,
+        PGSQL_PARSER_MAJOR,
       );
       // Lazy: the import code loads only after its peer check passes.
       const { runRlsImport } = await import("./import.ts");
