@@ -4,7 +4,7 @@ import type { RlsCustomRolesFrom, RlsMigrateConfig } from "../types.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { qualified, quoteIdent, quoteTable } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
-import { rebuildPlan } from "./custom-role-rebuild.ts";
+import { DROPPED_LIST, rebuildPlan } from "./custom-role-rebuild.ts";
 
 /**
  * `rls.customRoles.from.sync: 'trigger'`: after-row triggers on the legacy
@@ -71,7 +71,7 @@ begin
 ${plan.collect}${keepIncludes}
     perform ${plan.replace}(v.tenant_id, v.scope, v.scope_id, v.role, v_allow, v_deny, v_include);
     if cardinality(v_dropped) > 0 then
-      raise warning 'permdock sync: dropped % entr(ies) PermDock cannot hold: %', cardinality(v_dropped), array_to_string(v_dropped[1:50], '; ');
+      raise warning 'permdock sync: dropped % entr(ies) PermDock cannot hold: %', cardinality(v_dropped), ${DROPPED_LIST};
     end if;
   end loop;
   return null;

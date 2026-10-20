@@ -312,3 +312,11 @@ ${includeBlock}`;
     roles,
   };
 }
+
+/** `v_dropped` grouped per legacy role (`role: a, b; other: c`), capped at 50 entries. */
+export const DROPPED_LIST = `(select string_agg(g.role || ': ' || g.items, '; ' order by g.role)
+    from (
+      select split_part(l.d, ': ', 1) as role, string_agg(substr(l.d, strpos(l.d, ': ') + 2), ', ' order by l.d) as items
+      from (select u.d from unnest(v_dropped) as u(d) order by u.d limit 50) l
+      group by 1
+    ) g)`;
