@@ -15,6 +15,8 @@ export type RoleRows = {
   readonly from: string;
   readonly userSql: string;
   readonly roleSql: string;
+  /** Whether `roleSql` can be null, so the aggregate leaves those rows out. */
+  readonly nullable: boolean;
   /** Set when the key is read through a roles table. */
   readonly through?: RoleKeys;
   readonly tenant?: string;
@@ -66,6 +68,7 @@ export function globalRoleSource(
     from: `${quoteTable(table)} ${alias}${role.join}${global}`,
     userSql: `${alias}.${quoteIdent(user)}`,
     roleSql: role.sql,
+    nullable: role.nullable,
     role: roleManifest(role),
     ...(role.through === undefined ? {} : { through: role.through }),
     ...(tenant === undefined ? {} : { tenant }),

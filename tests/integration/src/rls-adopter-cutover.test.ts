@@ -54,6 +54,12 @@ create table public.organization_members (
   user_id uuid not null references auth.users on delete cascade,
   role_id integer not null references public.app_roles
 );
+create table public.account_users (
+  user_id uuid not null references auth.users on delete cascade,
+  scope text not null default 'tenant',
+  scope_id text not null,
+  kind text not null
+);
 create table public.job (id text primary key, "orgId" text not null, "ownerId" uuid not null);
 create table public.invite (id text primary key, "orgId" text not null);
 insert into public.job values
@@ -78,6 +84,12 @@ union all select 'acme', '${MEMBER}'::uuid, id from public.app_roles where name 
 insert into public.app_role_permissions (role_id, permission, level)
 select id, 'job.read', 'own' from public.app_roles where name in ('reader', 'sharedreader', 'sharedsys', 'staffrole')
 union all select id, 'invite.create', 'all' from public.app_roles where name = 'reader';
+`;
+
+const MAPPED = `
+insert into public.account_users (user_id, scope_id, kind) values
+  ('${OTHER}', 'acme', 'admin'),
+  ('${STRANGER}', 'acme', 'user');
 `;
 
 const asUser = (sub: string) => ({
@@ -138,7 +150,12 @@ describe("RLS adopter cutover: database mode with an application roles table", (
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
     }
-    db = await startPostgres([SETUP, readFileSync(out, "utf8"), LEGACY]);
+    db = await startPostgres([
+      SETUP,
+      readFileSync(out, "utf8"),
+      LEGACY,
+      MAPPED,
+    ]);
     db.admin.on("notice", (message) => {
       notices.push(message.message);
     });
@@ -179,6 +196,15 @@ describe("RLS adopter cutover: database mode with an application roles table", (
     expect(await one(TENANT, "j-other")).toBe(false);
     expect(await one(SHARED, "j-shared")).toBe(true);
     expect(await one(SHARED, "j-tenant")).toBe(false);
+  });
+
+  it("maps a column value to a role and gives a value that maps to null no role", async () => {
+    expect(await ids(OTHER, "job.delete")).toEqual([
+      "j-other",
+      "j-shared",
+      "j-tenant",
+    ]);
+    expect(await ids(STRANGER, "job.read")).toEqual([]);
   });
 
   it("checks the create action of a row value like the insert policy", async () => {

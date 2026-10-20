@@ -104,7 +104,11 @@ export type SupabaseManifestThrough = {
 /** A role column (with `through` when it references a roles table), or the fixed roles every row holds. */
 export type SupabaseManifestRole =
   | SupabaseManifestValue
-  | (SupabaseManifestColumn & { readonly through: SupabaseManifestThrough });
+  | (SupabaseManifestColumn & { readonly through: SupabaseManifestThrough })
+  | (SupabaseManifestColumn & {
+      /** Each column value to the role key it stands for, or `null` for no role; an unlisted value is no role. */
+      readonly map: Readonly<Record<string, string | null>>;
+    });
 
 /** One `tableMembershipSource` or `junctionMembershipSource` source. */
 export type SupabaseManifestMembership = {

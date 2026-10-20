@@ -1,7 +1,7 @@
 import type { MemberEntry, MembershipSource } from "../core/interfaces.ts";
 import type { Membership } from "../core/subject.ts";
 import type { SupabaseManifestMembership } from "./manifest.ts";
-import type { RoleThrough, SupabaseSuspension } from "./types.ts";
+import type { RoleMap, RoleThrough, SupabaseSuspension } from "./types.ts";
 
 import { readAppData } from "../core/app-data.ts";
 import { compact, isRecord } from "../core/compact.ts";
@@ -16,6 +16,7 @@ import {
   type RoleColumn,
   type RoleGuard,
   type RoleKeys,
+  type RoleSource,
   type RoleSpec,
   columnManifest,
   roleColumn,
@@ -55,7 +56,7 @@ export type MembershipTableOptions = Common & {
      * The role key column, a reference to a roles table that holds the key,
      * or several of them: the row holds every non-null key.
      */
-    readonly role?: string | RoleThrough | readonly (string | RoleThrough)[];
+    readonly role?: RoleSpec;
     readonly via?: string;
     readonly expiresAt?: string;
     readonly disabledAt?: string;
@@ -91,8 +92,9 @@ export type MembershipJunctionOptions = Common & {
   readonly roles:
     | string
     | RoleThrough
+    | RoleMap
     | readonly string[]
-    | { readonly sources: readonly (string | RoleThrough)[] };
+    | { readonly sources: readonly RoleSource[] };
   /** The membership kind every row has (`contact`, `staff`, `partner`). */
   readonly via?: string;
   readonly expiresAt?: string;
@@ -223,7 +225,8 @@ function memberUser(
 }
 
 function roleAgg(role: RoleColumn): string {
-  return `jsonb_agg(distinct ${role.sql} order by ${role.sql})`;
+  const agg = `jsonb_agg(distinct ${role.sql} order by ${role.sql})`;
+  return role.nullable ? `${agg} filter (where ${role.sql} is not null)` : agg;
 }
 
 function rowsOf(

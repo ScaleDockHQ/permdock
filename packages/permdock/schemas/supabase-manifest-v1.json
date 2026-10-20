@@ -22,14 +22,22 @@
     "$schema": {
       "const": "https://permdock.com/schemas/supabase-manifest-v1.json"
     },
-    "version": { "const": 1 },
+    "version": {
+      "const": 1
+    },
     "hook": {
       "type": "object",
       "required": ["schema", "function", "out"],
       "properties": {
-        "schema": { "$ref": "#/$defs/identifier" },
-        "function": { "const": "custom_access_token_hook" },
-        "out": { "type": "string" },
+        "schema": {
+          "$ref": "#/$defs/identifier"
+        },
+        "function": {
+          "const": "custom_access_token_hook"
+        },
+        "out": {
+          "type": "string"
+        },
         "schemas": {
           "enum": ["pg-delta", "migra", "migrations"],
           "description": "How the project turns SQL into migrations: pg-delta (supabase db schema declarative sync), migra (supabase db diff) or hand-written migrations. Absent means pg-delta."
@@ -47,20 +55,31 @@
       "type": "object",
       "required": ["schema", "functions"],
       "properties": {
-        "schema": { "$ref": "#/$defs/identifier" },
+        "schema": {
+          "$ref": "#/$defs/identifier"
+        },
         "functions": {
           "type": "array",
-          "items": { "$ref": "#/$defs/helperName" }
+          "items": {
+            "$ref": "#/$defs/helperName"
+          }
         }
       }
     },
-    "tenantClaim": { "$ref": "#/$defs/identifier" },
+    "tenantClaim": {
+      "$ref": "#/$defs/identifier"
+    },
     "budget": {
       "type": "object",
       "required": ["bytes", "measure"],
       "properties": {
-        "bytes": { "type": "integer", "minimum": 1 },
-        "measure": { "type": "string" }
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "measure": {
+          "type": "string"
+        }
       }
     },
     "claims": {
@@ -69,28 +88,42 @@
         "type": "object",
         "required": ["name", "source", "budget"],
         "properties": {
-          "name": { "$ref": "#/$defs/identifier" },
+          "name": {
+            "$ref": "#/$defs/identifier"
+          },
           "source": {
             "type": "string",
             "pattern": "^(permdock|[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*)$"
           },
-          "budget": { "type": "boolean" }
+          "budget": {
+            "type": "boolean"
+          }
         }
       }
     },
-    "authzVersion": { "type": "boolean" },
+    "authzVersion": {
+      "type": "boolean"
+    },
     "authzVersionBump": {
       "type": "object",
       "required": ["schema", "function", "args"],
       "properties": {
-        "schema": { "$ref": "#/$defs/identifier" },
-        "function": { "const": "permdock_bump_authz_version_for" },
-        "args": { "const": "p_users uuid[]" }
+        "schema": {
+          "$ref": "#/$defs/identifier"
+        },
+        "function": {
+          "const": "permdock_bump_authz_version_for"
+        },
+        "args": {
+          "const": "p_users uuid[]"
+        }
       }
     },
     "memberships": {
       "type": "array",
-      "items": { "$ref": "#/$defs/membership" }
+      "items": {
+        "$ref": "#/$defs/membership"
+      }
     },
     "rls": {
       "type": "object",
@@ -103,18 +136,32 @@
         "memberships"
       ],
       "properties": {
-        "schema": { "$ref": "#/$defs/identifier" },
-        "mode": { "enum": ["jwt", "database"] },
-        "tenantClaim": { "$ref": "#/$defs/identifier" },
+        "schema": {
+          "$ref": "#/$defs/identifier"
+        },
+        "mode": {
+          "enum": ["jwt", "database"]
+        },
+        "tenantClaim": {
+          "$ref": "#/$defs/identifier"
+        },
         "scopes": {
           "type": "array",
           "items": {
             "type": "object",
             "required": ["name", "type"],
             "properties": {
-              "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
-              "type": { "type": "string" },
-              "within": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "type": {
+                "type": "string"
+              },
+              "within": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              }
             }
           }
         },
@@ -124,9 +171,15 @@
             "type": "object",
             "required": ["name", "args", "returns", "execute"],
             "properties": {
-              "name": { "$ref": "#/$defs/helperName" },
-              "args": { "type": "string" },
-              "returns": { "type": "string" },
+              "name": {
+                "$ref": "#/$defs/helperName"
+              },
+              "args": {
+                "type": "string"
+              },
+              "returns": {
+                "type": "string"
+              },
               "execute": {
                 "type": "array",
                 "items": {
@@ -138,23 +191,35 @@
         },
         "memberships": {
           "type": "array",
-          "items": { "$ref": "#/$defs/membership" }
+          "items": {
+            "$ref": "#/$defs/membership"
+          }
         },
-        "customRoles": { "type": "boolean" },
+        "customRoles": {
+          "type": "boolean"
+        },
         "roles": {
           "type": "object",
           "required": ["table", "user", "role"],
           "additionalProperties": false,
           "properties": {
-            "table": { "type": "string" },
-            "user": { "$ref": "#/$defs/column" },
+            "table": {
+              "type": "string"
+            },
+            "user": {
+              "$ref": "#/$defs/column"
+            },
             "role": {
               "oneOf": [
-                { "$ref": "#/$defs/role" },
+                {
+                  "$ref": "#/$defs/role"
+                },
                 {
                   "type": "array",
                   "minItems": 2,
-                  "items": { "$ref": "#/$defs/role" }
+                  "items": {
+                    "$ref": "#/$defs/role"
+                  }
                 }
               ]
             }
@@ -164,10 +229,14 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "users": { "$ref": "#/$defs/activeRow" },
+            "users": {
+              "$ref": "#/$defs/activeRow"
+            },
             "scopes": {
               "type": "object",
-              "additionalProperties": { "$ref": "#/$defs/activeRow" }
+              "additionalProperties": {
+                "$ref": "#/$defs/activeRow"
+              }
             },
             "memberships": {
               "type": "object",
@@ -177,7 +246,9 @@
                 "keep": {
                   "description": "The permission keys a membership whose disabledAt column is set still holds.",
                   "type": "array",
-                  "items": { "type": "string" }
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -188,7 +259,12 @@
           "required": ["tables"],
           "additionalProperties": false,
           "properties": {
-            "tables": { "type": "array", "items": { "type": "string" } }
+            "tables": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         },
         "apiKeys": {
@@ -196,11 +272,24 @@
           "required": ["claim", "scopes", "tenant", "roles", "serviceRoles"],
           "additionalProperties": false,
           "properties": {
-            "claim": { "type": "string" },
-            "scopes": { "type": "string" },
-            "tenant": { "type": "string" },
-            "roles": { "type": "string" },
-            "serviceRoles": { "type": "array", "items": { "type": "string" } }
+            "claim": {
+              "type": "string"
+            },
+            "scopes": {
+              "type": "string"
+            },
+            "tenant": {
+              "type": "string"
+            },
+            "roles": {
+              "type": "string"
+            },
+            "serviceRoles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         }
       }
@@ -216,8 +305,12 @@
       "type": "object",
       "required": ["hook", "grants"],
       "properties": {
-        "hook": { "const": "v1" },
-        "grants": { "const": "v1" }
+        "hook": {
+          "const": "v1"
+        },
+        "grants": {
+          "const": "v1"
+        }
       }
     },
     "requires": {
@@ -250,22 +343,34 @@
           "type": "string",
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
         },
-        "user": { "$ref": "#/$defs/user" },
-        "scope": { "$ref": "#/$defs/value" },
-        "id": { "$ref": "#/$defs/column" },
+        "user": {
+          "$ref": "#/$defs/user"
+        },
+        "scope": {
+          "$ref": "#/$defs/value"
+        },
+        "id": {
+          "$ref": "#/$defs/column"
+        },
         "role": {
           "oneOf": [
-            { "$ref": "#/$defs/role" },
+            {
+              "$ref": "#/$defs/role"
+            },
             {
               "type": "array",
               "minItems": 2,
-              "items": { "$ref": "#/$defs/role" }
+              "items": {
+                "$ref": "#/$defs/role"
+              }
             }
           ]
         },
         "within": {
           "oneOf": [
-            { "$ref": "#/$defs/column" },
+            {
+              "$ref": "#/$defs/column"
+            },
             {
               "type": "object",
               "required": ["columns"],
@@ -273,36 +378,64 @@
               "properties": {
                 "columns": {
                   "type": "object",
-                  "additionalProperties": { "$ref": "#/$defs/identifier" }
+                  "additionalProperties": {
+                    "$ref": "#/$defs/identifier"
+                  }
                 }
               }
             }
           ]
         },
-        "via": { "$ref": "#/$defs/value" },
-        "expiresAt": { "$ref": "#/$defs/column" },
-        "disabledAt": { "$ref": "#/$defs/column" },
+        "via": {
+          "$ref": "#/$defs/value"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/column"
+        },
+        "disabledAt": {
+          "$ref": "#/$defs/column"
+        },
         "columns": {
           "type": "array",
-          "items": { "$ref": "#/$defs/identifier" }
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
         }
       }
     },
-    "identifier": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
     "activeRow": {
       "type": "object",
       "required": ["table", "id"],
       "additionalProperties": false,
       "properties": {
-        "table": { "type": "string" },
-        "id": { "$ref": "#/$defs/identifier" },
-        "disabledAt": { "$ref": "#/$defs/identifier" },
-        "status": { "$ref": "#/$defs/identifier" },
-        "active": { "type": "array", "items": { "type": "string" } },
+        "table": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "disabledAt": {
+          "$ref": "#/$defs/identifier"
+        },
+        "status": {
+          "$ref": "#/$defs/identifier"
+        },
+        "active": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "keep": {
           "description": "A scope only: the permission keys members of a suspended instance still hold.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -314,20 +447,59 @@
       "type": "object",
       "required": ["column"],
       "additionalProperties": false,
-      "properties": { "column": { "$ref": "#/$defs/identifier" } }
+      "properties": {
+        "column": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
     },
     "role": {
-      "oneOf": [{ "$ref": "#/$defs/value" }, { "$ref": "#/$defs/through" }]
+      "oneOf": [
+        {
+          "$ref": "#/$defs/value"
+        },
+        {
+          "$ref": "#/$defs/through"
+        },
+        {
+          "$ref": "#/$defs/mapped"
+        }
+      ]
+    },
+    "mapped": {
+      "type": "object",
+      "required": ["column", "map"],
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "$ref": "#/$defs/identifier"
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "null"]
+          }
+        }
+      }
     },
     "user": {
-      "oneOf": [{ "$ref": "#/$defs/column" }, { "$ref": "#/$defs/through" }]
+      "oneOf": [
+        {
+          "$ref": "#/$defs/column"
+        },
+        {
+          "$ref": "#/$defs/through"
+        }
+      ]
     },
     "through": {
       "type": "object",
       "required": ["column", "through"],
       "additionalProperties": false,
       "properties": {
-        "column": { "$ref": "#/$defs/identifier" },
+        "column": {
+          "$ref": "#/$defs/identifier"
+        },
         "through": {
           "type": "object",
           "required": ["table", "id", "column"],
@@ -337,15 +509,21 @@
               "type": "string",
               "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
             },
-            "id": { "$ref": "#/$defs/identifier" },
-            "column": { "$ref": "#/$defs/identifier" }
+            "id": {
+              "$ref": "#/$defs/identifier"
+            },
+            "column": {
+              "$ref": "#/$defs/identifier"
+            }
           }
         }
       }
     },
     "value": {
       "oneOf": [
-        { "$ref": "#/$defs/column" },
+        {
+          "$ref": "#/$defs/column"
+        },
         {
           "type": "object",
           "required": ["value"],
@@ -353,8 +531,15 @@
           "properties": {
             "value": {
               "oneOf": [
-                { "type": "string" },
-                { "type": "array", "items": { "type": "string" } }
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
               ]
             }
           }

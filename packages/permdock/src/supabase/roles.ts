@@ -1,9 +1,10 @@
 import type { SupabaseManifestRole } from "./manifest.ts";
-import type { RoleThrough } from "./types.ts";
+import type { RoleMap, RoleThrough } from "./types.ts";
 
 import {
   qualifySqlTable,
   quoteSqlIdent,
+  quoteSqlLiteral,
   quoteSqlTable,
   sqlTextArray,
 } from "../core/sql.ts";
@@ -43,10 +44,14 @@ export type RoleColumn = {
    * role, so `lookup` is the same as `sql` and needs the `join`.
    */
   readonly lateral: boolean;
+  /** The `map` of a mapped column: `sql` is then null for an unlisted value. */
+  readonly map?: Readonly<Record<string, string | null>>;
+  /** Whether `sql` can be null for a row, so an aggregate has to leave those out. */
+  readonly nullable: boolean;
 };
 
 /** One role source of a membership row: a key column, or a reference to a roles table. */
-export type RoleSource = string | RoleThrough;
+export type RoleSource = string | RoleThrough | RoleMap;
 
 /** A role source, or several the row holds at once. */
 export type RoleSpec = RoleSource | readonly RoleSource[];
@@ -122,6 +127,7 @@ export function roleColumn(
     columns: [...new Set(parts.map((part) => part.column))],
     throughs: parts.flatMap((part) => part.throughs),
     lateral: true,
+    nullable: false,
   };
 }
 
@@ -142,6 +148,25 @@ function singleRole(
       columns: [role],
       throughs: [],
       lateral: false,
+      nullable: false,
+    };
+  }
+  if ("map" in role) {
+    const arms = Object.entries(role.map).map(
+      ([value, key]) =>
+        `when ${quoteSqlLiteral(value)} then ${key === null ? "null" : quoteSqlLiteral(key)}`,
+    );
+    const mapped = `case ${alias}.${q(role.column)}::text ${arms.join(" ")} else null end`;
+    return {
+      column: role.column,
+      sql: mapped,
+      join: "",
+      lookup: mapped,
+      columns: [role.column],
+      throughs: [],
+      lateral: false,
+      map: role.map,
+      nullable: true,
     };
   }
   const pairs = Object.entries(role.on);
@@ -176,6 +201,7 @@ function singleRole(
     columns: [ref],
     throughs: [keyed],
     lateral: false,
+    nullable: false,
   };
 }
 
@@ -183,7 +209,11 @@ function singleRole(
 function sourceManifest(
   column: string,
   through: RoleKeys | undefined,
+  map?: Readonly<Record<string, string | null>>,
 ): SupabaseManifestRole {
+  if (map !== undefined) {
+    return { column, map };
+  }
   return through === undefined
     ? { column }
     : {
@@ -202,7 +232,7 @@ export function roleManifest(
   role: RoleColumn,
 ): SupabaseManifestRole | readonly SupabaseManifestRole[] {
   if (!role.lateral) {
-    return sourceManifest(role.column, role.through);
+    return sourceManifest(role.column, role.through, role.map);
   }
   return role.columns.map((column) =>
     sourceManifest(

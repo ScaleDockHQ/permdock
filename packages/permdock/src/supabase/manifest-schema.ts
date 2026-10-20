@@ -474,7 +474,26 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         {
           $ref: "#/$defs/through",
         },
+        {
+          $ref: "#/$defs/mapped",
+        },
       ],
+    },
+    mapped: {
+      type: "object",
+      required: ["column", "map"],
+      additionalProperties: false,
+      properties: {
+        column: {
+          $ref: "#/$defs/identifier",
+        },
+        map: {
+          type: "object",
+          additionalProperties: {
+            type: ["string", "null"],
+          },
+        },
+      },
     },
     user: {
       oneOf: [

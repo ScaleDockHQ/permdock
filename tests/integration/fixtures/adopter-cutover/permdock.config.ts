@@ -1,4 +1,7 @@
-import { junctionMembershipSource } from "permdock/supabase";
+import {
+  junctionMembershipSource,
+  tableMembershipSource,
+} from "permdock/supabase";
 
 export default {
   permissions: "./permissions.ts",
@@ -35,6 +38,12 @@ export default {
         scope: "tenant",
         id: "organization_id",
         roles: { through: "app_roles", on: { role_id: "id" }, column: "name" },
+      }),
+      tableMembershipSource({
+        table: "account_users",
+        columns: {
+          role: { column: "kind", map: { admin: "owner", user: null } },
+        },
       }),
     ],
   },
