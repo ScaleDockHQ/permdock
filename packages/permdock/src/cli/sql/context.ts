@@ -89,6 +89,8 @@ export type RlsSqlContext = {
      * assignable roles' grants get one `<grant key>@<level>` key per level.
      */
     readonly levels?: true;
+    /** The sync triggers (`rls.customRoles.from.sync`) as SQL, built from the legacy tables. */
+    readonly sync?: string;
   };
   /** Set when link capabilities compile: resource-scoped grants also get `anon` branches. */
   readonly capabilities?: true;

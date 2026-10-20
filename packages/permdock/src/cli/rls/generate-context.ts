@@ -11,12 +11,13 @@ import { resolveScope, scopeList } from "../../core/scopes.ts";
 import { type Policy, listPermissions, listRoles } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
-import { configError } from "../core/errors.ts";
+import { configError, describeError } from "../core/errors.ts";
 import { checkSuspension } from "../sql/active.ts";
 import { type RlsSqlContext, parseMembershipsFlag } from "../sql/context.ts";
 import { roleNames } from "../sql/grants.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { apiKeysPlan } from "./api-keys.ts";
+import { customRoleSyncSql } from "./custom-role-sync.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
 import { ownershipRules, unsatisfiedKinds } from "./ownership.ts";
 import { type RbacAuthorizeMode, resolveAuthorize } from "./rbac.ts";
@@ -191,7 +192,7 @@ export function buildContext(
     new Set(roleNames(policy)),
     Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
   );
-  const ctx: RlsSqlContext = {
+  let ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
     tenantClaim: rls?.tenantClaim ?? supabaseTenantClaim,
@@ -264,6 +265,21 @@ export function buildContext(
           },
         }),
   };
+  const from =
+    typeof rls?.customRoles === "object" ? rls.customRoles.from : undefined;
+  if (from?.sync === "trigger" && ctx.customRoles !== undefined) {
+    try {
+      ctx = {
+        ...ctx,
+        customRoles: {
+          ...ctx.customRoles,
+          sync: customRoleSyncSql(ctx, from, rls?.migrate),
+        },
+      };
+    } catch (cause) {
+      return { refusal: describeError(cause) };
+    }
+  }
   const [unsatisfied] = unsatisfiedKinds(ctx, policy);
   if (unsatisfied !== undefined) {
     return {

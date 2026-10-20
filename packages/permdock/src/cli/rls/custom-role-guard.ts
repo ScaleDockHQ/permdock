@@ -6,6 +6,11 @@ import { qualified, quoteIdent, quoteTable } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
 import { raiseSql, rolesTableScope } from "./custom-roles.ts";
 
+/** A column of the roles-table row a trigger sees as `new`. */
+function column(name: string): string {
+  return `new.${quoteIdent(name)}`;
+}
+
 /**
  * The trigger on the application's roles table (`rls.customRoleWrites.roles`)
  * that refuses a tenant row named like a declared role (`declared-role`) or
@@ -24,7 +29,6 @@ export function customRoleNameGuardSql(ctx: RlsSqlContext): string {
   ) {
     return "";
   }
-  const column = (name: string): string => `new.${quoteIdent(name)}`;
   const tenant = `${column(table.tenant)}::${tenantTypeOf(ctx)}`;
   const skipped =
     table.skip === undefined

@@ -309,6 +309,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     if (cascade !== "") {
       chunks.push(cascade);
     }
+    const sync = ctx.customRoles?.sync;
+    if (sync !== undefined) {
+      chunks.push(sync);
+    }
     const nameGuard = customRoleNameGuardSql(ctx);
     if (nameGuard !== "") {
       chunks.push(nameGuard);

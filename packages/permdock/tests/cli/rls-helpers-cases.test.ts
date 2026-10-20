@@ -566,19 +566,17 @@ describe("membership source helpers with levels", () => {
       memberSources: sources,
       customRoles: { declared: ["admin"], assignable: ["admin"], levels: true },
     });
-    for (const name of [
-      "permitted_org_ids",
-      "permitted_org_ids_for",
-      "permdock_permission_keys",
-      "permdock_permission_keys_for",
-    ]) {
+    const missing: string[] = [];
+    for (const name of ["permitted_org_ids", "permitted_org_ids_for"]) {
       const start = sql.indexOf(`function "permdock".${name}(`);
-      if (start === -1) continue;
+      if (start === -1) {
+        missing.push(name);
+        continue;
+      }
       const body = sql.slice(start, sql.indexOf("$$;", start));
-      expect(body, name).toContain(
-        "c.permission || coalesce('@' || c.level, '')",
-      );
+      expect(body).toContain("c.permission || coalesce('@' || c.level, '')");
     }
+    expect(missing).toEqual([]);
     expect(sql).toContain(
       "array(select c.permission || coalesce('@' || c.level, '') from",
     );

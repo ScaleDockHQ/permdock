@@ -407,6 +407,14 @@ export type RlsCustomRolesConfig = {
  * instance and `skip` flag.
  */
 export type RlsCustomRolesFrom = {
+  /**
+   * `'trigger'`: after-row triggers on the permissions table and the
+   * includes table rebuild the affected role through
+   * `permdock_trusted_replace_custom_role_grants` on every legacy write, so
+   * the PermDock grants follow the application's editor. Without it the
+   * backfill copies once.
+   */
+  readonly sync?: "trigger";
   readonly permissions: {
     /** `table` or `schema.table`: one row per permission a role holds. */
     readonly table: string;

@@ -39,6 +39,7 @@ export const CUSTOM_ROLES = {
   trustedRemove: "permdock_trusted_delete_custom_role_grants",
   cascade: "permdock_cascade_custom_role",
   nameGuard: "permdock_custom_role_name_guard",
+  sync: "permdock_sync_custom_role",
   shared: "permdock_is_shared_role",
 } as const;
 
