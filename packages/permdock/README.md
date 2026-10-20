@@ -306,6 +306,7 @@ React Router loaders call `getSnapshot(request)` from `permdock/server` and send
 - Fail-closed: an unknown, invalid or thrown check denies, and `can()` never throws.
 - Deny overrides allow, an unknown reference is a type error, and evaluation is prototype-safe with no eval.
 - `service_role` is never emitted, a model-supplied subject is never trusted, and an agent with no delegation is denied.
+- The generated Supabase token hook and the functions it calls for `supabase.hook.claims` and `supabase.hook.before` are revoked from `public`, `anon` and `authenticated`, so no client reads another user's claims.
 - No one approves their own request by default, a delegate is held to the same rule as the person they cover, there is never a default tenant, and data is validated against the resource schema unless the caller marks a row it loaded `trusted: true`.
 - A user or service API key expires unless the tenant sets `allowNoExpiry`. A feed key (`pdfeed_`) does not expire; rotation replaces the secret and keeps the id, and the key is bound to one resource.
 - Authentication stays upstream: PermDock consumes verified sessions, JWKS-verified JWTs (`permdock/jwt`, with `jose` as an optional peer), provider claims and MCP `authInfo`. Core never verifies a token. User-editable fields never become claims: `subjectFromBetterAuth` copies `additionalFields` only through a `schema`. Read [authentication](https://permdock.com/docs/concepts/authentication).

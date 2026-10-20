@@ -184,7 +184,7 @@ describe("permdock supabase hook generate", () => {
     );
     expect(sql).toContain(`claims := claims - 'attrs' - 'features';`);
     expect(sql).toContain(
-      'grant execute on function "billing"."feature_claims"(uuid) to supabase_auth_admin;',
+      'revoke all on function "billing"."feature_claims"(uuid) from public, anon, authenticated;\ngrant execute on function "billing"."feature_claims"(uuid) to supabase_auth_admin;',
     );
     expect(sql).toContain(
       'grant usage on schema "billing" to supabase_auth_admin;',
@@ -251,8 +251,13 @@ describe("permdock supabase hook generate", () => {
         /grant usage on schema "auth_checks" to supabase_auth_admin;/gu,
       ),
     ).toHaveLength(1);
+    for (const fn of ["require_sso", "require_mfa"]) {
+      expect(sql).toContain(
+        `revoke all on function "auth_checks"."${fn}"(jsonb) from public, anon, authenticated;\ngrant execute on function "auth_checks"."${fn}"(jsonb) to supabase_auth_admin;`,
+      );
+    }
     expect(sql).toContain(
-      'grant execute on function "auth_checks"."require_sso"(jsonb) to supabase_auth_admin;',
+      'revoke all on function "auth_checks"."feature_claims"(uuid) from public, anon, authenticated;',
     );
     const manifest: SupabaseHookManifest = jsonData(
       (await run(["supabase", "inspect", "--json"], { cwd })).stdout,

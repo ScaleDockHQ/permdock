@@ -221,7 +221,7 @@ function extraGrantsSql(extra: readonly ExtraClaim[]): string {
     ),
     ...extra.map(
       (entry) =>
-        `\ngrant execute on function ${quoteTable(entry.fn)}(uuid) to supabase_auth_admin;`,
+        `\nrevoke all on function ${quoteTable(entry.fn)}(uuid) from public, anon, authenticated;\ngrant execute on function ${quoteTable(entry.fn)}(uuid) to supabase_auth_admin;`,
     ),
   ].join("");
 }
@@ -241,7 +241,7 @@ function beforeGrantsSql(
     ),
     ...before.map(
       (fn) =>
-        `\ngrant execute on function ${quoteTable(fn)}(jsonb) to supabase_auth_admin;`,
+        `\nrevoke all on function ${quoteTable(fn)}(jsonb) from public, anon, authenticated;\ngrant execute on function ${quoteTable(fn)}(jsonb) to supabase_auth_admin;`,
     ),
   ].join("");
 }
