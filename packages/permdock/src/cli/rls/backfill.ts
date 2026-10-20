@@ -152,9 +152,14 @@ export function backfillSql(
       : `${col(roles.tenant)}::${tenantType}`;
   const scope = rolesTableScope(roles, tenant, root, col);
   const scopeId =
-    roles.id === undefined ? "null::text" : `${col(roles.id)}::text`;
+    roles.id === undefined || roles.tenant === undefined
+      ? "null::text"
+      : `case when ${tenant} is null then null else ${col(roles.id)}::text end`;
+  // A row with no tenant (a global or shared role) is a role of everyone: `skip` marks tenant rows only.
   const skipped =
-    roles.skip === undefined ? "false" : `coalesce(${col(roles.skip)}, false)`;
+    roles.skip === undefined || roles.tenant === undefined
+      ? "false"
+      : `(${tenant} is not null and coalesce(${col(roles.skip)}, false))`;
   const renamed = custom.renamed ?? {};
   const renames = Object.entries(renamed).toSorted(byKey);
   const current = (expr: string): string => currentKeyExpr(renames, expr);
@@ -193,9 +198,12 @@ export function backfillSql(
       : `nullif(x.${quoteIdent(p.level)}::text, '')`;
   const inCeiling = (key: string): string =>
     `exists (select 1 from ${ceiling} c where c.scope = v.scope and c.effect = 'allow' and ${current("c.permission")} = ${key})`;
+  // A level only means something on a permission some ceiling key carries one for.
+  const hasLevels = (key: string): string =>
+    `exists (select 1 from ${ceiling} c where c.scope = v.scope and c.effect = 'allow' and ${current("c.permission")} = ${key} and position('@' in c.grant_key) > 0)`;
   const levelCheck = leveled
     ? `
-          when m.effect = 'allow' and m.level is not null and not exists (
+          when m.effect = 'allow' and m.level is not null and ${hasLevels("m.key")} and not exists (
             select 1 from ${ceiling} c
             where c.scope = v.scope and c.effect = 'allow' and ${current("c.permission")} = m.key
               and split_part(c.grant_key, '@', 2) = m.level
@@ -292,7 +300,7 @@ begin
       from raw n
     ),
     judged as (
-      select m.*, case
+      select m.legacy, m.key, m.effect, ${leveled ? `case when ${hasLevels("m.key")} then m.level end` : "m.level"} as level, case
           when m.effect not in ('allow', 'deny') then 'effect ' || m.effect || ' is not allow or deny'
           when m.key is null or not (m.key = any(${known})) then 'not a declared permission'
           when m.effect = 'allow' and not ${inCeiling("m.key")} then 'outside the ceiling of ' || v.scope${levelCheck}

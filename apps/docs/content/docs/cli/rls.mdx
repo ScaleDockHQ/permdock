@@ -588,12 +588,12 @@ customRoleWrites: {
     shared: "shared", // optional boolean column: a row with no tenant is a shared role at `scope`
     scope: "scope", // optional text column naming the scope; default the first scope
     id: "scope_id", // optional: the instance the role is pinned to
-    skip: "builtin", // optional boolean column: rows that are declared or system roles
+    skip: "builtin", // optional boolean column: tenant rows that are declared or system roles
   },
 },
 ```
 
-A rename, or a move to another tenant, scope or instance, carries the role's grants and includes along, refusing a target that already has rows (`role-exists`); a delete removes them; rows the `skip` column marks are ignored. A signed-in caller at trigger depth 1 passes the write functions' checks: membership and authority over the stored definition where the role was, and after a move, membership and authority where it lands and entries inside that scope's ceiling. A migration, a job or a nested trigger moves the rows as the function owner. The roles table's own RLS still decides who may update or delete its rows.
+A rename, or a move to another tenant, scope or instance, carries the role's grants and includes along, refusing a target that already has rows (`role-exists`); a delete removes them; tenant rows the `skip` column marks are ignored. A row with no tenant (a global or a shared role) is never skipped and stores no instance, so a staff-created role with `is_system` set is copied and cascaded like any other; only a declared role name excludes it. A signed-in caller at trigger depth 1 passes the write functions' checks: membership and authority over the stored definition where the role was, and after a move, membership and authority where it lands and entries inside that scope's ceiling. A migration, a job or a nested trigger moves the rows as the function owner. The roles table's own RLS still decides who may update or delete its rows.
 
 ```sql
 select permdock.permdock_replace_custom_role_grants(
@@ -643,9 +643,9 @@ rls: {
 },
 ```
 
-The migration starts with `-- permdock:backfill v1` and holds one `do` block. For each roles-table row that is not skipped and is not a declared role, it maps every stored key the way [`migrate`](#migrate) does (`rls.migrate.keys`, then `renamed`, then the longest `rls.migrate.prefixes` match) and saves the role through `permdock_trusted_replace_custom_role_grants`, so the same definition checks apply. An entry PermDock cannot hold is left out: an effect other than `allow` or `deny`, an undeclared key or level, a key outside the scope's ceiling, an undeclared include or one that allows more than the ceiling. The block ends with a notice counting the copied roles and one warning listing up to 50 dropped entries.
+The migration starts with `-- permdock:backfill v1` and holds one `do` block. For each roles-table row that is not a skipped tenant row and is not a declared role, it maps every stored key the way [`migrate`](#migrate) does (`rls.migrate.keys`, then `renamed`, then the longest `rls.migrate.prefixes` match) and saves the role through `permdock_trusted_replace_custom_role_grants`, so the same definition checks apply. An entry PermDock cannot hold is left out: an effect other than `allow` or `deny`, an undeclared key or level, a key outside the scope's ceiling, an undeclared include or one that allows more than the ceiling. The block ends with a notice counting the copied roles and one warning listing up to 50 dropped entries.
 
-A role that already has rows in either table is skipped, so running the migration again copies nothing and keeps any edit made after the copy. A directory output gets a new versioned file only when the newest `permdock:backfill` file differs, and `--check` reports a stale one, as with [`--seeds-out`](#declarative-schemas). `generate` exits `2` when `--backfill-out` is set without `rls.customRoles.from`, in `jwt` mode (build the claim with `customRoleClaim` instead), without `rls.customRoleWrites.roles`, or when a `through` or `column` is not that table and its key.
+A stored `level` on a permission with no levels is ignored, so a row such as `scope = 'all'` on `users.invite` copies as the plain key; a level on a permission that has levels must be declared. A role that already has rows in either table is skipped, so running the migration again copies nothing and keeps any edit made after the copy. A directory output gets a new versioned file only when the newest `permdock:backfill` file differs, and `--check` reports a stale one, as with [`--seeds-out`](#declarative-schemas). `generate` exits `2` when `--backfill-out` is set without `rls.customRoles.from`, in `jwt` mode (build the claim with `customRoleClaim` instead), without `rls.customRoleWrites.roles`, or when a `through` or `column` is not that table and its key.
 
 ### Triggers and audit
 

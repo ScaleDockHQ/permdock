@@ -44,12 +44,16 @@ export function customRoleCascadeSql(ctx: RlsSqlContext): string {
       : `${rowColumn(row, table.tenant)}::${tenantType}`;
   const scope = (row: string): string =>
     rolesTableScope(table, tenant(row), root, (name) => rowColumn(row, name));
+  // A row with no tenant (a global or shared role) stores no instance.
   const id = (row: string): string =>
-    table.id === undefined ? "null::text" : `${rowColumn(row, table.id)}::text`;
+    table.id === undefined || table.tenant === undefined
+      ? "null::text"
+      : `case when ${tenant(row)} is null then null else ${rowColumn(row, table.id)}::text end`;
+  // `skip` marks tenant rows only: a row with no tenant is a role of everyone.
   const skipped = (row: string): string =>
-    table.skip === undefined
+    table.skip === undefined || table.tenant === undefined
       ? "false"
-      : `coalesce(${rowColumn(row, table.skip)}, false)`;
+      : `(${tenant(row)} is not null and coalesce(${rowColumn(row, table.skip)}, false))`;
   const guard = qualified(ctx, CUSTOM_ROLES.guard);
   const entries = qualified(ctx, CUSTOM_ROLES.entries);
   const allowEntryOf = `c.${allowEntry(ctx)}`;

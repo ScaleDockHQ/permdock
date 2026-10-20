@@ -47,8 +47,12 @@ describe("custom role cascade", () => {
     expect(sql).toContain(
       `v_old_scope text := case when old."org_id"::text is null then 'global' else old."scope_name"::text end;`,
     );
-    expect(sql).toContain(`v_old_id text := old."pinned_to"::text;`);
-    expect(sql).toContain(`if coalesce(old."builtin", false) then`);
+    expect(sql).toContain(
+      `v_old_id text := case when old."org_id"::text is null then null else old."pinned_to"::text end;`,
+    );
+    expect(sql).toContain(
+      `if (old."org_id"::text is not null and coalesce(old."builtin", false)) then`,
+    );
     expect(sql).toContain(
       `after update or delete on "app"."roles"\n  for each row execute function "permdock".permdock_cascade_custom_role();`,
     );
