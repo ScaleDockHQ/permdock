@@ -352,6 +352,63 @@ export async function pd034(
 }
 
 /**
+ * PD076: `rls.actions` entries set to `'none'` that change nothing: a verb
+ * that is not one of the six default verbs and does not read as a write
+ * compiles to no policy anyway, and a verb no permission uses compiles to
+ * nothing at all. A write-sounding `none` stays, because it silences PD071.
+ */
+export async function pd076(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  const actions = input.config.rls?.actions;
+  if (actions === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await policyOf(input);
+  if (policy === undefined) {
+    return [];
+  }
+  const used = new Set(
+    listPermissions(policy.vocabulary.permissions).map((leaf) => leaf.action),
+  );
+  const unused = Object.keys(actions)
+    .filter((verb) => !used.has(verb))
+    .toSorted();
+  const noop = Object.entries(actions)
+    .filter(
+      ([verb, command]) =>
+        command === "none" &&
+        used.has(verb) &&
+        commandFor(verb) === undefined &&
+        !suggestsWrite(verb),
+    )
+    .map(([verb]) => verb)
+    .toSorted();
+  return [
+    ...(noop.length === 0
+      ? []
+      : [
+          {
+            code: "PD076",
+            severity: "info" as const,
+            message: `rls.actions sets ${noop.join(", ")} to 'none', which is already what ${noop.length === 1 ? "that verb compiles" : "those verbs compile"} to`,
+            fix: `delete these entries: ${noop.join(", ")}`,
+          },
+        ]),
+    ...(unused.length === 0
+      ? []
+      : [
+          {
+            code: "PD076",
+            severity: "info" as const,
+            message: `rls.actions maps ${unused.join(", ")}, which no permission uses`,
+            fix: `delete these entries, or fix the verb's spelling: ${unused.join(", ")}`,
+          },
+        ]),
+  ];
+}
+
+/**
  * Storage and Realtime policies written outside PermDock that call the SQL helpers for a permission whose grants
  * carry row conditions: the helpers check only role and scope.
  */

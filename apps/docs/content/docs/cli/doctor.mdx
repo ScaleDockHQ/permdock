@@ -14,7 +14,7 @@ permdock doctor --only imports,references
 permdock doctor --fix          # apply safe fixes (install skills, regenerate the catalog)
 ```
 
-Exit code `1` on any error, `0` otherwise; warnings only fail with `--fail-on warning`.
+Exit code `1` on any error, `0` otherwise; warnings only fail with `--fail-on warning`. A finding is an `error`, a `warning` or an `info` hint. `info` never fails the run, renders as `::notice` with `--format github` and as a SARIF `note`, and the summary counts it as a note.
 
 Without `--fix`, doctor only reads: it never writes the catalog or any other file. On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `130`. In CI, in a pipe or with `--json` it fixes without asking. The report lists each fix it applied first, as `fixed` in the JSON report. An `--only` value that names no check code or group exits `2` with the nearest match.
 
@@ -111,6 +111,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD073` | A role's `for` lists kinds that no membership source of its scope can hold                                                                                                                                                                                                                                 | error           |
 | `PD074` | `supabase.hook` is set, but `supabase/config.toml` does not enable `[auth.hook.custom_access_token]` or names another function                                                                                                                                                                             | warning         |
 | `PD075` | Two resources that `rls.tables` maps to one table, so the same rows carry two sets of keys and helpers; `doctor.sharedTables` lists tables split on purpose                                                                                                                                                | warning         |
+| `PD076` | `rls.actions` entries set to `'none'` on a verb that compiles to `'none'` anyway, or entries for a verb no permission uses                                                                                                                                                                                 | info            |
 
 ### PD001: server-only imports in client entries
 
@@ -447,6 +448,17 @@ export default defineConfig({
 ```
 
 `--only rls` runs PD075.
+
+### PD076: `rls.actions` entries that change nothing
+
+An `rls.actions` entry set to `'none'` changes nothing when the verb is not one of the six default verbs and does not read as a write: `generate` already compiles it to no policy. An entry for a verb no permission uses changes nothing either, and is often a misspelling. PD076 lists both kinds in one hint each, with the entries to delete:
+
+```text
+info PD076  rls.actions sets export, market to 'none', which is already what those verbs compile to
+            fix: delete these entries: export, market
+```
+
+A `'none'` entry on a verb that reads as a write (`approve`, `markPaid`) stays, because it is how you tell [PD071](#pd071-write-verbs-without-an-rlsactions-entry) the verb is mapped on purpose. A `'none'` entry on a default verb (`read`, `update`) stays too, because it changes what that verb compiles to. PD076 is `info`, so `--fail-on warning` does not fail on it. `--only rls` runs PD076.
 
 ## Side effects
 

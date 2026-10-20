@@ -1,5 +1,6 @@
 import type { CommandResult } from "../core/result.ts";
-import type { DoctorFinding } from "../shared/doctor-types.ts";
+import type { Style } from "../core/style.ts";
+import type { DoctorFinding, DoctorSeverity } from "../shared/doctor-types.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { scopeList } from "../../core/scopes.ts";
@@ -41,6 +42,7 @@ import {
   pd072,
   pd073,
   pd075,
+  pd076,
 } from "./rls.ts";
 import { pd054 } from "./seeds.ts";
 import {
@@ -225,6 +227,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   { code: "PD072", groups: ["rls"], run: pd072 },
   { code: "PD073", groups: ["rls", "ownership"], run: pd073 },
   { code: "PD075", groups: ["rls"], run: pd075 },
+  { code: "PD076", groups: ["rls"], run: pd076 },
   {
     code: "PD028",
     groups: ["attrs", "supabase"],
@@ -467,8 +470,7 @@ function formatDoctor(report: DoctorReport, color: boolean): string {
     lines.push("");
   }
   for (const finding of report.findings) {
-    const mark =
-      finding.severity === "error" ? style.errorMark : style.warnMark;
+    const mark = markOf(finding.severity, style);
     lines.push(
       `  ${mark} ${style.paint("bold", finding.code)}  ${finding.message}`,
     );
@@ -478,10 +480,28 @@ function formatDoctor(report: DoctorReport, color: boolean): string {
     lines.push("  no findings");
   }
   lines.push("");
+  const notes = report.findings.filter(
+    (finding) => finding.severity === "info",
+  ).length;
   lines.push(
-    `  ${String(report.errors)} error${report.errors === 1 ? "" : "s"}, ${String(report.warnings)} warning${report.warnings === 1 ? "" : "s"}`,
+    `  ${String(report.errors)} error${report.errors === 1 ? "" : "s"}, ${String(report.warnings)} warning${report.warnings === 1 ? "" : "s"}${notes === 0 ? "" : `, ${String(notes)} note${notes === 1 ? "" : "s"}`}`,
   );
   return `${lines.join("\n")}\n`;
+}
+
+function markOf(severity: DoctorSeverity, style: Style): string {
+  switch (severity) {
+    case "error":
+      return style.errorMark;
+    case "warning":
+      return style.warnMark;
+    case "info":
+      return style.infoMark;
+    default: {
+      const unknown: never = severity;
+      return unknown;
+    }
+  }
 }
 
 async function supabaseSetup(
