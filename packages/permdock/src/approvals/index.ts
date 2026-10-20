@@ -51,9 +51,21 @@ export type {
   ApprovalSignatureEntry,
   SignApprovalOptions,
 } from "./signature.ts";
-export type { ApprovalsHandlerOptions, ApprovalView } from "./handler.ts";
-export { memoryIdempotencyStore } from "./idempotency.ts";
-export type { IdempotencyStore, IdempotentResponse } from "./idempotency.ts";
+export type { ApprovalsHandlerOptions } from "./handler.ts";
+export { approvalEntityTag, approvalView } from "./entity-tag.ts";
+export type { ApprovalView } from "./entity-tag.ts";
+export {
+  idempotencyRecord,
+  idempotencyRecordKey,
+  matchesIdempotencyRecord,
+  memoryIdempotencyStore,
+} from "./idempotency.ts";
+export type {
+  IdempotencyRecord,
+  IdempotencyStore,
+  IdempotentCall,
+  IdempotentResponse,
+} from "./idempotency.ts";
 export {
   cancelApprovals,
   consumeApproval,

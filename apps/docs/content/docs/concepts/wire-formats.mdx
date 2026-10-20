@@ -1244,6 +1244,10 @@ Every format writes times one way per context:
 
 A `Temporal.Instant` is an `Instant`. A duration that is not a positive integer throws when the policy, catalog or option is defined. A `now` that is not an `Instant` makes `decide`, `can` and the snapshot client deny with reason `validation`; `compileWhere` throws a `TypeError` and the approval helpers throw a `RangeError`. Network and polling timings stay in milliseconds: the client's `approvalInterval` and the PDP and JWT verifier `timeout`.
 
+## Digests
+
+Every digest PermDock writes is `sha-256:` plus the unpadded base64url SHA-256 of a text, and every hashed JSON value is first serialised as RFC 8785 (JCS). `permdock` exports both steps: `canonicalJson(value)` and `sha256Digest(text)`. The approval `token`, the approval `ETag` (`approvalEntityTag`) and `catalogFingerprint` are built from them, so a service that recomputes one calls the same two functions instead of its own serialiser.
+
 ## Versioning
 
 - The snapshot `v`, the approval request `v`, the policy document `v`, the capability `v`, the credential `v` and the catalog `version` follow the format, not the package version, and are all `1`. Times follow the [time rule](#time-rule). A breaking change to a shape bumps the major. Readers reject unknown majors.

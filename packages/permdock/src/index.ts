@@ -472,6 +472,8 @@ export type { JsonSchemaNode } from "./core/json-schema.ts";
 export { OCSF_VERSION, accessToOcsf, toOcsf } from "./core/ocsf.ts";
 export { CSV_COLUMNS, toCsvRow } from "./core/csv.ts";
 export { catalogFingerprint } from "./core/catalog-fingerprint.ts";
+export { canonicalJson } from "./core/canonical-json.ts";
+export { sha256Digest } from "./core/sha256.ts";
 export {
   coveredByDelegation,
   delegatedPermissions,

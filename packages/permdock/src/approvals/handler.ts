@@ -2,7 +2,7 @@ import type { RelationSource, TokenSigner } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
-import type { IdempotencyStore, IdempotentResponse } from "./idempotency.ts";
+import type { IdempotencyStore, IdempotentCall } from "./idempotency.ts";
 import type {
   ApprovalRequest,
   ApprovalStore,
@@ -10,12 +10,9 @@ import type {
 } from "./types.ts";
 import type { ApprovalDelegationSource } from "./types.ts";
 
-import { canonicalJson } from "../core/canonical-json.ts";
 import { compact } from "../core/compact.ts";
 import { problemType, statusProblem } from "../core/problem-types.ts";
 import { rootMembershipId } from "../core/scopes.ts";
-import { sha256Digest } from "../core/sha256.ts";
-import { nowMillis } from "../core/time.ts";
 import { readBodyText } from "../server/body-text.ts";
 import { bodyTooLarge } from "../server/body.ts";
 import { hasCredentials } from "../server/http.ts";
@@ -26,8 +23,14 @@ import {
   validationProblem,
 } from "../server/problem.ts";
 import { matchDelegation } from "./delegation.ts";
+import { approvalEntityTag, approvalView } from "./entity-tag.ts";
 import { ApprovalError, isApprovalError } from "./errors.ts";
-import { memoryIdempotencyStore } from "./idempotency.ts";
+import {
+  idempotencyRecord,
+  idempotencyRecordKey,
+  matchesIdempotencyRecord,
+  memoryIdempotencyStore,
+} from "./idempotency.ts";
 import { listAllApprovals } from "./page.ts";
 import { heldPermissions } from "./permissions.ts";
 import { approverRelations } from "./relations.ts";
@@ -76,10 +79,6 @@ export type ApprovalsHandlerOptions = {
   readonly idempotency?: IdempotencyStore;
 };
 
-/** An approval as the approvals API shows it: never the resume `token`. */
-export type ApprovalView = Omit<ApprovalRequest, "token">;
-
-const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_IDEMPOTENCY_KEY_LENGTH = 256;
 
 function problem(status: number, detail: string): Response {
@@ -95,16 +94,6 @@ function json(
     status,
     headers: { ...headers, "content-type": "application/json" },
   });
-}
-
-function viewOf(request: ApprovalRequest): ApprovalView {
-  const { token: _token, ...view } = request;
-  return view;
-}
-
-/** A strong RFC 9110 entity tag: the `sha-256:` digest of the view's RFC 8785 JSON. */
-function entityTag(request: ApprovalRequest): string {
-  return `"${sha256Digest(canonicalJson(viewOf(request)))}"`;
 }
 
 function entityTags(field: string): readonly string[] {
@@ -124,7 +113,7 @@ function ifMatchFails(request: Request, current: ApprovalRequest): boolean {
   if (tags.includes("*")) {
     return false;
   }
-  return !tags.includes(entityTag(current));
+  return !tags.includes(approvalEntityTag(current));
 }
 
 /** RFC 9110 section 13.1.2: weak comparison. */
@@ -549,18 +538,6 @@ function idempotencyKey(
   return { key };
 }
 
-async function stored(
-  response: Response,
-  fingerprint: string,
-): Promise<IdempotentResponse> {
-  return {
-    fingerprint,
-    status: response.status,
-    headers: [...response.headers.entries()],
-    body: await response.clone().text(),
-  };
-}
-
 export function approvalsHandler(
   store: ApprovalStore,
   options: ApprovalsHandlerOptions,
@@ -618,8 +595,8 @@ export function approvalsHandler(
             : undefined,
       }),
     );
-    return json(200, viewOf(resolved), {
-      ETag: entityTag(resolved),
+    return json(200, approvalView(resolved), {
+      ETag: approvalEntityTag(resolved),
       ...(options.signer !== undefined && resolved.status === "approved"
         ? signatureLink(url)
         : {}),
@@ -678,7 +655,7 @@ export function approvalsHandler(
             compact({
               items: page.items
                 .filter((_, index) => eligible[index] === true)
-                .map(viewOf),
+                .map(approvalView),
               next: page.next,
             }),
             nextLink(url, page.next),
@@ -691,7 +668,7 @@ export function approvalsHandler(
           });
           return json(
             200,
-            compact({ items: page.items.map(viewOf), next: page.next }),
+            compact({ items: page.items.map(approvalView), next: page.next }),
             nextLink(url, page.next),
           );
         }
@@ -700,11 +677,11 @@ export function approvalsHandler(
           if (current === null) {
             return problem(404, "approval was not found");
           }
-          const etag = entityTag(current);
+          const etag = approvalEntityTag(current);
           if (ifNoneMatchHolds(request, etag)) {
             return new Response(null, { status: 304, headers: { ETag: etag } });
           }
-          return json(200, viewOf(current), { ETag: etag });
+          return json(200, approvalView(current), { ETag: etag });
         }
         case "signature": {
           const current = await findById(store, route.id);
@@ -737,11 +714,15 @@ export function approvalsHandler(
           if (keyed.key === undefined) {
             return await resolve(request, url, route, subject, read);
           }
-          const key = `${principal.id}\n${keyed.key}`;
-          const fingerprint = `${route.kind} ${route.id} ${sha256Digest(read.text)}`;
+          const call: IdempotentCall = {
+            action: route.kind,
+            id: route.id,
+            body: read.text,
+          };
+          const key = idempotencyRecordKey(principal.id, keyed.key);
           const replay = await idempotency.get(key);
           if (replay !== undefined) {
-            return replay.fingerprint === fingerprint
+            return matchesIdempotencyRecord(replay, call)
               ? new Response(replay.body, {
                   status: replay.status,
                   headers: replay.headers.map(([name, value]) => [name, value]),
@@ -750,10 +731,16 @@ export function approvalsHandler(
           }
           const response = await resolve(request, url, route, subject, read);
           if (response.ok) {
+            const record = await idempotencyRecord({
+              principalId: principal.id,
+              key: keyed.key,
+              call,
+              response,
+            });
             await idempotency.set(
-              key,
-              await stored(response, fingerprint),
-              nowMillis() + IDEMPOTENCY_TTL_MS,
+              record.key,
+              record.response,
+              record.expiresAt,
             );
           }
           return response;
