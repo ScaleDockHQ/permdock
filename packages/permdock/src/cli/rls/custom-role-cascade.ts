@@ -3,7 +3,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
 import { qualified, quoteIdent, quoteTable } from "../sql/quote.ts";
-import { CUSTOM_ROLES, signedIn } from "../sql/shared.ts";
+import { CUSTOM_ROLES, allowEntry, signedIn } from "../sql/shared.ts";
 import { raiseSql, rolesTableScope } from "./custom-roles.ts";
 
 /** `row.column`, for a trigger's `old` or `new`. */
@@ -52,10 +52,7 @@ export function customRoleCascadeSql(ctx: RlsSqlContext): string {
       : `coalesce(${rowColumn(row, table.skip)}, false)`;
   const guard = qualified(ctx, CUSTOM_ROLES.guard);
   const entries = qualified(ctx, CUSTOM_ROLES.entries);
-  const allowEntryOf =
-    custom.levels === true
-      ? "c.permission || coalesce('@' || c.level, '')"
-      : "c.permission";
+  const allowEntryOf = `c.${allowEntry(ctx)}`;
   return `-- the application's roles table: renames, moves and deletes of a custom role carry its grants and includes
 create or replace function ${fn}()
 returns trigger

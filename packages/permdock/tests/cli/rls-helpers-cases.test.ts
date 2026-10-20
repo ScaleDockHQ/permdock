@@ -556,3 +556,31 @@ describe("the role-filtered member helper", () => {
     ).toContain(`and (m."role")::text = any(p_roles)`);
   });
 });
+
+describe("membership source helpers with levels", () => {
+  it("read the stored level in every id and key variant", () => {
+    const sources = [tableMembershipSource({ table: "memberships" })];
+    const sql = helpers({
+      authorize: "database",
+      sources,
+      memberSources: sources,
+      customRoles: { declared: ["admin"], assignable: ["admin"], levels: true },
+    });
+    for (const name of [
+      "permitted_org_ids",
+      "permitted_org_ids_for",
+      "permdock_permission_keys",
+      "permdock_permission_keys_for",
+    ]) {
+      const start = sql.indexOf(`function "permdock".${name}(`);
+      if (start === -1) continue;
+      const body = sql.slice(start, sql.indexOf("$$;", start));
+      expect(body, name).toContain(
+        "c.permission || coalesce('@' || c.level, '')",
+      );
+    }
+    expect(sql).toContain(
+      "array(select c.permission || coalesce('@' || c.level, '') from",
+    );
+  });
+});
