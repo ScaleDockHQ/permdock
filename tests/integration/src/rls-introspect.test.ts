@@ -184,10 +184,10 @@ describe("rls verify --introspect", () => {
     expect(result.code).toBe(1);
     expect(result.out.split("\n")).toEqual(
       expect.arrayContaining([
-        "public.doc: policy hand_written is not generated (permissive select); a permissive one widens access",
-        "public.doc: authenticated holds insert, which no generated policy allows",
-        "permdock.permdock_has: helper is not security definer",
-        "permdock.permitted_tenant_ids: helper does not set search_path = ''",
+        "public.doc: policy hand_written is not generated (permissive select); a permissive one widens access [policy-extra:public.doc:hand_written]",
+        "public.doc: authenticated holds insert, which no generated policy allows [grant-extra:public.doc:authenticated.insert]",
+        "permdock.permdock_has: helper is not security definer [helper-definer:permdock.permdock_has:helper]",
+        "permdock.permitted_tenant_ids: helper does not set search_path = '' [helper-search-path:permdock.permitted_tenant_ids:helper]",
       ]),
     );
     await pg.admin.query("alter table doc disable row level security");
