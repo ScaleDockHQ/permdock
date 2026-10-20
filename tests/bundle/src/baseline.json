@@ -56,11 +56,12 @@
   "./compile": 21769,
   "./catalog": 105769,
   "./preset": 14730,
-  "./testing": 320434,
+  "./testing": 322058,
+  "./testing/core": 149158,
   "./testing/saas": 148549,
   "./testing/saas/permissions": 139183,
-  "./cli": 672388,
-  "./unplugin": 173122,
-  "./next/plugin": 171830,
+  "./cli": 678408,
+  "./unplugin": 173136,
+  "./next/plugin": 171842,
   "./next/client": 1433
 }

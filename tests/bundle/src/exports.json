@@ -709,6 +709,7 @@
     "jwtFixtureIssuer",
     "jwtFixtureJwks",
     "jwtFixtureTokens",
+    "policyMatrix",
     "snapshotFixture",
     "supabaseClaimFixtures",
     "supabaseClaimVectors",
@@ -755,6 +756,7 @@
     "testTokenVerifier",
     "testWhereCompiler"
   ],
+  "./testing/core": ["policyMatrix", "testOrmParity", "testRlsParity"],
   "./testing/saas": [
     "SAAS_API_KEY_LIMIT",
     "SAAS_EXPIRED_AT",

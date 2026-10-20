@@ -27,6 +27,7 @@ const TOOLING = new Set([
   "permdock/cli",
   "permdock/next/plugin",
   "permdock/testing",
+  "permdock/testing/core",
   "permdock/testing/saas",
   "permdock/testing/saas/permissions",
   "permdock/unplugin",

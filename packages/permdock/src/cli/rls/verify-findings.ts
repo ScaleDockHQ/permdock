@@ -79,7 +79,7 @@ export type VerifyReport = {
 };
 
 /** Splits `findings` by `ignores`; an id listed twice counts once, with its first reason. */
-export function applyIgnores(
+function applyIgnores(
   findings: readonly RlsFinding[],
   ignores: readonly VerifyIgnore[],
 ): VerifyReport {
