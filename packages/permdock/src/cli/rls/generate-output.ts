@@ -11,6 +11,7 @@ import {
   pgDeltaPath,
   seedsMigration,
 } from "../core/output-files.ts";
+import { declarativeSql } from "../sql/declarative.ts";
 import { GRANTS_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { splitUndiffed } from "../sql/statements.ts";
 import {
@@ -264,6 +265,13 @@ export function outputFiles(plan: {
       default: {
         const exhaustive: never = part;
         return exhaustive;
+      }
+    }
+  }
+  if (pgDelta !== undefined && !placeholder) {
+    for (const [index, file] of files.entries()) {
+      if (file.part !== "seeds" || input.seedsOut === undefined) {
+        files[index] = { ...file, text: declarativeSql(file.text) };
       }
     }
   }

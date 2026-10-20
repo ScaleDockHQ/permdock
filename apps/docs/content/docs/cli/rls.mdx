@@ -776,6 +776,8 @@ The `role_permissions` rows are data, which no schema diff carries. Under `pg-de
 
 Declarative Schemas 2.0 is the default. It needs Supabase CLI 2.119 or later and `[experimental.pgdelta] enabled = true` in `supabase/config.toml`: without that line the CLI diffs the files with migra, which drops the hook and helper grants, and doctor PD068 fails. With no `--out`, `--split` writes pg-delta's per-schema, unnumbered layout under `declarative_schema_path` (default `supabase/schemas`). pg-delta orders statements by their dependencies, so no file needs a number and `[db.migrations] schema_paths` is not needed:
 
+Under pg-delta, the files at its per-schema paths (no `--out`) carry no `drop` statement: pg-delta diffs the file itself, so a trigger is `create or replace trigger` and a policy a plain `create policy`. The `seeds` part, when it goes to `--seeds-out`, is a migration and keeps its re-runnable form.
+
 | Part       | File                                              |
 | ---------- | ------------------------------------------------- |
 | `helpers`  | `<schema>/helpers.sql`                            |

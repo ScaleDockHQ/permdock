@@ -23,6 +23,7 @@ import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { requirePolicy } from "../project/load.ts";
 import { hookUri, resolveAuthorize } from "../rls/rbac.ts";
+import { declarativeSql } from "../sql/declarative.ts";
 import {
   GRANTS_MARKER,
   HOOK_MARKER,
@@ -433,12 +434,20 @@ export async function runSupabase(input: {
     };
   }
   const scopes = await loadScopes(input.cwd, input.config);
-  const { sql, grants, manifest } = supabaseHookSql(
+  const generated = supabaseHookSql(
     scopes,
     input.config,
     overrides,
     grantsLabel(input.grantsOut),
   );
+  const { grants, manifest } = generated;
+  // The file is declarative only at pg-delta's own path; `--out` and `supabase.hook.out` name a migration.
+  const sql =
+    schemas.mode === "pg-delta" &&
+    typeof input.out !== "string" &&
+    input.config.supabase?.hook?.out === undefined
+      ? declarativeSql(generated.sql)
+      : generated.sql;
   const outRel =
     typeof input.out === "string"
       ? input.out
