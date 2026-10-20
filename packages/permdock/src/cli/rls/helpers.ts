@@ -196,7 +196,7 @@ ${keys}
 }
 
 /** `<schema>.seed()`: the same upsert and delete as `seedSql`, for a declarative schema that carries no rows. */
-export function seedFunctionSql(
+function seedFunctionSql(
   ctx: RlsSqlContext,
   rows: readonly RolePermission[],
 ): string {

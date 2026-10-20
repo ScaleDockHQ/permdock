@@ -26,7 +26,7 @@ import {
 import { type InProcess, emitPgtap } from "./verify-pgtap.ts";
 
 /** Where `rls verify --kind pgtap` writes, the folder `supabase test db` reads. */
-export const PGTAP_OUT = "supabase/tests/permdock_rls.test.sql";
+const PGTAP_OUT = "supabase/tests/permdock_rls.test.sql";
 
 export function canFixture(
   permdock: PermDock,

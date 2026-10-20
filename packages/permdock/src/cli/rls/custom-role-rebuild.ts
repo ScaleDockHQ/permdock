@@ -22,10 +22,10 @@ import {
 import { CUSTOM_ROLES } from "../sql/shared.ts";
 import { currentKeyExpr, rolesTableScope } from "./custom-roles.ts";
 
-export const PREFIX = "PermDock CLI";
+const PREFIX = "PermDock CLI";
 
 /** A column of the roles-table row `r`. */
-export function col(name: string): string {
+function col(name: string): string {
   return `r.${quoteIdent(name)}`;
 }
 
