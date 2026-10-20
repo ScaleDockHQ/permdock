@@ -98,8 +98,8 @@ function optionFor(policy: Policy, key: string): HostedGrantOption | null {
     declaredGrantee(policy, grantee, leaf.resource);
   const byScope = new Map<string, string[]>();
   for (const role of declaredRoleNames(policy)) {
-    if (accepts({ kind: "role", role })) {
-      const scope = roleScope(policy, role);
+    const scope = roleScope(policy, role);
+    if (accepts({ kind: "role", role, scope })) {
       byScope.set(scope, [...(byScope.get(scope) ?? []), role]);
     }
   }

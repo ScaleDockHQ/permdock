@@ -42,6 +42,8 @@ Generated files carry a header with the CLI version and the list of inputs, and 
 
 `--check` computes the outputs in memory and compares them with the files on disk. Any difference exits `1` and prints a unified diff. This is the permissions equivalent of next-intl checking that target locale files are in sync with the extracted source messages: adding a permission, renaming a resource or changing action metadata without re-running `collect` fails the build.
 
+A difference in `usages[].line` alone does not fail the check: an edit above a call site moves its line without changing the contract. The check exits `0`, prints `catalog usages moved (lines only): permissions.catalog.json; run permdock collect to refresh`, and with `--json` sets `positionsMoved: true` in `data`. A usage that appears, disappears or changes file or call still exits `1`. `permdock catalog --out <file> --check` applies the same rule to a JSON export.
+
 ```yaml
 - run: pnpm exec permdock collect --check --cwd tests/integration/fixtures/posts
 - run: pnpm exec permdock collect --check --cwd apps/examples/monorepo

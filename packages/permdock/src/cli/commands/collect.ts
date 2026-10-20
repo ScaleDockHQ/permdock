@@ -62,6 +62,9 @@ export const collect: Leaf = defineLeaf({
               out: result.outPath,
               permissions: result.document.permissions.length,
               ...(flags.check ? { stale: result.code !== 0 } : {}),
+              ...(result.positionsMoved === true
+                ? { positionsMoved: true }
+                : {}),
             },
           }),
     };

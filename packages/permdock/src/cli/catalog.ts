@@ -7,6 +7,8 @@ import type { CatalogDocument, CliIo, PermDockConfig } from "./types.ts";
 import { isRecord } from "../core/compact.ts";
 import {
   buildCatalog,
+  catalogForCompare,
+  catalogForDrift,
   catalogSchemaDocument,
   formatCatalogJson,
   formatCatalogMarkdown,
@@ -97,25 +99,31 @@ export async function runCatalog(input: {
   return { code: 0, output: formatCatalogJson(filtered) };
 }
 
-/** The comparable form of a catalog file: without the fields every run changes. */
-function comparable(text: string): string {
+/**
+ * The comparable forms of a catalog file: without the fields every run
+ * changes, then also without `usages[].line`.
+ */
+function comparable(text: string): {
+  readonly full: string;
+  readonly drift: string;
+} {
   try {
     const parsed: unknown = JSON.parse(text);
     if (isRecord(parsed)) {
-      const {
-        generatedAt: _generatedAt,
-        generator: _generator,
-        ...rest
-      } = parsed;
-      return JSON.stringify(rest);
+      // SAFETY: only serialised again by catalogForCompare and catalogForDrift, which tolerate any shape.
+      const doc = parsed as CatalogDocument;
+      return { full: catalogForCompare(doc), drift: catalogForDrift(doc) };
     }
   } catch {
     // Markdown and other text compare as written.
   }
-  return text;
+  return { full: text, drift: text };
 }
 
-/** `catalog --out`: writes the export, or with `--check` exits 1 when the file differs. */
+/**
+ * `catalog --out`: writes the export, or with `--check` exits 1 when the file
+ * differs by more than usage line numbers.
+ */
 export function catalogFile(
   cwd: string,
   out: string,
@@ -131,11 +139,26 @@ export function catalogFile(
         data: { out, stale: true },
       };
     }
-    const stale = comparable(readFileSync(path, "utf8")) !== comparable(text);
+    const onDisk = comparable(readFileSync(path, "utf8"));
+    const generated = comparable(text);
+    if (onDisk.full === generated.full) {
+      return {
+        code: 0,
+        output: `${out} is up to date`,
+        data: { out, stale: false },
+      };
+    }
+    if (onDisk.drift === generated.drift) {
+      return {
+        code: 0,
+        output: `catalog usages moved (lines only): ${out}; run permdock collect to refresh`,
+        data: { out, stale: false, positionsMoved: true },
+      };
+    }
     return {
-      code: stale ? 1 : 0,
-      output: stale ? `catalog stale: ${out}` : `${out} is up to date`,
-      data: { out, stale },
+      code: 1,
+      output: `catalog stale: ${out}`,
+      data: { out, stale: true },
     };
   }
   const applied = applyFiles(cwd, [{ path: out, text }]);

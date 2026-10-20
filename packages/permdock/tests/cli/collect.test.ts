@@ -4,6 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { CollectConfig, PermDockConfig } from "../../src/cli/types.ts";
 
+import { catalogFile } from "../../src/cli/catalog.ts";
 import { runCollect } from "../../src/cli/collect.ts";
 import {
   NOW,
@@ -98,6 +99,65 @@ describe("runCollect", () => {
           "@@ ",
         ].join("\n"),
       ),
+    });
+  });
+
+  it("--check passes with a notice when only usage lines moved", async () => {
+    const use = (above: string) =>
+      `import { permissions } from './permissions.ts';\n${above}export const check = (pd: { can(p: unknown): boolean }) => pd.can(permissions.post.read);\n`;
+    const cwd = project({
+      "src/permissions.ts": PERMISSIONS,
+      "src/use.ts": use(""),
+    });
+    const config = { permissions: "./src/permissions.ts" };
+    const written = await collect(cwd, config);
+    expect(written.document?.permissions.flatMap((p) => p.usages)).toEqual([
+      expect.objectContaining({ file: "src/use.ts", line: 2 }),
+    ]);
+    writeFileSync(path.join(cwd, "src/use.ts"), use("\n\n"));
+    expect(await collect(cwd, config, { check: true })).toMatchObject({
+      code: 0,
+      positionsMoved: true,
+      message:
+        "catalog usages moved (lines only): permissions.catalog.json; run permdock collect to refresh",
+    });
+    writeFileSync(
+      path.join(cwd, "src/use.ts"),
+      use("").replace("post.read", "post.update"),
+    );
+    expect(await collect(cwd, config, { check: true })).toMatchObject({
+      code: 1,
+      message: expect.stringContaining(
+        "catalog drift: permissions.catalog.json",
+      ),
+    });
+  });
+
+  it("catalog --check treats a line-only change the same way", () => {
+    const cwd = project({});
+    const doc = (line: number, call = "can") =>
+      JSON.stringify({
+        generatedAt: "2026-10-01T00:00:00.000Z",
+        permissions: [
+          { key: "post.read", usages: [{ file: "a.ts", line, call }] },
+        ],
+      });
+    writeFileSync(path.join(cwd, "catalog.json"), doc(3));
+    expect(catalogFile(cwd, "catalog.json", doc(3), true)).toMatchObject({
+      code: 0,
+      data: { stale: false },
+    });
+    expect(catalogFile(cwd, "catalog.json", doc(5), true)).toEqual({
+      code: 0,
+      output:
+        "catalog usages moved (lines only): catalog.json; run permdock collect to refresh",
+      data: { out: "catalog.json", stale: false, positionsMoved: true },
+    });
+    expect(
+      catalogFile(cwd, "catalog.json", doc(3, "assert"), true),
+    ).toMatchObject({
+      code: 1,
+      data: { stale: true },
     });
   });
 

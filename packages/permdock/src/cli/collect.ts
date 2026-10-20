@@ -14,6 +14,7 @@ import type {
 import {
   buildCatalog,
   catalogForCompare,
+  catalogForDrift,
   formatCatalogJson,
 } from "./catalog-doc.ts";
 import { loadConfiguredOperations } from "./catalog-operations.ts";
@@ -41,6 +42,8 @@ export type CollectOutcome = {
   readonly scan: ScanResult | undefined;
   readonly outPath: string;
   readonly message: string;
+  /** `--check` only: the file differs from the scan in `usages[].line` alone. */
+  readonly positionsMoved?: boolean;
   /** Absolute paths this run wrote, so a watcher can ignore its own output. */
   readonly written?: readonly string[];
 };
@@ -134,10 +137,9 @@ export async function runCollect(input: {
       };
     }
     const current = readFileSync(outPath, "utf8");
-    // SAFETY: only serialised again by catalogForCompare; any other shape just compares unequal.
+    // SAFETY: only serialised again by catalogForCompare and catalogForDrift, which tolerate any shape; it then compares unequal.
     const currentDoc = JSON.parse(current) as CatalogDocument;
-    const onDisk = catalogForCompare(currentDoc);
-    const generated = catalogForCompare(
+    const generatedDoc =
       input.scanPath === undefined || samePaths(input.scanPath, srcPath)
         ? document
         : buildCatalog(
@@ -150,10 +152,21 @@ export async function runCollect(input: {
             generatedAt,
             policy,
             operations,
-          ),
-    );
+          );
+    const onDisk = catalogForCompare(currentDoc);
+    const generated = catalogForCompare(generatedDoc);
     if (onDisk !== generated) {
       const file = rel(input.cwd, outPath);
+      if (catalogForDrift(currentDoc) === catalogForDrift(generatedDoc)) {
+        return {
+          code: 0,
+          document,
+          scan,
+          outPath,
+          positionsMoved: true,
+          message: `catalog usages moved (lines only): ${file}; run permdock collect to refresh`,
+        };
+      }
       return {
         code: 1,
         document,

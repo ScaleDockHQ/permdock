@@ -19,7 +19,7 @@ const request: ApprovalRequest = {
   permission: "post.delete",
   scope: "post:delete",
   resource: { type: "post", id: "42" },
-  subject: { principal: { id: "u_1" } },
+  subject: { principal: { id: "u_1", roles: [] } },
   detail: "post.delete requires human approval.",
   status: "pending",
   createdAt: new Date().toISOString(),
@@ -44,7 +44,10 @@ describe("approvalEntityTag", () => {
     const store = memoryApprovalStore();
     await store.create(request);
     const handler = approvalsHandler(store, {
-      subject: () => ({ principal: { id: "u_1" } }),
+      subject: () => ({
+        principal: { id: "u_1", roles: [], memberships: [] },
+        context: {},
+      }),
     });
     const response = await handler(
       new Request("https://api.example.com/approvals/apr_1"),

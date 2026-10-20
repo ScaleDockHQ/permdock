@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { ScanResult } from "../../src/cli/types.ts";
-import type { RoleChangeTarget, RoleRules } from "../../src/index.ts";
+import type {
+  Membership,
+  RoleChangeTarget,
+  RoleRules,
+} from "../../src/index.ts";
 
 import { buildCatalog } from "../../src/cli/catalog-doc.ts";
 import {
@@ -37,7 +41,10 @@ const permissions = definePermissions({
 
 const policy = definePolicy(permissions, {
   scopes: { org: { key: "org_id" } },
-  subject: (user: { id: string; memberships: unknown[] }) => user,
+  subject: (user: { id: string; memberships: readonly Membership[] }) => ({
+    ...user,
+    roles: [],
+  }),
   roles: [
     role("owner", [allow(permissions.doc.read)], {
       on: "org",
