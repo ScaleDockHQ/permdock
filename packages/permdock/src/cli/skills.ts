@@ -9,8 +9,9 @@ import {
   realpathSync,
   writeFileSync,
 } from "node:fs";
-import { createRequire } from "node:module";
+import { findPackageJSON } from "node:module";
 import { basename, dirname, join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type { CommandResult } from "./core/result.ts";
 
@@ -284,10 +285,14 @@ function resolveTargets(agents: readonly string[]): readonly string[] {
 
 function resolveSkillsRoot(cwd: string, bundled: string): string | undefined {
   try {
-    const require = createRequire(resolve(cwd, "package.json"));
-    const pkg = require.resolve("permdock/package.json");
-    const root = join(dirname(pkg), "skills");
-    if (existsSync(root)) {
+    // ESM resolution, unlike require.resolve, ignores NODE_PATH, which a
+    // package manager's bin shim points at its own store.
+    const pkg = findPackageJSON(
+      "permdock",
+      pathToFileURL(resolve(cwd, "package.json")),
+    );
+    const root = pkg === undefined ? undefined : join(dirname(pkg), "skills");
+    if (root !== undefined && existsSync(root)) {
       return root;
     }
   } catch {
