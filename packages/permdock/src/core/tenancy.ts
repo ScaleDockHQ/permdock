@@ -200,7 +200,7 @@ export function rowInScope(
   scopes: readonly Scope[],
   row: unknown,
   partitioned: (scope: string, key: string) => boolean,
-  fieldOf?: (scope: string) => string | undefined,
+  fieldOf: (scope: string) => string | undefined,
 ): RowScope {
   if (
     membership.scope === undefined ||
@@ -212,7 +212,7 @@ export function rowInScope(
   const root = rootScope(scopes);
   const chain = scopeChain(scopes, membership.scope).toReversed();
   for (const name of chain) {
-    const key = fieldOf?.(name) ?? findScope(scopes, name)?.key;
+    const key = fieldOf(name);
     if (key === undefined) {
       continue;
     }
