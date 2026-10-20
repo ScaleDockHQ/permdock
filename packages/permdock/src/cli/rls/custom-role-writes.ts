@@ -192,8 +192,9 @@ revoke execute on function ${guard}(${userArg}${tenantType}, text, text, text) f
  * \`assignablePermissions\`: entries inside the ceiling of the role's scope,
  * includes naming declared roles, and only permissions and levels the caller
  * may hand out, for the new definition and the stored one alike. A platform
- * custom role (\`p_scope = 'global'\`, no tenant) is written by a caller who
- * holds a \`meta.manageRoles\` permission through a global role. The
+ * custom role (\`p_scope = 'global'\`, no tenant) and a shared custom role (no
+ * tenant at a lower scope) are written by a caller who holds a
+ * \`meta.manageRoles\` permission through a global role. The
  * \`permdock_trusted_*\` variants skip the caller checks and keep the
  * definition checks; no client role may execute them.
  */
@@ -233,7 +234,14 @@ export function customRoleWritesSql(
     `coalesce(${param}, '') = '' or ${param} = any(${sqlTextArray(custom.declared)})`;
   const levelOf = leveled ? ", nullif(split_part(e, '@', 2), '')" : "";
   const levelColumn = leveled ? ", level" : "";
-  const write = `  delete from ${perms} c where ${match} and c.role = p_role;
+  const sharedRole = qualified(ctx, CUSTOM_ROLES.shared);
+  const taken = (
+    param: string,
+  ): string => `  if p_tenant is not null and ${sharedRole}(p_scope, ${param}) then
+${raiseSql("    ", "22023", `'permdock: ' || ${param} || ' is the name of a shared custom role'`, "name-taken")}
+  end if;
+`;
+  const write = `${taken("p_role")}  delete from ${perms} c where ${match} and c.role = p_role;
   delete from ${includes} c where ${match} and c.role = p_role;
   insert into ${perms} (tenant_id, scope, scope_id, role, permission, effect${levelColumn})
   select distinct p_tenant, p_scope, p_scope_id, p_role, ${current(leveled ? "split_part(e, '@', 1)" : "e")}, 'allow'${levelOf}
@@ -244,7 +252,7 @@ export function customRoleWritesSql(
   insert into ${includes} (tenant_id, scope, scope_id, role, include_role)
   select distinct p_tenant, p_scope, p_scope_id, p_role, e
   from unnest(coalesce(p_include, '{}'::text[])) e;`;
-  const move = `  if ${roleName("p_to")} then
+  const move = `${taken("p_to")}  if ${roleName("p_to")} then
 ${raiseSql("    ", "22023", `'permdock: ' || coalesce(p_to, 'null') || ' is not a custom role name'`, "declared-role")}
   end if;
   if exists (select 1 from ${perms} c where ${match} and c.role = p_to)
@@ -286,7 +294,7 @@ grant execute on function ${qualified(ctx, name)}(${args}) to authenticated;`
   const removeParams = `p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text`;
   return `${caller.beyond}
 
--- where a custom role may live: a scope of a tenant, or the platform (scope global, no tenant or instance), under an undeclared name
+-- where a custom role may live: a scope of a tenant, a scope of every tenant (shared: no tenant or instance), or the platform (scope global, no tenant or instance), under an undeclared name
 create or replace function ${shape}(p_tenant ${tenantType}, p_scope text, p_scope_id text, p_role text)
 returns void
 language plpgsql
@@ -298,8 +306,10 @@ begin
     if p_tenant is not null or p_scope_id is not null then
 ${raiseSql("      ", "22023", `'permdock: a platform custom role has no tenant or instance'`, "unknown-scope")}
     end if;
-  elsif p_tenant is null or not (p_scope = any(${scopes})) then
+  elsif not (p_scope = any(${scopes})) then
 ${raiseSql("    ", "22023", `'permdock: custom roles are held at a scope of a tenant or at global, not ' || coalesce(p_scope, 'null')`, "unknown-scope")}
+  elsif p_tenant is null and p_scope_id is not null then
+${raiseSql("    ", "22023", `'permdock: a shared custom role has no instance'`, "unknown-scope")}
   end if;
   if ${roleName("p_role")} then
 ${raiseSql("    ", "22023", `'permdock: ' || coalesce(p_role, 'null') || ' is not a custom role name'`, "declared-role")}

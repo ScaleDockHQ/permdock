@@ -25,6 +25,7 @@ import {
   subjectClaimJsonSql,
   subjectIdSql,
 } from "../sql/subject.ts";
+import { customTenantMatch } from "./custom-roles.ts";
 import {
   activeTenant,
   andLine,
@@ -284,10 +285,10 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
   if (custom === undefined) {
     return lines.join("\n");
   }
-  // A custom role belongs to a tenant, is held at one scope, and may be pinned to one instance of it.
+  // A custom role belongs to a tenant (or is shared by all), is held at one scope, and may be pinned to one instance of it.
   const tenantOf = tenantColumn ?? column;
   const match = [
-    `c.tenant_id::text = ${memberColumn(tenantOf)}::text`,
+    customTenantMatch(ctx, `${memberColumn(tenantOf)}::text`, scope, role.sql),
     `c.scope = ${quoteLiteral(scope)}`,
     `(c.scope_id is null or c.scope_id = ${memberColumn(column)}::text)`,
     `c.role = ${role.sql}`,
@@ -530,9 +531,9 @@ ${rows}
   if (custom === undefined) {
     return sourcesBodyOf(declared, sources, subjectIdSql(ctx));
   }
-  // A custom role belongs to a tenant, is held at one scope, and may be pinned to one instance of it.
+  // A custom role belongs to a tenant (or is shared by all), is held at one scope, and may be pinned to one instance of it.
   const match = [
-    `c.tenant_id::text = (${tenant})::text`,
+    customTenantMatch(ctx, `(${tenant})::text`, scope, "r.role"),
     `c.scope = ${quoteLiteral(scope)}`,
     "(c.scope_id is null or c.scope_id = (ms.id)::text)",
     "c.role = r.role",

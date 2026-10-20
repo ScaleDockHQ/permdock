@@ -25,8 +25,12 @@ describe("platform custom roles in SQL", () => {
       userRoles: true,
     });
     expect(sql).toContain("  tenant_id uuid,\n");
-    expect(sql).toContain("check ((scope = 'global') = (tenant_id is null))");
-    expect(sql).toContain("check (scope <> 'global' or scope_id is null)");
+    expect(sql).toContain(
+      "case when scope = 'global' then tenant_id is null and scope_id is null\n  else tenant_id is not null or scope_id is null end",
+    );
+    expect(sql).not.toContain(
+      "check ((scope = 'global') = (tenant_id is null))",
+    );
     expect(sql).toContain(
       "on \"permdock\".custom_role_permissions (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, permission, effect)",
     );

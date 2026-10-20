@@ -92,10 +92,16 @@ create table public.board (id text primary key, "orgId" text not null, "teamId" 
 
 const quote = (value: string): string => `'${value}'`;
 
+const SHARED_ROLE: CustomRole = {
+  shared: true,
+  name: "reader",
+  grants: [{ permission: "task.read" }],
+};
+
 function seed(role: CustomRole): string {
   const scope = role.team === undefined ? "tenant" : "team";
   const scopeId = role.team === undefined ? "null" : quote(role.team);
-  const head = `${quote(role.tenant ?? "")}, ${quote(scope)}, ${scopeId}, ${quote(role.name)}`;
+  const head = `${role.tenant === undefined ? "null" : quote(role.tenant)}, ${quote(scope)}, ${scopeId}, ${quote(role.name)}`;
   const rows = [
     ...(role.grants ?? []).map(
       (grant) =>
@@ -163,7 +169,7 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
     db = await startPostgres([
       SETUP,
       readFileSync(out, "utf8"),
-      CUSTOM_ROLES.map(seed).join(";\n"),
+      [...CUSTOM_ROLES, SHARED_ROLE].map(seed).join(";\n"),
     ]);
   }, 240_000);
 
@@ -307,9 +313,18 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
     await expect(read(PLUS, "writer", "nowhere", "acme")).rejects.toMatchObject(
       { code: "22023" },
     );
-    await expect(read(PLUS, "writer", "tenant")).rejects.toMatchObject({
-      code: "22023",
+  });
+
+  it("answers a shared custom role to every signed-in caller", async () => {
+    expect(await read(PLUS, "reader", "tenant")).toEqual(custom(SHARED_ROLE));
+    expect(await read(GLOBEX, "reader", "tenant")).toEqual(custom(SHARED_ROLE));
+    expect(await read(PLUS, "writer", "tenant")).toEqual([]);
+    await expect(read(undefined, "reader", "tenant")).rejects.toMatchObject({
+      code: "42501",
     });
+    await expect(
+      read(PLUS, "reader", "team", null, "t1"),
+    ).rejects.toMatchObject({ code: "22023" });
   });
 
   it("is executable by authenticated and not by anon", async () => {

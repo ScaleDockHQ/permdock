@@ -209,9 +209,10 @@ revoke execute on function ${fn}(text, text) from public, anon, authenticated;`;
 }
 
 /**
- * The custom roles `p_user` holds: tenant roles named on a membership of the
- * scope (and instance) they live at, and platform roles among the global
- * roles, each with its grants and includes in `CustomRole` form.
+ * The custom roles `p_user` holds: tenant and shared roles named on a
+ * membership of the scope (and instance) they live at, and platform roles
+ * among the global roles, each with its grants and includes in `CustomRole`
+ * form. A shadowed tenant role comes along; `resolveCustomRole`'s callers drop it.
  */
 function customRolesOfSql(parts: Parts): string {
   const helpers = quoteIdent(parts.helpers.schema);
@@ -222,6 +223,7 @@ function customRolesOfSql(parts: Parts): string {
   return `
   select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
       'name', c.role,
+      'shared', case when c.tenant_id is null and c.scope <> 'global' then true end,
       'tenant', c.tenant_id::text,
       'scope', c.scope,
       'id', c.scope_id,
@@ -252,7 +254,10 @@ function customRolesOfSql(parts: Parts): string {
         from jsonb_array_elements(memberships) m
         where m -> 'roles' ? c.role
           and m ->> 'scope' = c.scope
-          and c.tenant_id::text = case when m ->> 'scope' = ${root} then m ->> 'id' else m -> 'within' ->> ${root} end
+          and (
+            (c.tenant_id is null and c.scope_id is null)
+            or c.tenant_id::text = case when m ->> 'scope' = ${root} then m ->> 'id' else m -> 'within' ->> ${root} end
+          )
           and (c.scope_id is null or c.scope_id = m ->> 'id')
       );`;
 }
