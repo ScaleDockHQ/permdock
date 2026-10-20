@@ -491,6 +491,11 @@ revoke execute on function ${trusted}(${signature}) from public, anon, authentic
   return chunks.join("\n\n");
 }
 
+/** The stored definition of `p_role` at `p_scope` for `p_tenant`: the shared rows when a shared role has the name. */
+export function storedTenant(ctx: RlsSqlContext): string {
+  return `case when ${qualified(ctx, CUSTOM_ROLES.shared)}(p_scope, p_role) then c.tenant_id is null else c.tenant_id is not distinct from p_tenant end`;
+}
+
 /**
  * The tenant half of a custom-role row match for a membership: the
  * membership's tenant, or no tenant when a shared role of that name exists at

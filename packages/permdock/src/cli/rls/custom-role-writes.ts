@@ -17,6 +17,7 @@ import {
   hasCustomRoleChecksFor,
   perScope,
   raiseSql,
+  storedTenant,
 } from "./custom-roles.ts";
 
 function callerFunctionsSql(
@@ -111,7 +112,7 @@ ${raiseSql("    ", "42501", `'permdock: the caller may not manage roles in ' || 
       ? `,
     reach (grant_key, level) as (values ${reachRows})`
       : "";
-  const match = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
+  const match = `${storedTenant(ctx)} and c.scope = p_scope and c.scope_id is not distinct from p_scope_id`;
   const memberOf = `p_tenant::text in ${members(root)}
       or ${perScope(ctx, (scope) => (scope === root ? "false" : `p_scope_id in ${members(scope)}`))}`;
   return {
@@ -163,7 +164,7 @@ begin
   perform ${shape}(p_tenant, p_scope, p_scope_id, p_role);
   if not (${signedIn(ctx, user)} and (
     ${platform}
-    or (p_scope <> 'global' and (${memberOf}))
+    or (p_scope <> 'global' and coalesce(${memberOf}, false))
   )) then
 ${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
   end if;${requires}

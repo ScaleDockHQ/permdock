@@ -20,6 +20,7 @@ import {
 } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
 import { subjectIdSql } from "../sql/subject.ts";
+import { storedTenant } from "./custom-roles.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "./ownership-names.ts";
 
 /** The client roles whose writes the assignment triggers check; any other role is a trusted path. */
@@ -204,7 +205,7 @@ export function canAssignCustomSql(
   );
   const userParam = forUser ? "p_user uuid, " : "";
   const userArg = forUser ? "uuid, " : "";
-  const stored = `c.tenant_id is not distinct from p_tenant and c.scope = p_scope and c.role = p_role and (c.scope_id is null or c.scope_id = p_scope_id)`;
+  const stored = `${storedTenant(ctx)} and c.scope = p_scope and c.role = p_role and (c.scope_id is null or c.scope_id = p_scope_id)`;
   const grants = forUser
     ? `revoke execute on function ${fn}(${userArg}${tenantType}, text, text, text) from public, anon, authenticated;`
     : `revoke execute on function ${fn}(${tenantType}, text, text, text) from public, anon;

@@ -18,6 +18,8 @@ export type RoleRows = {
   /** Set when the key is read through a roles table. */
   readonly through?: RoleKeys;
   readonly tenant?: string;
+  /** The roles table's column marking a row with no tenant as a shared custom role. */
+  readonly shared?: string;
   /** The role column in the manifest's shape. */
   readonly role: SupabaseManifestRole | readonly SupabaseManifestRole[];
 };
@@ -53,8 +55,11 @@ export function globalRoleSource(
     indent: "    ",
   });
   const tenant = role.lateral ? undefined : throughTenant(role.through, roles);
+  const shared = tenant === undefined ? undefined : roles?.shared;
   const global =
-    tenant === undefined ? "" : ` and ${alias}k.${quoteIdent(tenant)} is null`;
+    tenant === undefined
+      ? ""
+      : ` and ${alias}k.${quoteIdent(tenant)} is null${shared === undefined ? "" : ` and ${alias}k.${quoteIdent(shared)} is not true`}`;
   return {
     table,
     user,
@@ -64,5 +69,6 @@ export function globalRoleSource(
     role: roleManifest(role),
     ...(role.through === undefined ? {} : { through: role.through }),
     ...(tenant === undefined ? {} : { tenant }),
+    ...(shared === undefined ? {} : { shared }),
   };
 }

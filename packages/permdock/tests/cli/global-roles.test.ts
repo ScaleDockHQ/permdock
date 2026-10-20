@@ -68,6 +68,12 @@ describe("globalRoleSource", () => {
       tenant: "org_id",
     });
     expect(
+      globalRoleSource(THROUGH, "public", "r", { ...tenant, shared: "shared" }),
+    ).toMatchObject({
+      from: '"identity"."user_roles" r\n    join "identity"."roles" rk on rk."id" = r."role_id" and rk."org_id" is null and rk."shared" is not true',
+      shared: "shared",
+    });
+    expect(
       globalRoleSource(THROUGH, "public", "r", {
         ...tenant,
         table: "roles",

@@ -183,7 +183,9 @@ describe("helpersSql custom-role writes", () => {
       `and rp.permission = any(array['member.assign']::text[])
       and "permdock".permdock_has(rp.grant_key)`,
     );
-    expect(guard).toContain("or (p_scope <> 'global' and (p_tenant::text in");
+    expect(guard).toContain(
+      "or (p_scope <> 'global' and coalesce(p_tenant::text in",
+    );
     expect(fnBody(sql, "permdock_custom_role_shape")).toContain(
       "if p_tenant is not null or p_scope_id is not null then",
     );
