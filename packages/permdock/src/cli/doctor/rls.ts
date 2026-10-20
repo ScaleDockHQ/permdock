@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
+import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsActions } from "../types.ts";
 
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
@@ -10,6 +11,7 @@ import { type Policy, hasConditionOp, listPermissions } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { sqlFiles } from "../files.ts";
 import { graphPlan } from "../rls/graph.ts";
+import { ownershipRules, unsatisfiedKinds } from "../rls/ownership.ts";
 import { byKey } from "../shared/compare.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { filesOf } from "../shared/doctor-files.ts";
@@ -467,4 +469,37 @@ export function pd072(input: DoctorInput): readonly DoctorFinding[] {
       message: `the ${source.sql.table} membership source reads role keys through ${target}, whose tenant rows tenants write: a tenant row named like a declared role must not grant it`,
       fix: `keep the permdock_custom_role_name_guard trigger on ${target} (rls generate emits it with customRoleWrites.roles) and generate with this config, so helpers read a tenant row named like a declared role as no role`,
     }));
+}
+
+/** PD073: a role's `for` lists kinds no membership source of its scope can hold. */
+export async function pd073(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  const rls = input.config.rls;
+  if (rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await policyOf(input);
+  if (policy === undefined) {
+    return [];
+  }
+  const scopes = scopeList(policy.scopes);
+  const ownership = ownershipRules(policy, scopes);
+  const sources =
+    rls.membershipSources ?? input.config.supabase?.hook?.memberships;
+  const ctx: RlsSqlContext = {
+    dialect: "supabase",
+    scopes,
+    tenantClaim: "tenant_id",
+    gucPrefix: "app",
+    ...(rls.memberships === undefined ? {} : { memberships: rls.memberships }),
+    ...(sources === undefined ? {} : { memberSources: sources }),
+    ...(ownership === undefined ? {} : { ownership }),
+  };
+  return unsatisfiedKinds(ctx, policy).map((item) => ({
+    code: "PD073",
+    severity: "error" as const,
+    message: `role ${item.role} is for ${item.for.join(", ")}, but its membership sources hold ${item.sources.join(", ")}: no membership can hold it`,
+    fix: `set via on one of those sources to ${item.for.join(" or ")}, or change for on role ${item.role}`,
+  }));
 }

@@ -4,6 +4,7 @@ import type { RlsOwnership, RlsSqlContext } from "../sql/context.ts";
 import { type Scope, resolveScope, scopeChain } from "../../core/scopes.ts";
 import { findRole } from "../../core/vocabulary.ts";
 import { scopeTable } from "../sql/names.ts";
+import { memberVia } from "../sql/subject.ts";
 import { canAssignCustomSql } from "./assignments.ts";
 import {
   assignsCustomRoles,
@@ -97,6 +98,77 @@ export function ownershipRules(
     return undefined;
   }
   return { kinds, assigns, counted };
+}
+
+/** A role whose `for` no membership source can satisfy: every source of its scope holds a constant `via` outside `for`. */
+export type UnsatisfiedKind = {
+  readonly role: string;
+  readonly for: readonly string[];
+  /** Each source as `<table> (via <kind>)`, or `(no via)`. */
+  readonly sources: readonly string[];
+};
+
+/**
+ * The roles whose `for` lists kinds that no membership source of the role's
+ * scope can hold: such a role resolves to no one. A `via` read from a column
+ * can hold any kind, and a scope with no table or source is unknown, not
+ * unsatisfied.
+ */
+export function unsatisfiedKinds(
+  ctx: RlsSqlContext,
+  policy: Policy,
+): readonly UnsatisfiedKind[] {
+  const out: UnsatisfiedKind[] = [];
+  for (const [role, kinds] of Object.entries(ctx.ownership?.kinds ?? {})) {
+    const scope = roleScope(policy, ctx.scopes, role);
+    if (scope === undefined) {
+      continue;
+    }
+    const held: {
+      readonly label: string;
+      readonly via: string | null | undefined;
+    }[] = [];
+    const mapped = scopeTable(ctx, scope)?.table;
+    if (mapped !== undefined) {
+      const via = memberVia(mapped);
+      held.push({
+        label: mapped.table,
+        via: typeof via === "string" ? undefined : via.value,
+      });
+    } else {
+      for (const source of ctx.memberSources ?? ctx.sources ?? []) {
+        if (source.sql.scope !== undefined && source.sql.scope !== scope) {
+          continue;
+        }
+        const via = source.sql.manifest.via;
+        held.push({
+          label: source.sql.table,
+          via:
+            via === undefined
+              ? null
+              : "value" in via && typeof via.value === "string"
+                ? via.value
+                : undefined,
+        });
+      }
+    }
+    if (
+      held.length === 0 ||
+      held.some(
+        (entry) => entry.via === undefined || kinds.includes(entry.via ?? ""),
+      )
+    ) {
+      continue;
+    }
+    out.push({
+      role,
+      for: kinds,
+      sources: held.map(
+        (entry) => `${entry.label} (via ${entry.via ?? "none"})`,
+      ),
+    });
+  }
+  return out;
 }
 
 /**

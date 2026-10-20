@@ -18,7 +18,7 @@ import { roleNames } from "../sql/grants.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { apiKeysPlan } from "./api-keys.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
-import { ownershipRules } from "./ownership.ts";
+import { ownershipRules, unsatisfiedKinds } from "./ownership.ts";
 import { type RbacAuthorizeMode, resolveAuthorize } from "./rbac.ts";
 
 /** The scopes an `rls.migrate` `role` helper names, so `rls generate` writes their role-filtered member helper. */
@@ -264,5 +264,11 @@ export function buildContext(
           },
         }),
   };
+  const [unsatisfied] = unsatisfiedKinds(ctx, policy);
+  if (unsatisfied !== undefined) {
+    return {
+      refusal: `role ${unsatisfied.role} is for ${unsatisfied.for.join(", ")}, but its membership sources hold ${unsatisfied.sources.join(", ")}: no membership can hold it; set via on a source to one of those kinds`,
+    };
+  }
   return { ctx, graph, ownership, schema, authorize };
 }
