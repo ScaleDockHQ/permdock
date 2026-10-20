@@ -1345,7 +1345,7 @@ begin
   return null;
 end;
 $$;
-create or replace constraint trigger "permdock_holders_organization"
+create constraint trigger "permdock_holders_organization"
   after insert or update or delete on "public"."memberships"
   deferrable initially deferred
   for each row execute function "permdock".permdock_holders_organization();
