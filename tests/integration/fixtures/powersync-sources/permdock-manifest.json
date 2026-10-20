@@ -1,0 +1,278 @@
+{
+  "v": 1,
+  "scopes": [
+    {
+      "name": "tenant",
+      "key": "tenant_id",
+      "resources": ["job"]
+    }
+  ],
+  "vocabulary": {},
+  "roles": ["owner"],
+  "grants": [
+    {
+      "permission": "job.read",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "tenant"
+      },
+      "scope": "tenant"
+    },
+    {
+      "permission": "job.update",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "tenant"
+      },
+      "scope": "tenant"
+    }
+  ],
+  "custom": {
+    "tenant": {
+      "permissions": {
+        "job.read": {
+          "all": [
+            {
+              "permission": "job.read",
+              "effect": "allow",
+              "role": "\u0000custom",
+              "to": {
+                "kind": "role",
+                "role": "\u0000custom",
+                "scope": "tenant"
+              },
+              "scope": "tenant"
+            }
+          ],
+          "levels": {
+            "own": [
+              {
+                "permission": "job.read",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "tenant"
+                },
+                "where": {
+                  "op": "eq",
+                  "field": "owner_id",
+                  "value": {
+                    "ref": "principal.id"
+                  }
+                },
+                "scope": "tenant"
+              }
+            ],
+            "team": [
+              {
+                "permission": "job.read",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "tenant"
+                },
+                "where": {
+                  "op": "sqlFunction",
+                  "name": "permdock_in_team",
+                  "args": [
+                    {
+                      "field": "team_id"
+                    }
+                  ],
+                  "twin": {
+                    "op": "in",
+                    "field": "team_id",
+                    "value": {
+                      "ref": "principal.claims.team_ids"
+                    }
+                  }
+                },
+                "scope": "tenant"
+              }
+            ],
+            "all": [
+              {
+                "permission": "job.read",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "tenant"
+                },
+                "scope": "tenant"
+              }
+            ]
+          }
+        },
+        "job.update": {
+          "all": [
+            {
+              "permission": "job.update",
+              "effect": "allow",
+              "role": "\u0000custom",
+              "to": {
+                "kind": "role",
+                "role": "\u0000custom",
+                "scope": "tenant"
+              },
+              "scope": "tenant"
+            }
+          ],
+          "levels": {
+            "own": [
+              {
+                "permission": "job.update",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "tenant"
+                },
+                "where": {
+                  "op": "eq",
+                  "field": "owner_id",
+                  "value": {
+                    "ref": "principal.id"
+                  }
+                },
+                "scope": "tenant"
+              }
+            ],
+            "team": [
+              {
+                "permission": "job.update",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "tenant"
+                },
+                "where": {
+                  "op": "sqlFunction",
+                  "name": "permdock_in_team",
+                  "args": [
+                    {
+                      "field": "team_id"
+                    }
+                  ],
+                  "twin": {
+                    "op": "in",
+                    "field": "team_id",
+                    "value": {
+                      "ref": "principal.claims.team_ids"
+                    }
+                  }
+                },
+                "scope": "tenant"
+              }
+            ],
+            "all": [
+              {
+                "permission": "job.update",
+                "effect": "allow",
+                "role": "\u0000custom",
+                "to": {
+                  "kind": "role",
+                  "role": "\u0000custom",
+                  "scope": "tenant"
+                },
+                "scope": "tenant"
+              }
+            ]
+          }
+        }
+      },
+      "includes": {
+        "owner": [
+          {
+            "permission": "job.read",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "tenant"
+            },
+            "scope": "tenant"
+          },
+          {
+            "permission": "job.update",
+            "effect": "allow",
+            "role": "\u0000custom",
+            "to": {
+              "kind": "role",
+              "role": "\u0000custom",
+              "scope": "tenant"
+            },
+            "scope": "tenant"
+          }
+        ]
+      }
+    }
+  },
+  "rows": {
+    "memberships": [
+      {
+        "table": "tenant_users",
+        "user": {
+          "column": "user_id"
+        },
+        "scope": {
+          "value": "tenant"
+        },
+        "id": "tenant_id",
+        "roles": [
+          {
+            "column": "tier_role"
+          }
+        ]
+      },
+      {
+        "table": "user_roles",
+        "user": {
+          "column": "user_id"
+        },
+        "scope": {
+          "value": "tenant"
+        },
+        "id": "tenant_id",
+        "roles": [
+          {
+            "column": "role_id",
+            "through": {
+              "table": "roles",
+              "id": "id",
+              "column": "key"
+            }
+          }
+        ]
+      }
+    ],
+    "roles": {
+      "table": "permdock_user_roles",
+      "user": "user_id",
+      "roles": [
+        {
+          "column": "role"
+        }
+      ]
+    },
+    "customRoles": {
+      "permissions": "custom_role_permissions",
+      "includes": "custom_role_includes"
+    }
+  }
+}

@@ -130,7 +130,7 @@ describe("permdock powersync", () => {
     });
     expect(exact.code).toBe(0);
     expect(exact.output).toBe(
-      "sync-config.yaml matches the policy; no stream syncs a row the fixtures deny\nnote.read for u1: granted, not synced (the app reads it from the server)",
+      "sync-config.yaml matches the policy; no stream syncs a row the fixtures deny\nnote.read for u1: not checked against stream note: the fixture row has no id",
     );
     const over = await runPowerSync({
       ...base,
@@ -148,7 +148,10 @@ describe("permdock powersync", () => {
       db: "postgres://test",
       connect: fakeDb(() => false),
     });
-    expect(under.output).toContain("note.read for u1: granted, not synced");
+    expect(under.code).toBe(1);
+    expect(under.output).toContain(
+      "note.read for u1: granted, but stream note does not sync the row and generate gave no warning for it",
+    );
     await expect(
       runPowerSync({
         ...base,

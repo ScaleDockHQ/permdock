@@ -12,7 +12,7 @@ import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { andConditions } from "../sql/conditions.ts";
 import { type RlsGrant, assignableRoles } from "../sql/grants.ts";
 import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
-import { bare } from "./names.ts";
+import { CUSTOM_ROLE, bare, fromTable, quotedTable } from "./names.ts";
 import {
   isFixed,
   ownRows,
@@ -33,6 +33,7 @@ type LevelCtx = {
 /** One ceiling grant at one level, with who reaches it: a member holding a custom role that allows the permission at that level. */
 export type CustomRoleItem = {
   readonly label: string;
+  readonly level: string | null;
   readonly item: RlsGrant;
   readonly access: readonly (readonly string[])[];
 };
@@ -55,9 +56,9 @@ function roleKeyOf(
   if (pair === undefined) {
     return undefined;
   }
-  const keys = bare(role.through);
+  const keys = bare(role.through, dialect);
   return {
-    join: ` INNER JOIN ${keys} ON ${dialect.column(keys, pair[1])} = ${dialect.column(table, pair[0])}`,
+    join: ` INNER JOIN ${fromTable(role.through, dialect)} ON ${dialect.column(keys, pair[1])} = ${dialect.column(table, pair[0])}`,
     roleKey: dialect.column(keys, role.column),
   };
 }
@@ -77,7 +78,7 @@ function customRoleIn(
 ): readonly (readonly string[])[] {
   const { dialect } = ctx;
   const rls = ctx.config.rls;
-  const table = bare(
+  const table = quotedTable(
     `${rls?.schema ?? PERMDOCK_SCHEMA}.${CUSTOM_ROLES.permissions}`,
   );
   const cr = (column: string): string => dialect.column(ALIAS, column);
@@ -122,7 +123,8 @@ function customRoleIn(
  * mode when the root scope reads membership sources: each allow of `key` by
  * an assignable role at the root scope (the ceiling), once for an allow with
  * no level and once per level the resource declares, narrowed by that
- * level's condition.
+ * level's condition. `skipped` says why a root scope with custom roles
+ * reaching `key` has no custom-role stream.
  */
 export function customRoleItems(
   ctx: LevelCtx,
@@ -130,7 +132,10 @@ export function customRoleItems(
   resource: string,
   key: string,
   table: string,
-): readonly CustomRoleItem[] {
+): {
+  readonly items: readonly CustomRoleItem[];
+  readonly skipped?: string;
+} {
   const rls = ctx.config.rls;
   const root = ctx.scopes[0]?.name;
   const field = ctx.policy.scopes.find((scope) => scope.name === root)?.key;
@@ -139,10 +144,9 @@ export function customRoleItems(
     !customRolesOn(rls) ||
     root === undefined ||
     field === undefined ||
-    !SQL_IDENT.test(field) ||
-    scopeMembershipTable(rls.memberships, ctx.scopes, root) !== undefined
+    !SQL_IDENT.test(field)
   ) {
-    return [];
+    return { items: [] };
   }
   const assignable = new Set(assignableRoles(ctx.policy));
   const ceiling = grants.filter(
@@ -154,25 +158,33 @@ export function customRoleItems(
       item.grant.permission.key === key,
   );
   if (ceiling.length === 0) {
-    return [];
+    return { items: [] };
+  }
+  if (scopeMembershipTable(rls.memberships, ctx.scopes, root) !== undefined) {
+    return {
+      items: [],
+      skipped: `the ${root} scope reads an rls.memberships table; custom-role streams read rls.membershipSources`,
+    };
   }
   const left = ctx.dialect.column(table, field);
   const levels: readonly (readonly [string | null, RlsGrant["where"]])[] = [
     [null, undefined],
     ...policyLevels(ctx.policy, resource),
   ];
-  return levels.flatMap(([level, condition]) => {
+  const items = levels.flatMap(([level, condition]) => {
     const access = customRoleIn(ctx, root, left, key, level);
-    const label = `custom role/${key}${level === null ? "" : `@${level}`}`;
+    const label = `${CUSTOM_ROLE}/${key}${level === null ? "" : `@${level}`}`;
     return access.length === 0
       ? []
       : ceiling.map((item) => {
           const where = andConditions(item.where, condition);
           return {
             label,
+            level,
             access,
             item: where === undefined ? item : { ...item, where },
           };
         });
   });
+  return { items };
 }

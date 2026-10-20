@@ -209,22 +209,22 @@ describe("powersync streams over membership sources", () => {
       },
       {
         name: "permdock_permdock_user_roles",
-        table: "permdock.user_roles",
+        table: "permdock_user_roles",
         user: "user_id",
         queries: expect.any(Array),
       },
       {
         name: "permdock_custom_role_permissions",
-        table: "permdock.custom_role_permissions",
+        table: "custom_role_permissions",
         queries: [
-          "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IS NULL",
-          "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IN (SELECT tenant_users.tenant_id FROM tenant_users WHERE tenant_users.user_id = auth.user_id())",
-          "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IN (SELECT user_roles.tenant_id FROM user_roles WHERE user_roles.user_id = auth.user_id())",
+          'SELECT * FROM "permdock"."custom_role_permissions" AS custom_role_permissions WHERE custom_role_permissions.tenant_id IS NULL',
+          'SELECT * FROM "permdock"."custom_role_permissions" AS custom_role_permissions WHERE custom_role_permissions.tenant_id IN (SELECT tenant_users.tenant_id FROM tenant_users WHERE tenant_users.user_id = auth.user_id())',
+          'SELECT * FROM "permdock"."custom_role_permissions" AS custom_role_permissions WHERE custom_role_permissions.tenant_id IN (SELECT user_roles.tenant_id FROM user_roles WHERE user_roles.user_id = auth.user_id())',
         ],
       },
       {
         name: "permdock_custom_role_includes",
-        table: "permdock.custom_role_includes",
+        table: "custom_role_includes",
         queries: expect.any(Array),
       },
     ]);

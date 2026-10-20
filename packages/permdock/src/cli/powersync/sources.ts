@@ -6,7 +6,7 @@ import type {
 import type { RoleThrough } from "../../supabase/types.ts";
 import type { StreamDialect } from "./streams.ts";
 
-import { bare } from "./names.ts";
+import { bare, fromTable } from "./names.ts";
 
 export type SourceCtx = {
   readonly dialect: StreamDialect;
@@ -85,7 +85,7 @@ export function ownRows(
   dialect: StreamDialect,
   scope?: string,
 ): OwnRows {
-  const table = bare(stream.table);
+  const table = bare(stream.table, dialect);
   const scoped =
     scope !== undefined && "column" in stream.scope
       ? [
@@ -95,18 +95,18 @@ export function ownRows(
   if (typeof stream.user === "string") {
     return {
       table,
-      from: table,
+      from: fromTable(stream.table, dialect),
       where: [
         `${dialect.column(table, stream.user)} = ${dialect.user}`,
         ...scoped,
       ],
     };
   }
-  const users = bare(stream.user.through);
+  const users = bare(stream.user.through, dialect);
   const [ref, id] = pairOf(stream.user);
   return {
     table,
-    from: `${table} INNER JOIN ${users} ON ${dialect.column(users, id)} = ${dialect.column(table, ref)}`,
+    from: `${fromTable(stream.table, dialect)} INNER JOIN ${fromTable(stream.user.through, dialect)} ON ${dialect.column(users, id)} = ${dialect.column(table, ref)}`,
     where: [
       `${dialect.column(users, stream.user.column)} = ${dialect.user}`,
       ...scoped,
@@ -137,12 +137,12 @@ function roleFilter(
       );
     return values.length === 0 ? undefined : { join: "", where: anyOf(values) };
   }
-  const keys = bare(source.through);
+  const keys = bare(source.through, dialect);
   const [ref, id] = pairOf(source);
   const { guard } = stream;
   const guarded =
     guard !== undefined &&
-    bare(guard.table) === keys &&
+    bare(guard.table, dialect) === keys &&
     guard.declared.includes(role)
       ? [
           anyOf([
@@ -156,7 +156,7 @@ function roleFilter(
         ]
       : [];
   return {
-    join: ` INNER JOIN ${keys} ON ${dialect.column(keys, id)} = ${dialect.column(table, ref)}`,
+    join: ` INNER JOIN ${fromTable(source.through, dialect)} ON ${dialect.column(keys, id)} = ${dialect.column(table, ref)}`,
     where: [
       `${dialect.column(keys, source.column)} = ${dialect.literal(role)}`,
       ...guarded,
@@ -244,12 +244,12 @@ export function roleTableRows(
     if (typeof source === "string" || "map" in source) {
       return [];
     }
-    const keys = bare(source.through);
+    const keys = bare(source.through, dialect);
     const [ref, id] = pairOf(source);
     return [
       {
         table: keys,
-        query: `SELECT * FROM ${keys} WHERE ${dialect.column(keys, id)} IN (SELECT ${dialect.column(own.table, ref)} FROM ${own.from} WHERE ${own.where.join(" AND ")})`,
+        query: `SELECT * FROM ${fromTable(source.through, dialect)} WHERE ${dialect.column(keys, id)} IN (SELECT ${dialect.column(own.table, ref)} FROM ${own.from} WHERE ${own.where.join(" AND ")})`,
       },
     ];
   });

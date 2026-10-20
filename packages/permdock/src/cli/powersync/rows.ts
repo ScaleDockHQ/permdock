@@ -15,50 +15,54 @@ import { scopeList } from "../../core/scopes.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
+import { bare } from "./names.ts";
 import { isFixed, roleSources, scopeSourcesOf } from "./sources.ts";
 
-/** A synced table's name on the device: PowerSync drops the schema. */
-function deviceTable(table: string): string {
-  return table.split(".").at(-1) ?? table;
-}
+type Device = (table: string) => string;
 
-function throughColumn(through: RoleThrough): LocalRowColumn {
+function throughColumn(through: RoleThrough, device: Device): LocalRowColumn {
   const [pair] = Object.entries(through.on);
   return {
     column: pair?.[0] ?? "",
     through: {
-      table: deviceTable(through.through),
+      table: device(through.through),
       id: pair?.[1] ?? "",
       column: through.column,
     },
   };
 }
 
-function roleColumn(source: RoleSource): LocalRowColumn {
+function roleColumn(source: RoleSource, device: Device): LocalRowColumn {
   if (typeof source === "string") {
     return { column: source };
   }
   return "map" in source
     ? { column: source.column, map: source.map }
-    : throughColumn(source);
+    : throughColumn(source, device);
 }
 
-function roleColumns(roles: RoleSpec): readonly LocalRowColumn[] {
-  return roleSources(roles).map(roleColumn);
+function roleColumns(
+  roles: RoleSpec,
+  device: Device,
+): readonly LocalRowColumn[] {
+  return roleSources(roles).map((source) => roleColumn(source, device));
 }
 
-function sourceRows(stream: MembershipStream): LocalMembershipRows {
+function sourceRows(
+  stream: MembershipStream,
+  device: Device,
+): LocalMembershipRows {
   return compact<LocalMembershipRows>({
-    table: deviceTable(stream.table),
+    table: device(stream.table),
     user:
       typeof stream.user === "string"
         ? { column: stream.user }
-        : throughColumn(stream.user),
+        : throughColumn(stream.user, device),
     scope: stream.scope,
     id: stream.id,
     roles: isFixed(stream.roles)
       ? { value: [...stream.roles.value] }
-      : roleColumns(stream.roles),
+      : roleColumns(stream.roles, device),
     via: stream.via,
     expiresAt: stream.expiresAt,
     disabledAt: stream.disabledAt,
@@ -69,13 +73,14 @@ function tableRows(
   table: RlsMembershipTable,
   scope: string,
   id: string,
+  device: Device,
 ): LocalMembershipRows {
   return compact<LocalMembershipRows>({
-    table: deviceTable(table.table),
+    table: device(table.table),
     user: { column: table.user },
     scope: { value: scope },
     id,
-    roles: roleColumns(table.role),
+    roles: roleColumns(table.role, device),
     via:
       table.via === undefined
         ? undefined
@@ -87,46 +92,30 @@ function tableRows(
   });
 }
 
-/** One warning per device table name that more than one synced table maps to. */
-function collisions(tables: readonly string[]): readonly string[] {
-  const byName = new Map<string, Set<string>>();
-  for (const table of tables) {
-    const qualified = table.includes(".") ? table : `public.${table}`;
-    const name = deviceTable(table);
-    byName.set(name, (byName.get(name) ?? new Set()).add(qualified));
-  }
-  return [...byName].flatMap(([name, qualified]) =>
-    qualified.size > 1
-      ? [
-          `${[...qualified].toSorted().join(" and ")} share the device table ${name}: rename one so the device reads each apart`,
-        ]
-      : [],
-  );
-}
-
 /**
  * The manifest's `rows`: the tables the subject streams sync, as a device
  * reads them. A scope's `rls.memberships` table, else its membership
  * sources; the global roles table; and the custom-role tables in `database`
- * mode. `warnings` names synced tables whose device names collide.
+ * mode. `devices` holds the plan's renamed tables.
  */
 export function localRows(
   policy: Policy,
   config: PermDockConfig,
-): { readonly rows: LocalSnapshotRows; readonly warnings: readonly string[] } {
+  devices: ReadonlyMap<string, string>,
+): LocalSnapshotRows {
+  const names = { names: { renamed: devices, seen: new Set<string>() } };
+  const device: Device = (table) => bare(table, names);
   const rls = config.rls;
   const scopes = scopeList(policy.scopes);
   const sources = membershipSourcesOf(config);
   const memberships: LocalMembershipRows[] = [];
-  const synced: string[] = [];
   const seen = new Set<MembershipStream>();
   for (const scope of scopes) {
     const table = scopeMembershipTable(rls?.memberships, scopes, scope.name);
     if (table !== undefined) {
       const id = scopeColumn(table, scopes, scope.name);
       if (id !== undefined) {
-        memberships.push(tableRows(table, scope.name, id));
-        synced.push(table.table);
+        memberships.push(tableRows(table, scope.name, id, device));
       }
       continue;
     }
@@ -134,8 +123,7 @@ export function localRows(
       const { stream } = source.sql;
       if (stream !== undefined && !seen.has(stream)) {
         seen.add(stream);
-        memberships.push(sourceRows(stream));
-        synced.push(stream.table);
+        memberships.push(sourceRows(stream, device));
       }
     }
   }
@@ -143,26 +131,22 @@ export function localRows(
   const database = rls?.authorize === "database";
   const global =
     rls?.roles ?? (database ? { table: `${schema}.user_roles` } : undefined);
-  if (global !== undefined) {
-    synced.push(global.table);
-  }
-  const rows = compact<LocalSnapshotRows>({
+  return compact<LocalSnapshotRows>({
     memberships,
     roles:
       global === undefined
         ? undefined
         : {
-            table: deviceTable(global.table),
+            table: device(global.table),
             user: global.user ?? "user_id",
-            roles: [roleColumn(global.role ?? "role")],
+            roles: [roleColumn(global.role ?? "role", device)],
           },
     customRoles:
       database && customRolesOn(rls)
         ? {
-            permissions: CUSTOM_ROLES.permissions,
-            includes: CUSTOM_ROLES.includes,
+            permissions: device(`${schema}.${CUSTOM_ROLES.permissions}`),
+            includes: device(`${schema}.${CUSTOM_ROLES.includes}`),
           }
         : undefined,
   });
-  return { rows, warnings: collisions(synced) };
 }

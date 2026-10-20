@@ -31,6 +31,7 @@ import {
   powersyncPlan,
   powersyncYaml,
 } from "./streams.ts";
+import { warnedFor } from "./verify-gaps.ts";
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
 permdock powersync verify [--db-url-stdin] [--fixtures rls.fixtures.json]`;
@@ -90,15 +91,15 @@ export function powersyncFiles(
     { path: powersyncOut(config, out), text: powersyncYaml(plan) },
   ];
   const manifest = config.powersync?.manifest;
-  const warnings = [...plan.warnings];
   if (manifest !== undefined) {
-    const local = localRows(policy, config);
-    warnings.push(...local.warnings);
     files.push({
       path: manifest,
       json: true,
       text: `${JSON.stringify(
-        { ...localSnapshotManifest(policy), rows: local.rows },
+        {
+          ...localSnapshotManifest(policy),
+          rows: localRows(policy, config, plan.devices),
+        },
         null,
         2,
       )}\n`,
@@ -106,7 +107,7 @@ export function powersyncFiles(
   }
   return {
     files,
-    warnings,
+    warnings: plan.warnings,
     ...(plan.publication === undefined
       ? {}
       : { publication: plan.publication }),
@@ -166,15 +167,15 @@ async function leaks(
   return false;
 }
 
-/** Whether the stream holds the fixture's row for its subject. */
+/** Whether the stream holds the fixture's row for its subject; `undefined` for a row with no id. */
 async function synced(
   query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
   stream: PowerSyncStream,
   fixture: RlsFixture,
-): Promise<boolean> {
+): Promise<boolean | undefined> {
   const value = rowValue(fixture.row, stream.id);
   if (value === undefined) {
-    return false;
+    return undefined;
   }
   for (const text of stream.queries) {
     // Every parameter is typed in the outer query, so a stream query that uses none still prepares.
@@ -255,13 +256,30 @@ async function verifyStreams(input: {
         fixtureRow(fixture, permission.kind),
       );
       const holds = await synced(query, stream, fixture);
-      if (holds && !granted) {
+      if (holds === undefined) {
+        notes.push(
+          `${fixture.action} for ${fixture.subject.id}: not checked against stream ${stream.name}: the fixture row has no ${stream.id}`,
+        );
+      } else if (holds && !granted) {
         mismatches.push(
           `${fixture.action} for ${fixture.subject.id}: stream ${stream.name} syncs a row the policy denies`,
         );
-      } else if (granted && !holds) {
+      } else if (
+        granted &&
+        !holds &&
+        warnedFor(
+          plan.unsynced,
+          permission.key,
+          fixture.subject,
+          input.customRoles,
+        )
+      ) {
         notes.push(
           `${fixture.action} for ${fixture.subject.id}: granted, not synced (the app reads it from the server)`,
+        );
+      } else if (granted && !holds) {
+        mismatches.push(
+          `${fixture.action} for ${fixture.subject.id}: granted, but stream ${stream.name} does not sync the row and generate gave no warning for it`,
         );
       }
     }

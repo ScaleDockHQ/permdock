@@ -5,6 +5,7 @@ import type { CustomRole, Principal } from "../../src/index.ts";
 import type { PowerSyncWatchable } from "../../src/react-native/powersync.ts";
 
 import { localRows } from "../../src/cli/powersync/rows.ts";
+import { powersyncPlan } from "../../src/cli/powersync/streams.ts";
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { parseLocalSnapshotManifest } from "../../src/core/parse-local-manifest.ts";
@@ -161,11 +162,10 @@ const jobs = [
 ];
 
 describe("powerSyncSource from the manifest rows", () => {
-  const { rows, warnings } = localRows(policy, config);
+  const rows = localRows(policy, config, powersyncPlan(policy, config).devices);
   const manifest = { ...localSnapshotManifest(policy), rows };
 
   it("names the synced tables the device reads", () => {
-    expect(warnings).toEqual([]);
     expect(rows.memberships.map((source) => source.table)).toEqual([
       "tenant_users",
       "user_roles",
@@ -296,7 +296,7 @@ describe("powerSyncSource from the manifest rows", () => {
     ).toThrow(TypeError);
   });
 
-  it("warns when two synced tables share a device name", () => {
+  it("renames the PermDock user_roles table that shares a name with public.user_roles", () => {
     const shared: PermDockConfig = {
       ...config,
       rls: {
@@ -305,8 +305,18 @@ describe("powerSyncSource from the manifest rows", () => {
         membershipSources: config.rls?.membershipSources ?? [],
       },
     };
-    expect(localRows(policy, shared).warnings).toEqual([
-      "permdock.user_roles and public.user_roles share the device table user_roles: rename one so the device reads each apart",
+    const plan = powersyncPlan(policy, shared);
+    expect([...plan.devices]).toEqual([
+      ["permdock.user_roles", "permdock_user_roles"],
     ]);
+    const local = localRows(policy, shared, plan.devices);
+    expect(local.roles?.table).toBe("permdock_user_roles");
+    expect(local.memberships.map((source) => source.table)).toEqual([
+      "tenant_users",
+      "user_roles",
+    ]);
+    expect(plan.subject.map((stream) => stream.table)).toContain(
+      "permdock_user_roles",
+    );
   });
 });

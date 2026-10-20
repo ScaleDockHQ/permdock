@@ -1,0 +1,108 @@
+{
+  "customRoles": [
+    {
+      "tenant": "acme",
+      "name": "tech",
+      "grants": [{ "permission": "job.read", "level": "own" }]
+    },
+    {
+      "tenant": "acme",
+      "name": "lead",
+      "grants": [{ "permission": "job.read", "level": "team" }]
+    }
+  ],
+  "fixtures": [
+    {
+      "subject": {
+        "id": "u-owner",
+        "tenant": "acme",
+        "memberships": [{ "scope": "tenant", "id": "acme", "roles": ["owner"] }]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-red",
+        "tenant_id": "acme",
+        "owner_id": "u-other",
+        "team_id": "red"
+      },
+      "expected": "granted"
+    },
+    {
+      "subject": {
+        "id": "u-owner",
+        "tenant": "globex",
+        "memberships": [{ "scope": "tenant", "id": "acme", "roles": ["owner"] }]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-globex",
+        "tenant_id": "globex",
+        "owner_id": "u-tech",
+        "team_id": "blue"
+      },
+      "expected": "denied"
+    },
+    {
+      "subject": {
+        "id": "u-tech",
+        "tenant": "acme",
+        "memberships": [{ "scope": "tenant", "id": "acme", "roles": ["tech"] }]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-tech",
+        "tenant_id": "acme",
+        "owner_id": "u-tech",
+        "team_id": "blue"
+      },
+      "expected": "granted"
+    },
+    {
+      "subject": {
+        "id": "u-tech",
+        "tenant": "acme",
+        "memberships": [{ "scope": "tenant", "id": "acme", "roles": ["tech"] }]
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-blue",
+        "tenant_id": "acme",
+        "owner_id": "u-other",
+        "team_id": "blue"
+      },
+      "expected": "denied"
+    },
+    {
+      "subject": {
+        "id": "u-lead",
+        "tenant": "acme",
+        "memberships": [{ "scope": "tenant", "id": "acme", "roles": ["lead"] }],
+        "claims": { "team_ids": ["blue"] }
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-blue",
+        "tenant_id": "acme",
+        "owner_id": "u-other",
+        "team_id": "blue"
+      },
+      "expected": "granted"
+    },
+    {
+      "subject": {
+        "id": "u-lead",
+        "tenant": "acme",
+        "memberships": [{ "scope": "tenant", "id": "acme", "roles": ["lead"] }],
+        "claims": { "team_ids": ["blue"] }
+      },
+      "action": "job.read",
+      "row": {
+        "id": "j-red",
+        "tenant_id": "acme",
+        "owner_id": "u-other",
+        "team_id": "red"
+      },
+      "expected": "denied"
+    }
+  ]
+}

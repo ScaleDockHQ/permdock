@@ -35,10 +35,10 @@ streams:
   permdock_custom_role_permissions:
     auto_subscribe: true
     queries:
-      - "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IS NULL"
-      - "SELECT * FROM permdock.custom_role_permissions WHERE permdock.custom_role_permissions.tenant_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id())"
+      - 'SELECT * FROM "permdock"."custom_role_permissions" AS custom_role_permissions WHERE custom_role_permissions.tenant_id IS NULL'
+      - 'SELECT * FROM "permdock"."custom_role_permissions" AS custom_role_permissions WHERE custom_role_permissions.tenant_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id())'
   permdock_custom_role_includes:
     auto_subscribe: true
     queries:
-      - "SELECT * FROM permdock.custom_role_includes WHERE permdock.custom_role_includes.tenant_id IS NULL"
-      - "SELECT * FROM permdock.custom_role_includes WHERE permdock.custom_role_includes.tenant_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id())"
+      - 'SELECT * FROM "permdock"."custom_role_includes" AS custom_role_includes WHERE custom_role_includes.tenant_id IS NULL'
+      - 'SELECT * FROM "permdock"."custom_role_includes" AS custom_role_includes WHERE custom_role_includes.tenant_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id())'

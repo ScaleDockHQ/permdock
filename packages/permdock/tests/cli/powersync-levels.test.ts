@@ -78,7 +78,7 @@ const config: PermDockConfig = {
 };
 
 function custom(level: string): string {
-  return `jobs.tenant_id IN (SELECT user_roles.tenant_id FROM user_roles INNER JOIN roles ON roles.id = user_roles.role_id INNER JOIN permdock.custom_role_permissions AS cr ON cr.role = roles.key WHERE user_roles.user_id = auth.user_id() AND cr.tenant_id = user_roles.tenant_id AND cr.scope = 'tenant' AND cr.permission = 'job.read' AND cr.effect = 'allow' AND ${level})`;
+  return `jobs.tenant_id IN (SELECT user_roles.tenant_id FROM user_roles INNER JOIN roles ON roles.id = user_roles.role_id INNER JOIN "permdock"."custom_role_permissions" AS cr ON cr.role = roles.key WHERE user_roles.user_id = auth.user_id() AND cr.tenant_id = user_roles.tenant_id AND cr.scope = 'tenant' AND cr.permission = 'job.read' AND cr.effect = 'allow' AND ${level})`;
 }
 
 describe("powersync level-aware custom-role streams", () => {
@@ -90,7 +90,7 @@ describe("powersync level-aware custom-role streams", () => {
       `SELECT * FROM jobs WHERE ${custom("cr.level IS NULL")}`,
     );
     expect(queries).toContain(
-      "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT tenant_users.tenant_id FROM tenant_users INNER JOIN permdock.custom_role_permissions AS cr ON cr.role = tenant_users.tier_role WHERE tenant_users.user_id = auth.user_id() AND cr.tenant_id = tenant_users.tenant_id AND cr.scope = 'tenant' AND cr.permission = 'job.read' AND cr.effect = 'allow' AND cr.level IS NULL)",
+      "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT tenant_users.tenant_id FROM tenant_users INNER JOIN \"permdock\".\"custom_role_permissions\" AS cr ON cr.role = tenant_users.tier_role WHERE tenant_users.user_id = auth.user_id() AND cr.tenant_id = tenant_users.tenant_id AND cr.scope = 'tenant' AND cr.permission = 'job.read' AND cr.effect = 'allow' AND cr.level IS NULL)",
     );
   });
 
