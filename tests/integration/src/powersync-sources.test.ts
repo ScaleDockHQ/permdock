@@ -78,7 +78,33 @@ describe("powersync over rls.membershipSources", () => {
     );
     expect(result.stdout).toContain("no stream syncs a row the fixtures deny");
     expect(result.stdout).not.toContain("granted, not synced");
+    expect(result.stdout).toContain(
+      "this database has no powersync publication",
+    );
     expect(result.code).toBe(0);
+  });
+
+  it("fails with PD058 while the publication leaves out a synced table", async () => {
+    const verify = () =>
+      runPipingDbUrl(["powersync", "verify", "--db-url", db!.uri], {
+        cwd: FIXTURE,
+      });
+    await db!.admin.query("create publication powersync for table jobs");
+    try {
+      const partial = await verify();
+      expect(partial.code).toBe(1);
+      expect(partial.stdout).toContain(
+        "PD058: permdock.custom_role_permissions is not in the powersync publication",
+      );
+      await db!.admin.query(
+        'alter publication powersync add table "permdock".custom_role_includes, "permdock".custom_role_permissions, "permdock".user_roles',
+      );
+      const full = await verify();
+      expect(full.stdout).not.toContain("PD058");
+      expect(full.code).toBe(0);
+    } finally {
+      await db!.admin.query("drop publication powersync");
+    }
   });
 
   it("fails when a granted row does not sync and generate gave no warning", async () => {

@@ -26,6 +26,7 @@ import { quoteIdent } from "../sql/quote.ts";
 import { localRows } from "./rows.ts";
 import {
   POSTGRES,
+  type PowerSyncPlan,
   type PowerSyncStream,
   type SubjectStream,
   powersyncPlan,
@@ -283,10 +284,51 @@ async function verifyStreams(input: {
         );
       }
     }
+    await checkPublication(query, plan, mismatches, notes);
   } finally {
     await client.end();
   }
   return { mismatches, notes };
+}
+
+/** PD058 when the `powersync` publication leaves out a synced table outside `public`; a note when the database has no such publication. */
+async function checkPublication(
+  query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
+  plan: PowerSyncPlan,
+  mismatches: string[],
+  notes: string[],
+): Promise<void> {
+  if (plan.outside.length === 0) {
+    return;
+  }
+  const publication = await query(
+    "select 1 from pg_catalog.pg_publication where pubname = 'powersync'",
+    [],
+  );
+  if (publication.length === 0) {
+    notes.push(
+      `this database has no powersync publication; PowerSync needs the synced tables in it: ${plan.publication ?? ""}`,
+    );
+    return;
+  }
+  const published = new Set(
+    (
+      await query(
+        "select schemaname || '.' || tablename as name from pg_catalog.pg_publication_tables where pubname = 'powersync'",
+        [],
+      )
+    ).flatMap((row) => {
+      const name = rowValue(row, "name");
+      return name === undefined ? [] : [name];
+    }),
+  );
+  for (const table of plan.outside) {
+    if (!published.has(table)) {
+      mismatches.push(
+        `PD058: ${table} is not in the powersync publication, so PowerSync syncs none of its rows: ${plan.publication ?? ""}`,
+      );
+    }
+  }
 }
 
 export async function runPowerSync(input: {

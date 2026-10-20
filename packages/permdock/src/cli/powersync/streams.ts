@@ -113,6 +113,8 @@ export type PowerSyncPlan = {
   readonly devices: ReadonlyMap<string, string>;
   /** The grant behind each `does not sync` and `under-syncs` warning; `powersync verify` excuses a granted, unsynced fixture only through one. */
   readonly unsynced: readonly PowerSyncGap[];
+  /** The synced tables outside `public`, as `schema.table`. */
+  readonly outside: readonly string[];
   /** `alter publication powersync add table …;` for the synced tables outside `public`, which a `for all tables in schema public` publication leaves out. */
   readonly publication?: string;
 };
@@ -888,12 +890,20 @@ function planWith(
     warnings,
     unsynced,
     devices: dialect.names?.renamed ?? new Map(),
+    outside,
     ...(outside.length === 0
       ? {}
       : {
           publication: `alter publication powersync add table ${outside.join(", ")};`,
         }),
   };
+}
+
+/** A YAML scalar quoted as oxfmt and Prettier write it: single quotes around a `"`, unless a backslash needs a double-quoted escape. */
+function yamlString(text: string): string {
+  return text.includes('"') && !text.includes("\\")
+    ? `'${text.replaceAll("'", "''")}'`
+    : JSON.stringify(text);
 }
 
 /** `sync-config.yaml`: edition 3 Sync Streams, one auto-subscribed stream per synced resource. */
@@ -919,7 +929,7 @@ export function powersyncYaml(plan: PowerSyncPlan): string {
       `  ${stream.name}:`,
       "    auto_subscribe: true",
       "    queries:",
-      ...stream.queries.map((query) => `      - ${JSON.stringify(query)}`),
+      ...stream.queries.map((query) => `      - ${yamlString(query)}`),
     );
   }
   for (const item of plan.omitted) {
