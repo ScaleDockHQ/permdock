@@ -72,8 +72,7 @@ jobs:
         if: env.CATALOG != 'true'
         run: |
           pnpm --filter permdock build
-          pnpm exec better-supabase sql sync
-          pnpm exec better-supabase sql upgrade
+          pnpm run sql:regenerate
 
       # Native runtime; Postgres comes up while permdock builds.
       - name: Start the local stack
