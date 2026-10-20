@@ -223,6 +223,51 @@ describe("permdock_replace_custom_role_grants with levels, renamed keys and mana
     ).toBe("22023 unknown-scope");
   });
 
+  it("saves a shared custom role only for a global manageRoles holder, and refuses its name to a tenant", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    await db.admin.query(
+      `insert into permdock.user_roles (user_id, role) values ('${OPERATOR}', 'operator') on conflict do nothing`,
+    );
+    const shared = { tenant: null, scope: "tenant" } as const;
+    expect(await save(ADMIN, "dispatch", ["job.read"], shared)).toBe(
+      "42501 not-member",
+    );
+    expect(await save(STEWARD, "dispatch", ["job.read"], shared)).toBe(
+      "42501 not-member",
+    );
+    expect(await save(OPERATOR, "dispatch", ["job.update@all"], shared)).toBe(
+      "ok",
+    );
+    expect(
+      await call(
+        OPERATOR,
+        "select permdock.permdock_replace_custom_role_grants(null, 'tenant', 'j1', 'dispatch', array['job.read'], '{}', '{}')",
+        [],
+      ),
+    ).toBe("22023 unknown-scope");
+    await db.admin.query(
+      "insert into permdock.custom_role_permissions (tenant_id, scope, role, permission) values (null, 'tenant', 'dispatch', 'job.read')",
+    );
+    try {
+      expect(await save(ADMIN, "dispatch", ["job.read"])).toBe(
+        "22023 name-taken",
+      );
+      expect(
+        await call(
+          ADMIN,
+          "select permdock.permdock_rename_custom_role_grants('acme', 'tenant', null, 'reader', 'dispatch')",
+          [],
+        ),
+      ).toBe("22023 name-taken");
+    } finally {
+      await db.admin.query(
+        "delete from permdock.custom_role_permissions where role = 'dispatch'",
+      );
+    }
+  });
+
   it("keeps the trusted functions to the owner and checks the definition there", async () => {
     const trusted =
       "select permdock.permdock_trusted_replace_custom_role_grants($1, $2, null, $3, $4, '{}', '{}')";

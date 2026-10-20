@@ -28,6 +28,9 @@ const GLOBEX = "00000000-0000-4000-8000-0000000000e5";
 const SHADOW = "00000000-0000-4000-8000-0000000000f6";
 const OTHER = "00000000-0000-4000-8000-000000000099";
 const ADMIN = "00000000-0000-4000-8000-0000000000a7";
+const SHARED_ACME = "00000000-0000-4000-8000-0000000000a8";
+const SHARED_GLOBEX = "00000000-0000-4000-8000-0000000000a9";
+const BOARD_VIEWER = "00000000-0000-4000-8000-0000000000aa";
 
 const CUSTOM_ROLES: readonly CustomRole[] = [
   // Adds one permission and denies one.
@@ -55,6 +58,15 @@ const CUSTOM_ROLES: readonly CustomRole[] = [
   },
   { tenant: "globex", name: "writer", grants: [{ permission: "task.read" }] },
   { tenant: "acme", name: "viewer", grants: [{ permission: "task.delete" }] },
+  // Shared by every tenant; shadows acme's own "reader".
+  { shared: true, name: "reader", grants: [{ permission: "task.read" }] },
+  { tenant: "acme", name: "reader", grants: [{ permission: "task.delete" }] },
+  {
+    shared: true,
+    scope: "team",
+    name: "board-viewer",
+    grants: [{ permission: "board.read" }],
+  },
 ];
 
 type Membership = {
@@ -99,6 +111,21 @@ const SUBJECTS: Readonly<Record<string, Subject>> = {
     id: SHADOW,
     tenant: "acme",
     memberships: [{ tenant: "acme", roles: ["viewer"] }],
+  },
+  sharedAcme: {
+    id: SHARED_ACME,
+    tenant: "acme",
+    memberships: [{ tenant: "acme", roles: ["reader"] }],
+  },
+  sharedGlobex: {
+    id: SHARED_GLOBEX,
+    tenant: "globex",
+    memberships: [{ tenant: "globex", roles: ["reader"] }],
+  },
+  boardViewer: {
+    id: BOARD_VIEWER,
+    tenant: "acme",
+    memberships: [{ tenant: "acme", team: "t2", roles: ["board-viewer"] }],
   },
 };
 
@@ -145,7 +172,8 @@ grant usage on schema auth to authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
 grant usage on schema public to authenticated, anon, tester;
 insert into auth.users (id) values
-  ('${PLUS}'), ('${WRITER}'), ('${GRABBY}'), ('${REVIEWER}'), ('${GLOBEX}'), ('${SHADOW}');
+  ('${PLUS}'), ('${WRITER}'), ('${GRABBY}'), ('${REVIEWER}'), ('${GLOBEX}'), ('${SHADOW}'),
+  ('${SHARED_ACME}'), ('${SHARED_GLOBEX}'), ('${BOARD_VIEWER}');
 create table public.organization_members (
   organization_id text not null,
   user_id uuid not null references auth.users on delete cascade,
@@ -162,8 +190,12 @@ insert into public.organization_members values
   ('acme', '${WRITER}', 'writer'),
   ('acme', '${GRABBY}', 'grabby'),
   ('globex', '${GLOBEX}', 'writer'),
-  ('acme', '${SHADOW}', 'viewer');
-insert into public.team_members values ('t1', 'acme', '${REVIEWER}', 'reviewer');
+  ('acme', '${SHADOW}', 'viewer'),
+  ('acme', '${SHARED_ACME}', 'reader'),
+  ('globex', '${SHARED_GLOBEX}', 'reader');
+insert into public.team_members values
+  ('t1', 'acme', '${REVIEWER}', 'reviewer'),
+  ('t2', 'acme', '${BOARD_VIEWER}', 'board-viewer');
 create table public.project (id text primary key, "orgId" text not null, "ownerId" uuid not null);
 create table public.task (
   id text primary key,
@@ -206,6 +238,13 @@ const EXPECTED: Readonly<Record<string, "granted" | "denied">> = {
   "globex task.update t-globex": "denied",
   "shadow task.read t-own": "granted",
   "shadow task.delete t-own": "denied",
+  "sharedAcme task.read t-own": "granted",
+  "sharedAcme task.delete t-own": "denied",
+  "sharedAcme task.read t-globex": "denied",
+  "sharedGlobex task.read t-globex": "granted",
+  "sharedGlobex task.read t-own": "denied",
+  "boardViewer board.read b-t2": "granted",
+  "boardViewer board.read b-t1": "denied",
 };
 
 type Fixture = {
@@ -527,7 +566,9 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
           await client.query(`insert into permdock.custom_role_permissions (tenant_id, role, permission, effect) values
             ('acme', 'editor-plus', 'task.update', 'allow'),
             ('acme', 'editor-plus', 'project.read', 'deny'),
-            ('acme', 'grabby', 'project.delete', 'allow')`);
+            ('acme', 'grabby', 'project.delete', 'allow'),
+            (null, 'reader', 'task.read', 'allow'),
+            ('acme', 'reader', 'task.delete', 'allow')`);
           await client.query(`insert into permdock.custom_role_includes (tenant_id, role, include_role) values
             ('acme', 'editor-plus', 'viewer')`);
         }
@@ -537,9 +578,15 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
           role: string,
           permission: string,
         ): Promise<boolean> => {
-          const held = CUSTOM_ROLES.filter(
-            (item) => item.tenant === "acme" && item.name === role,
+          const shared = CUSTOM_ROLES.filter(
+            (item) => item.shared === true && item.name === role,
           );
+          const held =
+            shared.length > 0
+              ? shared
+              : CUSTOM_ROLES.filter(
+                  (item) => item.tenant === "acme" && item.name === role,
+                );
           await client.query(
             `select set_config('request.jwt.claims', $1, true)`,
             [
@@ -568,6 +615,8 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
         expect(await ask(PLUS, "editor-plus", "project.read")).toBe(false);
         expect(await ask(PLUS, "editor-plus", "task.delete")).toBe(false);
         expect(await ask(GRABBY, "grabby", "project.delete")).toBe(false);
+        expect(await ask(SHARED_ACME, "reader", "task.read")).toBe(true);
+        expect(await ask(SHARED_ACME, "reader", "task.delete")).toBe(false);
         await client.query("rollback");
       } finally {
         await client.end();

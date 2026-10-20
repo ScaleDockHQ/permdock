@@ -40,6 +40,8 @@ export type Role<K extends string = string> = {
   readonly on?: string;
   readonly assignable: boolean;
   readonly meta: RoleMeta;
+  /** A shared custom role: the platform defines it for every tenant, and a tenant admin cannot edit it. */
+  readonly shared?: true;
   readonly kind: typeof ROLE_KIND;
 };
 
@@ -302,19 +304,31 @@ export function synthesiseRole(
     readonly on?: string;
     readonly assignable?: boolean;
     readonly meta?: RoleMeta;
+    readonly shared?: true;
   },
 ): Role {
   const on = options?.on;
   const assignable = options?.assignable ?? false;
   const meta = options?.meta;
-  if (on === undefined) {
-    return makeRole(
-      key,
-      meta === undefined ? { assignable } : { assignable, meta },
-    );
+  const leaf =
+    on === undefined
+      ? makeRole(
+          key,
+          meta === undefined ? { assignable } : { assignable, meta },
+        )
+      : makeRole(
+          key,
+          meta === undefined ? { on, assignable } : { on, assignable, meta },
+        );
+  if (options?.shared !== true) {
+    return leaf;
   }
-  return makeRole(
-    key,
-    meta === undefined ? { on, assignable } : { on, assignable, meta },
-  );
+  const shared = Object.defineProperty({ ...leaf, shared: true }, "kind", {
+    value: ROLE_KIND,
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+  // SAFETY: a copy of a frozen role leaf with `shared` added and `kind` defined like makeRole defines it.
+  return Object.freeze(shared) as Role;
 }

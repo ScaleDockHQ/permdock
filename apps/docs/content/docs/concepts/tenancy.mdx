@@ -228,6 +228,7 @@ type CustomRole = {
 - A custom-role grant carries no condition, approval or limit of its own. It inherits those of the declared grant it comes from, so every condition was reviewed in code.
 - `CustomRoleSource.assignable(tenant)` may return a subset of the declared assignable roles: a Starter plan without `billing-manager`, a regulated tenant without `data-exporter`. This is Clerk's role-set idea and the entitlements-are-roles rule applied to assignability; the plan is an input, PermDock never reads billing.
 - Who may hand out which role is itself a permission (`permissions.member.assignRole`) plus the rule that you cannot hand out what you do not hold: `permdock.assignableRoles()` and `permdock.assignablePermissions()` intersect the ceiling (narrowed by `CustomRoleSource.assignable`) with what the subject holds there. Holding a role or a permission marked `meta.manageRoles: true` lifts that intersection.
+- A [shared custom role](/docs/concepts/custom-roles#shared-custom-roles) (`shared: true`) is defined once by the platform and held on a membership of its scope in every tenant. Tenant admins assign it but cannot edit it, and its name wins over a tenant custom role's.
 
 [Custom roles](/docs/concepts/custom-roles) has the resolution rules, the ceiling, the matrix-editor recipe and how snapshots carry the result.
 

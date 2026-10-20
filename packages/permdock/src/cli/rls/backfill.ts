@@ -21,7 +21,7 @@ import {
   quoteTable,
 } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
-import { currentKeyExpr } from "./custom-roles.ts";
+import { currentKeyExpr, rolesTableScope } from "./custom-roles.ts";
 
 const PREFIX = "PermDock CLI";
 
@@ -150,10 +150,7 @@ export function backfillSql(
     roles.tenant === undefined
       ? `null::${tenantType}`
       : `${col(roles.tenant)}::${tenantType}`;
-  const scope =
-    roles.scope === undefined
-      ? `case when ${tenant} is null then 'global' else ${quoteLiteral(root)} end`
-      : `case when ${tenant} is null then 'global' else ${col(roles.scope)}::text end`;
+  const scope = rolesTableScope(roles, tenant, root, col);
   const scopeId =
     roles.id === undefined ? "null::text" : `${col(roles.id)}::text`;
   const skipped =

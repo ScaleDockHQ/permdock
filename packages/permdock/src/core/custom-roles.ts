@@ -32,7 +32,9 @@ export type CustomRoleDrop =
       /** The stored level, for `unknown-level`. */
       readonly level?: string;
     }
-  | { readonly role: string; readonly reason: "unknown-role" };
+  | { readonly role: string; readonly reason: "unknown-role" }
+  /** A shared custom role already has this name; the tenant role would be ignored. */
+  | { readonly role: string; readonly reason: "name-taken" };
 
 /** A stored grant that named a permission by a key it was renamed from. */
 export type CustomRoleRename = {
@@ -122,11 +124,11 @@ export type CeilingScope = string;
  * the policy does not declare it; such a role resolves to nothing.
  */
 export function customRoleScope(
-  role: Pick<CustomRole, "scope" | "team">,
+  role: Pick<CustomRole, "scope" | "team" | "shared">,
   scopes: readonly Scope[],
 ): CeilingScope | undefined {
   if (role.scope === "global") {
-    return "global";
+    return role.shared === true ? undefined : "global";
   }
   if (role.scope !== undefined) {
     return resolveScope(scopes, role.scope);
@@ -142,6 +144,11 @@ export function customRoleId(role: CustomRole): string | undefined {
 /** A platform custom role: held through `principal.roles`, capped by the assignable global roles. */
 export function isGlobalCustomRole(role: CustomRole): boolean {
   return role.scope === "global";
+}
+
+/** A shared custom role: defined once for every tenant, held on memberships of its scope in any tenant. */
+export function isSharedCustomRole(role: CustomRole): boolean {
+  return role.shared === true;
 }
 
 function isCeilingScope(scope: Grant["scope"]): scope is CeilingScope {
@@ -414,10 +421,31 @@ export function resolveCustomRole(
   });
 }
 
+export type ValidateCustomRoleOptions = {
+  /** The shared custom roles: a tenant role with one of their names is dropped as `name-taken`. */
+  readonly shared?: readonly CustomRole[];
+};
+
 export function validateCustomRole(
   policy: Policy,
   role: CustomRole,
+  options: ValidateCustomRoleOptions = {},
 ): CustomRoleValidation {
+  const taken =
+    !isSharedCustomRole(role) &&
+    !isGlobalCustomRole(role) &&
+    (options.shared ?? []).some(
+      (item) =>
+        wellFormed(item) && isSharedCustomRole(item) && item.name === role.name,
+    );
+  if (taken) {
+    return freezeDeep({
+      ok: false,
+      permissions: [],
+      dropped: [{ role: role.name, reason: "name-taken" as const }],
+      renamed: [],
+    });
+  }
   const resolved = resolveCustomRole(policy, role);
   const permissions = [
     ...new Set(
@@ -442,8 +470,18 @@ function wellFormed(role: CustomRole): boolean {
   ) {
     return false;
   }
+  if (role.shared !== undefined) {
+    // A tenant, team or id on a shared role is a mistake, not a narrowing to trust.
+    return (
+      role.shared === true &&
+      role.tenant === undefined &&
+      role.team === undefined &&
+      role.id === undefined &&
+      (role.scope === undefined ||
+        (typeof role.scope === "string" && role.scope !== "global"))
+    );
+  }
   if (role.scope === "global") {
-    // A tenant, team or id on a platform role is a mistake, not a narrowing to trust.
     return (
       role.tenant === undefined &&
       role.team === undefined &&
@@ -458,6 +496,27 @@ function wellFormed(role: CustomRole): boolean {
   );
 }
 
+/**
+ * The well-formed roles, without a tenant role that a shared role of the same
+ * name shadows: the shared role is the one every tenant sees.
+ */
+function effectiveCustomRoles(
+  roles: readonly CustomRole[],
+): readonly CustomRole[] {
+  const formed = roles.filter(wellFormed);
+  const shared = new Set(
+    formed.filter(isSharedCustomRole).map((role) => role.name),
+  );
+  return shared.size === 0
+    ? formed
+    : formed.filter(
+        (role) =>
+          isSharedCustomRole(role) ||
+          isGlobalCustomRole(role) ||
+          !shared.has(role.name),
+      );
+}
+
 /** Every custom role's resolved grants, once per instance. Malformed roles resolve to nothing. */
 export function customGrantsFor(
   policy: Policy,
@@ -465,8 +524,8 @@ export function customGrantsFor(
 ): readonly CustomGrant[] {
   const declared = declaredRoleNames(policy);
   const out: CustomGrant[] = [];
-  for (const role of roles) {
-    if (!wellFormed(role) || declared.has(role.name)) {
+  for (const role of effectiveCustomRoles(roles)) {
+    if (declared.has(role.name)) {
       continue;
     }
     for (const grant of resolveCustomRole(policy, role).grants) {
@@ -476,33 +535,47 @@ export function customGrantsFor(
   return out;
 }
 
-/** The well-formed tenant (not platform) custom roles; a declared role name is never one. */
+/**
+ * The well-formed custom roles held on memberships: tenant and shared, not
+ * platform. A declared role name is never one, and a shared role shadows a
+ * tenant role of the same name.
+ */
 export function tenantCustomRoles(
   policy: Policy,
   roles: readonly CustomRole[],
 ): readonly CustomRole[] {
   const declared = declaredRoleNames(policy);
-  return roles.filter(
-    (role) =>
-      wellFormed(role) && !isGlobalCustomRole(role) && !declared.has(role.name),
+  return effectiveCustomRoles(roles).filter(
+    (role) => !isGlobalCustomRole(role) && !declared.has(role.name),
   );
 }
 
-/** A membership at the role's scope, inside its tenant (and instance, when pinned), naming it. */
+/** Whether a custom role held on memberships belongs to `tenant`: its own, or shared by every tenant. */
+export function customRoleOf(role: CustomRole, tenant: string): boolean {
+  return isSharedCustomRole(role) || sameId(role.tenant, tenant);
+}
+
+/**
+ * A membership at the role's scope, inside its tenant (and instance, when
+ * pinned), naming it. A shared role is held at its scope in any tenant.
+ */
 export function holdsCustomRole(
   membership: Membership,
   role: CustomRole,
   scopes: readonly Scope[],
 ): boolean {
-  if (isGlobalCustomRole(role)) {
+  if (isGlobalCustomRole(role) || !wellFormed(role)) {
     return false;
   }
   const scope = customRoleScope(role, scopes);
   const id = customRoleId(role);
+  const tenant = tenantOf(membership, scopes);
   return (
     scope !== undefined &&
     membership.scope === scope &&
-    sameId(tenantOf(membership, scopes), role.tenant) &&
+    (isSharedCustomRole(role)
+      ? tenant !== undefined
+      : sameId(tenant, role.tenant)) &&
     (id === undefined || sameId(membership.id, id)) &&
     membership.roles.includes(role.name)
   );
@@ -516,18 +589,17 @@ export function holdsGlobalCustomRole(
   return isGlobalCustomRole(role) && (roles ?? []).includes(role.name);
 }
 
-/** A tenant's custom role inside that tenant, or a platform custom role anywhere. */
+/** A tenant's custom role inside that tenant, a shared role in any tenant, or a platform custom role anywhere. */
 export function isCustomRoleName(
   name: string,
   roles: readonly CustomRole[],
   tenant: string | undefined,
 ): boolean {
-  return roles.some(
+  return effectiveCustomRoles(roles).some(
     (item) =>
-      wellFormed(item) &&
       item.name === name &&
       (isGlobalCustomRole(item) ||
-        (tenant !== undefined && sameId(item.tenant, tenant))),
+        (tenant !== undefined && customRoleOf(item, tenant))),
   );
 }
 
@@ -585,9 +657,10 @@ export function membershipsClaim(
   scopes: readonly Scope[],
 ): readonly Readonly<Record<string, unknown>>[] {
   const claim: Readonly<Record<string, unknown>>[] = [];
+  const effective = effectiveCustomRoles(customRoles);
   for (const membership of normalizeMemberships(memberships, scopes)) {
-    const held = customRoles.filter(
-      (role) => wellFormed(role) && holdsCustomRole(membership, role, scopes),
+    const held = effective.filter((role) =>
+      holdsCustomRole(membership, role, scopes),
     );
     claim.push(
       held.length === 0

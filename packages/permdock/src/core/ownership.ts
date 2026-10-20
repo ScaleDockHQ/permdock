@@ -5,6 +5,7 @@ import type { CustomRole, Membership, Principal } from "./subject.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import {
   customRoleId,
+  customRoleOf,
   customRoleScope,
   tenantCustomRoles,
 } from "./custom-roles.ts";
@@ -426,7 +427,7 @@ function decideRoleChangeWith(
     const found = tenant;
     custom = named.find(
       (role) =>
-        sameId(role.tenant, found) &&
+        customRoleOf(role, found) &&
         customRoleScope(role, scopes) === scope &&
         sameId(customRoleId(role) ?? id, id),
     );

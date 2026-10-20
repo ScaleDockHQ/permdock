@@ -38,6 +38,7 @@ export const CUSTOM_ROLES = {
   trustedRename: "permdock_trusted_rename_custom_role_grants",
   trustedRemove: "permdock_trusted_delete_custom_role_grants",
   cascade: "permdock_cascade_custom_role",
+  shared: "permdock_is_shared_role",
 } as const;
 
 /** The function `rls.roles` adds. The name is part of the SQL contract. */

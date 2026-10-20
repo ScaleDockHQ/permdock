@@ -243,6 +243,7 @@ export type {
   CustomRoleRename,
   CustomRoleValidation,
   ResolvedCustomRole,
+  ValidateCustomRoleOptions,
 } from "./core/custom-roles.ts";
 export type { InstanceOptions } from "./core/instance-options.ts";
 export { snapshotFor } from "./core/snapshot-for.ts";
@@ -517,6 +518,7 @@ export type {
   GnapAccess,
   Membership,
   Principal,
+  SharedCustomRole,
   Subject,
   VerifiedClaims,
 } from "./core/subject.ts";

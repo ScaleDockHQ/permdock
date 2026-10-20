@@ -145,8 +145,18 @@ function customRoleOf(value: unknown): CustomRole | undefined {
     ...(includes.length === 0 ? {} : { includes }),
   };
   if (value["scope"] === "global") {
-    return value["tenant"] === undefined
+    return value["tenant"] === undefined && value["shared"] === undefined
       ? { ...body, scope: "global" }
+      : undefined;
+  }
+  if (value["shared"] === true) {
+    return value["tenant"] === undefined && value["id"] === undefined
+      ? compact<CustomRole>({
+          ...body,
+          shared: true,
+          scope:
+            typeof value["scope"] === "string" ? value["scope"] : undefined,
+        })
       : undefined;
   }
   if (typeof value["tenant"] !== "string") {
@@ -351,6 +361,14 @@ export function postgrestSources(
           }
           return ((await live(principal.id))?.customRoles ?? []).filter(
             (role) => role.scope === "global",
+          );
+        },
+        async sharedRoles(context) {
+          if (onlyDeclared(context?.held)) {
+            return [];
+          }
+          return ((await live(principal.id))?.customRoles ?? []).filter(
+            (role) => role.shared === true,
           );
         },
       };

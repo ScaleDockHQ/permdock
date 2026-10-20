@@ -21,6 +21,18 @@ function onlyGlobal(roles: unknown): CustomRole[] {
   return Array.isArray(roles) ? roles.filter(isGlobalRole) : [];
 }
 
+function isSharedRole(value: unknown): value is CustomRole {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    Reflect.get(value, "shared") === true
+  );
+}
+
+function onlyShared(roles: unknown): CustomRole[] {
+  return Array.isArray(roles) ? roles.filter(isSharedRole) : [];
+}
+
 /** The `customRoles` option as a source: a factory is called with the resolved subject, and a throw reads none. */
 export function roleSourceFor(
   option: CustomRoleSource | CustomRoleSourceFactory | undefined,
@@ -61,12 +73,13 @@ export function customRolesFor(
       loaded.push([]);
     }
   }
-  if (globalHeld !== undefined && source.globalRoles !== undefined) {
+  const once = (
+    read: () => CustomRole[] | Promise<CustomRole[]>,
+    keep: (roles: unknown) => CustomRole[],
+  ): void => {
     try {
-      const roles = source.globalRoles({ held: globalHeld });
-      loaded.push(
-        isThenable(roles) ? roles.then(onlyGlobal) : onlyGlobal(roles),
-      );
+      const roles = read();
+      loaded.push(isThenable(roles) ? roles.then(keep) : keep(roles));
     } catch {
       auth.push({
         reason: "source-threw",
@@ -75,6 +88,15 @@ export function customRolesFor(
       });
       loaded.push([]);
     }
+  };
+  if (globalHeld !== undefined && source.globalRoles !== undefined) {
+    const read = source.globalRoles.bind(source);
+    once(() => read({ held: globalHeld }), onlyGlobal);
+  }
+  if (tenants.length > 0 && source.sharedRoles !== undefined) {
+    const read = source.sharedRoles.bind(source);
+    const held = [...new Set(tenants.flatMap((tenant) => heldIn(tenant)))];
+    once(() => read({ held }), onlyShared);
   }
   if (loaded.some((item) => isThenable(item))) {
     return Promise.all(

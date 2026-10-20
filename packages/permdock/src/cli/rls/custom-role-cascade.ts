@@ -2,14 +2,9 @@ import type { RlsSqlContext } from "../sql/context.ts";
 
 import { qualifySqlTable } from "../../core/sql.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
-import {
-  qualified,
-  quoteIdent,
-  quoteLiteral,
-  quoteTable,
-} from "../sql/quote.ts";
+import { qualified, quoteIdent, quoteTable } from "../sql/quote.ts";
 import { CUSTOM_ROLES, signedIn } from "../sql/shared.ts";
-import { raiseSql } from "./custom-roles.ts";
+import { raiseSql, rolesTableScope } from "./custom-roles.ts";
 
 /** `row.column`, for a trigger's `old` or `new`. */
 function rowColumn(row: string, name: string): string {
@@ -48,9 +43,7 @@ export function customRoleCascadeSql(ctx: RlsSqlContext): string {
       ? `null::${tenantType}`
       : `${rowColumn(row, table.tenant)}::${tenantType}`;
   const scope = (row: string): string =>
-    table.scope === undefined
-      ? `case when ${tenant(row)} is null then 'global' else ${quoteLiteral(root)} end`
-      : `case when ${tenant(row)} is null then 'global' else ${rowColumn(row, table.scope)}::text end`;
+    rolesTableScope(table, tenant(row), root, (name) => rowColumn(row, name));
   const id = (row: string): string =>
     table.id === undefined ? "null::text" : `${rowColumn(row, table.id)}::text`;
   const skipped = (row: string): string =>

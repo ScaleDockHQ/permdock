@@ -91,6 +91,7 @@ export function snapshotFor<
   const customRoles = (options.customRoles ?? []).filter(
     (item) =>
       item.scope === "global" ||
+      (item.shared === true && tenants.size > 0) ||
       (item.tenant !== undefined && tenants.has(item.tenant)),
   );
   const names = options.assignable;

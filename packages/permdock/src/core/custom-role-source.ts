@@ -12,6 +12,8 @@ export type CustomRoleReader = {
   assignable?(tenant: string): string[] | Promise<string[]>;
   /** Platform custom roles (`scope: 'global'`). */
   globalRoles?(): CustomRole[] | Promise<CustomRole[]>;
+  /** Shared custom roles (`shared: true`), the same for every tenant. */
+  sharedRoles?(): CustomRole[] | Promise<CustomRole[]>;
 };
 
 export type CustomRoleSourceOptions =
@@ -39,8 +41,8 @@ function ofTenant(tenant: string, roles: unknown): CustomRole[] {
 /**
  * A `CustomRoleSource` over a reader that returns every custom role of a tenant.
  * It keeps only the roles of the requested tenant. With `read: 'held'` it
- * skips a tenant's read, and `globalRoles`, when the subject holds only
- * declared roles there.
+ * skips a tenant's read, and `globalRoles` and `sharedRoles`, when the
+ * subject holds only declared roles there.
  */
 export function customRoleSource(
   reader: CustomRoleReader,
@@ -75,6 +77,15 @@ export function customRoleSource(
             context?.held.every((name) => declared.has(name)) === true
               ? []
               : (reader.globalRoles?.() ?? []),
+        }),
+    ...(reader.sharedRoles === undefined
+      ? {}
+      : {
+          sharedRoles: (context?: { readonly held: readonly string[] }) =>
+            declared !== undefined &&
+            context?.held.every((name) => declared.has(name)) === true
+              ? []
+              : (reader.sharedRoles?.() ?? []),
         }),
   });
 }

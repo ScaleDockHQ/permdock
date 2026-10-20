@@ -391,6 +391,8 @@ export type RlsCustomRoleTable = {
   readonly id?: string;
   /** A boolean column marking rows that are not custom roles (declared or system roles); those rows are skipped. */
   readonly skip?: string;
+  /** A boolean column marking a row with no tenant as a shared custom role, held at `scope` (default the first scope) in every tenant. Without it a row with no tenant is a platform role. */
+  readonly shared?: string;
 };
 
 /** `rls.customRoles` as an object: custom roles on, plus where existing ones live. */

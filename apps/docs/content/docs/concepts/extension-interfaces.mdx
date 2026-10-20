@@ -212,6 +212,9 @@ interface CustomRoleSource {
   globalRoles?(context?: {
     held: string[];
   }): CustomRole[] | Promise<CustomRole[]>; // scope: 'global'
+  sharedRoles?(context?: {
+    held: string[];
+  }): CustomRole[] | Promise<CustomRole[]>; // shared: true
 }
 
 interface ApprovalPolicySource {
@@ -221,7 +224,7 @@ interface ApprovalPolicySource {
 }
 ```
 
-Both are documented with their evaluation rules on the [tenancy](/docs/concepts/tenancy) page. A membership may carry `x` and a custom role `meta.x`, the application's own data; an invalid one is dropped and the membership or role stays ([tenancy](/docs/concepts/tenancy#memberships)). They are read-only from PermDock's point of view: PermDock never creates, updates or deletes a membership or a custom role, so a source is a query, not a repository. A source that throws yields no memberships or no custom roles for that request (fewer grants, never more) and an `on('auth')` event; it never fails the request. A throwing `assignable` makes nothing assignable in that tenant. `globalRoles` returns [platform custom roles](/docs/concepts/custom-roles#platform-custom-roles), read once per signed-in subject.
+Both are documented with their evaluation rules on the [tenancy](/docs/concepts/tenancy) page. A membership may carry `x` and a custom role `meta.x`, the application's own data; an invalid one is dropped and the membership or role stays ([tenancy](/docs/concepts/tenancy#memberships)). They are read-only from PermDock's point of view: PermDock never creates, updates or deletes a membership or a custom role, so a source is a query, not a repository. A source that throws yields no memberships or no custom roles for that request (fewer grants, never more) and an `on('auth')` event; it never fails the request. A throwing `assignable` makes nothing assignable in that tenant. `globalRoles` returns [platform custom roles](/docs/concepts/custom-roles#platform-custom-roles), read once per signed-in subject. `sharedRoles` returns [shared custom roles](/docs/concepts/custom-roles#shared-custom-roles), read once per subject with a tenant membership.
 
 `createPermDock` calls `rolesFor` once for each tenant the subject has a live membership in, before the first check, and passes `held`: the role names those memberships hold there, nested scopes included, declared and custom alike. Checks are synchronous, so the source cannot be asked later, per decision.
 

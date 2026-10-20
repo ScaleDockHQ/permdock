@@ -93,12 +93,12 @@ describe("helpersSql scopes off the root chain", () => {
     expect(org).toContain("  union\n  select (ms.id)::uuid");
     expect(org).toContain("and not (r.role = any(array['admin']::text[]))");
     expect(org).toContain(
-      "c.tenant_id::text = (ms.id)::text and c.scope = 'org' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role",
+      "case when \"permdock\".permdock_is_shared_role('org', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'org' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role",
     );
     expect(org).toContain('"permdock".permdock_custom_keys(');
     const team = fnBody(sql, "permitted_team_ids");
     expect(team).toContain(
-      "c.tenant_id::text = (ms.within ->> 'org')::text and c.scope = 'team'",
+      "case when \"permdock\".permdock_is_shared_role('team', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'org')::text end and c.scope = 'team'",
     );
   });
 });
@@ -183,7 +183,9 @@ describe("helpersSql custom-role writes", () => {
       `and rp.permission = any(array['member.assign']::text[])
       and "permdock".permdock_has(rp.grant_key)`,
     );
-    expect(guard).toContain("or (p_scope <> 'global' and (p_tenant::text in");
+    expect(guard).toContain(
+      "or (p_scope <> 'global' and coalesce(p_tenant::text in",
+    );
     expect(fnBody(sql, "permdock_custom_role_shape")).toContain(
       "if p_tenant is not null or p_scope_id is not null then",
     );

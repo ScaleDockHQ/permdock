@@ -52,7 +52,7 @@ export function globalRolesSql(ctx: RlsSqlContext): string {
     const global =
       source.tenant === undefined
         ? ""
-        : ` and k.${quoteIdent(source.tenant)} is null`;
+        : ` and k.${quoteIdent(source.tenant)} is null${source.shared === undefined ? "" : ` and k.${quoteIdent(source.shared)} is not true`}`;
     body = `  select string_agg(w.r, ', ' order by w.r) into v_unknown
   from (${wanted}) w(r)
   where not exists (select 1 from ${keys} k where k.${key}::text = w.r${global});

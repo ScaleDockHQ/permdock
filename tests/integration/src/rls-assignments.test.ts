@@ -52,6 +52,8 @@ const SEED = `
 select permdock.permdock_trusted_replace_custom_role_grants('acme', 'tenant', null, 'reader', array['job.read'], array[]::text[], array[]::text[]);
 select permdock.permdock_trusted_replace_custom_role_grants('acme', 'tenant', null, 'editor', array['job.update'], array[]::text[], array[]::text[]);
 select permdock.permdock_trusted_replace_custom_role_grants(null, 'global', null, 'platform-reader', array['job.read'], array[]::text[], array[]::text[]);
+select permdock.permdock_trusted_replace_custom_role_grants(null, 'tenant', null, 'shared-reader', array['job.read'], array[]::text[], array[]::text[]);
+select permdock.permdock_trusted_replace_custom_role_grants(null, 'tenant', null, 'shared-editor', array['job.update'], array[]::text[], array[]::text[]);
 insert into permdock.user_roles (user_id, role) values ('${PLATFORM}', 'platform-admin');
 `;
 
@@ -130,6 +132,14 @@ describe("rls.assignments", () => {
     await expect(as(ADMIN, add("nobody"))).rejects.toThrow(
       /may not assign nobody/u,
     );
+  });
+
+  it("assigns a shared custom role in a tenant by its shared definition", async () => {
+    await expect(as(ADMIN, add("shared-reader"))).resolves.toBeUndefined();
+    await expect(as(ADMIN, add("shared-editor"))).rejects.toThrow(
+      /may not assign shared-editor/u,
+    );
+    await expect(as(OWNER, add("shared-editor"))).resolves.toBeUndefined();
   });
 
   it("checks the extra tables and trusts a write that is not a client role's", async () => {

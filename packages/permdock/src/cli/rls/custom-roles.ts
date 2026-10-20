@@ -1,4 +1,5 @@
 import type { RlsSqlContext } from "../sql/context.ts";
+import type { RlsCustomRoleTable } from "../types.ts";
 
 import { sqlTextArray } from "../../core/sql.ts";
 import { byKey } from "../shared/compare.ts";
@@ -54,9 +55,14 @@ create unique index if not exists ${quoteIdent(`${name}_level_key`)}`
   scope text not null default ${quoteLiteral(rootName(ctx))},
   scope_id text,
   role text not null,
-  ${column} text not null${check},
-  check ((scope = 'global') = (tenant_id is null)),
-  check (scope <> 'global' or scope_id is null)
+  ${column} text not null${check}
+);
+-- global: no tenant or instance; a tenant role: a tenant; a shared role: no tenant or instance
+alter table ${table} drop constraint if exists ${quoteIdent(`${name}_check`)};
+alter table ${table} drop constraint if exists ${quoteIdent(`${name}_shape`)};
+alter table ${table} add constraint ${quoteIdent(`${name}_shape`)} check (
+  case when scope = 'global' then tenant_id is null and scope_id is null
+  else tenant_id is not null or scope_id is null end
 );
 ${index}
   on ${table} (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, ${unique});
@@ -80,8 +86,12 @@ where rp.role = any(${sqlTextArray(custom.assignable)})
   );
 revoke all on table ${ceiling} from anon, authenticated, public;`);
   const renames = Object.entries(custom.renamed ?? {}).toSorted(byKey);
+  const shared = sharedRoleSql(ctx);
   if (custom.levels === true) {
     chunks.push(leveledKeysSql(ctx, renames));
+    if (shared !== "") {
+      chunks.push(shared);
+    }
     return chunks.join("\n\n");
   }
   const rename = renamesSql(renames);
@@ -139,7 +149,34 @@ as $$
   where c.permission in (select a.permission from allowed a)
 $$;
 revoke execute on function ${keys}(text[], text[], text[], text) from public, anon, authenticated;`);
+  if (shared !== "") {
+    chunks.push(shared);
+  }
   return chunks.join("\n\n");
+}
+
+/** `permdock_is_shared_role(p_scope, p_role)` (`database` mode): whether a shared custom role of that name exists at the scope. */
+function sharedRoleSql(ctx: RlsSqlContext): string {
+  if (ctx.authorize !== "database") {
+    return "";
+  }
+  const perms = qualified(ctx, CUSTOM_ROLES.permissions);
+  const includes = qualified(ctx, CUSTOM_ROLES.includes);
+  const shared = qualified(ctx, CUSTOM_ROLES.shared);
+  return `-- a shared custom role: rows with no tenant at a scope below global; its name wins over a tenant role's in every tenant
+create or replace function ${shared}(p_scope text, p_role text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_scope <> 'global' and (
+    exists (select 1 from ${perms} c where c.tenant_id is null and c.scope = p_scope and c.role = p_role)
+    or exists (select 1 from ${includes} c where c.tenant_id is null and c.scope = p_scope and c.role = p_role)
+  )
+$$;
+revoke execute on function ${shared}(text, text) from public, anon, authenticated;`;
 }
 
 /**
@@ -313,7 +350,8 @@ function renamesSql(renames: readonly (readonly [string, string])[]): {
  * for `authenticated`. A declared role answers from `role_permissions`, which
  * is the catalog. A custom role (`database` mode) answers from the tenant's
  * own rows through `permdock_custom_keys`, only to a member of the tenant or
- * a holder of a `meta.manageRoles` permission for a platform role. The
+ * a holder of a `meta.manageRoles` permission for a platform role; a shared
+ * role (no tenant below global) to any signed-in caller. The
  * effect is `deny` for a deny the role carries after the ceiling, as
  * `resolveCustomRole` returns it, never for a deny that merely removes an allow.
  */
@@ -415,6 +453,7 @@ end;`;
     body = checked(`
   if not (${signedIn(ctx)} and (
     ${platform}
+    or (p_scope <> 'global' and p_tenant is null and p_scope_id is null)
     or (p_scope <> 'global' and (${memberOf}))
   )) then
 ${raiseSql("    ", "42501", `'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform')`, "not-member")}
@@ -450,6 +489,47 @@ ${trustedBody}
 $$;
 revoke execute on function ${trusted}(${signature}) from public, anon, authenticated;${grants}`);
   return chunks.join("\n\n");
+}
+
+/** The stored definition of `p_role` at `p_scope` for `p_tenant`: the shared rows when a shared role has the name. */
+export function storedTenant(ctx: RlsSqlContext): string {
+  return `case when ${qualified(ctx, CUSTOM_ROLES.shared)}(p_scope, p_role) then c.tenant_id is null else c.tenant_id is not distinct from p_tenant end`;
+}
+
+/**
+ * The tenant half of a custom-role row match for a membership: the
+ * membership's tenant, or no tenant when a shared role of that name exists at
+ * the scope, so a shared role shadows a tenant role of the same name.
+ */
+export function customTenantMatch(
+  ctx: RlsSqlContext,
+  tenant: string,
+  scope: string,
+  role: string,
+): string {
+  return `case when ${qualified(ctx, CUSTOM_ROLES.shared)}(${quoteLiteral(scope)}, ${role}) then c.tenant_id is null else c.tenant_id::text = ${tenant} end`;
+}
+
+/**
+ * The scope of a row of the application's roles table: its scope column (or
+ * the first scope) with a tenant; with no tenant, the same scope when the
+ * `shared` column is true, else `'global'`.
+ */
+export function rolesTableScope(
+  table: RlsCustomRoleTable,
+  tenant: string,
+  root: string,
+  column: (name: string) => string,
+): string {
+  const own =
+    table.scope === undefined
+      ? quoteLiteral(root)
+      : `${column(table.scope)}::text`;
+  const none =
+    table.shared === undefined
+      ? "'global'"
+      : `case when coalesce(${column(table.shared)}, false) then ${own} else 'global' end`;
+  return `case when ${tenant} is null then ${none} else ${own} end`;
 }
 
 /** `expr` read as its current key: a former key maps to the key it was renamed to. */

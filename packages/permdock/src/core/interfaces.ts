@@ -55,6 +55,15 @@ export type CustomRoleSource = {
   globalRoles?(context?: {
     readonly held: readonly string[];
   }): CustomRole[] | Promise<CustomRole[]>;
+  /**
+   * Shared custom roles (`shared: true`), defined once for every tenant and
+   * read once per subject with a tenant membership, with `held`, the role
+   * names its live memberships hold in any tenant. A role here without
+   * `shared: true` is ignored.
+   */
+  sharedRoles?(context?: {
+    readonly held: readonly string[];
+  }): CustomRole[] | Promise<CustomRole[]>;
 };
 
 /**

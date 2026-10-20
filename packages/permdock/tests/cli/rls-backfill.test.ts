@@ -113,6 +113,23 @@ describe("backfillSql", () => {
     expect(sql).toContain("raise warning 'permdock backfill: dropped %");
   });
 
+  it("copies a row with no tenant the shared column marks as a shared role at the first scope", () => {
+    const sql = backfillSql(
+      {
+        ...ctx,
+        customRoles: {
+          ...ctx.customRoles!,
+          table: { ...roles, shared: "shared" },
+        },
+      },
+      from,
+      undefined,
+    );
+    expect(sql).toContain(
+      `case when r."organization_id"::uuid is null then case when coalesce(r."shared", false) then 'organization' else 'global' end else 'organization' end as scope`,
+    );
+  });
+
   it("leaves includes out without a mapping and maps no level without levels", () => {
     const { effect: _effect, ...permissions } = from.permissions;
     const sql = backfillSql(ctx, { permissions }, undefined);
