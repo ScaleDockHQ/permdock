@@ -78,6 +78,8 @@ function assemblePrincipal(
   readonly session: string | undefined;
   readonly expiresAt: number | undefined;
   readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
+  /** Global roles a stale-token reread read live; they replace the token's `principal.roles`. */
+  readonly roles?: readonly string[] | Promise<readonly string[] | undefined>;
   /** The memberships came from a live `MembershipSource` call, not from the token. */
   readonly live: boolean;
   readonly stale?: boolean | Promise<boolean>;
@@ -144,6 +146,10 @@ function assemblePrincipal(
     }
   };
   let stale: boolean | Promise<boolean> | undefined;
+  let roles:
+    | readonly string[]
+    | Promise<readonly string[] | undefined>
+    | undefined;
   if (principal !== null && source !== undefined && !fromClaims) {
     live = true;
     memberships = read(source, principal);
@@ -159,12 +165,20 @@ function assemblePrincipal(
       principal.memberships,
       () => read(source, principal),
       auth,
+      source.globalRolesFor === undefined
+        ? undefined
+        : () =>
+            source.globalRolesFor?.(
+              compact({ id: principal.id, kind: principal.kind }),
+            ) ?? [],
     );
     memberships = reread.memberships;
     stale = reread.stale;
+    roles = reread.roles;
   }
   return compact({
     principal,
+    roles,
     context: contextResult,
     actor,
     delegation: expandOAuthScopes(policy, delegation),
@@ -197,9 +211,11 @@ function rereadStale(
   claims: readonly Membership[],
   read: () => readonly Membership[] | Promise<readonly Membership[]>,
   auth: AuthEvent[],
+  readRoles?: () => readonly string[] | Promise<readonly string[]>,
 ): {
   readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
   readonly stale: boolean | Promise<boolean>;
+  readonly roles?: readonly string[] | Promise<readonly string[] | undefined>;
 } {
   const claimed = principal.authzVersion;
   const judge = (current: number | undefined): Freshness =>
@@ -223,18 +239,45 @@ function rereadStale(
   } catch {
     freshness = unknown();
   }
+  const rolesOf = (
+    found: Freshness,
+  ): readonly string[] | Promise<readonly string[] | undefined> | undefined => {
+    if (found !== "reread" || readRoles === undefined) {
+      return undefined;
+    }
+    const failed = (): readonly string[] => {
+      auth.push({
+        reason: "source-threw",
+        source: "memberships",
+        ...sourceName(source),
+      });
+      return [];
+    };
+    try {
+      const roles = readRoles();
+      return isThenable(roles) ? Promise.resolve(roles).catch(failed) : roles;
+    } catch {
+      return failed();
+    }
+  };
   if (isThenable(freshness)) {
+    const settled = freshness.then((found) => ({
+      found,
+      roles: rolesOf(found),
+    }));
     return {
-      memberships: freshness.then((found) =>
+      memberships: settled.then(({ found }) =>
         found === "reread" ? read() : claims,
       ),
-      stale: freshness.then((found) => found === "unknown"),
+      stale: settled.then(({ found }) => found === "unknown"),
+      roles: settled.then(({ roles }) => roles),
     };
   }
-  return {
+  return compact({
     memberships: freshness === "reread" ? read() : claims,
     stale: freshness === "unknown",
-  };
+    roles: rolesOf(freshness),
+  });
 }
 
 function finishSubject(
@@ -521,7 +564,29 @@ export function resolveSubject(
   options: PermDockOptions,
   auth: AuthEvent[],
 ): Subject | Promise<Subject> {
-  const assembled = assemblePrincipal(policy, user, options, auth);
+  const first = assemblePrincipal(policy, user, options, auth);
+  const apply = (
+    roles: readonly string[] | undefined,
+  ): Subject | Promise<Subject> =>
+    resolveAssembled(
+      policy,
+      roles === undefined || first.principal === null
+        ? first
+        : { ...first, principal: { ...first.principal, roles } },
+      options,
+      auth,
+    );
+  return isThenable(first.roles)
+    ? Promise.resolve(first.roles).then(apply)
+    : apply(first.roles);
+}
+
+function resolveAssembled(
+  policy: Policy,
+  assembled: ReturnType<typeof assemblePrincipal>,
+  options: PermDockOptions,
+  auth: AuthEvent[],
+): Subject | Promise<Subject> {
   const memberships = settle(assembled.memberships, [], () => {
     auth.push({ reason: "source-threw", source: "memberships" });
   });

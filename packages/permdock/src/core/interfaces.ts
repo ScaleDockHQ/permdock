@@ -107,10 +107,28 @@ export type MembershipSource = {
     readonly memberships?: readonly Membership[];
   }): number | undefined | Promise<number | undefined>;
   /**
+   * The global roles the principal holds now. With `onStale: 'reread'`, a
+   * stale token's `principal.roles` is replaced by this answer, so a revoked
+   * platform role is lost with the memberships. A throw or rejection leaves
+   * no global roles. Without it, a reread keeps the token's roles.
+   */
+  globalRolesFor?(principal: {
+    readonly id: string;
+    readonly kind?: string;
+  }): readonly string[] | Promise<readonly string[]>;
+  /**
    * Keep the memberships the verified token carries and read this source only
    * when the token says they were truncated (`claimsFirst`).
    */
   readonly claimsFirst?: boolean;
+  /**
+   * What a token behind `version` gets. Only permissions the policy marks
+   * `fresh` look at staleness: `'deny'` (the default) denies those with
+   * `stale-credentials` and leaves every other permission on the token's
+   * claims; `'reread'` replaces the token's memberships (and global roles,
+   * when the source has `globalRolesFor`) with a live read for the whole
+   * subject, so no decision keeps a revoked grant.
+   */
   readonly onStale?: "deny" | "reread";
 };
 

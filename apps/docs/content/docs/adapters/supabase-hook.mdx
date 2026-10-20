@@ -147,7 +147,7 @@ const permdock = await getPermDock(
 );
 ```
 
-`claimsFirst(sources, { version?, onStale? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`), or, with `onStale: 'reread'`, when the token's `authz_ver` is behind the version table (one version read, then one memberships read only when the token is behind). Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
+`claimsFirst(sources, { version?, onStale? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`), or, with `onStale: 'reread'`, when the token's `authz_ver` is behind the version table (one version read, then one memberships read only when the token is behind). Staleness applies only to permissions the policy marks `fresh`: with the default `onStale: 'deny'` every other permission keeps the token's claims, and only `'reread'` replaces the claims for every decision. A reread replaces `principal.roles` as well when the source has `globalRolesFor` (`postgrestSources().memberships` has it), so a revoked platform role is lost with the memberships; `actor`, `delegation`, `session` and the token's other claims stay on the subject. Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
 
 ### A stored user over PostgREST
 
@@ -200,6 +200,8 @@ const holders = await countHolders(sources.memberships, {
 ```
 
 `api` sets the defaults of `schema`, `fn`, `membersFn` and `versionFn` to the wrappers `supabase.hook.api` writes; any of the four still overrides it. Without `api` they default to the hook schema's own functions, for a client that can reach it. `sources.memberships` answers `membershipsFor` and `version`, so `claimsFirst` freshness works without a `SqlQuery`. `sources.customRoles(principal)` returns the custom roles that principal holds; a role-management page that needs every role of a tenant composes [`customRoleSource`](/docs/concepts/extension-interfaces#membershipsource-and-rolesource) over its own read. `sources.subject(userId)` is the anonymous subject for a suspended or unknown user, and a failed call rejects, which `createPermDock` turns into a denial.
+
+`sources.refresh(subject)` rereads the principal of a token subject you already hold: roles, memberships and `authzVersion` come from `subject_for`, while `actor`, `delegation`, `session`, `expiresAt`, the context and the token's other claims are kept. Use it where `sources.subject(id)` would drop an OAuth client's `actor` and `delegation` and lift its ceiling. A user that is unknown or suspended becomes a subject with no principal that still carries the actor and delegation.
 
 ## Generate
 
