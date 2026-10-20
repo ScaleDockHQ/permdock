@@ -65,14 +65,14 @@ describe("describeExplain", () => {
 const POLICY = new URL("../fixtures/named-scopes.ts", import.meta.url).pathname;
 
 function input(config: PermDockConfig): RlsRunInput {
+  // SAFETY: explain reads only the fields set here; the rest keep their flag defaults.
   return {
     cwd: process.cwd(),
     config,
     rest: ["explain"],
     json: true,
     io: { stdout: () => undefined, stderr: () => undefined },
-    // SAFETY: explain reads only the fields set here; the rest keep their flag defaults.
-  } as RlsRunInput;
+  } as unknown as RlsRunInput;
 }
 
 async function explained(rls: NonNullable<PermDockConfig["rls"]>) {

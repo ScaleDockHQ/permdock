@@ -10,14 +10,22 @@ import { policy } from "../fixtures/named-scopes.ts";
 
 const scopes = scopeList(policy.scopes);
 
+function loose(value: unknown): never {
+  // SAFETY: the sources built with this hold columns the manifest types forbid, to reach the refusal paths.
+  return value as never;
+}
+
 function fixture(memberships: readonly unknown[]): RlsFixture {
   // SAFETY: only subject.id and subject.memberships are read.
   return { subject: { id: "u1", memberships } } as unknown as RlsFixture;
 }
 
 const tables = (
-  rls: NonNullable<PermDockConfig["rls"]>["memberships"],
-): PermDockConfig => ({ policy: "p.ts", rls: { memberships: rls } });
+  memberships?: NonNullable<NonNullable<PermDockConfig["rls"]>["memberships"]>,
+): PermDockConfig => ({
+  policy: "p.ts",
+  rls: memberships === undefined ? {} : { memberships },
+});
 
 const column = (name: string) => ({ column: name });
 
@@ -144,7 +152,7 @@ describe("fixtureMembershipSql", () => {
     expect(
       run(
         source({
-          user: { column: "p", through: { table: "t", on: {} } } as never,
+          user: loose({ column: "p", through: { table: "t", on: {} } }),
         }),
       ),
     ).toEqual([skipped]);
@@ -155,12 +163,12 @@ describe("fixtureMembershipSql", () => {
       skipped,
     ]);
     expect(
-      run(source({ role: { column: "r", map: { a: "x" } } as never })),
+      run(source({ role: loose({ column: "r", map: { a: "x" } }) })),
     ).toEqual([skipped]);
-    expect(
-      run(source({ role: { column: "r", through: {} } as never })),
-    ).toEqual([skipped]);
-    expect(run(source({ role: { roles: ["a"] } as never }))).toEqual([skipped]);
+    expect(run(source({ role: loose({ column: "r", through: {} }) }))).toEqual([
+      skipped,
+    ]);
+    expect(run(source({ role: loose({ roles: ["a"] }) }))).toEqual([skipped]);
     expect(
       run(
         source({

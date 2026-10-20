@@ -43,8 +43,9 @@ function reasonOf(name: string): string {
 export function generatedTriggers(sql: string): readonly GeneratedTrigger[] {
   const found: GeneratedTrigger[] = [];
   for (const match of sql.matchAll(CREATE)) {
-    const name = unquote(match[1] ?? "");
-    const table = unquote(match[2] ?? "");
+    // Both groups always match, so the slices are never empty.
+    const name = unquote(match.slice(1, 2).join(""));
+    const table = unquote(match.slice(2, 3).join(""));
     found.push({ name, table, reason: reasonOf(name) });
   }
   return found;

@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
 
 import {
+  indexKeysFromProject,
   indexKeysFromSql,
   withoutServedTargets,
 } from "../../src/cli/rls/index-scan.ts";
@@ -73,5 +76,29 @@ describe("indexKeysFromSql", () => {
       },
       { table: "public.jobs", columns: ["owner_id"] },
     ]);
+  });
+});
+
+describe("indexKeysFromProject", () => {
+  const TMP = path.join(import.meta.dirname, "../../tmp");
+  mkdirSync(TMP, { recursive: true });
+  const cwd = mkdtempSync(path.join(TMP, "index-scan-"));
+  afterAll(() => {
+    rmSync(cwd, { recursive: true, force: true });
+  });
+
+  it("reads the migrations and ignores the indexes PermDock generated", () => {
+    const dir = path.join(cwd, "supabase/migrations");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      path.join(dir, "20260101000000_init.sql"),
+      `create index if not exists "permdock_jobs_org_id_idx" on "public"."jobs" ("org_id");
+create index jobs_owner on public.jobs (owner_id);
+CREATE INDEX permdock_notes_user_id_idx ON public.notes USING btree (user_id);
+`,
+    );
+    expect(indexKeysFromProject(cwd)).toEqual({
+      "public.jobs": [["owner_id"]],
+    });
   });
 });

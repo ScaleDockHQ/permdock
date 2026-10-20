@@ -235,6 +235,7 @@ describe("rls verify --format pgtap", () => {
     const outcome = await runRlsVerify({
       cwd: app([]),
       config: config(),
+      format: "node",
       out: "x.sql",
       io,
     });

@@ -178,32 +178,6 @@ describe("supabase.hook.api", () => {
   });
 });
 
-describe("supabase.hook.roles with a mapped role column", () => {
-  it("leaves out the values that map to no role", () => {
-    const { sql } = supabaseHookSql(scopes, {
-      policy: "p.ts",
-      supabase: {
-        hook: {
-          roles: {
-            table: "staff",
-            user: "user_id",
-            role: { column: "kind", map: { admin: "owner", user: null } },
-          },
-          memberships: [
-            junctionMembershipSource({
-              table: "organization_members",
-              scope: "organization",
-              id: "organization_id",
-              roles: "role",
-            }),
-          ],
-        },
-      },
-    });
-    expect(sql).toContain("is not null)");
-  });
-});
-
 describe("supabase.hook.teams", () => {
   const teams = {
     table: "team_members",

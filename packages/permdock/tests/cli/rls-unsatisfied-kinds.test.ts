@@ -141,19 +141,16 @@ describe("unsatisfiedKinds", () => {
 
   it("skips a role that is not held on a scope", () => {
     const base = context([staff]);
-    expect(
-      unsatisfiedKinds(
-        {
-          ...base,
-          ownership: {
-            kinds: { ghost: ["contact"] },
-            assigns: base.ownership?.assigns ?? {},
-            counted: [],
-          },
-        } as RlsSqlContext,
-        policy,
-      ),
-    ).toEqual([]);
+    // SAFETY: a role name the policy lacks is the case under test; the rest of the context is complete.
+    const ghost = {
+      ...base,
+      ownership: {
+        kinds: { ghost: ["contact"] },
+        assigns: base.ownership?.assigns ?? {},
+        counted: [],
+      },
+    } as RlsSqlContext;
+    expect(unsatisfiedKinds(ghost, policy)).toEqual([]);
   });
 
   it("does not compare a source with no via", () => {

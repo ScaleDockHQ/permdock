@@ -5,6 +5,9 @@ import type { IndexTarget } from "./indexes.ts";
 import { sqlFiles } from "../files.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 
+/** An index PermDock generated (`permdock_<table>_<columns>_idx`), in the indexes part or in a migration derived from it: it never counts as serving its own target. */
+const GENERATED_INDEX =
+  /\bcreate\s+index\s+(?:if\s+not\s+exists\s+)?"?permdock_\w*_idx"?[^;]*;/giu;
 const IDENT = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*)`;
 const NAME = String.raw`${IDENT}(?:\s*\.\s*${IDENT})?`;
 const CREATE_INDEX = new RegExp(
@@ -97,12 +100,12 @@ function splitTop(body: string): string[] {
 
 /** The first capture group of a match; every pattern here captures it. */
 function captured(match: RegExpMatchArray): string {
-  return match[1] ?? "";
+  return match.slice(1, 2).join("");
 }
 
 /** The index just past a match. */
-function endOf(match: RegExpMatchArray): number {
-  return (match.index ?? 0) + match[0].length;
+function endOf(match: RegExpExecArray): number {
+  return match.index + match[0].length;
 }
 
 /** The plain key columns of an index column list, cut at the first expression. */
@@ -167,7 +170,9 @@ export function indexKeysFromProject(
 ): Readonly<Record<string, readonly (readonly string[])[]>> {
   const all: Record<string, (readonly string[])[]> = {};
   for (const file of sqlFiles(cwd, [...MIGRATION_DIRS])) {
-    const keys = indexKeysFromSql(readFileSync(file, "utf8"));
+    const keys = indexKeysFromSql(
+      readFileSync(file, "utf8").replaceAll(GENERATED_INDEX, ""),
+    );
     for (const [table, list] of Object.entries(keys)) {
       (all[table] ??= []).push(...list);
     }
