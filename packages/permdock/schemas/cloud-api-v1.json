@@ -1266,6 +1266,63 @@
         }
       ]
     },
+    "/v1/environment": {
+      "get": {
+        "security": [
+          {
+            "client": []
+          }
+        ],
+        "summary": "The environment the key belongs to; cloud() calls it when no environment is configured",
+        "responses": {
+          "200": {
+            "description": "The key's environment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["environment", "issuer", "jwks_uri"],
+                  "properties": {
+                    "environment": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "issuer": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "jwks_uri": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown key",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A key of another kind",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/environments/{env}/decisions": {
       "post": {
         "security": [

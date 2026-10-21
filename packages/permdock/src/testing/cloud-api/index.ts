@@ -120,12 +120,8 @@ export function testCloudApi(
   const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
   const url = trimSlash(baseUrl);
   const prefix = trimSlash(new URL(url).pathname);
-  const { issuer } = cloudEndpoints({
-    url,
-    ...(options.environment === undefined
-      ? {}
-      : { environment: options.environment }),
-  });
+  const environment = options.environment ?? "production";
+  const { issuer } = cloudEndpoints({ url, environment });
   const check = cloudApiValidator();
   const problems: string[] = [];
   const checks: Promise<void>[] = [];
@@ -152,9 +148,7 @@ export function testCloudApi(
     key: keys.client,
     fetch: recording,
     approver: options.approver,
-    ...(options.environment === undefined
-      ? {}
-      : { environment: options.environment }),
+    environment,
     ...(options.verifier === undefined ? {} : { verifier: options.verifier }),
   });
   const call = (
@@ -226,12 +220,7 @@ export function testCloudApi(
   }
 
   if (options.platform !== undefined) {
-    testCloudPlatform(
-      url,
-      options.environment ?? "production",
-      options.platform,
-      recording,
-    );
+    testCloudPlatform(url, environment, options.platform, recording);
   }
 
   it("answers 401 Problem Details without a key", async () => {
@@ -240,6 +229,19 @@ export function testCloudApi(
     expect(response.headers.get("content-type")).toMatch(
       /^application\/problem\+json/u,
     );
+  });
+
+  it("names the client key's environment at GET /v1/environment", async () => {
+    const response = await recording(`${url}/v1/environment`, {
+      headers: { authorization: `Bearer ${keys.client}` },
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      environment,
+      issuer,
+      jwks_uri: `${issuer}/.well-known/jwks.json`,
+    });
+    expect((await recording(`${url}/v1/environment`)).status).toBe(401);
   });
 
   it("answers 403 to a key of another kind", async () => {

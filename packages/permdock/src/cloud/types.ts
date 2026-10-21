@@ -75,10 +75,13 @@ export type CloudOptions = CloudConnectionOptions & {
   readonly source?: string;
   /**
    * Verifies the environment's signed policy document, typically
-   * `joseTokenVerifier({ jwks: cloudEndpoints().jwks })`. Without one,
+   * `({ jwks }) => joseTokenVerifier({ jwks })`. A function is called once,
+   * with the resolved endpoints, on the first refresh. Without one,
    * `policies.current()` stays `null`: an unverifiable document is never applied.
    */
-  readonly verifier?: TokenVerifier;
+  readonly verifier?:
+    | TokenVerifier
+    | ((endpoints: CloudEndpoints) => TokenVerifier);
 };
 
 /**
@@ -107,7 +110,13 @@ export type CloudCatalog = {
   push(catalog: CatalogDocument): Promise<CloudCatalogPush>;
 };
 
-export type CloudClient = CloudEndpoints & {
+export type CloudClient = Partial<CloudEndpoints> & {
+  /**
+   * The environment URL and JWK Set URL. `issuer` and `jwks` are set only
+   * when the environment is configured; otherwise the first call asks
+   * `GET /v1/environment` which environment the key belongs to.
+   */
+  endpoints(): Promise<CloudEndpoints>;
   readonly approvals: ApprovalStore;
   readonly sink: DecisionSink;
   /**

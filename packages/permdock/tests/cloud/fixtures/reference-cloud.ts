@@ -572,6 +572,16 @@ export async function referenceCloud(
     if (platform.handles(pathname)) {
       return platform.handle(request);
     }
+    if (pathname === "/v1/environment" && request.method === "GET") {
+      if (request.headers.get("authorization") !== `Bearer ${KEYS.client}`) {
+        return fail(401, "Missing or unknown key");
+      }
+      return Response.json({
+        environment: ENVIRONMENT,
+        issuer: ISSUER,
+        jwks_uri: `${ISSUER}/.well-known/jwks.json`,
+      });
+    }
     if (!pathname.startsWith(ISSUER.slice(URL_BASE.length))) {
       return fail(404, "Unknown environment");
     }

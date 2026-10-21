@@ -142,6 +142,7 @@ const CONFIG: PermDockConfig = {
 const ENV = {
   PERMDOCK_CLOUD_URL: "https://cloud.permdock.test",
   PERMDOCK_CLOUD_KEY: "key",
+  PERMDOCK_CLOUD_ENV: "production",
 };
 
 function push(cwd: string, overrides: Partial<Input> = {}) {
@@ -182,8 +183,11 @@ describe("runCloud", () => {
 
   it.each([
     [{ PERMDOCK_CLOUD_ENV: "qa", VERCEL_ENV: "preview" }, "qa"],
-    [{ PERMDOCK_CLOUD_ENV: "", VERCEL_ENV: "preview" }, "preview"],
-    [{}, "production"],
+    [
+      { PERMDOCK_CLOUD_ENV: "", VERCEL_ENV: "preview" },
+      "the key's environment",
+    ],
+    [{}, "the key's environment"],
   ] as const)("picks the environment from %j", async (env, expected) => {
     const result = await push(FIXTURE, { dryRun: true, json: true, env });
     // SAFETY: the --json summary printed by `cloud push --dry-run`.
@@ -251,15 +255,43 @@ export const permissions = definePermissions({
       ...IO,
       fetch: (input) => {
         urls.push(String(input));
-        return Promise.resolve(new Response(null, { status: 201 }));
+        return Promise.resolve(
+          String(input).endsWith("/v1/environment")
+            ? Response.json({ environment: "preview" })
+            : new Response(null, { status: 201 }),
+        );
       },
     };
-    expect(
-      (await push(FIXTURE, { env: { PERMDOCK_CLOUD_KEY: "key" }, io })).code,
-    ).toBe(0);
+    const result = await push(FIXTURE, {
+      env: { PERMDOCK_CLOUD_KEY: "key", VERCEL_ENV: "production" },
+      io,
+    });
+    expect(result).toMatchObject({
+      code: 0,
+      output: expect.stringMatching(/ to preview$/u),
+    });
     expect(urls).toEqual([
-      "https://permdock.com/api/v1/environments/production/catalog",
+      "https://permdock.com/api/v1/environment",
+      "https://permdock.com/api/v1/environments/preview/catalog",
     ]);
+  });
+
+  it("names the fix when the Cloud does not name the key's environment", async () => {
+    const io: CliIo = {
+      ...IO,
+      fetch: () => Promise.resolve(new Response(null, { status: 404 })),
+    };
+    await expect(
+      push(FIXTURE, { env: { PERMDOCK_CLOUD_KEY: "key" }, io }),
+    ).rejects.toMatchObject({
+      kind: "failed",
+      message:
+        "permdock cloud push: PermDock Cloud did not name the credential's environment (HTTP 404)",
+      next: [
+        { command: "permdock cloud push --project <environment>" },
+        { command: "export PERMDOCK_CLOUD_ENV=<environment>" },
+      ],
+    });
   });
 
   it("posts through the global fetch and omits the policy without one", async () => {

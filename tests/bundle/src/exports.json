@@ -582,6 +582,7 @@
     "cloudEndpoints",
     "cloudSigner",
     "parseCloudEvent",
+    "resolveCloudEndpoints",
     "verifyWebhook"
   ],
   "./delivery": [

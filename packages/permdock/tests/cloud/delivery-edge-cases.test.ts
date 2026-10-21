@@ -36,6 +36,7 @@ function cloud(respond: () => Response) {
     requests,
     transport: cloudDeliveryTransport("chat", {
       url: CLOUD_URL,
+      environment: "production",
       key: "env-key",
       fetch: fetchImpl,
     }),

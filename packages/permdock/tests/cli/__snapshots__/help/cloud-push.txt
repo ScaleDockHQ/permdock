@@ -5,7 +5,7 @@ Usage  permdock cloud push [flags]
 Flags
   --url <url>        Cloud API base URL
   --manifest <file>  Manifest file to send or write (default permdock.manifest.json)
-  --project <id>     Cloud project id (default PERMDOCK_CLOUD_ENV, then VERCEL_ENV, then production)
+  --project <id>     Cloud project id (default PERMDOCK_CLOUD_ENV, then the key's environment)
   --dry-run          Print what would change; write nothing
   --key-stdin        Read PERMDOCK_CLOUD_KEY from stdin
 

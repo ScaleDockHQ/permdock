@@ -8,6 +8,7 @@ import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { parseCatalog } from "../../catalog/parse.ts";
 import { pushedPolicy } from "../../catalog/pushed-policy.ts";
+import { isRecord } from "../../core/compact.ts";
 import { PermDockValidationError } from "../../core/validation-error.ts";
 import { catalogFingerprint } from "../../index.ts";
 import { parseSupabaseManifest } from "../../supabase/manifest.ts";
@@ -71,6 +72,42 @@ function checkedCatalog(output: string): CatalogDocument {
   }
 }
 
+/** The environment `GET /v1/environment` names for the push credential. */
+async function keyEnvironment(
+  io: CliIo,
+  url: string,
+  bearer: string,
+): Promise<string> {
+  const response = await httpRequest(io, {
+    url: `${url}/v1/environment`,
+    service: "PermDock Cloud",
+    headers: { authorization: `Bearer ${bearer}`, accept: "application/json" },
+  });
+  const body: unknown = response.ok
+    ? await response.json().catch(() => undefined)
+    : undefined;
+  const environment = isRecord(body) ? body["environment"] : undefined;
+  if (typeof environment === "string" && environment !== "") {
+    return environment;
+  }
+  throw new CliError(
+    "failed",
+    `permdock cloud push: PermDock Cloud did not name the credential's environment (HTTP ${String(response.status)})`,
+    {
+      next: [
+        {
+          command: "permdock cloud push --project <environment>",
+          when: "to name the environment",
+        },
+        {
+          command: "export PERMDOCK_CLOUD_ENV=<environment>",
+          when: "in CI",
+        },
+      ],
+    },
+  );
+}
+
 export async function runCloud(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
@@ -116,20 +153,28 @@ export async function runCloud(input: {
     manifest: manifest.manifest !== undefined,
   };
   const url = cloudUrl(input.url, input.env);
-  const environment = firstNonEmpty(
+  const configured = firstNonEmpty(
     input.project,
     input.env["PERMDOCK_CLOUD_ENV"],
-    input.env["VERCEL_ENV"],
-    "production",
   );
-  const describe = (verb: string): string =>
+  const describe = (verb: string, environment: string): string =>
     input.json
       ? JSON.stringify({ ...summary, environment, status: verb })
       : `${verb} catalog ${fingerprint} (${String(summary.permissions)} permissions, ${String(hostable.length)} hostable${summary.manifest ? ", with manifest" : ""}) to ${environment}`;
   if (input.dryRun) {
-    return { code: 0, output: describe("would push") };
+    return {
+      code: 0,
+      output: describe(
+        "would push",
+        configured === "" ? "the key's environment" : configured,
+      ),
+    };
   }
   const auth = await pushAuth(url, input.env, cliRuntime(input.io, input.env));
+  const environment =
+    configured === ""
+      ? await keyEnvironment(input.io, url, auth.bearer)
+      : configured;
   const response = await httpRequest(input.io, {
     url: `${url}/v1/environments/${encodeURIComponent(environment)}/catalog`,
     method: "POST",
@@ -168,5 +213,5 @@ export async function runCloud(input: {
       output: `PermDock Cloud rejected the catalog: HTTP ${String(response.status)}`,
     };
   }
-  return { code: 0, output: describe("pushed") };
+  return { code: 0, output: describe("pushed", environment) };
 }

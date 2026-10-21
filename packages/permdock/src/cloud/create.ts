@@ -9,11 +9,16 @@ import type {
 } from "../approvals/types.ts";
 import type { CatalogDocument } from "../catalog/types.ts";
 import type { SinkEvent } from "../core/event-types.ts";
-import type { DecisionSink, SnapshotSource } from "../core/interfaces.ts";
+import type {
+  DecisionSink,
+  SnapshotSource,
+  TokenVerifier,
+} from "../core/interfaces.ts";
 import type {
   CloudCatalog,
   CloudCatalogPush,
   CloudClient,
+  CloudEndpoints,
   CloudOptions,
 } from "./types.ts";
 
@@ -38,7 +43,7 @@ import { dateAt, type Instant } from "../core/time.ts";
 import { approverHeaders } from "./approver.ts";
 import { cloudConnection, isCompactJws } from "./request.ts";
 
-export { cloudEndpoints } from "./request.ts";
+export { cloudEndpoints, resolveCloudEndpoints } from "./request.ts";
 
 /** Carries the `at+jwt` that names the subject of `GET /snapshot`. */
 const SUBJECT_HEADER = "PermDock-Subject";
@@ -111,7 +116,7 @@ function approvalErrorFromStatus(status: number): ApprovalError {
 }
 
 export function cloud(options: CloudOptions = {}): CloudClient {
-  const { issuer: root, jwks, request } = cloudConnection(options);
+  const { known, endpoints, request } = cloudConnection(options);
   const flushAt = options.flushAt ?? 32;
   const waitUntil = options.waitUntil;
 
@@ -156,7 +161,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
       const approver = await approverHeaders(
         verdict,
         options.approver,
-        root,
+        (await endpoints()).issuer,
         async () => {
           const response = await request("/approvals/by-token", {
             headers: { [APPROVAL_HEADER]: token },
@@ -289,8 +294,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
   };
 
   const capacity = options.capacity ?? 10_000;
-  const source = options.source ?? root;
-  if (!isAbsoluteUri(source)) {
+  if (options.source !== undefined && !isAbsoluteUri(options.source)) {
     throw new TypeError("PermDock: cloud() source is an absolute URI");
   }
   const pending: SinkEvent[] = [];
@@ -306,6 +310,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     }
     const events = pending.splice(0);
     try {
+      const source = options.source ?? (await endpoints()).issuer;
       const response = await request(
         "/decisions",
         {
@@ -359,18 +364,36 @@ export function cloud(options: CloudOptions = {}): CloudClient {
   });
 
   let document: PolicyDocument | null = null;
+  let built: TokenVerifier | undefined;
+  const policyVerifier = (
+    resolved: CloudEndpoints,
+  ): TokenVerifier | undefined => {
+    const verifier = options.verifier;
+    if (typeof verifier !== "function") {
+      return verifier;
+    }
+    built ??= verifier(resolved);
+    return built;
+  };
 
   const policies: PolicySource = {
     current(): PolicyDocument | null {
       return document;
     },
     async refresh(): Promise<void> {
-      const verifier = options.verifier;
-      if (verifier === undefined) {
+      if (options.verifier === undefined) {
         return;
       }
       let response: Response;
+      let root: string;
+      let verifier: TokenVerifier | undefined;
       try {
+        const resolved = await endpoints();
+        root = resolved.issuer;
+        verifier = policyVerifier(resolved);
+        if (verifier === undefined) {
+          return;
+        }
         response = await request("/policy");
       } catch {
         return;
@@ -432,7 +455,7 @@ export function cloud(options: CloudOptions = {}): CloudClient {
     snapshotsFor,
     policies,
     catalog,
-    issuer: root,
-    jwks,
+    endpoints,
+    ...known,
   });
 }

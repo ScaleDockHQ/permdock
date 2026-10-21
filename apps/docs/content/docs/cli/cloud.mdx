@@ -13,7 +13,7 @@ A project is one Cloud environment and has the same id, so `--project` names bot
 
 ```bash
 permdock cloud push                         # PERMDOCK_CLOUD_KEY, or a login from permdock login --scope catalog:write
-permdock cloud push --project preview       # overrides PERMDOCK_CLOUD_ENV, then VERCEL_ENV, then production
+permdock cloud push --project preview       # overrides PERMDOCK_CLOUD_ENV, then the key's environment
 permdock cloud push --manifest supabase/permdock.manifest.json
 permdock cloud push --dry-run --json        # print the fingerprint and summary; no network
 permdock cloud pull --project prj_123       # with a login from permdock login
@@ -21,15 +21,15 @@ permdock cloud pull                         # in CI with PERMDOCK_CLOUD_TOKEN: t
 printf '%s' "$KEY" | permdock cloud push --key-stdin   # the key from a secret store, not the environment
 ```
 
-| Flag            | Meaning                                                                                                                                                                                                        |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--url`         | Base URL of the Cloud API; defaults to `PERMDOCK_CLOUD_URL`, then `https://permdock.com/api`                                                                                                                   |
-| `--project`     | The project id, the same id as its environment. `push` defaults to `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`; `pull` needs it unless `PERMDOCK_CLOUD_TOKEN` names one project                 |
-| `--key-stdin`   | `push`: read `PERMDOCK_CLOUD_KEY` from stdin                                                                                                                                                                   |
-| `--token-stdin` | `pull`: read `PERMDOCK_CLOUD_TOKEN` from stdin                                                                                                                                                                 |
-| `--manifest`    | `push`: the manifest to send (default `permdock.manifest.json`, sent when present); `pull`: where to write it                                                                                                  |
-| `--dry-run`     | `push`: build the catalog and print its fingerprint without posting it                                                                                                                                         |
-| `--json`        | `data` in the envelope. `push`: `{ fingerprint, permissions, hostable, roles, plans, grants, manifest, environment, status }`; `pull`: `{ project, version, fingerprint, permdockVersion, catalog, manifest }` |
+| Flag            | Meaning                                                                                                                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--url`         | Base URL of the Cloud API; defaults to `PERMDOCK_CLOUD_URL`, then `https://permdock.com/api`                                                                                                                                                                             |
+| `--project`     | The project id, the same id as its environment. `push` defaults to `PERMDOCK_CLOUD_ENV`, then the environment `GET /v1/environment` names for the credential (a dry run prints "the key's environment"); `pull` needs it unless `PERMDOCK_CLOUD_TOKEN` names one project |
+| `--key-stdin`   | `push`: read `PERMDOCK_CLOUD_KEY` from stdin                                                                                                                                                                                                                             |
+| `--token-stdin` | `pull`: read `PERMDOCK_CLOUD_TOKEN` from stdin                                                                                                                                                                                                                           |
+| `--manifest`    | `push`: the manifest to send (default `permdock.manifest.json`, sent when present); `pull`: where to write it                                                                                                                                                            |
+| `--dry-run`     | `push`: build the catalog and print its fingerprint without posting it                                                                                                                                                                                                   |
+| `--json`        | `data` in the envelope. `push`: `{ fingerprint, permissions, hostable, roles, plans, grants, manifest, environment, status }`; `pull`: `{ project, version, fingerprint, permdockVersion, catalog, manifest }`                                                           |
 
 ## Push
 

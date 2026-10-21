@@ -221,10 +221,7 @@ function appFile(ctx: Context): string {
     preamble.push(`import { cloud } from "permdock/cloud";`);
   }
   if (services.includes("cloud-hosted-grants")) {
-    preamble.push(
-      `import { cloudEndpoints } from "permdock/cloud";`,
-      `import { joseTokenVerifier } from "permdock/jwt";`,
-    );
+    preamble.push(`import { joseTokenVerifier } from "permdock/jwt";`);
   }
   if (ctx.has("decision-log")) {
     if (services.includes("cloud-decision-log")) {
@@ -261,7 +258,7 @@ function appFile(ctx: Context): string {
     lines.push("  policies: hostedPolicies(permdockCloud.policies),");
   }
   const cloudCall = services.includes("cloud-hosted-grants")
-    ? `cloud({\n  verifier: joseTokenVerifier({ jwks: cloudEndpoints().jwks }),\n})`
+    ? `cloud({\n  verifier: ({ jwks }) => joseTokenVerifier({ jwks }),\n})`
     : "cloud()";
   const snapshots = services.includes("cloud-snapshots")
     ? `\n/** A client's signed snapshot, served by PermDock Cloud for the caller's token. */\nexport const snapshotsFor = (token: string) => permdockCloud.snapshotsFor(token);\n`

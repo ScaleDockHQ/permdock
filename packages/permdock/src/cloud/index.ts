@@ -1,4 +1,4 @@
-export { cloud, cloudEndpoints } from "./create.ts";
+export { cloud, cloudEndpoints, resolveCloudEndpoints } from "./create.ts";
 export type {
   CloudApproverOptions,
   CloudCatalog,

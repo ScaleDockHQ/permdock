@@ -136,6 +136,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     const backend = recorder();
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer },
@@ -168,6 +169,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     const backend = recorder();
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer, audience: "https://cloud.example/approvers" },
@@ -188,6 +190,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     const backend = recorder();
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer },
@@ -215,6 +218,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     const backend = recorder();
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer },
@@ -239,6 +243,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     const backend = recorder({ etag: '"sha-256:abc"' });
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer },
@@ -268,6 +273,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     };
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer: recording },
@@ -290,6 +296,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     };
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer: counting },
@@ -304,7 +311,12 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
 
   it("refuses to resolve without an approver signer and sends nothing", async () => {
     const backend = recorder();
-    const client = cloud({ url: CLOUD_URL, key: KEY, fetch: backend.fetch });
+    const client = cloud({
+      url: CLOUD_URL,
+      environment: "production",
+      key: KEY,
+      fetch: backend.fetch,
+    });
     const refused = await refusal(
       client.approvals.resolve("opaque-token", approve),
     );
@@ -329,6 +341,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     const backend = recorder();
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer },
@@ -367,6 +380,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     const backend = recorder();
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer },
@@ -380,7 +394,12 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
 
   it("sends a system rejection without an approver token", async () => {
     const backend = recorder();
-    const client = cloud({ url: CLOUD_URL, key: KEY, fetch: backend.fetch });
+    const client = cloud({
+      url: CLOUD_URL,
+      environment: "production",
+      key: KEY,
+      fetch: backend.fetch,
+    });
     const verdict: ApprovalVerdict = {
       status: "rejected",
       by: {
@@ -403,6 +422,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     };
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer: broken },
@@ -418,6 +438,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     let calls = 0;
     const tickets = cloudSigner({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       audience: `${CLOUD_ENV}/approvals`,
       fetch: () => {
@@ -447,6 +468,7 @@ describe("approver facts on the PermDock-Approver token", () => {
     const backend = recorder();
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       ...(approver === undefined ? {} : { approver }),
@@ -495,6 +517,7 @@ describe("approver facts on the PermDock-Approver token", () => {
     const backend = recorder();
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: backend.fetch,
       approver: { signer },

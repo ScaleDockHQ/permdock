@@ -85,7 +85,7 @@ describe("permdock cloud push", () => {
         {
           PERMDOCK_CLOUD_URL: "https://cloud.permdock.test/",
           PERMDOCK_CLOUD_KEY: "env-key",
-          VERCEL_ENV: "preview",
+          PERMDOCK_CLOUD_ENV: "preview",
         },
         fetchImpl,
       ),
@@ -194,6 +194,7 @@ describe("permdock cloud push", () => {
         {
           PERMDOCK_CLOUD_URL: "https://cloud.permdock.test",
           PERMDOCK_CLOUD_KEY: "k",
+          PERMDOCK_CLOUD_ENV: "production",
         },
         () => Promise.resolve(new Response(null, { status: 409 })),
       ),
