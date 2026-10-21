@@ -165,7 +165,7 @@ Three optional grant fields were added within `v: 1`. They carry app data and ch
 
 ## Local snapshot manifest
 
-`localSnapshotManifest(policy)` writes what a device needs to build a snapshot without the policy: `v`, the `scopes`, the declared `roles` and `grants`, and per custom-role scope the grants each permission, level and include resolves to (`custom`). `localSnapshot` in `permdock/react-native` reads it ([local snapshot](/docs/adapters/react-native#local-snapshot)); the `LocalSnapshotManifest` type in `permdock` describes it.
+`localSnapshotManifest(policy)` writes what a device needs to build a snapshot without the policy: `v`, the `scopes`, the declared `roles` and `grants`, and per custom-role scope the grants each permission, level and include resolves to (`custom`), with the levels each entry reaches (`reach`, `levelReach`, `includeReach`). `assignable` holds what the device needs to compute the assignable lists: the declared `roles` a tenant admin may hand out, with their scope and allow keys; `manage`, the role names and permission keys with `meta.manageRoles: true`; `assigns`; the custom-role ceiling `permissions`; the level names per permission (`levels`); and the levels a holder of each allow may hand out (`grants`). `localSnapshot` in `permdock/react-native` reads it ([local snapshot](/docs/adapters/react-native#local-snapshot)); the `LocalSnapshotManifest` type in `permdock` describes it.
 
 `permdock powersync generate` adds `rows`: the synced tables a device reads the user's memberships, global roles and custom roles from, under the device's table names ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powerSyncSource` reads them when the app passes no queries.
 
