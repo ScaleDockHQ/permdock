@@ -1,0 +1,69 @@
+name: better-supabase latest
+
+# The newest better-supabase release old enough for minimumReleaseAge, against the
+# committed SQL and the provider conformance, before Dependabot proposes it.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - packages/permdock/src/better-supabase/**
+      - packages/permdock/src/cli/rls/**
+      - .github/workflows/better-supabase-latest.yml
+
+permissions: {}
+
+concurrency:
+  group: better-supabase-latest-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: true
+  TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+
+jobs:
+  latest:
+    name: next-better-supabase on the latest better-supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: apps/examples/next-better-supabase
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+
+      # A range from the catalog pin up: pnpm resolves the newest version minimumReleaseAge allows.
+      - name: Resolve the latest better-supabase
+        working-directory: .
+        run: |
+          sed -i -E 's/^  better-supabase: ([0-9.]+)$/  better-supabase: ">=\1"/' pnpm-workspace.yaml
+          pnpm install --no-frozen-lockfile
+          VERSION=$(node -p "require('./apps/examples/next-better-supabase/node_modules/better-supabase/package.json').version")
+          echo "better-supabase $VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build permdock
+        working-directory: .
+        run: pnpm --filter permdock build
+
+      # rls generate, supabase inspect, sql sync, sql upgrade and gen, each with --check.
+      - name: Generated SQL, manifest, blocks and types are current
+        run: pnpm run gen:check
+
+      # permdock doctor, then better-supabase doctor against the migrations on a fresh Postgres.
+      - name: Doctors
+        run: pnpm run doctor
+
+      - name: Provider conformance
+        working-directory: packages/permdock
+        run: pnpm exec vitest run tests/better-supabase
