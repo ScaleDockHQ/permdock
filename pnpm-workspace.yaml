@@ -106,12 +106,12 @@ catalog:
   next-themes: 0.4.6
   ajv: 8.20.0
   oxc-parser: 0.154.0
-  "@oxlint/plugins": 1.88.0
+  "@oxlint/plugins": 1.89.0
   eslint-plugin-turbo: 2.11.8
   oxlint-plugin-react-doctor: 0.9.18
-  "@shadcn/lint": 0.2.1
-  oxfmt: 0.73.0
-  oxlint: 1.88.0
+  "@shadcn/lint": 0.2.3
+  oxfmt: 0.74.0
+  oxlint: 1.89.0
   oxlint-tsgolint: 7.0.2004
   pgsql-parser: 18.2.12
   pg: 8.23.1
@@ -291,7 +291,7 @@ peerDependencyRules:
     # Reached only through `workflow`'s Nest integration, which no workspace loads; @supabase/server picks Nest 11 beside it.
     "@nestjs/core>@nestjs/common": "11"
     # typegen 0.6.0 pins oxfmt 0.66.0 exactly; the example's `better-supabase gen` formats with the repo's oxfmt.
-    "@supabase/postgrest-typegen>oxfmt": "0.73"
+    "@supabase/postgrest-typegen>oxfmt": "0.74"
     # The optional typescript peer of SvelteKit 3 reads only its public types; the repository builds with TypeScript 7.
     "@sveltejs/kit>typescript": "7"
 

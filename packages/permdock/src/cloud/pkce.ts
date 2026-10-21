@@ -6,7 +6,7 @@ function base64url(bytes: Uint8Array): string {
   return btoa(binary)
     .replaceAll("+", "-")
     .replaceAll("/", "_")
-    .replace(/=+$/u, "");
+    .replace(/[=]+$/u, "");
 }
 
 /** `length` random bytes as base64url, from Web Crypto. */

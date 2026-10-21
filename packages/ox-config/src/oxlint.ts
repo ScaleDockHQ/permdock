@@ -469,7 +469,7 @@ export const test: OxlintConfig = defineConfig({
  * rules, and the shadcn design-system rules.
  *
  * This lists every rule of the react, jsx-a11y and nextjs plugins in the
- * categories `core` enables as of oxlint 1.86. Re-check it on oxlint upgrades.
+ * categories `core` enables as of oxlint 1.89. Re-check it on oxlint upgrades.
  */
 export const react: OxlintConfig = defineConfig({
   jsPlugins: [

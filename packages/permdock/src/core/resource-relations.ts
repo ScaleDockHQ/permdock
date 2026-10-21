@@ -273,7 +273,7 @@ function normaliseMatch(label: string, match: EdgeMatch): EdgeMatch {
       typeof value !== "boolean" &&
       !(typeof value === "number" && Number.isFinite(value))
     ) {
-      throw new Error(
+      throw new TypeError(
         `PermDock: ${label} match '${column}' must be a string, a finite number or a boolean`,
       );
     }
