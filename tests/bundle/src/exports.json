@@ -568,6 +568,7 @@
     "memoryDirectoryStore",
     "normalizePatchOps",
     "parseScimFilter",
+    "postgresDirectoryStore",
     "resourceTypes",
     "schemas",
     "scimHandler",
