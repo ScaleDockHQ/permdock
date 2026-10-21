@@ -224,6 +224,12 @@ export async function verifyAgainstDatabase(input: {
         notes.push(`${fixture.action}: opaque grant untestable app-side`);
         continue;
       }
+      if (input.config.rls?.tables?.[permission.resource] === false) {
+        notes.push(
+          `${fixture.action}: rls.tables.${permission.resource} is false, so there is no table`,
+        );
+        continue;
+      }
       const table = tableNameOf(
         input.config.rls?.tables?.[permission.resource],
         permission.resource,

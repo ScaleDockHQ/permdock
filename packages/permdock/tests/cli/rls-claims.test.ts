@@ -14,10 +14,10 @@ import {
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
+  claim,
   context,
   definePermissions,
   definePolicy,
-  principal,
   resource,
   role,
 } from "../../src/index.ts";
@@ -248,9 +248,9 @@ describe("request context in RLS", () => {
       role("analyst", [
         allow(permissions.doc.read, {
           where: {
-            region: refAt(principal, "claims", "attrs", "region"),
+            region: claim("attrs.region"),
             clearance: {
-              lte: refAt(principal, "claims", "attrs", "clearance"),
+              lte: claim("attrs.clearance"),
             },
           },
         }),

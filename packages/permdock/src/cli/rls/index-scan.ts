@@ -22,6 +22,10 @@ const CREATE_TABLE = new RegExp(
   String.raw`\bcreate\s+(?:unlogged\s+|temp(?:orary)?\s+)?table\s+(?:if\s+not\s+exists\s+)?(${NAME})\s*\(`,
   "giu",
 );
+const TABLE_NAME = new RegExp(
+  String.raw`\bcreate\s+(?:unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?(${NAME})`,
+  "giu",
+);
 const TABLE_KEY = new RegExp(
   String.raw`^(?:constraint\s+${IDENT}\s+)?(?:unique|primary\s+key)\s*(?:nulls\s+not\s+distinct\s*)?\(`,
   "iu",
@@ -175,6 +179,26 @@ export function indexKeysFromProject(
     );
     for (const [table, list] of Object.entries(keys)) {
       (all[table] ??= []).push(...list);
+    }
+  }
+  return all;
+}
+
+/** Every `schema.table` the SQL creates, temporary tables left out. */
+export function tablesFromSql(sql: string): ReadonlySet<string> {
+  return new Set(
+    [...stripComments(sql).matchAll(TABLE_NAME)].map((match) =>
+      qualified(captured(match)),
+    ),
+  );
+}
+
+/** Every `schema.table` the SQL files under the migration and schema folders of `cwd` create. */
+export function tablesFromProject(cwd: string): ReadonlySet<string> {
+  const all = new Set<string>();
+  for (const file of sqlFiles(cwd, [...MIGRATION_DIRS])) {
+    for (const table of tablesFromSql(readFileSync(file, "utf8"))) {
+      all.add(table);
     }
   }
   return all;
