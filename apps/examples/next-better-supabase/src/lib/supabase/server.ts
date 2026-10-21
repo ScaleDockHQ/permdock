@@ -21,7 +21,7 @@ export const bs = createNext(betterSupabase, {
   postgres,
   authorizer: authorizer({ policy }),
   auth: {
-    jwks: env.verificationKeys,
+    ...(env.verificationKeys && { jwks: env.verificationKeys }),
     issuer,
     audience,
     cookie: { name: cookieName },
