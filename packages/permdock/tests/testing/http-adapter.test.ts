@@ -172,9 +172,7 @@ function mountKernel(
     limits: domain.limits,
   });
   const evaluations = kernel.permdockHandler();
-  const eventsPath = new URLPattern({
-    pathname: "/:org/projects/:id/events",
-  });
+  const eventsPath = new URLPattern({ pathname: "/:org/projects/:id/events" });
   const evaluationsPath = new URLPattern({
     pathname: "/:org/permdock/access/v1/evaluations",
   });

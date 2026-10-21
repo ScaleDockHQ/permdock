@@ -299,9 +299,7 @@ describe("policy delegations", () => {
     const plain = unsigned(getPermDockSync(policy, member));
     expect(plain.delegated).toBeUndefined();
     const other = unsigned(
-      getPermDockSync(policy, member, {
-        actor: { id: "bot", kind: "openai" },
-      }),
+      getPermDockSync(policy, member, { actor: { id: "bot", kind: "openai" } }),
     );
     expect(other.delegated).toBeUndefined();
     expect(other.subject.delegation).toEqual({ scope: "" });
@@ -324,9 +322,7 @@ describe("read-only actors", () => {
   });
 
   it("gets nothing until the policy delegates to the actor kind", async () => {
-    const permdock = getPermDockSync(policy, member, {
-      actor: support(false),
-    });
+    const permdock = getPermDockSync(policy, member, { actor: support(false) });
     expect(outcome(permdock, permissions.post.read, post)).toBe(
       "no-delegation",
     );

@@ -114,9 +114,7 @@ function jsonSchemaOf(
     return undefined;
   }
   // SAFETY: an optional read of Standard JSON Schema's jsonSchema; it is checked before use.
-  const standard = schema["~standard"] as {
-    readonly jsonSchema?: unknown;
-  };
+  const standard = schema["~standard"] as { readonly jsonSchema?: unknown };
   // SAFETY: Standard JSON Schema's shape; input is typeof-checked before the call.
   const converter = standard.jsonSchema as
     | { readonly input?: (options: { readonly target: string }) => unknown }
@@ -218,7 +216,10 @@ function approvalResult(
   };
 }
 
-/** A collection permission names the resource type only, never an id from the input. */
+/**
+ * A collection permission names the resource type only, never an id from the
+ * input.
+ */
 function refOf(permission: Permission, data: unknown): ResourceRef {
   return resourceRef(
     permission,
@@ -287,9 +288,7 @@ function wrapResult(value: unknown): WebMcpToolResult {
   if (typeof value === "string") {
     return { content: [{ type: "text", text: value }] };
   }
-  return {
-    content: [{ type: "text", text: JSON.stringify(value ?? null) }],
-  };
+  return { content: [{ type: "text", text: JSON.stringify(value ?? null) }] };
 }
 
 function instanceAllowed(snapshot: Snapshot, permission: Permission): boolean {
@@ -381,10 +380,7 @@ async function runTool(
       return {
         isError: true,
         content: [
-          {
-            type: "text",
-            text: `${permission.key}: no handler registered.`,
-          },
+          { type: "text", text: `${permission.key}: no handler registered.` },
         ],
       };
     }

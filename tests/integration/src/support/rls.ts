@@ -7,8 +7,8 @@ import type { AsOptions, Postgres } from "./postgres.ts";
 
 /**
  * Runs the CLI with every `{dir}` in `args` replaced by a fresh temporary
- * directory, and returns `files` read from it. A non-zero exit throws with
- * the CLI output. The directory is removed either way.
+ * directory, and returns `files` read from it. A non-zero exit throws with the
+ * CLI output. The directory is removed either way.
  */
 export async function generated(
   args: readonly string[],
@@ -91,7 +91,10 @@ export function jwtClaims(
   };
 }
 
-/** The `id` column of `sql`, run as `tester` under `as` in a rolled-back transaction. */
+/**
+ * The `id` column of `sql`, run as `tester` under `as` in a rolled-back
+ * transaction.
+ */
 export async function visibleIds(
   db: Postgres,
   as: AsOptions,
@@ -140,7 +143,10 @@ export async function readableIds<T extends { readonly id: string }, P>(
     .toSorted();
 }
 
-/** `rls generate --rbac supabase` and `supabase hook generate` in `cwd`, in apply order. */
+/**
+ * `rls generate --rbac supabase` and `supabase hook generate` in `cwd`, in
+ * apply order.
+ */
 export async function rlsAndHook(cwd: string): Promise<readonly string[]> {
   return [
     await generateRls(cwd, ["--rbac", "supabase"]),

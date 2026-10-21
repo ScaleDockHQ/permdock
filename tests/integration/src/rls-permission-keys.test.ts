@@ -70,10 +70,7 @@ describe("permission-key helpers", () => {
     }
     const target = db;
     return target.as(
-      {
-        role: "authenticated",
-        settings: jwtClaims(user),
-      },
+      { role: "authenticated", settings: jwtClaims(user) },
       async () => {
         const result = await target.tester.query<{ id: string }>(sql);
         return result.rows.map((row) => row.id).toSorted();

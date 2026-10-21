@@ -61,9 +61,7 @@ describe("parseLeaf", () => {
   it("keeps everything after -- as passthrough", () => {
     expect(
       parseLeaf("x", ["--json", "--", "--other", "-z"], FLAGS),
-    ).toMatchObject({
-      passthrough: ["--other", "-z"],
-    });
+    ).toMatchObject({ passthrough: ["--other", "-z"] });
   });
 
   it("rejects an unknown flag with the nearest name", () => {

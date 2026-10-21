@@ -138,9 +138,7 @@ describe("permdock rls", () => {
     const collapsed = readFileSync(join(cwd, "collapsed.sql"), "utf8");
     expect(collapsed.match(/create policy "post_select"/gu)).toHaveLength(1);
     expect(collapsed).not.toContain("member_post_read");
-    await run([...base, "--policy-per-role", "--out", "per-role.sql"], {
-      cwd,
-    });
+    await run([...base, "--policy-per-role", "--out", "per-role.sql"], { cwd });
     const perRole = readFileSync(join(cwd, "per-role.sql"), "utf8");
     expect(perRole).toContain('create policy "member_post_read"');
     expect(perRole).toContain('create policy "member_post_list"');

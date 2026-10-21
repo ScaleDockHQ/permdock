@@ -47,7 +47,10 @@ function grantsAnyone(grant: Grant): boolean {
   );
 }
 
-/** Every subject is granted it: an unconditional allow to `anyone()` and no deny. */
+/**
+ * Every subject is granted it: an unconditional allow to `anyone()` and no
+ * deny.
+ */
 function isPublic(policy: Policy, permission: Permission): boolean {
   const grants = grantsOf(policy, [permission]);
   return (
@@ -271,7 +274,10 @@ const FLOWS = [
   "deviceAuthorization",
 ] as const;
 
-/** The client authentication methods FAPI 2.0 section 5.3.2.1 allows: sender-constrained, no shared secret. */
+/**
+ * The client authentication methods FAPI 2.0 section 5.3.2.1 allows:
+ * sender-constrained, no shared secret.
+ */
 const FAPI2_AUTH_METHODS = ["private_key_jwt", "tls_client_auth"] as const;
 
 function pascal(value: string): string {
@@ -283,8 +289,8 @@ function pascal(value: string): string {
 }
 
 /**
- * One Security Profile Requirement per distinct scope set: `scopeSets` from
- * the operations, else one per permission.
+ * One Security Profile Requirement per distinct scope set: `scopeSets` from the
+ * operations, else one per permission.
  */
 export function securityProfileRequirementsOf(
   policy: Policy,

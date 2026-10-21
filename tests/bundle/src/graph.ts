@@ -78,7 +78,10 @@ export const ENTRIES = {
 
 export type Entry = keyof typeof ENTRIES;
 
-/** Entries that are Node-only by design: a terminal CLI helper and the build tooling. */
+/**
+ * Entries that are Node-only by design: a terminal CLI helper and the build
+ * tooling.
+ */
 const NODE_ONLY_ENTRIES = [
   "./terminal",
   "./cli",
@@ -123,7 +126,10 @@ export const TOOLING_PACKAGES = [
 
 const COMMENT_LINE = /^\s*(?:\*|\/\/|\/\*)/u;
 
-/** A chunk's source without comment lines: bundled JSDoc names `import('./types')`. */
+/**
+ * A chunk's source without comment lines: bundled JSDoc names
+ * `import('./types')`.
+ */
 function codeOf(file: string): string {
   return readFileSync(file, "utf8")
     .split("\n")
@@ -254,7 +260,8 @@ export function isClientBoundary(file: string): boolean {
 /**
  * Files reachable from a server entry, without crossing a "use client" module,
  * that import a client-only React API. Under the `react-server` condition those
- * exports do not exist, so the entry crashes when a Server Component imports it.
+ * exports do not exist, so the entry crashes when a Server Component imports
+ * it.
  */
 export function clientApiLeaks(entryFile: string): readonly string[] {
   const leaks: string[] = [];

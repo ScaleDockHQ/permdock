@@ -1,9 +1,15 @@
 import type { CatalogDocument } from "../catalog/types.ts";
 
 export type RoleOrderOptions = {
-  /** Keep only roles declared `on` this scope, such as the scope SSO assigns memberships in. */
+  /**
+   * Keep only roles declared `on` this scope, such as the scope SSO assigns
+   * memberships in.
+   */
   readonly scope?: string;
-  /** The owner role, left out because better-supabase's `roleOrder` must not list it. */
+  /**
+   * The owner role, left out because better-supabase's `roleOrder` must not
+   * list it.
+   */
   readonly owner?: string;
 };
 

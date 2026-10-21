@@ -32,7 +32,10 @@ type StartServer<TContext> = (options: {
   }) => Promise<unknown>;
 }) => Promise<unknown>;
 
-/** Runs a request middleware the way Start does, with a `next` that records the context it was given. */
+/**
+ * Runs a request middleware the way Start does, with a `next` that records the
+ * context it was given.
+ */
 async function run<TContext>(
   middleware: TanStackStartMiddleware<TContext>,
   request: Request,

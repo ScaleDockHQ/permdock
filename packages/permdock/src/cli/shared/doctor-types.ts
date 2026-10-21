@@ -12,10 +12,7 @@ export type DoctorFinding = {
   readonly fix: string;
 };
 
-export type DoctorSource = {
-  readonly file: string;
-  readonly text: string;
-};
+export type DoctorSource = { readonly file: string; readonly text: string };
 
 /** The file reads a check makes, by absolute path. */
 export type DoctorFiles = {
@@ -28,9 +25,8 @@ export type DoctorFiles = {
 };
 
 /**
- * What a check reads. `runDoctor` passes the memoised loads of one
- * `Project`; a check called without them loads the policy or runs the
- * collect itself.
+ * What a check reads. `runDoctor` passes the memoised loads of one `Project`; a
+ * check called without them loads the policy or runs the collect itself.
  */
 export type DoctorInput = {
   readonly cwd: string;

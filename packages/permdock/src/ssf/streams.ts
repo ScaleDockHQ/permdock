@@ -2,7 +2,10 @@ import type { SsfStreamConfiguration, SsfStreamStatus } from "./types.ts";
 
 /** One stream a transmitter holds and the receiver that created it. */
 export type SsfStream = {
-  /** The receiver `ssfTransmitter`'s `authorize` answered when the stream was created. */
+  /**
+   * The receiver `ssfTransmitter`'s `authorize` answered when the stream was
+   * created.
+   */
   readonly owner: string;
   readonly configuration: SsfStreamConfiguration;
 };
@@ -19,9 +22,15 @@ export type SsfStreamStore = {
     configuration: SsfStreamConfiguration,
   ): void | Promise<void>;
   get(streamId: string): SsfStream | null | Promise<SsfStream | null>;
-  /** Every stream of `owner`, or every stream when `owner` is absent, oldest first. */
+  /**
+   * Every stream of `owner`, or every stream when `owner` is absent, oldest
+   * first.
+   */
   list(owner?: string): readonly SsfStream[] | Promise<readonly SsfStream[]>;
-  /** Replaces the configuration of the stream `configuration.stream_id`; the owner and status stay. */
+  /**
+   * Replaces the configuration of the stream `configuration.stream_id`; the
+   * owner and status stay.
+   */
   update(configuration: SsfStreamConfiguration): void | Promise<void>;
   delete(streamId: string): void | Promise<void>;
   status(
@@ -30,10 +39,7 @@ export type SsfStreamStore = {
   setStatus(status: SsfStreamStatus): void | Promise<void>;
 };
 
-type Entry = {
-  readonly stream: SsfStream;
-  readonly status: SsfStreamStatus;
-};
+type Entry = { readonly stream: SsfStream; readonly status: SsfStreamStatus };
 
 /**
  * An in-process `SsfStreamStore`. A process restart loses every stream; a

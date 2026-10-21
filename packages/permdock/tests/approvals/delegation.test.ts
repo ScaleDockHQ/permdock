@@ -41,11 +41,7 @@ const policy = definePolicy(permissions, {
   roles: [
     role(
       "clerk",
-      [
-        allow(permissions.payment.send, {
-          approval: { by: user("cfo") },
-        }),
-      ],
+      [allow(permissions.payment.send, { approval: { by: user("cfo") } })],
       { on: "tenant" },
     ),
     role(
@@ -66,9 +62,7 @@ const policy = definePolicy(permissions, {
       ],
       { on: "tenant" },
     ),
-    role("controller", [allow(permissions.payment.approve)], {
-      on: "tenant",
-    }),
+    role("controller", [allow(permissions.payment.approve)], { on: "tenant" }),
   ],
   subject: (person: { readonly id: string } | null) =>
     person === null ? null : { id: person.id },
@@ -199,10 +193,7 @@ describe("approver delegation", () => {
       applyApprovalVerdict(request, {
         status: "approved",
         by: inTenant("cara", ["clerk"]),
-        onBehalfOf: {
-          subject: inTenant("cfo"),
-          delegation: "self",
-        },
+        onBehalfOf: { subject: inTenant("cfo"), delegation: "self" },
       }),
     ).toThrow(/principal/u);
     expect(

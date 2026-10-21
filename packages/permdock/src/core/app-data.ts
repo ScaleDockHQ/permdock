@@ -21,14 +21,20 @@ export type AppData = Readonly<Record<string, MetaValue>>;
  */
 export type AppDataSchema<X = AppData> = StandardSchemaV1<unknown, X>;
 
-/** A leaf whose `meta.x` is typed by a schema; intersected so it stays assignable to the untyped leaf. */
+/**
+ * A leaf whose `meta.x` is typed by a schema; intersected so it stays
+ * assignable to the untyped leaf.
+ */
 export type WithX<L, X> = [X] extends [never]
   ? L
   : L & { readonly meta: { readonly x?: Readonly<X> } };
 
 const MAX_META_DEPTH = 8;
 
-/** Throws unless `value` is plain, prototype-safe JSON at most eight levels deep. */
+/**
+ * Throws unless `value` is plain, prototype-safe JSON at most eight levels
+ * deep.
+ */
 export function assertMetaValue(
   value: unknown,
   label: string,
@@ -94,8 +100,8 @@ function runSchema(
 }
 
 /**
- * Checks code-declared app data: plain JSON, then the schema when one is
- * given. Throws on failure, because a bad definition is an author error.
+ * Checks code-declared app data: plain JSON, then the schema when one is given.
+ * Throws on failure, because a bad definition is an author error.
  */
 export function parseAppData(
   schema: AppDataSchema<unknown> | undefined,
@@ -118,8 +124,8 @@ export function parseAppData(
 
 /**
  * Checks app data read from a source (a membership, a stored custom role).
- * Never throws: `undefined` means the value is dropped, and the caller
- * reports it.
+ * Never throws: `undefined` means the value is dropped, and the caller reports
+ * it.
  */
 export function readAppData(
   schema: AppDataSchema<unknown> | undefined,

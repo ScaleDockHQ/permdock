@@ -78,20 +78,10 @@ function makeGrant(
   const toInput = isClosure(condition) ? undefined : condition?.to;
   const to =
     toInput === undefined
-      ? ({
-          kind: "role",
-          role: "",
-          scope: "global",
-        } satisfies Grantee)
+      ? ({ kind: "role", role: "", scope: "global" } satisfies Grantee)
       : asGrantee(toInput);
   if (isClosure(condition)) {
-    return {
-      permission,
-      effect,
-      to,
-      portable: false,
-      closure: condition,
-    };
+    return { permission, effect, to, portable: false, closure: condition };
   }
   const whereInput = condition?.where;
   const checkInput = condition?.check;
@@ -131,7 +121,10 @@ function makeGrant(
   });
 }
 
-/** Checks a grant's `meta`: plain JSON, string `description`, `x` through the schema when given. */
+/**
+ * Checks a grant's `meta`: plain JSON, string `description`, `x` through the
+ * schema when given.
+ */
 function grantMeta(
   meta: unknown,
   key: string,
@@ -211,7 +204,10 @@ function appObligations(
   return out.length === 0 ? undefined : freezeDeep(out);
 }
 
-/** Re-checks every grant's `meta.x` with the policy's grant schema, keeping the schema output. */
+/**
+ * Re-checks every grant's `meta.x` with the policy's grant schema, keeping the
+ * schema output.
+ */
 export function withGrantSchema(
   grant: Grant,
   schema: AppDataSchema<unknown> | undefined,
@@ -258,9 +254,9 @@ export function allow<T, K extends PermissionKind = PermissionKind>(
   condition?: GrantCondition<T, K>,
 ): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[];
 /**
- * Every action of a resource (`permissions.post`), of several, or of the
- * whole tree, unconditionally. Each grant is listed in the policy as if
- * written out, and an action added to the resource later is granted too.
+ * Every action of a resource (`permissions.post`), of several, or of the whole
+ * tree, unconditionally. Each grant is listed in the policy as if written out,
+ * and an action added to the resource later is granted too.
  */
 export function allow(
   permissions: PermissionTree | readonly (Permission | PermissionTree)[],
@@ -288,7 +284,10 @@ export function deny<T, K extends PermissionKind = PermissionKind>(
   permission: Permission<string, T, K> | readonly Permission<string, T, K>[],
   condition?: GrantCondition<T, K>,
 ): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[];
-/** Every action of a resource, of several, or of the whole tree, unconditionally. */
+/**
+ * Every action of a resource, of several, or of the whole tree,
+ * unconditionally.
+ */
 export function deny(
   permissions: PermissionTree | readonly (Permission | PermissionTree)[],
 ): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[];

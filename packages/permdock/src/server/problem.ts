@@ -94,13 +94,19 @@ export function protectedResourceMetadataUrl(resource: URL): string {
   return `${resource.origin}/.well-known/oauth-protected-resource${path}`;
 }
 
-/** The `error_description` of every `invalid_token` challenge (RFC 6750 section 3.1). */
+/**
+ * The `error_description` of every `invalid_token` challenge (RFC 6750 section
+ * 3.1).
+ */
 const INVALID_TOKEN = "The access token is invalid";
 
 export function wwwAuthenticate(
   decision: Decision,
   permission: Permission | undefined,
-  /** Whether the request carried credentials; without any, the challenge has no error code. */
+  /**
+   * Whether the request carried credentials; without any, the challenge has no
+   * error code.
+   */
   credentials = true,
 ): string | undefined {
   return challengeFor(decision, permission?.scope, credentials);
@@ -160,7 +166,10 @@ export function problemResponse(
   });
 }
 
-/** The most evaluations one batch request may carry, for AuthZEN and the decision endpoint alike. */
+/**
+ * The most evaluations one batch request may carry, for AuthZEN and the
+ * decision endpoint alike.
+ */
 export const DEFAULT_MAX_EVALUATIONS = 256;
 
 /** RFC 9457 413 for a batch over `max` evaluations. */
@@ -242,9 +251,9 @@ export function rateLimitHeaders(
 }
 
 /**
- * The response for a decision's Problem Details: `WWW-Authenticate` for a
- * `401` or a missing delegation, and the rate-limit fields for a `429`. A
- * hidden row's `404` carries neither, so it reads like a missing one.
+ * The response for a decision's Problem Details: `WWW-Authenticate` for a `401`
+ * or a missing delegation, and the rate-limit fields for a `429`. A hidden
+ * row's `404` carries neither, so it reads like a missing one.
  */
 export function decisionResponse(
   details: ProblemDetails,
@@ -284,7 +293,10 @@ export function problemFromDecision(
     readonly disclosure?: Disclosure;
     /** Whether the request carried credentials, which picks the `401` challenge. */
     readonly credentials?: boolean;
-    /** The scope an `insufficient_scope` challenge names; the permission's own scope when absent. */
+    /**
+     * The scope an `insufficient_scope` challenge names; the permission's own
+     * scope when absent.
+     */
     readonly scope?: string;
   } = {},
 ): Response {
@@ -356,7 +368,10 @@ export const ANONYMOUS: Extract<Decision, { readonly outcome: "denied" }> =
     alternatives: [],
   });
 
-/** The `401` for a request with no subject, with the RFC 6750 challenge its credentials call for. */
+/**
+ * The `401` for a request with no subject, with the RFC 6750 challenge its
+ * credentials call for.
+ */
 export function unauthenticatedProblem(credentials: boolean): Response {
   return decisionResponse(
     problemDetails({ decision: ANONYMOUS, detail: "anonymous" }),
@@ -365,14 +380,15 @@ export function unauthenticatedProblem(credentials: boolean): Response {
   );
 }
 
-/** RFC 9110 section 15.5.6: a `405` lists the methods the resource supports in `Allow`. */
+/**
+ * RFC 9110 section 15.5.6: a `405` lists the methods the resource supports in
+ * `Allow`.
+ */
 export function methodNotAllowed(allow: string): Response {
   return problemResponse(
     statusProblem(405, `use ${allow}`),
     undefined,
     undefined,
-    {
-      Allow: allow,
-    },
+    { Allow: allow },
   );
 }

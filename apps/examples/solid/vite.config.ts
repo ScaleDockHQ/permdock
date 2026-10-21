@@ -2,10 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import solid from "vite-plugin-solid";
 
 type HealthRequest = { readonly url?: string };
-type HealthResponse = {
-  statusCode: number;
-  end: (body: string) => void;
-};
+type HealthResponse = { statusCode: number; end: (body: string) => void };
 
 function healthHandle(
   req: HealthRequest,
@@ -34,14 +31,6 @@ function healthPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [solid(), healthPlugin()],
-  server: {
-    host: "127.0.0.1",
-    port: 3483,
-    strictPort: true,
-  },
-  preview: {
-    host: "127.0.0.1",
-    port: 3483,
-    strictPort: true,
-  },
+  server: { host: "127.0.0.1", port: 3483, strictPort: true },
+  preview: { host: "127.0.0.1", port: 3483, strictPort: true },
 });

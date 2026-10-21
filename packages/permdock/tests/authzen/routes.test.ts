@@ -87,10 +87,7 @@ describe("AuthZEN routing", () => {
     expect({
       status: response.status,
       id: response.headers.get("x-request-id"),
-    }).toEqual({
-      status: 404,
-      id: "r-1",
-    });
+    }).toEqual({ status: 404, id: "r-1" });
     const blank = await pdp()(
       new Request(`${ORIGIN}/nope`, { headers: { "x-request-id": "" } }),
     );
@@ -308,10 +305,7 @@ describe("AuthZEN search", () => {
 
   it("answers 400 for an action search without a resource", async () => {
     const response = await pdp()(
-      post("/access/v1/search/action", {
-        subject: member,
-        page: { limit: 2 },
-      }),
+      post("/access/v1/search/action", { subject: member, page: { limit: 2 } }),
     );
     expect(response.status).toBe(400);
   });
@@ -327,10 +321,7 @@ describe("AuthZEN search", () => {
     ]) {
       expect(
         await json(await handle(post("/access/v1/search/resource", body))),
-      ).toEqual({
-        results: [],
-        page: { next_token: "", count: 0, total: 0 },
-      });
+      ).toEqual({ results: [], page: { next_token: "", count: 0, total: 0 } });
     }
   });
 

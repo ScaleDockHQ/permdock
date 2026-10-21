@@ -192,11 +192,7 @@ describe("createPermDock (delivery)", () => {
       p.invoice.read,
       invoice,
       [
-        {
-          principal: "u_2",
-          channel: "email",
-          address: "Ann <ann@acme.test>",
-        },
+        { principal: "u_2", channel: "email", address: "Ann <ann@acme.test>" },
         {
           principal: "u_2",
           channel: "email",

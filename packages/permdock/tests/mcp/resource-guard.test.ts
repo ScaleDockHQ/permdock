@@ -133,9 +133,7 @@ describe("mcpResourceGuard", () => {
   it("refuses when the verifier throws", async () => {
     const result = await mcpResourceGuard({
       resource: RESOURCE,
-      verifier: {
-        verify: () => Promise.reject(new Error("jwks down")),
-      },
+      verifier: { verify: () => Promise.reject(new Error("jwks down")) },
     })(request("Bearer full"));
     expect(!result.ok && result.response.status).toBe(401);
   });

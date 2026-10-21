@@ -268,10 +268,7 @@ describe("contact principals", () => {
 describePolicy(policy, {
   exhaustive: false,
   snapshot: true,
-  subjects: {
-    contact,
-    user: { ...contact, kind: "user" },
-  },
+  subjects: { contact, user: { ...contact, kind: "user" } },
   fixtures: { i1, i2, i3: { id: "i3", orgId: "o1" } },
   matrix: {
     [permissions.invoice.read.key]: {

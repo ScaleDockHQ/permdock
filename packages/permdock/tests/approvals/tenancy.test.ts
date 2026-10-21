@@ -21,10 +21,7 @@ const request: ApprovalRequest = {
 };
 
 function approver(memberships: readonly Membership[]): Subject {
-  return {
-    principal: { id: "u_2", roles: [], memberships },
-    context: {},
-  };
+  return { principal: { id: "u_2", roles: [], memberships }, context: {} };
 }
 
 describe("approver tenancy", () => {

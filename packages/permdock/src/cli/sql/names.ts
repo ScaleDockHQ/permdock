@@ -16,14 +16,12 @@ import { CLI, quoteIdent, quoteLiteral } from "./quote.ts";
 import { subjectIdSql } from "./subject.ts";
 
 /** The closure table graph grants read. Part of the SQL contract. */
-export const CLOSURE = {
-  table: "permdock_closure",
-} as const;
+export const CLOSURE = { table: "permdock_closure" } as const;
 
 /**
  * The snake_case SQL name of a resource or link (`chatThread` becomes
- * `chat_thread`), or `undefined` when it is not made of ASCII letters,
- * digits and underscores starting with a letter.
+ * `chat_thread`), or `undefined` when it is not made of ASCII letters, digits
+ * and underscores starting with a letter.
  */
 export function graphSqlName(name: string): string | undefined {
   if (!/^[A-Za-z][A-Za-z0-9_]*$/u.test(name)) {
@@ -45,7 +43,10 @@ function sqlNameOf(name: string, label: string): string {
   return sql;
 }
 
-/** The helper returning the ids of `resource` the subject holds a relation on: `permitted_<snake_case resource>_ids`. */
+/**
+ * The helper returning the ids of `resource` the subject holds a relation on:
+ * `permitted_<snake_case resource>_ids`.
+ */
 export function graphHelper(resource: string): string {
   return permittedIdsHelper(sqlNameOf(resource, `resource '${resource}'`));
 }
@@ -54,7 +55,10 @@ export function inheritedRowsHelper(resource: string): string {
   return `permitted_${sqlNameOf(resource, `resource '${resource}'`)}_rows`;
 }
 
-/** The helper returning the ids of `resource` whose `link` points into the ids it is given. */
+/**
+ * The helper returning the ids of `resource` whose `link` points into the ids
+ * it is given.
+ */
 export function linkHelper(resource: string, link: string): string {
   return `permdock_link_${sqlNameOf(resource, `resource '${resource}'`)}_${sqlNameOf(link, `link '${link}' on ${resource}`)}`;
 }
@@ -63,7 +67,10 @@ export function restrictedHelper(resource: string): string {
   return `permdock_restricted_${sqlNameOf(resource, `resource '${resource}'`)}`;
 }
 
-/** Graph SQL parts as RLS text: values inline as literals, the subject from the dialect's claim. */
+/**
+ * Graph SQL parts as RLS text: values inline as literals, the subject from the
+ * dialect's claim.
+ */
 export function graphSqlText(parts: GraphSql, ctx: RlsSqlContext): string {
   return parts
     .map((part) => {
@@ -109,12 +116,18 @@ export function permittedIdsHelper(name: string): string {
   return `permitted_${name}_ids`;
 }
 
-/** `permitted_<scope>_ids_for(p_user, p_grant)`: the same ids for a user the caller names. */
+/**
+ * `permitted_<scope>_ids_for(p_user, p_grant)`: the same ids for a user the
+ * caller names.
+ */
 export function permittedForHelper(name: string): string {
   return `${permittedIdsHelper(name)}_for`;
 }
 
-/** The helper returning the ids of scope `name` the subject holds any live membership of. */
+/**
+ * The helper returning the ids of scope `name` the subject holds any live
+ * membership of.
+ */
 export function memberIdsHelper(name: string): string {
   if (!/^[a-z][a-z0-9_]*$/u.test(name)) {
     throw configError(`PermDock CLI: unsafe scope name '${name}'`);
@@ -122,15 +135,18 @@ export function memberIdsHelper(name: string): string {
   return `member_${name}_ids`;
 }
 
-/** `member_<scope>_ids_for(p_user uuid)`: the same rows for a user the caller names; the token hook's helper. */
+/**
+ * `member_<scope>_ids_for(p_user uuid)`: the same rows for a user the caller
+ * names; the token hook's helper.
+ */
 export function memberForHelper(name: string): string {
   return `${memberIdsHelper(name)}_for`;
 }
 
 /**
- * Whether `member_<scope>_ids_for` is generated for `name`: Supabase only
- * (its one caller is `supabase_auth_admin`), and only where `memberships` maps
- * a table for the scope or a membership source can hold it.
+ * Whether `member_<scope>_ids_for` is generated for `name`: Supabase only (its
+ * one caller is `supabase_auth_admin`), and only where `memberships` maps a
+ * table for the scope or a membership source can hold it.
  */
 export function hasMemberFor(
   input: {
@@ -172,7 +188,10 @@ export function hasPermittedUsers(
   );
 }
 
-/** The table `member_<scope>_ids_for` reads for scope `name`, when `memberships` maps one with its id column. */
+/**
+ * The table `member_<scope>_ids_for` reads for scope `name`, when `memberships`
+ * maps one with its id column.
+ */
 export function memberForTable(
   input: {
     readonly scopes: readonly Scope[];
@@ -187,7 +206,10 @@ export function memberForTable(
     : undefined;
 }
 
-/** The sources `member_<scope>_ids_for` reads: none when a table is mapped, as in `database` mode. */
+/**
+ * The sources `member_<scope>_ids_for` reads: none when a table is mapped, as
+ * in `database` mode.
+ */
 export function memberForSources(
   input: {
     readonly scopes: readonly Scope[];
@@ -205,9 +227,10 @@ export function memberForSources(
 }
 
 /**
- * The membership sources that can hold scope `name` when `memberships` maps
- * no table for it: every `tableMembershipSource` source and the `junctionMembershipSource` sources of
- * that scope. Empty outside `database` mode.
+ * The membership sources that can hold scope `name` when `memberships` maps no
+ * table for it: every `tableMembershipSource` source and the
+ * `junctionMembershipSource` sources of that scope. Empty outside `database`
+ * mode.
  */
 export function scopeSources(
   ctx: RlsSqlContext,
@@ -221,7 +244,10 @@ export function scopeSources(
   );
 }
 
-/** The membership table mapped for scope `name`, with the column of its id and of the first scope's id. */
+/**
+ * The membership table mapped for scope `name`, with the column of its id and
+ * of the first scope's id.
+ */
 export function scopeTable(
   ctx: RlsSqlContext,
   name: string,

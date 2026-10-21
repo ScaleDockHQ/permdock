@@ -7,10 +7,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BIN = join(ROOT, "packages", "permdock", "dist", "cli", "bin.js");
 const BUDGET = join(ROOT, "scripts", "cli-startup.json");
 const RUNS = 9;
-/** CI runners share their cores with the rest of the turbo run, so the millisecond ceilings there only report. */
+/**
+ * CI runners share their cores with the rest of the turbo run, so the
+ * millisecond ceilings there only report.
+ */
 const ENFORCE_CEILINGS = process.env["CI"] === undefined;
 
-/** A leaf's `--help` loads that one command module, so each budget catches a heavy import in it. */
+/**
+ * A leaf's `--help` loads that one command module, so each budget catches a
+ * heavy import in it.
+ */
 const COMMANDS = {
   version: ["--version"],
   help: ["--help"],
@@ -28,7 +34,10 @@ type Command = keyof typeof COMMANDS;
 interface Budget {
   /** Median wall-clock milliseconds when the budget was recorded. */
   readonly recordedMs: Partial<Record<Command, number>>;
-  /** Ceiling in milliseconds per command, loose because it depends on the machine. */
+  /**
+   * Ceiling in milliseconds per command, loose because it depends on the
+   * machine.
+   */
   readonly maxMs: Partial<Record<Command, number>>;
   /** `--help` may take at most this multiple of `--version`, plus `helpSlackMs`. */
   readonly maxHelpRatio: number;

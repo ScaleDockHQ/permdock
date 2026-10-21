@@ -201,10 +201,7 @@ describe("permdock/pdp relation presets", () => {
         },
         {
           type: "document",
-          relations: {
-            owner: { this: {} },
-            viewer: { this: {} },
-          },
+          relations: { owner: { this: {} }, viewer: { this: {} } },
           metadata: {
             relations: {
               owner: { directly_related_user_types: [{ type: "user" }] },

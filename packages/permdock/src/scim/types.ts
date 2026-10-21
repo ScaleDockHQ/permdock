@@ -12,7 +12,10 @@ export const PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
 /** The RFC 7643 section 3.3 Group extension that carries PermDock roles. */
 export const ROLES_EXTENSION =
   "urn:ietf:params:scim:schemas:extension:permdock:2.0:Group";
-/** The extension that carries the application's own data (`x`) on a User or a Group. */
+/**
+ * The extension that carries the application's own data (`x`) on a User or a
+ * Group.
+ */
 export const APP_DATA_EXTENSION =
   "urn:ietf:params:scim:schemas:extension:permdock:2.0:AppData";
 
@@ -35,14 +38,15 @@ export type DirectoryUser = {
   readonly userName: string;
   readonly active: boolean;
   readonly emails?: readonly DirectoryEmail[];
-  /** The application's own data, from the `AppData` extension; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, from the `AppData` extension; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
   readonly meta: DirectoryMeta;
 };
 
-export type DirectoryGroupMember = {
-  readonly value: string;
-};
+export type DirectoryGroupMember = { readonly value: string };
 
 export type DirectoryGroup = {
   readonly id: string;
@@ -50,7 +54,10 @@ export type DirectoryGroup = {
   readonly displayName: string;
   readonly members: readonly DirectoryGroupMember[];
   readonly roles?: readonly string[];
-  /** The application's own data, from the `AppData` extension; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, from the `AppData` extension; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
   readonly meta: DirectoryMeta;
 };
@@ -143,7 +150,10 @@ export type ScimTokenOptions = {
 export type DirectoryChange = {
   readonly tenant: string;
   readonly userIds: readonly string[];
-  /** `session-revoked` when a user was deactivated or deleted; `changed` otherwise. */
+  /**
+   * `session-revoked` when a user was deactivated or deleted; `changed`
+   * otherwise.
+   */
   readonly kind: "session-revoked" | "changed";
 };
 
@@ -153,7 +163,10 @@ export type ScimHandlerOptions = {
   readonly token?: ScimTokenOptions;
   readonly verifier?: TokenVerifier;
   readonly audience?: string;
-  /** With `verifier`: where the JWT names its tenant (`claims.tenant`); default `tenant`, then `tid`. */
+  /**
+   * With `verifier`: where the JWT names its tenant (`claims.tenant`); default
+   * `tenant`, then `tid`.
+   */
   readonly claims?: Pick<ClaimsMap, "tenant">;
   readonly groupRoles?: Readonly<Record<string, readonly string[]>>;
   readonly assignable?: readonly string[];
@@ -161,8 +174,8 @@ export type ScimHandlerOptions = {
   readonly onChange?: (change: DirectoryChange) => void | Promise<void>;
   /**
    * Publishes for each affected user's id, `externalId` and `userName`:
-   * `session-revoked` when a user is deactivated (`active: false`) or
-   * deleted, so open connections end; `changed` otherwise, so they revalidate.
+   * `session-revoked` when a user is deactivated (`active: false`) or deleted,
+   * so open connections end; `changed` otherwise, so they revalidate.
    */
   readonly revocations?: RevocationFeed;
   readonly onUnknownRole?: (name: string) => void;
@@ -203,14 +216,20 @@ function isNamedError(error: unknown, name: string, code: string): boolean {
   );
 }
 
-/** Matches by `name` and `code`, so an error from another copy of the module still maps. */
+/**
+ * Matches by `name` and `code`, so an error from another copy of the module
+ * still maps.
+ */
 export function isDirectoryUniquenessError(
   error: unknown,
 ): error is DirectoryUniquenessError {
   return isNamedError(error, "DirectoryUniquenessError", "uniqueness");
 }
 
-/** Matches by `name` and `code`, so an error from another copy of the module still maps. */
+/**
+ * Matches by `name` and `code`, so an error from another copy of the module
+ * still maps.
+ */
 export function isDirectoryNotFoundError(
   error: unknown,
 ): error is DirectoryNotFoundError {

@@ -39,9 +39,7 @@ const policy = definePolicy(
       role(
         "owner",
         [allow(permissions.calendar.read), allow(permissions.calendar.share)],
-        {
-          on: "organization",
-        },
+        { on: "organization" },
       ),
       role("guest", [allow(permissions.calendar.read)], {
         on: permissions.calendar,
@@ -115,9 +113,7 @@ describe("feed credentials", () => {
     if (decision.outcome !== "granted") {
       return;
     }
-    const subject = credentialSubject(decision.credential, {
-      permissions,
-    });
+    const subject = credentialSubject(decision.credential, { permissions });
     expect(subject.principal).toMatchObject({
       id: "cal-feed",
       kind: "feed",

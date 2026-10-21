@@ -73,14 +73,23 @@ export type RpcKernel<TOpts, V extends PolicyVocabulary> = {
   /** Maps the context a middleware passes on to the `Request` it was bound to. */
   readonly attach: (ctx: object, request: Request) => void;
   readonly scopeOf: (opts: TOpts) => Promise<TenantScope>;
-  /** The connection for a subscription or event iterator, opened for `permission` and its row. */
+  /**
+   * The connection for a subscription or event iterator, opened for
+   * `permission` and its row.
+   */
   readonly connection: (
     opts: TOpts,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
-  /** Answers the decision endpoint outside the router, with `opts` as the only context. */
+  /**
+   * Answers the decision endpoint outside the router, with `opts` as the only
+   * context.
+   */
   readonly evaluate: (request: Request, opts: TOpts) => Promise<Response>;
-  /** `protect` for one procedure call, with the `Request` and tenant scope it resolved. */
+  /**
+   * `protect` for one procedure call, with the `Request` and tenant scope it
+   * resolved.
+   */
   readonly guard: (
     permission: Permission | null,
     data: ((opts: TOpts) => unknown) | undefined,
@@ -205,7 +214,10 @@ export function bindRpcKernel<
   };
 }
 
-/** Wraps a streamed result so revocation ends it and items the subscriber cannot read drop. */
+/**
+ * Wraps a streamed result so revocation ends it and items the subscriber cannot
+ * read drop.
+ */
 export async function guardStream(
   source: AsyncIterable<unknown>,
   open: (connectionOptions: ConnectionOptions) => Promise<Connection>,

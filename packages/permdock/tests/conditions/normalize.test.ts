@@ -42,10 +42,7 @@ describe("normalizeWhere", () => {
     expect(normalizeWhere({ status: { in: ["open", "paid"] } }).op).toBe("in");
     expect(
       normalizeWhere({ createdAt: { gt: new Date("2020-01-01T00:00:00Z") } }),
-    ).toMatchObject({
-      op: "gt",
-      field: "createdAt",
-    });
+    ).toMatchObject({ op: "gt", field: "createdAt" });
     expect(
       normalizeWhere(
         opaque({ sql: "owner_id = auth.uid()", fingerprint: "abc" }),

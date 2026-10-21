@@ -20,7 +20,10 @@ export type SnapshotForOptions = {
   readonly memberships?: readonly Membership[];
   /** The tenant's custom roles, typically from a shared, tagged cache. */
   readonly customRoles?: readonly CustomRole[];
-  /** Per tenant, the role names `CustomRoleSource.assignable` returns; narrows `assignable`. */
+  /**
+   * Per tenant, the role names `CustomRoleSource.assignable` returns; narrows
+   * `assignable`.
+   */
   readonly assignable?: Readonly<Record<string, readonly string[]>>;
   /** Plans of the active tenant; replaces `principal.plans`. */
   readonly plans?: readonly string[];
@@ -49,10 +52,10 @@ function withPlans(
 }
 
 /**
- * Builds the serializable access snapshot for a subject without a request,
- * a network call or a cache directive: call it inside the app's own
- * `'use cache: private'` function. Synchronous; the policy's `subject` and
- * `context` mappers must be synchronous too.
+ * Builds the serializable access snapshot for a subject without a request, a
+ * network call or a cache directive: call it inside the app's own `'use cache:
+ * private'` function. Synchronous; the policy's `subject` and `context` mappers
+ * must be synchronous too.
  */
 export function snapshotFor<
   TUser,

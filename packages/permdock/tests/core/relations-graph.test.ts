@@ -117,13 +117,7 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const vera = getPermDockSync(
-      policy,
-      { id: "vera" },
-      {
-        relations: edit,
-      },
-    );
+    const vera = getPermDockSync(policy, { id: "vera" }, { relations: edit });
     await vera.prefetchRelations(permissions.doc.read, rows.doc);
     expect(vera.can(permissions.doc.read, docs["root-doc"])).toBe(false);
   });
@@ -142,13 +136,7 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const vera = getPermDockSync(
-      policy,
-      { id: "vera" },
-      {
-        relations: odd,
-      },
-    );
+    const vera = getPermDockSync(policy, { id: "vera" }, { relations: odd });
     await vera.prefetchRelations(permissions.doc.read, rows.doc);
     expect(vera.can(permissions.doc.read, docs["root-doc"])).toBe(false);
   });
@@ -171,13 +159,7 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const sam = getPermDockSync(
-      policy,
-      { id: "sam" },
-      {
-        relations: cyclic,
-      },
-    );
+    const sam = getPermDockSync(policy, { id: "sam" }, { relations: cyclic });
     await sam.prefetchRelations(permissions.doc.read, rows.doc);
     const decision = sam.decide(permissions.doc.read, docs["root-doc"]);
     expect(decision).toMatchObject({

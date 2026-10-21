@@ -47,10 +47,9 @@ const SERVICE_TABLES_HEADER =
   "-- Supabase Realtime and Storage: rls.realtime and rls.storage. RLS on both tables is Supabase's.";
 
 /**
- * A `realtime.messages` or `storage.objects` policy that applies only where
- * the table exists. The Realtime and Storage services create those tables, so
- * a local stack with the service off, and pg-delta's shadow database, have
- * none.
+ * A `realtime.messages` or `storage.objects` policy that applies only where the
+ * table exists. The Realtime and Storage services create those tables, so a
+ * local stack with the service off, and pg-delta's shadow database, have none.
  */
 function guardedPolicySql(item: CompiledPolicy): string {
   const body = policySql(item)
@@ -68,7 +67,10 @@ $permdock$;
 `;
 }
 
-/** Appends the `realtime.messages` and `storage.objects` policies, which never get `tableSql`. */
+/**
+ * Appends the `realtime.messages` and `storage.objects` policies, which never
+ * get `tableSql`.
+ */
 export function withHelperTables(
   sql: string,
   helperTables: string | undefined,
@@ -102,7 +104,10 @@ function databaseModeWarnings(
   }
 }
 
-/** The grants compiled into table policies, and the Realtime and Storage policies beside them. */
+/**
+ * The grants compiled into table policies, and the Realtime and Storage
+ * policies beside them.
+ */
 export function generatePolicies(
   input: RlsGenerateInput,
   policy: Policy,

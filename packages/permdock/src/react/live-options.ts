@@ -16,7 +16,10 @@ type LiveProps = {
 
 export type LiveOptions = {
   readonly headers: Headers | undefined;
-  /** The latest `headers` prop, read on every request without rebuilding the store. */
+  /**
+   * The latest `headers` prop, read on every request without rebuilding the
+   * store.
+   */
   readonly readHeaders: () => Headers | undefined;
   readonly fetch: typeof fetch;
   readonly verifier: TokenVerifier | undefined;

@@ -159,10 +159,10 @@ describe("permdock/fastify edge cases", () => {
     await app.register(permdockHandler(), { prefix: "/api/permdock" });
     const posts = await app.inject({ method: "GET", url: "/posts" });
     const snapshot = await app.inject({ method: "GET", url: "/api/permdock" });
-    expect({
-      posts: posts.json(),
-      snapshot: snapshot.statusCode,
-    }).toEqual({ posts: { via: "u1" }, snapshot: 200 });
+    expect({ posts: posts.json(), snapshot: snapshot.statusCode }).toEqual({
+      posts: { via: "u1" },
+      snapshot: 200,
+    });
   });
 
   it("withPermDock passes the decorated request to the route", async () => {

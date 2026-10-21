@@ -98,10 +98,7 @@ describe("subjectFromSupabase", () => {
       {
         sub: "user-2",
         role: "authenticated",
-        app_metadata: {
-          user_role: ["editor", "unknown"],
-          tenant_id: "org-2",
-        },
+        app_metadata: { user_role: ["editor", "unknown"], tenant_id: "org-2" },
       },
       { declared: ["editor"] },
     );
@@ -159,11 +156,7 @@ describe("subjectFromSupabase", () => {
 
   it("drops custom claims when the schema fails", () => {
     const subject = subjectFromSupabase(
-      {
-        sub: "user-3",
-        role: "authenticated",
-        app_metadata: { plan: 1 },
-      },
+      { sub: "user-3", role: "authenticated", app_metadata: { plan: 1 } },
       { schema: z.object({ plan: z.string() }) },
     );
     expect(subject.principal?.id).toBe("user-3");
@@ -219,20 +212,14 @@ describe("subjectFromSupabase", () => {
       features: { "org-1": ["pro", "sso"], "org-2": ["enterprise"] },
     };
     expect(
-      subjectFromSupabase(claims, {
-        claims: {
-          plans: "features",
-        },
-      }).principal?.plans,
+      subjectFromSupabase(claims, { claims: { plans: "features" } }).principal
+        ?.plans,
     ).toEqual(["pro", "sso"]);
     expect(subjectFromSupabase(claims).principal?.plans).toBeUndefined();
     const { tenant_id: _, ...noTenant } = claims;
     expect(
-      subjectFromSupabase(noTenant, {
-        claims: {
-          plans: "features",
-        },
-      }).principal?.plans,
+      subjectFromSupabase(noTenant, { claims: { plans: "features" } }).principal
+        ?.plans,
     ).toBeUndefined();
   });
 

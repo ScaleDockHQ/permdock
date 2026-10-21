@@ -31,13 +31,13 @@ export type ExpressPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 export type ExpressPermDockRequest<
   T = unknown,
   V extends PolicyVocabulary = PolicyVocabulary,
-> = Request & {
-  permdock: PermDock<V>;
-  permdockData?: T;
-};
+> = Request & { permdock: PermDock<V>; permdockData?: T };
 
 export type ExpressPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  /** The `PermDock` for one request, for code the middleware does not run before. */
+  /**
+   * The `PermDock` for one request, for code the middleware does not run
+   * before.
+   */
   readonly getPermDock: (req: Request) => Promise<PermDock<V>>;
   readonly middleware: () => RequestHandler;
   readonly protect: (
@@ -63,9 +63,7 @@ function sendProblem(
   res: Response,
   next: (err?: unknown) => void,
 ): void {
-  const problem = problemFromError(err, {
-    credentials: hasCredentials(req),
-  });
+  const problem = problemFromError(err, { credentials: hasCredentials(req) });
   if (problem === undefined) {
     next(err);
     return;
@@ -75,7 +73,10 @@ function sendProblem(
   }, next);
 }
 
-/** Answers a PermDock error with Problem Details; anything else reaches the app's error middleware. */
+/**
+ * Answers a PermDock error with Problem Details; anything else reaches the
+ * app's error middleware.
+ */
 function respond(
   req: Request,
   res: Response,

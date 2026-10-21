@@ -26,11 +26,7 @@ import { instrument } from "../../src/otel/instrument.ts";
 const permissions = definePermissions({
   doc: resource({
     id: "id",
-    actions: {
-      read: { title: "Read documents" },
-      export: {},
-      delete: {},
-    },
+    actions: { read: { title: "Read documents" }, export: {}, delete: {} },
   }),
 });
 

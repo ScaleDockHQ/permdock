@@ -1,10 +1,10 @@
 import type { ExitCode } from "./errors.ts";
 
-/** A next step for an agent or a script: the full command line, and when to run it. */
-export type NextStep = {
-  readonly command: string;
-  readonly when: string;
-};
+/**
+ * A next step for an agent or a script: the full command line, and when to run
+ * it.
+ */
+export type NextStep = { readonly command: string; readonly when: string };
 
 /** One finding a check reports, rendered as text, GitHub annotations or SARIF. */
 export type Finding = {
@@ -21,9 +21,9 @@ export type Finding = {
 };
 
 /**
- * What a command returns. `output` is the human report on stdout. `data`
- * is the typed result the `--json` envelope carries; without it the
- * envelope reads `output` as JSON when it parses.
+ * What a command returns. `output` is the human report on stdout. `data` is the
+ * typed result the `--json` envelope carries; without it the envelope reads
+ * `output` as JSON when it parses.
  */
 export type CommandResult = {
   readonly code: ExitCode;

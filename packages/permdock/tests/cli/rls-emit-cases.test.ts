@@ -118,9 +118,7 @@ describe("emitDrizzle", () => {
   it("imports only the Supabase roles it uses", () => {
     const text = emitDrizzle(
       [policy({ check: "(select auth.uid()) = owner" })],
-      {
-        dialect: "supabase",
-      },
+      { dialect: "supabase" },
     );
     expect(text).toContain(
       "import { authenticatedRole, authUid } from 'drizzle-orm/supabase'",

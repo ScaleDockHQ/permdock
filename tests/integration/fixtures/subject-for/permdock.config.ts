@@ -12,7 +12,5 @@ export default {
     membershipSources: sources(),
     suspension,
   },
-  supabase: {
-    hook: { memberships: sources(), suspension, api: {} },
-  },
+  supabase: { hook: { memberships: sources(), suspension, api: {} } },
 };

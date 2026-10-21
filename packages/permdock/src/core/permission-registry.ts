@@ -48,7 +48,10 @@ export function getResource(
 
 const RENAMED_KEY = /^\S+$/u;
 
-/** Current key to its former keys, from the `renamed` option; targets are checked once leaves exist. */
+/**
+ * Current key to its former keys, from the `renamed` option; targets are
+ * checked once leaves exist.
+ */
 export function formerByKey(
   renamed: Readonly<Record<string, string>> | undefined,
 ): ReadonlyMap<string, readonly string[]> {
@@ -74,8 +77,8 @@ export function formerByKey(
 }
 
 /**
- * Every current key is unique, every former key names exactly one leaf, and
- * no former key is also a current key, so a string resolves to one leaf.
+ * Every current key is unique, every former key names exactly one leaf, and no
+ * former key is also a current key, so a string resolves to one leaf.
  */
 export function assertKeys(
   leaves: readonly Permission[],

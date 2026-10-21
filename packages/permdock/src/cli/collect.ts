@@ -55,7 +55,10 @@ export async function runCollect(input: {
   readonly check: boolean;
   readonly now: Date;
   readonly io?: CliIo;
-  /** Files to scan for references instead of `srcPath`, for doctor's own scan path; `check` still compares the catalog built from `srcPath`. */
+  /**
+   * Files to scan for references instead of `srcPath`, for doctor's own scan
+   * path; `check` still compares the catalog built from `srcPath`.
+   */
   readonly scanPath?: readonly string[];
   readonly fresh?: boolean;
   /** The policy for the catalog's grants; default the configured policy module. */

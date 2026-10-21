@@ -228,8 +228,8 @@ function subjectReference(check: SpiceDbCheck): Record<string, unknown> {
 }
 
 /**
- * A SpiceDB HTTP gateway as a decision provider: `CheckPermission` decides
- * one row and `LookupResources` lists the ids `filter` and `where` use. A
+ * A SpiceDB HTTP gateway as a decision provider: `CheckPermission` decides one
+ * row and `LookupResources` lists the ids `filter` and `where` use. A
  * conditional permissionship (a caveat missing context) is a denial.
  */
 export function spicedb(options: SpiceDbOptions): DecisionProvider {

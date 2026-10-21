@@ -218,10 +218,7 @@ describe("permdock/workflow: getPermDock", () => {
 describe("permdock/workflow: approvals without a row or a store", () => {
   it("opens a request against the permission's resource type when the data is no object", async () => {
     const store = memoryApprovalStore();
-    const { workflow, ticketFor } = setup({
-      approvalPolicies,
-      store: store,
-    });
+    const { workflow, ticketFor } = setup({ approvalPolicies, store: store });
     const decision = await workflow.openApproval(
       await ticketFor(),
       permissions.invoice.send,

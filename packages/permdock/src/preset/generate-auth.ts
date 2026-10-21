@@ -2,11 +2,20 @@ import type { Context, GeneratedFile } from "./generate-shared.ts";
 
 import { env, ownedFile } from "./generate-shared.ts";
 
-/** How the framework and agent files reach the signed-in caller through `session.ts`. */
+/**
+ * How the framework and agent files reach the signed-in caller through
+ * `session.ts`.
+ */
 export type SessionCall = {
-  /** `currentUser` returns the policy's `User`; `currentSubject` a provider's verified `Subject`. */
+  /**
+   * `currentUser` returns the policy's `User`; `currentSubject` a provider's
+   * verified `Subject`.
+   */
   readonly name: "currentUser" | "currentSubject";
-  /** Next.js reads the request through `next/headers`; every other framework passes the `Request`. */
+  /**
+   * Next.js reads the request through `next/headers`; every other framework
+   * passes the `Request`.
+   */
   readonly takesRequest: boolean;
 };
 

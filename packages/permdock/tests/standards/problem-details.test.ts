@@ -413,10 +413,7 @@ describe("RFC 9457 Problem Details", () => {
 });
 
 describe("PROBLEM_EXAMPLES", () => {
-  const author = {
-    principal: { id: "u_123", roles: ["member"] },
-    context: {},
-  };
+  const author = { principal: { id: "u_123", roles: ["member"] }, context: {} };
   const remove = permissions.post.delete;
   const refused = (...denials: readonly Denial[]): Decision => ({
     outcome: "denied",

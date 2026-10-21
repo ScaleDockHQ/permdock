@@ -76,23 +76,15 @@ export type WorkspaceUser = {
 
 const grants = [
   allow(permissions.doc.read, {
-    to: relation(permissions.folder, "viewer", {
-      through: "parent",
-      depth: 8,
-    }),
+    to: relation(permissions.folder, "viewer", { through: "parent", depth: 8 }),
   }),
   allow(permissions.folder.read, {
-    to: relation(permissions.folder, "viewer", {
-      through: "parent",
-      depth: 2,
-    }),
+    to: relation(permissions.folder, "viewer", { through: "parent", depth: 2 }),
   }),
   allow([permissions.doc.review, permissions.doc.read], {
     to: relation(permissions.team, "lead", { through: ["folder", "team"] }),
   }),
-  allow(permissions.team.read, {
-    to: relation(permissions.team, "member"),
-  }),
+  allow(permissions.team.read, { to: relation(permissions.team, "member") }),
 ];
 
 const subject = (user: WorkspaceUser) => ({
@@ -120,7 +112,10 @@ export const policy = definePolicy(
   },
 );
 
-/** The graph grants alone: what `permdock rls` compiles without a memberships table. */
+/**
+ * The graph grants alone: what `permdock rls` compiles without a memberships
+ * table.
+ */
 export const graphPolicy = definePolicy(permissions, {
   scopes,
   grants,
@@ -313,7 +308,10 @@ export const seedSql = [
   insert("folder_members", tables["folder_members"] ?? [], "expires_at"),
 ].join("\n");
 
-/** The closure as `permdock rls` keeps it: every folder reaches its ancestors, stopping after the first restricted one. */
+/**
+ * The closure as `permdock rls` keeps it: every folder reaches its ancestors,
+ * stopping after the first restricted one.
+ */
 export const closureSql = `
 create table permdock_closure (
   resource text not null,

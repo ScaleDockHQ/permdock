@@ -73,7 +73,10 @@ export type EvePermDockOptions<TUser = unknown> = Omit<
   AgentAdapterOptions<EveContext, TUser>,
   "subject"
 > & {
-  /** Defaults to `subjectFromEve`: the session initiator's id and `roles` attribute. */
+  /**
+   * Defaults to `subjectFromEve`: the session initiator's id and `roles`
+   * attribute.
+   */
   readonly subject?: (context: EveContext) => TUser | Promise<TUser>;
   readonly approvers?: EveApprovers;
 };
@@ -319,9 +322,5 @@ export function createPermDock<
     return pairFor(() => binding);
   };
 
-  return Object.freeze({
-    ...agent,
-    approval,
-    approvalFor,
-  });
+  return Object.freeze({ ...agent, approval, approvalFor });
 }

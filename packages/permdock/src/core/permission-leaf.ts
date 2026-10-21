@@ -170,7 +170,10 @@ export function formerKeys(permission: object): readonly string[] {
     : [];
 }
 
-/** The OAuth scope strings `permission` used to have: each former key with `.` as `:`. */
+/**
+ * The OAuth scope strings `permission` used to have: each former key with `.`
+ * as `:`.
+ */
 export function formerScopes(permission: object): readonly string[] {
   return formerKeys(permission).map(keyToScope);
 }

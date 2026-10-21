@@ -1,6 +1,9 @@
 import { type VisitorObject, Visitor, visitorKeys } from "oxc-parser";
 
-/** An all-optional view of an Oxc ESTree node; Oxc sets `start` and `end` on every node. */
+/**
+ * An all-optional view of an Oxc ESTree node; Oxc sets `start` and `end` on
+ * every node.
+ */
 export type Estree = {
   readonly type: string;
   readonly start: number;
@@ -72,7 +75,10 @@ const KEYED_MEMBERS: ReadonlySet<string> = new Set([
   "TSAbstractPropertyDefinition",
 ]);
 
-/** How an identifier is read: a plain reference, a shorthand property value, the local of an `export { }`, or not a reference. */
+/**
+ * How an identifier is read: a plain reference, a shorthand property value, the
+ * local of an `export { }`, or not a reference.
+ */
 export function referencePlace(
   node: Estree,
   parent: Estree,
@@ -119,7 +125,10 @@ function isNode(value: unknown): value is Estree {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** A child node under a field `Estree` types as something else (`value`, a type parameter's `name`). */
+/**
+ * A child node under a field `Estree` types as something else (`value`, a type
+ * parameter's `name`).
+ */
 export function child(node: Estree, field: string): Estree | undefined {
   const value: unknown = Reflect.get(node, field);
   return isNode(value) ? value : undefined;
@@ -201,7 +210,10 @@ const FUNCTION_SCOPES: ReadonlySet<string> = new Set([
   "TSDeclareFunction",
 ]);
 
-/** The names a node declares for the code inside it; `undefined` for a node that opens no scope. */
+/**
+ * The names a node declares for the code inside it; `undefined` for a node that
+ * opens no scope.
+ */
 export function scopeBindings(node: Estree): Set<string> | undefined {
   const names = new Set<string>();
   const declare = (
@@ -302,7 +314,10 @@ export function lineIndex(source: string): LineAt {
   };
 }
 
-/** Every node in source order with its parent and ancestors: Oxc nodes carry no parent, so enter and exit keep a stack. */
+/**
+ * Every node in source order with its parent and ancestors: Oxc nodes carry no
+ * parent, so enter and exit keep a stack.
+ */
 export function walk(
   program: Estree,
   visit: (

@@ -22,10 +22,7 @@ type FlightServer = {
   ) => { readonly pipe: (destination: Writable) => void };
 };
 
-type ClientReference = {
-  readonly $$typeof?: symbol;
-  readonly $$id?: string;
-};
+type ClientReference = { readonly $$typeof?: symbol; readonly $$id?: string };
 
 const require = createRequire(import.meta.url);
 // SAFETY: FlightServer declares the subset of Next's compiled react-server-dom-webpack used here
@@ -129,9 +126,7 @@ async function main(mode: string | undefined): Promise<object> {
     const { PermDockProvider } = createPermDock(policy, {
       subject: () => user,
     });
-    const element: ReactElement = PermDockProvider({
-      children: "children",
-    });
+    const element: ReactElement = PermDockProvider({ children: "children" });
     // SAFETY: PermDockProvider returns a client reference element whose type carries $$typeof and $$id
     const tree = element as unknown as { readonly type: ClientReference };
     return {

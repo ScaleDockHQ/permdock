@@ -25,9 +25,7 @@ const permissions = definePermissions({
   note: resource({
     id: "id",
     actions: ["read"],
-    relations: {
-      workspace: { field: "workspaceId", memberOf: "workspace" },
-    },
+    relations: { workspace: { field: "workspaceId", memberOf: "workspace" } },
   }),
 });
 

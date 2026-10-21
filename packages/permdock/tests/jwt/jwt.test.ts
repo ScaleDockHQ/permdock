@@ -231,17 +231,11 @@ describe("joseTokenVerifier", () => {
       .sign(await importJWK({ ...PRIVATE_JWK }, "Ed25519"));
     expect(
       await check.verify(unknownKid, { audience: AUDIENCE }),
-    ).toMatchObject({
-      ok: false,
-      cause: "unknown-kid",
-    });
+    ).toMatchObject({ ok: false, cause: "unknown-kid" });
 
     expect(
       await check.verify("not-a-jwt", { audience: AUDIENCE }),
-    ).toMatchObject({
-      ok: false,
-      cause: "malformed",
-    });
+    ).toMatchObject({ ok: false, cause: "malformed" });
 
     const jwe = "a.b.c.d.e";
     expect(await check.verify(jwe, { audience: AUDIENCE })).toMatchObject({
@@ -532,9 +526,7 @@ describe("verifyDpopProof htu and replay", () => {
         requestWith(url, proof),
         { cnf: { jkt } },
         undefined,
-        {
-          replay,
-        },
+        { replay },
       ),
     ).toEqual({ ok: true });
     expect(
@@ -542,9 +534,7 @@ describe("verifyDpopProof htu and replay", () => {
         requestWith(url, proof),
         { cnf: { jkt } },
         undefined,
-        {
-          replay,
-        },
+        { replay },
       ),
     ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
@@ -553,15 +543,10 @@ describe("verifyDpopProof htu and replay", () => {
 describe("configuration and remaining causes", () => {
   it("rejects mutually exclusive or unsafe setup", () => {
     expect(() =>
-      joseTokenVerifier({
-        jwks: PUBLIC_JWKS,
-        discovery: ISSUER,
-      }),
+      joseTokenVerifier({ jwks: PUBLIC_JWKS, discovery: ISSUER }),
     ).toThrow(/mutually exclusive/);
     expect(() =>
-      joseTokenVerifier({
-        discovery: "http://login.example.com",
-      }),
+      joseTokenVerifier({ discovery: "http://login.example.com" }),
     ).toThrow(/https/);
     expect(() =>
       jwtSubjectResolver({
@@ -571,16 +556,11 @@ describe("configuration and remaining causes", () => {
         sender: "none",
       }),
     ).toThrow(/sender constraint/);
+    expect(() => jwtSubjectResolver({ jwks: PUBLIC_JWKS })).toThrow(
+      /issuer is required/,
+    );
     expect(() =>
-      jwtSubjectResolver({
-        jwks: PUBLIC_JWKS,
-      }),
-    ).toThrow(/issuer is required/);
-    expect(() =>
-      jwtSubjectResolver({
-        jwks: PUBLIC_JWKS,
-        issuer: ISSUER,
-      }),
+      jwtSubjectResolver({ jwks: PUBLIC_JWKS, issuer: ISSUER }),
     ).toThrow(/audience is required/);
     expect(() =>
       jwtSubjectResolver({
@@ -606,9 +586,7 @@ describe("configuration and remaining causes", () => {
       }),
     ).toThrow(/requires kid/);
     expect(() =>
-      joseTokenVerifier({
-        jwks: { secret: new Uint8Array(8) },
-      }),
+      joseTokenVerifier({ jwks: { secret: new Uint8Array(8) } }),
     ).toThrow(/256 bits/);
   });
 
@@ -842,9 +820,7 @@ describe("configuration and remaining causes", () => {
   });
 
   it("merges memberships and workload kind literals", async () => {
-    const token = await accessToken({
-      tenants: { o_1: ["owner"] },
-    });
+    const token = await accessToken({ tenants: { o_1: ["owner"] } });
     const subject = await subjectFromJwt(token, {
       jwks: PUBLIC_JWKS,
       issuer: ISSUER,
@@ -917,10 +893,7 @@ describe("configuration and remaining causes", () => {
       audience: AUDIENCE,
       sender: "none",
     });
-    expect(subject.actor).toMatchObject({
-      id: "edge",
-      kind: "oauth-client",
-    });
+    expect(subject.actor).toMatchObject({ id: "edge", kind: "oauth-client" });
     expect(subject.delegation?.chain).toEqual({
       sub: "edge",
       act: { sub: "inner-agent" },
@@ -955,10 +928,7 @@ describe("subjectFromIntrospection", () => {
     });
     expect(subject.principal?.id).toBe("u_1");
     expect(subject.principal?.issuer).toBe(ISSUER);
-    expect(subject.actor).toMatchObject({
-      id: "inst_9",
-      kind: "oauth-client",
-    });
+    expect(subject.actor).toMatchObject({ id: "inst_9", kind: "oauth-client" });
     expect(subject.actor?.binding).toEqual({
       jwk: { kty: "OKP", crv: "Ed25519" },
     });

@@ -29,9 +29,9 @@ function stringList(value: unknown): readonly string[] | undefined {
 }
 
 /**
- * A frozen copy of a delegation with only the known fields, or `undefined`
- * when a known field has the wrong type, `until` is not after `from`, or
- * the delegate and the delegator are the same principal.
+ * A frozen copy of a delegation with only the known fields, or `undefined` when
+ * a known field has the wrong type, `until` is not after `from`, or the
+ * delegate and the delegator are the same principal.
  */
 export function parseApprovalDelegation(
   input: unknown,
@@ -181,15 +181,17 @@ export type MatchDelegationOptions = {
   ) => Subject | null | undefined | Promise<Subject | null | undefined>;
   readonly now?: Instant;
   readonly requireDistinct: boolean;
-  readonly factsFor: (subject: Subject) => Promise<{
+  readonly factsFor: (
+    subject: Subject,
+  ) => Promise<{
     readonly relations: readonly string[];
     readonly permissions: readonly string[];
   }>;
 };
 
 /**
- * The first active delegation under which `delegate` may approve `request`,
- * or `undefined`. The delegator is resolved by `subjectFor` and checked with
+ * The first active delegation under which `delegate` may approve `request`, or
+ * `undefined`. The delegator is resolved by `subjectFor` and checked with
  * `assertApprover`, so relation and permission approvers use the delegator's
  * facts. A throw, a missing option or a delegator the source does not name
  * matches nobody. The delegator's own delegations are never read.

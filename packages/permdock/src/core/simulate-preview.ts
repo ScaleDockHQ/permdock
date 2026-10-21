@@ -10,7 +10,10 @@ import { freezeDeep } from "./freeze.ts";
 import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
 
-/** The roles, memberships and tenant `simulate()` previews in place of the subject's. */
+/**
+ * The roles, memberships and tenant `simulate()` previews in place of the
+ * subject's.
+ */
 export type SimulatePreview = {
   readonly roles?: readonly (string | Role)[];
   readonly memberships?: readonly Membership[];

@@ -16,7 +16,10 @@ const TRIGGER = new RegExp(
   "iu",
 );
 
-/** The tables a `permdock_assignment` trigger is created on in the migrations and the `rls generate` output. */
+/**
+ * The tables a `permdock_assignment` trigger is created on in the migrations
+ * and the `rls generate` output.
+ */
 function triggeredTables(input: DoctorInput): ReadonlySet<string> {
   const out = input.config.rls?.out ?? "rls.sql";
   const files = sqlFiles(input.cwd, [
@@ -40,10 +43,10 @@ function triggeredTables(input: DoctorInput): ReadonlySet<string> {
 }
 
 /**
- * PD064: `rls.assignments` guards a table (a membership table, the
- * global-roles table or a listed table) that no `permdock_assignment`
- * trigger is created on in the migrations or the `rls generate` output, so a
- * client may write any role there.
+ * PD064: `rls.assignments` guards a table (a membership table, the global-roles
+ * table or a listed table) that no `permdock_assignment` trigger is created on
+ * in the migrations or the `rls generate` output, so a client may write any
+ * role there.
  */
 export async function pd064(
   input: DoctorInput,

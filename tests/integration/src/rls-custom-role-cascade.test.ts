@@ -91,7 +91,10 @@ describe("rls.customRoleWrites.roles", () => {
       )
     ).rows.map((row) => row.row);
 
-  /** Runs `sql` as the signed-in `user` and returns the grants inside that transaction, which then rolls back. */
+  /**
+   * Runs `sql` as the signed-in `user` and returns the grants inside that
+   * transaction, which then rolls back.
+   */
   const as = async (user: string, sql: string): Promise<string[]> => {
     const admin = started().admin;
     await admin.query("begin");

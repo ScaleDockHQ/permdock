@@ -137,10 +137,7 @@ describe("openapi import", () => {
       ["post.list", "collection", "GET /posts"],
     ]);
     expect(leaves.find((leaf) => leaf.key === "post.list")?.meta).toMatchObject(
-      {
-        title: "List posts",
-        readOnly: true,
-      },
+      { title: "List posts", readOnly: true },
     );
   });
 

@@ -219,10 +219,7 @@ describe("parseSinkEvents", () => {
       { ...decision, membership: { ...decision.membership, expiresAt: 1 } },
       { ...directory, operation: "upsert" },
       JSON.parse(`{"type":"decision","__proto__":{"trusted":true}}`),
-      {
-        ...families[2],
-        scope: undefined,
-      },
+      { ...families[2], scope: undefined },
       {
         ...families[2],
         within: { organization: "o1" },

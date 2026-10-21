@@ -4,9 +4,7 @@ import { notFound } from "next/navigation";
 import { markdownHeaders } from "@/lib/shared";
 import { docsLlms, getPageMarkdownUrl, source } from "@/lib/source";
 
-type MarkdownRouteContext = {
-  params: Promise<{ slug?: string[] }>;
-};
+type MarkdownRouteContext = { params: Promise<{ slug?: string[] }> };
 
 async function pageMarkdown(
   slugs: readonly string[] | undefined,
@@ -36,7 +34,7 @@ export async function GET(
 }
 
 export function generateStaticParams() {
-  return source.getPages().map((page) => ({
-    slug: getPageMarkdownUrl(page).segments,
-  }));
+  return source
+    .getPages()
+    .map((page) => ({ slug: getPageMarkdownUrl(page).segments }));
 }

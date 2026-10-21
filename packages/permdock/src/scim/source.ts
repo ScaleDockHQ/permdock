@@ -41,10 +41,7 @@ async function lookupUser(
   const found = await store.findUsers(
     tenant,
     { op: "eq", attribute, value: principalId },
-    {
-      startIndex: 1,
-      count: 1,
-    },
+    { startIndex: 1, count: 1 },
   );
   return found.Resources[0] ?? null;
 }

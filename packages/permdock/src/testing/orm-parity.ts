@@ -8,9 +8,15 @@ import {
 
 export type OrmParityScenario<TUser = unknown> = {
   readonly name: string;
-  /** What the policy's `subject` mapper receives, as in `createPermDock(policy, user)`. */
+  /**
+   * What the policy's `subject` mapper receives, as in `createPermDock(policy,
+   * user)`.
+   */
   readonly user: TUser;
-  /** The active tenant and role sources, as in `createPermDock(policy, user, options)`. */
+  /**
+   * The active tenant and role sources, as in `createPermDock(policy, user,
+   * options)`.
+   */
   readonly options?: PermDockOptions;
   /** An instance permission; its `where()` filters the table. */
   readonly permission: Permission<string, unknown, "instance">;
@@ -24,7 +30,10 @@ export type OrmParityRunInput<TUser = unknown> = {
 };
 
 export type OrmParityOptions<TUser = unknown> = {
-  /** Runs `toWhere(where)` against the database and returns the matching row ids. */
+  /**
+   * Runs `toWhere(where)` against the database and returns the matching row
+   * ids.
+   */
   readonly run: (
     input: OrmParityRunInput<TUser>,
   ) => Promise<readonly unknown[]>;
@@ -60,11 +69,11 @@ function subsetOf(small: readonly string[], large: readonly string[]): boolean {
 
 /**
  * ORM parity: for each scenario, the rows `permdock.filter()` keeps in memory
- * must be exactly the rows the database returns for `toWhere(permdock.where())`.
- * With a `relations` option, the graph is loaded for the rows first, so the
- * in-memory side walks the same graph the database query does.
- * A partial `where()` (a closure grant it cannot compile) may be refused or
- * return fewer rows, never more.
+ * must be exactly the rows the database returns for
+ * `toWhere(permdock.where())`. With a `relations` option, the graph is loaded
+ * for the rows first, so the in-memory side walks the same graph the database
+ * query does. A partial `where()` (a closure grant it cannot compile) may be
+ * refused or return fewer rows, never more.
  */
 export async function testOrmParity<TUser>(
   policy: Policy<TUser>,

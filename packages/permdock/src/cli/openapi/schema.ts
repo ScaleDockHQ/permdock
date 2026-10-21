@@ -149,7 +149,10 @@ function describeErrors(errors: readonly ErrorObject[] | null | undefined) {
     .join("\n");
 }
 
-/** Validates an OpenAPI 3.1 or 3.2 document against the official JSON Schema, and 3.3 against the pinned patch of 3.2. */
+/**
+ * Validates an OpenAPI 3.1 or 3.2 document against the official JSON Schema,
+ * and 3.3 against the pinned patch of 3.2.
+ */
 export function validateOpenapi(
   document: unknown,
 ):
@@ -159,10 +162,7 @@ export function validateOpenapi(
   const match =
     typeof version === "string" ? /^3\.([123])\.\d+$/u.exec(version) : null;
   if (match === null) {
-    return {
-      ok: false,
-      error: "expected an OpenAPI 3.1, 3.2 or 3.3 document",
-    };
+    return { ok: false, error: "expected an OpenAPI 3.1, 3.2 or 3.3 document" };
   }
   const minor = match[1] === "1" ? "3.1" : match[1] === "2" ? "3.2" : "3.3";
   const validate = validatorFor(`oas-${minor}.json`);

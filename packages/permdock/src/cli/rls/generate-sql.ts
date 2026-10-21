@@ -59,7 +59,10 @@ import { auditSql, generatedTables, triggersSql } from "./triggers.ts";
 
 export type GeneratedSql = GeneratedPolicies & {
   readonly text: string;
-  /** For Drizzle and Prisma, the SQL written next to `text`; empty for `--target sql`. */
+  /**
+   * For Drizzle and Prisma, the SQL written next to `text`; empty for `--target
+   * sql`.
+   */
   readonly migration: string;
   readonly migrationRel: string | undefined;
   readonly outRel: string;
@@ -75,7 +78,10 @@ type Preflight = {
   readonly jsonSchema: NonNullable<PermDockConfig["rls"]>["jsonSchema"];
 };
 
-/** The checks that need the SQL context: `--backfill-out`, `rls.anonymousSignIns`, `rls.jsonSchema`. */
+/**
+ * The checks that need the SQL context: `--backfill-out`,
+ * `rls.anonymousSignIns`, `rls.jsonSchema`.
+ */
 function preflight(
   input: RlsGenerateInput,
   { ctx }: GenerateContext,
@@ -232,7 +238,10 @@ function sectionsSql(
   ];
 }
 
-/** Whether `anon` calls a helper: `rls.anonExecute`, an anon field view or an anon branch reading the user id. */
+/**
+ * Whether `anon` calls a helper: `rls.anonExecute`, an anon field view or an
+ * anon branch reading the user id.
+ */
 function anonExecutes(
   input: RlsGenerateInput,
   { compiled, views }: GeneratedPolicies,
@@ -252,7 +261,10 @@ function anonExecutes(
 
 type Preamble = { readonly preamble: string; readonly audit: string };
 
-/** Everything before the table policies: helpers, sections, shims, scaffold and triggers. */
+/**
+ * Everything before the table policies: helpers, sections, shims, scaffold and
+ * triggers.
+ */
 function preambleSql(
   input: RlsGenerateInput,
   policy: Policy,
@@ -385,9 +397,9 @@ function forceWarnings({ graph }: GenerateContext, warnings: string[]): void {
 }
 
 /**
- * The row columns that belong to a table. With `rls.tables` set, a resource
- * it does not name is a table only when generated policies are written for
- * it; with `--helpers-only` it has none, so it gets no index.
+ * The row columns that belong to a table. With `rls.tables` set, a resource it
+ * does not name is a table only when generated policies are written for it;
+ * with `--helpers-only` it has none, so it gets no index.
  */
 function tableColumns(
   rowColumns: GeneratedPolicies["compiled"]["rowColumns"],
@@ -482,7 +494,10 @@ function emitTarget(
   return { text, migration, migrationRel, outRel };
 }
 
-/** The generated SQL for one run, before `--db-url-stdin` prunes the index targets. */
+/**
+ * The generated SQL for one run, before `--db-url-stdin` prunes the index
+ * targets.
+ */
 export function generateSql(
   input: RlsGenerateInput,
   policy: Policy,

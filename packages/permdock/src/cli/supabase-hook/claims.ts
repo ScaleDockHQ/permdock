@@ -29,8 +29,8 @@ export type AttrsPlan = {
 /**
  * Splits `supabase.hook.attrs` into table columns and `app_metadata` keys and
  * lists what cannot be compiled: `user_metadata` (the user can edit it), a
- * direct `auth.users` column, an unsafe or prototype key, a duplicate key,
- * or a table column without a table.
+ * direct `auth.users` column, an unsafe or prototype key, a duplicate key, or a
+ * table column without a table.
  */
 export function attrsPlan(
   attrs: NonNullable<SupabaseHookConfig["attrs"]>,
@@ -199,8 +199,8 @@ export function beforeSql(before: readonly string[]): string {
 
 /**
  * `hook.validate`: the claims the hook writes, dropped together when they do
- * not match `supabase-claims-v1.json`, so a bad claim denies instead of
- * failing sign-in. `hook.claims` entries belong to other packages and stay.
+ * not match `supabase-claims-v1.json`, so a bad claim denies instead of failing
+ * sign-in. `hook.claims` entries belong to other packages and stay.
  */
 export function validateSql(parts: Parts): string {
   if (parts.hook.validate !== true) {
@@ -232,8 +232,8 @@ grant execute on function extensions.jsonb_matches_schema(json, jsonb) to supaba
 }
 
 /**
- * Fails the migration when a client role can write an `attrs` column: a
- * claim the user can set is not a server-owned attribute.
+ * Fails the migration when a client role can write an `attrs` column: a claim
+ * the user can set is not a server-owned attribute.
  */
 export function attrsGuardSql(plan: AttrsPlan | undefined): string {
   if (plan?.table === undefined || plan.columns.length === 0) {

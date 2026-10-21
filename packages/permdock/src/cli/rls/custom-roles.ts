@@ -27,10 +27,10 @@ const READERS = {
 } as const;
 
 /**
- * The custom-role objects: the tables (`database` mode), the ceiling view
- * over the `assignable` declared roles, and `permdock_custom_keys`, which
- * resolves one custom role to the grant keys it holds in a scope. A row in
- * the tables can never reach a key outside the view.
+ * The custom-role objects: the tables (`database` mode), the ceiling view over
+ * the `assignable` declared roles, and `permdock_custom_keys`, which resolves
+ * one custom role to the grant keys it holds in a scope. A row in the tables
+ * can never reach a key outside the view.
  */
 export function customRolesSql(ctx: RlsSqlContext): string {
   const custom = ctx.customRoles;
@@ -166,7 +166,10 @@ revoke execute on function ${keys}(text[], text[], text[], text) from public, an
   return chunks.join("\n\n");
 }
 
-/** `permdock_is_shared_role(p_scope, p_role)` (`database` mode): whether a shared custom role of that name exists at the scope. */
+/**
+ * `permdock_is_shared_role(p_scope, p_role)` (`database` mode): whether a
+ * shared custom role of that name exists at the scope.
+ */
 function sharedRoleSql(ctx: RlsSqlContext): string {
   if (ctx.authorize !== "database") {
     return "";
@@ -191,8 +194,8 @@ revoke execute on function ${shared}(text, text) from public, anon, authenticate
 }
 
 /**
- * `permdock_custom_keys` when resources declare levels. An allow entry is
- * `key` or `key@level`. A level reaches only the ceiling's `<grant key>@<level>`
+ * `permdock_custom_keys` when resources declare levels. An allow entry is `key`
+ * or `key@level`. A level reaches only the ceiling's `<grant key>@<level>`
  * keys, plus the ceiling denies of that permission; a level no ceiling key
  * carries removes the permission, as `resolveCustomRole` drops it with
  * `unknown-level`.
@@ -313,8 +316,8 @@ function currentKeysSql(array: string): string {
 
 /**
  * SQL fragments that read a stored former key as its current key inside
- * `permdock_custom_keys`. Without renames they are the plain column and
- * array reads.
+ * `permdock_custom_keys`. Without renames they are the plain column and array
+ * reads.
  */
 function renamesSql(renames: readonly (readonly [string, string])[]): {
   readonly prelude: string;
@@ -357,14 +360,14 @@ function renamesSql(renames: readonly (readonly [string, string])[]): {
 
 /**
  * The catalog reader `permdock_permission_keys()` and the role reader
- * `permdock_role_permissions(p_role, p_scope, p_tenant, p_scope_id)`, both
- * for `authenticated`. A declared role answers from `role_permissions`, which
- * is the catalog. A custom role (`database` mode) answers from the tenant's
- * own rows through `permdock_custom_keys`, only to a member of the tenant or
- * a holder of a `meta.manageRoles` permission for a platform role; a shared
- * role (no tenant below global) to any signed-in caller. The
- * effect is `deny` for a deny the role carries after the ceiling, as
- * `resolveCustomRole` returns it, never for a deny that merely removes an allow.
+ * `permdock_role_permissions(p_role, p_scope, p_tenant, p_scope_id)`, both for
+ * `authenticated`. A declared role answers from `role_permissions`, which is
+ * the catalog. A custom role (`database` mode) answers from the tenant's own
+ * rows through `permdock_custom_keys`, only to a member of the tenant or a
+ * holder of a `meta.manageRoles` permission for a platform role; a shared role
+ * (no tenant below global) to any signed-in caller. The effect is `deny` for a
+ * deny the role carries after the ceiling, as `resolveCustomRole` returns it,
+ * never for a deny that merely removes an allow.
  */
 export function roleReadersSql(
   ctx: RlsSqlContext,
@@ -499,15 +502,18 @@ revoke execute on function ${trusted}(${signature}) from public, anon, authentic
   return chunks.join("\n\n");
 }
 
-/** The stored definition of `p_role` at `p_scope` for `p_tenant`: the shared rows when a shared role has the name. */
+/**
+ * The stored definition of `p_role` at `p_scope` for `p_tenant`: the shared
+ * rows when a shared role has the name.
+ */
 export function storedTenant(ctx: RlsSqlContext): string {
   return `case when ${qualified(ctx, CUSTOM_ROLES.shared)}(p_scope, p_role) then c.tenant_id is null else c.tenant_id is not distinct from p_tenant end`;
 }
 
 /**
- * The tenant half of a custom-role row match for a membership: the
- * membership's tenant, or no tenant when a shared role of that name exists at
- * the scope, so a shared role shadows a tenant role of the same name.
+ * The tenant half of a custom-role row match for a membership: the membership's
+ * tenant, or no tenant when a shared role of that name exists at the scope, so
+ * a shared role shadows a tenant role of the same name.
  */
 export function customTenantMatch(
   ctx: RlsSqlContext,
@@ -519,9 +525,9 @@ export function customTenantMatch(
 }
 
 /**
- * The scope of a row of the application's roles table: its scope column (or
- * the first scope) with a tenant; with no tenant, the same scope when the
- * `shared` column is true, else `'global'`.
+ * The scope of a row of the application's roles table: its scope column (or the
+ * first scope) with a tenant; with no tenant, the same scope when the `shared`
+ * column is true, else `'global'`.
  */
 export function rolesTableScope(
   table: RlsCustomRoleTable,
@@ -540,7 +546,10 @@ export function rolesTableScope(
   return `case when ${tenant} is null then ${none} else ${own} end`;
 }
 
-/** `expr` read as its current key: a former key maps to the key it was renamed to. */
+/**
+ * `expr` read as its current key: a former key maps to the key it was renamed
+ * to.
+ */
 export function currentKeyExpr(
   renames: readonly (readonly [string, string])[],
   expr: string,
@@ -557,7 +566,10 @@ export function currentKeyExpr(
   return `(case ${expr} ${arms} else ${expr} end)`;
 }
 
-/** `case p_scope when '<scope>' then <sql for scope> ... else false end` over the declared scopes. */
+/**
+ * `case p_scope when '<scope>' then <sql for scope> ... else false end` over
+ * the declared scopes.
+ */
 export function perScope(
   ctx: RlsSqlContext,
   sql: (scope: string) => string,
@@ -591,8 +603,8 @@ export function hasCustomRoleChecksFor(ctx: RlsSqlContext): boolean {
 
 /**
  * The grants a `rls.trustedReaders` role needs for one reader: usage on the
- * helper schema, which no client role reaches through these lines, and
- * execute on the function.
+ * helper schema, which no client role reaches through these lines, and execute
+ * on the function.
  */
 export function trustedReaderGrants(
   ctx: RlsSqlContext,

@@ -235,9 +235,7 @@ describe("named scopes: the scenario", () => {
       personas.staffContact,
     ]) {
       const permdock = getPermDockSync(policy, principal, {
-        memberships: {
-          membershipsFor: () => active(principal.memberships),
-        },
+        memberships: { membershipsFor: () => active(principal.memberships) },
       });
       expect(readable(permdock, permissions.quote.read)).toEqual([]);
       expect(permdock.where(permissions.quote.read).condition).toEqual({
@@ -427,10 +425,7 @@ describe("named scopes: definition", () => {
       }),
     ).toThrow(/not declared before it/);
     expect(() =>
-      definePolicy(tree, {
-        subject,
-        scopes: { global: { key: "x" } },
-      }),
+      definePolicy(tree, { subject, scopes: { global: { key: "x" } } }),
     ).toThrow(/scope name 'global'/);
     expect(() =>
       definePolicy(tree, {
@@ -451,10 +446,7 @@ describe("named scopes: definition", () => {
       }),
     ).toThrow(/scopes.region needs within/);
     expect(() =>
-      definePolicy(tree, {
-        subject,
-        scopes: { organization: { key: "" } },
-      }),
+      definePolicy(tree, { subject, scopes: { organization: { key: "" } } }),
     ).toThrow(/needs a key/);
   });
 

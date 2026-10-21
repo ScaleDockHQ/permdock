@@ -13,7 +13,10 @@ import { isRecord } from "../../core/compact.ts";
 import { applyFiles } from "../core/files.ts";
 import { emitPolicyModule, isIdentifier } from "./policy-module.ts";
 
-/** One CASL rule as `ability.rules` holds it, or the packed array `packRules` writes. */
+/**
+ * One CASL rule as `ability.rules` holds it, or the packed array `packRules`
+ * writes.
+ */
 type RawRule = {
   readonly action: string | readonly string[];
   readonly subject?: string | readonly string[];
@@ -77,7 +80,10 @@ function split(item: unknown): unknown {
     : item;
 }
 
-/** A rule in either shape: the object form, or `packRules`' `[action, subject, conditions, inverted, fields]`. */
+/**
+ * A rule in either shape: the object form, or `packRules`' `[action, subject,
+ * conditions, inverted, fields]`.
+ */
 function readRule(value: unknown): RawRule | undefined {
   if (Array.isArray(value)) {
     const [action, subject, conditions, inverted, fields]: readonly unknown[] =
@@ -154,7 +160,10 @@ function readValue(
 
 type Read = ImportedWhere | Unsupported;
 
-/** The Mongo-query subset CASL conditions use, as a `where`; anything else is reported by name. */
+/**
+ * The Mongo-query subset CASL conditions use, as a `where`; anything else is
+ * reported by name.
+ */
 function readConditions(conditions: Readonly<Record<string, unknown>>): Read {
   const parts: ImportedWhere[] = [];
   for (const [key, value] of Object.entries(conditions)) {
@@ -249,11 +258,11 @@ export type CaslImport = {
 };
 
 /**
- * CASL rules per role, as PermDock roles: `inverted` rules are denies,
- * `manage` and `all` expand to every action and subject the rules name, and
- * conditions in the portable Mongo-query subset become `where`. A deny whose
- * condition does not import keeps its effect without the condition, so the
- * import can only deny more, never less.
+ * CASL rules per role, as PermDock roles: `inverted` rules are denies, `manage`
+ * and `all` expand to every action and subject the rules name, and conditions
+ * in the portable Mongo-query subset become `where`. A deny whose condition
+ * does not import keeps its effect without the condition, so the import can
+ * only deny more, never less.
  */
 export function importCasl(
   rulesByRole: Readonly<Record<string, readonly unknown[]>>,
@@ -362,7 +371,10 @@ export function importCasl(
   };
 }
 
-/** `permdock casl import`: CASL rules per role into a `permissions` and `policy` module. */
+/**
+ * `permdock casl import`: CASL rules per role into a `permissions` and `policy`
+ * module.
+ */
 export function runCaslImport(input: {
   readonly cwd: string;
   readonly rules: string | undefined;

@@ -18,7 +18,10 @@ type Imported = {
   readonly name: string;
 };
 
-/** Every named import from `better-supabase` or one of its subpaths, types included. */
+/**
+ * Every named import from `better-supabase` or one of its subpaths, types
+ * included.
+ */
 function importsOf(file: string, text: string): readonly Imported[] {
   return parseSync(file, text).module.staticImports.flatMap((entry) => {
     const specifier = entry.moduleRequest.value;
@@ -56,7 +59,10 @@ function typesPath(entry: unknown): string | undefined {
   return undefined;
 }
 
-/** The names a declaration file exports, following `export *` into relative files. */
+/**
+ * The names a declaration file exports, following `export *` into relative
+ * files.
+ */
 function exportedNames(file: string, seen = new Set<string>()): Set<string> {
   const names = new Set<string>();
   if (seen.has(file) || !existsSync(file)) {
@@ -90,7 +96,10 @@ function exportedNames(file: string, seen = new Set<string>()): Set<string> {
   return names;
 }
 
-/** The imports whose name the package at `root` does not export from that specifier. */
+/**
+ * The imports whose name the package at `root` does not export from that
+ * specifier.
+ */
 function missingImports(
   imports: readonly Imported[],
   root: string,
@@ -125,7 +134,11 @@ function missingImports(
   });
 }
 
-/** The lowest version the `better-supabase` peer range accepts; `tests/package/better-supabase-peer-range.test.ts` checks it against the CI matrices. */
+/**
+ * The lowest version the `better-supabase` peer range accepts;
+ * `tests/package/better-supabase-peer-range.test.ts` checks it against the CI
+ * matrices.
+ */
 function peerFloor(): string | undefined {
   return /^\s+better-supabase: ">=([^\s"]+)/mu.exec(
     readFileSync(WORKSPACE, "utf8"),

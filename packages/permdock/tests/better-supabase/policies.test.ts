@@ -72,10 +72,7 @@ describe("bucketPolicy", () => {
       (entry) => entry.key === "quotes.read",
     )!.rowConditions = true;
     expect(() =>
-      bucketPolicy(access("quotes.read"), {
-        ...options,
-        catalog: conditioned,
-      }),
+      bucketPolicy(access("quotes.read"), { ...options, catalog: conditioned }),
     ).toThrow(/has row conditions/u);
   });
 

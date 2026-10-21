@@ -139,9 +139,9 @@ function isSection(key: string): key is Section {
 }
 
 /**
- * Checks the shape a command relies on before it reads the config: module
- * paths are strings and each section is an object. A key PermDock does not
- * read is a warning, so a config written for a newer version still loads.
+ * Checks the shape a command relies on before it reads the config: module paths
+ * are strings and each section is an object. A key PermDock does not read is a
+ * warning, so a config written for a newer version still loads.
  */
 export function parseConfig(value: unknown, file: string): ParsedConfig {
   if (value === undefined) {

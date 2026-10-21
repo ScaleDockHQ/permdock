@@ -11,7 +11,9 @@ import { ownPost, permissions, policy } from "../fixtures/quick-start.ts";
 
 type Row = { readonly user_id: string; readonly role: string };
 
-function fakeDb(tables: Record<string, Row[]>): PowerSyncWatchable & {
+function fakeDb(
+  tables: Record<string, Row[]>,
+): PowerSyncWatchable & {
   readonly change: () => void;
   readonly aborted: () => boolean;
 } {

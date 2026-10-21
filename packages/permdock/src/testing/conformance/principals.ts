@@ -24,8 +24,8 @@ function isFrozenDeep(value: unknown): boolean {
 /**
  * Checks a `PrincipalSource`: `principal` answers each listed id with the
  * expected principal or `null`, never another id; `principalByIdentity`
- * resolves each listed identity to the expected principal id or `null`, and
- * an email matches trimmed and in any case.
+ * resolves each listed identity to the expected principal id or `null`, and an
+ * email matches trimmed and in any case.
  */
 export function testPrincipalSource(
   source: PrincipalSource,
@@ -33,7 +33,10 @@ export function testPrincipalSource(
     readonly principals: readonly {
       readonly id: string;
       readonly tenant?: string;
-      /** The principal `principal(id)` returns, or `null` for none; omit to check only the shape. */
+      /**
+       * The principal `principal(id)` returns, or `null` for none; omit to
+       * check only the shape.
+       */
       readonly expect?: Principal | null;
     }[];
     readonly identities?: readonly {

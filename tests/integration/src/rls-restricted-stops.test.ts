@@ -32,15 +32,10 @@ async function asUser(
   user: string,
   sql: string,
 ): Promise<readonly string[]> {
-  return db.as(
-    {
-      role: "authenticated",
-      settings: jwtClaims(user),
-    },
-    async () =>
-      (await db.tester.query<{ id: string }>(sql)).rows
-        .map((row) => row.id)
-        .toSorted(),
+  return db.as({ role: "authenticated", settings: jwtClaims(user) }, async () =>
+    (await db.tester.query<{ id: string }>(sql)).rows
+      .map((row) => row.id)
+      .toSorted(),
   );
 }
 

@@ -372,10 +372,7 @@ describe("subjectFromApiKey", () => {
 
   it("takes the owner rights from getPermDockSync memberships without an owner loader", async () => {
     const { store, key } = await issue();
-    const subject = await resolve(key, {
-      verifier: store,
-      permissions,
-    });
+    const subject = await resolve(key, { verifier: store, permissions });
     const permdock = getPermDockSync(policy, subject, {
       tenant: "o_1",
       memberships: {
@@ -502,22 +499,14 @@ describe("subjectFromApiKey", () => {
         },
       ]);
     }
-    const none = await resolve(undefined, {
-      verifier: store,
-      permissions,
-    });
+    const none = await resolve(undefined, { verifier: store, permissions });
     expect(none.principal).toBeNull();
   });
 
   it("reports sampled uses to the sink and never lets the sink decide", async () => {
     const { store, key } = await issue();
     const sink = memoryDecisionSink();
-    await resolve(key, {
-      verifier: store,
-      permissions,
-      sink,
-      source: "api",
-    });
+    await resolve(key, { verifier: store, permissions, sink, source: "api" });
     expect(sink.events()).toEqual([
       expect.objectContaining({
         type: "credential",
@@ -530,12 +519,7 @@ describe("subjectFromApiKey", () => {
     ]);
     const quiet = memoryDecisionSink();
     for (const sample of [0, 2, Number.NaN]) {
-      await resolve(key, {
-        verifier: store,
-        permissions,
-        sink: quiet,
-        sample,
-      });
+      await resolve(key, { verifier: store, permissions, sink: quiet, sample });
     }
     expect(quiet.events()).toHaveLength(0);
     const subject = await resolve(key, {

@@ -87,11 +87,7 @@ describe("permdock/orpc", () => {
       // SAFETY: toBeInstanceOf above checked the error is an ORPCError.
       const denied = error as ORPCError<string, unknown>;
       expect(denied.code).toBe("FORBIDDEN");
-      expect(denied.data).toEqual(
-        expect.objectContaining({
-          status: 403,
-        }),
-      );
+      expect(denied.data).toEqual(expect.objectContaining({ status: 403 }));
     }
   });
 
@@ -168,10 +164,7 @@ describe("permdock/orpc", () => {
     let tenant = "t1";
     const { middleware } = createPermDock<
       Ctx & { readonly permdock?: unknown }
-    >(policy, {
-      subject: (opts) => opts.context.user,
-      tenant: () => tenant,
-    });
+    >(policy, { subject: (opts) => opts.context.user, tenant: () => tenant });
     const first = os
       .$context<Ctx & { readonly permdock?: unknown }>()
       .use(middleware())

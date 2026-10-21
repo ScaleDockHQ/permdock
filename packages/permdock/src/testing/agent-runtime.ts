@@ -13,7 +13,10 @@ import { saasPermissions } from "./saas/permissions.ts";
 import { saasPolicy } from "./saas/policy.ts";
 import { saasCustomRoles, saasPrincipal, saasSeed } from "./saas/seed.ts";
 
-/** The server-side context of one call; the subject and tenant come from here, never from arguments. */
+/**
+ * The server-side context of one call; the subject and tenant come from here,
+ * never from arguments.
+ */
 export type AgentRuntimeContext = {
   /** `null` for a call with no authenticated user. */
   readonly user: string | null;
@@ -30,7 +33,10 @@ export type AgentRuntimeModel = "standard" | "frontier";
 /** What a mount wires into its `AgentPermDock`. */
 export type AgentRuntimeDomain = {
   readonly policy: typeof saasPolicy;
-  /** The principal for `user` with the plans of `org`, or `null`. Throws for `AGENT_THROWING_USER`. */
+  /**
+   * The principal for `user` with the plans of `org`, or `null`. Throws for
+   * `AGENT_THROWING_USER`.
+   */
   readonly subject: (user: string | null, org: string) => Principal | null;
   /**
    * `project_read` loads the row named by `args.id`; `project_search` has a

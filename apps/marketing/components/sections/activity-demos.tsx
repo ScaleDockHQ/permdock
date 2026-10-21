@@ -18,7 +18,10 @@ export const AgentRunDemo = dynamic(
   },
 );
 
-/** The MCP tool-call demo, loaded after the page; the placeholder holds its height. */
+/**
+ * The MCP tool-call demo, loaded after the page; the placeholder holds its
+ * height.
+ */
 export const McpRunDemo = dynamic(
   () =>
     import("@/components/blocks/agent-activity-4/components/agent-activity").then(

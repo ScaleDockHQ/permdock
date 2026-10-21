@@ -17,10 +17,16 @@ import {
   permittedByPermissionHelper,
 } from "./permission-keys.ts";
 
-/** `rls.approvals`' approver check; better-supabase's `isApprover` template calls it. */
+/**
+ * `rls.approvals`' approver check; better-supabase's `isApprover` template
+ * calls it.
+ */
 export const IS_APPROVER = "permdock_is_approver";
 
-/** The objects `rls.approvals` adds. Names are part of the SQL contract `supabaseApprovalStore` calls. */
+/**
+ * The objects `rls.approvals` adds. Names are part of the SQL contract
+ * `supabaseApprovalStore` calls.
+ */
 const APPROVAL_STORE = {
   table: "approval_requests",
   open: "permdock_approval_open",
@@ -61,8 +67,8 @@ const BODY_CHECK = `${APPROVAL_STORE.table}_body_schema`;
 
 /**
  * `rls.jsonSchema`: a pg_jsonschema check that `body` matches
- * `approval-request-v1.json`, added `not valid` and then validated. `auto`
- * adds it only where the extension is available.
+ * `approval-request-v1.json`, added `not valid` and then validated. `auto` adds
+ * it only where the extension is available.
  */
 function bodySchemaSql(
   table: string,
@@ -93,11 +99,11 @@ $permdock$;\n`;
 }
 
 /**
- * The approval store (`rls.approvals`): one table of `ApprovalRequest`
- * bodies with the columns a list filters on, and one `security definer`
- * function per `ApprovalStore` method, each one atomic statement. No client
- * role may read the table or execute the functions: approvals are opened and
- * resolved by the server, which grants its own role.
+ * The approval store (`rls.approvals`): one table of `ApprovalRequest` bodies
+ * with the columns a list filters on, and one `security definer` function per
+ * `ApprovalStore` method, each one atomic statement. No client role may read
+ * the table or execute the functions: approvals are opened and resolved by the
+ * server, which grants its own role.
  */
 export function approvalStoreSql(
   ctx: RlsSqlContext,
@@ -258,8 +264,8 @@ ${serverOnly(fn(APPROVAL_STORE.cancel), "jsonb, text, text, text")}
 /**
  * `permdock_is_approver(p_approvers jsonb, p_tenant text default null)`: true
  * when the signed-in user matches the serialised approvers of a request
- * (`approvers.by`), for policies on the app's own approval views. A list
- * needs every item and `any-of` one of them; `user` compares the user id and
+ * (`approvers.by`), for policies on the app's own approval views. A list needs
+ * every item and `any-of` one of them; `user` compares the user id and
  * `holder(permission)` reads `permitted_<root>_ids_by_permission` in
  * `p_tenant`, or `permdock_has_permission` without one. Role, relation and
  * other grantee approvers need facts the database does not hold for every
@@ -376,20 +382,23 @@ export function approvalsSql(
   );
 }
 
-/** The objects `rls.approvals.delegations` adds; `tableApprovalDelegationSource` reads the table. */
+/**
+ * The objects `rls.approvals.delegations` adds; `tableApprovalDelegationSource`
+ * reads the table.
+ */
 const DELEGATIONS = {
   table: "approval_delegations",
   covers: "permdock_cover_approves",
 } as const;
 
 /**
- * `rls.approvals.delegations`: one table of out-of-office covers that a
- * user writes for themselves, and a four-argument `permdock_is_approver`
- * that also answers for a delegate inside an active cover. One hop: a cover
- * is checked against the delegator's own approver rights, never the
- * delegator's covers. A delegator who is the requester never counts. A
- * `holder()` approver through a cover needs `rls.mode: "database"`, where
- * the `_for` helpers exist; in `jwt` mode only `user()` approvers pass.
+ * `rls.approvals.delegations`: one table of out-of-office covers that a user
+ * writes for themselves, and a four-argument `permdock_is_approver` that also
+ * answers for a delegate inside an active cover. One hop: a cover is checked
+ * against the delegator's own approver rights, never the delegator's covers. A
+ * delegator who is the requester never counts. A `holder()` approver through a
+ * cover needs `rls.mode: "database"`, where the `_for` helpers exist; in `jwt`
+ * mode only `user()` approvers pass.
  */
 export function approvalDelegationsSql(ctx: RlsSqlContext): string {
   const table = qualified(ctx, DELEGATIONS.table);
@@ -554,7 +563,10 @@ grant execute on function ${fn}(jsonb, text, text, text) to authenticated;
 `;
 }
 
-/** The request fields an adopted table may mirror into its own columns, as SQL over a body. */
+/**
+ * The request fields an adopted table may mirror into its own columns, as SQL
+ * over a body.
+ */
 const MIRRORS = {
   status: (body: string) => `${body} ->> 'status'`,
   permission: (body: string) => `${body} ->> 'permission'`,
@@ -598,7 +610,10 @@ function mirrorsOf(adopt: RlsApprovalsAdopt): Mirror {
   return out;
 }
 
-/** One row of `table` from `values` (column, SQL), each converted to the column's own type. */
+/**
+ * One row of `table` from `values` (column, SQL), each converted to the
+ * column's own type.
+ */
 function populate(
   table: string,
   values: readonly (readonly [column: string, sql: string])[],
@@ -617,7 +632,10 @@ function mirrorRow(table: string, mirror: Mirror, body: string): string {
   );
 }
 
-/** `, (<mirrored columns>) = (select …)` for an update that writes `body`; empty without mirrors. */
+/**
+ * `, (<mirrored columns>) = (select …)` for an update that writes `body`; empty
+ * without mirrors.
+ */
 function mirrorSet(table: string, mirror: Mirror, body: string): string {
   if (mirror.length === 0) {
     return "";
@@ -630,12 +648,12 @@ function mirrorSet(table: string, mirror: Mirror, body: string): string {
 }
 
 /**
- * The approval store over a table the app already has (`rls.approvals:
- * { table, token?, body?, mirror? }`): the same `permdock_approval_*`
- * functions, reading every field from the request body in `body`, keyed by
- * the text column `token`, and copying the fields `mirror` names into the
- * app's own columns, converted to their types, on every write. The table's
- * grants and policies stay the app's.
+ * The approval store over a table the app already has (`rls.approvals: { table,
+ * token?, body?, mirror? }`): the same `permdock_approval_*` functions, reading
+ * every field from the request body in `body`, keyed by the text column
+ * `token`, and copying the fields `mirror` names into the app's own columns,
+ * converted to their types, on every write. The table's grants and policies
+ * stay the app's.
  */
 export function adoptedApprovalStoreSql(
   ctx: RlsSqlContext,

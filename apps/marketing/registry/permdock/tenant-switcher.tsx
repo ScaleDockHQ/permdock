@@ -17,8 +17,8 @@ type TenantSwitcherProps = {
 
 /**
  * The organisations the user is a member of, from the snapshot. Picking one
- * refreshes the snapshot for that tenant; the server still checks the
- * tenant on every request.
+ * refreshes the snapshot for that tenant; the server still checks the tenant on
+ * every request.
  */
 const NO_NAMES: Readonly<Record<string, string>> = {};
 

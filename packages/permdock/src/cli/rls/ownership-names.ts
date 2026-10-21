@@ -1,4 +1,7 @@
-/** Objects the ownership rules add next to the helpers. Names are part of the SQL contract. */
+/**
+ * Objects the ownership rules add next to the helpers. Names are part of the
+ * SQL contract.
+ */
 export const OWNERSHIP = {
   canAssign: "permdock_can_assign",
   canAssignFor: "permdock_can_assign_for",

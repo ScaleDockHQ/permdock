@@ -13,10 +13,7 @@ import {
 import { createPermDock } from "../../src/server/index.ts";
 
 const permissions = definePermissions({
-  doc: resource(z.object({ id: z.string() }), {
-    id: "id",
-    actions: ["read"],
-  }),
+  doc: resource(z.object({ id: z.string() }), { id: "id", actions: ["read"] }),
 });
 
 function policyAnswering(decision: boolean) {

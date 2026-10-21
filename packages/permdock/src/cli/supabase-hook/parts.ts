@@ -23,11 +23,17 @@ export type Parts = {
   readonly attrs: AttrsPlan | undefined;
   readonly extra: readonly ExtraClaim[];
   readonly before: readonly string[];
-  /** The `rls.schema` helpers, and the scopes `rls generate` emits `member_<scope>_ids_for` for. */
+  /**
+   * The `rls.schema` helpers, and the scopes `rls generate` emits
+   * `member_<scope>_ids_for` for.
+   */
   readonly helpers: {
     readonly schema: string;
     readonly memberFor: readonly string[];
-    /** The scopes `rls generate` emits `permitted_<scope>_users` for in `database` mode. */
+    /**
+     * The scopes `rls generate` emits `permitted_<scope>_users` for in
+     * `database` mode.
+     */
     readonly holders: readonly string[];
     /** The sources `member_<scope>_ids_for` reads, deduplicated across scopes. */
     readonly memberships: readonly SupabaseManifestMembership[];

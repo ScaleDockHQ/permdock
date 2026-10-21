@@ -4,7 +4,10 @@ import { permissions } from "../rls-matrix/permissions.ts";
 
 const { project } = permissions;
 
-/** A private channel and a bucket per organization: admins write, every member reads. */
+/**
+ * A private channel and a bucket per organization: admins write, every member
+ * reads.
+ */
 export default {
   permissions: "../rls-matrix/permissions.ts",
   policy: "../rls-matrix/policy.ts",

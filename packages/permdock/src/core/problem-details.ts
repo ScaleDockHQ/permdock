@@ -19,11 +19,17 @@ export type DecisionProblem = {
   readonly scope?: string;
   readonly resource?: { readonly type: string; readonly id?: string };
   readonly instance?: string;
-  /** `'hide'` on a loaded row: a denial that reveals nothing answers as `404` `/not-found`. */
+  /**
+   * `'hide'` on a loaded row: a denial that reveals nothing answers as `404`
+   * `/not-found`.
+   */
   readonly disclosure?: Disclosure;
 };
 
-/** Reasons that only arise once a matching grant was found, so they reveal nothing hidden. */
+/**
+ * Reasons that only arise once a matching grant was found, so they reveal
+ * nothing hidden.
+ */
 const HOLDS_GRANT: ReadonlySet<string> = new Set<string>([
   "insufficient-user-authentication",
   "limit",
@@ -40,7 +46,10 @@ function granteesOf(
   return Array.isArray(to) ? (to as readonly Grantee[]) : [to as Grantee];
 }
 
-/** The plans a `not-entitled` denial asks for; empty unless every denial is `not-entitled`. */
+/**
+ * The plans a `not-entitled` denial asks for; empty unless every denial is
+ * `not-entitled`.
+ */
 export function requiredPlans(decision: Decision): readonly string[] {
   if (
     decision.outcome !== "denied" ||
@@ -60,7 +69,10 @@ export function requiredPlans(decision: Decision): readonly string[] {
   return [...plans];
 }
 
-/** The `acr` values and the tightest `maxAge` the failing assurance grants ask for. */
+/**
+ * The `acr` values and the tightest `maxAge` the failing assurance grants ask
+ * for.
+ */
 export function stepUpOf(decision: Decision): {
   readonly acrValues?: readonly string[];
   readonly maxAge?: number;
@@ -89,10 +101,7 @@ export function stepUpOf(decision: Decision): {
       }
     }
   }
-  return compact({
-    acrValues: acr.size === 0 ? undefined : [...acr],
-    maxAge,
-  });
+  return compact({ acrValues: acr.size === 0 ? undefined : [...acr], maxAge });
 }
 
 /** The `404` a missing row and a hidden one share, so the two read the same. */

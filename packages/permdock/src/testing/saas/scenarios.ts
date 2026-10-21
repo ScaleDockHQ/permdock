@@ -43,8 +43,8 @@ export type SaasScenario = {
    */
   readonly client?: boolean;
   /**
-   * The client outcome when it is stricter than the server's: a snapshot
-   * cannot evaluate a closure deny, so it fails closed.
+   * The client outcome when it is stricter than the server's: a snapshot cannot
+   * evaluate a closure deny, so it fails closed.
    */
   readonly clientOutcome?: SaasOutcome;
   /** An agent acting for `user`; without `delegation` it reaches nothing. */
@@ -54,7 +54,10 @@ export type SaasScenario = {
   readonly quotaUsed?: number;
 };
 
-/** What the policy's `subject` receives: the principal, or a `Subject` carrying the actor. */
+/**
+ * What the policy's `subject` receives: the principal, or a `Subject` carrying
+ * the actor.
+ */
 export function saasUser(scenario: SaasScenario): Principal | Subject {
   const principal = saasPrincipal(scenario.user, scenario.tenant);
   if (scenario.actor === undefined && scenario.delegation === undefined) {
@@ -96,7 +99,10 @@ export function saasLimitStore(used = 0): LimitStore {
   };
 }
 
-/** The `createPermDock` options a scenario runs with: tenant, custom roles, quota and folder tree. */
+/**
+ * The `createPermDock` options a scenario runs with: tenant, custom roles,
+ * quota and folder tree.
+ */
 export function saasScenarioOptions(scenario: SaasScenario): PermDockOptions {
   return {
     ...(scenario.tenant === undefined ? {} : { tenant: scenario.tenant }),
@@ -131,8 +137,9 @@ export function saasFolder(id: string): SaasFolder {
 }
 
 /**
- * The folder tree, decided with `createPermDock({ relations: saasRelations() })`.
- * A snapshot carries no graph, so every graph grant is server-only on a client.
+ * The folder tree, decided with `createPermDock({ relations: saasRelations()
+ * })`. A snapshot carries no graph, so every graph grant is server-only on a
+ * client.
  */
 export const saasFolderScenarios: readonly SaasScenario[] = Object.freeze([
   {
@@ -197,8 +204,8 @@ export const saasFolderScenarios: readonly SaasScenario[] = Object.freeze([
 ]);
 
 /**
- * Hand-written expectations. Never derive `expected` from the engine: the
- * list is the oracle every adapter, ORM and client suite runs against.
+ * Hand-written expectations. Never derive `expected` from the engine: the list
+ * is the oracle every adapter, ORM and client suite runs against.
  */
 export const saasScenarios: readonly SaasScenario[] = Object.freeze([
   {

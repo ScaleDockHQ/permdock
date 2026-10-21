@@ -21,7 +21,10 @@ function isObject(value: unknown): value is Jwk {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** Whether `key` may decrypt a token with this header: encryption use, matching `alg` and `kid`, and private material. */
+/**
+ * Whether `key` may decrypt a token with this header: encryption use, matching
+ * `alg` and `kid`, and private material.
+ */
 function mayDecrypt(key: unknown, header: DecodedHeader): key is Jwk {
   if (!isObject(key)) {
     return false;

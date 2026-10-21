@@ -165,14 +165,8 @@ describe("accessReviewApplier", () => {
     const result = await apply("r1");
     expect(result.applied).toHaveLength(2);
     expect(calls).toEqual([
-      {
-        fn: "app.remove_member",
-        args: { organization: ORG, member: "u1" },
-      },
-      {
-        fn: "app.remove_member",
-        args: { organization: ORG, member: "u2" },
-      },
+      { fn: "app.remove_member", args: { organization: ORG, member: "u1" } },
+      { fn: "app.remove_member", args: { organization: ORG, member: "u2" } },
     ]);
   });
 

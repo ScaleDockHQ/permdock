@@ -60,7 +60,10 @@ function configReport(input: {
   };
 }
 
-/** `permdock config`: the config's warnings, or with `--print` or `--json` the effective config. */
+/**
+ * `permdock config`: the config's warnings, or with `--print` or `--json` the
+ * effective config.
+ */
 export function runConfig(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;

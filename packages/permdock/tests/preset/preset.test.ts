@@ -129,7 +129,10 @@ function name(preset: Preset): string {
   return encodePreset(preset).replaceAll(/[^\w]/gu, "_");
 }
 
-/** Writes each case under .preset-check/<code>, with permdock imports pointed at src. */
+/**
+ * Writes each case under .preset-check/<code>, with permdock imports pointed at
+ * src.
+ */
 function writeCases(): readonly string[] {
   rmSync(OUT, { recursive: true, force: true });
   const dirs: string[] = [];
@@ -276,10 +279,7 @@ describe("generated presets", () => {
         expect({
           preset: preset.archetype,
           can: permdock.can(list, undefined),
-        }).toEqual({
-          preset: preset.archetype,
-          can: true,
-        });
+        }).toEqual({ preset: preset.archetype, can: true });
       }
       const appModule: { readonly app: unknown } = await import(
         path.join(dir, "permdock.ts")
@@ -307,9 +307,8 @@ describe("presetMatrix", () => {
         readonly demoUser: unknown;
       } = await import(path.join(dir, "policy.ts"));
       // The generated app: profile dev, so limits have a memory store.
-      const appModule: {
-        readonly app: Parameters<typeof getPermDockSync>[0];
-      } = await import(path.join(dir, "permdock.ts"));
+      const appModule: { readonly app: Parameters<typeof getPermDockSync>[0] } =
+        await import(path.join(dir, "permdock.ts"));
       const permdock = getPermDockSync(appModule.app, policyModule.demoUser);
       // SAFETY: a permission tree maps each resource name to its permission leaves.
       const tree = permdock.permissions as Record<

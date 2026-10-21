@@ -12,8 +12,8 @@ import type { Subject } from "./subject.ts";
  * What a feature function needs from a server instance beyond its public
  * members: the policy, the environment it was built with and its caches.
  * Feature functions (`decideCredential(permdock, …)`, `whoCan(permdock, …)`)
- * read it, so `getPermDock` never references their modules and a
- * bundler drops every feature an app does not call.
+ * read it, so `getPermDock` never references their modules and a bundler drops
+ * every feature an app does not call.
  */
 export type InstanceInternals = {
   /** The server instance itself, which a wrapper (the PDP adapter) forwards. */
@@ -30,8 +30,8 @@ export type InstanceInternals = {
   /** The decision clock in epoch seconds. */
   readonly now: () => number;
   /**
-   * Runs `run` with a decide function that evaluates quietly, as
-   * `simulate` does, and emits one simulate event for every check it made.
+   * Runs `run` with a decide function that evaluates quietly, as `simulate`
+   * does, and emits one simulate event for every check it made.
    */
   readonly simulateWith: <T>(
     run: (decide: (permission: Permission, data: unknown) => Decision) => T,
@@ -39,8 +39,8 @@ export type InstanceInternals = {
 };
 
 /**
- * Any instance a feature function accepts: a server `PermDock`, one built
- * from a snapshot, or an adapter's wrapper such as `PdpPermDock`.
+ * Any instance a feature function accepts: a server `PermDock`, one built from
+ * a snapshot, or an adapter's wrapper such as `PdpPermDock`.
  */
 export type InstanceHandle = { readonly subject: Subject };
 
@@ -48,7 +48,10 @@ export type InstanceHandle = { readonly subject: Subject };
 // imported from one entry reads an instance built by another.
 const INTERNALS = Symbol.for("permdock.internals");
 
-/** Attaches `internals` to `instance` as a non-enumerable member; call before freezing. */
+/**
+ * Attaches `internals` to `instance` as a non-enumerable member; call before
+ * freezing.
+ */
 export function attachInternals(
   instance: object,
   internals: InstanceInternals,
@@ -57,8 +60,8 @@ export function attachInternals(
 }
 
 /**
- * The internals of a server instance, or `undefined` for an instance built
- * from a snapshot or one that is not PermDock's. A feature function treats
+ * The internals of a server instance, or `undefined` for an instance built from
+ * a snapshot or one that is not PermDock's. A feature function treats
  * `undefined` as a check it cannot answer and denies with `unsupported`.
  */
 export function internalsOf(

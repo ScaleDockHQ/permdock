@@ -169,9 +169,7 @@ testAgentAdapter({
 testAgentAdapter({
   name: "permdock/mcp",
   mount: async (domain) => {
-    const session: { authInfo: AuthInfo | undefined } = {
-      authInfo: undefined,
-    };
+    const session: { authInfo: AuthInfo | undefined } = { authInfo: undefined };
     const extraOf = (authInfo: { readonly extra?: unknown }): CallContext => {
       const { extra } = authInfo;
       return extra === undefined ? { user: null, org: "" } : callContext(extra);
@@ -236,9 +234,7 @@ testAgentAdapter({
         auth.clientId === undefined ? null : subjectOf(domain)(current),
       tenant: () => current.org,
       card: { name: "SaaS agent", url: "https://agent.test/a2a", version: "1" },
-      securitySchemes: {
-        bearer: { type: "http", scheme: "bearer" },
-      },
+      securitySchemes: { bearer: { type: "http", scheme: "bearer" } },
       skills: Object.fromEntries(
         Object.entries(domain.tools).map(([id, binding]) => [
           id,

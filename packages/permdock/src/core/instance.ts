@@ -56,7 +56,10 @@ import {
 } from "./tenancy.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
-/** Each round reads one more layer: link hops, then the chain, then nested groups. */
+/**
+ * Each round reads one more layer: link hops, then the chain, then nested
+ * groups.
+ */
 const LOAD_ROUNDS = 48;
 
 export function buildInstance(
@@ -323,10 +326,7 @@ export function buildInstance(
           ? freezeDeep({
               outcome: "granted",
               subject,
-              matched: {
-                role: "*",
-                permission: permission.key,
-              },
+              matched: { role: "*", permission: permission.key },
               token: "pd1.filter",
             })
           : freezeDeep({

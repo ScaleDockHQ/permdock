@@ -22,8 +22,8 @@ type HolderSource = {
 };
 
 /**
- * The membership sources holding scope `name`: `undefined` when there are
- * none, `'not-tables'` when one of them carries no table to put a trigger on.
+ * The membership sources holding scope `name`: `undefined` when there are none,
+ * `'not-tables'` when one of them carries no table to put a trigger on.
  */
 export function holderSources(
   ctx: RlsSqlContext,
@@ -47,7 +47,10 @@ function indent(sql: string, by: string): string {
   return sql.replaceAll(/^/gmu, by);
 }
 
-/** Every source's rows of one instance, each compared with its own typed `v_key_<n>`. */
+/**
+ * Every source's rows of one instance, each compared with its own typed
+ * `v_key_<n>`.
+ */
 function sourceRowsOf(scope: string, sources: readonly HolderSource[]): string {
   return sources
     .map((source, index) =>
@@ -84,7 +87,10 @@ function sourceTables(sources: readonly HolderSource[]): readonly string[] {
   return [...new Set(sources.map((source) => quoteQualified(source.table)))];
 }
 
-/** `min` and `max` over membership sources: the same commit-time check as on a mapped table, counted over every source of the scope. */
+/**
+ * `min` and `max` over membership sources: the same commit-time check as on a
+ * mapped table, counted over every source of the scope.
+ */
 export function sourceHoldersTriggerSql(
   ctx: RlsSqlContext,
   scope: string,
@@ -178,7 +184,10 @@ function collectChangesSql(changed: string): string {
   return `      v_changes := v_changes || coalesce((select jsonb_agg(to_jsonb(c)) from (${changed}) c), '[]'::jsonb);`;
 }
 
-/** `transferOnly` over membership sources: each source table's statement triggers diff its transition tables, and the count after reads every source. */
+/**
+ * `transferOnly` over membership sources: each source table's statement
+ * triggers diff its transition tables, and the count after reads every source.
+ */
 export function sourceTransferTriggerSql(
   ctx: RlsSqlContext,
   scope: string,

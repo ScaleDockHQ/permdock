@@ -62,10 +62,7 @@ describe("evaluationsHandler POST", () => {
     expect({
       status: response.status,
       body: await response.json(),
-    }).toMatchObject({
-      status: 400,
-      body: { detail },
-    });
+    }).toMatchObject({ status: 400, body: { detail } });
   });
 
   it("resolves each item by key, by resource and action, or not at all", async () => {

@@ -18,8 +18,8 @@ function set(env: Env, name: string): boolean {
 
 /**
  * The AI agent running the CLI, from the variables `@vercel/detect-agent`
- * reads, in its order. `CURSOR_TRACE_ID` is also set in Cursor's own
- * terminal, so it counts only when stdout is not a TTY.
+ * reads, in its order. `CURSOR_TRACE_ID` is also set in Cursor's own terminal,
+ * so it counts only when stdout is not a TTY.
  */
 export function detectAgent(env: Env, probe: AgentProbe): DetectedAgent {
   const named = env["AI_AGENT"]?.trim();
@@ -114,8 +114,8 @@ function modeOf(
 }
 
 /**
- * `--agent`, then `PERMDOCK_AGENT`, then detection. An unknown value is a
- * usage error, so a typo never leaves an agent with prompts it cannot answer.
+ * `--agent`, then `PERMDOCK_AGENT`, then detection. An unknown value is a usage
+ * error, so a typo never leaves an agent with prompts it cannot answer.
  */
 export function agentMode(
   flag: string | undefined,

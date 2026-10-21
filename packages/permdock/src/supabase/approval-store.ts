@@ -30,13 +30,16 @@ export type SupabaseApprovalStoreOptions = {
   /**
    * Runs once per stored request, after the call that stored it, with the
    * stored request: notify the approvers, or cancel the requests this one
-   * replaces. A repeated ask that finds the request still open does not run
-   * it again. A throw fails the open, so the caller does not run the action.
+   * replaces. A repeated ask that finds the request still open does not run it
+   * again. A throw fails the open, so the caller does not run the action.
    */
   readonly onOpen?: (request: ApprovalRequest) => void | Promise<void>;
 };
 
-/** A stored body as the request it is; the store wrote it from an `ApprovalRequest`. */
+/**
+ * A stored body as the request it is; the store wrote it from an
+ * `ApprovalRequest`.
+ */
 function requestOf(value: unknown): ApprovalRequest | null {
   if (
     !isRecord(value) ||
@@ -61,11 +64,11 @@ function filterOf(filter: ApprovalListFilter): Record<string, string> {
 
 /**
  * An `ApprovalStore` over the table and functions `rls.approvals` generates,
- * called through supabase-js (`client.schema(schema).rpc(...)`) with a
- * client that may execute them, such as a `service_role` client. Each method
- * is one atomic statement in the database: a repeated ask keeps the open
- * request, two racing approvers both count towards a quorum, and two racing
- * resumes never both consume an approval.
+ * called through supabase-js (`client.schema(schema).rpc(...)`) with a client
+ * that may execute them, such as a `service_role` client. Each method is one
+ * atomic statement in the database: a repeated ask keeps the open request, two
+ * racing approvers both count towards a quorum, and two racing resumes never
+ * both consume an approval.
  */
 export function supabaseApprovalStore(
   client: SupabaseRpcCaller,

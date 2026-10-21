@@ -25,9 +25,7 @@ function stubVerifier(
   claims: JwtClaims,
   header: { readonly alg: string; readonly typ?: string } = accessTokenHeader,
 ): TokenVerifier {
-  return {
-    verify: async () => ({ ok: true, claims, header }),
-  };
+  return { verify: async () => ({ ok: true, claims, header }) };
 }
 
 const throwingVerifier: TokenVerifier = {
@@ -154,10 +152,7 @@ describe("subjectFromJwt with an injected verifier", () => {
         };
       },
     };
-    await subjectFromJwt("a.b.c", {
-      verifier,
-      discovery: { issuer: ISSUER },
-    });
+    await subjectFromJwt("a.b.c", { verifier, discovery: { issuer: ISSUER } });
     await subjectFromJwt("a.b.c", { verifier });
     expect(seen).toEqual([ISSUER, undefined]);
   });
@@ -329,10 +324,7 @@ describe("subjectFromCiOidc with an injected verifier", () => {
       results.map((principal) =>
         principal === null
           ? null
-          : {
-              repository: principal["repository"],
-              ref: principal["ref"],
-            },
+          : { repository: principal["repository"], ref: principal["ref"] },
       ),
     ).toEqual([
       { repository: "acme/api", ref: "refs/tags/v1" },
@@ -372,10 +364,7 @@ describe("subjectFromCiOidc with an injected verifier", () => {
         })
       ).principal,
     ];
-    expect({
-      results,
-      causes: events.map((event) => event.cause),
-    }).toEqual({
+    expect({ results, causes: events.map((event) => event.cause) }).toEqual({
       results: [null, null, null, null],
       causes: ["malformed", "wrong-issuer", "wrong-audience"],
     });
@@ -430,11 +419,7 @@ describe("subjectFromCapability with an injected verifier", () => {
     await subjectFromCapability("a.b.c", wrongTyp.options);
     const expired = options(
       stubVerifier(
-        {
-          sub: "lnk_1",
-          exp: 1,
-          capability: { ...capability, expiresAt: 1 },
-        },
+        { sub: "lnk_1", exp: 1, capability: { ...capability, expiresAt: 1 } },
         { alg: "ES256", typ: "vnd.permdock.capability+jwt" },
       ),
     );
@@ -465,10 +450,10 @@ describe("subjectFromCapability with an injected verifier", () => {
     const opts = { issuer: ISSUER, audience: AUDIENCE, verifier, replay };
     const first = await subjectFromCapability("a.b.c", opts);
     const second = await subjectFromCapability("a.b.c", opts);
-    expect({
-      first: first.principal?.id,
-      second: second.principal,
-    }).toEqual({ first: "lnk_1", second: null });
+    expect({ first: first.principal?.id, second: second.principal }).toEqual({
+      first: "lnk_1",
+      second: null,
+    });
   });
 });
 

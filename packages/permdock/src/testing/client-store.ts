@@ -30,7 +30,10 @@ export type ClientStorePermDock = PermDock & {
 
 export type ClientStoreHandle = {
   get(): ClientStorePermDock;
-  /** Hydrate from a server-pushed snapshot (a Server Action result, a socket message). */
+  /**
+   * Hydrate from a server-pushed snapshot (a Server Action result, a socket
+   * message).
+   */
   replace(value: unknown): void;
 };
 
@@ -164,9 +167,9 @@ function unreachable(): Response {
 
 /**
  * Race and cache scenarios for a client snapshot store: tenant switches,
- * `replace` and `refresh`, logout and a second user during a refresh, stale
- * and signed snapshots, and endpoint answers cached per tenant. Runs against
- * the saas domain; `createStore` wraps the store an adapter ships.
+ * `replace` and `refresh`, logout and a second user during a refresh, stale and
+ * signed snapshots, and endpoint answers cached per tenant. Runs against the
+ * saas domain; `createStore` wraps the store an adapter ships.
  */
 export function testClientStore(
   name: string,

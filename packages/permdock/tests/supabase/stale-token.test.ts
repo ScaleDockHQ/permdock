@@ -101,10 +101,7 @@ describe("a stale token and global roles", () => {
       memberships: claimsFirst(sources.memberships, { onStale: "reread" }),
     });
     expect(viaClaimsFirst.can(permissions.organization.list)).toBe(false);
-    const refreshed = await sources.refresh({
-      ...delegated,
-      principal: stale,
-    });
+    const refreshed = await sources.refresh({ ...delegated, principal: stale });
     expect(refreshed.actor?.id).toBe("client-1");
     expect(refreshed.delegation).toEqual(delegation);
     const viaRefresh = await getPermDock(policy, refreshed);
@@ -136,10 +133,7 @@ describe("a stale token and global roles", () => {
 
 describe("globalRolesFor", () => {
   it("composes as the union of the sources and survives claimsFirst", async () => {
-    const one = {
-      membershipsFor: () => [],
-      globalRolesFor: () => ["a"],
-    };
+    const one = { membershipsFor: () => [], globalRolesFor: () => ["a"] };
     const two = {
       membershipsFor: () => [],
       globalRolesFor: async () => ["a", "b"],

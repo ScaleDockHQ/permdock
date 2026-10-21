@@ -206,9 +206,7 @@ describe.each([
       for (const tenant of ["T", "B"]) {
         const claims = { ...(await mint(user)), tenant_id: tenant };
         const principal = subjectFromSupabase(claims, {
-          claims: {
-            memberships: "memberships",
-          },
+          claims: { memberships: "memberships" },
         }).principal;
         const permdock = await getPermDock(policy, principal);
         for (const [permission, table] of [

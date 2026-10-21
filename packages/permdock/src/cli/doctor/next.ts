@@ -23,7 +23,10 @@ const CLIENT_READS: ReadonlySet<string> = new Set([
   "reference",
 ]);
 
-/** A grant the snapshot marks `portable: false`, so a client check needs the endpoint. */
+/**
+ * A grant the snapshot marks `portable: false`, so a client check needs the
+ * endpoint.
+ */
 function serverOnly(policy: Policy, grant: Grant): boolean {
   if (!grant.portable || hasConditionOp(grant.where, "related")) {
     return true;
@@ -58,7 +61,10 @@ function serverOnlyKeys(policy: Policy): ReadonlySet<string> {
   return keys;
 }
 
-/** An `app/**\/api/permdock/route.ts` that exports `permdockHandler`'s result, or an `endpoint` string in the source. */
+/**
+ * An `app/**\/api/permdock/route.ts` that exports `permdockHandler`'s result,
+ * or an `endpoint` string in the source.
+ */
 function hasEndpoint(
   files: DoctorFiles,
   cwd: string,
@@ -142,14 +148,16 @@ export async function pd065(
     }
     return hit;
   };
-  return [...keys].toSorted().flatMap((key) =>
-    (usages[key] ?? [])
-      .filter((usage) => CLIENT_READS.has(usage.call) && isNative(usage.file))
-      .map((usage) => ({
-        code: "PD065",
-        severity: "warning" as const,
-        message: `React Native code reads ${key} at ${usage.file}:${String(usage.line)}, whose grant needs the server (a closure, graph relation or period): offline the device answers denied (server-only)`,
-        fix: "express the grant with a portable condition if the screen must work offline, or show the offline state for it",
-      })),
-  );
+  return [...keys]
+    .toSorted()
+    .flatMap((key) =>
+      (usages[key] ?? [])
+        .filter((usage) => CLIENT_READS.has(usage.call) && isNative(usage.file))
+        .map((usage) => ({
+          code: "PD065",
+          severity: "warning" as const,
+          message: `React Native code reads ${key} at ${usage.file}:${String(usage.line)}, whose grant needs the server (a closure, graph relation or period): offline the device answers denied (server-only)`,
+          fix: "express the grant with a portable condition if the screen must work offline, or show the offline state for it",
+        })),
+    );
 }

@@ -47,11 +47,7 @@ const config: NextConfig = {
   transpilePackages: ["@permdock/ui"],
   redirects() {
     return [
-      {
-        source: "/",
-        destination: "/docs",
-        permanent: false,
-      },
+      { source: "/", destination: "/docs", permanent: false },
       ...Object.entries(retiredResearch).flatMap(([slug, destination]) =>
         ["/", "%2F"].map((separator) => ({
           source: `/docs/research${separator}${slug}`,
@@ -83,10 +79,7 @@ const config: NextConfig = {
         },
       ],
       afterFiles: [
-        {
-          source: "/docs/_next/:path*",
-          destination: "/_next/:path*",
-        },
+        { source: "/docs/_next/:path*", destination: "/_next/:path*" },
       ],
       fallback: [],
     };

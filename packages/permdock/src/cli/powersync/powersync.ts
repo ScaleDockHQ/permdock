@@ -115,7 +115,10 @@ export function powersyncFiles(
   };
 }
 
-/** The files whose content on disk is not what the policy compiles to, with `missing` for an absent one. */
+/**
+ * The files whose content on disk is not what the policy compiles to, with
+ * `missing` for an absent one.
+ */
 export function staleFiles(
   cwd: string,
   files: readonly PowerSyncFile[],
@@ -168,7 +171,10 @@ async function leaks(
   return false;
 }
 
-/** Whether the stream holds the fixture's row for its subject; `undefined` for a row with no id. */
+/**
+ * Whether the stream holds the fixture's row for its subject; `undefined` for a
+ * row with no id.
+ */
 async function synced(
   query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
   stream: PowerSyncStream,
@@ -291,7 +297,10 @@ async function verifyStreams(input: {
   return { mismatches, notes };
 }
 
-/** PD058 when the `powersync` publication leaves out a synced table outside `public`; a note when the database has no such publication. */
+/**
+ * PD058 when the `powersync` publication leaves out a synced table outside
+ * `public`; a note when the database has no such publication.
+ */
 async function checkPublication(
   query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
   plan: PowerSyncPlan,

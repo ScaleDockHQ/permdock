@@ -256,11 +256,7 @@ describe("decideSupportSession", () => {
     expect(
       await decideSupportSession(
         staff,
-        {
-          ...request,
-          expiresIn: 600,
-          permissions: [permissions.invoice.send],
-        },
+        { ...request, expiresIn: 600, permissions: [permissions.invoice.send] },
         { settings },
       ),
     ).toMatchObject({

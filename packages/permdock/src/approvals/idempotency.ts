@@ -1,7 +1,10 @@
 import { sha256Digest } from "../core/sha256.ts";
 import { nowMillis } from "../core/time.ts";
 
-/** How long `approvalsHandler` keeps a response for a repeated `Idempotency-Key`. */
+/**
+ * How long `approvalsHandler` keeps a response for a repeated
+ * `Idempotency-Key`.
+ */
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** The approve or reject call a key was first used for. */
@@ -15,7 +18,10 @@ export type IdempotentCall = {
 
 /** One `Idempotency-Key` entry as `approvalsHandler` stores it. */
 export type IdempotencyRecord = {
-  /** The store key: the approver's principal id and the field value, joined by a newline. */
+  /**
+   * The store key: the approver's principal id and the field value, joined by a
+   * newline.
+   */
   readonly key: string;
   readonly response: IdempotentResponse;
   /** Epoch milliseconds. */
@@ -24,7 +30,10 @@ export type IdempotencyRecord = {
 
 /** A response the approvals handler replays for a repeated `Idempotency-Key`. */
 export type IdempotentResponse = {
-  /** Which request produced it: a reused key with another fingerprint is refused with `422`. */
+  /**
+   * Which request produced it: a reused key with another fingerprint is refused
+   * with `422`.
+   */
   readonly fingerprint: string;
   readonly status: number;
   readonly headers: readonly (readonly [name: string, value: string])[];
@@ -51,7 +60,10 @@ export type IdempotencyStore = {
   ): void | Promise<void>;
 };
 
-/** The `IdempotencyStore` key for one approver's `Idempotency-Key`: keys never cross approvers. */
+/**
+ * The `IdempotencyStore` key for one approver's `Idempotency-Key`: keys never
+ * cross approvers.
+ */
 export function idempotencyRecordKey(principalId: string, key: string): string {
   return `${principalId}\n${key}`;
 }
@@ -61,9 +73,9 @@ function fingerprintOf(call: IdempotentCall): string {
 }
 
 /**
- * The record `approvalsHandler` stores after `call` answered `response`:
- * the status, headers and body text, the call's fingerprint, and an expiry
- * 24 hours after `now` (epoch milliseconds, default the clock).
+ * The record `approvalsHandler` stores after `call` answered `response`: the
+ * status, headers and body text, the call's fingerprint, and an expiry 24 hours
+ * after `now` (epoch milliseconds, default the clock).
  */
 export async function idempotencyRecord(input: {
   readonly principalId: string;
@@ -84,7 +96,10 @@ export async function idempotencyRecord(input: {
   };
 }
 
-/** Whether a stored response came from the same call: a reused key with another call is refused with `422`. */
+/**
+ * Whether a stored response came from the same call: a reused key with another
+ * call is refused with `422`.
+ */
 export function matchesIdempotencyRecord(
   response: IdempotentResponse,
   call: IdempotentCall,

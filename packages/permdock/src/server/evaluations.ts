@@ -41,7 +41,10 @@ export const EVALUATIONS_SEMANTICS = [
 
 export type EvaluationsSemantic = (typeof EVALUATIONS_SEMANTICS)[number];
 
-/** The batch's `evaluations_semantic`: `execute_all` when absent, `undefined` for an unknown value. */
+/**
+ * The batch's `evaluations_semantic`: `execute_all` when absent, `undefined`
+ * for an unknown value.
+ */
 export function evaluationsSemantic(
   body: Readonly<Record<string, unknown>>,
 ): EvaluationsSemantic | undefined {
@@ -131,9 +134,9 @@ export type EvaluationReasons = {
 };
 
 /**
- * `reason_admin` and `reason_user` for a decision that is not granted, from
- * the denial roles and reasons the context already carries. The user reason
- * names no role, grant or subject.
+ * `reason_admin` and `reason_user` for a decision that is not granted, from the
+ * denial roles and reasons the context already carries. The user reason names
+ * no role, grant or subject.
  */
 export function evaluationReasons(
   decision: Decision,
@@ -313,7 +316,10 @@ export function evaluationsHandler(options: {
   }) => Promise<PermDock>;
   readonly store?: ApprovalStore;
   readonly adapter?: string;
-  /** The most evaluations one POST may carry; a larger batch is a 413 before any instance is resolved. */
+  /**
+   * The most evaluations one POST may carry; a larger batch is a 413 before any
+   * instance is resolved.
+   */
   readonly maxEvaluations?: number;
 }): {
   readonly POST: (request: Request) => Promise<Response>;

@@ -162,9 +162,7 @@ describe("catalog --out", () => {
     expect(wrote).toMatchObject({ code: 0, stdout: "Created exported.json\n" });
     const checked = await run(
       ["catalog", "--out", "exported.json", "--check"],
-      {
-        cwd,
-      },
+      { cwd },
     );
     expect(checked).toMatchObject({
       code: 0,

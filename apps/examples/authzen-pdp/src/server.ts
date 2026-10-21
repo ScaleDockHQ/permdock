@@ -6,7 +6,10 @@ import { PEP_TOKEN } from "./pep.ts";
 import { otherPost, ownPost } from "./permissions.ts";
 import { type User, adminUser, memberUser, policy } from "./policy.ts";
 
-/** The caller `src/pep.ts` authenticates as; only it may name a subject in the body. */
+/**
+ * The caller `src/pep.ts` authenticates as; only it may name a subject in the
+ * body.
+ */
 const pepCaller: User = { id: "pep", orgId: "o1", roles: [] };
 
 const posts = new Map<string, typeof ownPost>([
@@ -14,7 +17,10 @@ const posts = new Map<string, typeof ownPost>([
   [otherPost.id, otherPost],
 ]);
 
-/** The PDP over any policy for these permissions: the local one, or one rebuilt from the Cloud. */
+/**
+ * The PDP over any policy for these permissions: the local one, or one rebuilt
+ * from the Cloud.
+ */
 export function createPdp(source: Policy<User>) {
   return createPermDock(source, {
     subject: (request) => {
@@ -31,9 +37,7 @@ export function createPdp(source: Policy<User>) {
         list: () => [...posts.values()],
       },
     },
-    subjects: {
-      list: () => [memberUser, adminUser],
-    },
+    subjects: { list: () => [memberUser, adminUser] },
   });
 }
 

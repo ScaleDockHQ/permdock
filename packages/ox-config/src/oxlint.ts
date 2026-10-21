@@ -15,8 +15,8 @@ interface TurboGlobal {
  * Build output and caches that no workspace should lint.
  *
  * `extends` merges `rules`, `plugins` and `overrides`, but a consumer's own
- * `ignorePatterns` replaces the inherited list. Consumers that add ignores
- * must spread this constant in front of their own patterns.
+ * `ignorePatterns` replaces the inherited list. Consumers that add ignores must
+ * spread this constant in front of their own patterns.
  */
 export const ignorePatterns: readonly string[] = [
   "**/{dist,.next,.nuxt,.output,.svelte-kit,.source,.expo,coverage,.turbo,node_modules}/**",
@@ -81,9 +81,9 @@ export const neverImport: {
 };
 
 /**
- * One library per concern for the docs and marketing apps and the packages
- * they share. The published package, its tests and the examples are exempt:
- * they exercise Zod, ArkType and third-party agent SDKs on purpose.
+ * One library per concern for the docs and marketing apps and the packages they
+ * share. The published package, its tests and the examples are exempt: they
+ * exercise Zod, ArkType and third-party agent SDKs on purpose.
  */
 export const oneLibraryPerConcern: Rules = {
   "eslint/no-restricted-imports": [
@@ -129,15 +129,12 @@ export const oneLibraryPerConcern: Rules = {
  * Shared Oxlint baseline for every workspace in the repository.
  *
  * Every workspace's `oxlint.config.ts` extends `core` plus the presets it
- * needs. The categories go beyond correctness and suspicious on purpose;
- * the pinned rules below stay on whatever a category change does.
+ * needs. The categories go beyond correctness and suspicious on purpose; the
+ * pinned rules below stay on whatever a category change does.
  */
 export const core: OxlintConfig = defineConfig({
   ignorePatterns: [...ignorePatterns],
-  options: {
-    denyWarnings: true,
-    reportUnusedDisableDirectives: "error",
-  },
+  options: { denyWarnings: true, reportUnusedDisableDirectives: "error" },
   // Oxlint resolves bare and relative specifiers from the consuming config,
   // so every plugin is handed over as an absolute path from this package.
   jsPlugins: [
@@ -303,8 +300,8 @@ export const core: OxlintConfig = defineConfig({
 });
 
 /**
- * Published library code: named exports only, and the relaxations that
- * frozen JSON, closures and isolatedDeclarations need.
+ * Published library code: named exports only, and the relaxations that frozen
+ * JSON, closures and isolatedDeclarations need.
  */
 export const library: OxlintConfig = defineConfig({
   rules: {
@@ -357,9 +354,7 @@ export const library: OxlintConfig = defineConfig({
   },
 });
 
-/**
- * Node tooling: repository scripts, test workspaces and fixture servers.
- */
+/** Node tooling: repository scripts, test workspaces and fixture servers. */
 export const node: OxlintConfig = defineConfig({
   rules: {
     // Tests pass `undefined` to probe optional inputs (358 findings).
@@ -386,8 +381,8 @@ export const node: OxlintConfig = defineConfig({
 });
 
 /**
- * Vitest suites. Test-only workspaces extend it for every file; packages
- * apply `test.rules` in an override on their `tests/` folder.
+ * Vitest suites. Test-only workspaces extend it for every file; packages apply
+ * `test.rules` in an override on their `tests/` folder.
  */
 export const test: OxlintConfig = defineConfig({
   plugins: ["vitest"],
@@ -465,8 +460,8 @@ export const test: OxlintConfig = defineConfig({
 });
 
 /**
- * React, jsx-a11y and Next.js rules for UI apps, the React Doctor effect
- * rules, and the shadcn design-system rules.
+ * React, jsx-a11y and Next.js rules for UI apps, the React Doctor effect rules,
+ * and the shadcn design-system rules.
  *
  * This lists every rule of the react, jsx-a11y and nextjs plugins in the
  * categories `core` enables as of oxlint 1.89. Re-check it on oxlint upgrades.
@@ -658,9 +653,7 @@ export const react: OxlintConfig = defineConfig({
   },
 });
 
-/**
- * Adapter example apps under `apps/examples`.
- */
+/** Adapter example apps under `apps/examples`. */
 export const example: OxlintConfig = defineConfig({
   rules: {
     // App-router and factory files import across src/ folders (47 findings).

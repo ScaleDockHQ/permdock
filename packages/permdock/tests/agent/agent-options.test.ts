@@ -141,9 +141,7 @@ describe("agent adapter options", () => {
       await canUseTool(
         "mcp__other__tool",
         {},
-        {
-          mcpServer: { name: "other", source: "remote" },
-        },
+        { mcpServer: { name: "other", source: "remote" } },
       ),
     ).toMatchObject({ behavior: "deny" });
   });
@@ -173,10 +171,7 @@ describe("agent adapter options", () => {
   });
 
   it("permdock/eve denies an unmapped tool by default", async () => {
-    const { approval } = eve(policy, {
-      subject: () => memberUser,
-      operations,
-    });
+    const { approval } = eve(policy, { subject: () => memberUser, operations });
     expect(await approval.request({ toolName: "weather" })).toMatchObject({
       type: "denied",
     });

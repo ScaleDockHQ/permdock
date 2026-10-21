@@ -94,10 +94,16 @@ export type Context = {
   readonly references: Reference[];
   readonly optionRows: readonly Rename[];
   readonly methodRows: readonly Rename[];
-  /** Module-level constants holding a factory result, to the entry the factory came from. */
+  /**
+   * Module-level constants holding a factory result, to the entry the factory
+   * came from.
+   */
   readonly factories: ReadonlyMap<string, string>;
   readonly handledKeys: Set<Estree>;
-  /** Signature changes called in their new shape, so the import is not reported as uncalled. */
+  /**
+   * Signature changes called in their new shape, so the import is not reported
+   * as uncalled.
+   */
   readonly newShapes: Set<string>;
   readonly scopes: WeakMap<Estree, ReadonlySet<string> | null>;
 };
@@ -172,7 +178,10 @@ export function listOf(items: readonly string[]): string {
   return new Intl.ListFormat("en-GB", { type: "disjunction" }).format(items);
 }
 
-/** The import a call's callee is bound to: a named import, or a member of a namespace import. */
+/**
+ * The import a call's callee is bound to: a named import, or a member of a
+ * namespace import.
+ */
 export function importedCallee(
   ctx: Context,
   callee: Estree | undefined,

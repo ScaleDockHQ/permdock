@@ -142,9 +142,7 @@ describe("disclosure", () => {
     const policy = definePolicy(permissions, {
       roles: [
         role("member", [
-          allow(permissions.report.read, {
-            where: { ownerId: principal.id },
-          }),
+          allow(permissions.report.read, { where: { ownerId: principal.id } }),
           allow(permissions.report.export, {
             where: { ownerId: principal.id },
             to: assurance({ acr: "mfa" }),

@@ -187,9 +187,7 @@ describe("fieldViews skips and warnings", () => {
       views(
         [read({ table: "blob", resource: "blob", fields: ["id"] })],
         false,
-        {
-          mask: true,
-        },
+        { mask: true },
       ),
     ).toThrow("--fields mask needs the blob schema's JSON Schema");
   });
@@ -198,10 +196,7 @@ describe("fieldViews skips and warnings", () => {
     const result = views(
       [read({ fields: ["id", "title"], using: "a" })],
       false,
-      {
-        helpersOnly: true,
-        mask: true,
-      },
+      { helpersOnly: true, mask: true },
     );
     expect(result.warnings).toEqual([
       "field view doc_visible: doc still returns body, secret to direct reads; revoke select on those columns from client roles in your own grants, or read them through a function",

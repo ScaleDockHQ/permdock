@@ -180,9 +180,7 @@ describe("rls generate --split and --grants-out under migra", () => {
     const full = await run(helpersOnly, { cwd });
     expect(full.code).toBe(0);
     const inline = read(cwd, part("helpers"));
-    const result = await run([...helpersOnly, "--grants-out", GRANTS], {
-      cwd,
-    });
+    const result = await run([...helpersOnly, "--grants-out", GRANTS], { cwd });
     expect(result.code).toBe(0);
     expect(result.stdout).toContain(
       `wrote ${part("helpers")}, ${SEEDS}, ${GRANTS}`,
@@ -604,9 +602,7 @@ describe("rls generate --split under pg-delta", () => {
   it("follows declarative_schema_path and takes {part} in an explicit --out", async () => {
     const cwd = project(true, "", null);
     pgDelta(cwd, 'declarative_schema_path = "./declarative"\n');
-    const moved = await run(["rls", "generate", "--split", "indexes"], {
-      cwd,
-    });
+    const moved = await run(["rls", "generate", "--split", "indexes"], { cwd });
     expect(moved.stdout).toContain(
       "wrote supabase/declarative/permdock/indexes.sql",
     );
@@ -748,9 +744,7 @@ describe("the schema workflow rls generate and supabase hook generate follow", (
   it("uses migra when config.toml sets enabled = false, and --schemas overrides both", async () => {
     const cwd = project(true, "", null);
     pgDelta(cwd, "", "false");
-    const migra = await run(["rls", "generate", "--split", "indexes"], {
-      cwd,
-    });
+    const migra = await run(["rls", "generate", "--split", "indexes"], { cwd });
     expect(migra.code).toBe(2);
     expect(migra.stderr).toContain(
       "rls generate --split under migra needs {part} in --out",

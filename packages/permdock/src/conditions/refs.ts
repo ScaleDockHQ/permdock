@@ -24,9 +24,7 @@ type KnownRefField =
 
 export type SubjectRef = ConditionRef & {
   readonly [K in KnownRefField]: SubjectRef;
-} & {
-  readonly [key: string]: SubjectRef;
-};
+} & { readonly [key: string]: SubjectRef };
 
 function createRef(path: string): SubjectRef {
   const segments = splitPath(path);

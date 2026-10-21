@@ -5,7 +5,10 @@ import { emitPermissionsModule } from "../generate.ts";
 
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/u;
 
-/** Actions a collection permission decides: there is no row yet, or a list of rows. */
+/**
+ * Actions a collection permission decides: there is no row yet, or a list of
+ * rows.
+ */
 const COLLECTION_ACTIONS: ReadonlySet<string> = new Set(["create", "list"]);
 
 /** A condition value: JSON, or a field of the principal (`principal.id`). */
@@ -17,7 +20,10 @@ export type ImportedValue =
   | { readonly principal: string }
   | readonly ImportedValue[];
 
-/** The `where` shorthand an imported grant carries, as data until it is rendered. */
+/**
+ * The `where` shorthand an imported grant carries, as data until it is
+ * rendered.
+ */
 export type ImportedWhere =
   | { readonly and: readonly ImportedWhere[] }
   | { readonly or: readonly ImportedWhere[] }
@@ -116,7 +122,10 @@ function usesPrincipal(where: ImportedWhere | undefined): boolean {
   return where !== undefined && JSON.stringify(where).includes('"principal"');
 }
 
-/** Resources keyed by name, each with its actions split into instance and collection ones. */
+/**
+ * Resources keyed by name, each with its actions split into instance and
+ * collection ones.
+ */
 function resourcesOf(
   actions: ReadonlyMap<string, ReadonlySet<string>>,
 ): readonly GeneratedResource[] {
@@ -134,8 +143,8 @@ function resourcesOf(
 
 /**
  * A deterministic module with the imported `permissions` and a `policy` of
- * their roles. Rules stay data: an import writes declarations and grants,
- * never code an application maintains by hand.
+ * their roles. Rules stay data: an import writes declarations and grants, never
+ * code an application maintains by hand.
  */
 export function emitPolicyModule(input: {
   readonly generator: string;

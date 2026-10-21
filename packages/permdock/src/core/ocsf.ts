@@ -6,9 +6,9 @@ import { compact } from "./compact.ts";
 export const OCSF_VERSION = "1.9.0";
 
 /**
- * An OCSF Authorize Session (class 3003, category Identity and Access Management) event.
- * API Activity (6003) would fit a per-request decision, but it requires `api` and
- * `src_endpoint`, which a decision event does not carry.
+ * An OCSF Authorize Session (class 3003, category Identity and Access
+ * Management) event. API Activity (6003) would fit a per-request decision, but
+ * it requires `api` and `src_endpoint`, which a decision event does not carry.
  */
 export type OcsfAuthorizeSession = {
   readonly class_uid: 3003;
@@ -75,14 +75,20 @@ function status(
   }
 }
 
-/** An outcome this build does not know, from a newer producer, is reported as OCSF Unknown. */
+/**
+ * An outcome this build does not know, from a newer producer, is reported as
+ * OCSF Unknown.
+ */
 function unknownStatus(
   _outcome: never,
 ): Pick<OcsfAuthorizeSession, "status_id" | "status"> {
   return { status_id: 0, status: "Unknown" };
 }
 
-/** The names of a decision event's app obligations, or `undefined` when it has none. */
+/**
+ * The names of a decision event's app obligations, or `undefined` when it has
+ * none.
+ */
 export function appObligationNames(
   event: DecisionEvent,
 ): readonly string[] | undefined {
@@ -92,15 +98,19 @@ export function appObligationNames(
   return names.length === 0 ? undefined : names;
 }
 
-/** Epoch milliseconds of an RFC 3339 `at`, or `undefined` when it does not parse. */
+/**
+ * Epoch milliseconds of an RFC 3339 `at`, or `undefined` when it does not
+ * parse.
+ */
 function epochMillis(at: string): number | undefined {
   const time = Date.parse(at);
   return Number.isNaN(time) ? undefined : time;
 }
 
 /**
- * Projects a decision or approval event onto OCSF Authorize Session; the event itself is unchanged.
- * An event whose `at` does not parse has no OCSF `time` and projects to `undefined`.
+ * Projects a decision or approval event onto OCSF Authorize Session; the event
+ * itself is unchanged. An event whose `at` does not parse has no OCSF `time`
+ * and projects to `undefined`.
  */
 export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession | undefined {
   const time = epochMillis(event.at);
@@ -167,8 +177,8 @@ export function toOcsf(event: DecisionEvent): OcsfAuthorizeSession | undefined {
 /**
  * An OCSF User Management (class 3007) event for a support-access lifecycle
  * event: `started` enables the session, `ended` and `revoked` disable it.
- * Support access is high severity, so a SIEM can alert on vendor access.
- * OCSF 1.9.0 deprecates Account Change (3001) in favour of this class.
+ * Support access is high severity, so a SIEM can alert on vendor access. OCSF
+ * 1.9.0 deprecates Account Change (3001) in favour of this class.
  */
 export type OcsfUserManagement = {
   readonly class_uid: 3007;

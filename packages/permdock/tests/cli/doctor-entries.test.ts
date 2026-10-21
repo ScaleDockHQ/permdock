@@ -7,7 +7,10 @@ import {
   SERVER_SPECIFIERS,
 } from "../../src/cli/doctor/source.ts";
 
-/** Entries a client component may import: the definitions, client stores, wire readers and the condition lowering. */
+/**
+ * Entries a client component may import: the definitions, client stores, wire
+ * readers and the condition lowering.
+ */
 const CLIENT_SAFE = new Set([
   "permdock",
   "permdock/catalog",

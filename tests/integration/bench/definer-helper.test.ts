@@ -116,15 +116,9 @@ type PlanNode = {
   readonly Plans?: readonly PlanNode[];
 };
 
-type Explain = {
-  readonly Plan: PlanNode;
-  readonly "Execution Time": number;
-};
+type Explain = { readonly Plan: PlanNode; readonly "Execution Time": number };
 
-type Measured = {
-  readonly ids: readonly string[];
-  readonly medianMs: number;
-};
+type Measured = { readonly ids: readonly string[]; readonly medianMs: number };
 
 function median(values: readonly number[]): number {
   const sorted = values.toSorted((a, b) => a - b);

@@ -89,7 +89,10 @@ export async function runRlsVerify(input: {
   readonly format: "node" | "pgtap";
   /** `format: 'pgtap'`: the file to write, default {@link PGTAP_OUT}. */
   readonly out?: string;
-  /** Check a generated tree with restricted branches instead of fixtures; needs `db`. */
+  /**
+   * Check a generated tree with restricted branches instead of fixtures; needs
+   * `db`.
+   */
   readonly tree?: boolean;
   readonly io: CliIo;
   /** Opens the `--db-url-stdin` connection; defaults to the `pg` peer. */
@@ -164,9 +167,7 @@ export async function runRlsVerify(input: {
     const permdock = await getPermDock(
       policy,
       fixtureSubject(fixture.subject),
-      {
-        customRoles: memoryCustomRoleSource(customRoles),
-      },
+      { customRoles: memoryCustomRoleSource(customRoles) },
     );
     const granted = canFixture(
       permdock,

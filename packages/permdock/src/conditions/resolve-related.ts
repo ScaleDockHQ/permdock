@@ -14,9 +14,9 @@ import {
 
 export type ResolveRelatedOptions = {
   /**
-   * Runs one Postgres query with `$1`-style placeholders and returns its
-   * rows; each row's `id` is an id the filtered field may hold. With Prisma:
-   * `({ sql, values }) => prisma.$queryRawUnsafe(sql, ...values)`.
+   * Runs one Postgres query with `$1`-style placeholders and returns its rows;
+   * each row's `id` is an id the filtered field may hold. With Prisma: `({ sql,
+   * values }) => prisma.$queryRawUnsafe(sql, ...values)`.
    */
   readonly run: (query: {
     readonly sql: string;
@@ -24,7 +24,10 @@ export type ResolveRelatedOptions = {
   }) => Promise<readonly Readonly<Record<string, unknown>>[]>;
   /** Where the relation graph lives. */
   readonly relations?: RelationsMapping;
-  /** Turns an id (always text) into the field's type, e.g. `Number` for an integer key. */
+  /**
+   * Turns an id (always text) into the field's type, e.g. `Number` for an
+   * integer key.
+   */
   readonly parse?: (id: string, field: string) => unknown;
 };
 
@@ -51,10 +54,10 @@ function refused(detail: string): PermDockValidationError {
 }
 
 /**
- * `where` with every `related` node replaced by the ids it reaches, read in
- * one query per node, so an ORM without raw subqueries (Prisma) filters the
- * graph with a plain `in`. The ids are read now: run the filtered query right
- * after, in the same transaction when the graph may change in between.
+ * `where` with every `related` node replaced by the ids it reaches, read in one
+ * query per node, so an ORM without raw subqueries (Prisma) filters the graph
+ * with a plain `in`. The ids are read now: run the filtered query right after,
+ * in the same transaction when the graph may change in between.
  */
 export async function resolveRelated(
   where: WhereResult,

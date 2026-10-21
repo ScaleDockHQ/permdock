@@ -5,9 +5,15 @@ import type { WhoCan } from "../core/who-can.ts";
 import { whoCan } from "../core/who-can.ts";
 
 export type Audience = {
-  /** Principal ids `decideFor` grants, in discovery or candidate order, each once. */
+  /**
+   * Principal ids `decideFor` grants, in discovery or candidate order, each
+   * once.
+   */
   readonly principals: readonly string[];
-  /** `false` when `whoCan` could not list every holder: someone granted may be missing. */
+  /**
+   * `false` when `whoCan` could not list every holder: someone granted may be
+   * missing.
+   */
   readonly complete: boolean;
 };
 
@@ -40,8 +46,8 @@ async function granted(
 /**
  * Who may receive a delivery about `row`: the holders `whoCan` lists (or
  * `candidates`), kept only where `decideFor` grants `permission` in the
- * sender's active tenant. A collection permission has no holders to list,
- * so it needs `candidates`; without them it is empty and incomplete.
+ * sender's active tenant. A collection permission has no holders to list, so it
+ * needs `candidates`; without them it is empty and incomplete.
  */
 export async function audience(
   permdock: PermDock,
@@ -94,10 +100,9 @@ export type SubscriberEvent = {
 };
 
 /**
- * The subscribers whose principal `decideFor` grants the event's
- * permission on its row, in their order: the per-event filter for webhook
- * endpoints and realtime channels. A subscriber without a string
- * `principal` is dropped.
+ * The subscribers whose principal `decideFor` grants the event's permission on
+ * its row, in their order: the per-event filter for webhook endpoints and
+ * realtime channels. A subscriber without a string `principal` is dropped.
  */
 export async function subscribersFor<S extends { readonly principal: string }>(
   permdock: PermDock,

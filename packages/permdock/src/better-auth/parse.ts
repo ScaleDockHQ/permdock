@@ -139,14 +139,7 @@ export function parseTeamRows(
     if (team === undefined || roles.length === 0) {
       continue;
     }
-    out.push(
-      compact<Membership>({
-        tenant,
-        team,
-        roles,
-        via: `team:${team}`,
-      }),
-    );
+    out.push(compact<Membership>({ tenant, team, roles, via: `team:${team}` }));
   }
   return out;
 }

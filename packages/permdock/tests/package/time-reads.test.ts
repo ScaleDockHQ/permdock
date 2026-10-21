@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 const SRC = path.join(import.meta.dirname, "..", "..", "src");
 
 /**
- * The files that construct a `Date` themselves, each because the value must
- * be a `Date`. Every other clock read and ISO conversion goes through
+ * The files that construct a `Date` themselves, each because the value must be
+ * a `Date`. Every other clock read and ISO conversion goes through
  * `core/time.ts`, so a test or a store option can inject `now`.
  */
 const ALLOWED: Readonly<Record<string, string>> = {

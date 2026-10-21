@@ -68,7 +68,10 @@ const allNames = entries.flatMap((item) =>
   [...item.values, ...item.types].map((name) => ({ entry: item.entry, name })),
 );
 
-/** Server and agent adapters and feature entries: the import path names the entry, the factory is always `createPermDock`. */
+/**
+ * Server and agent adapters and feature entries: the import path names the
+ * entry, the factory is always `createPermDock`.
+ */
 const FACTORY_ENTRIES = [
   "./next",
   "./server",
@@ -175,10 +178,7 @@ describe("invariant 14: the naming convention", () => {
       expect({
         entry: provider.entry,
         principal: provider.types.some((name) => name.endsWith("Principal")),
-      }).toEqual({
-        entry: provider.entry,
-        principal: provider.entry !== ".",
-      });
+      }).toEqual({ entry: provider.entry, principal: provider.entry !== "." });
     }
   });
 

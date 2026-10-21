@@ -745,10 +745,7 @@ describe("configuration", () => {
       expect({
         label,
         throws: throws(() => assertSubjectConfig(options)),
-      }).toEqual({
-        label,
-        throws: true,
-      });
+      }).toEqual({ label, throws: true });
     }
   });
 

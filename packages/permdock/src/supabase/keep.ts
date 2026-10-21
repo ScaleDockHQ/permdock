@@ -1,4 +1,7 @@
-/** The permission keys of a suspended scope's `keep`, references read by `key`, sorted and unique. */
+/**
+ * The permission keys of a suspended scope's `keep`, references read by `key`,
+ * sorted and unique.
+ */
 export function keptKeys(
   row:
     | { readonly keep?: readonly (string | { readonly key: string })[] }

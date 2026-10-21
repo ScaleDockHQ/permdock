@@ -20,9 +20,9 @@ export type AuthzenPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly subject: (request: Request) => TUser | Promise<TUser>;
   readonly anonymous?: boolean;
   /**
-   * Allow-list over the authenticated PEP. Only a PEP it returns `true` for
-   * may evaluate the body's `subject`, `actor` and `delegation`; every other
-   * caller is evaluated as itself. Off by default.
+   * Allow-list over the authenticated PEP. Only a PEP it returns `true` for may
+   * evaluate the body's `subject`, `actor` and `delegation`; every other caller
+   * is evaluated as itself. Off by default.
    */
   readonly trustedPep?: (pep: unknown) => boolean;
   readonly resources?: Readonly<Record<string, AuthzenResourceAdapter>>;

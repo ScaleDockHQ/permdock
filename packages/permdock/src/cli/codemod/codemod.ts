@@ -59,7 +59,10 @@ const EXTENSIONS: ReadonlySet<string> = new Set([
   ".svelte",
 ]);
 
-/** Files whose shell commands the codemod rewrites when the version renames CLI names. */
+/**
+ * Files whose shell commands the codemod rewrites when the version renames CLI
+ * names.
+ */
 const CLI_FILE_NAMES: ReadonlySet<string> = new Set([
   "package.json",
   "Makefile",
@@ -88,9 +91,7 @@ export type CodemodFileReport = {
   readonly changes: readonly CodemodChange[];
 };
 
-export type CodemodFollowUpReport = CodemodFollowUp & {
-  readonly file: string;
-};
+export type CodemodFollowUpReport = CodemodFollowUp & { readonly file: string };
 
 /** What `permdock codemod <version> --json` prints. */
 export type CodemodReport = {
@@ -213,9 +214,7 @@ function cliResult(
   file: string,
   source: string,
 ): ReturnType<typeof transformSource> {
-  const result = rewriteCliCalls(source, {
-    json: extname(file) === ".json",
-  });
+  const result = rewriteCliCalls(source, { json: extname(file) === ".json" });
   if (!CLI_REVIEW_EXTENSIONS.has(extname(file))) {
     return {
       source: result.text,

@@ -62,9 +62,7 @@ describe("mapClaimsToSubject principal", () => {
     expect(
       principalOf(
         { principal_type: "robot" },
-        {
-          claims: { kind: "principal_type" },
-        },
+        { claims: { kind: "principal_type" } },
       )?.kind,
     ).toBeUndefined();
   });

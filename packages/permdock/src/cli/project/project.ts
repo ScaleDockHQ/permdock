@@ -24,9 +24,9 @@ export type PolicyLoad =
     };
 
 /**
- * One command's view of the project: the config, the source files, the
- * policy module and the `collect --check` scan. Each load runs at most once,
- * on first use, so a `doctor --only` run reads only what its checks need.
+ * One command's view of the project: the config, the source files, the policy
+ * module and the `collect --check` scan. Each load runs at most once, on first
+ * use, so a `doctor --only` run reads only what its checks need.
  */
 export type Project = Required<DoctorInput> & {
   readonly now: Date;
@@ -102,10 +102,6 @@ async function readPolicy(
     );
     return { status: "loaded", policy };
   } catch (error) {
-    return {
-      status: "failed",
-      path,
-      message: describeError(error),
-    };
+    return { status: "failed", path, message: describeError(error) };
   }
 }

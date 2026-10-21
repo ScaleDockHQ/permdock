@@ -16,7 +16,10 @@ import { durationOf } from "./time.ts";
 import { isRfc3339, rfc3339 } from "./time.ts";
 import { findRole, listPlans } from "./vocabulary.ts";
 
-/** One grant authored in PermDock Cloud; its grantee is a declared role, plan or relation. */
+/**
+ * One grant authored in PermDock Cloud; its grantee is a declared role, plan or
+ * relation.
+ */
 export type HostedGrant = {
   readonly id: string;
   readonly permission: string;
@@ -29,9 +32,9 @@ export type HostedGrant = {
 };
 
 /**
- * PolicyDocument v1. Signed as a `vnd.permdock.policy+jwt`, the `policy`
- * claim carries every field but `id` and `issuedAt`, which are the token's
- * `jti` and `iat` (`policyDocumentFromClaims`).
+ * PolicyDocument v1. Signed as a `vnd.permdock.policy+jwt`, the `policy` claim
+ * carries every field but `id` and `issuedAt`, which are the token's `jti` and
+ * `iat` (`policyDocumentFromClaims`).
  */
 export type PolicyDocument = {
   readonly v: 1;
@@ -45,8 +48,8 @@ export type PolicyDocument = {
 };
 
 /**
- * The channel for hosted grants. `getPermDock` reads `current()` once;
- * the application calls `refresh()` on its own schedule, never a check.
+ * The channel for hosted grants. `getPermDock` reads `current()` once; the
+ * application calls `refresh()` on its own schedule, never a check.
  */
 export type PolicySource = {
   /** Names the implementation in errors and events. */
@@ -63,7 +66,10 @@ export type HostedGrantDropReason =
   | "weaker-approval"
   | "invalid";
 
-/** Reported through `on('error')` when a hosted grant is not merged; never thrown. */
+/**
+ * Reported through `on('error')` when a hosted grant is not merged; never
+ * thrown.
+ */
 export type HostedGrantDropped = {
   readonly kind: "hosted-grant-dropped";
   readonly document: string;
@@ -127,7 +133,10 @@ export function parsePolicyDocument(json: unknown): PolicyDocument {
   return freezeDeep(copy) as unknown as PolicyDocument;
 }
 
-/** The document verified `vnd.permdock.policy+jwt` claims carry: `policy`, with `jti` as `id` and `iat` as `issuedAt`. Throws like `parsePolicyDocument`. */
+/**
+ * The document verified `vnd.permdock.policy+jwt` claims carry: `policy`, with
+ * `jti` as `id` and `iat` as `issuedAt`. Throws like `parsePolicyDocument`.
+ */
 export function policyDocumentFromClaims(
   claims: Readonly<Record<string, unknown>>,
 ): PolicyDocument {
@@ -182,7 +191,10 @@ function portableValue(value: unknown): value is ConditionValue {
   return keys[0] === "date" && typeof value["date"] === "string";
 }
 
-/** True for the portable subset only: no `opaque`, no `sqlFunction`, no unknown op. */
+/**
+ * True for the portable subset only: no `opaque`, no `sqlFunction`, no unknown
+ * op.
+ */
 export function isPortableCondition(value: unknown): value is Condition {
   if (!isRecord(value) || typeof value["op"] !== "string") {
     return false;
@@ -234,7 +246,9 @@ export function isPortableCondition(value: unknown): value is Condition {
   }
 }
 
-function approvalRank(approval: Grant["approval"]):
+function approvalRank(
+  approval: Grant["approval"],
+):
   | {
       readonly by?: string;
       readonly distinct: boolean;
@@ -269,7 +283,10 @@ function approvalRank(approval: Grant["approval"]):
   };
 }
 
-/** A hosted approval must meet every approval a code allow requires on the permission. */
+/**
+ * A hosted approval must meet every approval a code allow requires on the
+ * permission.
+ */
 function approvalAtLeast(
   hosted: Grant["approval"],
   code: readonly Grant["approval"][],
@@ -303,12 +320,18 @@ function approvalAtLeast(
   return true;
 }
 
-/** A grantee kind this build does not know is never declared, so the hosted grant is dropped. */
+/**
+ * A grantee kind this build does not know is never declared, so the hosted
+ * grant is dropped.
+ */
 function undeclaredKind(_grantee: never): false {
   return false;
 }
 
-/** Whether a hosted grant may name `grantee` on a permission of `permissionResource`. */
+/**
+ * Whether a hosted grant may name `grantee` on a permission of
+ * `permissionResource`.
+ */
 export function declaredGrantee(
   policy: Policy,
   grantee: Grantee,
@@ -431,7 +454,10 @@ function granteesAcceptable(
   );
 }
 
-/** The approvals the code allows on `key` carry; a hosted allow must meet each one. */
+/**
+ * The approvals the code allows on `key` carry; a hosted allow must meet each
+ * one.
+ */
 export function codeApprovals(
   policy: Policy,
   key: string,
@@ -570,8 +596,8 @@ const CHECKED_DOCUMENT: PolicyDocument = Object.freeze({
 
 /**
  * Whether `mergeHostedGrants` would keep one candidate hosted grant, and the
- * drop reason it would report when not. Needs no `PolicyDocument`, so a
- * grant form can check a grant before it publishes one.
+ * drop reason it would report when not. Needs no `PolicyDocument`, so a grant
+ * form can check a grant before it publishes one.
  */
 export function checkHostedGrant(
   policy: Policy,
@@ -581,14 +607,20 @@ export function checkHostedGrant(
   return result.ok ? { ok: true } : { ok: false, reason: result.reason };
 }
 
-/** One hosted grant `mergeHostedGrants` would drop, with the permission key it names. */
+/**
+ * One hosted grant `mergeHostedGrants` would drop, with the permission key it
+ * names.
+ */
 export type HostedGrantDrop = {
   readonly grant: string;
   readonly permission: string;
   readonly reason: HostedGrantDropReason;
 };
 
-/** The grants of `document` that `policy` drops, in document order; `permdock/catalog` turns them into drift findings. */
+/**
+ * The grants of `document` that `policy` drops, in document order;
+ * `permdock/catalog` turns them into drift findings.
+ */
 export function hostedGrantDrops(
   policy: Policy,
   document: PolicyDocument,
@@ -612,9 +644,9 @@ export function hostedGrantDrops(
 }
 
 /**
- * The code policy plus the hosted grants that pass every rule. Hosted
- * allows OR with code allows and any deny still wins, so a hosted grant can
- * never override a code deny; one that fails a rule is dropped, not thrown.
+ * The code policy plus the hosted grants that pass every rule. Hosted allows OR
+ * with code allows and any deny still wins, so a hosted grant can never
+ * override a code deny; one that fails a rule is dropped, not thrown.
  */
 export function mergeHostedGrants(
   policy: Policy,
@@ -661,10 +693,10 @@ export function mergeHostedGrants(
 }
 
 /**
- * Hosted grants as an instance option: `policies: hostedPolicies(source)`.
- * The merge code ships only with an app that imports this function.
- * `source.current()` is read once per instance; a throw keeps the code
- * policy and is reported as an error event.
+ * Hosted grants as an instance option: `policies: hostedPolicies(source)`. The
+ * merge code ships only with an app that imports this function.
+ * `source.current()` is read once per instance; a throw keeps the code policy
+ * and is reported as an error event.
  */
 export type HostedPolicies = {
   readonly feature: "hosted-policies";

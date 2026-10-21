@@ -41,7 +41,10 @@ function mergeRecord(
   return result;
 }
 
-/** Keeps what the document already says about a scheme (flow URLs, other flows, description); PermDock owns the scopes. */
+/**
+ * Keeps what the document already says about a scheme (flow URLs, other flows,
+ * description); PermDock owns the scopes.
+ */
 function mergeSchemes(
   existing: Readonly<Record<string, unknown>>,
   emitted: Readonly<Record<string, unknown>>,
@@ -94,10 +97,7 @@ async function loadPolicy(
   const tree = asPermissionTree(
     pickNamed(await loadModule(resolve(cwd, permissionsPath)), ["permissions"]),
   );
-  return definePolicy(tree, {
-    roles: [],
-    subject: () => null,
-  });
+  return definePolicy(tree, { roles: [], subject: () => null });
 }
 
 function leavesOf(policy: Policy, keys: readonly unknown[]): Permission[] {
@@ -115,7 +115,10 @@ function leavesOf(policy: Policy, keys: readonly unknown[]): Permission[] {
   });
 }
 
-/** Operations carrying `x-permdock-permissions`, joined by `operationId`; those without one are findings. */
+/**
+ * Operations carrying `x-permdock-permissions`, joined by `operationId`; those
+ * without one are findings.
+ */
 function overlayOperations(
   document: Record<string, unknown>,
   policy: Policy,
@@ -153,7 +156,10 @@ function overlayOperations(
   return { operations, unnamed, secured };
 }
 
-/** `instance` when any listed permission acts on one row; the id is the last path template parameter. */
+/**
+ * `instance` when any listed permission acts on one row; the id is the last
+ * path template parameter.
+ */
 function arityOf(
   policy: Policy,
   leaves: readonly { readonly resource: string; readonly action: string }[],
@@ -296,10 +302,7 @@ export async function runOpenapi(input: {
 }): Promise<CommandResult> {
   const action = input.rest[0] ?? "emit";
   if (action !== "emit") {
-    return {
-      code: 2,
-      output: "openapi action must be emit or import",
-    };
+    return { code: 2, output: "openapi action must be emit or import" };
   }
   if (input.doc === undefined) {
     return { code: 2, output: "openapi --doc is required" };

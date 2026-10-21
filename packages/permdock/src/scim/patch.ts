@@ -96,11 +96,7 @@ export function normalizePatchOps(
         return undefined;
       }
       if (op === "remove") {
-        next.push({
-          op,
-          path: attribute,
-          value: [{ [field]: value }],
-        });
+        next.push({ op, path: attribute, value: [{ [field]: value }] });
         continue;
       }
       next.push({

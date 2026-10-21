@@ -22,10 +22,5 @@ export function sqlFunction(
   }
   const twin = normalizeWhere(options.twin);
   assertPortableTwin(twin);
-  return freezeDeep({
-    op: "sqlFunction",
-    name,
-    args,
-    twin,
-  });
+  return freezeDeep({ op: "sqlFunction", name, args, twin });
 }

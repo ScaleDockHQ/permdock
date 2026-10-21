@@ -18,7 +18,9 @@ const POLICY = `  roles: [
   oauthScopes: { 'posts:write': [permissions.post.read, permissions.post.update] },
   scopes: { tenant: { key: 'orgId' } },`;
 
-function generate(rls: Readonly<Record<string, unknown>>): Promise<{
+function generate(
+  rls: Readonly<Record<string, unknown>>,
+): Promise<{
   readonly code: number;
   readonly sql: string;
   readonly out: string;

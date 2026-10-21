@@ -63,7 +63,10 @@ function column(
   return mapped;
 }
 
-/** Drizzle's Postgres array columns (`text().array()`) report `dataType: 'array'`. */
+/**
+ * Drizzle's Postgres array columns (`text().array()`) report `dataType:
+ * 'array'`.
+ */
 function isArrayColumn(col: unknown): boolean {
   if (col === null || typeof col !== "object") {
     return false;
@@ -244,7 +247,10 @@ function render(
   }
 }
 
-/** Compiles a condition into a Drizzle `SQL` filter over `table`; no grant compiles to `false`. */
+/**
+ * Compiles a condition into a Drizzle `SQL` filter over `table`; no grant
+ * compiles to `false`.
+ */
 export function toWhere<T extends object>(
   input: Condition | WhereResult,
   table: T,
@@ -273,8 +279,9 @@ type DrizzleDatabase<Tx> = {
 };
 
 /**
- * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so the generated
- * RLS policies decide for the same subject as the in-process checks.
+ * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so
+ * the generated RLS policies decide for the same subject as the in-process
+ * checks.
  */
 export function withSubject<Tx extends { execute(query: never): unknown }, T>(
   db: DrizzleDatabase<Tx>,
@@ -308,8 +315,9 @@ type DrizzleSelectable = {
 };
 
 /**
- * One query for one row: `{ found: false }` when `key` matches nothing, otherwise whether the
- * permission filter keeps the row. Throws when `key` matches more than one row.
+ * One query for one row: `{ found: false }` when `key` matches nothing,
+ * otherwise whether the permission filter keeps the row. Throws when `key`
+ * matches more than one row.
  */
 export async function checkRow<T extends object>(
   db: DrizzleSelectable,

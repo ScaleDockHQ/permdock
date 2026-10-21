@@ -257,7 +257,10 @@ function replay(statements: readonly RetireStatement[]): Schema {
   return schema;
 }
 
-/** Functions that write `table`, the configured `refresh` ones, and every function that calls one. */
+/**
+ * Functions that write `table`, the configured `refresh` ones, and every
+ * function that calls one.
+ */
 function refreshFunctions(
   schema: Schema,
   table: string,
@@ -284,7 +287,10 @@ function refreshFunctions(
   return found;
 }
 
-/** Calls of a legacy helper outside its own definition, grants and drops (PD056). */
+/**
+ * Calls of a legacy helper outside its own definition, grants and drops
+ * (PD056).
+ */
 export function legacyHelperCalls(
   statements: readonly RetireStatement[],
   name: string,
@@ -400,7 +406,10 @@ function escapeQualifiedName(name: string): string {
     .join(".");
 }
 
-/** The retire migration: each present table without readers, its refresh triggers and functions, and the uncalled helpers. */
+/**
+ * The retire migration: each present table without readers, its refresh
+ * triggers and functions, and the uncalled helpers.
+ */
 export function retireSql(plan: RetirePlan): string | undefined {
   const tables = plan.tables.filter(
     (table) => table.present && table.readers.length === 0,

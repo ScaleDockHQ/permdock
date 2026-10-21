@@ -38,12 +38,21 @@ export type PrismaCombinators = {
 export type PrismaPredicateOptions = {
   readonly fields?: Readonly<Record<string, string>>;
   readonly subject?: Subject;
-  /** The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults to the current time. */
+  /**
+   * The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults
+   * to the current time.
+   */
   readonly now?: Instant;
-  /** Required and list fields from `prismaModelFields`; `contains` on a list field is refused. */
+  /**
+   * Required and list fields from `prismaModelFields`; `contains` on a list
+   * field is refused.
+   */
   readonly model?: PrismaModelFields;
   readonly listFields?: readonly string[];
-  /** A non-null column (the primary key) that spells constant true and false. Default `id`. */
+  /**
+   * A non-null column (the primary key) that spells constant true and false.
+   * Default `id`.
+   */
   readonly key?: string;
   /** Loaded from `@prisma/orm-postgres/orm-client` by default. */
   readonly combinators?: PrismaCombinators;
@@ -173,7 +182,8 @@ function render(
 
 /**
  * Compiles a condition into a Prisma 8 ORM predicate: pass the result to
- * `db.orm.<ns>.<Model>.where(...)`. No grant compiles to a predicate that matches no row.
+ * `db.orm.<ns>.<Model>.where(...)`. No grant compiles to a predicate that
+ * matches no row.
  */
 export function toPredicate<M = Model>(
   input: Condition | WhereResult,

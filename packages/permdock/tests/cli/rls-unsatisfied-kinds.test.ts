@@ -83,11 +83,7 @@ const staff = junctionMembershipSource({
 describe("unsatisfiedKinds", () => {
   it("names a role whose kinds every source of its scope contradicts", () => {
     expect(unsatisfiedKinds(context([staff]), policy)).toEqual([
-      {
-        role: "contact",
-        for: ["contact"],
-        sources: ["org_staff (via staff)"],
-      },
+      { role: "contact", for: ["contact"], sources: ["org_staff (via staff)"] },
     ]);
   });
 

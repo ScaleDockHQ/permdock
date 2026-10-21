@@ -18,9 +18,9 @@ export type LegacyParityCase = {
 };
 
 /**
- * Asserts that the policy answers each case as the application's legacy
- * check does, or as the case's `expect` says where the difference is
- * intended. Run it before enforcing a permission with `shadowMode`.
+ * Asserts that the policy answers each case as the application's legacy check
+ * does, or as the case's `expect` says where the difference is intended. Run it
+ * before enforcing a permission with `shadowMode`.
  */
 export function testLegacyParity(
   policy: Policy,

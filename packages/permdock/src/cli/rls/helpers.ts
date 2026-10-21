@@ -47,7 +47,10 @@ import { tokenScopeAllowsCall, tokenScopeAllowsSql } from "./token-scopes.ts";
 /** `'global'` or a scope name. */
 export type HelperScope = string;
 
-/** One `role_permissions` row: `role` holds `grant_key`, which is `permission` or `permission#n`. */
+/**
+ * One `role_permissions` row: `role` holds `grant_key`, which is `permission`
+ * or `permission#n`.
+ */
 export type RolePermission = {
   readonly role: string;
   readonly permission: string;
@@ -57,9 +60,9 @@ export type RolePermission = {
 };
 
 /**
- * The policy-side call for a grant key. Every form is uncorrelated, so
- * Postgres runs the helper once per statement (an InitPlan, or a hashed
- * SubPlan for `in`), never once per row.
+ * The policy-side call for a grant key. Every form is uncorrelated, so Postgres
+ * runs the helper once per statement (an InitPlan, or a hashed SubPlan for
+ * `in`), never once per row.
  */
 export function accessSql(
   ctx: RlsSqlContext,
@@ -157,11 +160,11 @@ ${grants}`;
  * `permdock_has_for(p_user, p_grant)` and one
  * `permitted_<scope>_ids_for(p_user, p_grant)` per scope in `database` mode:
  * the bodies of `permdock_has` and `permitted_<scope>_ids` with `p_user` for
- * the signed-in user and no tenant-claim narrowing, since a named user has
- * no token. For trusted SQL that acts for a stored user (jobs, triggers,
- * approvals resolved later). Naming the user is why no client role may
- * execute them: `security definer` callers run them as their owner, and a
- * backend role needs its own grant.
+ * the signed-in user and no tenant-claim narrowing, since a named user has no
+ * token. For trusted SQL that acts for a stored user (jobs, triggers, approvals
+ * resolved later). Naming the user is why no client role may execute them:
+ * `security definer` callers run them as their owner, and a backend role needs
+ * its own grant.
  */
 function forUserSql(ctx: RlsSqlContext): string {
   if (ctx.authorize !== "database") {
@@ -197,8 +200,8 @@ function userIdType(ctx: RlsSqlContext): string {
 }
 
 /**
- * The `role_permissions` rows the policy compiles to: an upsert and a delete
- * of every other row. Data, not schema, so `supabase db diff` drops it from a
+ * The `role_permissions` rows the policy compiles to: an upsert and a delete of
+ * every other row. Data, not schema, so `supabase db diff` drops it from a
  * declarative schema; `--split ...,seeds` writes it as its own migration.
  */
 export function seedSql(
@@ -257,7 +260,10 @@ ${body};
 revoke all on table ${view} from anon, authenticated, public;`;
 }
 
-/** `<schema>.seed()`: the same upsert and delete as `seedSql`, for a declarative schema that carries no rows. */
+/**
+ * `<schema>.seed()`: the same upsert and delete as `seedSql`, for a declarative
+ * schema that carries no rows.
+ */
 function seedFunctionSql(
   ctx: RlsSqlContext,
   rows: readonly RolePermission[],
@@ -277,7 +283,10 @@ revoke execute on function ${fn}() from public, anon, authenticated;`;
 }
 
 export type HelpersOptions = {
-  /** Emit a `user_roles` table for `database` mode; off when the RBAC scaffold owns it. */
+  /**
+   * Emit a `user_roles` table for `database` mode; off when the RBAC scaffold
+   * owns it.
+   */
   readonly userRoles: boolean;
   /**
    * Let `anon` execute the helpers: a field view `anon` reads calls them, and
@@ -287,16 +296,22 @@ export type HelpersOptions = {
   readonly anonExecute?: boolean;
   /** Leave the `role_permissions` rows out: the `seeds` split part writes them. */
   readonly withoutSeeds?: boolean;
-  /** `[grant key, level]` pairs from `compileGrants`, for the custom-role writes. */
+  /**
+   * `[grant key, level]` pairs from `compileGrants`, for the custom-role
+   * writes.
+   */
   readonly levelReach?: readonly (readonly [string, string])[];
-  /** Every declared permission key, for `permdock_permission_keys`; the function is left out without it. */
+  /**
+   * Every declared permission key, for `permdock_permission_keys`; the function
+   * is left out without it.
+   */
   readonly permissions?: readonly string[];
   readonly trustedReaders?: readonly string[];
 };
 
 /**
- * `role_permissions`, its seeds, and the three `security definer` helpers
- * with `search_path = ''`. `execute` goes to `authenticated` only.
+ * `role_permissions`, its seeds, and the three `security definer` helpers with
+ * `search_path = ''`. `execute` goes to `authenticated` only.
  */
 export function helpersSql(
   ctx: RlsSqlContext,

@@ -42,10 +42,10 @@ describe("snapshotFixture", () => {
       include: [permissions.doc.read],
     });
     const all = await snapshotFixture(policy, vera, { tenants: "all" });
-    expect({
-      include: included.include,
-      tenants: all.tenants,
-    }).toEqual({ include: ["doc.read"], tenants: ["o1"] });
+    expect({ include: included.include, tenants: all.tenants }).toEqual({
+      include: ["doc.read"],
+      tenants: ["o1"],
+    });
   });
 
   it("snapshots a simulated instance", async () => {

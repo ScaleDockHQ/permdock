@@ -28,8 +28,8 @@ import { isThenable } from "./thenable.ts";
 import { durationOf } from "./time.ts";
 
 /**
- * One approval requirement kept as data, for a tenant or the whole platform.
- * It adds to what the code requires and never removes a requirement.
+ * One approval requirement kept as data, for a tenant or the whole platform. It
+ * adds to what the code requires and never removes a requirement.
  */
 export type ApprovalPolicy = {
   /**
@@ -37,15 +37,27 @@ export type ApprovalPolicy = {
    * permission, which needs `risk` or `effects`.
    */
   readonly permission?: string;
-  /** Matches an operation call whose `meta.risk` is one of these; a call that names no operation never matches. */
+  /**
+   * Matches an operation call whose `meta.risk` is one of these; a call that
+   * names no operation never matches.
+   */
   readonly risk?: readonly OperationRisk[];
-  /** Matches an operation call whose `meta.effects` includes one of these; a call that names no operation never matches. */
+  /**
+   * Matches an operation call whose `meta.effects` includes one of these; a
+   * call that names no operation never matches.
+   */
   readonly effects?: readonly OperationEffect[];
   /** Absent: every tenant. */
   readonly tenant?: string;
-  /** Actor kinds it applies to (`['agent']`); absent: every call. A call without an actor never matches a list. */
+  /**
+   * Actor kinds it applies to (`['agent']`); absent: every call. A call without
+   * an actor never matches a list.
+   */
   readonly actors?: readonly string[];
-  /** A portable condition over the row; instance permissions only, since a collection action has no row. */
+  /**
+   * A portable condition over the row; instance permissions only, since a
+   * collection action has no row.
+   */
   readonly where?: Condition;
   /** A portable condition over the call's input (the proposed row). */
   readonly check?: Condition;
@@ -58,9 +70,9 @@ export type ApprovalPolicy = {
 
 /**
  * Data-driven approval requirements, a subject input like `CustomRoleSource`:
- * read once per instance for the subject's tenants (entries without a
- * tenant always apply). A throw, a rejected promise or an invalid entry
- * denies every call an allow would otherwise permit.
+ * read once per instance for the subject's tenants (entries without a tenant
+ * always apply). A throw, a rejected promise or an invalid entry denies every
+ * call an allow would otherwise permit.
  */
 export type ApprovalPolicySource = {
   /** Names the implementation in errors and events. */
@@ -70,7 +82,10 @@ export type ApprovalPolicySource = {
   }): readonly ApprovalPolicy[] | Promise<readonly ApprovalPolicy[]>;
 };
 
-/** The denial detail when an `ApprovalPolicySource` fails: every call an allow would grant denies with reason `approval`. */
+/**
+ * The denial detail when an `ApprovalPolicySource` fails: every call an allow
+ * would grant denies with reason `approval`.
+ */
 
 /**
  * The in-process `ApprovalPolicySource`, usable directly as the
@@ -124,9 +139,9 @@ export type LoadedApprovalPolicies =
   | "failed";
 
 /**
- * Approval policies kept as data, as an instance option:
- * `approvalPolicies: approvalPolicies(source)`. The loading and tightening
- * code ships only with an app that imports this function.
+ * Approval policies kept as data, as an instance option: `approvalPolicies:
+ * approvalPolicies(source)`. The loading and tightening code ships only with an
+ * app that imports this function.
  */
 export type ApprovalPolicies = {
   readonly feature: "approval-policies";
@@ -154,11 +169,11 @@ function isStringList(value: unknown): value is readonly string[] {
 }
 
 /**
- * Why an `ApprovalPolicy` entry does not load. `unknown-permission`: the
- * policy declares no such key (the entry applies to nothing). `invalid`: a
- * field has the wrong shape or the approval option does not normalise.
- * `where-on-collection`: `where` reads a row, which a collection action
- * never has, so the entry could never match; use `check` over the input.
+ * Why an `ApprovalPolicy` entry does not load. `unknown-permission`: the policy
+ * declares no such key (the entry applies to nothing). `invalid`: a field has
+ * the wrong shape or the approval option does not normalise.
+ * `where-on-collection`: `where` reads a row, which a collection action never
+ * has, so the entry could never match; use `check` over the input.
  * `stale-on-without-version`: `staleOn` needs an instance permission whose
  * resource declares `version`.
  */
@@ -302,9 +317,9 @@ function checkOne(policy: Policy, raw: unknown): Checked {
 }
 
 /**
- * Checks one entry against the policy the way `approvalPoliciesFor` loads
- * it, for an application to refuse a bad entry when it is saved instead of
- * finding every call denied. Never throws.
+ * Checks one entry against the policy the way `approvalPoliciesFor` loads it,
+ * for an application to refuse a bad entry when it is saved instead of finding
+ * every call denied. Never throws.
  */
 export function validateApprovalPolicy(
   policy: Policy,
@@ -321,9 +336,9 @@ export function validateApprovalPolicy(
 }
 
 /**
- * One raw entry checked against the policy: `null` when it names no
- * permission the policy declares (it applies to nothing), `undefined` when
- * it does not load.
+ * One raw entry checked against the policy: `null` when it names no permission
+ * the policy declares (it applies to nothing), `undefined` when it does not
+ * load.
  */
 function loadOne(
   policy: Policy,
@@ -356,7 +371,10 @@ function loadAll(policy: Policy, raw: unknown): LoadedApprovalPolicies {
   });
 }
 
-/** Reads the source once for `tenants`; a throw or an invalid entry loads as `"failed"`. */
+/**
+ * Reads the source once for `tenants`; a throw or an invalid entry loads as
+ * `"failed"`.
+ */
 export function approvalPoliciesFor(
   policy: Policy,
   source: ApprovalPolicySource,
@@ -449,7 +467,10 @@ function asStages(
   ];
 }
 
-/** An entry's stages, each carrying the entry's escalation unless it has its own. */
+/**
+ * An entry's stages, each carrying the entry's escalation unless it has its
+ * own.
+ */
 function entryStages(
   approval: NonNullable<Grant["approval"]>,
 ): readonly ApprovalStage[] {
@@ -483,10 +504,10 @@ function shorter(
 }
 
 /**
- * `code` with every matching entry added as further stages: the result
- * needs all of them (`'sequential'` when any part is ordered), keeps the
- * code's escalation, the shortest `ttl`, and `distinct` unless every part
- * opts out. Without a matching entry, `code` unchanged.
+ * `code` with every matching entry added as further stages: the result needs
+ * all of them (`'sequential'` when any part is ordered), keeps the code's
+ * escalation, the shortest `ttl`, and `distinct` unless every part opts out.
+ * Without a matching entry, `code` unchanged.
  */
 export function tightenApproval(
   code: Grant["approval"],

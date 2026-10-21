@@ -15,10 +15,7 @@ const instant = {
 const seconds = { type: "integer", minimum: 1 } as const;
 const validity = {
   type: "object",
-  properties: {
-    from: instant,
-    until: instant,
-  },
+  properties: { from: instant, until: instant },
 } as const;
 const strings = { type: "array", items: { type: "string" } } as const;
 const approval = {

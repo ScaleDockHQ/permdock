@@ -34,18 +34,27 @@ export type ClientStoreOptions = {
   readonly approvals?: string;
   readonly tenant?: string;
   readonly fetch?: typeof fetch;
-  /** Request headers, or a getter read on every request so a rotated token needs no new store. */
+  /**
+   * Request headers, or a getter read on every request so a rotated token needs
+   * no new store.
+   */
   readonly headers?: StoreHeaders | (() => StoreHeaders | undefined);
   readonly maxAge?: number;
   readonly verifier?: TokenVerifier;
-  /** `raw` is the compact JWS the snapshot was verified from, so a signed snapshot can be persisted signed. */
+  /**
+   * `raw` is the compact JWS the snapshot was verified from, so a signed
+   * snapshot can be persisted signed.
+   */
   readonly onSnapshot?: (
     snapshot: Snapshot,
     tenant: string | undefined,
     raw: string | undefined,
   ) => void;
   readonly onClear?: () => void;
-  /** Called once per key the snapshot cannot answer when there is no `endpoint` to ask. */
+  /**
+   * Called once per key the snapshot cannot answer when there is no `endpoint`
+   * to ask.
+   */
   readonly onServerOnly?: (permission: Permission) => void;
   /**
    * `true` while rendering on the server: endpoint checks answer `pending`
@@ -102,7 +111,10 @@ export type ClientStore = {
   requestApproval(decision: Decision, note?: string): Promise<void>;
   /** Hydrate from a pushed snapshot; a compact JWS goes through the verifier. */
   replace(value: unknown): void;
-  /** Stay `pending` until `value` settles, then hydrate; a rejection fails closed. */
+  /**
+   * Stay `pending` until `value` settles, then hydrate; a rejection fails
+   * closed.
+   */
   follow(value: PromiseLike<Snapshot | string>): void;
   /**
    * `follow()` once per `value`, without suspending. A thenable React already
@@ -115,14 +127,18 @@ export type ClientStore = {
    */
   approvalState(decision: Decision): ApprovalState;
   /**
-   * Hydrate from a resolved `snapshotPromise` during render. Idempotent per `source`;
-   * subscribers are notified in a microtask, never synchronously inside render.
+   * Hydrate from a resolved `snapshotPromise` during render. Idempotent per
+   * `source`; subscribers are notified in a microtask, never synchronously
+   * inside render.
    */
   adopt(value: Snapshot | string, source: object): void;
   snapshot(): Snapshot;
   /** The tenant the store currently answers for. */
   tenant(): string | undefined;
-  /** Stops polls, drops in-flight results and persistence; the store keeps answering from its last snapshot. */
+  /**
+   * Stops polls, drops in-flight results and persistence; the store keeps
+   * answering from its last snapshot.
+   */
   dispose(): void;
 };
 
@@ -431,11 +447,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       batch.enqueue(key, permission, data);
       const next = answers.get(key);
       if (next !== undefined) {
-        return {
-          allowed: false,
-          status: next.status,
-          decision: next.decision,
-        };
+        return { allowed: false, status: next.status, decision: next.decision };
       }
       return { allowed: false, status: "server-only", decision: NO_ENDPOINT };
     }

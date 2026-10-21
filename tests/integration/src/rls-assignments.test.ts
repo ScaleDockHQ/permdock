@@ -84,10 +84,7 @@ describe("rls.assignments", () => {
     }
     const target = db;
     await target.as(
-      {
-        role: "authenticated",
-        settings: jwtClaims(user),
-      },
+      { role: "authenticated", settings: jwtClaims(user) },
       async () => {
         await target.tester.query(sql);
       },

@@ -18,10 +18,7 @@ const CLOUD_URL = "https://cloud.permdock.test";
 const KEY = "env-key";
 const DELIVERIES = `${CLOUD_URL}/v1/environments/production/deliveries`;
 
-type Posted = {
-  readonly idempotencyKey: string;
-  readonly body: unknown;
-};
+type Posted = { readonly idempotencyKey: string; readonly body: unknown };
 
 function fakeCloud(): {
   readonly fetch: typeof fetch;

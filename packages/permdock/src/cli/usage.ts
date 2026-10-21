@@ -56,7 +56,10 @@ export async function runUsage(input: {
   readonly io: CliIo;
   /** `collect --check` already run for this project. */
   readonly collected?: () => Promise<CollectOutcome>;
-  /** The configured policy already loaded, or `undefined` when it failed to load. */
+  /**
+   * The configured policy already loaded, or `undefined` when it failed to
+   * load.
+   */
   readonly policy?: () => Promise<Policy | undefined>;
 }): Promise<CommandResult> {
   const collected =

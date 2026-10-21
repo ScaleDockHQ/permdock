@@ -24,7 +24,10 @@ export type CasbinSkip = {
   readonly deny?: true;
 };
 
-/** A user's role, from a `g` line: PermDock reads it from a membership source, never from the policy. */
+/**
+ * A user's role, from a `g` line: PermDock reads it from a membership source,
+ * never from the policy.
+ */
 export type CasbinAssignment = {
   readonly user: string;
   readonly role: string;
@@ -161,7 +164,10 @@ export type CasbinImport = {
   readonly skipped: readonly CasbinSkip[];
 };
 
-/** Every grant `role` holds through `g` role-to-role lines, its own included; a cycle stops. */
+/**
+ * Every grant `role` holds through `g` role-to-role lines, its own included; a
+ * cycle stops.
+ */
 function inherited(
   role: string,
   own: ReadonlyMap<string, readonly ImportedGrant[]>,

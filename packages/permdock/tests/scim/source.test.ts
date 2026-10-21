@@ -211,10 +211,7 @@ describe("SCIM bodies", () => {
   it("falls back to the configured roles without a roles extension", () => {
     expect(
       groupFromBody({ displayName: "Eng" }, "g", ["viewer"]),
-    ).toMatchObject({
-      roles: ["viewer"],
-      members: [],
-    });
+    ).toMatchObject({ roles: ["viewer"], members: [] });
     expect(groupFromBody({ displayName: "" }, "g", undefined)).toBeUndefined();
   });
 });

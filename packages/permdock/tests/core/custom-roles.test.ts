@@ -114,10 +114,7 @@ const board = { id: "b1", orgId: "acme", teamId: "t1" };
 const otherBoard = { id: "b2", orgId: "acme", teamId: "t2" };
 
 function subjectIn(memberships: readonly Membership[], tenant = "acme") {
-  return {
-    principal: { id: "u1", memberships, tenant },
-    context: {},
-  };
+  return { principal: { id: "u1", memberships, tenant }, context: {} };
 }
 
 async function permdockFor(
@@ -170,10 +167,9 @@ describe("resolveCustomRole", () => {
         { permission: "invoice.void" },
         { permission: "nope.read" },
         // SAFETY: a deliberately conditional grant, which resolveCustomRole must drop.
-        {
-          permission: "post.update",
-          where: { authorId: "x" },
-        } as unknown as { permission: string },
+        { permission: "post.update", where: { authorId: "x" } } as unknown as {
+          permission: string;
+        },
       ],
     });
     expect(resolved.dropped).toEqual([

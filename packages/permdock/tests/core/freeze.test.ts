@@ -16,7 +16,10 @@ import {
   role,
 } from "../../src/index.ts";
 
-/** The mutators a `ReadonlyMap` type hides, which an adapter bug or a cast still reaches. */
+/**
+ * The mutators a `ReadonlyMap` type hides, which an adapter bug or a cast still
+ * reaches.
+ */
 type MapWriter = {
   set(key: unknown, value: unknown): unknown;
   delete(key: unknown): boolean;

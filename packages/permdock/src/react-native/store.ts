@@ -27,7 +27,10 @@ export type NativeStoreOptions = Omit<
   readonly headers?:
     | Readonly<Record<string, string>>
     | (() => Readonly<Record<string, string>> | undefined);
-  /** A store this one replaces: its snapshot and tenant seed this store, so guards do not flip while it boots. */
+  /**
+   * A store this one replaces: its snapshot and tenant seed this store, so
+   * guards do not flip while it boots.
+   */
   readonly previous?: ClientStore;
 };
 
@@ -37,8 +40,8 @@ function contentKey(snapshot: Snapshot): string {
 }
 
 /**
- * Whether a source read changes nothing: same content as the snapshot the
- * store holds, and the store already settled on it.
+ * Whether a source read changes nothing: same content as the snapshot the store
+ * holds, and the store already settled on it.
  */
 function unchanged(store: ClientStore, next: Snapshot | string): boolean {
   if (typeof next === "string" || store.get().status() === "stale") {
@@ -53,9 +56,9 @@ function unchanged(store: ClientStore, next: Snapshot | string): boolean {
 
 /**
  * Hydrates `store` from `source` now, on every change it reports and on each
- * return to the foreground. Only the latest read applies; a read with
- * unchanged content re-renders nothing, and a failed read keeps the current
- * snapshot. Returns the unsubscribe.
+ * return to the foreground. Only the latest read applies; a read with unchanged
+ * content re-renders nothing, and a failed read keeps the current snapshot.
+ * Returns the unsubscribe.
  */
 export function connectSource(
   store: ClientStore,

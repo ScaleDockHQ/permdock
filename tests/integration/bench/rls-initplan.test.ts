@@ -107,10 +107,7 @@ type PlanNode = {
   readonly Plans?: readonly PlanNode[];
 };
 
-type Explain = {
-  readonly Plan: PlanNode;
-  readonly "Execution Time": number;
-};
+type Explain = { readonly Plan: PlanNode; readonly "Execution Time": number };
 
 function nodes(plan: PlanNode): readonly PlanNode[] {
   return [plan, ...(plan.Plans ?? []).flatMap(nodes)];

@@ -16,7 +16,10 @@ import {
 } from "../sql/quote.ts";
 import { orSql } from "./policies.ts";
 
-/** `permitted_<resource>_rows(p_permission)`: the resource's row ids the subject may act on with one permission. */
+/**
+ * `permitted_<resource>_rows(p_permission)`: the resource's row ids the subject
+ * may act on with one permission.
+ */
 export function rowsHelper(resource: string): string {
   const name = graphSqlName(resource);
   const helper = `permitted_${name ?? resource}_rows`;
@@ -31,7 +34,10 @@ export function rowsHelper(resource: string): string {
   return helper;
 }
 
-/** A `<permission>@<level>` key a custom role may hold, with the row helper that applies its condition. */
+/**
+ * A `<permission>@<level>` key a custom role may hold, with the row helper that
+ * applies its condition.
+ */
 export type LevelKey = {
   readonly key: string;
   readonly permission: string;
@@ -41,7 +47,10 @@ export type LevelKey = {
   readonly rowHelper: string;
 };
 
-/** Every declared `<permission>@<level>` of an instance permission on a resource with levels. */
+/**
+ * Every declared `<permission>@<level>` of an instance permission on a resource
+ * with levels.
+ */
 export function levelKeys(policy: Policy): readonly LevelKey[] {
   const out: LevelKey[] = [];
   for (const leaf of listPermissions(policy.vocabulary.permissions)) {
@@ -62,7 +71,10 @@ export function levelKeys(policy: Policy): readonly LevelKey[] {
   return out;
 }
 
-/** The branches a row check of a permission reads: its allows and denies, inserts included, for signed-in callers. */
+/**
+ * The branches a row check of a permission reads: its allows and denies,
+ * inserts included, for signed-in callers.
+ */
 function rowBranchesOf(
   branches: readonly CompiledBranch[],
   resource: string,
@@ -84,7 +96,10 @@ function rowBranchesOf(
   return out;
 }
 
-/** What a branch asks of a row: the `with check` of an insert, which sees the new row, the `using` of every other command. */
+/**
+ * What a branch asks of a row: the `with check` of an insert, which sees the
+ * new row, the `using` of every other command.
+ */
 function clauseOf(branch: CompiledBranch): string {
   const clauses = branchClauses(branch);
   return (
@@ -246,9 +261,9 @@ ${forUserSql(ctx, qualified(ctx, `${name}_for`), fn)}`;
 }
 
 /**
- * `permitted_<resource>_rows(p_permission)` for each resource `select`
- * names (or every resource a grant reaches with `true`): the ids of its rows
- * the caller may read, update or delete with that permission, from the same
+ * `permitted_<resource>_rows(p_permission)` for each resource `select` names
+ * (or every resource a grant reaches with `true`): the ids of its rows the
+ * caller may read, update or delete with that permission, from the same
  * compiled allows and denies the table policies use, so closure walks, link
  * hops, the restricted stop, `includes`, groups and `requires` all apply. A
  * `security definer` helper, so hand-written policies and functions call it

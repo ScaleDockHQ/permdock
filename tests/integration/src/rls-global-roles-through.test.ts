@@ -130,10 +130,7 @@ describe("global roles through a roles table that also holds tenant roles", () =
     );
     const has = async (user: string): Promise<boolean> =>
       target.as(
-        {
-          role: "authenticated",
-          settings: jwtClaims(user),
-        },
+        { role: "authenticated", settings: jwtClaims(user) },
         async () => {
           const rows = await target.tester.query<{ has: boolean }>(
             "select permdock.permdock_has('job.read') as has",

@@ -146,9 +146,7 @@ describe("policyMatrix", () => {
       policyMatrixLayout(policy, {
         subjects,
         fixtures: { open: { id: "d1" } },
-        matrix: {
-          [permissions.doc.update.key]: { open: { ed: "granted" } },
-        },
+        matrix: { [permissions.doc.update.key]: { open: { ed: "granted" } } },
       }),
     ).toEqual([
       {

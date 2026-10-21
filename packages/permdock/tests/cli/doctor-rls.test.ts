@@ -38,9 +38,7 @@ export const policy = definePolicy(permissions, {
 };
 `,
     );
-    const result = await run(["doctor", "--json", "--only", "PD016"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "PD016"], { cwd });
     expect(findingCodes(result.stdout)).toContain("PD016");
   });
 
@@ -116,9 +114,7 @@ export const policy = definePolicy(permissions, {
 };
 `,
     );
-    const result = await run(["doctor", "--json", "--only", "PD020"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "PD020"], { cwd });
     expect(result.stdout).toContain("post.read");
     expect(findingCodes(result.stdout)).toContain("PD020");
   });
@@ -155,9 +151,7 @@ export const policy = definePolicy(permissions, {
 };
 `,
     );
-    const result = await run(["doctor", "--json", "--only", "PD016"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "PD016"], { cwd });
     expect(findingCodes(result.stdout)).toContain("PD016");
   });
 

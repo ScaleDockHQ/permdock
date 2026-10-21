@@ -22,8 +22,8 @@ grant authenticated, anon to tester;
 
 /**
  * Tiers and organization roles on one membership row, platform roles in
- * `user_roles`, a tenant custom role at the `own` level, and the Sync
- * Streams that sync the same rows, against one database.
+ * `user_roles`, a tenant custom role at the `own` level, and the Sync Streams
+ * that sync the same rows, against one database.
  */
 describe("field-service fixture", () => {
   let db: Postgres | undefined;
@@ -54,9 +54,7 @@ describe("field-service fixture", () => {
   it("agrees with the policy on every fixture in the database", async () => {
     const result = await runPipingDbUrl(
       ["rls", "verify", "--db-url", db!.uri],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     expect(result.stdout).toContain("verified 12 fixture(s) in-process");
     expect(result.code).toBe(0);
@@ -93,9 +91,7 @@ describe("field-service fixture", () => {
   it("syncs no row the policy denies", async () => {
     const result = await runPipingDbUrl(
       ["powersync", "verify", "--db-url", db!.uri],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     expect(result.stdout).toContain("no stream syncs a row the fixtures deny");
     expect(result.code).toBe(0);

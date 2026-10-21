@@ -7,7 +7,10 @@ import { useFormStatus } from "react-dom";
 
 import { Button } from "@/components/ui/button.tsx";
 
-/** A submit button that disables itself and swaps its icon for a spinner while its form's action runs. */
+/**
+ * A submit button that disables itself and swaps its icon for a spinner while
+ * its form's action runs.
+ */
 export function SubmitButton(
   props: Omit<ComponentProps<typeof Button>, "type"> & {
     readonly icon?: ReactNode;

@@ -155,9 +155,9 @@ export async function pd023(
 }
 
 /**
- * PD055: a stored custom role names a permission by a key it was renamed
- * from. It still resolves; the alias can only be dropped once storage holds
- * the current key.
+ * PD055: a stored custom role names a permission by a key it was renamed from.
+ * It still resolves; the alias can only be dropped once storage holds the
+ * current key.
  */
 export async function pd055(
   input: DoctorInput,
@@ -196,7 +196,10 @@ export async function pd055(
   return findings;
 }
 
-/** Fixture API keys that never expire, credential policies that allow it, and records that are not v1 credentials. */
+/**
+ * Fixture API keys that never expire, credential policies that allow it, and
+ * records that are not v1 credentials.
+ */
 export function pd029(input: DoctorInput): readonly DoctorFinding[] {
   const parsed = readFixture(input, input.config.doctor?.credentials);
   const findings: DoctorFinding[] = [];

@@ -166,14 +166,10 @@ describe("supabaseApprovalStore", () => {
     };
     await expect(
       store.resolve("nope", { status: "approved", by }),
-    ).rejects.toMatchObject({
-      code: "approval-not-found",
-    });
+    ).rejects.toMatchObject({ code: "approval-not-found" });
     await expect(
       store.resolve("t1", { status: "approved", by }),
-    ).rejects.toMatchObject({
-      code: "approval-not-pending",
-    });
+    ).rejects.toMatchObject({ code: "approval-not-pending" });
   });
 
   it("rejects when a function fails and reads a non-number count as zero", async () => {

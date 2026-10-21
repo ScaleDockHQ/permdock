@@ -30,9 +30,9 @@ import { quotaAllow } from "./quota.ts";
 /**
  * One decision, in stages: the call (clock, rows, delegated permission), the
  * subject (held roles, actor), the candidate grants (a matching deny ends
- * here), break-glass, freshness, delegation and contact, the approval and
- * quota of each usable allow, and the decision. Every exit goes through
- * `complete`, which freezes and emits.
+ * here), break-glass, freshness, delegation and contact, the approval and quota
+ * of each usable allow, and the decision. Every exit goes through `complete`,
+ * which freezes and emits.
  */
 export function evaluate(
   policy: Policy,

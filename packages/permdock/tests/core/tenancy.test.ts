@@ -135,9 +135,7 @@ describe("tenancy", () => {
           role(
             roles.editor,
             [allow(permissions.file.read, { to: roles.editor })],
-            {
-              on: permissions.folder,
-            },
+            { on: permissions.folder },
           ),
         ],
       },

@@ -79,8 +79,6 @@ export type RegisterToolsOptions = {
   readonly warn?: (message: string) => void;
 };
 
-export type RegisterToolsHandle = {
-  readonly unregister: () => void;
-};
+export type RegisterToolsHandle = { readonly unregister: () => void };
 
 export type PermissionGroup = PermissionTree | Permission;

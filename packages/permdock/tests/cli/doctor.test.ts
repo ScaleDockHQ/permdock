@@ -24,9 +24,7 @@ describe("doctor checks", () => {
 
   it("PD005 warns when skills are missing", async () => {
     const cwd = miniAppCopy();
-    const result = await run(["doctor", "--json", "--only", "skills"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "skills"], { cwd });
     expect(findingCodes(result.stdout)).toContain("PD005");
   });
 
@@ -60,9 +58,7 @@ describe("doctor checks", () => {
       join(cwd, "src/names.ts"),
       `import { definePermissions } from 'permdock'\nexport const dock = definePermissions({})\n`,
     );
-    const result = await run(["doctor", "--json", "--only", "naming"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "naming"], { cwd });
     expect(findingCodes(result.stdout)).toContain("PD008");
   });
 
@@ -131,9 +127,7 @@ describe("doctor checks", () => {
       join(cwd, "src/claims.ts"),
       `export const roles = claims.user_metadata.roles\nexport const tenant = claims.user_metadata.tenant\n`,
     );
-    const result = await run(["doctor", "--json", "--only", "claims"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "claims"], { cwd });
     expect(result.code).toBe(1);
     expect(findingCodes(result.stdout)).toContain("PD010");
   });
@@ -144,9 +138,7 @@ describe("doctor checks", () => {
       join(cwd, "src/claims.ts"),
       `// subjectFromSupabase never reads user_metadata.\nexport const roles = claims.user_role\n`,
     );
-    const result = await run(["doctor", "--json", "--only", "claims"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "claims"], { cwd });
     expect(findingCodes(result.stdout)).not.toContain("PD010");
   });
 

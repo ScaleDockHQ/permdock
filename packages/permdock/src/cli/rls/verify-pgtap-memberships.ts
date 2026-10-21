@@ -17,7 +17,10 @@ function insert(table: string, columns: readonly Column[]): string {
   return `insert into ${quoteTable(table)} (${columns.map(([name]) => quoteIdent(name)).join(", ")}) values (${columns.map(([, value]) => quoteLiteral(value)).join(", ")}) on conflict do nothing;`;
 }
 
-/** The rows of a table mapped by `rls.memberships`: one per role, for a plain role column. */
+/**
+ * The rows of a table mapped by `rls.memberships`: one per role, for a plain
+ * role column.
+ */
 function mappedRows(
   config: PermDockConfig,
   scopes: readonly Scope[],
@@ -70,7 +73,10 @@ function mappedRows(
   );
 }
 
-/** The rows of a `membershipSources` source: only a source whose columns are plain, never a `through` or `map`. */
+/**
+ * The rows of a `membershipSources` source: only a source whose columns are
+ * plain, never a `through` or `map`.
+ */
 function sourceRows(
   source: SupabaseManifestMembership,
   scopes: readonly Scope[],
@@ -122,9 +128,9 @@ function sourceRows(
 
 /**
  * The statements that put a fixture's memberships into the configured
- * membership tables and sources, so the helpers of `authorize: 'database'`
- * find them. A membership no plain table or source can hold (a `through`
- * or mapped role column, an `on` membership) is listed in a comment.
+ * membership tables and sources, so the helpers of `authorize: 'database'` find
+ * them. A membership no plain table or source can hold (a `through` or mapped
+ * role column, an `on` membership) is listed in a comment.
  */
 export function fixtureMembershipSql(
   config: PermDockConfig,

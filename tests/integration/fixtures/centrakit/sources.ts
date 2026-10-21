@@ -16,7 +16,10 @@ export const suspension: SupabaseSuspension = {
   },
 };
 
-/** Staff from `memberships`, portal contacts from `contacts.user_id`; the hook and the helpers read the same objects. */
+/**
+ * Staff from `memberships`, portal contacts from `contacts.user_id`; the hook
+ * and the helpers read the same objects.
+ */
 export function sources(query?: SqlQuery) {
   const shared = query === undefined ? { suspension } : { query, suspension };
   return [

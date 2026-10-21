@@ -15,7 +15,10 @@ export type RlsFixture = {
     readonly roles?: readonly string[];
     readonly tenant?: string;
     readonly memberships?: readonly Membership[];
-    /** Token claims: `principal.claims` in process, the Supabase JWT claims, PowerSync `auth.parameter()`. */
+    /**
+     * Token claims: `principal.claims` in process, the Supabase JWT claims,
+     * PowerSync `auth.parameter()`.
+     */
     readonly claims?: Readonly<Record<string, unknown>>;
   };
   readonly row: unknown;
@@ -89,7 +92,10 @@ function asCustomRoles(value: unknown): readonly CustomRole[] {
   return value["customRoles"] as readonly CustomRole[];
 }
 
-/** A `.json` file or a module exporting `fixtures` (or default) and optionally `customRoles`. */
+/**
+ * A `.json` file or a module exporting `fixtures` (or default) and optionally
+ * `customRoles`.
+ */
 export async function loadFixtures(
   cwd: string,
   path: string,
@@ -109,7 +115,10 @@ export async function loadFixtures(
   };
 }
 
-/** The fixture subject as a `Subject`: a principal with no actor and an empty context. */
+/**
+ * The fixture subject as a `Subject`: a principal with no actor and an empty
+ * context.
+ */
 export function fixtureSubject(fixture: RlsFixture["subject"]): Subject {
   return {
     principal: {
@@ -123,7 +132,10 @@ export function fixtureSubject(fixture: RlsFixture["subject"]): Subject {
   };
 }
 
-/** The row `can` receives: `{ current, next }` for an instance action with a `newRow`. */
+/**
+ * The row `can` receives: `{ current, next }` for an instance action with a
+ * `newRow`.
+ */
 export function fixtureRow(
   fixture: RlsFixture,
   kind: "instance" | "collection",

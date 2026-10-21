@@ -13,7 +13,10 @@ import {
 } from "./errors.ts";
 import { getResource } from "./permission-registry.ts";
 
-/** `assert`'s outcome: the granted decision, or the error a refusal throws after `onDenied` runs. */
+/**
+ * `assert`'s outcome: the granted decision, or the error a refusal throws after
+ * `onDenied` runs.
+ */
 export function assertDecision(
   policy: Policy,
   subject: Subject,
@@ -34,10 +37,7 @@ export function assertDecision(
     data !== null && typeof data === "object"
       ? (data as Record<string, unknown>)[resource?.id ?? "id"]
       : undefined;
-  const resourceRef = compact<{
-    readonly type: string;
-    readonly id?: string;
-  }>({
+  const resourceRef = compact<{ readonly type: string; readonly id?: string }>({
     type: permission.resource,
     id: resourceId === undefined ? undefined : String(resourceId),
   });

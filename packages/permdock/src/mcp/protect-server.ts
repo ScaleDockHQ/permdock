@@ -297,7 +297,10 @@ export function protectServer(
       permission: enforcement.permissionFor(name),
     });
   };
-  /** With `enforce: 'procedure'` the handler runs undecided: the procedure it calls decides. */
+  /**
+   * With `enforce: 'procedure'` the handler runs undecided: the procedure it
+   * calls decides.
+   */
   const wrapTool = (
     tool: () => string,
     permission: Permission,
@@ -461,7 +464,10 @@ export function protectServer(
     const own = inherits
       ? undefined
       : requirePermission("resource", name, config);
-    /** A `ui://` view without its own permission takes the one of the tool linking it; unlinked, it denies. */
+    /**
+     * A `ui://` view without its own permission takes the one of the tool
+     * linking it; unlinked, it denies.
+     */
     const permissionNow = (): Permission | undefined =>
       own ??
       (typeof uriOrTemplate === "string"

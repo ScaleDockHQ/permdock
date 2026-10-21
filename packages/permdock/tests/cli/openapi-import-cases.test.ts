@@ -467,9 +467,7 @@ describe("openapi import schemas", () => {
   });
 
   it("gives a resource with no JSON body an empty object schema", async () => {
-    const dir = workdir({
-      "openapi.json": doc({ "/posts": { get: {} } }),
-    });
+    const dir = workdir({ "openapi.json": doc({ "/posts": { get: {} } }) });
     expect((await importDoc(dir, { schema: "zod" })).code).toBe(0);
     expect(readFileSync(path.join(dir, "gen.ts"), "utf8")).toContain(
       "posts: resource(z.object({}), {",

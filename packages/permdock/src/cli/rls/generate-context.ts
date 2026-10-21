@@ -25,7 +25,10 @@ import { ownershipRules, unsatisfiedKinds } from "./ownership.ts";
 import { type RbacAuthorizeMode, resolveAuthorize } from "./rbac.ts";
 import { tokenScopesPlan } from "./token-scopes.ts";
 
-/** The scopes an `rls.migrate` `role` helper names, so `rls generate` writes their role-filtered member helper. */
+/**
+ * The scopes an `rls.migrate` `role` helper names, so `rls generate` writes
+ * their role-filtered member helper.
+ */
 function roleMemberScopesOf(migrate: RlsMigrateConfig | undefined): {
   readonly roleMemberScopes?: readonly string[];
 } {
@@ -121,7 +124,10 @@ function skippedOwnershipTriggers(
   });
 }
 
-/** The SQL context every emitter reads, from the flags, `rls` config and the policy. */
+/**
+ * The SQL context every emitter reads, from the flags, `rls` config and the
+ * policy.
+ */
 export function buildContext(
   input: RlsGenerateInput,
   policy: Policy,

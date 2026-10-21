@@ -94,7 +94,10 @@ export function expandOAuthScopes(
     : { ...delegation, scopes: [...out] };
 }
 
-/** The coarse scopes the policy declares that cover `permission`, in declaration order. */
+/**
+ * The coarse scopes the policy declares that cover `permission`, in declaration
+ * order.
+ */
 function coarseScopesFor(
   policy: ScopedPolicy,
   permission: ScopedPermission,
@@ -104,7 +107,10 @@ function coarseScopesFor(
     .map((entry) => entry.scope);
 }
 
-/** Every token scope that reaches `permission`: its own, any it was renamed from, and the coarse scopes covering it. */
+/**
+ * Every token scope that reaches `permission`: its own, any it was renamed
+ * from, and the coarse scopes covering it.
+ */
 export function scopesReaching(
   policy: ScopedPolicy,
   permission: ScopedPermission,
@@ -117,9 +123,9 @@ export function scopesReaching(
 }
 
 /**
- * The scope an `insufficient_scope` challenge names for `permission`: the
- * first coarse scope that covers it, which the authorization server issues,
- * else the permission's own scope.
+ * The scope an `insufficient_scope` challenge names for `permission`: the first
+ * coarse scope that covers it, which the authorization server issues, else the
+ * permission's own scope.
  */
 export function challengeScope(
   policy: ScopedPolicy,

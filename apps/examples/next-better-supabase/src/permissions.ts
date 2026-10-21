@@ -3,7 +3,8 @@ import { z } from "zod";
 
 /**
  * The CentraKit shape: staff hold one role per organization in `memberships`,
- * and a portal contact holds `contact` on their customer through `contacts.user_id`.
+ * and a portal contact holds `contact` on their customer through
+ * `contacts.user_id`.
  */
 const Staff = z.object({
   id: z.uuid(),

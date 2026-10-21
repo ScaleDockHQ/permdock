@@ -101,15 +101,10 @@ describe("testCustomRoleSource with declared role leaves and a policy ceiling", 
   const roles = defineRoles({ editor: { assignable: true } });
   const policy = definePolicy(
     { permissions, roles },
-    {
-      roles: [role(roles.editor, [])],
-      subject: () => null,
-    },
+    { roles: [role(roles.editor, [])], subject: () => null },
   );
   testCustomRoleSource(
-    {
-      rolesFor: (tenant) => [{ tenant, name: "reviewer", grants: [] }],
-    },
+    { rolesFor: (tenant) => [{ tenant, name: "reviewer", grants: [] }] },
     { tenant: "o1", declared: [roles.editor], policy },
   );
 });

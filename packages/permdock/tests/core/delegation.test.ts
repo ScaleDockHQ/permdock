@@ -39,9 +39,7 @@ describe("coveredByDelegation", () => {
     expect(coveredByDelegation(update, details, "p1")).toBeUndefined();
     expect(coveredByDelegation(update, details, "p2")).toBe("not-delegated");
     expect(
-      coveredByDelegation(update, {
-        authorizationDetails: [{ type: "post" }],
-      }),
+      coveredByDelegation(update, { authorizationDetails: [{ type: "post" }] }),
     ).toBeUndefined();
     expect(
       coveredByDelegation(update, {

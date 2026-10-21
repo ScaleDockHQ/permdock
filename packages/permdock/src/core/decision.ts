@@ -57,7 +57,10 @@ export type DenialReason =
   | "exceeds-creator"
   | "credential-policy";
 
-/** The `detail` each denial reason carries, where PermDock sets a structured one. */
+/**
+ * The `detail` each denial reason carries, where PermDock sets a structured
+ * one.
+ */
 export type DenialDetails = {
   readonly limit: LimitDetail;
   /** The window the inactive allow applies in. */
@@ -91,7 +94,10 @@ export type MatchedGrant = {
   readonly check?: Grant["check"];
   readonly approval?: "human" | ApprovalRequirement;
   readonly provider?: string;
-  /** The hosted policy document fingerprint and grant id, when a hosted grant matched. */
+  /**
+   * The hosted policy document fingerprint and grant id, when a hosted grant
+   * matched.
+   */
   readonly hosted?: HostedGrantRef;
   /** A break-glass grant overrode a matching deny. */
   readonly breakGlass?: true;
@@ -99,11 +105,11 @@ export type MatchedGrant = {
 
 /**
  * Something the caller owes alongside a granted action. `over-limit`: a soft
- * `limit` was past its count; `near-limit`: usage reached `alertAt`.
- * `notify` / `review`: a break-glass grant's declared follow-ups.
- * `justify`: the break-glass reason, carried so audit records why.
- * `app`: a follow-up the application declared on the grant
- * (`allow(p, { obligations })`); PermDock carries it and never acts on it.
+ * `limit` was past its count; `near-limit`: usage reached `alertAt`. `notify` /
+ * `review`: a break-glass grant's declared follow-ups. `justify`: the
+ * break-glass reason, carried so audit records why. `app`: a follow-up the
+ * application declared on the grant (`allow(p, { obligations })`); PermDock
+ * carries it and never acts on it.
  */
 export type Obligation =
   | { readonly kind: "over-limit" | "near-limit" | "notify" | "review" }
@@ -119,14 +125,11 @@ export type AppObligation = {
 };
 
 /** What is left of the `limit` that applied; `resetsAt` is RFC 3339. */
-export type Quota = {
-  readonly remaining: number;
-  readonly resetsAt: string;
-};
+export type Quota = { readonly remaining: number; readonly resetsAt: string };
 
 /**
- * The `detail` of a `limit` denial: the grant's `count`, its `per` window
- * in seconds and when the window resets (RFC 3339).
+ * The `detail` of a `limit` denial: the grant's `count`, its `per` window in
+ * seconds and when the window resets (RFC 3339).
  */
 export type LimitDetail = {
   readonly count: number;
@@ -135,14 +138,13 @@ export type LimitDetail = {
 };
 
 /**
- * Why a candidate grant for the permission was passed over before its
- * condition ran: `via-only` (the subject holds no membership of its kind),
- * `purpose` (no asserted purpose it lists), `field` (its `fields` do not
- * cover the requested field), `grantee` (its `to` did not match and added no
- * denial), `role` (a role it names is not held), `validity` (a deny outside
- * its `validFrom` / `validUntil`; an inactive allow adds an `inactive-grant`
- * denial instead), `break-glass-inactive` (a break-glass grant with no
- * asserted purpose).
+ * Why a candidate grant for the permission was passed over before its condition
+ * ran: `via-only` (the subject holds no membership of its kind), `purpose` (no
+ * asserted purpose it lists), `field` (its `fields` do not cover the requested
+ * field), `grantee` (its `to` did not match and added no denial), `role` (a
+ * role it names is not held), `validity` (a deny outside its `validFrom` /
+ * `validUntil`; an inactive allow adds an `inactive-grant` denial instead),
+ * `break-glass-inactive` (a break-glass grant with no asserted purpose).
  */
 export type TraceSkipReason =
   | "via-only"
@@ -159,16 +161,19 @@ export type TraceSkip = {
   readonly permission: string;
   readonly effect: "allow" | "deny";
   readonly why: TraceSkipReason;
-  /** The level a custom role names that its resource does not declare, for `unknown-level`. */
+  /**
+   * The level a custom role names that its resource does not declare, for
+   * `unknown-level`.
+   */
   readonly level?: string;
 };
 
 /**
- * What `explain` saw: how many candidate grants it examined before the
- * outcome, which allows matched (including the ones a deny overrode), which
- * denies matched, and which grants it passed over. `denies[0]` is the deny
- * that produced a `deny` outcome, or the deny a break-glass grant lifted.
- * Pure local computation; never on a decision event.
+ * What `explain` saw: how many candidate grants it examined before the outcome,
+ * which allows matched (including the ones a deny overrode), which denies
+ * matched, and which grants it passed over. `denies[0]` is the deny that
+ * produced a `deny` outcome, or the deny a break-glass grant lifted. Pure local
+ * computation; never on a decision event.
  */
 export type Trace = {
   readonly evaluated: number;
@@ -197,8 +202,8 @@ export type GrantedDecision = {
 export type DeniedDecision = {
   readonly outcome: "denied";
   /**
-   * The key of the permission that was checked. Absent on a denial for a
-   * check that named no declared permission.
+   * The key of the permission that was checked. Absent on a denial for a check
+   * that named no declared permission.
    */
   readonly permission?: string;
   readonly denials: readonly Denial[];

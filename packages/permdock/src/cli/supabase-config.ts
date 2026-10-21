@@ -67,10 +67,7 @@ export function readSupabaseConfig(
   try {
     root = parse(readFileSync(file, "utf8"));
   } catch (error) {
-    return {
-      ok: false,
-      error: describeError(error),
-    };
+    return { ok: false, error: describeError(error) };
   }
   const expiry = table(root["auth"])?.["jwt_expiry"];
   const paths = table(table(root["db"])?.["migrations"])?.["schema_paths"];
@@ -114,20 +111,29 @@ export function readSupabaseConfig(
   };
 }
 
-/** `supabase/` joined with `declarative_schema_path`, which defaults to `schemas`. */
+/**
+ * `supabase/` joined with `declarative_schema_path`, which defaults to
+ * `schemas`.
+ */
 export function declarativeSchemaDir(schemaPath?: unknown): string {
   return posix
     .join("supabase", typeof schemaPath === "string" ? schemaPath : "schemas")
     .replace(/\/$/u, "");
 }
 
-/** The parsed config, or `{}` when it is missing or does not parse (PD045 reports that). */
+/**
+ * The parsed config, or `{}` when it is missing or does not parse (PD045
+ * reports that).
+ */
 export function supabaseConfig(cwd: string): SupabaseConfig {
   const read = readSupabaseConfig(cwd);
   return read?.ok === true ? read.config : {};
 }
 
-/** PD045: a `supabase/config.toml` the CLI cannot parse, so every check that reads it falls back to defaults. */
+/**
+ * PD045: a `supabase/config.toml` the CLI cannot parse, so every check that
+ * reads it falls back to defaults.
+ */
 export function pd045(cwd: string): readonly DoctorFinding[] {
   const read = readSupabaseConfig(cwd);
   if (read === undefined || read.ok) {
@@ -144,9 +150,9 @@ export function pd045(cwd: string): readonly DoctorFinding[] {
 }
 
 /**
- * PD074: `supabase.hook` is configured but `[auth.hook.custom_access_token]`
- * in `supabase/config.toml` does not enable the generated function, so a
- * local stack and every branch push issue tokens without memberships.
+ * PD074: `supabase.hook` is configured but `[auth.hook.custom_access_token]` in
+ * `supabase/config.toml` does not enable the generated function, so a local
+ * stack and every branch push issue tokens without memberships.
  */
 export function pd074(
   cwd: string,

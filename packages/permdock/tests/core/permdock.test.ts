@@ -360,11 +360,7 @@ describe("getPermDockSync", () => {
   it("bounds custom roles by the tenant ceiling", async () => {
     const permdock = getPermDockSync(
       policy,
-      {
-        id: "u4",
-        orgId: "o1",
-        roles: ["staff"],
-      },
+      { id: "u4", orgId: "o1", roles: ["staff"] },
       {
         customRoles: memoryCustomRoleSource([
           { tenant: "unused", name: "staff", includes: ["member"] },
@@ -526,10 +522,7 @@ describe("decide alternatives", () => {
               ],
             },
     });
-    const permdock = getPermDockSync(tenancyPolicy, {
-      id: "u1",
-      tenant: "T",
-    });
+    const permdock = getPermDockSync(tenancyPolicy, { id: "u1", tenant: "T" });
     const decision = permdock.decide(tenancy.doc.create, undefined, {
       now: at(500),
     });

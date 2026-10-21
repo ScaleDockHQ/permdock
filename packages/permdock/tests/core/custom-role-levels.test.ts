@@ -37,9 +37,7 @@ const permissions = definePermissions({
       all: {},
     },
   }),
-  member: resource({
-    collection: { assignRole: { manageRoles: true } },
-  }),
+  member: resource({ collection: { assignRole: { manageRoles: true } } }),
 });
 
 const roles = defineRoles({
@@ -544,9 +542,7 @@ describe("catalog and diff with levels", () => {
         region: { regionId: principal["regionId"] },
       },
     }),
-    member: resource({
-      collection: { assignRole: { manageRoles: true } },
-    }),
+    member: resource({ collection: { assignRole: { manageRoles: true } } }),
   });
   const before = buildCatalog(permissions, EMPTY_SCAN, at);
   const after = buildCatalog(narrower, EMPTY_SCAN, at);

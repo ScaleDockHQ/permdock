@@ -16,10 +16,7 @@ import { BACKCHANNEL_LOGOUT_EVENT } from "../../src/ssf/events.ts";
 import { createPermDock, memoryReplayStore } from "../../src/ssf/index.ts";
 
 const permissions = definePermissions({
-  post: resource(z.object({ id: z.string() }), {
-    id: "id",
-    actions: ["read"],
-  }),
+  post: resource(z.object({ id: z.string() }), { id: "id", actions: ["read"] }),
 });
 
 const policy = definePolicy(permissions, {
@@ -583,9 +580,7 @@ describe("receiver.on", () => {
         events: { [SESSION_REVOKED]: {} },
       })),
       subject: () => "user-3",
-      onEvent: {
-        "session-revoked": () => undefined,
-      },
+      onEvent: { "session-revoked": () => undefined },
     });
     receiver.on("event", (event) => {
       events.push(event.type);

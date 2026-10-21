@@ -211,11 +211,7 @@ describe("approvalsHandler inbox", () => {
       status: response.status,
       paged: body.items.length <= 1,
       next: typeof body.next,
-    }).toEqual({
-      status: 200,
-      paged: true,
-      next: "string",
-    });
+    }).toEqual({ status: 200, paged: true, next: "string" });
     const next = new URL(`${BASE}/pending?limit=1`);
     next.searchParams.set("cursor", body.next ?? "");
     expect(response.headers.get("link")).toBe(`<${next.href}>; rel="next"`);

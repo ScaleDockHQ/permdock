@@ -2,10 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
 type HealthRequest = { readonly url?: string };
-type HealthResponse = {
-  statusCode: number;
-  end: (body: string) => void;
-};
+type HealthResponse = { statusCode: number; end: (body: string) => void };
 
 function healthHandle(
   req: HealthRequest,
@@ -38,13 +35,7 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 3484,
     strictPort: true,
-    headers: {
-      "Permissions-Policy": "tools=*",
-    },
+    headers: { "Permissions-Policy": "tools=*" },
   },
-  preview: {
-    host: "127.0.0.1",
-    port: 3484,
-    strictPort: true,
-  },
+  preview: { host: "127.0.0.1", port: 3484, strictPort: true },
 });

@@ -35,8 +35,8 @@ export type Assurance = {
 /**
  * Roles held in one scope instance (`scope` + `id`, with the id of every
  * ancestor scope in `within`) or on one resource (`on`). Evaluation only sees
- * the canonical form; `tenant` / `team` are accepted as input for the first
- * and second declared scope and normalised away.
+ * the canonical form; `tenant` / `team` are accepted as input for the first and
+ * second declared scope and normalised away.
  */
 export type Membership = {
   readonly scope?: string;
@@ -44,24 +44,42 @@ export type Membership = {
   readonly within?: Readonly<Record<string, string>>;
   readonly on?: { readonly resource: string; readonly id: string };
   readonly roles: readonly string[];
-  /** Roles the holder may activate here but does not hold; `permdock.activate` writes an elevated membership. */
+  /**
+   * Roles the holder may activate here but does not hold; `permdock.activate`
+   * writes an elevated membership.
+   */
   readonly eligible?: readonly string[];
   readonly via?: MembershipVia;
   readonly expiresAt?: number;
-  /** The principal id that wrote this membership: who elevated, consented to or granted the access. */
+  /**
+   * The principal id that wrote this membership: who elevated, consented to or
+   * granted the access.
+   */
   readonly grantedBy?: string;
-  /** Free text recording why the membership was written: the activation or consent justification. */
+  /**
+   * Free text recording why the membership was written: the activation or
+   * consent justification.
+   */
   readonly reason?: string;
-  /** A subgroup the holder belongs to inside the instance (`vendor-support`); a `junctionMembershipSource` group column fills it. */
+  /**
+   * A subgroup the holder belongs to inside the instance (`vendor-support`); a
+   * `junctionMembershipSource` group column fills it.
+   */
   readonly member?: { readonly group: string };
-  /** `idp`: the identity provider (SCIM) owns this membership; the application must not edit it. */
+  /**
+   * `idp`: the identity provider (SCIM) owns this membership; the application
+   * must not edit it.
+   */
   readonly managedBy?: "idp";
-  /** Seats this membership holds (`dev-mode`, `editor`); `plan()` grantees match them inside the active tenant. */
+  /**
+   * Seats this membership holds (`dev-mode`, `editor`); `plan()` grantees match
+   * them inside the active tenant.
+   */
   readonly entitlements?: readonly string[];
   /**
-   * Set when the instance or an ancestor instance is suspended: the
-   * permission keys the membership still grants (`suspension.scopes.<scope>.keep`).
-   * Every other grant, allow or deny, ignores it, and so do role listings.
+   * Set when the instance or an ancestor instance is suspended: the permission
+   * keys the membership still grants (`suspension.scopes.<scope>.keep`). Every
+   * other grant, allow or deny, ignores it, and so do role listings.
    */
   readonly keep?: readonly string[];
   /**
@@ -78,13 +96,16 @@ export type Membership = {
 };
 
 /**
- * One permission a custom role adds or removes. It names a declared
- * permission key and carries no condition, approval or limit of its own.
+ * One permission a custom role adds or removes. It names a declared permission
+ * key and carries no condition, approval or limit of its own.
  */
 export type CustomRoleGrant = {
   readonly permission: string;
   readonly effect?: "allow" | "deny";
-  /** A level the permission's resource declares (`resource(…, { levels })`); allows only. */
+  /**
+   * A level the permission's resource declares (`resource(…, { levels })`);
+   * allows only.
+   */
   readonly level?: string;
 };
 
@@ -93,9 +114,9 @@ type CustomRoleBody = {
   readonly includes?: readonly string[];
   readonly grants?: readonly CustomRoleGrant[];
   /**
-   * Display text and app data, carried onto the role leaf
-   * `assignableRoles()` returns. `x` is checked by the role tree's
-   * `defineRoles(…, { x })` schema; an invalid `x` is dropped, not the role.
+   * Display text and app data, carried onto the role leaf `assignableRoles()`
+   * returns. `x` is checked by the role tree's `defineRoles(…, { x })` schema;
+   * an invalid `x` is dropped, not the role.
    */
   readonly meta?: RoleMeta;
 };
@@ -104,7 +125,10 @@ type CustomRoleBody = {
 export type TenantCustomRole = CustomRoleBody & {
   /** The instance of the first scope that owns the role. */
   readonly tenant: string;
-  /** The scope the role is held at; defaults to the first scope. Its ceiling is that scope's assignable roles. */
+  /**
+   * The scope the role is held at; defaults to the first scope. Its ceiling is
+   * that scope's assignable roles.
+   */
   readonly scope?: string;
   /** Pins the role to one instance of `scope`. */
   readonly id?: string;
@@ -127,14 +151,17 @@ export type GlobalCustomRole = CustomRoleBody & {
 };
 
 /**
- * A role the platform defines once for every tenant, held on memberships of
- * its scope in any tenant. Tenant admins assign it but never edit it. Its
- * ceiling is the assignable declared roles of its scope; its name wins over
- * a tenant custom role of the same name.
+ * A role the platform defines once for every tenant, held on memberships of its
+ * scope in any tenant. Tenant admins assign it but never edit it. Its ceiling
+ * is the assignable declared roles of its scope; its name wins over a tenant
+ * custom role of the same name.
  */
 export type SharedCustomRole = CustomRoleBody & {
   readonly shared: true;
-  /** The scope the role is held at, never `'global'`; defaults to the first scope. */
+  /**
+   * The scope the role is held at, never `'global'`; defaults to the first
+   * scope.
+   */
   readonly scope?: string;
   readonly tenant?: undefined;
   readonly id?: undefined;
@@ -147,21 +174,27 @@ export type Principal = {
   readonly id: string;
   readonly issuer?: string;
   /**
-   * `contact`: an external person (a customer contact, a portal user). Only
-   * its `{ on }` memberships count; it never approves, creates keys or
-   * publishes, and is read-only unless a role whose `for` lists `contact`
-   * grants the write.
+   * `contact`: an external person (a customer contact, a portal user). Only its
+   * `{ on }` memberships count; it never approves, creates keys or publishes,
+   * and is read-only unless a role whose `for` lists `contact` grants the
+   * write.
    */
   readonly kind?: "user" | "service" | "workload" | "link" | "feed" | "contact";
   readonly roles?: readonly string[];
   readonly plans?: readonly string[];
   readonly memberships?: readonly Membership[];
-  /** The token dropped memberships to stay under its size budget; a `claimsFirst` source reads the rest. */
+  /**
+   * The token dropped memberships to stay under its size budget; a
+   * `claimsFirst` source reads the rest.
+   */
   readonly membershipsTruncated?: boolean;
   /** The authorization version the token was minted at (`authz_ver`). */
   readonly authzVersion?: number;
   readonly tenant?: string;
-  /** Set by core when a requested tenant is not one the subject holds: the denial is then `no-membership`, not `no-tenant`. Never read from a token. */
+  /**
+   * Set by core when a requested tenant is not one the subject holds: the
+   * denial is then `no-membership`, not `no-tenant`. Never read from a token.
+   */
   readonly unheldTenant?: string;
   readonly assurance?: Assurance;
   readonly binding?: Binding;
@@ -172,9 +205,16 @@ export type Actor = {
   readonly id: string;
   readonly kind: ActorKind;
   readonly binding?: Binding;
-  /** `true` denies every permission without `readOnlyHint` (`not-delegated`), with or without a policy delegation. */
+  /**
+   * `true` denies every permission without `readOnlyHint` (`not-delegated`),
+   * with or without a policy delegation.
+   */
   readonly readOnly?: boolean;
-  /** The stable name the application gives this OAuth client (`ClientNames`), set by the subject resolver from the verified client id; policy delegations match it with `to: { kind, client }`. */
+  /**
+   * The stable name the application gives this OAuth client (`ClientNames`),
+   * set by the subject resolver from the verified client id; policy delegations
+   * match it with `to: { kind, client }`.
+   */
   readonly client?: string;
   readonly [key: string]: unknown;
 };
@@ -201,7 +241,10 @@ export type Subject<TPrincipal extends Principal = Principal> = {
   readonly context: Readonly<Record<string, unknown>>;
   readonly session?: string;
   readonly expiresAt?: number;
-  /** The token's memberships are behind the source's authorization version: `fresh` permissions deny. */
+  /**
+   * The token's memberships are behind the source's authorization version:
+   * `fresh` permissions deny.
+   */
   readonly stale?: true;
   /**
    * The resolver checked the session against the Auth server for this request

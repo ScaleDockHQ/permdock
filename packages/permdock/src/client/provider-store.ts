@@ -16,10 +16,10 @@ type LiveRead = () => {
 };
 
 /**
- * Store options that read `read()` on every request, so a rotated token, a
- * new `fetch` or a new verifier applies without rebuilding the store. A
- * verifier is wired only when one is present at creation: it switches the
- * store to signed snapshots.
+ * Store options that read `read()` on every request, so a rotated token, a new
+ * `fetch` or a new verifier applies without rebuilding the store. A verifier is
+ * wired only when one is present at creation: it switches the store to signed
+ * snapshots.
  */
 function liveOptions(
   read: LiveRead,
@@ -42,7 +42,10 @@ function liveOptions(
   });
 }
 
-/** The options the Vue, Svelte and Solid providers read once, when they build the store. */
+/**
+ * The options the Vue, Svelte and Solid providers read once, when they build
+ * the store.
+ */
 type ProviderStoreOptions = Pick<
   AdapterStoreOptions,
   | "endpoint"
@@ -55,8 +58,8 @@ type ProviderStoreOptions = Pick<
 > & { readonly tenant?: string | undefined };
 
 /**
- * The store a Vue, Svelte or Solid provider owns. A promised snapshot keeps
- * it `pending` until the promise settles; `undefined` starts empty.
+ * The store a Vue, Svelte or Solid provider owns. A promised snapshot keeps it
+ * `pending` until the promise settles; `undefined` starts empty.
  */
 export function providerStore(
   options: ProviderStoreOptions,
@@ -84,7 +87,10 @@ export function providerStore(
   return store;
 }
 
-/** Refreshes for the tenant a reactive `tenant` option switched to; a failed refresh keeps the current answers. */
+/**
+ * Refreshes for the tenant a reactive `tenant` option switched to; a failed
+ * refresh keeps the current answers.
+ */
 export function switchTenant(
   store: ClientStore,
   tenant: string | undefined,

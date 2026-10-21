@@ -205,9 +205,7 @@ describe("memoryDirectoryStore groups", () => {
     await store.putGroup(A, group({ id: "g_2" }));
     await expect(
       store.putGroup(A, group({ id: "g_3", externalId: "x" })),
-    ).rejects.toMatchObject({
-      message: "externalId",
-    });
+    ).rejects.toMatchObject({ message: "externalId" });
     await expect(
       store.patchGroup(A, "g_2", [
         { op: "replace", path: "externalId", value: "x" },
@@ -215,9 +213,7 @@ describe("memoryDirectoryStore groups", () => {
     ).rejects.toBeInstanceOf(DirectoryUniquenessError);
     await expect(
       store.putGroup(A, group({ id: first.id, externalId: "x" })),
-    ).resolves.toMatchObject({
-      id: first.id,
-    });
+    ).resolves.toMatchObject({ id: first.id });
     expect(
       (
         await store.findGroups(

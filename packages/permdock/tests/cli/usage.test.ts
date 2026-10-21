@@ -276,11 +276,8 @@ describe("the usage report", () => {
     });
     const run = async (clientEntries: readonly string[]) =>
       report(
-        (
-          await usage(cwd, {
-            config: { ...CONFIG, doctor: { clientEntries } },
-          })
-        ).output,
+        (await usage(cwd, { config: { ...CONFIG, doctor: { clientEntries } } }))
+          .output,
       ).outsideInclude.map((item) => item.detail);
     expect(await run([])).toEqual([]);
     expect(await run(["src/entry.ts"])).toEqual([

@@ -29,14 +29,23 @@ export type { SqlQuery } from "../core/sql.ts";
 
 type Common = {
   readonly table: string;
-  /** Runs the lookups; without it the source only describes SQL (for `permdock supabase hook generate`). */
+  /**
+   * Runs the lookups; without it the source only describes SQL (for `permdock
+   * supabase hook generate`).
+   */
   readonly query?: SqlQuery;
-  /** Drop suspended users and memberships under suspended instances, like `rls.suspension`. */
+  /**
+   * Drop suspended users and memberships under suspended instances, like
+   * `rls.suspension`.
+   */
   readonly suspension?: SupabaseSuspension;
 };
 
 export type MembershipTableOptions = Common & {
-  /** Column names; `user`, `scope`, `id` and `role` default to `user_id`, `scope`, `scope_id`, `role`. */
+  /**
+   * Column names; `user`, `scope`, `id` and `role` default to `user_id`,
+   * `scope`, `scope_id`, `role`.
+   */
   readonly columns?: {
     /** The user id column, or a reference to a table that holds the user id. */
     readonly user?: string | RoleThrough;
@@ -45,8 +54,8 @@ export type MembershipTableOptions = Common & {
     /** A `jsonb` column of ancestor ids keyed by scope name. */
     readonly within?: string;
     /**
-     * The role key column, a reference to a roles table that holds the key,
-     * or several of them: the row holds every non-null key.
+     * The role key column, a reference to a roles table that holds the key, or
+     * several of them: the row holds every non-null key.
      */
     readonly role?: RoleSpec;
     readonly via?: string;
@@ -58,7 +67,10 @@ export type MembershipTableOptions = Common & {
     readonly reason?: string;
     /** A subgroup column filling `member.group`. */
     readonly group?: string;
-    /** A text column; the value `idp` marks the row as owned by the identity provider. */
+    /**
+     * A text column; the value `idp` marks the row as owned by the identity
+     * provider.
+     */
     readonly managedBy?: string;
     /** A `text[]` column of seats. */
     readonly seats?: string;
@@ -70,16 +82,19 @@ export type MembershipTableOptions = Common & {
 export type MembershipJunctionOptions = Common & {
   /** The declared scope every row is a membership of. */
   readonly scope: string;
-  /** The user id column (default `user_id`), or a reference to a table that holds the user id. */
+  /**
+   * The user id column (default `user_id`), or a reference to a table that
+   * holds the user id.
+   */
   readonly user?: string | RoleThrough;
   /** The column holding the scope instance id. Default `<scope>_id`. */
   readonly id?: string;
   /** Ancestor id columns keyed by scope name. */
   readonly within?: Readonly<Record<string, string>>;
   /**
-   * A role column, a reference to a roles table that holds the key, fixed
-   * roles every row holds (a contact table with no role column), or
-   * `{ sources }`: several role columns whose non-null keys the row holds.
+   * A role column, a reference to a roles table that holds the key, fixed roles
+   * every row holds (a contact table with no role column), or `{ sources }`:
+   * several role columns whose non-null keys the row holds.
    */
   readonly roles:
     | string
@@ -97,7 +112,10 @@ export type MembershipJunctionOptions = Common & {
   readonly reason?: string;
   /** A subgroup filling `member.group`: a fixed name every row has, or a column. */
   readonly group?: string | { readonly column: string };
-  /** `idp` when the identity provider owns every row, or a text column holding `idp` per row. */
+  /**
+   * `idp` when the identity provider owns every row, or a text column holding
+   * `idp` per row.
+   */
   readonly managedBy?: "idp" | { readonly column: string };
   /** A `text[]` column of seats. */
   readonly seats?: string;
@@ -105,52 +123,82 @@ export type MembershipJunctionOptions = Common & {
   readonly x?: string;
 };
 
-/** What `permdock supabase hook generate` compiles; the same SQL the source runs. */
+/**
+ * What `permdock supabase hook generate` compiles; the same SQL the source
+ * runs.
+ */
 export type MembershipSql = {
   readonly table: string;
-  /** The table's user column: the user id, or with `userThrough` the reference to the row holding it. */
+  /**
+   * The table's user column: the user id, or with `userThrough` the reference
+   * to the row holding it.
+   */
   readonly user: string;
-  /** The table that holds the user id when `user` references it; a change of that id bumps the old and the new user. */
+  /**
+   * The table that holds the user id when `user` references it; a change of
+   * that id bumps the old and the new user.
+   */
   readonly userThrough?: RoleKeys;
-  /** `<table>.<user>%type`: the PL/pgSQL type of the user id column, for a variable `select` compares with. */
+  /**
+   * `<table>.<user>%type`: the PL/pgSQL type of the user id column, for a
+   * variable `select` compares with.
+   */
   readonly userType: string;
   /**
-   * The `select` of claim rows for one user, with every filter applied.
-   * `user` must have the column's type (a `userType` variable, or an untyped
-   * `$1` Postgres infers): the column is compared uncast so its index applies.
-   * `keep` adds the `keep` column; it defaults to `keeps`, and a `union`
-   * with a source that keeps passes `true`.
+   * The `select` of claim rows for one user, with every filter applied. `user`
+   * must have the column's type (a `userType` variable, or an untyped `$1`
+   * Postgres infers): the column is compared uncast so its index applies.
+   * `keep` adds the `keep` column; it defaults to `keeps`, and a `union` with a
+   * source that keeps passes `true`.
    */
   select(user: string, keep?: boolean): string;
   /** The `select` of member rows for one scope instance (`$1` scope, `$2` id). */
   list(keep?: boolean): string;
-  /** A suspended scope on the source keeps permissions: rows of its suspended instances stay, with a `keep` column. */
+  /**
+   * A suspended scope on the source keeps permissions: rows of its suspended
+   * instances stay, with a `keep` column.
+   */
   readonly keeps: boolean;
-  /** A text column holding `idp` for rows the identity provider owns; `''` when every row is owned. */
+  /**
+   * A text column holding `idp` for rows the identity provider owns; `''` when
+   * every row is owned.
+   */
   readonly managed?: string;
   /** Other tables the `select` reads (suspension tables). */
   readonly reads: readonly string[];
-  /** The roles table the role column references; a key change bumps every holder's authorization version. */
+  /**
+   * The roles table the role column references; a key change bumps every
+   * holder's authorization version.
+   */
   readonly through?: RoleKeys;
   /** Every roles table the role columns reference, `through` first. */
   readonly throughs: readonly RoleKeys[];
-  /** Every column that decides who holds which membership: user, scope, id, `within`, role, `via` and expiry. */
+  /**
+   * Every column that decides who holds which membership: user, scope, id,
+   * `within`, role, `via` and expiry.
+   */
   readonly columns: readonly string[];
-  /** For a single-scope source: its scope and the scopes whose ids each row carries. */
+  /**
+   * For a single-scope source: its scope and the scopes whose ids each row
+   * carries.
+   */
   readonly scope?: string;
   readonly holds?: readonly string[];
   /** The source's entry in the hook manifest's `memberships`. */
   readonly manifest: SupabaseManifestMembership;
   /** What the ownership triggers count; absent on a source that is not a table. */
   readonly holders?: MembershipHolders;
-  /** The rows as plain columns, for Sync Streams and `powerSyncSource`; a source without it does not sync. */
+  /**
+   * The rows as plain columns, for Sync Streams and `powerSyncSource`; a source
+   * without it does not sync.
+   */
   readonly stream?: MembershipStream;
 };
 
 /**
- * One membership source as columns a Sync Streams query can filter on.
- * Tables are `schema.table`; a `through` table is qualified in the source's
- * schema when it names none.
+ * One membership source as columns a Sync Streams query can filter on. Tables
+ * are `schema.table`; a `through` table is qualified in the source's schema
+ * when it names none.
  */
 export type MembershipStream = {
   readonly table: string;
@@ -159,15 +207,24 @@ export type MembershipStream = {
   /** The scope column, or the scope every row is a membership of. */
   readonly scope: { readonly column: string } | { readonly value: string };
   readonly id: string;
-  /** The role sources (the row holds every non-null key), or the fixed roles every row holds. */
+  /**
+   * The role sources (the row holds every non-null key), or the fixed roles
+   * every row holds.
+   */
   readonly roles: RoleSpec | { readonly value: readonly string[] };
   /** The membership kind column, or the kind every row has. */
   readonly via?: { readonly column: string } | { readonly value: string };
   readonly expiresAt?: string;
   readonly disabledAt?: string;
-  /** A row may hold no role key: such a row is no membership, and a reader drops it. */
+  /**
+   * A row may hold no role key: such a row is no membership, and a reader drops
+   * it.
+   */
   readonly nullableRoles: boolean;
-  /** The guard the source reads its roles table with: a tenant row named like a declared role is no role. */
+  /**
+   * The guard the source reads its roles table with: a tenant row named like a
+   * declared role is no role.
+   */
   readonly guard?: RoleGuard;
 };
 
@@ -177,14 +234,20 @@ export type MembershipStream = {
  * suspended holder still holds the role.
  */
 export type MembershipHolders = {
-  /** `<table>.<id column>%type`: the type of a variable `rows` compares the id column with. */
+  /**
+   * `<table>.<id column>%type`: the type of a variable `rows` compares the id
+   * column with.
+   */
   readonly idType: string;
-  /** The instance id of scope `scope` the PL/pgSQL record `row` holds, as text; null on a row of another scope. */
+  /**
+   * The instance id of scope `scope` the PL/pgSQL record `row` holds, as text;
+   * null on a row of another scope.
+   */
   id(scope: string, row: string): string;
   /**
-   * `select id, user_id, role, via, live` over the rows of scope `scope`
-   * in `from` (default the table): one row per held role key, `live` false
-   * once expired. `id` is an expression of `idType` the id column must equal.
+   * `select id, user_id, role, via, live` over the rows of scope `scope` in
+   * `from` (default the table): one row per held role key, `live` false once
+   * expired. `id` is an expression of `idType` the id column must equal.
    */
   rows(
     scope: string,
@@ -194,7 +257,10 @@ export type MembershipHolders = {
 
 export type SqlMembershipSource = MembershipSource & {
   readonly sql: MembershipSql;
-  /** The same source with the role keys of tenant rows of `guard.table` named like a declared role read as null. */
+  /**
+   * The same source with the role keys of tenant rows of `guard.table` named
+   * like a declared role read as null.
+   */
   readonly guarded?: (guard: RoleGuard) => SqlMembershipSource;
 };
 
@@ -207,7 +273,10 @@ function isFixed(
   return Array.isArray(roles);
 }
 
-/** A role column of the membership table, aliased `m`; a `through` column joins its roles table as `mk`. */
+/**
+ * A role column of the membership table, aliased `m`; a `through` column joins
+ * its roles table as `mk`.
+ */
 function memberRole(
   role: RoleSpec,
   table: string,
@@ -221,7 +290,10 @@ function memberRole(
   });
 }
 
-/** The user of the membership table, aliased `m`; a `through` user joins its table as `mu`. */
+/**
+ * The user of the membership table, aliased `m`; a `through` user joins its
+ * table as `mu`.
+ */
 function memberUser(
   user: string | RoleThrough,
   table: string,
@@ -398,9 +470,10 @@ export type SupabasePostgres = {
 
 /**
  * `ctx.postgres` (from `withPostgresClient`) or `ctx.postgresAdmin` as a
- * `SqlQuery` for `tableMembershipSource`, `junctionMembershipSource` and `supabaseApprovalStore`.
- * `ctx.postgres` runs as the caller under RLS, so the membership tables must
- * be readable by `authenticated`; `ctx.postgresAdmin` bypasses RLS.
+ * `SqlQuery` for `tableMembershipSource`, `junctionMembershipSource` and
+ * `supabaseApprovalStore`. `ctx.postgres` runs as the caller under RLS, so the
+ * membership tables must be readable by `authenticated`; `ctx.postgresAdmin`
+ * bypasses RLS.
  */
 function optionalColumn(name: string | undefined, cast: string): string {
   return name === undefined ? `null::${cast}` : `${col(name)}::${cast}`;
@@ -412,9 +485,9 @@ export function supabasePostgresQuery(postgres: SupabasePostgres): SqlQuery {
 
 /**
  * Memberships from one table holding every scope: a row per user, scope,
- * instance and role (`user_id, scope, scope_id, role`), with optional
- * `within`, `via`, expiry, owner and seat columns. Rows of the same instance
- * merge into one membership.
+ * instance and role (`user_id, scope, scope_id, role`), with optional `within`,
+ * `via`, expiry, owner and seat columns. Rows of the same instance merge into
+ * one membership.
  */
 export function tableMembershipSource(
   options: MembershipTableOptions,
@@ -734,13 +807,16 @@ function junctionSource(
 export const AUTHZ_VERSION_TABLE = "permdock_authz_version";
 
 /**
- * The default schema of everything PermDock generates: helpers, seeds, the
- * RBAC scaffold, the hook and the version table. Keep it out of the Data
- * API's exposed schemas, so the `security definer` functions are not RPCs.
+ * The default schema of everything PermDock generates: helpers, seeds, the RBAC
+ * scaffold, the hook and the version table. Keep it out of the Data API's
+ * exposed schemas, so the `security definer` functions are not RPCs.
  */
 export const PERMDOCK_SCHEMA = "permdock";
 
-/** Where `supabase.hook.api` puts the PostgREST wrappers, and the prefix of their names. */
+/**
+ * Where `supabase.hook.api` puts the PostgREST wrappers, and the prefix of
+ * their names.
+ */
 export const HOOK_API_SCHEMA = "public";
 const HOOK_API_PREFIX = "permdock_";
 
@@ -761,7 +837,8 @@ export { supabaseMembershipsBudget, supabaseTenantClaim } from "./budget.ts";
 
 /**
  * Reads the authorization version `permdock supabase hook generate` keeps in
- * `<schema>.permdock_authz_version`: pass it to `claimsFirst(sources, { version })`.
+ * `<schema>.permdock_authz_version`: pass it to `claimsFirst(sources, { version
+ * })`.
  */
 export function authzVersion(options: {
   readonly query: SqlQuery;

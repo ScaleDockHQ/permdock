@@ -32,10 +32,7 @@ const buttonVariants = cva(
         "icon-lg": "size-10",
       },
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
+    defaultVariants: { variant: "default", size: "default" },
   },
 );
 

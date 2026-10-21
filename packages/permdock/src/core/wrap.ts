@@ -9,14 +9,17 @@ export type PermDockWrap = <V extends PolicyVocabulary>(
   permdock: PermDock<V>,
 ) => PermDock<V>;
 
-/** The members `wrapPermDock` replaces; it re-wraps the derived instances itself. */
+/**
+ * The members `wrapPermDock` replaces; it re-wraps the derived instances
+ * itself.
+ */
 export type PermDockOverrides<V extends PolicyVocabulary = PolicyVocabulary> =
   Partial<Omit<PermDock<V>, "tenant" | "team" | "derive">>;
 
 /**
  * A frozen copy of `permdock` with the members `overrides` returns replaced.
- * `overrides` runs again for every instance `tenant()`, `team()` and
- * `derive()` return, so a wrapper never falls off a derived instance.
+ * `overrides` runs again for every instance `tenant()`, `team()` and `derive()`
+ * return, so a wrapper never falls off a derived instance.
  */
 export function wrapPermDock<V extends PolicyVocabulary = PolicyVocabulary>(
   permdock: PermDock<V>,

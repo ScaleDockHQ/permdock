@@ -17,7 +17,10 @@ afterEach(() => {
   }
 });
 
-/** Starts `permdock collect --watch`, sends `signal` once it watches, and resolves with the exit code. */
+/**
+ * Starts `permdock collect --watch`, sends `signal` once it watches, and
+ * resolves with the exit code.
+ */
 function watchThenSignal(signal: NodeJS.Signals): Promise<number | null> {
   mkdirSync(TMP, { recursive: true });
   const cwd = mkdtempSync(join(TMP, "bin-"));

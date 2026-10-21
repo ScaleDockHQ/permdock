@@ -16,9 +16,9 @@ export type ProblemFromErrorOptions = {
 
 /**
  * Turns a thrown PermDock error into its Problem Details response, with the
- * status, `WWW-Authenticate` and rate-limit fields `protect` sends for the
- * same decision. Returns `undefined` for anything else so the framework's own
- * error path takes over.
+ * status, `WWW-Authenticate` and rate-limit fields `protect` sends for the same
+ * decision. Returns `undefined` for anything else so the framework's own error
+ * path takes over.
  */
 export function problemFromError(
   error: unknown,

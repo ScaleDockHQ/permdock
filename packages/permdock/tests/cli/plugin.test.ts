@@ -89,9 +89,9 @@ describe("createPermDockPlugin", () => {
     const previous = process.cwd();
     process.chdir(cwd);
     try {
-      const config = createPermDockPlugin({
-        collect: { srcPath: ["./src"] },
-      })(async () => ({ reactStrictMode: true }));
+      const config = createPermDockPlugin({ collect: { srcPath: ["./src"] } })(
+        async () => ({ reactStrictMode: true }),
+      );
       await expect(config("phase-production-server", {})).resolves.toEqual({
         reactStrictMode: true,
       });
@@ -163,9 +163,9 @@ describe("createPermDockPlugin", () => {
     process.chdir(cwd);
     vi.stubEnv("PERMDOCK_COLLECT", "write");
     try {
-      const config = createPermDockPlugin({
-        collect: { srcPath: ["./src"] },
-      })({ reactStrictMode: true });
+      const config = createPermDockPlugin({ collect: { srcPath: ["./src"] } })({
+        reactStrictMode: true,
+      });
       await config("phase-production-build", {});
       expect(existsSync(join(cwd, "permissions.catalog.json"))).toBe(true);
     } finally {
@@ -261,9 +261,9 @@ describe("createPermDockPlugin", () => {
     const previous = process.cwd();
     process.chdir(cwd);
     try {
-      const config = createPermDockPlugin({
-        collect: { srcPath: ["./src"] },
-      })({});
+      const config = createPermDockPlugin({ collect: { srcPath: ["./src"] } })(
+        {},
+      );
       await config("phase-development-server", {});
       const catalog = join(cwd, "permissions.catalog.json");
       expect(readFileSync(catalog, "utf8")).not.toContain("post.export");

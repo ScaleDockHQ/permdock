@@ -1,6 +1,9 @@
 import { decodePreset, generatePreset } from "permdock/preset";
 
-/** The shadcn registry item a preset code installs, or `null` for a code this version cannot read. */
+/**
+ * The shadcn registry item a preset code installs, or `null` for a code this
+ * version cannot read.
+ */
 export function presetItem(
   code: string,
   origin: string,

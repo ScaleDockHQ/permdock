@@ -2,7 +2,10 @@ export type RevocationEvent = {
   readonly principal: string;
   readonly session?: string;
   readonly tenant?: string;
-  /** `session-revoked` ends a connection; `changed` makes it re-resolve its subject. */
+  /**
+   * `session-revoked` ends a connection; `changed` makes it re-resolve its
+   * subject.
+   */
   readonly kind: "session-revoked" | "changed";
 };
 

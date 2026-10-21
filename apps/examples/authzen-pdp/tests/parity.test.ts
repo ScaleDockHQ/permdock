@@ -76,11 +76,7 @@ instance(
 collection(permissions.post.create, both);
 collection(permissions.post.list, both);
 
-describePolicy(policy, {
-  subjects,
-  fixtures: { ownPost, otherPost },
-  matrix,
-});
+describePolicy(policy, { subjects, fixtures: { ownPost, otherPost }, matrix });
 
 function parity(provider: () => DecisionProvider): void {
   for (const testCase of cases) {

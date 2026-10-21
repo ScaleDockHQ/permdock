@@ -153,8 +153,8 @@ function lined(text: string): string {
 }
 
 /**
- * The step that answers an `input_required` error without its own `next`:
- * the same command line with each missing flag or positional filled by a
+ * The step that answers an `input_required` error without its own `next`: the
+ * same command line with each missing flag or positional filled by a
  * placeholder the caller replaces.
  */
 function missingInputNext(
@@ -190,10 +190,7 @@ function typedFlags(argv: readonly string[]): readonly string[] {
 
 export async function run(
   argv: readonly string[],
-  options?: {
-    readonly cwd?: string;
-    readonly io?: CliIo;
-  },
+  options?: { readonly cwd?: string; readonly io?: CliIo },
 ): Promise<RunResult> {
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];

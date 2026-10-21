@@ -74,7 +74,10 @@ export type NestSocket = {
   close?(code?: number, reason?: string): unknown;
 };
 
-/** `Protect(null, data?, { oauthScopes })` needs a principal and one of the OAuth scopes, but no permission. */
+/**
+ * `Protect(null, data?, { oauthScopes })` needs a principal and one of the
+ * OAuth scopes, but no permission.
+ */
 export type NestProtect = (
   permission: Permission | null,
   data?: (req: NestRequest) => unknown,
@@ -82,12 +85,18 @@ export type NestProtect = (
 ) => ClassDecorator & MethodDecorator;
 
 export type NestHandlerOptions = {
-  /** Controller path; may hold route params such as `:org`. Default `api/permdock`. */
+  /**
+   * Controller path; may hold route params such as `:org`. Default
+   * `api/permdock`.
+   */
   readonly path?: string;
 };
 
 export type PermDockModuleOptions = {
-  /** `"global"` registers `PermDockGuard` as `APP_GUARD`, so every `Protect` rule runs without `UseGuards`. */
+  /**
+   * `"global"` registers `PermDockGuard` as `APP_GUARD`, so every `Protect`
+   * rule runs without `UseGuards`.
+   */
   readonly guard?: "global";
 };
 
@@ -172,7 +181,10 @@ type Loads = (
   loader: ((req: NestRequest) => unknown) | undefined,
 ) => (() => unknown) | undefined;
 
-/** One call per loader for a request, so class and method rules naming the same loader share its row. */
+/**
+ * One call per loader for a request, so class and method rules naming the same
+ * loader share its row.
+ */
 function loadsFor(req: NestRequest | undefined): Loads {
   const loaded = new Map<(req: NestRequest) => unknown, Promise<unknown>>();
   return (loader) => {
@@ -281,7 +293,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       return conn;
     });
 
-  /** Decides each rule for a gateway message against the client's connection, as `protect` does for HTTP. */
+  /**
+   * Decides each rule for a gateway message against the client's connection, as
+   * `protect` does for HTTP.
+   */
   const checkMessage = async (
     rules: readonly ProtectRule[],
     conn: Connection,
@@ -430,10 +445,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         useFactory: (): PermDockExceptionFilter =>
           new PermDockExceptionFilter(),
       },
-      {
-        provide: APP_FILTER,
-        useExisting: PermDockExceptionFilter,
-      },
+      { provide: APP_FILTER, useExisting: PermDockExceptionFilter },
     ],
     exports: [PermDockGuard, PermDockExceptionFilter],
   })(PermDockRoot);

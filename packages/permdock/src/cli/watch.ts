@@ -208,9 +208,9 @@ export function createCollectScheduler(
 }
 
 /**
- * `collect --watch`: one collect now, then one per change until Ctrl-C.
- * Under `--json` each collect is an NDJSON event on stdout; otherwise a
- * line on stderr.
+ * `collect --watch`: one collect now, then one per change until Ctrl-C. Under
+ * `--json` each collect is an NDJSON event on stdout; otherwise a line on
+ * stderr.
  */
 export async function watchCollect(
   ctx: CliContext,

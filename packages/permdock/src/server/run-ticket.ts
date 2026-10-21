@@ -27,7 +27,10 @@ import {
 
 const RUN_TICKET_TYP = "vnd.permdock.run+jwt";
 
-/** What started the run: a saved automation, a background job, or a caller's own request. */
+/**
+ * What started the run: a saved automation, a background job, or a caller's own
+ * request.
+ */
 export type RunKind = "automation" | "job" | "caller";
 
 /** RFC 8693 `act`: the party running the work, with the chain of earlier actors. */
@@ -37,7 +40,10 @@ export type RunActClaim = {
   readonly act?: RunActClaim;
 };
 
-/** The connector and tools a run may reach; carried for the adapter, never a grant. */
+/**
+ * The connector and tools a run may reach; carried for the adapter, never a
+ * grant.
+ */
 export type RunBinding = {
   readonly connector?: string;
   readonly tools?: readonly string[];
@@ -48,7 +54,10 @@ export type RunAutomation = {
   readonly version: number | string;
 };
 
-/** The v1 claims of a `vnd.permdock.run+jwt`. At least one of `scope` and `authorization_details` is present. */
+/**
+ * The v1 claims of a `vnd.permdock.run+jwt`. At least one of `scope` and
+ * `authorization_details` is present.
+ */
 export type RunTicket = {
   readonly v: 1;
   readonly iss: string;
@@ -64,14 +73,17 @@ export type RunTicket = {
   /** Present exactly when `kind` is `automation`. */
   readonly automation?: RunAutomation;
   readonly tenant?: string;
-  /** The event that started the run, as JSON. Evaluation never reads it as a grant. */
+  /**
+   * The event that started the run, as JSON. Evaluation never reads it as a
+   * grant.
+   */
   readonly trigger?: Readonly<Record<string, unknown>>;
   readonly binding?: RunBinding;
 };
 
 /**
- * Every v1 claim of a `vnd.permdock.run+jwt`, the set `parseRunTicket` keeps.
- * A signing service passes only these to its signer.
+ * Every v1 claim of a `vnd.permdock.run+jwt`, the set `parseRunTicket` keeps. A
+ * signing service passes only these to its signer.
  */
 export const RUN_TICKET_CLAIMS: readonly (keyof RunTicket)[] = Object.freeze([
   "v",
@@ -97,7 +109,10 @@ export type RunTicketInput = {
   readonly kind: RunKind;
   /** Becomes `act`; a nested `act` on the actor is kept as the chain. */
   readonly actor?: Actor;
-  /** The run's ceiling. Required: a ticket never carries the principal's full authority. */
+  /**
+   * The run's ceiling. Required: a ticket never carries the principal's full
+   * authority.
+   */
   readonly delegation: Delegation;
   readonly automation?: RunAutomation;
   readonly tenant?: string;
@@ -390,9 +405,9 @@ function parseBody(
 }
 
 /**
- * Validates untrusted run-ticket claims and returns a frozen copy with only
- * the v1 fields, or `undefined`. Unknown claims are dropped; a wrong type in
- * a known claim, a missing delegation, or an `automation` that does not match
+ * Validates untrusted run-ticket claims and returns a frozen copy with only the
+ * v1 fields, or `undefined`. Unknown claims are dropped; a wrong type in a
+ * known claim, a missing delegation, or an `automation` that does not match
  * `kind` rejects the whole ticket.
  */
 export function parseRunTicket(claims: unknown): RunTicket | undefined {

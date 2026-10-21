@@ -42,9 +42,9 @@ import { deniedNow, deniedWithAlternatives } from "./complete.ts";
 type ScopeMatch = ReturnType<typeof matchScopedMembership>;
 
 /**
- * A collection write proposes `next`; an update pair may move `next` out of
- * the scope `current` is in. An allow needs both in scope; a deny applies
- * when either is, so a move into or out of its scope stays denied.
+ * A collection write proposes `next`; an update pair may move `next` out of the
+ * scope `current` is in. An allow needs both in scope; a deny applies when
+ * either is, so a move into or out of its scope stays denied.
  */
 function matchWriteScope(
   match: (row: unknown) => ScopeMatch,
@@ -67,7 +67,10 @@ function matchWriteScope(
   return moved.ok ? first : moved;
 }
 
-/** The code grants and custom-role grants for the permission, break-glass grants aside. */
+/**
+ * The code grants and custom-role grants for the permission, break-glass grants
+ * aside.
+ */
 export function candidatesFor(call: EvaluationCall): Candidate[] {
   const { permission } = call;
   const candidates: Candidate[] = (
@@ -145,7 +148,8 @@ function holdsRole(
 
 /**
  * Whether the subject holds every role the grantee names, at a scope the row
- * (and a write's next row) is in. `held: false` when a denial or skip was recorded.
+ * (and a write's next row) is in. `held: false` when a denial or skip was
+ * recorded.
  */
 function roleScope(
   state: EvaluationState,
@@ -275,7 +279,10 @@ function granteeOf(
   return undefined;
 }
 
-/** One candidate grant: records an allow, a denial or a skip, or returns the decision a deny ends with. */
+/**
+ * One candidate grant: records an allow, a denial or a skip, or returns the
+ * decision a deny ends with.
+ */
 export function evaluateCandidate(
   state: EvaluationState,
   { grant, custom }: Candidate,
@@ -404,7 +411,10 @@ export function evaluateCandidate(
   return undefined;
 }
 
-/** Adds the break-glass allow, or puts its denial first, once every candidate has run. */
+/**
+ * Adds the break-glass allow, or puts its denial first, once every candidate
+ * has run.
+ */
 export function mergeBreakGlass(
   state: EvaluationState,
   breakGlass: BreakGlass,

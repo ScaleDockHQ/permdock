@@ -32,10 +32,7 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
       type: null as unknown as PropType<unknown>,
       required: false,
     },
-    tenant: {
-      type: String,
-      required: false,
-    },
+    tenant: { type: String, required: false },
   },
   setup(props, { slots }): () => VNode | VNode[] | string | null {
     const local = usePermission(
@@ -71,9 +68,7 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
               "denied",
               own,
               defaults,
-            )?.({
-              decision: view.decision,
-            }) ?? null
+            )?.({ decision: view.decision }) ?? null
           );
         case "approval":
           return (
@@ -81,9 +76,7 @@ export const Protected: DefineComponent<ProtectedProps> = defineComponent({
               "approval",
               own,
               defaults,
-            )?.({
-              decision: view.decision,
-            }) ?? null
+            )?.({ decision: view.decision }) ?? null
           );
         case "default":
           return slots["default"]?.({ decision: view.decision }) ?? null;

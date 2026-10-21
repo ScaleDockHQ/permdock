@@ -20,10 +20,10 @@ async function automationOf(
 }
 
 /**
- * Checks an `AutomationSource`: `automation(id)` answers each listed id
- * with a valid Automation v1 record of that id or `null`, never another id;
- * a record held to one tenant is `null` when asked for another; an empty or
- * unknown id is `null`.
+ * Checks an `AutomationSource`: `automation(id)` answers each listed id with a
+ * valid Automation v1 record of that id or `null`, never another id; a record
+ * held to one tenant is `null` when asked for another; an empty or unknown id
+ * is `null`.
  */
 export function testAutomationSource(
   source: AutomationSource,
@@ -31,7 +31,10 @@ export function testAutomationSource(
     readonly automations: readonly {
       readonly id: string;
       readonly tenant?: string;
-      /** The record `automation(id)` returns, or `null` for none; omit to check only the shape. */
+      /**
+       * The record `automation(id)` returns, or `null` for none; omit to check
+       * only the shape.
+       */
       readonly expect?: Automation | null;
     }[];
   },
@@ -86,16 +89,19 @@ async function sessionOf(
 }
 
 /**
- * Checks a `SupportSessionSource`: `session(id)` answers each listed id
- * with a record of that id or `null`, never another id; `ended` is a
- * boolean when present; an empty or unknown id is `null`.
+ * Checks a `SupportSessionSource`: `session(id)` answers each listed id with a
+ * record of that id or `null`, never another id; `ended` is a boolean when
+ * present; an empty or unknown id is `null`.
  */
 export function testSupportSessionSource(
   source: SupportSessionSource,
   options: {
     readonly sessions: readonly {
       readonly id: string;
-      /** `true` for an ended session, `false` for a live one, `null` for an unknown one. */
+      /**
+       * `true` for an ended session, `false` for a live one, `null` for an
+       * unknown one.
+       */
       readonly ended?: boolean | null;
     }[];
   },
@@ -132,7 +138,10 @@ export function testSupportSessionSource(
 
 const SETTLED = Symbol("settled");
 
-/** Whether `promise` settles within `ms` milliseconds; a rejection counts as settled. */
+/**
+ * Whether `promise` settles within `ms` milliseconds; a rejection counts as
+ * settled.
+ */
 async function settlesWithin(
   promise: Promise<unknown>,
   ms: number,
@@ -157,17 +166,20 @@ async function settlesWithin(
 }
 
 /**
- * Checks an `ApprovalWaiter`: a wait ends when its token is woken and not
- * when another token is; waking a token nobody waits on resolves; a wait
- * whose `expiresAt` has passed ends; an aborted `signal` rejects the wait with its reason.
- * Pass `expiry: false` or `abort: false` for a waiter whose runner offers no
- * timer or no cancellation, `pending` when the waiter reads a store, and
- * `parked` when a wait parks asynchronously.
+ * Checks an `ApprovalWaiter`: a wait ends when its token is woken and not when
+ * another token is; waking a token nobody waits on resolves; a wait whose
+ * `expiresAt` has passed ends; an aborted `signal` rejects the wait with its
+ * reason. Pass `expiry: false` or `abort: false` for a waiter whose runner
+ * offers no timer or no cancellation, `pending` when the waiter reads a store,
+ * and `parked` when a wait parks asynchronously.
  */
 export function testApprovalWaiter(
   waiter: ApprovalWaiter,
   options: {
-    /** Opens a pending approval request and returns its token; a fixed token per label when absent. */
+    /**
+     * Opens a pending approval request and returns its token; a fixed token per
+     * label when absent.
+     */
     readonly pending?: (label: string) => string | Promise<string>;
     /** Resolves once `wait(token)` has parked; one macrotask when absent. */
     readonly parked?: (token: string) => Promise<void>;

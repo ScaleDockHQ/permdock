@@ -17,8 +17,8 @@ import { HELPERS } from "../sql/shared.ts";
 const NAME = /^[a-z_][a-z0-9_]*$/u;
 
 /**
- * The key a legacy caller passes, mapped the way `rls migrate` maps it:
- * `keys` and `renamed` exactly, then the longest `prefixes` entry.
+ * The key a legacy caller passes, mapped the way `rls migrate` maps it: `keys`
+ * and `renamed` exactly, then the longest `prefixes` entry.
  */
 function mappedKey(
   config: RlsMigrateConfig,
@@ -52,7 +52,10 @@ function scopeOf(ctx: RlsSqlContext, scope: string): string {
   return scope;
 }
 
-/** Per scope and permission key, the grant keys a shim or a permission-key helper may answer from. */
+/**
+ * Per scope and permission key, the grant keys a shim or a permission-key
+ * helper may answer from.
+ */
 export type ShimGrants = ReadonlyMap<
   string,
   Readonly<
@@ -83,10 +86,10 @@ function addKey(list: string[], key: string): void {
 
 /**
  * The grant keys behind each permission, per scope: the keys of its
- * unconditional allows, and every deny key. A shim cannot apply a row
- * condition or a validity window, so a conditional allow answers nothing and
- * a conditional deny always subtracts; the conditioned keys are listed apart.
- * A break-glass key answers only the break-glass read, so it is left out too.
+ * unconditional allows, and every deny key. A shim cannot apply a row condition
+ * or a validity window, so a conditional allow answers nothing and a
+ * conditional deny always subtracts; the conditioned keys are listed apart. A
+ * break-glass key answers only the break-glass read, so it is left out too.
  * Rows seeded under a former key are left out; the shim maps a former key to
  * the current one first.
  */
@@ -176,7 +179,10 @@ function grantKeys(
   return `pg_catalog.jsonb_array_elements_text(coalesce(${keys.map(scope)} -> (${keys.key}) -> ${quoteLiteral(effect)}, '[]'::jsonb)) g(grant_key)`;
 }
 
-/** The instances of `scope` the caller holds an unconditional allow of the key in, minus those it holds a deny in. */
+/**
+ * The instances of `scope` the caller holds an unconditional allow of the key
+ * in, minus those it holds a deny in.
+ */
 function idsSql(ctx: RlsSqlContext, keys: Keys, scope: string): string {
   const helper = qualified(ctx, permittedIdsHelper(scope));
   return `  select a.id
@@ -299,10 +305,10 @@ function shim(
  * One wrapper per `rls.migrate.helpers` entry under its legacy name, so SQL
  * that `rls migrate` has not rewritten yet (function bodies, views, triggers)
  * answers from the PermDock helpers. A wrapper maps the legacy key to the
- * permission key, then to the grant keys `grants` lists for the helper's
- * scope, so a permission whose grants are split by condition still answers.
- * Each is `security definer` with an empty `search_path`, so a caller needs
- * `execute` on the wrapper only, not usage on the helper schema.
+ * permission key, then to the grant keys `grants` lists for the helper's scope,
+ * so a permission whose grants are split by condition still answers. Each is
+ * `security definer` with an empty `search_path`, so a caller needs `execute`
+ * on the wrapper only, not usage on the helper schema.
  */
 export function shimsSql(
   ctx: RlsSqlContext,

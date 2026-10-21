@@ -12,7 +12,10 @@ export function QuotesSkeleton() {
   );
 }
 
-/** The rows RLS lets the caller read: every quote for an owner, one customer's for a contact. */
+/**
+ * The rows RLS lets the caller read: every quote for an owner, one customer's
+ * for a contact.
+ */
 export async function Quotes(props: {
   readonly params: Promise<{ readonly orgSlug: string }>;
 }) {

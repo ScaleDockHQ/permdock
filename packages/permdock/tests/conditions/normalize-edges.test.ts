@@ -22,9 +22,7 @@ describe("normalizeWhere edges", () => {
     expect(() => normalizeWhere(1)).toThrow(/must be an object/);
     expect(() => normalizeWhere({ a: { nope: true } })).toThrow(/unsupported/);
     expect(normalizeWhere({ a: { in: principal.id } }).op).toBe("in");
-    const nested = normalizeWhere({
-      or: [{ a: 1 }, { or: [{ b: 2 }] }],
-    });
+    const nested = normalizeWhere({ or: [{ a: 1 }, { or: [{ b: 2 }] }] });
     expect(nested.op).toBe("or");
     expect(JSON.stringify(principal.id)).toContain("principal.id");
     expect(Object.keys(principal.id)).toEqual(["ref"]);

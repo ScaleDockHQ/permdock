@@ -93,10 +93,10 @@ function tableRows(
 }
 
 /**
- * The manifest's `rows`: the tables the subject streams sync, as a device
- * reads them. A scope's `rls.memberships` table, else its membership
- * sources; the global roles table; and the custom-role tables in `database`
- * mode. `devices` holds the plan's renamed tables.
+ * The manifest's `rows`: the tables the subject streams sync, as a device reads
+ * them. A scope's `rls.memberships` table, else its membership sources; the
+ * global roles table; and the custom-role tables in `database` mode. `devices`
+ * holds the plan's renamed tables.
  */
 export function localRows(
   policy: Policy,

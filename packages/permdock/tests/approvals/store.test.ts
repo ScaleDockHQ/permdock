@@ -651,9 +651,7 @@ describe("approvalsHandler", () => {
 
     const bareStore = memoryApprovalStore();
     bareStore.create(
-      pending({
-        subject: { principal: { id: "u_1", roles: ["member"] } },
-      }),
+      pending({ subject: { principal: { id: "u_1", roles: ["member"] } } }),
     );
     const bareHandler = approvalsHandler(bareStore, {
       subject: () => ({

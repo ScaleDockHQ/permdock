@@ -59,7 +59,10 @@ function leaf(
   return found;
 }
 
-/** Imports the generated module with its `permdock` import pointed at the source. */
+/**
+ * Imports the generated module with its `permdock` import pointed at the
+ * source.
+ */
 async function load(file: string): Promise<Generated> {
   const local = file.replace(/\.ts$/u, ".local.ts");
   writeFileSync(

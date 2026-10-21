@@ -57,7 +57,10 @@ function renderedOf(
     : renderGroup(resource, locationOf(request, "Groups", resource.id));
 }
 
-/** `false` when `If-Match` names a version other than `current`'s; a missing resource passes to the store. */
+/**
+ * `false` when `If-Match` names a version other than `current`'s; a missing
+ * resource passes to the store.
+ */
 function matches(
   request: Request,
   current: DirectoryUser | DirectoryGroup | null,

@@ -20,9 +20,9 @@ import type { Snapshot } from "../core/snapshot-types.ts";
 
 export type SveltePermDockOptions = ProviderOptionsBase & {
   /**
-   * A getter (`() => data.snapshot`) or a readable store re-hydrates the
-   * store when it changes; a promise keeps the store `pending` until it
-   * settles (render the same promise with `{#await}`).
+   * A getter (`() => data.snapshot`) or a readable store re-hydrates the store
+   * when it changes; a promise keeps the store `pending` until it settles
+   * (render the same promise with `{#await}`).
    */
   readonly snapshot:
     | Snapshot
@@ -30,9 +30,15 @@ export type SveltePermDockOptions = ProviderOptionsBase & {
     | (() => Snapshot | string)
     | Readable<Snapshot | string>
     | PromiseLike<Snapshot | string>;
-  /** A getter (`() => page.params.org`) switches the active tenant (`refresh({ tenant })`) when it changes. */
+  /**
+   * A getter (`() => page.params.org`) switches the active tenant (`refresh({
+   * tenant })`) when it changes.
+   */
   readonly tenant?: string | (() => string | undefined);
-  /** A getter is read on every request, so a rotated token applies without a new store. */
+  /**
+   * A getter is read on every request, so a rotated token applies without a new
+   * store.
+   */
   readonly headers?:
     | Readonly<Record<string, string>>
     | (() => Readonly<Record<string, string>> | undefined);

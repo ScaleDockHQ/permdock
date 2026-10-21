@@ -311,10 +311,7 @@ describe("RFC 9449 DPoP (September 2023), section 4.3 proof checks", () => {
     const dpop = await proof(token);
     expect(
       await verifyDpopProof(request(dpop), { cnf: { jkt } }, other),
-    ).toEqual({
-      ok: false,
-      cause: "dpop-proof-invalid",
-    });
+    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 
   it("section 6.1: the proof key must match cnf.jkt", async () => {
@@ -323,9 +320,6 @@ describe("RFC 9449 DPoP (September 2023), section 4.3 proof checks", () => {
     const dpop = await proof(token, { key: stranger });
     expect(
       await verifyDpopProof(request(dpop), { cnf: { jkt } }, token),
-    ).toEqual({
-      ok: false,
-      cause: "dpop-proof-invalid",
-    });
+    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 });

@@ -1,11 +1,17 @@
 import type { Client } from "pg";
 
-/** The Splinter release the oracle runs; `splinter.json` is fetched, never vendored. */
+/**
+ * The Splinter release the oracle runs; `splinter.json` is fetched, never
+ * vendored.
+ */
 const SPLINTER_VERSION = "2026.09.1";
 
 const SPLINTER_URL = `https://github.com/supabase/splinter/releases/download/${SPLINTER_VERSION}/splinter.json`;
 
-/** Supabase's `[api] schemas` default: what `pgrst.db_schemas` holds on a new project. */
+/**
+ * Supabase's `[api] schemas` default: what `pgrst.db_schemas` holds on a new
+ * project.
+ */
 const API_SCHEMAS = "public,graphql_public";
 
 type Lint = { readonly name: string; readonly query: string };
@@ -63,8 +69,8 @@ function splinter(): Promise<Splinter> {
 }
 
 /**
- * Every Splinter row on the database after `sql` runs, inside one
- * transaction that rolls back, so scenarios can share a container.
+ * Every Splinter row on the database after `sql` runs, inside one transaction
+ * that rolls back, so scenarios can share a container.
  */
 export async function runSplinter(
   client: Client,
@@ -129,8 +135,8 @@ function generatedObjects(sql: string): readonly string[] {
 }
 
 /**
- * WARN and ERROR rows about what `generated` creates, minus `allow`: each
- * entry is a `cache_key` prefix with the reason it is accepted.
+ * WARN and ERROR rows about what `generated` creates, minus `allow`: each entry
+ * is a `cache_key` prefix with the reason it is accepted.
  */
 export function generatedFindings(
   findings: readonly SplinterFinding[],

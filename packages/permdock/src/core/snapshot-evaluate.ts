@@ -47,7 +47,10 @@ function coveredByInclude(snapshot: Snapshot, permission: Permission): boolean {
   );
 }
 
-/** The field of `resource` that holds scope `name`'s id in a snapshot: its `fields` entry, else the scope's key. */
+/**
+ * The field of `resource` that holds scope `name`'s id in a snapshot: its
+ * `fields` entry, else the scope's key.
+ */
 function snapshotField(
   snapshot: Snapshot,
   name: string,

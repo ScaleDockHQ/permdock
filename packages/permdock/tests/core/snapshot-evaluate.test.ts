@@ -170,12 +170,7 @@ describe("evaluateSnapshot", () => {
     const client = fromSnapshot(
       snapshotWith([
         allowRead,
-        {
-          ...allowRead,
-          effect: "deny",
-          portable: false,
-          fields: ["secret"],
-        },
+        { ...allowRead, effect: "deny", portable: false, fields: ["secret"] },
       ]),
     );
     const row = { id: "d1", title: "t", secret: "s" };

@@ -39,12 +39,12 @@ export type SolidStartPermDockOptions<TUser = unknown> = FetchAdapterOptions<
 export type SolidStartPermDockLocals<
   TData = unknown,
   V extends PolicyVocabulary = PolicyVocabulary,
-> = {
-  readonly permdock: PermDock<V>;
-  readonly permdockData: TData;
-};
+> = { readonly permdock: PermDock<V>; readonly permdockData: TData };
 
-/** The event a wrapped API route receives: its own `APIEvent` with typed `locals`. */
+/**
+ * The event a wrapped API route receives: its own `APIEvent` with typed
+ * `locals`.
+ */
 export type SolidStartPermDockEvent<
   TEvent extends FetchEvent = APIEvent,
   TData = unknown,
@@ -80,13 +80,25 @@ export type SolidStartPermDockHandlers = {
 
 export type SolidStartPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
   {
-    /** Sets `event.context.permdock` on the h3 event; a bad Web Bot Auth signature is a `401`. */
+    /**
+     * Sets `event.context.permdock` on the h3 event; a bad Web Bot Auth
+     * signature is a `401`.
+     */
     readonly middleware: () => SolidStartMiddleware;
-    /** `export const DELETE = protect(permissions.post.delete, loadPost)(handler)`. */
+    /**
+     * `export const DELETE = protect(permissions.post.delete,
+     * loadPost)(handler)`.
+     */
     readonly protect: SolidStartProtect<V>;
-    /** Types `event.locals.permdock` for an API route and answers a thrown PermDock error with Problem Details. */
+    /**
+     * Types `event.locals.permdock` for an API route and answers a thrown
+     * PermDock error with Problem Details.
+     */
     readonly withPermDock: SolidStartGuarded<unknown, V>;
-    /** The instance for an API route, or a server function through `getRequestEvent()`. */
+    /**
+     * The instance for an API route, or a server function through
+     * `getRequestEvent()`.
+     */
     readonly getPermDock: (event: FetchEvent) => Promise<PermDock<V>>;
     /** The snapshot a route `query` returns for `permdock/solid`. */
     readonly getSnapshot: (
@@ -97,7 +109,10 @@ export type SolidStartPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
       event: FetchEvent,
       connectionOptions?: ConnectionOptions,
     ) => Promise<Connection>;
-    /** `export const { GET, POST } = permdockHandler()` in `src/routes/api/permdock.ts`. */
+    /**
+     * `export const { GET, POST } = permdockHandler()` in
+     * `src/routes/api/permdock.ts`.
+     */
     readonly permdockHandler: () => SolidStartPermDockHandlers;
     readonly openapi: OpenApiHooks;
   };

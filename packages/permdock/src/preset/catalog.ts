@@ -1,8 +1,7 @@
 /**
- * The preset catalogue: every choice `/create` and `permdock init` offer.
- * Each list is append-only and its order is part of the preset code
- * (`codec.ts`): a new choice goes at the end, and a removed one keeps its
- * slot as `retired`.
+ * The preset catalogue: every choice `/create` and `permdock init` offer. Each
+ * list is append-only and its order is part of the preset code (`codec.ts`): a
+ * new choice goes at the end, and a removed one keeps its slot as `retired`.
  */
 
 export type ArchetypeId =
@@ -237,9 +236,9 @@ export const FRAMEWORKS: readonly Choice<FrameworkId>[] = [
 ];
 
 /**
- * Agent runtimes and UI recipes. The preset code keeps one bitset per
- * `kind`, each in this list's order, so a new entry goes after the last
- * one of its kind.
+ * Agent runtimes and UI recipes. The preset code keeps one bitset per `kind`,
+ * each in this list's order, so a new entry goes after the last one of its
+ * kind.
  */
 export const INTEGRATIONS: readonly Integration[] = [
   {
@@ -296,7 +295,10 @@ export const SERVICES: readonly Choice<ServiceId>[] = [
   },
 ];
 
-/** A complete preset: every choice `/create` and `permdock init` offer, resolved. */
+/**
+ * A complete preset: every choice `/create` and `permdock init` offer,
+ * resolved.
+ */
 export type Preset = {
   readonly archetype: ArchetypeId;
   readonly features: readonly FeatureId[];
@@ -307,10 +309,11 @@ export type Preset = {
   readonly services: readonly ServiceId[];
 };
 
-/** What a person picks; `resolvePreset` fills in the rest from `PRESET_DEFAULTS`. */
-export type PresetInput = Partial<Preset> & {
-  readonly archetype: ArchetypeId;
-};
+/**
+ * What a person picks; `resolvePreset` fills in the rest from
+ * `PRESET_DEFAULTS`.
+ */
+export type PresetInput = Partial<Preset> & { readonly archetype: ArchetypeId };
 
 /** The choices a preset starts from, in `/create` and in `permdock init`. */
 export const PRESET_DEFAULTS: Preset = Object.freeze({
@@ -343,10 +346,9 @@ function requiredBy(
 }
 
 /**
- * The preset `input` describes, with every feature its archetype,
- * integrations and other features require turned on, and lists in
- * catalogue order. Features are only ever added, so resolving twice is a
- * no-op.
+ * The preset `input` describes, with every feature its archetype, integrations
+ * and other features require turned on, and lists in catalogue order. Features
+ * are only ever added, so resolving twice is a no-op.
  */
 export function resolvePreset(input: PresetInput): Preset {
   const integrations = INTEGRATIONS.map((item) => item.id).filter((id) =>

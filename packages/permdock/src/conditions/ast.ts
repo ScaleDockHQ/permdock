@@ -1,10 +1,6 @@
-export type ConditionRef = {
-  readonly ref: string;
-};
+export type ConditionRef = { readonly ref: string };
 
-export type ConditionDate = {
-  readonly date: string;
-};
+export type ConditionDate = { readonly date: string };
 
 export type ConditionValue =
   | string
@@ -93,27 +89,34 @@ export type RelatedCondition = {
   readonly op: "related";
   readonly resource: string;
   readonly relation: string;
-  /** The row's own id field, or (with `parent` or `hops`) the field holding the next instance's id. */
+  /**
+   * The row's own id field, or (with `parent` or `hops`) the field holding the
+   * next instance's id.
+   */
   readonly field: string;
-  /** Parent hops walked above the first `resource` instance; `0` reads only that instance. */
+  /**
+   * Parent hops walked above the first `resource` instance; `0` reads only that
+   * instance.
+   */
   readonly depth: number;
   /** The row is a child of `resource`, reached through `field`. */
   readonly parent?: true;
   /**
-   * To-one links from the row to `resource`: `field` points at the first
-   * hop's resource, each later hop follows `link` on the resource before it,
-   * and the last hop's resource is `resource`.
+   * To-one links from the row to `resource`: `field` points at the first hop's
+   * resource, each later hop follows `link` on the resource before it, and the
+   * last hop's resource is `resource`.
    */
   readonly hops?: readonly RelatedHop[];
   /**
-   * The `resource` instances the subject holds a resource role on; replaces
-   * the `relation` lookup (`relation` is then empty).
+   * The `resource` instances the subject holds a resource role on; replaces the
+   * `relation` lookup (`relation` is then empty).
    */
   readonly ids?: readonly string[];
   readonly permission?: string;
   /**
    * The row's boolean column that keeps ancestor grants out: with `parent` or
-   * `hops`, a restricted row matches nothing; without, the walk stops at the row.
+   * `hops`, a restricted row matches nothing; without, the walk stops at the
+   * row.
    */
   readonly restricted?: string;
   readonly restrictedAncestors?: RestrictedAncestors;
@@ -128,10 +131,7 @@ export type RestrictedAncestors = {
   readonly field: string;
 };
 
-export type RelatedHop = {
-  readonly link: string;
-  readonly resource: string;
-};
+export type RelatedHop = { readonly link: string; readonly resource: string };
 
 export type OpaqueCondition = {
   readonly op: "opaque";
@@ -139,9 +139,7 @@ export type OpaqueCondition = {
   readonly fingerprint: string;
 };
 
-export type SqlFunctionField = {
-  readonly field: string;
-};
+export type SqlFunctionField = { readonly field: string };
 
 export type SqlFunctionArg = ConditionValue | SqlFunctionField;
 
@@ -153,14 +151,12 @@ export type SqlFunctionCondition = {
 };
 
 /**
- * The request's session was checked against the Auth server while the
- * subject was resolved (`liveSession: true`), not only verified from the
- * token: a revoked session still verifies until `exp`. Written
- * `{ subject: { session: { live: true } } }`.
+ * The request's session was checked against the Auth server while the subject
+ * was resolved (`liveSession: true`), not only verified from the token: a
+ * revoked session still verifies until `exp`. Written `{ subject: { session: {
+ * live: true } } }`.
  */
-export type LiveSessionCondition = {
-  readonly op: "liveSession";
-};
+export type LiveSessionCondition = { readonly op: "liveSession" };
 
 export type Condition =
   | ComparisonCondition

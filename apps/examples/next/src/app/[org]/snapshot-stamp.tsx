@@ -11,7 +11,10 @@ const clock = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
-/** When the server issued the access snapshot; a private-cache hit repeats the first visit's time. */
+/**
+ * When the server issued the access snapshot; a private-cache hit repeats the
+ * first visit's time.
+ */
 export function SnapshotStamp() {
   const permdock = usePermDock();
   const { issuedAt } = permdock.snapshot();

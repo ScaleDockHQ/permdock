@@ -18,9 +18,9 @@ type GatedButtonProps = Omit<
 };
 
 /**
- * The React Native twin of the web GatedButton, on React Native Reusables:
- * the same useGate decision, with the reason as the accessibility hint.
- * The server checks the action again.
+ * The React Native twin of the web GatedButton, on React Native Reusables: the
+ * same useGate decision, with the reason as the accessibility hint. The server
+ * checks the action again.
  */
 export function GatedButton({
   permission,

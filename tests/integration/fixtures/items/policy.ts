@@ -11,8 +11,8 @@ import {
 } from "permdock";
 
 /**
- * One instance action per operator shape, so each ORM parity scenario
- * isolates one compilation. `item` rows sit in a `folder` (the parent).
+ * One instance action per operator shape, so each ORM parity scenario isolates
+ * one compilation. `item` rows sit in a `folder` (the parent).
  */
 const OPERATORS = {
   eq: { op: "eq", field: "status", value: "open" },
@@ -111,12 +111,7 @@ const OPERATORS = {
     field: "orgId",
     roles: [],
   },
-  memberOfTeam: {
-    op: "memberOf",
-    scope: "team",
-    field: "teamId",
-    roles: [],
-  },
+  memberOfTeam: { op: "memberOf", scope: "team", field: "teamId", roles: [] },
   memberOfFolder: {
     op: "memberOf",
     scope: "resource",
@@ -200,8 +195,8 @@ export type ItemRow = {
 
 /**
  * Adversarial rows: NULL in every nullable column, `%` and `_` in titles, a
- * team id reused across tenants, slug-like owners, and an item whose id is
- * also a folder id (`f1`).
+ * team id reused across tenants, slug-like owners, and an item whose id is also
+ * a folder id (`f1`).
  */
 export const itemRows: readonly ItemRow[] = [
   {
@@ -297,8 +292,8 @@ const PAST = 1_000_000_000;
 
 /**
  * - alice: member of acme, lead of acme team-a, editor of folder f1
- * - bob: member of globex, lead of globex team-a, expired member of acme,
- *   editor of a project whose id collides with folder f1
+ * - bob: member of globex, lead of globex team-a, expired member of acme, editor
+ *   of a project whose id collides with folder f1
  * - user-2: member of org-1
  * - mallory: no memberships
  */

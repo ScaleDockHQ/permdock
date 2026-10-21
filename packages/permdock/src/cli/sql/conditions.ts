@@ -125,7 +125,10 @@ function claimJsonSql(ctx: RlsSqlContext, path: readonly string[]): string {
   return keys.length === 0 ? root : `(${jsonPath(root, keys, "->")})`;
 }
 
-/** The claim at `path` as text: `->>` on the last key, or the plain setting for a one-segment `guc` claim. */
+/**
+ * The claim at `path` as text: `->>` on the last key, or the plain setting for
+ * a one-segment `guc` claim.
+ */
 function claimTextSql(ctx: RlsSqlContext, path: readonly string[]): string {
   const [head] = path;
   if (path.length === 1 && head !== undefined) {
@@ -168,9 +171,9 @@ function typedClaimSql(
 
 /**
  * The elements of an array claim as a Postgres array of the column's type,
- * built once per statement (an uncorrelated `array(select ...)` is an InitPlan).
- * A missing or non-array claim is the empty array; elements of another JSON
- * kind are left out.
+ * built once per statement (an uncorrelated `array(select ...)` is an
+ * InitPlan). A missing or non-array claim is the empty array; elements of
+ * another JSON kind are left out.
  */
 function claimArraySql(
   ctx: RlsSqlContext,
@@ -247,7 +250,10 @@ function compileRef(ref: string, ctx: RlsSqlContext, field?: string): string {
   throw configError(`PermDock CLI: non-portable subject ref '${ref}'`);
 }
 
-/** `value` with `\`, `%` and `_` escaped for `like ... escape '\'`, as `escapeLike` does in process. */
+/**
+ * `value` with `\`, `%` and `_` escaped for `like ... escape '\'`, as
+ * `escapeLike` does in process.
+ */
 function likeLiteralSql(value: string): string {
   return `replace(replace(replace(${value}, '\\', '\\\\'), '%', '\\%'), '_', '\\_')`;
 }
@@ -663,11 +669,11 @@ export function sqlFunctionNames(
 }
 
 /**
- * A `related` condition as uncorrelated subqueries, so Postgres runs the
- * helper once per statement: the row's field in the closure's descendants of
- * the ids the subject holds the relation on (or those ids alone at depth 0).
- * The helper sits in `array(...)` so it stays an InitPlan; a plain `in` gets
- * pulled into a join that can rescan it per closure row.
+ * A `related` condition as uncorrelated subqueries, so Postgres runs the helper
+ * once per statement: the row's field in the closure's descendants of the ids
+ * the subject holds the relation on (or those ids alone at depth 0). The helper
+ * sits in `array(...)` so it stays an InitPlan; a plain `in` gets pulled into a
+ * join that can rescan it per closure row.
  */
 function compileRelatedSql(
   condition: RelatedCondition,
@@ -707,8 +713,8 @@ function compileRelatedSql(
 
 /**
  * A `related` condition that crosses link hops: the reached instances of the
- * last resource, carried back over each link by its security definer helper,
- * so the hop reads a table the subject may not see.
+ * last resource, carried back over each link by its security definer helper, so
+ * the hop reads a table the subject may not see.
  */
 function compileHoppedSql(
   condition: RelatedCondition,
@@ -742,9 +748,7 @@ function compileHoppedSql(
         { text: `select ${schema}.${restrictedHelper(resource)}()` },
       ],
       linked: (resource, link, targets) => [
-        {
-          text: `select ${schema}.${linkHelper(resource, link)}(array(`,
-        },
+        { text: `select ${schema}.${linkHelper(resource, link)}(array(` },
         ...targets,
         { text: "))" },
       ],

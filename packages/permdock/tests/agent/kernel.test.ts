@@ -39,10 +39,7 @@ function tools() {
         return id === "p1" ? ownPost : otherPost;
       },
     },
-    missing_row: {
-      permission: permissions.post.update,
-      data: () => null,
-    },
+    missing_row: { permission: permissions.post.update, data: () => null },
     explode: {
       permission: permissions.post.update,
       data: () => {
@@ -415,9 +412,7 @@ describe("createAgentKernel", () => {
       "delete_post",
       { id: "p1" },
       {},
-      {
-        resumeToken: asked.token,
-      },
+      { resumeToken: asked.token },
     );
     expect(pending.outcome).toBe("denied");
     if (pending.outcome === "denied") {

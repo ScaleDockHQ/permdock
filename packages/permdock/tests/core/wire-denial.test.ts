@@ -16,12 +16,7 @@ describe("wireDenial", () => {
     const limit = { quota: "seats", used: 3, max: 3 };
     const to = { kind: "role", role: "user", scope: "global" } as const;
     expect(
-      wireDenial({
-        role: "member",
-        reason: "limit",
-        detail: limit,
-        to,
-      }),
+      wireDenial({ role: "member", reason: "limit", detail: limit, to }),
     ).toEqual({ role: "member", reason: "limit", detail: limit, to });
     expect(
       wireDenial({ role: null, reason: "not-entitled", detail: "pro" }),

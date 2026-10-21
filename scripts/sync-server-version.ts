@@ -1,6 +1,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
-/** Writes the `permdock` package version into `server.json`; `version-packages` runs it after `changeset version`. */
+/**
+ * Writes the `permdock` package version into `server.json`; `version-packages`
+ * runs it after `changeset version`.
+ */
 const root = new URL("../", import.meta.url);
 const read = (path: string): unknown =>
   JSON.parse(readFileSync(new URL(path, root), "utf8"));

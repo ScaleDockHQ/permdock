@@ -22,7 +22,10 @@ function headerOf(request: Request): string | null {
 }
 
 export type DpopProofOptions = {
-  /** Rejects a proof whose `jti` this key already used within the 60-second window. */
+  /**
+   * Rejects a proof whose `jti` this key already used within the 60-second
+   * window.
+   */
   readonly replay?: ReplayStore;
 };
 

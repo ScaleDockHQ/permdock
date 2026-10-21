@@ -271,18 +271,16 @@ export function testTokenVerifier(
       expect(valid.claims.sub).toBe("u_1");
       expect(valid.header.alg).toBe("Ed25519");
     }
-    const rows: readonly {
-      readonly token: string;
-      readonly cause: string;
-    }[] = [
-      { token: jwtFixtureTokens.none, cause: "alg-none" },
-      { token: jwtFixtureTokens.expired, cause: "expired" },
-      { token: jwtFixtureTokens.wrongAud, cause: "wrong-audience" },
-      { token: jwtFixtureTokens.wrongIss, cause: "wrong-issuer" },
-      { token: jwtFixtureTokens.unknownKid, cause: "unknown-kid" },
-      { token: "not-a-jwt", cause: "malformed" },
-      { token: "a.b.c.d.e", cause: "encrypted-token" },
-    ];
+    const rows: readonly { readonly token: string; readonly cause: string }[] =
+      [
+        { token: jwtFixtureTokens.none, cause: "alg-none" },
+        { token: jwtFixtureTokens.expired, cause: "expired" },
+        { token: jwtFixtureTokens.wrongAud, cause: "wrong-audience" },
+        { token: jwtFixtureTokens.wrongIss, cause: "wrong-issuer" },
+        { token: jwtFixtureTokens.unknownKid, cause: "unknown-kid" },
+        { token: "not-a-jwt", cause: "malformed" },
+        { token: "a.b.c.d.e", cause: "encrypted-token" },
+      ];
     for (const row of rows) {
       let result: Awaited<ReturnType<TokenVerifier["verify"]>>;
       try {
@@ -305,8 +303,8 @@ function flipLast(value: string): string {
 
 /**
  * `key` is a live key the verifier knows, or a function issuing one (called
- * once). `revoke`, when given, revokes it; the runner then expects the key
- * to stop verifying.
+ * once). `revoke`, when given, revokes it; the runner then expects the key to
+ * stop verifying.
  */
 export function testCredentialVerifier(
   verifier: CredentialVerifier,

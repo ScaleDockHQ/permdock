@@ -15,8 +15,8 @@ const MEMBER = "00000000-0000-4000-8000-0000000000c3";
 
 /**
  * What the Realtime and Storage services' migrations add on a real project,
- * owned by `supabase_admin`: `postgres` may create policies on both tables
- * only through supautils `policy_grants`, as on a hosted project.
+ * owned by `supabase_admin`: `postgres` may create policies on both tables only
+ * through supautils `policy_grants`, as on a hosted project.
  */
 const SERVICES = `
 create table realtime.messages (
@@ -71,7 +71,10 @@ function started(): SupabasePostgres {
   return db;
 }
 
-/** Runs `sql` as `authenticated` with these claims and Realtime topic, then rolls back. */
+/**
+ * Runs `sql` as `authenticated` with these claims and Realtime topic, then
+ * rolls back.
+ */
 async function as<T extends Record<string, unknown>>(
   claims: Readonly<Record<string, unknown>>,
   sql: string,

@@ -29,8 +29,8 @@ const MAX_ERROR_BYTES = 16_384;
 
 /**
  * Signs one event as an RFC 8417 Security Event Token (`typ: secevent+jwt`):
- * `sub_id` is the event's subject and `events` holds exactly one entry, as
- * SSF 1.0 requires. `iss` is the signer's own.
+ * `sub_id` is the event's subject and `events` holds exactly one entry, as SSF
+ * 1.0 requires. `iss` is the signer's own.
  */
 export function signSet(
   event: SetEvent,
@@ -86,10 +86,10 @@ async function errorBody(
 }
 
 /**
- * Pushes one SET to a receiver (RFC 8935). A `2xx` is delivery; a `400`
- * maps the receiver's `err` to a cause; `401` and `403` are
- * `authentication-failed` and `access-denied`; a network failure, a timeout,
- * a `429` or a `5xx` is `unavailable` with `retry: true`. Never throws.
+ * Pushes one SET to a receiver (RFC 8935). A `2xx` is delivery; a `400` maps
+ * the receiver's `err` to a cause; `401` and `403` are `authentication-failed`
+ * and `access-denied`; a network failure, a timeout, a `429` or a `5xx` is
+ * `unavailable` with `retry: true`. Never throws.
  */
 export async function pushSet(
   set: string,
@@ -274,7 +274,10 @@ export type RiscEvents = {
   readonly credentialCompromise: (input: RiscCredentialCompromise) => SetEvent;
 };
 
-/** RISC 1.0 event builders for the events PermDock's receiver treats as revoking every session. */
+/**
+ * RISC 1.0 event builders for the events PermDock's receiver treats as revoking
+ * every session.
+ */
 export const riscEvents: RiscEvents = Object.freeze({
   accountDisabled: (input: RiscAccountDisabled): SetEvent =>
     risc(

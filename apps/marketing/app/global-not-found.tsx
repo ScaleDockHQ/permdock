@@ -5,10 +5,7 @@ import { RootDocument, rootMetadata } from "@/components/site/root-document";
 
 import "./globals.css";
 
-export const metadata: Metadata = {
-  ...rootMetadata,
-  title: "Page not found",
-};
+export const metadata: Metadata = { ...rootMetadata, title: "Page not found" };
 
 export default function GlobalNotFound() {
   return (

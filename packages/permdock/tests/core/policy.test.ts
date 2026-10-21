@@ -16,10 +16,7 @@ import { role } from "../../src/core/role-builder.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 
 const permissions = definePermissions({
-  post: resource({
-    actions: ["read", "update"],
-    collection: ["create"],
-  }),
+  post: resource({ actions: ["read", "update"], collection: ["create"] }),
   org: resource({ actions: ["delete"] }),
 });
 

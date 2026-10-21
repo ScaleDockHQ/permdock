@@ -11,18 +11,27 @@ import {
   permittedByPermissionHelper,
 } from "./permission-keys.ts";
 
-/** `permitted_<scope>_users(p_permission, p_id)`. Names are part of the SQL contract. */
+/**
+ * `permitted_<scope>_users(p_permission, p_id)`. Names are part of the SQL
+ * contract.
+ */
 export function permittedUsersHelper(scope: string): string {
   return checkName(`permitted_${scope}_users`);
 }
 
 type Candidates = {
   readonly sql: string;
-  /** `v_key_<n> <table>.<column>%type`, one per source: `p_id` converted to each source's id column type. */
+  /**
+   * `v_key_<n> <table>.<column>%type`, one per source: `p_id` converted to each
+   * source's id column type.
+   */
   readonly keys: readonly string[];
 };
 
-/** The users with a membership row on the instance `p_id`, or `undefined` when the scope's memberships are not all in tables. */
+/**
+ * The users with a membership row on the instance `p_id`, or `undefined` when
+ * the scope's memberships are not all in tables.
+ */
 function candidatesSql(
   ctx: RlsSqlContext,
   scope: string,
@@ -56,7 +65,10 @@ ${source.holders.rows(scope, { id: `v_key_${String(index)}` }).replaceAll(/^/gmu
   };
 }
 
-/** `language sql`, or PL/pgSQL when a source's id column needs `p_id` in a `%type` variable. */
+/**
+ * `language sql`, or PL/pgSQL when a source's id column needs `p_id` in a
+ * `%type` variable.
+ */
 function functionBody(keys: readonly string[], query: string): string {
   if (keys.length === 0) {
     return `language sql
@@ -87,8 +99,8 @@ $$;`;
  * scope's membership rows and the global-roles table and kept when
  * `permitted_<scope>_ids_by_permission_for` lists the instance or
  * `permdock_has_permission_for` answers, so denies, custom roles, expiry and
- * suspension apply as for the user. It names other users, so no client role
- * may execute it, and a backend role needs its own grant.
+ * suspension apply as for the user. It names other users, so no client role may
+ * execute it, and a backend role needs its own grant.
  */
 export function permissionHoldersSql(ctx: RlsSqlContext): string {
   if (ctx.authorize !== "database") {

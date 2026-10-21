@@ -40,19 +40,22 @@ export type SvelteKitPermDockOptions<TUser = unknown> = FetchAdapterOptions<
 export type SvelteKitPermDockLocals<
   TData = unknown,
   V extends PolicyVocabulary = PolicyVocabulary,
-> = {
-  readonly permdock: PermDock<V>;
-  readonly permdockData: TData;
-};
+> = { readonly permdock: PermDock<V>; readonly permdockData: TData };
 
-/** The event a wrapped handler receives: the route's own event with typed `locals`. */
+/**
+ * The event a wrapped handler receives: the route's own event with typed
+ * `locals`.
+ */
 export type SvelteKitPermDockEvent<
   TEvent extends RequestEvent = RequestEvent,
   TData = unknown,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = TEvent & { readonly locals: SvelteKitPermDockLocals<TData, V> };
 
-/** Wraps a `+server.ts` handler; the route keeps its generated `RequestEvent` type. */
+/**
+ * Wraps a `+server.ts` handler; the route keeps its generated `RequestEvent`
+ * type.
+ */
 export type SvelteKitGuarded<
   TData,
   V extends PolicyVocabulary = PolicyVocabulary,
@@ -74,11 +77,20 @@ export type SvelteKitProtect<V extends PolicyVocabulary = PolicyVocabulary> = {
 };
 
 export type SvelteKitPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  /** The `handle` hook: sets `event.locals.permdock`; a bad Web Bot Auth signature is a `401`. */
+  /**
+   * The `handle` hook: sets `event.locals.permdock`; a bad Web Bot Auth
+   * signature is a `401`.
+   */
   readonly middleware: () => SvelteKitHandle;
-  /** `export const DELETE = protect(permissions.post.delete, loadPost)(handler)`. */
+  /**
+   * `export const DELETE = protect(permissions.post.delete,
+   * loadPost)(handler)`.
+   */
   readonly protect: SvelteKitProtect<V>;
-  /** Types `event.locals.permdock` for a handler and answers a thrown PermDock error with Problem Details. */
+  /**
+   * Types `event.locals.permdock` for a handler and answers a thrown PermDock
+   * error with Problem Details.
+   */
   readonly withPermDock: SvelteKitGuarded<unknown, V>;
   /** The instance for a `load` function, an action or a handler. */
   readonly getPermDock: (event: RequestEvent) => Promise<PermDock<V>>;
@@ -91,7 +103,10 @@ export type SvelteKitPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     event: RequestEvent,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
-  /** `export const { GET, POST } = permdockHandler()` in `src/routes/api/permdock/+server.ts`. */
+  /**
+   * `export const { GET, POST } = permdockHandler()` in
+   * `src/routes/api/permdock/+server.ts`.
+   */
   readonly permdockHandler: () => PermDockHandlers<RequestEvent>;
   readonly openapi: OpenApiHooks;
 };

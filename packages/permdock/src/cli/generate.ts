@@ -17,7 +17,10 @@ export type GeneratedResource = {
   /** Tree path of the resource, for example `['org', 'post']`. */
   readonly path: readonly string[];
   readonly id?: string;
-  /** A validator expression from `schemaExpression`; omitted for a schema-less resource. */
+  /**
+   * A validator expression from `schemaExpression`; omitted for a schema-less
+   * resource.
+   */
   readonly schema?: string;
   readonly actions:
     | readonly string[]
@@ -306,7 +309,10 @@ export function emitPermissionsModule(input: {
   readonly generator: string;
   readonly schema: SchemaKind | undefined;
   readonly resources: readonly GeneratedResource[];
-  /** Extra `export const` declarations written between the imports and `permissions`. */
+  /**
+   * Extra `export const` declarations written between the imports and
+   * `permissions`.
+   */
   readonly exports?: Readonly<Record<string, unknown>>;
 }): string {
   const trie: Trie = new Map();

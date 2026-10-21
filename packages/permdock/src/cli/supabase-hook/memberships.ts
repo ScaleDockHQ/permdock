@@ -50,7 +50,10 @@ export function memberForPlan(input: MemberForInput): {
   return { memberFor, holders, memberships: [...entries.values()] };
 }
 
-/** An `rls.memberships` table in the manifest's `tableMembershipSource` / `junctionMembershipSource` shape, for scope `name`. */
+/**
+ * An `rls.memberships` table in the manifest's `tableMembershipSource` /
+ * `junctionMembershipSource` shape, for scope `name`.
+ */
 function mappedMembership(
   mapped: RlsMembershipTable,
   scopes: readonly Scope[],
@@ -123,9 +126,7 @@ export function activeFromSql(
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(key)) {
       throw configError(`PermDock CLI: unsafe app_metadata key '${key}'`);
     }
-    return {
-      sql: `claims -> 'app_metadata' ->> ${quoteLiteral(key)}`,
-    };
+    return { sql: `claims -> 'app_metadata' ->> ${quoteLiteral(key)}` };
   }
   const parsed =
     typeof spec === "string"

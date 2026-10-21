@@ -33,10 +33,10 @@ function duplicates(
 }
 
 /**
- * The cross-references JSON Schema cannot express: role scopes, permission
- * keys named by operations, grants, delegations and OAuth scopes, unique
- * keys, and with `requireMeta` the permission `meta` fields a consumer needs.
- * Runs on a document that already passed the schema.
+ * The cross-references JSON Schema cannot express: role scopes, permission keys
+ * named by operations, grants, delegations and OAuth scopes, unique keys, and
+ * with `requireMeta` the permission `meta` fields a consumer needs. Runs on a
+ * document that already passed the schema.
  */
 export function catalogReferenceIssues(
   catalog: CatalogDocument,

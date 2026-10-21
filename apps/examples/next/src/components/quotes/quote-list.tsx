@@ -49,7 +49,10 @@ function QuoteRow(props: { readonly quote: Quote; readonly href: string }) {
   );
 }
 
-/** Links use `prefetch={true}`: the prefetch resolves the quote's params and its private access check. */
+/**
+ * Links use `prefetch={true}`: the prefetch resolves the quote's params and its
+ * private access check.
+ */
 export async function QuoteList(props: {
   readonly params: Promise<{ readonly org: string }>;
   readonly prefix: "" | "/portal";

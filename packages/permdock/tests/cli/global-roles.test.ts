@@ -74,10 +74,7 @@ describe("globalRoleSource", () => {
       shared: "shared",
     });
     expect(
-      globalRoleSource(THROUGH, "public", "r", {
-        ...tenant,
-        table: "roles",
-      }),
+      globalRoleSource(THROUGH, "public", "r", { ...tenant, table: "roles" }),
     ).not.toHaveProperty("tenant");
     expect(
       globalRoleSource(THROUGH, "public", "r", {

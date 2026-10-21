@@ -150,9 +150,7 @@ describe("permdock/ai-sdk inside generateText", () => {
       store,
     });
     const execute = vi.fn<() => string>(() => "deleted");
-    const tools = {
-      delete_post: tool({ inputSchema: input, execute }),
-    };
+    const tools = { delete_post: tool({ inputSchema: input, execute }) };
     const first = await generateText({
       model: callsTool("delete_post", { id: "p1" }),
       prompt: "delete p1",

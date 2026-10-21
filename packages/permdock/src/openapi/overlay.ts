@@ -33,7 +33,10 @@ function operationTarget(operationId: string): string {
   return `$.paths.*[?@.operationId == ${jsonPathString(operationId)}]`;
 }
 
-/** The `sha-256:` digest of the sorted permission keys and scopes, so the same catalog gives the same Overlay. */
+/**
+ * The `sha-256:` digest of the sorted permission keys and scopes, so the same
+ * catalog gives the same Overlay.
+ */
 function fingerprint(policy: Policy): string {
   const lines = listPermissions(policy.permissions)
     .map((leaf) => `${leaf.key} ${leaf.scope}`)
@@ -88,9 +91,7 @@ export function overlayOf(
   const catalogAction = {
     target: "$",
     description: "PermDock catalog pin",
-    update: {
-      "x-permdock-catalog": catalogOf(options, drafts),
-    },
+    update: { "x-permdock-catalog": catalogOf(options, drafts) },
   };
   const bodies = operations.map((operation) => {
     const keys = operation.permissions.map((leaf) => leaf.key);

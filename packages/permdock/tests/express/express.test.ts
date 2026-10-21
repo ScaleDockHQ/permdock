@@ -65,9 +65,7 @@ describe("permdock/express", () => {
   });
 
   it("answers 401 with a bare Bearer challenge to a caller without credentials", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => null,
-    });
+    const { protect } = createPermDock(policy, { subject: () => null });
     const app = express();
     app.get(
       "/posts/:id",

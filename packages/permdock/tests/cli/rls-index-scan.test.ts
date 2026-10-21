@@ -35,10 +35,7 @@ create table d (note text default 'x(y', id uuid primary key, unique ((lower(not
 create table e (id uuid unique, unique ("co""de");
 create table f (name text default 'a;
 `),
-    ).toEqual({
-      "public.c": [['it"s']],
-      "public.d": [["id"]],
-    });
+    ).toEqual({ "public.c": [['it"s']], "public.d": [["id"]] });
   });
 });
 

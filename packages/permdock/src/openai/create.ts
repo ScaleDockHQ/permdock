@@ -21,19 +21,18 @@ export type OpenAiContext = {
   readonly [key: string]: unknown;
 };
 
-/** Structural `RunContext` from `@openai/agents`: the app context sits under `context`. */
-export type OpenAiRunContext = {
-  readonly context?: unknown;
-};
+/**
+ * Structural `RunContext` from `@openai/agents`: the app context sits under
+ * `context`.
+ */
+export type OpenAiRunContext = { readonly context?: unknown };
 
 export type OpenAiPermDockOptions<TUser = unknown> = AgentAdapterOptions<
   OpenAiContext,
   TUser
 >;
 
-export type OpenAiTool = {
-  readonly name: string;
-};
+export type OpenAiTool = { readonly name: string };
 
 /** Structural `RunToolApprovalItem` from `@openai/agents`. */
 export type OpenAiInterruption = {

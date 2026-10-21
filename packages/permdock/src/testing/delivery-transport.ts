@@ -19,12 +19,18 @@ import {
   resource,
 } from "../index.ts";
 
-/** How a provider fails on its next call: a retryable error, a final error, or a throw from its client. */
+/**
+ * How a provider fails on its next call: a retryable error, a final error, or a
+ * throw from its client.
+ */
 export type DeliveryFailureKind = "retryable" | "final" | "throw";
 
 export type DeliveryTransportHarness<C extends DeliveryChannel> = {
   readonly transport: DeliveryTransport<C>;
-  /** What the provider accepted, one entry per delivery, with the idempotency key it received. */
+  /**
+   * What the provider accepted, one entry per delivery, with the idempotency
+   * key it received.
+   */
   received():
     | readonly { readonly idempotencyKey: string }[]
     | Promise<readonly { readonly idempotencyKey: string }[]>;
@@ -69,9 +75,9 @@ function key(suffix: string): TransportOptions {
 
 /**
  * Conformance for a `DeliveryTransport`: it sends a checked target with its
- * idempotency key, keeps the key on a retry, refuses a target without a
- * granted decision before calling the provider, and maps provider errors to
- * retryable or final failures without rejecting.
+ * idempotency key, keeps the key on a retry, refuses a target without a granted
+ * decision before calling the provider, and maps provider errors to retryable
+ * or final failures without rejecting.
  */
 export function testDeliveryTransport<C extends DeliveryChannel>(
   name: string,

@@ -44,8 +44,8 @@ export type AccessReviewOptions = {
   readonly permdockFor?: (principalId: string) => PermDock | Promise<PermDock>;
   /**
    * When set, a global role, a plan, a relation or an inherit grant on a
-   * reviewed permission makes `complete` false. Without it the membership
-   * path is incomplete, because those holders cannot be listed from a tenant.
+   * reviewed permission makes `complete` false. Without it the membership path
+   * is incomplete, because those holders cannot be listed from a tenant.
    */
   readonly policy?: Policy;
   readonly now?: Instant;
@@ -169,9 +169,9 @@ function itemsFrom(
 }
 
 /**
- * Opens a review of who holds `permissions` in the caller's active tenant.
- * The caller must be signed in. PermDock stores the population and does not
- * revoke anything: the application changes the source, then `markApplied`.
+ * Opens a review of who holds `permissions` in the caller's active tenant. The
+ * caller must be signed in. PermDock stores the population and does not revoke
+ * anything: the application changes the source, then `markApplied`.
  */
 export async function startAccessReview(
   permdock: PermDock,
@@ -199,10 +199,7 @@ export async function startAccessReview(
   const listed =
     options.holders === undefined
       ? await fromMembers(tenant, input.permissions, options)
-      : {
-          holders: options.holders,
-          complete: options.complete ?? true,
-        };
+      : { holders: options.holders, complete: options.complete ?? true };
   const review: AccessReview = {
     v: 1,
     id: input.id,

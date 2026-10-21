@@ -152,11 +152,14 @@ export async function pd019(
   ];
 }
 
-/** Fixture memberships the policy's scopes would drop: an undeclared scope, a missing parent id, mixed shapes. */
 /**
- * A scope whose roles can all be removed can end up with nobody able to
- * manage it. Setting `min` on any of its roles (even `min: 0`) records the
- * decision and silences the warning.
+ * Fixture memberships the policy's scopes would drop: an undeclared scope, a
+ * missing parent id, mixed shapes.
+ */
+/**
+ * A scope whose roles can all be removed can end up with nobody able to manage
+ * it. Setting `min` on any of its roles (even `min: 0`) records the decision
+ * and silences the warning.
  */
 export async function pd026(
   input: DoctorInput,

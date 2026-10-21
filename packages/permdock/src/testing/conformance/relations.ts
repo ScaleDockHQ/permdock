@@ -145,10 +145,7 @@ export function testRelationSource(
     const read = (query: { readonly resource: string; readonly id: string }) =>
       source.row?.(query);
     for (const object of options.objects) {
-      const row = await read({
-        resource: object.resource,
-        id: object.id,
-      });
+      const row = await read({ resource: object.resource, id: object.id });
       expect(
         row === null ||
           row === undefined ||

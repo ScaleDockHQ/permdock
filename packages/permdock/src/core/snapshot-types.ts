@@ -13,7 +13,10 @@ import type { WireDelegation } from "./wire-delegation.ts";
 
 export type Snapshot = {
   readonly v: 1;
-  /** RFC 3339. The epoch for a snapshot built without a clock. Signed, it is the token's `iat`. */
+  /**
+   * RFC 3339. The epoch for a snapshot built without a clock. Signed, it is the
+   * token's `iat`.
+   */
   readonly issuedAt: string;
   readonly subject: {
     readonly principal: {
@@ -23,13 +26,19 @@ export type Snapshot = {
       readonly tenant?: string;
       readonly memberships?: readonly Membership[];
     } | null;
-    /** OAuth `scope` and RFC 9396 `authorization_details`, as the token carried them. */
+    /**
+     * OAuth `scope` and RFC 9396 `authorization_details`, as the token carried
+     * them.
+     */
     readonly delegation?: WireDelegation;
     readonly context: Readonly<Record<string, unknown>>;
   };
   /** Roles held in the active tenant, in rank order. */
   readonly roles: readonly string[];
-  /** The distinct `meta.audience` values of `roles`, in rank order; absent when none has one. */
+  /**
+   * The distinct `meta.audience` values of `roles`, in rank order; absent when
+   * none has one.
+   */
   readonly audiences?: readonly string[];
   readonly grants: readonly SnapshotGrant[];
   readonly tenants: readonly string[];
@@ -41,18 +50,24 @@ export type Snapshot = {
     readonly roles?: Readonly<Record<string, Role>>;
     readonly plans?: Readonly<Record<string, Plan>>;
   };
-  /** The policy's scopes in order, so a client checks the row against each membership's instance. */
+  /**
+   * The policy's scopes in order, so a client checks the row against each
+   * membership's instance.
+   */
   readonly scopes?: readonly SnapshotScope[];
-  /** One entry per tenant in `tenants`: what the subject may hand out there. Absent without tenants. */
+  /**
+   * One entry per tenant in `tenants`: what the subject may hand out there.
+   * Absent without tenants.
+   */
   readonly assignable?: readonly SnapshotAssignable[];
   /**
-   * Allow grants of held roles that only a plan the subject lacks keeps
-   * from applying; they grant nothing and name the plan a denial asks for.
+   * Allow grants of held roles that only a plan the subject lacks keeps from
+   * applying; they grant nothing and name the plan a denial asks for.
    */
   readonly notEntitled?: readonly SnapshotNotEntitled[];
   /**
-   * The row id field per resource whose `id` option is not `id`, for the
-   * grants in `grants`. Absent when every one reads `id`.
+   * The row id field per resource whose `id` option is not `id`, for the grants
+   * in `grants`. Absent when every one reads `id`.
    */
   readonly ids?: Readonly<Record<string, string>>;
   /**
@@ -64,7 +79,10 @@ export type Snapshot = {
   readonly delegated?: readonly string[];
 };
 
-/** A grant the subject would hold on another plan: its permission, role and `to`. */
+/**
+ * A grant the subject would hold on another plan: its permission, role and
+ * `to`.
+ */
 export type SnapshotNotEntitled = {
   readonly permission: string;
   readonly role: string | null;
@@ -76,18 +94,30 @@ export type SnapshotScope = {
   readonly name: string;
   readonly key: string;
   readonly within?: string;
-  /** Resources whose rows this scope's key partitions, from their `memberOf` relations. */
+  /**
+   * Resources whose rows this scope's key partitions, from their `memberOf`
+   * relations.
+   */
   readonly resources?: readonly string[];
-  /** Resource name to the field holding this scope's id, for a resource whose field is not `key` (its own `id`). */
+  /**
+   * Resource name to the field holding this scope's id, for a resource whose
+   * field is not `key` (its own `id`).
+   */
   readonly fields?: Readonly<Record<string, string>>;
 };
 
-/** The declared roles and the custom-role ceiling the subject may assign in one tenant. */
+/**
+ * The declared roles and the custom-role ceiling the subject may assign in one
+ * tenant.
+ */
 export type SnapshotAssignable = {
   readonly tenant: string;
   readonly roles: readonly string[];
   readonly permissions: readonly Permission[];
-  /** Permission key to the levels the subject may hand out; only permissions whose resource declares levels. */
+  /**
+   * Permission key to the levels the subject may hand out; only permissions
+   * whose resource declares levels.
+   */
   readonly levels?: Readonly<Record<string, readonly string[]>>;
 };
 
@@ -104,7 +134,10 @@ export type SnapshotGrant = {
   readonly membership?: Membership;
   readonly portable?: false;
   readonly fields?: readonly string[];
-  /** When the grant applies (RFC 3339, `from` inclusive, `until` exclusive); absent means always. */
+  /**
+   * When the grant applies (RFC 3339, `from` inclusive, `until` exclusive);
+   * absent means always.
+   */
   readonly validity?: WireValidity;
   /** The grant's declared `name`. */
   readonly name?: string;
@@ -129,9 +162,15 @@ export type LocalSnapshotManifest = {
   readonly rank?: readonly string[];
   /** Every declared grant, without a membership. */
   readonly grants: readonly SnapshotGrant[];
-  /** Per custom-role scope (`global` for platform roles): the grants each entry resolves to. */
+  /**
+   * Per custom-role scope (`global` for platform roles): the grants each entry
+   * resolves to.
+   */
   readonly custom: Readonly<Record<string, LocalCustomRoleTable>>;
-  /** The synced tables a device reads the user's memberships, roles and custom roles from; `permdock powersync generate` adds it. */
+  /**
+   * The synced tables a device reads the user's memberships, roles and custom
+   * roles from; `permdock powersync generate` adds it.
+   */
   readonly rows?: LocalSnapshotRows;
 };
 
@@ -141,9 +180,9 @@ export type LocalRowValue =
   | { readonly value: string };
 
 /**
- * A column that holds a role key or user id: the value itself, the `column`
- * of the synced `through` table whose `id` it references, or a value each
- * maps to a role key (`null` for no role).
+ * A column that holds a role key or user id: the value itself, the `column` of
+ * the synced `through` table whose `id` it references, or a value each maps to
+ * a role key (`null` for no role).
  */
 export type LocalRowColumn =
   | { readonly column: string }
@@ -166,7 +205,10 @@ export type LocalMembershipRows = {
   readonly user: LocalRowColumn;
   readonly scope: LocalRowValue;
   readonly id: string;
-  /** The role columns (the row holds every non-null key), or the fixed roles every row holds. */
+  /**
+   * The role columns (the row holds every non-null key), or the fixed roles
+   * every row holds.
+   */
   readonly roles:
     | readonly LocalRowColumn[]
     | { readonly value: readonly string[] };
@@ -185,16 +227,25 @@ export type LocalSnapshotRows = {
     /** The role columns; the row holds every non-null key. */
     readonly roles: readonly LocalRowColumn[];
   };
-  /** The custom-role tables (`tenant_id`, `scope`, `scope_id`, `role`, and `permission`, `effect`, `level` or `include_role`). */
+  /**
+   * The custom-role tables (`tenant_id`, `scope`, `scope_id`, `role`, and
+   * `permission`, `effect`, `level` or `include_role`).
+   */
   readonly customRoles?: {
     readonly permissions: string;
     readonly includes: string;
   };
 };
 
-/** Grants a custom role entry resolves to, held by a placeholder role the client renames. */
+/**
+ * Grants a custom role entry resolves to, held by a placeholder role the client
+ * renames.
+ */
 export type LocalCustomRoleTable = {
-  /** `{ permission }` per permission key, and `{ permission, level }` per declared level. */
+  /**
+   * `{ permission }` per permission key, and `{ permission, level }` per
+   * declared level.
+   */
   readonly permissions: Readonly<
     Record<
       string,

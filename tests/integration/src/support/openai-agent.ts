@@ -25,9 +25,9 @@ function outputText(item: Record<string, unknown>): string {
 }
 
 /**
- * Stateless scripted model: asks for three tool calls, then answers with
- * every tool result it was given, so a run resumed in another process
- * behaves the same.
+ * Stateless scripted model: asks for three tool calls, then answers with every
+ * tool result it was given, so a run resumed in another process behaves the
+ * same.
  */
 const scriptedModel = {
   async getResponse(request: ModelRequest) {

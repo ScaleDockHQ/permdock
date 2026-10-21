@@ -171,8 +171,8 @@ export type A2aPermDock = {
     selector: (task: unknown) => string,
   ) => (task: unknown, auth: A2aAuth) => Promise<A2aTaskOutcome>;
   /**
-   * Appends an A2A 1.0 signature. `sign` returns a compact JWS over the
-   * RFC 8785 canonical card it is given; the payload is detached.
+   * Appends an A2A 1.0 signature. `sign` returns a compact JWS over the RFC
+   * 8785 canonical card it is given; the payload is detached.
    */
   readonly sign: (
     card: A2aAgentCard,

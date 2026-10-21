@@ -61,7 +61,10 @@ describe("ownership triggers in generated RLS", () => {
     await db?.stop();
   });
 
-  /** The hint of the error the statements raise by commit, or `null` when they pass. */
+  /**
+   * The hint of the error the statements raise by commit, or `null` when they
+   * pass.
+   */
   const attempt = async (statements: string): Promise<string | null> => {
     const admin = db!.admin;
     await admin.query("begin");

@@ -4,7 +4,10 @@ import { permissions } from "../rls-matrix/permissions.ts";
 
 const { project } = permissions;
 
-/** Admins read with any token; updating and deleting needs a session `auth.sessions` still holds. */
+/**
+ * Admins read with any token; updating and deleting needs a session
+ * `auth.sessions` still holds.
+ */
 export const policy = definePolicy(permissions, {
   roles: [
     role(

@@ -34,9 +34,9 @@ function isUnconditionedAllow(grant: Grant, now: number): boolean {
 }
 
 /**
- * The row condition a grant's `requires` adds: the row's instance of some
- * scope is one where the subject holds `key` through a role grant without a
- * row condition, minus the instances a deny of `key` reaches at that scope.
+ * The row condition a grant's `requires` adds: the row's instance of some scope
+ * is one where the subject holds `key` through a role grant without a row
+ * condition, minus the instances a deny of `key` reaches at that scope.
  * `undefined` when the subject holds `key` globally that way, so every row
  * passes. The in-process mirror of the SQL `permdock_has_permission` and
  * `permitted_<scope>_ids_by_permission`.

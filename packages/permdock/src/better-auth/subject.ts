@@ -85,7 +85,10 @@ async function organizationIds(
 
 const MEMBER_LIMIT = 5000;
 
-/** Every member row of the user in one adapter query, or `undefined` without an adapter. */
+/**
+ * Every member row of the user in one adapter query, or `undefined` without an
+ * adapter.
+ */
 async function memberRows(
   auth: BetterAuthLike,
   userId: string,

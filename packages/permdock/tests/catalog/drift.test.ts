@@ -34,9 +34,7 @@ const scan: ScanResult = {
 
 function build(withVoid: boolean, roles: readonly string[]) {
   const tree = definePermissions({
-    invoice: resource({
-      actions: withVoid ? ["read", "void"] : ["read"],
-    }),
+    invoice: resource({ actions: withVoid ? ["read", "void"] : ["read"] }),
     ledger: resource({ actions: ["read"] }),
   });
   const policy = definePolicy(tree, {
@@ -47,10 +45,7 @@ function build(withVoid: boolean, roles: readonly string[]) {
     subject: () => null,
   });
   const catalog = buildCatalog(tree, scan, "2026-10-01T00:00:00Z", policy);
-  return {
-    catalog,
-    rebuilt: policyFromCatalog(catalog, pushedPolicy(policy)),
-  };
+  return { catalog, rebuilt: policyFromCatalog(catalog, pushedPolicy(policy)) };
 }
 
 const document: PolicyDocument = {

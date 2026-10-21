@@ -33,7 +33,10 @@ export type LocalSnapshotData = {
     /** The active tenant: the first scope's instance the UI shows. */
     readonly tenant?: string;
     readonly memberships?: readonly Membership[];
-    /** Attributes conditions read, such as `claims` for `principal.claims.team_ids`. */
+    /**
+     * Attributes conditions read, such as `claims` for
+     * `principal.claims.team_ids`.
+     */
     readonly attributes?: Readonly<Record<string, unknown>>;
   } | null;
   /** The tenant's custom roles, in the shape a `CustomRoleSource` returns. */
@@ -44,7 +47,10 @@ export type LocalSnapshotOptions = {
   /** `localSnapshotManifest(policy)`, written at build time. */
   readonly manifest: LocalSnapshotManifest;
   readonly read: () => LocalSnapshotData | Promise<LocalSnapshotData>;
-  /** Calls the listener when the rows `read` reads change; returns the unsubscribe. */
+  /**
+   * Calls the listener when the rows `read` reads change; returns the
+   * unsubscribe.
+   */
   readonly subscribe?: (listener: () => void) => () => void;
 };
 
@@ -84,16 +90,12 @@ function renamed(grant: SnapshotGrant, name: string): SnapshotGrant {
         : item,
     );
   }
-  return {
-    ...grant,
-    role: name,
-    to,
-  };
+  return { ...grant, role: name, to };
 }
 
 /**
- * The grants a custom role holds, from the entries the server resolved one
- * by one: an entry the table does not know grants nothing.
+ * The grants a custom role holds, from the entries the server resolved one by
+ * one: an entry the table does not know grants nothing.
  */
 function customGrants(
   table: LocalCustomRoleTable,
@@ -352,8 +354,8 @@ export function buildLocalSnapshot(
 }
 
 /**
- * A snapshot source over the device's own membership rows (SQLite, a
- * PowerSync or Electric replica): offline, the UI guards answer from them.
+ * A snapshot source over the device's own membership rows (SQLite, a PowerSync
+ * or Electric replica): offline, the UI guards answer from them.
  */
 export function localSnapshot(options: LocalSnapshotOptions): SnapshotSource {
   return compact<SnapshotSource>({

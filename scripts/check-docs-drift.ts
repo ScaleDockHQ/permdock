@@ -97,7 +97,10 @@ function unlistedPages(): readonly string[] {
   return missing;
 }
 
-/** Each standards page has `tests/standards/<slug>.test.ts`, and each such test a page. */
+/**
+ * Each standards page has `tests/standards/<slug>.test.ts`, and each such test
+ * a page.
+ */
 function standardsTests(): readonly string[] {
   const pages = readdirSync(join(DOCS, "standards"))
     .filter((name) => name.endsWith(".mdx"))
@@ -162,7 +165,10 @@ function bannedNames(): readonly string[] {
   return found;
 }
 
-/** Value imports from a `permdock` entry in docs code that the entry does not export. */
+/**
+ * Value imports from a `permdock` entry in docs code that the entry does not
+ * export.
+ */
 function unknownImports(): readonly string[] {
   // SAFETY: exports.json is the bundle test's own baseline, entry to sorted runtime export names
   const exported = JSON.parse(read(EXPORTS)) as Readonly<
@@ -197,10 +203,16 @@ function unknownImports(): readonly string[] {
   return [...found];
 }
 
-/** Entries whose every runtime export needs a row on the Naming page; add an entry once its rows exist. */
+/**
+ * Entries whose every runtime export needs a row on the Naming page; add an
+ * entry once its rows exist.
+ */
 const NAMED_ENTRIES: readonly string[] = ["./better-supabase"];
 
-/** Runtime exports of `NAMED_ENTRIES` that the Naming page never names in backticks. */
+/**
+ * Runtime exports of `NAMED_ENTRIES` that the Naming page never names in
+ * backticks.
+ */
 function unnamedExports(): readonly string[] {
   // SAFETY: exports.json is the bundle test's own baseline, entry to sorted runtime export names
   const exported = JSON.parse(read(EXPORTS)) as Readonly<

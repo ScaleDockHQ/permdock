@@ -103,10 +103,7 @@ describe("signDecisionBatch", () => {
       credential: { kind: "token" },
       active: false,
     };
-    const approval: DecisionEvent = {
-      ...event("9"),
-      phase: "requested",
-    };
+    const approval: DecisionEvent = { ...event("9"), phase: "requested" };
     let captured: readonly unknown[] = [];
     await signDecisionBatch(
       [directory, approval],

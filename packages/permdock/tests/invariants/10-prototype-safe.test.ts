@@ -40,11 +40,7 @@ describe("invariant 10: prototype-safe, no eval", () => {
       { op: "eq", field: "constructor.name", value: "Object" },
       { op: "eq", field: "nested.constructor.name", value: "Object" },
       { op: "isNull", field: "__proto__", value: false },
-      {
-        op: "eq",
-        field: "name",
-        value: { ref: "principal.constructor.name" },
-      },
+      { op: "eq", field: "name", value: { ref: "principal.constructor.name" } },
     ];
     for (const condition of conditions) {
       expect(evaluateCondition(condition, row, subject, 0)).toBe(false);

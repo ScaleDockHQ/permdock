@@ -108,9 +108,7 @@ describe("permdock supabase hook generate", () => {
       return (
         await run(
           ["supabase", "hook", "generate", "--out", "hook.sql", "--check"],
-          {
-            cwd,
-          },
+          { cwd },
         )
       ).stdout;
     };

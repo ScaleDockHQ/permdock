@@ -51,7 +51,10 @@ function holdsRole(subject: Subject, role: string, tenant?: string): boolean {
   return false;
 }
 
-/** Facts the handler computed for the approver: relation keys held on the row, and permission keys held in the tenant. */
+/**
+ * Facts the handler computed for the approver: relation keys held on the row,
+ * and permission keys held in the tenant.
+ */
 type ApproverFacts = {
   readonly relations: ReadonlySet<string>;
   readonly permissions: ReadonlySet<string>;
@@ -243,14 +246,14 @@ function vouchedRule(verdict: ApprovalVerdict): string | undefined {
 }
 
 /**
- * Refuses `by` as an approver of `request`, or returns the index of the
- * stage the approval counts for (`undefined` without `stages`). Eligibility
- * is `approvers.by` or, under `stages`, the first incomplete stage
- * (`sequential`) or any incomplete stage (`all`); `approvers.escalation.to`
- * is eligible too once the request has waited `escalation.after`. A
- * principal who already approved is refused, so one person never completes
- * two stages. `relations` are the relation approvers `by` holds on the
- * request's resource (see `ApprovalVerdict.relations`).
+ * Refuses `by` as an approver of `request`, or returns the index of the stage
+ * the approval counts for (`undefined` without `stages`). Eligibility is
+ * `approvers.by` or, under `stages`, the first incomplete stage (`sequential`)
+ * or any incomplete stage (`all`); `approvers.escalation.to` is eligible too
+ * once the request has waited `escalation.after`. A principal who already
+ * approved is refused, so one person never completes two stages. `relations`
+ * are the relation approvers `by` holds on the request's resource (see
+ * `ApprovalVerdict.relations`).
  */
 export function assertApprover(
   request: ApprovalRequest,
@@ -337,12 +340,12 @@ function isSystemSubject(by: Subject): boolean {
 }
 
 /**
- * The request after `verdict`, for a store to persist: a rejection resolves
- * it; an approval is appended to `approvals` and resolves it once there are
- * `approvers.quorum` (default 1). Throws an `ApprovalError` when the request
- * is not pending, has expired or `verdict.by` may not approve it. Stores
- * should write the result only when the stored row is still pending with the
- * same number of approvals, so two approvers racing both count.
+ * The request after `verdict`, for a store to persist: a rejection resolves it;
+ * an approval is appended to `approvals` and resolves it once there are
+ * `approvers.quorum` (default 1). Throws an `ApprovalError` when the request is
+ * not pending, has expired or `verdict.by` may not approve it. Stores should
+ * write the result only when the stored row is still pending with the same
+ * number of approvals, so two approvers racing both count.
  */
 export function applyApprovalVerdict(
   request: ApprovalRequest,
@@ -468,9 +471,7 @@ function rejectPending(
   );
 }
 
-export type MemoryApprovalStore = ApprovalStore & {
-  readonly ttl: number;
-};
+export type MemoryApprovalStore = ApprovalStore & { readonly ttl: number };
 
 /** A request a new ask may replace: expired, or past its deadline. */
 function isStale(request: ApprovalRequest, now: Date): boolean {

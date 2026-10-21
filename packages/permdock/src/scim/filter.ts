@@ -262,7 +262,10 @@ function matchCompare(
   }
 }
 
-/** RFC 7644 §3.4.2.2: `pr` needs a non-empty value; a multi-valued one needs an item. */
+/**
+ * RFC 7644 §3.4.2.2: `pr` needs a non-empty value; a multi-valued one needs an
+ * item.
+ */
 function present(value: unknown): boolean {
   if (Array.isArray(value)) {
     return value.some(present);

@@ -298,9 +298,7 @@ describe("the pinned OpenAPI 3.3 schema", () => {
   it("requires profileMetadata on a profile scheme and scopes on a requirement", () => {
     const noMetadata = validateOpenapi({
       ...PROFILE_DOC,
-      components: {
-        securitySchemes: { fapi: { type: "profile" } },
-      },
+      components: { securitySchemes: { fapi: { type: "profile" } } },
     });
     expect(noMetadata.ok ? "" : noMetadata.error).toContain(
       "document is not valid OpenAPI 3.3",

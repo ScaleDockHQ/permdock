@@ -138,10 +138,7 @@ describe("authorizationProvider", () => {
         bytes: 1024,
         truncatedClaim: "memberships_truncated",
       },
-      markers: {
-        hook: "-- permdock:hook v1",
-        grants: "-- permdock:grants v1",
-      },
+      markers: { hook: "-- permdock:hook v1", grants: "-- permdock:grants v1" },
       grantsCommand:
         "permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook",
     });
@@ -419,12 +416,7 @@ describe("authorizationProvider", () => {
       name: string,
       args: string,
       execute = ["authenticated"],
-    ) => ({
-      name,
-      args,
-      returns: "boolean",
-      execute,
-    });
+    ) => ({ name, args, returns: "boolean", execute });
     const provider = authorizationProvider({
       catalog: emptyCatalog,
       manifest: withRls({
@@ -700,11 +692,7 @@ describe("authorizationProvider", () => {
         expect.stringContaining("a role approver"),
       ]);
       expect(provider.functions.isApprover).toContain("'invoice.send'");
-      const none = authorizationProvider({
-        manifest,
-        catalog,
-        approvers: {},
-      });
+      const none = authorizationProvider({ manifest, catalog, approvers: {} });
       expect(none.functions).not.toHaveProperty("isApprover");
       expect(none.problems).toEqual([expect.stringContaining("no kind")]);
     });
@@ -892,10 +880,7 @@ describe("authorizationProvider", () => {
         permissions: ["task.read", "task.update", "task.delete"].map(leaf),
         oauthScopes: [
           { scope: "mcp:read", permissions: ["task.read"] },
-          {
-            scope: "mcp:write",
-            permissions: ["task.update", "task.read"],
-          },
+          { scope: "mcp:write", permissions: ["task.update", "task.read"] },
           { scope: "task:read", permissions: ["task.update"] },
         ],
       },

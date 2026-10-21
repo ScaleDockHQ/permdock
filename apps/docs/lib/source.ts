@@ -18,13 +18,9 @@ const docs = defineDocs({
   docs: {
     schema: pageSchema,
     lastModified: true,
-    postprocess: {
-      includeProcessedMarkdown: true,
-    },
+    postprocess: { includeProcessedMarkdown: true },
   },
-  meta: {
-    schema: metaSchema,
-  },
+  meta: { schema: metaSchema },
 });
 
 export const source = loader({
@@ -73,7 +69,10 @@ Source: ${env.NEXT_PUBLIC_SITE_URL}${page.url}${description}
 ${compactMarkdownTables(processed.trimStart())}`;
 }
 
-/** `llms-full.txt`, the `.md` pages and the MCP `list_pages` and `get_page` tools render through this. */
+/**
+ * `llms-full.txt`, the `.md` pages and the MCP `list_pages` and `get_page`
+ * tools render through this.
+ */
 export const docsLlms = llms(source, { renderPage: getLLMText });
 
 export function renderDocsLlmsIndex(): string {

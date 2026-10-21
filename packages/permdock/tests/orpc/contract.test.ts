@@ -19,9 +19,7 @@ type Ctx = { readonly user: typeof memberUser | null };
 const byId = z.object({ id: z.string() });
 
 const contract = {
-  posts: {
-    update: oc.input(byId).output(z.object({ id: z.string() })),
-  },
+  posts: { update: oc.input(byId).output(z.object({ id: z.string() })) },
 };
 
 describe("permdock/orpc with a contract", () => {

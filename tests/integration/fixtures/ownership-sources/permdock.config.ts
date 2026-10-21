@@ -3,7 +3,10 @@ import {
   tableMembershipSource,
 } from "permdock/supabase";
 
-/** The ownership fixture with its organization memberships in two sources: a table of every scope and a junction with a fixed role. */
+/**
+ * The ownership fixture with its organization memberships in two sources: a
+ * table of every scope and a junction with a fixed role.
+ */
 export default {
   permissions: "../ownership/policy.ts",
   policy: "../ownership/policy.ts",

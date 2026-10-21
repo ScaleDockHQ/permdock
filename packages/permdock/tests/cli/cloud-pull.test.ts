@@ -65,8 +65,13 @@ function io(
   };
 }
 
-/** A project with the offline catalog and manifest written, then pushed with them. */
-async function pushedProject(reference: Cloud): Promise<{
+/**
+ * A project with the offline catalog and manifest written, then pushed with
+ * them.
+ */
+async function pushedProject(
+  reference: Cloud,
+): Promise<{
   readonly cwd: string;
   readonly catalog: string;
   readonly manifest: string;

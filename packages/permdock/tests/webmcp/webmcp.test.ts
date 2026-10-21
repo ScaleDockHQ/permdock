@@ -134,9 +134,7 @@ describe("registerTools", () => {
     );
     registerTools(context, permissions.post, {
       permdock,
-      handlers: {
-        update: handler,
-      },
+      handlers: { update: handler },
     });
     const update = tools.get("post_update");
     if (update === undefined) {
@@ -160,18 +158,14 @@ describe("registerTools", () => {
     const { context, tools } = fakeContext();
     registerTools(context, permissions.post, {
       permdock: member,
-      handlers: {
-        publish: async () => "published",
-      },
+      handlers: { publish: async () => "published" },
     });
     expect(tools.get("post_publish")).toBeUndefined();
     const admin = await clientOf(adminUser);
     const adminTools = fakeContext();
     registerTools(adminTools.context, permissions.post, {
       permdock: admin,
-      handlers: {
-        publish: async () => "published",
-      },
+      handlers: { publish: async () => "published" },
     });
     const publish = adminTools.tools.get("post_publish");
     if (publish === undefined) {
@@ -248,10 +242,7 @@ describe("registerTools", () => {
     const permdock = await clientOf(memberUser);
     const { context, tools } = fakeContext();
     registerTools(context, permissions.post, {
-      permdock: {
-        ...permdock,
-        status: () => "server-only",
-      },
+      permdock: { ...permdock, status: () => "server-only" },
     });
     expect(tools.size).toBe(0);
   });

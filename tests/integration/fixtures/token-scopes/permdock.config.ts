@@ -1,4 +1,7 @@
-/** The oauth-scopes policy with the SQL helpers narrowing delegated tokens by their scope claim. */
+/**
+ * The oauth-scopes policy with the SQL helpers narrowing delegated tokens by
+ * their scope claim.
+ */
 export default {
   permissions: "../oauth-scopes/permissions.ts",
   policy: "../oauth-scopes/policy.ts",

@@ -75,11 +75,7 @@ describe("compileWhere", () => {
     ).toEqual({ kind: "compare", op: "eq", field: "authorId", value: "u1" });
     expect(
       compileWhere(
-        {
-          op: "in",
-          field: "teamId",
-          value: { ref: "context.teamIds" },
-        },
+        { op: "in", field: "teamId", value: { ref: "context.teamIds" } },
         { subject: who },
       ),
     ).toEqual({
@@ -89,11 +85,7 @@ describe("compileWhere", () => {
       value: ["t1", "t2"],
     });
     expect(
-      compileWhere({
-        op: "gt",
-        field: "due",
-        value: { date: "2026-01-01" },
-      }),
+      compileWhere({ op: "gt", field: "due", value: { date: "2026-01-01" } }),
     ).toEqual({
       kind: "compare",
       op: "gt",
@@ -250,12 +242,7 @@ describe("compileWhere", () => {
       kind: "or",
       items: [
         { kind: "compare", op: "eq", field: "id", value: "d1" },
-        {
-          kind: "compare",
-          op: "in",
-          field: "folderId",
-          value: ["d1", "f1"],
-        },
+        { kind: "compare", op: "in", field: "folderId", value: ["d1", "f1"] },
       ],
     });
   });
@@ -414,12 +401,7 @@ describe("compileWhere", () => {
     });
     expect(
       compileWhere(
-        {
-          op: "memberOf",
-          scope: "resource",
-          field: "id",
-          roles: ["editor"],
-        },
+        { op: "memberOf", scope: "resource", field: "id", roles: ["editor"] },
         {
           subject: sub({ id: "u1" }),
           memberships: {
@@ -469,12 +451,7 @@ describe("compileWhere", () => {
     ).toEqual({ kind: "compare", op: "eq", field: "teamId", value: "t1" });
     expect(
       compileWhere(
-        {
-          op: "memberOf",
-          scope: "resource",
-          field: "id",
-          roles: ["editor"],
-        },
+        { op: "memberOf", scope: "resource", field: "id", roles: ["editor"] },
         { subject: incomplete, now: at(now) },
       ),
     ).toEqual({ kind: "never" });
@@ -612,9 +589,7 @@ describe("compileWhere", () => {
   it("negates every compiled node kind with SQL NULL in mind", () => {
     expect(
       compileWhere({ op: "not", condition: { op: "or", conditions: [] } }),
-    ).toEqual({
-      kind: "always",
-    });
+    ).toEqual({ kind: "always" });
     expect(
       compileWhere({ op: "not", condition: { op: "and", conditions: [] } }),
     ).toEqual({ kind: "never" });

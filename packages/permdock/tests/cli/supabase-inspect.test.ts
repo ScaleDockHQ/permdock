@@ -105,11 +105,7 @@ describe("permdock supabase inspect", () => {
         { name: "memberships_truncated", source: "permdock", budget: false },
         { name: "tenant_id", source: "permdock", budget: false },
         { name: "authz_ver", source: "permdock", budget: false },
-        {
-          name: "features",
-          source: "billing.feature_claims",
-          budget: false,
-        },
+        { name: "features", source: "billing.feature_claims", budget: false },
       ],
       authzVersion: true,
       authzVersionBump: {

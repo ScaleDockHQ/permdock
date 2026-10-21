@@ -120,9 +120,7 @@ describe("runRls explain", () => {
                 role: "role",
               },
             },
-            customRoleWrites: {
-              roles: { table: "public.roles", key: "key" },
-            },
+            customRoleWrites: { roles: { table: "public.roles", key: "key" } },
             customRoles: {
               from: {
                 sync: "trigger",
@@ -182,10 +180,7 @@ describe("runRls dispatch", () => {
     ],
   ])("refuses generate with %j", async (flags, output) => {
     expect(await runRls(input({ rest: ["generate"], ...flags }))).toMatchObject(
-      {
-        code: 2,
-        output,
-      },
+      { code: 2, output },
     );
   });
 
@@ -457,9 +452,7 @@ describe("runRls dispatch", () => {
       (call: SqlCall): SqlReply =>
         call.sql.includes("indnkeyatts")
           ? { rows: [{ target: "public.post", columns: index }] }
-          : {
-              rows: columns.map((name) => ({ target: "public.post", name })),
-            };
+          : { rows: columns.map((name) => ({ target: "public.post", name })) };
     const covered = fakeSql(reply(["id", "authorId"], ["authorId", "id"]));
     const served = await runRls(
       input({
@@ -542,7 +535,10 @@ describe("runRls migrate", () => {
   });
 });
 
-/** Answers the catalog queries of `introspectRls` and `introspectMixed` as a database that matches `expected`. */
+/**
+ * Answers the catalog queries of `introspectRls` and `introspectMixed` as a
+ * database that matches `expected`.
+ */
 function catalogReply(
   expected: ReturnType<typeof expectedRls>,
   mixed: {
@@ -675,10 +671,7 @@ describe("runRls verify --introspect", () => {
   ])("refuses %j", async (flags, output) => {
     expect(
       await runRls(input({ rest: ["verify"], introspect: true, ...flags })),
-    ).toMatchObject({
-      code: 2,
-      output,
-    });
+    ).toMatchObject({ code: 2, output });
   });
 
   it("reports no drift when the catalogs match what generate writes", async () => {

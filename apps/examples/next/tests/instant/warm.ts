@@ -2,8 +2,8 @@ import type { Page } from "@playwright/test";
 
 /**
  * Waits until no request has been in flight for 500 ms, so every prefetch the
- * page started has landed. With `DEMO_LATENCY_MS` a prefetch takes seconds,
- * and `instant()` only shows what a prefetch already carries.
+ * page started has landed. With `DEMO_LATENCY_MS` a prefetch takes seconds, and
+ * `instant()` only shows what a prefetch already carries.
  */
 export async function settlePrefetches(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle");

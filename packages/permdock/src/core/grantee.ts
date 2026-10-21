@@ -29,7 +29,10 @@ export type RelationGrantee = {
    * to `resource`, then walk its parents only when `depth` is set.
    */
   readonly through?: "parent" | readonly string[];
-  /** Parent hops walked above the first `resource` instance; absent means `DEFAULT_RELATION_DEPTH` for `'parent'` and `0` for links. */
+  /**
+   * Parent hops walked above the first `resource` instance; absent means
+   * `DEFAULT_RELATION_DEPTH` for `'parent'` and `0` for links.
+   */
   readonly depth?: number;
 };
 

@@ -5,7 +5,10 @@ import {
   tableMembershipSource,
 } from "permdock/supabase";
 
-/** Staff from `memberships`, portal contacts from `contacts.user_id`: the hook and the SQL helpers read the same rows. */
+/**
+ * Staff from `memberships`, portal contacts from `contacts.user_id`: the hook
+ * and the SQL helpers read the same rows.
+ */
 export function sources(options: { readonly query?: SqlQuery } = {}) {
   return [
     tableMembershipSource({ table: "memberships", ...options }),

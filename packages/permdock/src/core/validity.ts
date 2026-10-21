@@ -3,9 +3,9 @@ import type { GrantValidity, WireValidity } from "./policy-types.ts";
 import { type Instant, instantOf, rfc3339, secondsOf } from "./time.ts";
 
 /**
- * The normalised validity of a grant, or `undefined` when neither bound is
- * set. Fail-closed at definition time: a bound that does not parse, or a
- * window that ends before it starts, throws so a typo never widens a grant.
+ * The normalised validity of a grant, or `undefined` when neither bound is set.
+ * Fail-closed at definition time: a bound that does not parse, or a window that
+ * ends before it starts, throws so a typo never widens a grant.
  */
 export function normalizeValidity(
   options: {
@@ -44,7 +44,10 @@ export function normalizeValidity(
   });
 }
 
-/** Whether a grant with this validity applies at `now` (Unix seconds); no validity always applies. */
+/**
+ * Whether a grant with this validity applies at `now` (Unix seconds); no
+ * validity always applies.
+ */
 export function isActive(
   validity: GrantValidity | undefined,
   now: number,
@@ -71,9 +74,9 @@ export function wireValidity(
 }
 
 /**
- * The validity of a wire grant. A malformed window fails closed for the
- * grant's effect: an allow never applies (`{ from: +∞ }`), a deny always
- * does (no window), so a corrupt bound can never lift a deny.
+ * The validity of a wire grant. A malformed window fails closed for the grant's
+ * effect: an allow never applies (`{ from: +∞ }`), a deny always does (no
+ * window), so a corrupt bound can never lift a deny.
  */
 export function readWireValidity(
   value: unknown,

@@ -40,10 +40,9 @@ describe("permdock/node edge cases", () => {
     const req = get("/posts");
     const permdock = await permdockFor(req);
     const guard = await protect(permissions.post.list)(req);
-    expect({
-      principal: permdock.subject.principal?.id,
-      ok: guard.ok,
-    }).toEqual({ principal: "u1", ok: true });
+    expect({ principal: permdock.subject.principal?.id, ok: guard.ok }).toEqual(
+      { principal: "u1", ok: true },
+    );
   });
 
   it("resolves the actor from the incoming message", async () => {

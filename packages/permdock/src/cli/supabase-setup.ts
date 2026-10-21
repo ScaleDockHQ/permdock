@@ -18,7 +18,10 @@ function escape(text: string): string {
   return text.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
 }
 
-/** The helper functions `sql` creates in `schema`; unqualified names count for `public`. */
+/**
+ * The helper functions `sql` creates in `schema`; unqualified names count for
+ * `public`.
+ */
 function helpersDefined(sql: string, schema: string): ReadonlySet<string> {
   const qualifier =
     schema === "public"
@@ -39,9 +42,9 @@ function helpersDefined(sql: string, schema: string): ReadonlySet<string> {
 }
 
 /**
- * SQL files that may hold the generated helpers: `rls.out` (else `rls.sql`;
- * its `helpers` part when it has `{part}`), the SQL files next to the hook,
- * and the migration folders, not the hook itself.
+ * SQL files that may hold the generated helpers: `rls.out` (else `rls.sql`; its
+ * `helpers` part when it has `{part}`), the SQL files next to the hook, and the
+ * migration folders, not the hook itself.
  */
 function helperSources(
   cwd: string,
@@ -116,7 +119,10 @@ export function missingHelpersMessage(
   return `PD039 schema ${manifest.helpers.schema} has no ${missing.join(", ")}: the hook's claims are read by these helpers; run permdock rls generate and apply its migration`;
 }
 
-/** Bytes of JSON of each extra claim in the largest sample, for claims that pass the budget. */
+/**
+ * Bytes of JSON of each extra claim in the largest sample, for claims that pass
+ * the budget.
+ */
 function oversizedClaims(
   samples: readonly unknown[],
   manifest: SupabaseHookManifest,

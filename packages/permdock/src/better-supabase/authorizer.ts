@@ -17,7 +17,10 @@ import {
   subjectFromBetterSupabase,
 } from "./subject.ts";
 
-/** The table operations better-supabase's `permissions: true` resolves through `forOperation`. */
+/**
+ * The table operations better-supabase's `permissions: true` resolves through
+ * `forOperation`.
+ */
 export type AuthorizerOperation =
   | "list"
   | "get"
@@ -27,16 +30,22 @@ export type AuthorizerOperation =
 
 export type AuthorizerOptions = {
   readonly policy: Policy;
-  /** How the verified claims map to a subject; the defaults of `subjectFromBetterSupabase`. */
+  /**
+   * How the verified claims map to a subject; the defaults of
+   * `subjectFromBetterSupabase`.
+   */
   readonly subject?: Omit<BetterSupabaseSubjectOptions, "apiKeys">;
   /**
-   * The permission of each table operation, so a resource with
-   * `permissions: true` is checked. Without it such a resource is refused.
+   * The permission of each table operation, so a resource with `permissions:
+   * true` is checked. Without it such a resource is refused.
    */
   readonly operations?: Readonly<
     Record<string, Partial<Record<AuthorizerOperation, Permission>>>
   >;
-  /** Sources and sinks for each instance. The subject, actor and tenant always come from the verified request. */
+  /**
+   * Sources and sinks for each instance. The subject, actor and tenant always
+   * come from the verified request.
+   */
   readonly options?: Omit<
     PermDockOptions,
     "tenant" | "actor" | "delegation" | "session" | "expiresAt"
@@ -89,7 +98,10 @@ function decideWith(
   );
 }
 
-/** The verified claims better-supabase passes in `subject.properties.claims`, for a user or a delegated agent. */
+/**
+ * The verified claims better-supabase passes in `subject.properties.claims`,
+ * for a user or a delegated agent.
+ */
 function claimsOf(request: AuthorizationRequest<Permission>): unknown {
   const { subject } = request;
   if (subject.type !== "user" && subject.type !== "agent") return undefined;
@@ -99,11 +111,11 @@ function claimsOf(request: AuthorizationRequest<Permission>): unknown {
 
 /**
  * better-supabase's `authorizer` for PermDock: every resource, action, route
- * guard and MCP tool that declares a `permission` is decided with `decide`.
- * The subject is mapped from the verified claims with
- * `subjectFromBetterSupabase`; the request's `context.tenant` selects the
- * active tenant only among the memberships the claims hold. A caller without
- * claims is anonymous, and a throw denies.
+ * guard and MCP tool that declares a `permission` is decided with `decide`. The
+ * subject is mapped from the verified claims with `subjectFromBetterSupabase`;
+ * the request's `context.tenant` selects the active tenant only among the
+ * memberships the claims hold. A caller without claims is anonymous, and a
+ * throw denies.
  */
 export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
   const { operations } = options;

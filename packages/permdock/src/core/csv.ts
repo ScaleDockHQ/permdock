@@ -31,8 +31,8 @@ function field(value: string | null | undefined): string {
 }
 
 /**
- * One RFC 4180 row for a decision or approval event, without a line
- * terminator; join rows with CRLF under a `CSV_COLUMNS` header.
+ * One RFC 4180 row for a decision or approval event, without a line terminator;
+ * join rows with CRLF under a `CSV_COLUMNS` header.
  */
 export function toCsvRow(event: DecisionEvent): string {
   return [

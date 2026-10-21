@@ -56,7 +56,10 @@ export type ResendTransportOptions = {
   readonly from?: string;
   /** The `replyTo` of an email whose message sets none. */
   readonly replyTo?: string;
-  /** Tags added to every email; names and values are ASCII letters, digits, `_` and `-`. */
+  /**
+   * Tags added to every email; names and values are ASCII letters, digits, `_`
+   * and `-`.
+   */
   readonly tags?: Readonly<Record<string, string>>;
 };
 
@@ -97,10 +100,10 @@ const FINAL: Readonly<
 };
 
 /**
- * The failure a Resend error name means. Rate limits, quotas and server
- * errors are retryable with the same idempotency key; a key, sender or
- * validation error is final. An unknown name is retryable only for a 5xx or
- * a missing status.
+ * The failure a Resend error name means. Rate limits, quotas and server errors
+ * are retryable with the same idempotency key; a key, sender or validation
+ * error is final. An unknown name is retryable only for a 5xx or a missing
+ * status.
  */
 export function resendFailure(error: ResendError): DeliveryResult {
   const name = error.name;
@@ -209,9 +212,9 @@ async function sendBatch(
 /**
  * Sends the email channel of `permdock/delivery` through Resend. The
  * idempotency key is Resend's `idempotencyKey`. The delivery id, key and
- * category travel as tags, so `resendWebhook` can join provider events to
- * the delivery. Two or more recipients go out through `batch.send`, up to
- * 100 per call. Throws a `TypeError` for a tag outside Resend's charset.
+ * category travel as tags, so `resendWebhook` can join provider events to the
+ * delivery. Two or more recipients go out through `batch.send`, up to 100 per
+ * call. Throws a `TypeError` for a tag outside Resend's charset.
  */
 export function resendTransport(
   resend: ResendClient,

@@ -35,15 +35,27 @@ export type KyselyWhereOptions = {
   readonly listFields?: readonly string[];
   readonly subject?: Subject;
   readonly memberships?: MembershipsMapping;
-  /** Where the relation graph lives; graph grants compile to Postgres subqueries with it and are refused without. */
+  /**
+   * Where the relation graph lives; graph grants compile to Postgres subqueries
+   * with it and are refused without.
+   */
   readonly relations?: RelationsMapping;
-  /** The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults to the current time. */
+  /**
+   * The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults
+   * to the current time.
+   */
   readonly now?: Instant;
-  /** Kysely's `sql` tag, for graph subqueries on runtimes without `require`; loaded from the `kysely` peer by default. */
+  /**
+   * Kysely's `sql` tag, for graph subqueries on runtimes without `require`;
+   * loaded from the `kysely` peer by default.
+   */
   readonly sql?: KyselySql;
 };
 
 export type KyselyWithSubjectOptions = WithSubjectOptions & {
-  /** Kysely's `sql` tag, on runtimes without `require`; loaded from the `kysely` peer by default. */
+  /**
+   * Kysely's `sql` tag, on runtimes without `require`; loaded from the `kysely`
+   * peer by default.
+   */
   readonly sql?: KyselySql;
 };

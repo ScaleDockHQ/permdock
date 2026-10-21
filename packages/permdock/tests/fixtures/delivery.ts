@@ -33,9 +33,7 @@ export const deliveryPolicy = definePolicy(p, {
   scopes: { tenant: { key: "orgId" } },
   roles: [
     role("member", [allow(p.invoice.read)], { on: "tenant" }),
-    role("billing", [allow([p.invoice.read, p.invoice.pay])], {
-      on: "tenant",
-    }),
+    role("billing", [allow([p.invoice.read, p.invoice.pay])], { on: "tenant" }),
     role("customer", [allow(p.invoice.read)], { on: p.invoice }),
   ],
   subject: (user: Principal | null) => user,
@@ -96,7 +94,10 @@ export const deliveryPrincipals = memoryPrincipalSource({
   ],
 });
 
-/** The sender: `u_1`, billing in `o1`, with the principal source `decideFor` reads. */
+/**
+ * The sender: `u_1`, billing in `o1`, with the principal source `decideFor`
+ * reads.
+ */
 export async function sender(
   id = "u_1",
 ): Promise<PermDock<DeliveryVocabulary>> {

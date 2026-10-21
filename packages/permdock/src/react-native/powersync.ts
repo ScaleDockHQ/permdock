@@ -16,10 +16,7 @@ export type PowerSyncWatchable = {
   watch(
     sql: string,
     parameters: unknown[] | undefined,
-    handler: {
-      onResult(result: unknown): void;
-      onError?(error: Error): void;
-    },
+    handler: { onResult(result: unknown): void; onError?(error: Error): void },
     options: { readonly signal: AbortSignal },
   ): void;
 };
@@ -32,23 +29,38 @@ export type PowerSyncQuery = {
 
 export type PowerSyncSourceOptions<Q extends string> =
   | {
-      /** `localSnapshotManifest(policy)`, as `permdock powersync generate` writes it to `powersync.manifest`. */
+      /**
+       * `localSnapshotManifest(policy)`, as `permdock powersync generate`
+       * writes it to `powersync.manifest`.
+       */
       readonly manifest: LocalSnapshotManifest;
       /** The queries over the `permdock_*` streams' tables; each one is watched. */
       readonly queries: Readonly<Record<Q, PowerSyncQuery>>;
-      /** Maps the rows of each query to the signed-in user's memberships and roles. */
+      /**
+       * Maps the rows of each query to the signed-in user's memberships and
+       * roles.
+       */
       readonly read: (
         rows: Readonly<Record<Q, readonly unknown[]>>,
       ) => LocalSnapshotData;
     }
   | {
-      /** The manifest `permdock powersync generate` writes, with its `rows` section. */
+      /**
+       * The manifest `permdock powersync generate` writes, with its `rows`
+       * section.
+       */
       readonly manifest: LocalSnapshotManifest;
-      /** The signed-in user's id; the source reads the rows `manifest.rows` names. */
+      /**
+       * The signed-in user's id; the source reads the rows `manifest.rows`
+       * names.
+       */
       readonly user: string;
       /** The active tenant: the first scope's instance the UI shows. */
       readonly tenant?: string;
-      /** Attributes conditions read, such as `claims` for `principal.claims.team_ids`. */
+      /**
+       * Attributes conditions read, such as `claims` for
+       * `principal.claims.team_ids`.
+       */
       readonly attributes?: Readonly<Record<string, unknown>>;
       readonly queries?: undefined;
       readonly read?: undefined;
@@ -89,11 +101,10 @@ function planOf<Q extends string>(options: PowerSyncSourceOptions<Q>): Plan {
  * A `localSnapshot` source over a PowerSync database: `get` runs every query
  * with `db.getAll`, and a `db.watch` per query reports changes. Without
  * `queries` and `read`, it reads the tables `manifest.rows` names: the
- * memberships of every source with null roles dropped, the global roles and
- * the custom roles with their levels. A watch
- * result with unchanged content re-renders nothing (`connectSource`). The source
- * takes the database as an argument; `permdock/react-native` never imports
- * `@powersync/*`.
+ * memberships of every source with null roles dropped, the global roles and the
+ * custom roles with their levels. A watch result with unchanged content
+ * re-renders nothing (`connectSource`). The source takes the database as an
+ * argument; `permdock/react-native` never imports `@powersync/*`.
  */
 export function powerSyncSource<Q extends string>(
   db: PowerSyncWatchable,

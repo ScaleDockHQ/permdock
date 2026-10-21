@@ -91,7 +91,10 @@ export const CLOUD_EVENT_TYPES: {
 export type CloudEventType =
   (typeof CLOUD_EVENT_TYPES)[keyof typeof CLOUD_EVENT_TYPES];
 
-/** Types named for a later release; a receiver refuses them until then. None are reserved now. */
+/**
+ * Types named for a later release; a receiver refuses them until then. None are
+ * reserved now.
+ */
 export const RESERVED_CLOUD_EVENT_TYPES: readonly CloudEventType[] =
   Object.freeze([]);
 
@@ -114,29 +117,44 @@ export type CatalogFindingCode =
   | "operation-risk-raised"
   | "operation-approval-removed";
 
-/** One drift finding: the permission key and, when one broke, the hosted grant id. */
+/**
+ * One drift finding: the permission key and, when one broke, the hosted grant
+ * id.
+ */
 export type CatalogFinding = {
   readonly code: CatalogFindingCode;
   readonly permission: string;
   readonly grant?: string;
   /** The operation name, on the `operation-*` codes. */
   readonly operation?: string;
-  /** `meta.risk` before the publish, on `operation-risk-raised`; an unset risk is `low`. */
+  /**
+   * `meta.risk` before the publish, on `operation-risk-raised`; an unset risk
+   * is `low`.
+   */
   readonly previous?: OperationRisk;
   /** `meta.risk` after the publish, on `operation-risk-raised`. */
   readonly risk?: OperationRisk;
 };
 
-/** `data` of a `com.permdock.catalog.*` event: a `permdock cloud push` or a drift against live hosted grants. */
+/**
+ * `data` of a `com.permdock.catalog.*` event: a `permdock cloud push` or a
+ * drift against live hosted grants.
+ */
 export type CatalogEventData = {
   readonly kind: "publish" | "drift";
-  /** The catalog fingerprint after the publish, or the one drift was measured against. */
+  /**
+   * The catalog fingerprint after the publish, or the one drift was measured
+   * against.
+   */
   readonly fingerprint: string;
   readonly previous?: string;
   readonly findings?: readonly CatalogFinding[];
 };
 
-/** A CloudEvents 1.0 event in the JSON format, with the distributed-tracing extension. */
+/**
+ * A CloudEvents 1.0 event in the JSON format, with the distributed-tracing
+ * extension.
+ */
 export type CloudEvent = {
   readonly specversion: "1.0";
   readonly type: CloudEventType;
@@ -147,9 +165,15 @@ export type CloudEvent = {
   /** An RFC 3339 instant: the sink event's `at`. */
   readonly time: string;
   readonly datacontenttype: "application/json";
-  /** The published JSON Schema of `data`, `https://permdock.com/schemas/<family>-event-v1.json`. */
+  /**
+   * The published JSON Schema of `data`,
+   * `https://permdock.com/schemas/<family>-event-v1.json`.
+   */
   readonly dataschema: string;
-  /** W3C Trace Context `traceparent`, the CloudEvents distributed-tracing extension. */
+  /**
+   * W3C Trace Context `traceparent`, the CloudEvents distributed-tracing
+   * extension.
+   */
   readonly traceparent?: string;
   readonly tracestate?: string;
   readonly data: SinkEvent | CatalogEventData;
@@ -170,9 +194,7 @@ export type SignDecisionBatchOptions = {
   readonly source: string;
 };
 
-export type MemoryDecisionSinkOptions = {
-  readonly capacity?: number;
-} & (
+export type MemoryDecisionSinkOptions = { readonly capacity?: number } & (
   | {
       readonly signer?: undefined;
       readonly audience?: undefined;
@@ -372,7 +394,10 @@ function cloudEventSubject(event: SinkEvent): string {
   return event.permission;
 }
 
-/** `x` as given, after checking it is a plain JSON object; a builder throws on bad input. */
+/**
+ * `x` as given, after checking it is a plain JSON object; a builder throws on
+ * bad input.
+ */
 function checkedX(x: AppData | undefined): AppData | undefined {
   if (x !== undefined) {
     assertAppData(x, "x of a sink event");
@@ -424,9 +449,9 @@ export function automationEvent(input: {
 }
 
 /**
- * The `access` event of a `SupportSession`: `started` when it begins,
- * `ended` when it lapses, `revoked` when it is ended early. `principal` is
- * the staff member, as for a support membership.
+ * The `access` event of a `SupportSession`: `started` when it begins, `ended`
+ * when it lapses, `revoked` when it is ended early. `principal` is the staff
+ * member, as for a support membership.
  */
 export function supportSessionEvent(input: {
   readonly operation: AccessEvent["operation"];
@@ -457,8 +482,8 @@ export function supportSessionEvent(input: {
 }
 
 /**
- * A `credential` sink event for `credential`. `sample` belongs on `used`
- * events only and must be in `(0, 1]`.
+ * A `credential` sink event for `credential`. `sample` belongs on `used` events
+ * only and must be in `(0, 1]`.
  */
 export function credentialEvent(input: {
   readonly operation: CredentialEvent["operation"];
@@ -616,9 +641,9 @@ export function toCloudEvent(
 }
 
 /**
- * Signs sink events as an offline evidence export: a compact JWS with
- * `typ: vnd.permdock.evidence+jwt` whose `events` claim holds CloudEvents.
- * Live deliveries use Standard Webhooks instead.
+ * Signs sink events as an offline evidence export: a compact JWS with `typ:
+ * vnd.permdock.evidence+jwt` whose `events` claim holds CloudEvents. Live
+ * deliveries use Standard Webhooks instead.
  */
 export function signDecisionBatch(
   events: readonly SinkEvent[],

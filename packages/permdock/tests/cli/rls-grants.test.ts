@@ -73,11 +73,7 @@ describe("collectGrants", () => {
         key: "post.update",
         label: "authenticated",
         access: { kind: "authenticated" },
-        where: {
-          op: "eq",
-          field: "authorId",
-          value: { ref: "principal.id" },
-        },
+        where: { op: "eq", field: "authorId", value: { ref: "principal.id" } },
       },
       {
         key: "post.read",

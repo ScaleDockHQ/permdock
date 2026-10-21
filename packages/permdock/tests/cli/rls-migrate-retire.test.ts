@@ -35,9 +35,7 @@ afterEach(() => {
 });
 
 const MIGRATE = {
-  helpers: {
-    has_org_permission: { form: "row", scope: "organization" },
-  },
+  helpers: { has_org_permission: { form: "row", scope: "organization" } },
   prefixes: { "organization.": "" },
   tables: { user_permissions: {} },
 } as const;

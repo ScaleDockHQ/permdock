@@ -21,12 +21,12 @@ import { entriesSql, typedUsers } from "./memberships.ts";
 const SUBJECT_FOR = "subject_for";
 
 /**
- * `subject_for(p_user uuid) returns jsonb`: what the hook would put in a
- * token for `p_user`, from the same membership, role, suspension and version
- * reads, plus the custom roles the user holds when `database` mode keeps them
- * in tables. A backend that only has PostgREST (`postgrestSources`) builds a
- * subject for an acting user or a job from it. Naming the user is why no
- * client role may execute it.
+ * `subject_for(p_user uuid) returns jsonb`: what the hook would put in a token
+ * for `p_user`, from the same membership, role, suspension and version reads,
+ * plus the custom roles the user holds when `database` mode keeps them in
+ * tables. A backend that only has PostgREST (`postgrestSources`) builds a
+ * subject for an acting user or a job from it. Naming the user is why no client
+ * role may execute it.
  */
 export function subjectForSql(parts: Parts, config: PermDockConfig): string {
   const schema = quoteIdent(parts.schema);
@@ -244,9 +244,9 @@ revoke execute on function ${fn}(text, text) from public, anon, authenticated;`;
 
 /**
  * The custom roles `p_user` holds: tenant and shared roles named on a
- * membership of the scope (and instance) they live at, and platform roles
- * among the global roles, each with its grants and includes in `CustomRole`
- * form. A shadowed tenant role comes along; `resolveCustomRole`'s callers drop it.
+ * membership of the scope (and instance) they live at, and platform roles among
+ * the global roles, each with its grants and includes in `CustomRole` form. A
+ * shadowed tenant role comes along; `resolveCustomRole`'s callers drop it.
  */
 function customRolesOfSql(parts: Parts): string {
   const helpers = quoteIdent(parts.helpers.schema);

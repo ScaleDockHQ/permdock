@@ -24,10 +24,7 @@ function request(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
       principal: { id: "u_requester", roles: ["member"], tenant: "o_1" },
       actor: { id: "agent:1", kind: "agent" },
     },
-    approvers: {
-      by: user("u_cfo"),
-      quorum: 2,
-    },
+    approvers: { by: user("u_cfo"), quorum: 2 },
     detail: "payment.send requires approval.",
     createdAt: new Date().toISOString(),
     expiresAt: future,

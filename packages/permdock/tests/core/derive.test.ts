@@ -96,9 +96,7 @@ describe("permdock.derive", () => {
         },
         context: {},
       },
-      {
-        customRoles: { rolesFor: () => Promise.resolve([...mechanic]) },
-      },
+      { customRoles: { rolesFor: () => Promise.resolve([...mechanic]) } },
     );
     const derived = await permdock.derive({});
     const asset = { id: "a", organization_id: "T", customer_id: "c" };

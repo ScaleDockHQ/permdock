@@ -121,24 +121,16 @@ describe("permdock/ai-sdk", () => {
             throw new Error("boom");
           },
         },
-        missing: {
-          permission: permissions.post.delete,
-          data: () => undefined,
-        },
+        missing: { permission: permissions.post.delete, data: () => undefined },
       },
     });
     expect(
       await toolApproval({
         toolCall: { toolName: "delete_post", input: { id: "p1" } },
       }),
-    ).toEqual({
-      type: "denied",
-      reason: "Denied: delete_post failed closed.",
-    });
+    ).toEqual({ type: "denied", reason: "Denied: delete_post failed closed." });
     expect(
-      await toolApproval({
-        toolCall: { toolName: "missing", input: {} },
-      }),
+      await toolApproval({ toolCall: { toolName: "missing", input: {} } }),
     ).toMatchObject({ type: "denied" });
   });
 

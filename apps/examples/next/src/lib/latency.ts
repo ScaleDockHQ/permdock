@@ -9,8 +9,8 @@ function latencyFrom(raw = ""): number {
 }
 
 /**
- * Milliseconds every store read waits, so a cached read is visibly instant
- * next to a cold one. `DEMO_LATENCY_MS=0` turns it off.
+ * Milliseconds every store read waits, so a cached read is visibly instant next
+ * to a cold one. `DEMO_LATENCY_MS=0` turns it off.
  */
 export const LATENCY_MS = latencyFrom(process.env["DEMO_LATENCY_MS"]);
 

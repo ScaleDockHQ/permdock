@@ -182,10 +182,7 @@ describe("saas seed", () => {
     // SAFETY: deliberately incomplete project row to exercise boundary validation.
     const decision = permdock.decide(
       saasPermissions.project.update,
-      {
-        id: "p1",
-        orgId: "acme",
-      } as never,
+      { id: "p1", orgId: "acme" } as never,
       { trusted: false },
     );
     expect(reasonOf(decision)).toBe("validation");

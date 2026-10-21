@@ -90,9 +90,7 @@ describe("subjectFromSupportSession: failures are anonymous", () => {
     const { options, causes } = setup();
     const subject = await subjectFromSupportSession("a.b.c", {
       ...options,
-      verifier: {
-        verify: () => Promise.reject(new Error("jwks down")),
-      },
+      verifier: { verify: () => Promise.reject(new Error("jwks down")) },
     });
     expect(subject.principal).toBeNull();
     expect(causes).toEqual(["malformed"]);
@@ -149,12 +147,8 @@ describe("subjectFromSupportSession: failures are anonymous", () => {
       (await subjectFromSupportSession(token, options)).principal,
     ).toBeNull();
     expect(
-      (
-        await subjectFromSupportSession(token, {
-          ...options,
-          verifier: shared,
-        })
-      ).principal,
+      (await subjectFromSupportSession(token, { ...options, verifier: shared }))
+        .principal,
     ).toBeNull();
     expect(causes).toEqual(["wrong-token-type", "wrong-token-type"]);
   });

@@ -16,7 +16,10 @@ function parts(table: string): readonly [string | undefined, string] {
   return [schema === "public" ? undefined : schema, name];
 }
 
-/** The tables a plan references, by `schema.table`, and the device names of those another table shares a name with. */
+/**
+ * The tables a plan references, by `schema.table`, and the device names of
+ * those another table shares a name with.
+ */
 export type TableNames = {
   readonly renamed: ReadonlyMap<string, string>;
   readonly seen: Set<string>;
@@ -25,9 +28,9 @@ export type TableNames = {
 type Named = { readonly names?: TableNames };
 
 /**
- * The name a stream query and the device use for the table: its own name,
- * or `<schema>_<table>` for a table outside `public` that shares its name
- * with another synced table, since PowerSync drops the schema on the device.
+ * The name a stream query and the device use for the table: its own name, or
+ * `<schema>_<table>` for a table outside `public` that shares its name with
+ * another synced table, since PowerSync drops the schema on the device.
  */
 export function bare(table: string, named: Named): string {
   const [schema, name] = parts(table);
@@ -36,7 +39,10 @@ export function bare(table: string, named: Named): string {
   return named.names?.renamed.get(key) ?? name;
 }
 
-/** The table as a stream query reads it: Sync Streams need a schema other than `public` in double quotes. */
+/**
+ * The table as a stream query reads it: Sync Streams need a schema other than
+ * `public` in double quotes.
+ */
 export function quotedTable(table: string): string {
   const [schema, name] = parts(table);
   return schema === undefined ? name : `"${schema}"."${name}"`;
@@ -50,7 +56,10 @@ export function fromTable(table: string, named: Named): string {
     : `${quotedTable(table)} AS ${bare(table, named)}`;
 }
 
-/** `<schema>_<table>` for each table outside `public` whose name another referenced table shares. */
+/**
+ * `<schema>_<table>` for each table outside `public` whose name another
+ * referenced table shares.
+ */
 export function renames(seen: Iterable<string>): ReadonlyMap<string, string> {
   const byName = new Map<string, string[]>();
   for (const table of seen) {

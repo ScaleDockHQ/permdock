@@ -81,9 +81,7 @@ describe("createPermDockUnplugin", () => {
         framework: "vite",
         versions: {},
       }),
-    ).toMatchObject({
-      name: "permdock-collect",
-    });
+    ).toMatchObject({ name: "permdock-collect" });
   });
 
   it("writes the catalog at build start and reports nothing", async () => {

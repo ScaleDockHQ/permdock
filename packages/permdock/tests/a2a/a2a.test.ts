@@ -33,10 +33,7 @@ const skills = {
     description: "Summarise a post",
     data: async () => ownPost,
   },
-  publish: {
-    permission: permissions.post.publish,
-    data: async () => ownPost,
-  },
+  publish: { permission: permissions.post.publish, data: async () => ownPost },
 };
 
 describe("permdock/a2a", () => {

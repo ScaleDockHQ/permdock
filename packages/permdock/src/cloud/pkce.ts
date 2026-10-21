@@ -14,10 +14,7 @@ export function randomToken(length: number): string {
   return base64url(globalThis.crypto.getRandomValues(new Uint8Array(length)));
 }
 
-export type Pkce = {
-  readonly verifier: string;
-  readonly challenge: string;
-};
+export type Pkce = { readonly verifier: string; readonly challenge: string };
 
 /** An RFC 7636 verifier of 43 characters and its `S256` challenge. */
 export async function pkce(): Promise<Pkce> {

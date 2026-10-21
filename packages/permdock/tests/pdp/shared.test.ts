@@ -83,9 +83,7 @@ describe("cacheKey", () => {
       cacheKey(
         { principal: { id: "u1", roles: [] }, context: {} },
         permissions.post.read,
-        {
-          id: "p2",
-        },
+        { id: "p2" },
       ),
     ]);
     expect(keys.size).toBe(5);

@@ -5,7 +5,10 @@ import { dateAt } from "../../core/time.ts";
 import { applyFiles } from "./files.ts";
 import { shortDiff } from "./text-diff.ts";
 
-/** One generated file: `part` names it in drift reports, `rel` is relative to the working directory, `-` for stdout. */
+/**
+ * One generated file: `part` names it in drift reports, `rel` is relative to
+ * the working directory, `-` for stdout.
+ */
 export type OutputFile = {
   readonly part: string;
   readonly rel: string;
@@ -30,7 +33,10 @@ export function fileDrift(
   return same(onDisk, expected) ? undefined : { kind: "differs", onDisk };
 }
 
-/** `--check`: one entry per file that is missing or differs, naming its part; a differing file carries a short diff. */
+/**
+ * `--check`: one entry per file that is missing or differs, naming its part; a
+ * differing file carries a short diff.
+ */
 export function driftOf(cwd: string, files: readonly OutputFile[]): string[] {
   const drift: string[] = [];
   for (const file of files) {
@@ -49,7 +55,10 @@ export function driftOf(cwd: string, files: readonly OutputFile[]): string[] {
   return drift;
 }
 
-/** Writes every file but the stdout ones, all or nothing, and returns the stdout text for printing. */
+/**
+ * Writes every file but the stdout ones, all or nothing, and returns the stdout
+ * text for printing.
+ */
 export function writeOutputFiles(
   cwd: string,
   files: readonly OutputFile[],
@@ -78,7 +87,10 @@ export const SPLIT_PARTS = [
 
 export type SplitPart = (typeof SPLIT_PARTS)[number];
 
-/** `--split helpers,seeds,indexes,policies,hook`: the parts in that fixed order, or an error. */
+/**
+ * `--split helpers,seeds,indexes,policies,hook`: the parts in that fixed order,
+ * or an error.
+ */
 export function parseSplit(
   raw: string | undefined,
 ): readonly SplitPart[] | string | undefined {
@@ -104,8 +116,8 @@ export function partPath(out: string, part: SplitPart): string {
 }
 
 /**
- * pg-delta's per-schema, unnumbered layout: pg-delta orders statements by
- * their dependencies, so no file needs a number to apply first.
+ * pg-delta's per-schema, unnumbered layout: pg-delta orders statements by their
+ * dependencies, so no file needs a number to apply first.
  */
 export function pgDeltaPath(
   root: string,
@@ -128,7 +140,10 @@ export function pgDeltaPath(
   }
 }
 
-/** Whether `--seeds-out` names a migrations directory: it ends with \`/\` or is an existing directory. */
+/**
+ * Whether `--seeds-out` names a migrations directory: it ends with \`/\` or is
+ * an existing directory.
+ */
 export function isSeedsDirectory(cwd: string, out: string): boolean {
   if (out === STDOUT) {
     return false;
@@ -141,11 +156,11 @@ export function isSeedsDirectory(cwd: string, out: string): boolean {
 }
 
 /**
- * A generated data migration at `out`: a file, `-` for stdout, or a
- * migrations directory that gets a new versioned file only when the newest
- * one starting with `marker` differs. With `check`, the planned file is
- * always returned, so drift names it. `reserved` lists the files this run
- * already plans, so two data migrations never share a version.
+ * A generated data migration at `out`: a file, `-` for stdout, or a migrations
+ * directory that gets a new versioned file only when the newest one starting
+ * with `marker` differs. With `check`, the planned file is always returned, so
+ * drift names it. `reserved` lists the files this run already plans, so two
+ * data migrations never share a version.
  */
 export function dataMigrationFile(input: {
   readonly cwd: string;
@@ -185,9 +200,9 @@ export function migrationVersion(now: Date): string {
 const VERSION_PREFIX = /^\d{14}(?=_)/u;
 
 /**
- * The version of a new migration that sorts after every migration in
- * `names`: one second past the newest, so the same directory always gives the
- * same name. Only a directory with no versioned migration falls back to `now`.
+ * The version of a new migration that sorts after every migration in `names`:
+ * one second past the newest, so the same directory always gives the same name.
+ * Only a directory with no versioned migration falls back to `now`.
  */
 export function nextMigrationVersion(
   names: readonly string[],

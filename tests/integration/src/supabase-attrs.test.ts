@@ -106,7 +106,10 @@ describe("the attrs claim against Postgres", () => {
     );
   }
 
-  /** Auth puts the user's `raw_app_meta_data` into the event's claims as `app_metadata`. */
+  /**
+   * Auth puts the user's `raw_app_meta_data` into the event's claims as
+   * `app_metadata`.
+   */
   async function appMetadata(user: string): Promise<unknown> {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");

@@ -38,10 +38,7 @@ export const chatPolicy = definePolicy(p, {
 
 const invoices: Readonly<
   Record<string, { readonly id: string; readonly orgId: string }>
-> = {
-  i1: { id: "i1", orgId: "o1" },
-  i2: { id: "i2", orgId: "o2" },
-};
+> = { i1: { id: "i1", orgId: "o1" }, i2: { id: "i2", orgId: "o2" } };
 
 export const chatOperations = defineOperations(p, {
   "invoice.show": {

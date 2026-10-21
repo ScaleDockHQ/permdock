@@ -50,10 +50,9 @@ const admin = {
 
 export type ApprovalStoreOptions = {
   /**
-   * Opens a second client over the same backing storage, as a restarted
-   * process would: for a hosted store, `() => cloud(...).approvals`. Omit it
-   * for stores that do not persist (the resume-after-restart case is then
-   * skipped).
+   * Opens a second client over the same backing storage, as a restarted process
+   * would: for a hosted store, `() => cloud(...).approvals`. Omit it for stores
+   * that do not persist (the resume-after-restart case is then skipped).
    */
   readonly reopen?: () => ApprovalStore | Promise<ApprovalStore>;
   readonly capabilities?: {
@@ -416,8 +415,8 @@ export function testApprovalStore(
 
 /**
  * Checks an `ApprovalPolicySource`: entries are plain JSON, belong to the
- * queried tenant or to none, and every entry loads against `policy` (an
- * entry that does not would deny every call).
+ * queried tenant or to none, and every entry loads against `policy` (an entry
+ * that does not would deny every call).
  */
 export function testApprovalPolicySource(
   source: ApprovalPolicySource,
@@ -572,9 +571,9 @@ export function testApprovalDelegationSource(
 }
 
 /**
- * Checks an `IdempotencyStore`: a stored response comes back as written
- * until it expires, keys never share an entry, and a later `set` replaces an
- * earlier one.
+ * Checks an `IdempotencyStore`: a stored response comes back as written until
+ * it expires, keys never share an entry, and a later `set` replaces an earlier
+ * one.
  */
 export function testIdempotencyStore(store: IdempotencyStore): void {
   it("replays a stored response per key and keeps keys apart", async () => {

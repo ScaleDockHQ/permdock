@@ -29,9 +29,10 @@ function fingerprintInput(catalog: Record<string, unknown>): unknown {
 }
 
 /**
- * The catalog v1 fingerprint: the `sha-256:` digest of its RFC 8785 JSON without `generatedAt`, `generator`, `fingerprint`
- * and every `permissions[].usages`, so neither the CLI version, the clock nor
- * call sites change it.
+ * The catalog v1 fingerprint: the `sha-256:` digest of its RFC 8785 JSON
+ * without `generatedAt`, `generator`, `fingerprint` and every
+ * `permissions[].usages`, so neither the CLI version, the clock nor call sites
+ * change it.
  */
 export function catalogFingerprint(catalog: unknown): string {
   if (!isRecord(catalog)) {

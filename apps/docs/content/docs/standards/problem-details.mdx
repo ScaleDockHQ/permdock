@@ -86,15 +86,8 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
   "instance": "/posts/p_42",
   "permission": "post.delete",
   "scope": "post:delete",
-  "resource": {
-    "type": "post"
-  },
-  "denials": [
-    {
-      "role": "member",
-      "reason": "condition"
-    }
-  ],
+  "resource": { "type": "post" },
+  "denials": [{ "role": "member", "reason": "condition" }],
   "alternatives": ["post.read", "post.update"]
 }
 ```
@@ -112,14 +105,10 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
   "instance": "/posts/p_42",
   "permission": "post.delete",
   "scope": "post:delete",
-  "resource": {
-    "type": "post"
-  },
+  "resource": { "type": "post" },
   "reason": "human",
   "token": "pd1.eyJhbGciOiJFZERTQSJ9",
-  "approval": {
-    "at": "https://app.example/approvals"
-  }
+  "approval": { "at": "https://app.example/approvals" }
 }
 ```
 
@@ -134,12 +123,7 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
   "status": 400,
   "detail": "invalid post",
   "permission": "post.delete",
-  "issues": [
-    {
-      "message": "title is required",
-      "path": ["title"]
-    }
-  ]
+  "issues": [{ "message": "title is required", "path": ["title"] }]
 }
 ```
 
@@ -155,18 +139,12 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
   "detail": "post.delete denied for subject u_123: member (insufficient-user-authentication). Alternatives: post.read, post.update.",
   "permission": "post.delete",
   "scope": "post:delete",
-  "resource": {
-    "type": "post"
-  },
+  "resource": { "type": "post" },
   "denials": [
     {
       "role": "member",
       "reason": "insufficient-user-authentication",
-      "to": {
-        "kind": "assurance",
-        "acr": ["urn:mfa"],
-        "maxAge": 600
-      }
+      "to": { "kind": "assurance", "acr": ["urn:mfa"], "maxAge": 600 }
     }
   ],
   "alternatives": ["post.read", "post.update"],
@@ -187,17 +165,12 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
   "detail": "post.delete denied for subject u_123: admin (not-entitled). Alternatives: post.read, post.update.",
   "permission": "post.delete",
   "scope": "post:delete",
-  "resource": {
-    "type": "post"
-  },
+  "resource": { "type": "post" },
   "denials": [
     {
       "role": "admin",
       "reason": "not-entitled",
-      "to": {
-        "kind": "plan",
-        "plan": "pro"
-      }
+      "to": { "kind": "plan", "plan": "pro" }
     }
   ],
   "alternatives": ["post.read", "post.update"],
@@ -217,9 +190,7 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
   "detail": "post.delete denied for subject u_123: member (limit). Alternatives: post.read, post.update.",
   "permission": "post.delete",
   "scope": "post:delete",
-  "resource": {
-    "type": "post"
-  },
+  "resource": { "type": "post" },
   "denials": [
     {
       "role": "member",
@@ -247,15 +218,8 @@ Each `type` URI dereferences here: `https://permdock.com/problems/<type>` redire
   "detail": "post.delete denied for subject u_123: member (limit-unavailable). Alternatives: post.read, post.update.",
   "permission": "post.delete",
   "scope": "post:delete",
-  "resource": {
-    "type": "post"
-  },
-  "denials": [
-    {
-      "role": "member",
-      "reason": "limit-unavailable"
-    }
-  ],
+  "resource": { "type": "post" },
+  "denials": [{ "role": "member", "reason": "limit-unavailable" }],
   "alternatives": ["post.read", "post.update"]
 }
 ```

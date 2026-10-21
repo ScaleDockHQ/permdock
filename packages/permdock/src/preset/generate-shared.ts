@@ -6,9 +6,9 @@ export type GeneratedFile = {
   readonly path: string;
   readonly contents: string;
   /**
-   * `owned`: the application's own code, edited freely and never
-   * rewritten by an update. Every generated file is owned; rules, checks and
-   * verification stay in the `permdock` package, which these files only call.
+   * `owned`: the application's own code, edited freely and never rewritten by
+   * an update. Every generated file is owned; rules, checks and verification
+   * stay in the `permdock` package, which these files only call.
    */
   readonly kind: "owned";
 };
@@ -30,9 +30,9 @@ export function quote(value: string): string {
 }
 
 /**
- * An environment read in the generated code. Built from parts so this
- * runtime chunk carries no `process.` token, which the WinterTC check reads
- * as a Node global; the generated file has it whole.
+ * An environment read in the generated code. Built from parts so this runtime
+ * chunk carries no `process.` token, which the WinterTC check reads as a Node
+ * global; the generated file has it whole.
  */
 export function env(name: string): string {
   return ["process", `env[${quote(name)}]`].join(".");

@@ -9,7 +9,10 @@ import {
   role,
 } from "../../src/index.ts";
 
-/** Both tables are scope instances themselves: each row's own `id` is the scope id. */
+/**
+ * Both tables are scope instances themselves: each row's own `id` is the scope
+ * id.
+ */
 const permissions = definePermissions({
   organization: resource({
     id: "id",

@@ -17,37 +17,43 @@ import { callRpc } from "../supabase/postgrest.ts";
 
 export type AccessReviewApplierOptions = {
   /**
-   * A supabase-js client that may call the organizations and invitations
-   * block functions. Pass the reviewer's client so the block's own
-   * permission and role-ceiling checks run as the reviewer.
+   * A supabase-js client that may call the organizations and invitations block
+   * functions. Pass the reviewer's client so the block's own permission and
+   * role-ceiling checks run as the reviewer.
    */
   readonly client: SupabaseRpcCaller;
   readonly reviews: AccessReviewStore;
-  /** Decides whether a fallback role or an invitation's role grants the reviewed permission. */
+  /**
+   * Decides whether a fallback role or an invitation's role grants the reviewed
+   * permission.
+   */
   readonly policy: Policy;
   /**
-   * The role a revoked member moves to with `update_member_role`: one role,
-   * or a map from the roles in the item's `via` to their fallback. A
-   * fallback that still grants the permission, or none, removes the member
-   * with `remove_member` instead.
+   * The role a revoked member moves to with `update_member_role`: one role, or
+   * a map from the roles in the item's `via` to their fallback. A fallback that
+   * still grants the permission, or none, removes the member with
+   * `remove_member` instead.
    */
   readonly demoteTo?: string | Readonly<Record<string, string>>;
   /**
-   * The member's email, for revoking the tenant's open invitations to it
-   * whose role grants the permission. Without it invitations are left alone.
+   * The member's email, for revoking the tenant's open invitations to it whose
+   * role grants the permission. Without it invitations are left alone.
    */
   readonly email?: (
     userId: string,
   ) => string | null | undefined | Promise<string | null | undefined>;
   /**
-   * An instance for the member in the review's tenant, read after the
-   * change. An item it still grants is not marked applied.
+   * An instance for the member in the review's tenant, read after the change.
+   * An item it still grants is not marked applied.
    */
   readonly permdockFor?: (
     principalId: string,
     tenant: string,
   ) => PermDock | Promise<PermDock>;
-  /** The schema of the block functions; better-supabase's default is `better_supabase`. */
+  /**
+   * The schema of the block functions; better-supabase's default is
+   * `better_supabase`.
+   */
   readonly schema?: string;
   /** The scope review tenants are; defaults to the policy's first scope. */
   readonly scope?: string;
@@ -62,13 +68,19 @@ export type AccessReviewApplyFailure = {
 export type AccessReviewApplyResult = {
   /** Items marked applied, including those whose member was already gone. */
   readonly applied: readonly string[];
-  /** Items left unapplied, with the error the block function or the re-check gave. */
+  /**
+   * Items left unapplied, with the error the block function or the re-check
+   * gave.
+   */
   readonly failed: readonly AccessReviewApplyFailure[];
 };
 
 const NOT_MEMBER = "ORGANIZATION_NOT_MEMBER";
 
-/** The `hint` better-supabase's block functions raise their code in, or the SQLSTATE. */
+/**
+ * The `hint` better-supabase's block functions raise their code in, or the
+ * SQLSTATE.
+ */
 function errorCode(error: { readonly message: string }): string | undefined {
   if ("hint" in error && typeof error.hint === "string" && error.hint !== "") {
     return error.hint;
@@ -88,8 +100,8 @@ class RpcFailure extends Error {
 }
 
 /**
- * Whether a member holding `role` at `scope` holds `key` through it. A role
- * the policy does not declare, such as a custom role, counts as holding it.
+ * Whether a member holding `role` at `scope` holds `key` through it. A role the
+ * policy does not declare, such as a custom role, counts as holding it.
  */
 function roleGrants(
   policy: Policy,
@@ -126,7 +138,9 @@ function fallbackRole(
   return undefined;
 }
 
-function invitationsOf(data: unknown): readonly {
+function invitationsOf(
+  data: unknown,
+): readonly {
   readonly id: string;
   readonly email: string;
   readonly role: string;
@@ -146,14 +160,13 @@ function invitationsOf(data: unknown): readonly {
 
 /**
  * Applies the revoked items of an access review to better-supabase's
- * organizations and invitations blocks, then marks each one applied. A
- * revoked member moves to the `demoteTo` role when the policy says that
- * role lacks the permission, and is removed otherwise. With `email`, the
- * tenant's open invitations to the member whose role grants the permission
- * are revoked too. A member who is no longer in the organization counts as
- * applied. Any other error leaves the item unapplied in `failed`, and one
- * item's failure never stops the others. Throws `review-not-found` for an
- * unknown review.
+ * organizations and invitations blocks, then marks each one applied. A revoked
+ * member moves to the `demoteTo` role when the policy says that role lacks the
+ * permission, and is removed otherwise. With `email`, the tenant's open
+ * invitations to the member whose role grants the permission are revoked too. A
+ * member who is no longer in the organization counts as applied. Any other
+ * error leaves the item unapplied in `failed`, and one item's failure never
+ * stops the others. Throws `review-not-found` for an unknown review.
  */
 export function accessReviewApplier(
   options: AccessReviewApplierOptions,

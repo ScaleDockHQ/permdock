@@ -14,16 +14,16 @@ import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
 
 /**
  * Who an automation runs as. `publisher`: the person who published it, with
- * their rights as of each run. `service`: a `kind: 'service'` principal
- * holding `roles` in `tenant`, capped at what the publisher could assign.
+ * their rights as of each run. `service`: a `kind: 'service'` principal holding
+ * `roles` in `tenant`, capped at what the publisher could assign.
  */
 export type AutomationMode = "publisher" | "service";
 
 /**
- * Automation v1: a published, versioned run of operations. Every run acts
- * as `principal` with live rights, narrowed to `permissions` (the
- * operations' permissions) and to any policy delegation to
- * `actor('automation')`. The event that triggers a run never grants.
+ * Automation v1: a published, versioned run of operations. Every run acts as
+ * `principal` with live rights, narrowed to `permissions` (the operations'
+ * permissions) and to any policy delegation to `actor('automation')`. The event
+ * that triggers a run never grants.
  */
 export type Automation = {
   readonly v: 1;
@@ -43,7 +43,10 @@ export type Automation = {
   readonly operations: readonly string[];
   /** The delegation: the permission keys of `operations`. */
   readonly permissions: readonly string[];
-  /** The permission key a caller needs to start a run; absent, only server code starts one. */
+  /**
+   * The permission key a caller needs to start a run; absent, only server code
+   * starts one.
+   */
   readonly run?: string;
   readonly revoked?: boolean;
   readonly name?: string;
@@ -53,7 +56,10 @@ export type Automation = {
 export type AutomationSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  /** The automation as of now, or `null` for an unknown one. A throw is no automation. */
+  /**
+   * The automation as of now, or `null` for an unknown one. A throw is no
+   * automation.
+   */
   automation(
     id: string,
     options?: { readonly tenant?: string },
@@ -65,7 +71,10 @@ type OperationRef = Pick<Operation, "name" | "permission">;
 export type AutomationRequest = {
   readonly id: string;
   readonly version: number | string;
-  /** The operations the automation runs: entries of an `OperationMap`, or the map itself. */
+  /**
+   * The operations the automation runs: entries of an `OperationMap`, or the
+   * map itself.
+   */
   readonly operations:
     | readonly OperationRef[]
     | Readonly<Record<string, OperationRef>>;
@@ -101,10 +110,9 @@ function isVersion(value: unknown): value is number | string {
 }
 
 /**
- * Validates an untrusted automation record and returns a frozen copy with
- * only the v1 fields, or `undefined`. A service automation needs `tenant`
- * and `roles`; a publisher automation runs as `publishedBy` and has no
- * `roles`.
+ * Validates an untrusted automation record and returns a frozen copy with only
+ * the v1 fields, or `undefined`. A service automation needs `tenant` and
+ * `roles`; a publisher automation runs as `publishedBy` and has no `roles`.
  */
 export function parseAutomation(input: unknown): Automation | undefined {
   const value = ownRecord(input);
@@ -175,7 +183,10 @@ export type MemoryAutomationSource = {
   put(automation: Automation): void;
 };
 
-/** An in-process `AutomationSource`; records are kept by id and checked with `parseAutomation`. */
+/**
+ * An in-process `AutomationSource`; records are kept by id and checked with
+ * `parseAutomation`.
+ */
 export function memoryAutomationSource(
   automations: readonly Automation[] = [],
 ): MemoryAutomationSource {
@@ -228,21 +239,20 @@ function operationList(
 
 /**
  * Decides whether the subject of `permdock` may publish the automation in
- * `request`, and returns the record to store. The publisher must be a
- * signed-in user or service that is not a link, a feed, a contact, a
- * credential or a run, and must be able to use every operation's permission
- * now (`exceeds-creator`); each run re-checks their live rights. A
- * `service` automation's tenant must be one the publisher is a member of,
- * its roles among their `assignableRoles` there and its permissions within
- * `assignablePermissions`. PermDock never stores the record; the
- * application does, after a `granted` result.
+ * `request`, and returns the record to store. The publisher must be a signed-in
+ * user or service that is not a link, a feed, a contact, a credential or a run,
+ * and must be able to use every operation's permission now (`exceeds-creator`);
+ * each run re-checks their live rights. A `service` automation's tenant must be
+ * one the publisher is a member of, its roles among their `assignableRoles`
+ * there and its permissions within `assignablePermissions`. PermDock never
+ * stores the record; the application does, after a `granted` result.
  */
 /**
  * Decides whether the subject of `permdock` may publish the automation in
  * `request` and returns the record to store: the publisher's own reach over
  * every operation's permission and, for a `service` automation, their
- * assignable ceiling. Each run re-checks the publisher live. An instance
- * built from a snapshot denies with `unsupported`.
+ * assignable ceiling. Each run re-checks the publisher live. An instance built
+ * from a snapshot denies with `unsupported`.
  */
 export function decideAutomation(
   permdock: InstanceHandle,

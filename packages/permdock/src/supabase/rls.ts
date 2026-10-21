@@ -53,7 +53,10 @@ export function supabaseRls(
 const ident = (name: string): string => quoteSqlIdent(name);
 const literal = quoteSqlLiteral;
 
-/** The memberships table's role key over alias `m`, joined to its roles table when it holds a reference. */
+/**
+ * The memberships table's role key over alias `m`, joined to its roles table
+ * when it holds a reference.
+ */
 function tenantRole(memberships: SupabaseMembershipTable): RoleColumn {
   return roleColumn(memberships.role, qualifySqlTable(memberships.table), "m", {
     label: "authorizeSql tenant.role",
@@ -203,9 +206,9 @@ function customDatabaseBranch(
 }
 
 /**
- * The `role_permissions` match for one effect. An allow counts only without
- * row conditions (`grant_key = permission`): `authorize()` never sees the row.
- * A deny counts with or without them, so a conditional deny still denies.
+ * The `role_permissions` match for one effect. An allow counts only without row
+ * conditions (`grant_key = permission`): `authorize()` never sees the row. A
+ * deny counts with or without them, so a conditional deny still denies.
  */
 function effectMatch(scope: string, effect: "allow" | "deny"): string {
   return `rp.permission = requested_permission::text
@@ -275,7 +278,10 @@ ${tenantBranch}
 end;`;
 }
 
-/** A claim membership whose `expires_at` (epoch seconds) has passed no longer holds its roles. */
+/**
+ * A claim membership whose `expires_at` (epoch seconds) has passed no longer
+ * holds its roles.
+ */
 const CLAIM_UNEXPIRED = `case jsonb_typeof(m -> 'expires_at')
           when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
           else true
@@ -357,14 +363,16 @@ end;`;
 }
 
 /**
- * `authorize(requested_permission, requested_tenant text default null)` for Supabase's RBAC
- * scaffold, over the `role_permissions (role, permission, grant_key, scope, effect)` table that
- * `permdock rls generate` seeds. `database` reads `user_roles` (and the memberships table for a
- * tenant) on every call; `jwt` reads the hook-injected `user_role` and `memberships` claims. A
- * tenant request with no memberships source is denied, never answered from global roles. It
- * answers "does a role hold this permission" without seeing a row: an allow with row conditions
- * does not count, and a deny the user's tenant or global roles hold overrides every allow.
- * Generated policies call the per-statement RLS helpers (`permdock_has`, `permitted_<scope>_ids`)
+ * `authorize(requested_permission, requested_tenant text default null)` for
+ * Supabase's RBAC scaffold, over the `role_permissions (role, permission,
+ * grant_key, scope, effect)` table that `permdock rls generate` seeds.
+ * `database` reads `user_roles` (and the memberships table for a tenant) on
+ * every call; `jwt` reads the hook-injected `user_role` and `memberships`
+ * claims. A tenant request with no memberships source is denied, never answered
+ * from global roles. It answers "does a role hold this permission" without
+ * seeing a row: an allow with row conditions does not count, and a deny the
+ * user's tenant or global roles hold overrides every allow. Generated policies
+ * call the per-statement RLS helpers (`permdock_has`, `permitted_<scope>_ids`)
  * instead. Only `authenticated` may execute it.
  */
 export function authorizeSql(options: AuthorizeSqlOptions = {}): string {

@@ -28,21 +28,24 @@ export type RlsAccess =
       readonly role: string;
       readonly resource: string;
     }
-  /** A `deny` for delegated `oauth-client` actors: a token with `client_id` or `act`. */
+  /**
+   * A `deny` for delegated `oauth-client` actors: a token with `client_id` or
+   * `act`.
+   */
   | { readonly kind: "actor"; readonly actor: "oauth-client" };
 
 /**
- * The `role_permissions` grant key of a break-glass grant. It differs from
- * the permission key, so `authorize()` and the table policies never count it;
- * only the break-glass read asks for it.
+ * The `role_permissions` grant key of a break-glass grant. It differs from the
+ * permission key, so `authorize()` and the table policies never count it; only
+ * the break-glass read asks for it.
  */
 export function breakGlassKey(permission: string): string {
   return `${permission}#break-glass`;
 }
 
 /**
- * The role and scope holding a break-glass grant. `breakGlass()` sets
- * `to: authenticated`, so inside `role()` the role is on the grant itself.
+ * The role and scope holding a break-glass grant. `breakGlass()` sets `to:
+ * authenticated`, so inside `role()` the role is on the grant itself.
  */
 export function breakGlassHolder(
   item: RlsGrant,
@@ -106,7 +109,10 @@ function inheritWhere(
   return where;
 }
 
-/** Only a deny for `oauth-client` actors compiles: Postgres sees `client_id` and `act`, not other actor kinds. */
+/**
+ * Only a deny for `oauth-client` actors compiles: Postgres sees `client_id` and
+ * `act`, not other actor kinds.
+ */
 function actorAccess(
   grant: Grant,
   grantee: Extract<Grantee, { readonly kind: "actor" }>,
@@ -139,19 +145,15 @@ function accessOf(
     return anyone ? { kind: "anyone" } : { kind: "authenticated" };
   }
   if (typeof held.scope === "object") {
-    return {
-      kind: "resource",
-      role: held.role,
-      resource: held.scope.resource,
-    };
+    return { kind: "resource", role: held.role, resource: held.scope.resource };
   }
   return { kind: "role", role: held.role, scope: held.scope };
 }
 
 /**
- * Every grant RLS must enforce: role grants and top-level
- * `definePolicy({ grants })` alike (`policy.grants` holds both). A grantee
- * Postgres cannot see (plan, actor, assurance) fails with the permission named.
+ * Every grant RLS must enforce: role grants and top-level `definePolicy({
+ * grants })` alike (`policy.grants` holds both). A grantee Postgres cannot see
+ * (plan, actor, assurance) fails with the permission named.
  */
 export function collectGrants(policy: Policy): readonly RlsGrant[] {
   return policy.grants.map((grant) => {
@@ -203,7 +205,10 @@ export function collectGrants(policy: Policy): readonly RlsGrant[] {
   });
 }
 
-/** The declared roles a custom role may draw grants from: the custom-role ceiling. */
+/**
+ * The declared roles a custom role may draw grants from: the custom-role
+ * ceiling.
+ */
 export function assignableRoles(policy: Policy): readonly string[] {
   return [...roleNames(policy)]
     .toSorted()
@@ -216,7 +221,10 @@ export function assignableRoles(policy: Policy): readonly string[] {
     );
 }
 
-/** Declared role names (bindings and `defineRoles` leaves) plus any role a top-level grant names. */
+/**
+ * Declared role names (bindings and `defineRoles` leaves) plus any role a
+ * top-level grant names.
+ */
 export function roleNames(policy: Policy): readonly string[] {
   const names = new Set(policy.roles.map((item) => item.name));
   for (const leaf of listRoles(policy.vocabulary.roles)) {

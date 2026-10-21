@@ -41,10 +41,7 @@ const policy = definePolicy(permissions, {
 
 describe("explain", () => {
   it("names the deny that won and the allows it overrode", async () => {
-    const permdock = getPermDockSync(policy, {
-      id: "u1",
-      roles: ["editor"],
-    });
+    const permdock = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
     const explained = permdock.explain(permissions.doc.update, locked);
     expect(explained.outcome).toBe("denied");
     expect(explained.trace.denies.map((grant) => grant.name)).toEqual(["lock"]);
@@ -80,10 +77,7 @@ describe("explain", () => {
   });
 
   it("records a grant whose role the subject does not hold", async () => {
-    const permdock = getPermDockSync(policy, {
-      id: "u1",
-      roles: ["viewer"],
-    });
+    const permdock = getPermDockSync(policy, { id: "u1", roles: ["viewer"] });
     const explained = permdock.explain(permissions.doc.update, open);
     expect(explained.outcome).toBe("denied");
     expect(explained.trace.skipped).toEqual([
@@ -98,10 +92,7 @@ describe("explain", () => {
   });
 
   it("records why a grant was passed over", async () => {
-    const permdock = getPermDockSync(policy, {
-      id: "u1",
-      roles: ["auditor"],
-    });
+    const permdock = getPermDockSync(policy, { id: "u1", roles: ["auditor"] });
     const read = permdock.explain(permissions.doc.read, open);
     expect(read.outcome).toBe("denied");
     expect(read.trace.skipped).toContainEqual({
@@ -110,9 +101,7 @@ describe("explain", () => {
       effect: "allow",
       why: "purpose",
     });
-    const del = permdock.explain(permissions.doc.delete, open, {
-      field: "id",
-    });
+    const del = permdock.explain(permissions.doc.delete, open, { field: "id" });
     expect(del.outcome).toBe("denied");
     expect(del.trace.skipped).toContainEqual({
       role: "auditor",
@@ -167,10 +156,7 @@ describe("explain", () => {
   });
 
   it("explains a snapshot client the same way", async () => {
-    const permdock = getPermDockSync(policy, {
-      id: "u1",
-      roles: ["editor"],
-    });
+    const permdock = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new Error("expected JSON snapshot");

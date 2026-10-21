@@ -172,11 +172,7 @@ function parseRemoteDecision(
       ];
     });
     if (denials.length > 0) {
-      return {
-        outcome: "denied",
-        denials,
-        alternatives: [],
-      };
+      return { outcome: "denied", denials, alternatives: [] };
     }
   }
   return denied("pdp-denied");

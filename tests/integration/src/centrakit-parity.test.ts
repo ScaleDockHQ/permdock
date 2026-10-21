@@ -129,7 +129,10 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
   /** `[role, grant, scope]` from the generated `role_permissions`. */
   let grants: readonly (readonly [string, string, string])[] = [];
 
-  /** Runs a generate command with `{dir}` in `args` set to a temp directory and returns `files` from it. */
+  /**
+   * Runs a generate command with `{dir}` in `args` set to a temp directory and
+   * returns `files` from it.
+   */
   async function generate(
     args: readonly string[],
     files: readonly string[] = ["out.sql"],
@@ -245,7 +248,10 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
   const membershipsOf = (claims: Claims) =>
     claims["memberships"] as Membership[];
 
-  /** What `permitted_<scope>_ids(grant)` must return for these memberships, narrowed to the active organization. */
+  /**
+   * What `permitted_<scope>_ids(grant)` must return for these memberships,
+   * narrowed to the active organization.
+   */
   function expected(
     memberships: readonly Membership[],
     grant: string,
@@ -383,10 +389,7 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
     const platform = await mint(PLATFORM);
     expect(platform["roles"]).toEqual(["platform-admin"]);
     expect(platform["memberships"]).toEqual([]);
-    expect(await mint(SUSPENDED)).toMatchObject({
-      roles: [],
-      memberships: [],
-    });
+    expect(await mint(SUSPENDED)).toMatchObject({ roles: [], memberships: [] });
     expect(membershipsOf(await mint(LATE))).toEqual([]);
   });
 

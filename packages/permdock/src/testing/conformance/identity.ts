@@ -45,9 +45,15 @@ export function testMembershipSource(
       readonly kind?: string;
     }[];
     readonly expect?: Record<string, readonly Membership[]>;
-    /** With the policy, every membership must name one of its scopes and carry its parent ids. */
+    /**
+     * With the policy, every membership must name one of its scopes and carry
+     * its parent ids.
+     */
     readonly policy?: Policy;
-    /** Passed to every `membershipsFor`; a source keyed by tenant answers nothing without one. */
+    /**
+     * Passed to every `membershipsFor`; a source keyed by tenant answers
+     * nothing without one.
+     */
     readonly tenant?: string;
   },
 ): void {
@@ -256,11 +262,7 @@ export function testDirectoryStore(
       },
     ]);
     await store.patchGroup(home, group.id, [
-      {
-        op: "remove",
-        path: "members",
-        value: [{ value: created.id }],
-      },
+      { op: "remove", path: "members", value: [{ value: created.id }] },
     ]);
     expect(await store.groupsFor(home, created.id)).toEqual([]);
   });

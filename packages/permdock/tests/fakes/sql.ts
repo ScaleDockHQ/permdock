@@ -56,7 +56,10 @@ export function fakeSql(
   };
 }
 
-/** The rows of a multi-row `insert into t (a, b) values ($1, $2), …`, rebuilt from its values. */
+/**
+ * The rows of a multi-row `insert into t (a, b) values ($1, $2), …`, rebuilt
+ * from its values.
+ */
 export function insertedRows(call: SqlCall): Record<string, unknown>[] {
   const match = /\(([^)]*)\) values /u.exec(call.sql);
   const columns = (match?.[1] ?? "")

@@ -153,11 +153,7 @@ Every permission has a `scope` string (`permissions.post.update.scope === 'post:
 Rich Authorization Requests carry structured objects instead of flat scopes. PermDock treats each permission as an `authorization_details` type, so it can both emit an object for a consent screen and verify one on a token:
 
 ```json
-{
-  "type": "post",
-  "actions": ["update"],
-  "identifier": "post_123"
-}
+{ "type": "post", "actions": ["update"], "identifier": "post_123" }
 ```
 
 `permissions.post.update` carries an `authorizationDetails` type that says which fields may appear (`type` from the resource, `actions` from the action, `identifier` from the resource `id` field, optional `locations`). A decision on `post_456` with the object above is `denied` with reason `not-delegated`. For a collection action the object has no `identifier`. See [OAuth agent delegation](/docs/standards/oauth-agent-delegation).

@@ -9,7 +9,10 @@ import {
 } from "permdock";
 import { z } from "zod";
 
-/** A table keyed by its environment, whose organization the environments table knows. */
+/**
+ * A table keyed by its environment, whose organization the environments table
+ * knows.
+ */
 export const permissions = definePermissions({
   deploy: resource(z.object({ id: z.string(), org_id: z.string() }), {
     id: "id",

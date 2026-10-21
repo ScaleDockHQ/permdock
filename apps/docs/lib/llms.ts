@@ -14,7 +14,10 @@ export type LlmsIndexOptions = {
   readonly resolve: (url: string) => LlmsPage | undefined;
   /** Separator names emitted as the llms.txt `## Optional` section. */
   readonly optional?: readonly string[];
-  /** Pages outside the docs tree, emitted as a `## Site` section before `## Optional`. */
+  /**
+   * Pages outside the docs tree, emitted as a `## Site` section before `##
+   * Optional`.
+   */
   readonly site?: readonly LlmsLink[];
 };
 
@@ -91,7 +94,10 @@ function sectionsOf(tree: PageTree.Root): {
   return { lead, sections };
 }
 
-/** Collapses blank-line runs and trims the blank lines a heading leaves at either end. */
+/**
+ * Collapses blank-line runs and trims the blank lines a heading leaves at
+ * either end.
+ */
 function tidy(lines: readonly string[]): string[] {
   const out: string[] = [];
   for (const line of lines) {
@@ -102,7 +108,10 @@ function tidy(lines: readonly string[]): string[] {
   return out;
 }
 
-/** `llms.txt` per llmstxt.org: an H1, a summary quote, then one H2 list of links per section. */
+/**
+ * `llms.txt` per llmstxt.org: an H1, a summary quote, then one H2 list of links
+ * per section.
+ */
 export function renderLlmsIndex(
   tree: PageTree.Root,
   options: LlmsIndexOptions,
@@ -165,7 +174,8 @@ function compactRow(line: string): string {
 
 /**
  * Drops the column-alignment padding oxfmt writes into Markdown tables; GFM
- * ignores it, and it is about a third of the docs' bytes. Fenced code is left as is.
+ * ignores it, and it is about a third of the docs' bytes. Fenced code is left
+ * as is.
  */
 export function compactMarkdownTables(markdown: string): string {
   let open: string | undefined;

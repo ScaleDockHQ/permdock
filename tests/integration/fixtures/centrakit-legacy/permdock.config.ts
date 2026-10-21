@@ -1,6 +1,9 @@
 import { sources, suspension } from "../centrakit/sources.ts";
 
-/** CentraKit before adoption: hand-written policies over its own helpers, PermDock writing only the helpers. */
+/**
+ * CentraKit before adoption: hand-written policies over its own helpers,
+ * PermDock writing only the helpers.
+ */
 export default {
   permissions: "../centrakit/policy.ts",
   policy: "../centrakit/policy.ts",

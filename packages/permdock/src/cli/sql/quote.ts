@@ -45,10 +45,10 @@ export function declaredArray(values: readonly string[]): string {
 }
 
 /**
- * A text array as a Postgres literal (`'{admin,owner}'`). An element that
- * holds a delimiter, a brace, a quote, a backslash, whitespace, or that
- * reads as `NULL`, is double-quoted and escaped, so one element can never
- * split into several.
+ * A text array as a Postgres literal (`'{admin,owner}'`). An element that holds
+ * a delimiter, a brace, a quote, a backslash, whitespace, or that reads as
+ * `NULL`, is double-quoted and escaped, so one element can never split into
+ * several.
  */
 export function textArrayLiteral(values: readonly string[]): string {
   const elements = values.map((value) =>

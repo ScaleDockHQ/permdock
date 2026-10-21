@@ -1,11 +1,15 @@
 import type { NextConfig } from "next";
 
-/** Hosts `next dev` accepts besides its own: Portless `*.localhost` names and 127.0.0.1. */
+/**
+ * Hosts `next dev` accepts besides its own: Portless `*.localhost` names and
+ * 127.0.0.1.
+ */
 const allowedDevOrigins = ["127.0.0.1", "localhost", "**.localhost"];
 
 /**
  * Document security headers for every page. No nonce CSP: it forces dynamic
- * rendering and breaks the prerendered shells. HSTS stays on the Vercel default.
+ * rendering and breaks the prerendered shells. HSTS stays on the Vercel
+ * default.
  */
 const documentSecurityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -23,9 +27,15 @@ const documentSecurityHeaders = [
 ];
 
 export type CreateNextConfigOptions = {
-  /** `NODE_ENV` from the app's `env.ts`; production builds drop `console` calls except `error` and `warn`. */
+  /**
+   * `NODE_ENV` from the app's `env.ts`; production builds drop `console` calls
+   * except `error` and `warn`.
+   */
   readonly nodeEnv: "development" | "test" | "production";
-  /** `EXPOSE_TESTING_API` from the app's `env.ts`: exposes the `instant()` testing API in a production build. */
+  /**
+   * `EXPOSE_TESTING_API` from the app's `env.ts`: exposes the `instant()`
+   * testing API in a production build.
+   */
   readonly exposeTestingApi: boolean;
 };
 
@@ -73,7 +83,10 @@ export type SentryBuildEnv = {
   readonly SENTRY_AUTH_TOKEN?: string | undefined;
 };
 
-/** `withSentryConfig` build options from the app's `env.ts`: source maps upload only from Vercel production builds. */
+/**
+ * `withSentryConfig` build options from the app's `env.ts`: source maps upload
+ * only from Vercel production builds.
+ */
 export function sentryBuildOptions(env: SentryBuildEnv): {
   readonly org?: string;
   readonly project?: string;

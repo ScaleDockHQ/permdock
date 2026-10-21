@@ -12,10 +12,7 @@ import {
 } from "../../src/index.ts";
 
 const permissions = definePermissions({
-  doc: resource(z.object({ id: z.string() }), {
-    id: "id",
-    actions: ["read"],
-  }),
+  doc: resource(z.object({ id: z.string() }), { id: "id", actions: ["read"] }),
 });
 const policy = definePolicy(permissions, {
   roles: [role("viewer", [allow(permissions.doc.read)])],

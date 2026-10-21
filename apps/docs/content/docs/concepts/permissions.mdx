@@ -85,10 +85,7 @@ import {
 export const permissions = definePermissions({
   post: resource(
     Post,
-    crud({
-      id: "id",
-      actions: { publish: { title: "Publish post" } },
-    }),
+    crud({ id: "id", actions: { publish: { title: "Publish post" } } }),
   ),
   report: resource(Report, readable({ id: "id" })),
   setting: resource(Setting, writable({ id: "id" })),

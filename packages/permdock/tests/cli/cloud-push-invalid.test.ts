@@ -28,7 +28,10 @@ const leaf = (key: string) =>
     meta: {},
   });
 
-/** Operations over leaves of another tree, so the catalog names keys it never declares. */
+/**
+ * Operations over leaves of another tree, so the catalog names keys it never
+ * declares.
+ */
 const OPERATIONS = `export const operations = {
   archivePost: { name: 'archivePost', permission: ${leaf("post.archive")}, results: ${leaf("ghost.list")}, meta: {} },
 };

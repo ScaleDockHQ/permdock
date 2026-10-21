@@ -23,7 +23,10 @@ import { type GranteeInput, asGrantee, authenticated } from "./grantee.ts";
 import { isSelfParented } from "./resource-relations.ts";
 import { assertDuration } from "./time.ts";
 
-/** Every approver a requirement names: `by`, each stage and its escalation, and `escalation.to`, inside `anyOf` groups too. */
+/**
+ * Every approver a requirement names: `by`, each stage and its escalation, and
+ * `escalation.to`, inside `anyOf` groups too.
+ */
 function approversOf(requirement: ApprovalRequirement): readonly Approver[] {
   return [
     ...approverLeaves(requirement.by),
@@ -254,9 +257,9 @@ export function assertApprovalVersions(
 }
 
 /**
- * A relation approver is checked by id, from the requested row: the
- * relation lives on the permission's own resource (optionally up its parent
- * chain), or at the end of a list of links from it.
+ * A relation approver is checked by id, from the requested row: the relation
+ * lives on the permission's own resource (optionally up its parent chain), or
+ * at the end of a list of links from it.
  */
 export function assertApprovalRelations(
   grants: readonly Pick<Grant, "permission" | "approval">[],
@@ -298,7 +301,10 @@ export function assertApprovalRelations(
   }
 }
 
-/** The resource a relation approver's `through` reaches from `start`, or `undefined`. */
+/**
+ * The resource a relation approver's `through` reaches from `start`, or
+ * `undefined`.
+ */
 function approverRelationResource(
   start: string,
   through: "parent" | readonly string[] | undefined,

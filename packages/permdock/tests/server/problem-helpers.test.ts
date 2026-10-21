@@ -250,10 +250,7 @@ describe("problemFromDecision", () => {
     expect({
       status: response.status,
       challenge: response.headers.get("www-authenticate"),
-    }).toEqual({
-      status: 401,
-      challenge: "Bearer",
-    });
+    }).toEqual({ status: 401, challenge: "Bearer" });
   });
 
   it("answers a validation problem helper with 400", async () => {

@@ -13,8 +13,8 @@ export type Postgres = {
   readonly tester: Client;
   readonly uri: string;
   /**
-   * Runs `work` on `tester` inside a transaction that always rolls back,
-   * after `set local role` and `set_config(..., true)` for each setting.
+   * Runs `work` on `tester` inside a transaction that always rolls back, after
+   * `set local role` and `set_config(..., true)` for each setting.
    */
   readonly as: <T>(options: AsOptions, work: () => Promise<T>) => Promise<T>;
   readonly stop: () => Promise<void>;
@@ -80,7 +80,10 @@ create role tester login password 'tester' nosuperuser nobypassrls inherit;
 grant usage on schema public to tester;
 `;
 
-/** One throwaway Postgres 16 per suite; `setup` runs as superuser, in order, in one simple query. */
+/**
+ * One throwaway Postgres 16 per suite; `setup` runs as superuser, in order, in
+ * one simple query.
+ */
 export async function startPostgres(
   setup: readonly string[] = [],
 ): Promise<Postgres> {

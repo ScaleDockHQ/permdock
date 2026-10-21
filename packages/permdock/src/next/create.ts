@@ -117,10 +117,7 @@ function wrapInstance<V extends PolicyVocabulary>(
       )(
         permission,
         data,
-        compact({
-          ...options,
-          onDenied: options?.onDenied ?? onDenied,
-        }),
+        compact({ ...options, onDenied: options?.onDenied ?? onDenied }),
       )) as PermDock<V>["assert"],
   }));
 }
@@ -263,10 +260,7 @@ export function createPermDock<
       props.tenant === undefined ? undefined : { tenant: props.tenant },
     ).then((permdock): Snapshot | string | Promise<string> =>
       permdock.snapshot(
-        compact({
-          include: props.include,
-          tenants: props.tenants,
-        }),
+        compact({ include: props.include, tenants: props.tenants }),
       ),
     );
     return renderClientProvider(
@@ -283,13 +277,7 @@ export function createPermDock<
   };
 
   const permdockHandler = (): ReturnType<typeof evaluationsHandler> =>
-    evaluationsHandler(
-      compact({
-        policy,
-        getPermDock,
-        store: options.store,
-      }),
-    );
+    evaluationsHandler(compact({ policy, getPermDock, store: options.store }));
 
   return {
     getPermDock,

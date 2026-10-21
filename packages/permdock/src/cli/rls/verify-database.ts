@@ -93,7 +93,10 @@ function fieldsMismatch(
       ];
 }
 
-/** The field view's columns for the fixture's row: the view, or the table itself when no grant limits its fields. */
+/**
+ * The field view's columns for the fixture's row: the view, or the table itself
+ * when no grant limits its fields.
+ */
 async function viewFields(
   query: QueryFn,
   table: string,
@@ -126,7 +129,10 @@ type QueryFn = (
   readonly code?: string;
 }>;
 
-/** Writes the custom roles into the `database`-mode tables; the fixture transaction rolls them back. */
+/**
+ * Writes the custom roles into the `database`-mode tables; the fixture
+ * transaction rolls them back.
+ */
 async function seedCustomRoles(
   query: QueryFn,
   schema: string,
@@ -283,7 +289,10 @@ export async function verifyAgainstDatabase(input: {
   return { mismatches, notes };
 }
 
-/** `--tree`: seeds a generated object graph in a rolled-back transaction and compares `can()` with RLS. */
+/**
+ * `--tree`: seeds a generated object graph in a rolled-back transaction and
+ * compares `can()` with RLS.
+ */
 export async function verifyTreeAgainstDatabase(
   db: string,
   policy: Policy,

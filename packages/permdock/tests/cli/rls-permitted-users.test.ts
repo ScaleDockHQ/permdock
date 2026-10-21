@@ -36,10 +36,7 @@ const memberships = {
 
 describe("permitted_<scope>_users", () => {
   it("lists the members and global-role holders the _for helpers answer for", async () => {
-    const sql = await generate({
-      authorize: "database",
-      memberships,
-    });
+    const sql = await generate({ authorize: "database", memberships });
     expect(sql).toContain(
       `create or replace function "permdock".permitted_organization_users(p_permission text, p_id uuid)
 returns setof uuid

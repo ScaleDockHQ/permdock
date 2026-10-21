@@ -50,14 +50,20 @@ export type CiOidcSubjectOptions = Omit<
    * from OpenID discovery unless `jwks` is set.
    */
   readonly issuer?: string;
-  /** Validates the verified claims; a failure or a Promise is the anonymous subject. */
+  /**
+   * Validates the verified claims; a failure or a Promise is the anonymous
+   * subject.
+   */
   readonly schema?: StandardSchemaV1;
   readonly verifier?: TokenVerifier;
   readonly onAuth?: (event: AuthEvent) => void;
   readonly requestId?: string;
 };
 
-/** A CI job: never a user. `ref` is a full ref (`refs/heads/main`, `refs/tags/v1`). */
+/**
+ * A CI job: never a user. `ref` is a full ref (`refs/heads/main`,
+ * `refs/tags/v1`).
+ */
 export type CiOidcPrincipal = Principal & {
   readonly kind: "workload";
   readonly issuer: string;

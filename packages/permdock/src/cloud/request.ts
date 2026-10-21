@@ -8,7 +8,10 @@ import { isRecord } from "../core/compact.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 import { CLOUD_BASE_URL } from "./base-url.ts";
 
-/** Milliseconds a PermDock Cloud request may take; a slower one fails like an unreachable Cloud. */
+/**
+ * Milliseconds a PermDock Cloud request may take; a slower one fails like an
+ * unreachable Cloud.
+ */
 const CLOUD_TIMEOUT_MS = 10_000;
 
 function readEnv(name: string): string {
@@ -44,16 +47,19 @@ function endpointsOf(url: string, environment: string): CloudEndpoints {
   return Object.freeze({ issuer, jwks: `${issuer}/.well-known/jwks.json` });
 }
 
-/** `options.environment`, else `PERMDOCK_CLOUD_ENV`, else `""` for the key-bound lookup. */
+/**
+ * `options.environment`, else `PERMDOCK_CLOUD_ENV`, else `""` for the key-bound
+ * lookup.
+ */
 function configuredEnvironment(options: CloudEndpointOptions): string {
   return firstNonEmpty(options.environment, readEnv("PERMDOCK_CLOUD_ENV"));
 }
 
 /**
  * The environment URL and JWK Set URL `cloud()` uses when the environment is
- * configured: `environment`, else `PERMDOCK_CLOUD_ENV`. Throws when neither
- * is set; `resolveCloudEndpoints` then asks the Cloud which environment the
- * key belongs to.
+ * configured: `environment`, else `PERMDOCK_CLOUD_ENV`. Throws when neither is
+ * set; `resolveCloudEndpoints` then asks the Cloud which environment the key
+ * belongs to.
  */
 export function cloudEndpoints(
   options: CloudEndpointOptions = {},
@@ -69,9 +75,15 @@ export function cloudEndpoints(
 }
 
 export type CloudConnection = {
-  /** The endpoints when the environment is configured, else `undefined` until resolved. */
+  /**
+   * The endpoints when the environment is configured, else `undefined` until
+   * resolved.
+   */
   readonly known: CloudEndpoints | undefined;
-  /** The endpoints; the first call without a configured environment asks `GET /v1/environment`. */
+  /**
+   * The endpoints; the first call without a configured environment asks `GET
+   * /v1/environment`.
+   */
   readonly endpoints: () => Promise<CloudEndpoints>;
   /** A request to `<issuer><path>` with the environment key as the bearer token. */
   readonly request: (
@@ -111,7 +123,10 @@ async function keyEnvironment(
   return endpoints;
 }
 
-/** The authenticated connection every `permdock/cloud` client shares. Throws without a key. */
+/**
+ * The authenticated connection every `permdock/cloud` client shares. Throws
+ * without a key.
+ */
 export function cloudConnection(
   options: CloudConnectionOptions,
 ): CloudConnection {
@@ -163,10 +178,10 @@ export function cloudConnection(
 }
 
 /**
- * The environment URL and JWK Set URL for a key: `cloudEndpoints(options)`
- * when the environment is configured, else the environment `GET
- * /v1/environment` names for `key` (`PERMDOCK_CLOUD_KEY`). Rejects when the
- * Cloud does not answer or answers another issuer.
+ * The environment URL and JWK Set URL for a key: `cloudEndpoints(options)` when
+ * the environment is configured, else the environment `GET /v1/environment`
+ * names for `key` (`PERMDOCK_CLOUD_KEY`). Rejects when the Cloud does not
+ * answer or answers another issuer.
  */
 export async function resolveCloudEndpoints(
   options: CloudConnectionOptions = {},

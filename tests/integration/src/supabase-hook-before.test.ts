@@ -76,9 +76,7 @@ describe("supabase.hook.before", () => {
     }
     const generated = await run(
       ["supabase", "hook", "generate", "--out", hookOut],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     if (generated.code !== 0) {
       throw new Error(`hook generate: ${generated.stdout}${generated.stderr}`);

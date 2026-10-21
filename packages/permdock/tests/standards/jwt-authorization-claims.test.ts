@@ -105,9 +105,7 @@ describe("RFC 9068 section 2.2.3.1 with the RFC 7643 section 4.1.2 encoding", ()
   });
 
   it("entitlements: string or SCIM values become principal.plans, not roles", async () => {
-    const subject = await mapped({
-      entitlements: ["pro", { value: "sso" }],
-    });
+    const subject = await mapped({ entitlements: ["pro", { value: "sso" }] });
     expect(subject.principal?.plans).toEqual(["pro", "sso"]);
     expect(subject.principal?.roles).toBeUndefined();
   });
@@ -172,9 +170,7 @@ describe("Tenant claims: no standard exists, the path is configuration", () => {
 
   it("Zitadel: a forbidden organisation key is not flattened", async () => {
     const subject = await mapped(
-      {
-        roles_claim: JSON.parse('{"admin":{"__proto__":"x"}}'),
-      },
+      { roles_claim: JSON.parse('{"admin":{"__proto__":"x"}}') },
       { claims: { memberships: "roles_claim" } },
     );
     expect(

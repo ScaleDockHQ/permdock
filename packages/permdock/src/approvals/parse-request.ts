@@ -11,11 +11,10 @@ import {
 import { APPROVAL_REQUEST_SCHEMA } from "./request-schema.ts";
 
 /**
- * Reads an `ApprovalRequest` (parsed, or the JSON text) as an approval store
- * or the Cloud returns it, validated against
- * `schemas/approval-request-v1.json`. Returns a deep-frozen copy, or `null`
- * for anything that does not match, including a `__proto__`, `constructor`
- * or `prototype` key.
+ * Reads an `ApprovalRequest` (parsed, or the JSON text) as an approval store or
+ * the Cloud returns it, validated against `schemas/approval-request-v1.json`.
+ * Returns a deep-frozen copy, or `null` for anything that does not match,
+ * including a `__proto__`, `constructor` or `prototype` key.
  */
 export function parseApprovalRequest(value: unknown): ApprovalRequest | null {
   let input = value;

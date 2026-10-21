@@ -44,7 +44,10 @@ async function condition(
   return { mapped, unmapped, joins };
 }
 
-/** Replaces the next parse with a hand-built AST, the shape older libpg-query releases return. */
+/**
+ * Replaces the next parse with a hand-built AST, the shape older libpg-query
+ * releases return.
+ */
 function nextParse(ast: unknown): void {
   // SAFETY: the importer reads the AST through runtime guards only, so any JSON shape is a valid test input.
   vi.mocked(parse).mockResolvedValueOnce(ast as never);
@@ -337,9 +340,7 @@ describe("conditionFromAst memberships and helpers", () => {
       (
         await condition(
           "\"team_id\" in (select permitted_team_ids('doc.read'))",
-          {
-            seeds,
-          },
+          { seeds },
         )
       ).mapped,
     ).toEqual({
@@ -735,9 +736,7 @@ describe("legacy parser shapes", () => {
               InsertStmt: {
                 relation: { relname: "role_permissions" },
                 cols: ["role", "permission", "grant_key", "scope"].map(
-                  (name) => ({
-                    ResTarget: { name },
-                  }),
+                  (name) => ({ ResTarget: { name } }),
                 ),
                 selectStmt: {
                   SelectStmt: {

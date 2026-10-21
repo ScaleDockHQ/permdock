@@ -835,10 +835,7 @@ describe("hosted grant validation", () => {
     ]);
     expect(
       permdock.decide(permissions.auditLog.read, { id: "a1" }),
-    ).toMatchObject({
-      outcome: "denied",
-      denials: [{ reason: "deny" }],
-    });
+    ).toMatchObject({ outcome: "denied", denials: [{ reason: "deny" }] });
   });
 
   it("drops a hosted allow whose approver differs from the code approver", () => {
@@ -847,9 +844,7 @@ describe("hosted grant validation", () => {
       {
         roles: [
           role("member", [
-            allow(permissions.invoice.delete, {
-              approval: { by: "auditor" },
-            }),
+            allow(permissions.invoice.delete, { approval: { by: "auditor" } }),
           ]),
           role("auditor", []),
         ],

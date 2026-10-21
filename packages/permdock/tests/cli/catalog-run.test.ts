@@ -82,10 +82,7 @@ describe("runCatalog", () => {
   });
 
   it("reads --from and the default source path", async () => {
-    const result = await catalog({
-      config: {},
-      from: "./src/permissions.ts",
-    });
+    const result = await catalog({ config: {}, from: "./src/permissions.ts" });
     expect(result.code).toBe(0);
     const document = parsed(result.output);
     expect(document.permissions).toHaveLength(7);

@@ -47,11 +47,7 @@ function read(
 ): RlsParityFixture {
   return {
     name,
-    subject: {
-      id: USER,
-      tenant,
-      memberships: [{ tenant, roles: ["member"] }],
-    },
+    subject: { id: USER, tenant, memberships: [{ tenant, roles: ["member"] }] },
     permission: permissions.doc.read,
     row,
     table: "doc",

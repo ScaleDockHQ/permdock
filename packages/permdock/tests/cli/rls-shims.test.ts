@@ -23,11 +23,7 @@ const base: RlsSqlContext = {
 };
 
 const permissions = definePermissions(
-  {
-    customer: resource({
-      actions: ["read", "export"],
-    }),
-  },
+  { customer: resource({ actions: ["read", "export"] }) },
   { renamed: { "organization.customers.view": "customer.read" } },
 );
 const roles = defineRoles({

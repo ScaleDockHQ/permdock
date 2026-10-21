@@ -253,9 +253,7 @@ describe("permdock/authzen", () => {
   it("loads a trusted row when properties are omitted", async () => {
     const response = await pdp()(
       request("/access/v1/evaluation", {
-        json: memberBody({
-          resource: { type: "post", id: "p1" },
-        }),
+        json: memberBody({ resource: { type: "post", id: "p1" } }),
       }),
     );
     // SAFETY: response JSON produced by the AuthZEN handler under test.
@@ -407,9 +405,7 @@ describe("permdock/authzen", () => {
   it("rejects an oversized evaluations batch", async () => {
     const response = await pdp({ maxEvaluations: 2 })(
       request("/access/v1/evaluations", {
-        json: {
-          evaluations: [memberBody(), memberBody(), memberBody()],
-        },
+        json: { evaluations: [memberBody(), memberBody(), memberBody()] },
       }),
     );
     expect(response.status).toBe(413);

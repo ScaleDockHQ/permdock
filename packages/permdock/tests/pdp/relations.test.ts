@@ -222,10 +222,7 @@ describe("spicedb", () => {
       (subject, data) => ({
         subject: { type: "user", id: subject.principal?.id ?? "" },
         permission: "view",
-        resource: {
-          type: "document",
-          ...docId(data),
-        },
+        resource: { type: "document", ...docId(data) },
       }),
     ],
   ] as const satisfies Parameters<typeof spicedb>[0]["map"];

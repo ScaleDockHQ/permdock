@@ -114,17 +114,9 @@ describe("subjectFromClerk claim parsing", () => {
   });
 
   it("reads globalRoles from a function, a string claim and a missing path", async () => {
-    const payload = {
-      sub: "u1",
-      sid: "s1",
-      metadata: { role: "staff" },
-    };
+    const payload = { sub: "u1", sid: "s1", metadata: { role: "staff" } };
     const results = await Promise.all([
-      subjectFromClerk(payload, {
-        claims: {
-          roles: () => ["ops"],
-        },
-      }),
+      subjectFromClerk(payload, { claims: { roles: () => ["ops"] } }),
       subjectFromClerk(payload, {
         claims: {
           roles: () => {
@@ -132,23 +124,11 @@ describe("subjectFromClerk claim parsing", () => {
           },
         },
       }),
-      subjectFromClerk(payload, {
-        claims: {
-          roles: "metadata.role",
-        },
-      }),
-      subjectFromClerk(payload, {
-        claims: {
-          roles: "metadata.missing.deep",
-        },
-      }),
+      subjectFromClerk(payload, { claims: { roles: "metadata.role" } }),
+      subjectFromClerk(payload, { claims: { roles: "metadata.missing.deep" } }),
       subjectFromClerk(
         { ...payload, metadata: { role: "" } },
-        {
-          claims: {
-            roles: "metadata.role",
-          },
-        },
+        { claims: { roles: "metadata.role" } },
       ),
     ]);
     expect(results.map((subject) => subject.principal?.roles)).toEqual([
@@ -165,9 +145,7 @@ describe("subjectFromClerk claim parsing", () => {
       '{"sub":"u1","sid":"s1","__proto__":{"role":"admin"}}',
     );
     const subject = await subjectFromClerk(payload, {
-      claims: {
-        roles: "__proto__.role",
-      },
+      claims: { roles: "__proto__.role" },
     });
     expect(subject.principal?.roles).toEqual([]);
   });

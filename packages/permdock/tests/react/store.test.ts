@@ -131,11 +131,7 @@ describe("createClientStore approvals", () => {
     await store.requestApproval(required, "please");
     expect(store.approvalState(required)).toBe("pending");
     expect(
-      store.approvalState({
-        outcome: "denied",
-        denials: [],
-        alternatives: [],
-      }),
+      store.approvalState({ outcome: "denied", denials: [], alternatives: [] }),
     ).toBe("not-needed");
   });
 });
@@ -321,7 +317,10 @@ async function memberSnapshot(): Promise<Snapshot> {
   return snapshot;
 }
 
-/** The member snapshot with `post.update` marked server-only, so checks go to the endpoint. */
+/**
+ * The member snapshot with `post.update` marked server-only, so checks go to
+ * the endpoint.
+ */
 async function closureSnapshot(
   extra: Partial<Snapshot> = {},
 ): Promise<Snapshot> {

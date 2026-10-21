@@ -428,9 +428,7 @@ describe("scimHandler", () => {
   });
 
   it("stores group roles from the extension and maps members", async () => {
-    const { handle, store } = handler({
-      assignable: ["editor"],
-    });
+    const { handle, store } = handler({ assignable: ["editor"] });
     const user = await json(
       await handle(
         request("/Users", {
@@ -869,10 +867,7 @@ describe("scimHandler", () => {
       roles: ["editor"],
       meta: { created: "", lastModified: "" },
     });
-    const Post = z.object({
-      id: z.string(),
-      orgId: z.string(),
-    });
+    const Post = z.object({ id: z.string(), orgId: z.string() });
     const permissions = definePermissions({
       post: resource(Post, {
         id: "id",

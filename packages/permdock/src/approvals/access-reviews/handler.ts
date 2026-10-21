@@ -51,7 +51,10 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-/** The route a path names, the methods it allows, or `undefined` for an unknown path. */
+/**
+ * The route a path names, the methods it allows, or `undefined` for an unknown
+ * path.
+ */
 function parseRoute(
   url: URL,
   method: string,
@@ -184,8 +187,8 @@ function mapError(error: unknown, credentials: boolean): Response {
 
 /**
  * HTTP for one access-review store: `GET` a review and its items, `POST`
- * `.../keep`, `.../revoke`, `.../applied` and `.../close`. A caller who is
- * not a reviewer and did not open the review gets 404.
+ * `.../keep`, `.../revoke`, `.../applied` and `.../close`. A caller who is not
+ * a reviewer and did not open the review gets 404.
  */
 export function accessReviewsHandler(
   store: AccessReviewStore,

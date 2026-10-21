@@ -13,12 +13,12 @@ import {
 import { z } from "zod";
 
 /**
- * CentraKit's shapes that differ from PermDock's defaults: `view` and
- * `archive` verbs, a platform and an organization resource that share the
- * segment `billing`, legacy `organization.*` and `system.*` keys, platform
- * support tiers as global custom roles, and expenses signed off by the
- * expense's manager, then the report's approver. A viewer reads only the
- * reports it approves, which splits `reports.view` into two grant keys.
+ * CentraKit's shapes that differ from PermDock's defaults: `view` and `archive`
+ * verbs, a platform and an organization resource that share the segment
+ * `billing`, legacy `organization.*` and `system.*` keys, platform support
+ * tiers as global custom roles, and expenses signed off by the expense's
+ * manager, then the report's approver. A viewer reads only the reports it
+ * approves, which splits `reports.view` into two grant keys.
  */
 const Customer = z.object({ id: z.uuid(), organization_id: z.uuid() });
 const Billing = z.object({ id: z.uuid(), organization_id: z.uuid() });
@@ -97,9 +97,7 @@ export const managerThenApprover = {
   mode: "sequential",
   stages: [
     { by: relation(permissions.expenses, "manager") },
-    {
-      by: relation(permissions.reports, "approver", { through: ["report"] }),
-    },
+    { by: relation(permissions.reports, "approver", { through: ["report"] }) },
   ],
 } as const;
 

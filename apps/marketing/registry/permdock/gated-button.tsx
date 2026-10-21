@@ -12,7 +12,10 @@ type GatedButtonProps = Omit<ComponentProps<typeof Button>, "disabled"> & {
   readonly permission: Permission;
   /** The row the action is on; omit for a collection action such as create. */
   readonly data?: unknown;
-  /** `hide` renders nothing when the action is denied; `disable` (default) shows why. */
+  /**
+   * `hide` renders nothing when the action is denied; `disable` (default) shows
+   * why.
+   */
   readonly mode?: "hide" | "disable";
   /** The label while the action waits for a person's approval. */
   readonly approvalLabel?: string;

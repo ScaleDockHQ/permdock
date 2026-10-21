@@ -100,8 +100,8 @@ export async function runCatalog(input: {
 }
 
 /**
- * The comparable forms of a catalog file: without the fields every run
- * changes, then also without `usages[].line`.
+ * The comparable forms of a catalog file: without the fields every run changes,
+ * then also without `usages[].line`.
  */
 function comparable(text: string): {
   readonly full: string;

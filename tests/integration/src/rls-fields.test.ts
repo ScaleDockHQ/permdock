@@ -342,9 +342,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
         throw new Error(`rls generate ${name}: ${generated.stdout}`);
       }
       await db.admin.query(`create database ${name}`);
-      const admin = new Client({
-        connectionString: databaseUri(db.uri, name),
-      });
+      const admin = new Client({ connectionString: databaseUri(db.uri, name) });
       await admin.connect();
       try {
         await admin.query(
@@ -360,9 +358,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
       } finally {
         await admin.end();
       }
-      const tester = new Client({
-        connectionString: testerUri(db.uri, name),
-      });
+      const tester = new Client({ connectionString: testerUri(db.uri, name) });
       await tester.connect();
       clients.set(name, session(tester));
     }

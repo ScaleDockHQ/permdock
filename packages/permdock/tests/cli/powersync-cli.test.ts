@@ -104,10 +104,7 @@ describe("permdock powersync", () => {
     );
     expect(
       await runPowerSync({ ...base, rest: ["generate"], check: true }),
-    ).toEqual({
-      code: 0,
-      output: "sync-config.yaml is current",
-    });
+    ).toEqual({ code: 0, output: "sync-config.yaml is current" });
     expect(await runPowerSync({ ...base, rest: ["verify"] })).toEqual({
       code: 0,
       output: "sync-config.yaml matches the policy",

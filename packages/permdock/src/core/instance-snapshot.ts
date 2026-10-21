@@ -24,7 +24,10 @@ export type SnapshotInclude = readonly (
   | { readonly [key: string]: unknown }
 )[];
 
-/** The one path from a resolved subject to a `Snapshot`; pure apart from the default clock. */
+/**
+ * The one path from a resolved subject to a `Snapshot`; pure apart from the
+ * default clock.
+ */
 export function snapshotOf(
   policy: Policy,
   subject: Subject,
@@ -120,7 +123,10 @@ export function snapshotOf(
   );
 }
 
-/** The policy's scopes as snapshots and `permdock cloud push` carry them, with the resources each partitions. */
+/**
+ * The policy's scopes as snapshots and `permdock cloud push` carry them, with
+ * the resources each partitions.
+ */
 export function snapshotScopes(policy: Policy): Snapshot["scopes"] {
   if (policy.scopes.length === 0) {
     return undefined;

@@ -404,10 +404,7 @@ describe("entitlements and seats", () => {
                   data: [{ id: "ent_1", lookup_key: "dev-mode" }],
                   has_more: true,
                 }
-              : {
-                  data: [{ id: "ent_2", lookup_key: "sso" }],
-                  has_more: false,
-                };
+              : { data: [{ id: "ent_2", lookup_key: "sso" }], has_more: false };
           },
         },
       },

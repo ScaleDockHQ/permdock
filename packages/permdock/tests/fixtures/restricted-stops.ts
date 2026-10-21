@@ -71,9 +71,7 @@ export const policy = definePolicy(permissions, {
       allow(leaves.read, {
         to: relation(leaves, "viewer", { through: "parent", depth: 16 }),
       }),
-      allow(leaves.read, {
-        to: inherit(drive.read, { through: ["drive"] }),
-      }),
+      allow(leaves.read, { to: inherit(drive.read, { through: ["drive"] }) }),
       allow(leaves.update, {
         to: relation(drive, "owner", { through: ["drive"] }),
       }),

@@ -43,10 +43,7 @@ const post = { id: "p1", title: "Hello" };
 function grantedBy(name: string): Decision {
   return {
     outcome: "granted",
-    subject: {
-      principal: { id: "u1", roles: ["member"] },
-      context: {},
-    },
+    subject: { principal: { id: "u1", roles: ["member"] }, context: {} },
     matched: { role: name, permission: "post.read", provider: name },
     token: "pd1.test",
   };
@@ -63,11 +60,7 @@ function deniedBy(reason: "pdp-denied" | "pdp-unavailable"): Decision {
 function provider(
   overrides: Partial<DecisionProvider> & Pick<DecisionProvider, "decide">,
 ): DecisionProvider {
-  return {
-    name: "fake",
-    handles: () => true,
-    ...overrides,
-  };
+  return { name: "fake", handles: () => true, ...overrides };
 }
 
 function policyWith(

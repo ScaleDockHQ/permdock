@@ -6,13 +6,16 @@
  * `from` (`permdock`, `permdock/server`); the codemod renames only bindings
  * imported from them.
  *
- * - `export` (default): an exported value, renamed at the import and at every reference bound to it.
+ * - `export` (default): an exported value, renamed at the import and at every
+ *   reference bound to it.
  * - `type`: an exported type, renamed the same way.
- * - `option`: a key of an options object passed straight to a function imported from `entries`.
- *   With `calls`, the codemod renames the key in an object literal passed straight to one of
- *   those functions; otherwise it reports every such key as a manual follow-up.
- * - `method`: a member called on the value a function imported from `entries` returns. Rewritten
- *   on a module-level `const` that holds that function's result; reported everywhere else.
+ * - `option`: a key of an options object passed straight to a function imported
+ *   from `entries`. With `calls`, the codemod renames the key in an object
+ *   literal passed straight to one of those functions; otherwise it reports
+ *   every such key as a manual follow-up.
+ * - `method`: a member called on the value a function imported from `entries`
+ *   returns. Rewritten on a module-level `const` that holds that function's
+ *   result; reported everywhere else.
  */
 export type Rename = {
   readonly from: string;
@@ -22,15 +25,18 @@ export type Rename = {
   readonly calls?: readonly string[];
 };
 
-/** A change the codemod reports and never rewrites: the call shape moved, not only the name. */
+/**
+ * A change the codemod reports and never rewrites: the call shape moved, not
+ * only the name.
+ */
 export type SignatureChange = {
   readonly name: string;
   readonly entries: readonly string[];
   readonly before: string;
   readonly after: string;
   /**
-   * `curried`: only a call with one argument that is an object literal or
-   * whose result is called has the old shape; any other call is left alone.
+   * `curried`: only a call with one argument that is an object literal or whose
+   * result is called has the old shape; any other call is left alone.
    */
   readonly shape?: "curried";
 };
@@ -99,18 +105,8 @@ const rows: readonly Rename[] = [
     ],
     kind: "method",
   },
-  {
-    from: "load",
-    to: "data",
-    entries: ["permdock/authzen"],
-    kind: "option",
-  },
-  {
-    from: "loadData",
-    to: "data",
-    entries: ["permdock/nest"],
-    kind: "option",
-  },
+  { from: "load", to: "data", entries: ["permdock/authzen"], kind: "option" },
+  { from: "loadData", to: "data", entries: ["permdock/nest"], kind: "option" },
   {
     from: "onDenied",
     to: "deniedResponse",
@@ -239,11 +235,7 @@ const rows: readonly Rename[] = [
     entries: ["permdock/ssf"],
     kind: "type",
   },
-  {
-    from: "memorySettings",
-    to: "memorySettingsSource",
-    entries: ["permdock"],
-  },
+  { from: "memorySettings", to: "memorySettingsSource", entries: ["permdock"] },
   {
     from: "memoryRelations",
     to: "memoryRelationSource",
@@ -512,11 +504,7 @@ const rows: readonly Rename[] = [
     to: "clerkSubjectResolver",
     entries: ["permdock/clerk"],
   },
-  {
-    from: "fromResponse",
-    to: "sendResponse",
-    entries: ["permdock/node"],
-  },
+  { from: "fromResponse", to: "sendResponse", entries: ["permdock/node"] },
   {
     from: "fromResponse",
     to: "send",
@@ -524,16 +512,8 @@ const rows: readonly Rename[] = [
     kind: "method",
   },
   // use* on the client, get* on the server
-  {
-    from: "createPermDock",
-    to: "getPermDockSync",
-    entries: ["permdock"],
-  },
-  {
-    from: "createPermDock",
-    to: "getPermDock",
-    entries: ["permdock/pdp"],
-  },
+  { from: "createPermDock", to: "getPermDockSync", entries: ["permdock"] },
+  { from: "createPermDock", to: "getPermDock", entries: ["permdock/pdp"] },
   {
     from: "loadRelations",
     to: "prefetchRelations",

@@ -44,15 +44,18 @@ import { subjectClaimJsonSql, subjectClaimSql } from "./subject.ts";
 export type { SqlCommand };
 
 /**
- * One grant (or one grant-key group) on one table and command, before
- * policies are assembled. `access` is the helper call or membership join;
- * `using` and `check` hold only the portable row condition.
+ * One grant (or one grant-key group) on one table and command, before policies
+ * are assembled. `access` is the helper call or membership join; `using` and
+ * `check` hold only the portable row condition.
  */
 export type CompiledBranch = {
   readonly table: string;
   readonly command: SqlCommand;
   readonly effect: "allow" | "deny";
-  /** Postgres roles the policy targets: `authenticated`, plus `anon` for `anyone()`. */
+  /**
+   * Postgres roles the policy targets: `authenticated`, plus `anon` for
+   * `anyone()`.
+   */
   readonly roles: readonly string[];
   /** Role name, `anyone` or `authenticated`. */
   readonly label: string;
@@ -80,7 +83,10 @@ export type CompiledPolicy = {
 
 export type CompiledGrants = {
   readonly branches: readonly CompiledBranch[];
-  /** With `rowActions`: branches of actions with no SQL command, compiled as reads for `permitted_<resource>_rows` only. */
+  /**
+   * With `rowActions`: branches of actions with no SQL command, compiled as
+   * reads for `permitted_<resource>_rows` only.
+   */
   readonly actionBranches: readonly CompiledBranch[];
   readonly rolePermissions: readonly RolePermission[];
   /** The row columns policies filter on: scope keys and condition fields. */
@@ -89,12 +95,15 @@ export type CompiledGrants = {
     readonly table: string;
     readonly column: string;
   }[];
-  /** Grant keys whose grants carry a row condition or a validity window, which a key-only check cannot apply. */
+  /**
+   * Grant keys whose grants carry a row condition or a validity window, which a
+   * key-only check cannot apply.
+   */
   readonly conditionedKeys: ReadonlySet<string>;
   /**
-   * `[grant key, level]` for every allow on a resource with levels: the
-   * levels a holder of the key may hand out in a custom role, as
-   * `assignableLevels` counts them in-process.
+   * `[grant key, level]` for every allow on a resource with levels: the levels
+   * a holder of the key may hand out in a custom role, as `assignableLevels`
+   * counts them in-process.
    */
   readonly levelReach: readonly (readonly [string, string])[];
 };
@@ -158,8 +167,9 @@ function levelReachOf(
 }
 
 /**
- * The SQL command `action` compiles to: `rls.actions` first, then the six default verbs.
- * Any other verb is `undefined`, as `'none'` is: no policy, and its grants are still seeded.
+ * The SQL command `action` compiles to: `rls.actions` first, then the six
+ * default verbs. Any other verb is `undefined`, as `'none'` is: no policy, and
+ * its grants are still seeded.
  */
 export function commandFor(
   action: string,
@@ -250,8 +260,8 @@ function resourceCondition(
 
 /**
  * The access a link capability has to a resource-scoped grant, over the same
- * holders as `resourceCondition`. It reads the claim, so ancestor hops need
- * no memberships table. `undefined` when no holder is on the row's chain.
+ * holders as `resourceCondition`. It reads the claim, so ancestor hops need no
+ * memberships table. `undefined` when no holder is on the row's chain.
  */
 function capabilityAccess(
   item: RlsGrant,
@@ -291,7 +301,10 @@ function capabilityAccess(
 
 type Prepared = {
   readonly item: RlsGrant;
-  /** `'none'`: the action has no SQL command, so the grant is only seeded for `permdock_has`. */
+  /**
+   * `'none'`: the action has no SQL command, so the grant is only seeded for
+   * `permdock_has`.
+   */
   readonly command: SqlCommand | "none";
   readonly table: string;
   /** Row condition on the current row (`USING`). */
@@ -416,9 +429,9 @@ function signature(entry: Prepared, byFields: boolean): string {
 /**
  * Grant keys per permission: the key is the permission, split into
  * `permission#n` when role grants carry different portable conditions (or
- * effects), one key per condition group; a group whose grants set `group`
- * is `permission#<group>` instead. With field views, grants that differ
- * only in `fields` get their own keys too, so a view can tell them apart.
+ * effects), one key per condition group; a group whose grants set `group` is
+ * `permission#<group>` instead. With field views, grants that differ only in
+ * `fields` get their own keys too, so a view can tell them apart.
  */
 function assignKeys(
   entries: readonly Prepared[],
@@ -569,11 +582,14 @@ function noteConditions(entry: Prepared, warnings: string[]): void {
 }
 
 /**
- * Compiles every grant (role and top-level) to branches whose role check is
- * a helper call keyed by grant key. Nothing in a branch is per-row except the
+ * Compiles every grant (role and top-level) to branches whose role check is a
+ * helper call keyed by grant key. Nothing in a branch is per-row except the
  * portable row condition and resource-membership joins.
  */
-/** A Supabase token from a permanent user: anonymous sign-ins carry `is_anonymous: true`. */
+/**
+ * A Supabase token from a permanent user: anonymous sign-ins carry
+ * `is_anonymous: true`.
+ */
 const PERMANENT_USER = `((select auth.jwt()) ->> 'is_anonymous') is distinct from 'true'`;
 
 export function compileGrants(
@@ -830,8 +846,8 @@ export function compileGrants(
 
 /**
  * Each row again under every key its permission was renamed from, so SQL that
- * still calls `permdock_has('<old key>')` keeps the access the current key
- * has. A split grant key (`key#n`) keeps its suffix; break-glass rows are not
+ * still calls `permdock_has('<old key>')` keeps the access the current key has.
+ * A split grant key (`key#n`) keeps its suffix; break-glass rows are not
  * copied.
  */
 function withAliasRows(
@@ -863,8 +879,8 @@ function withAliasRows(
 
 /**
  * Postgres needs SELECT access to find rows for UPDATE / DELETE and for
- * RETURNING, so a table with only update or delete grants gets matching
- * SELECT branches.
+ * RETURNING, so a table with only update or delete grants gets matching SELECT
+ * branches.
  */
 function ensureSelectCoverage(
   branches: readonly CompiledBranch[],

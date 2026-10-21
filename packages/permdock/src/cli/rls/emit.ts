@@ -34,8 +34,8 @@ function assertSupautilsSafe(text: string): void {
 
 /**
  * Neon's Data API and `pg_session_jwt` name the anonymous role `anonymous`;
- * Supabase, PostgREST and the GUC pattern use `anon`. Role lists end a line
- * or a statement after `to` or `from`, so only those are renamed.
+ * Supabase, PostgREST and the GUC pattern use `anon`. Role lists end a line or
+ * a statement after `to` or `from`, so only those are renamed.
  */
 export function dialectRoles(text: string, dialect: RlsDialect): string {
   if (dialect !== "neon") {
@@ -55,7 +55,10 @@ function tablesOf(policies: readonly CompiledPolicy[]): string[] {
   return [...new Set(policies.map((item) => item.table))];
 }
 
-/** Enable (and force) row level security, then the table grants for the commands a policy allows. */
+/**
+ * Enable (and force) row level security, then the table grants for the commands
+ * a policy allows.
+ */
 function tableSql(
   table: string,
   policies: readonly CompiledPolicy[],
@@ -101,7 +104,10 @@ function tableSql(
   return lines.join("\n");
 }
 
-/** `drop policy if exists` and `create policy` for one policy, without the table's grants. */
+/**
+ * `drop policy if exists` and `create policy` for one policy, without the
+ * table's grants.
+ */
 export function policySql(item: CompiledPolicy): string {
   const target = quoteQualified(item.table);
   const lines = [
@@ -147,8 +153,9 @@ export function emitSql(
 }
 
 /**
- * The SQL a Drizzle or Prisma schema cannot declare: helpers, grants, `force` and field views.
- * `rls generate` writes it next to `out` for a custom migration.
+ * The SQL a Drizzle or Prisma schema cannot declare: helpers, grants, `force`
+ * and field views. `rls generate` writes it next to `out` for a custom
+ * migration.
  */
 export function migrationSql(
   policies: readonly CompiledPolicy[],
@@ -316,7 +323,10 @@ export type PrismaEmitOptions = {
   readonly helpers?: string;
 };
 
-/** Prisma 8 `policy_<command>` blocks; each target model declares `@@rls` itself. */
+/**
+ * Prisma 8 `policy_<command>` blocks; each target model declares `@@rls`
+ * itself.
+ */
 export function emitPrisma(
   policies: readonly CompiledPolicy[],
   options: PrismaEmitOptions = {},

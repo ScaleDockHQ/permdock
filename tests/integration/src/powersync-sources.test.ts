@@ -21,10 +21,9 @@ grant authenticated, anon to tester;
 `;
 
 /**
- * Two membership sources (a generated tier column, and role assignments
- * through `roles`), tenant custom roles at the own and team levels, and a
- * team level through a database function with a twin, against one
- * database.
+ * Two membership sources (a generated tier column, and role assignments through
+ * `roles`), tenant custom roles at the own and team levels, and a team level
+ * through a database function with a twin, against one database.
  */
 describe("powersync over rls.membershipSources", () => {
   let db: Postgres | undefined;

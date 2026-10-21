@@ -152,7 +152,10 @@ async function policies(dialect: Dialect): Promise<readonly Policy[]> {
   });
 }
 
-/** Every function call in an expression, with whether a sublink encloses it and whether its arguments read a column. */
+/**
+ * Every function call in an expression, with whether a sublink encloses it and
+ * whether its arguments read a column.
+ */
 function calls(
   node: unknown,
   inSubLink = false,
@@ -348,11 +351,7 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
             policy: policy.name,
             call: call.name,
             inSubLink: call.inSubLink,
-          }).toEqual({
-            policy: policy.name,
-            call: call.name,
-            inSubLink: true,
-          });
+          }).toEqual({ policy: policy.name, call: call.name, inSubLink: true });
         }
         if (HELPER.test(call.name)) {
           expect({ call: call.name, readsColumn: call.readsColumn }).toEqual({

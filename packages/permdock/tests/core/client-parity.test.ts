@@ -203,10 +203,7 @@ describe("client parity", () => {
   });
 
   it("reports only global roles when no tenant is active", async () => {
-    const server = getPermDockSync(policy, {
-      ...alice,
-      roles: ["support"],
-    });
+    const server = getPermDockSync(policy, { ...alice, roles: ["support"] });
     expect(server.heldRoles().map((item) => item.key)).toEqual(["support"]);
     expect(
       server.heldRoles({ tenant: "globex" }).map((item) => item.key),

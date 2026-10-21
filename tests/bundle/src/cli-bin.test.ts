@@ -15,9 +15,7 @@ const run = (...args: readonly string[]) =>
   spawnSync(
     process.execPath,
     [join(PACKAGE, "dist", "cli", "bin.js"), ...args],
-    {
-      encoding: "utf8",
-    },
+    { encoding: "utf8" },
   );
 
 describe("the built permdock bin", () => {

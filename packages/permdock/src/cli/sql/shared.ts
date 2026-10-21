@@ -19,7 +19,10 @@ export const HELPERS = {
   hasFor: "permdock_has_for",
 } as const;
 
-/** Objects `--custom-roles` adds next to the helpers. Names are part of the SQL contract. */
+/**
+ * Objects `--custom-roles` adds next to the helpers. Names are part of the SQL
+ * contract.
+ */
 export const CUSTOM_ROLES = {
   permissions: "custom_role_permissions",
   includes: "custom_role_includes",
@@ -52,7 +55,10 @@ export const GLOBAL_ROLES = {
   replace: "permdock_replace_global_roles",
 } as const;
 
-/** `user` is the SQL for the user id: the dialect's (the default) or the `p_user` parameter of a `_for` helper. */
+/**
+ * `user` is the SQL for the user id: the dialect's (the default) or the
+ * `p_user` parameter of a `_for` helper.
+ */
 export function signedIn(
   ctx: RlsSqlContext,
   user: string = subjectIdSql(ctx),
@@ -64,7 +70,10 @@ export function rootName(ctx: RlsSqlContext): string {
   return ctx.scopes[0]?.name ?? "tenant";
 }
 
-/** The stored allow as `permissions` hands it to `permdock_custom_keys`: `key`, or `key@level` with levels. */
+/**
+ * The stored allow as `permissions` hands it to `permdock_custom_keys`: `key`,
+ * or `key@level` with levels.
+ */
 export function allowEntry(ctx: RlsSqlContext): string {
   return ctx.customRoles?.levels === true
     ? "permission || coalesce('@' || c.level, '')"

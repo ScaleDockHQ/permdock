@@ -37,10 +37,7 @@ const Doc = z.object({
   folderId: z.string(),
   ownerId: z.string(),
 });
-const Employee = z.object({
-  id: z.string(),
-  managerId: z.string().nullable(),
-});
+const Employee = z.object({ id: z.string(), managerId: z.string().nullable() });
 const Account = z.object({
   id: z.string(),
   delegateId: z.string().nullable(),
@@ -174,9 +171,7 @@ describe("relationship graph", () => {
     const stranger = permdock("sam");
     expect(
       stranger.decide(permissions.doc.read, doc("d1", "platform")),
-    ).toMatchObject({
-      outcome: "denied",
-    });
+    ).toMatchObject({ outcome: "denied" });
   });
 
   it("keeps ancestor grants out of a restricted branch but not grants on it", async () => {
@@ -590,10 +585,7 @@ describe("memoryRelationSource conformance", () => {
         "folder:payroll": ["hr"],
         "folder:root": [],
       },
-      holders: {
-        "folder:root#viewer": ["vera"],
-        "folder:eng#owner": ["olga"],
-      },
+      holders: { "folder:root#viewer": ["vera"], "folder:eng#owner": ["olga"] },
     },
   });
 });

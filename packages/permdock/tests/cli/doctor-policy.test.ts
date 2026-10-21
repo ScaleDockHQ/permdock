@@ -106,9 +106,7 @@ export const policy = definePolicy(permissions, {
 };
 `,
     );
-    const result = await run(["doctor", "--json", "--only", "PD017"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "PD017"], { cwd });
     expect(findingCodes(result.stdout)).toContain("PD017");
   });
 

@@ -1,13 +1,9 @@
 /**
- * `organization_users` holds a plan `tier` and an organization `role_id`,
- * both role sources. `user_roles` holds platform roles: `roles` rows with no
+ * `organization_users` holds a plan `tier` and an organization `role_id`, both
+ * role sources. `user_roles` holds platform roles: `roles` rows with no
  * organization and `audience = 'system'`.
  */
-const roleThrough = {
-  through: "roles",
-  on: { role_id: "id" },
-  column: "key",
-};
+const roleThrough = { through: "roles", on: { role_id: "id" }, column: "key" };
 
 export default {
   permissions: "./policy.ts",

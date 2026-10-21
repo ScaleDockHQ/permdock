@@ -18,14 +18,20 @@ const FALLBACK_INTERVAL = 60_000;
 export type CloudApprovalWaiterOptions = WebhookOptions &
   (
     | {
-        /** Read when a wait starts and every `interval` after; typically `cloud().approvals`. */
+        /**
+         * Read when a wait starts and every `interval` after; typically
+         * `cloud().approvals`.
+         */
         readonly store: ApprovalStore;
         /** Milliseconds between fallback reads of `store`. Defaults to 60000. */
         readonly interval?: number;
         readonly waiter?: undefined;
       }
     | {
-        /** A durable runner's waiter (`workflowSdkWaiter()`); `wait` and `wake` go to it. */
+        /**
+         * A durable runner's waiter (`workflowSdkWaiter()`); `wait` and `wake`
+         * go to it.
+         */
         readonly waiter: ApprovalWaiter;
         readonly store?: undefined;
         readonly interval?: undefined;
@@ -36,9 +42,9 @@ export type CloudApprovalWaiter = ApprovalWaiter & {
   /**
    * The endpoint for the environment's webhook connector. It verifies the
    * Standard Webhooks signature and wakes the wait of every
-   * `com.permdock.approval.resolved`, `.expired` and `.cancelled` event in
-   * the batch. It answers `204` once handled or replayed, and Problem
-   * Details otherwise.
+   * `com.permdock.approval.resolved`, `.expired` and `.cancelled` event in the
+   * batch. It answers `204` once handled or replayed, and Problem Details
+   * otherwise.
    */
   readonly webhook: (request: Request) => Promise<Response>;
 };
@@ -98,13 +104,12 @@ function refusal(cause: WebhookFailureCause): Response {
 }
 
 /**
- * An `ApprovalWaiter` that PermDock Cloud wakes. Mount `webhook` on the
- * route the environment's webhook connector posts to: when an approval is
- * resolved, expires or is cancelled, the parked run for its token wakes.
- * Waking never approves anything. The run decides again with the token, and
- * only the app's `decide` and its approval store can grant. Without
- * `waiter`, waits poll `store` as a fallback for a webhook another process
- * received.
+ * An `ApprovalWaiter` that PermDock Cloud wakes. Mount `webhook` on the route
+ * the environment's webhook connector posts to: when an approval is resolved,
+ * expires or is cancelled, the parked run for its token wakes. Waking never
+ * approves anything. The run decides again with the token, and only the app's
+ * `decide` and its approval store can grant. Without `waiter`, waits poll
+ * `store` as a fallback for a webhook another process received.
  */
 export function cloudApprovalWaiter(
   options: CloudApprovalWaiterOptions,

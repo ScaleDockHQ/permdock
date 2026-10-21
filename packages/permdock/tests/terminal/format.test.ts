@@ -63,11 +63,7 @@ describe("formatDecision without a permission", () => {
 
 describe("filterCommandEntries", () => {
   const entries = [
-    {
-      name: "read",
-      permission: permissions.post.read,
-      description: "Read",
-    },
+    { name: "read", permission: permissions.post.read, description: "Read" },
   ];
 
   it("hides instance commands when the snapshot is signed or async", () => {

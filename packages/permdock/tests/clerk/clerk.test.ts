@@ -44,17 +44,13 @@ describe("subjectFromClerk", () => {
       principal: null,
     });
     await expect(subjectFromClerk({ userId: "user_x" })).resolves.toMatchObject(
-      {
-        principal: null,
-      },
+      { principal: null },
     );
   });
 
   it("maps the Clerk auth object to a tenant-scoped subject", async () => {
     const subject = await subjectFromClerk(authObject, {
-      permissions: {
-        "org:invoices:create": permissions.billing.create,
-      },
+      permissions: { "org:invoices:create": permissions.billing.create },
       features: { reporting: "reporting", api_access: "api" },
     });
     expect(subject.principal?.id).toBe("user_1");
@@ -111,11 +107,7 @@ describe("subjectFromClerk", () => {
         org_role: "org:member",
         publicMetadata: { staff: "reviewer" },
       },
-      {
-        claims: {
-          roles: "publicMetadata.staff",
-        },
-      },
+      { claims: { roles: "publicMetadata.staff" } },
     );
     expect(subject.principal?.id).toBe("user_2");
     expect(subject.principal?.tenant).toBe("org_9");

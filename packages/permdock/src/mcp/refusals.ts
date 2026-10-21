@@ -150,9 +150,7 @@ export function failedRefusal(
       return plainRefusal(
         permission,
         `Denied: ${permission.key} failed closed.`,
-        {
-          denials: [{ role: null, reason: "validation" }],
-        },
+        { denials: [{ role: null, reason: "validation" }] },
       );
     case "no-data":
       return plainRefusal(
@@ -184,7 +182,10 @@ export function throwRefusal(refusal: Refusal): unknown {
   throw new Error(refusal.text);
 }
 
-/** The MRTR URL elicitation that sends the user to `options.approval.at`, when the client accepts one. */
+/**
+ * The MRTR URL elicitation that sends the user to `options.approval.at`, when
+ * the client accepts one.
+ */
 export async function approvalInput(
   options: Pick<McpPermDockOptions, "approval" | "requestState">,
   decision: Extract<Decision, { readonly outcome: "approval-required" }>,
@@ -216,7 +217,10 @@ export async function approvalInput(
   );
 }
 
-/** A step-up denial: the RFC 9470 challenge, and a URL elicitation to `stepUpAt` when the client accepts one. */
+/**
+ * A step-up denial: the RFC 9470 challenge, and a URL elicitation to `stepUpAt`
+ * when the client accepts one.
+ */
 export function stepUpRefusal(
   stepUpAt: string | undefined,
   decision: Extract<Decision, { readonly outcome: "denied" }>,

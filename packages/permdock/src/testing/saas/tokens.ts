@@ -37,15 +37,16 @@ export const saasPrivateJwk: EcJwk & { readonly d: string } = {
   d: "8gTksJVtlkViFAL5tSmPaxnrR3QzONTODL6l8xDZiCk",
 };
 
-export const saasJwks: Readonly<{ keys: EcJwk[] }> = {
-  keys: [saasPublicJwk],
-};
+export const saasJwks: Readonly<{ keys: EcJwk[] }> = { keys: [saasPublicJwk] };
 export const saasIssuer = "https://saas.permdock.test";
 export const saasAudience = "permdock-saas";
 export const SAAS_TOKEN_TTL_SECONDS = 3600;
 
 export type SaasTokenOptions = {
-  /** Claim memberships; `false` omits the claim (database mode). Defaults to the seed. */
+  /**
+   * Claim memberships; `false` omits the claim (database mode). Defaults to the
+   * seed.
+   */
   readonly memberships?: readonly Membership[] | false;
   readonly ttl?: number;
   /** The instant used for `iat`; defaults to the current time. */
@@ -124,9 +125,9 @@ function parseSegment(segment: string): Record<string, unknown> | null {
 }
 
 /**
- * Verifies a token from `signSaasToken` (ES256, `kid`, `iss`, `aud`, `exp`)
- * and returns its `sub`, or `null`; never throws. Identity only: memberships
- * and plans come from the seed, never from the token.
+ * Verifies a token from `signSaasToken` (ES256, `kid`, `iss`, `aud`, `exp`) and
+ * returns its `sub`, or `null`; never throws. Identity only: memberships and
+ * plans come from the seed, never from the token.
  */
 export async function verifySaasToken(
   token: string | null | undefined,

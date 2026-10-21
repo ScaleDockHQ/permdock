@@ -16,7 +16,10 @@ import { compact, isRecord } from "../core/compact.ts";
 import { HOOK_API_SCHEMA, hookApiNames, PERMDOCK_SCHEMA } from "./sources.ts";
 import { readMemberships } from "./subject.ts";
 
-/** What a supabase-js `rpc` call resolves to: `data` or an `error` with a message. */
+/**
+ * What a supabase-js `rpc` call resolves to: `data` or an `error` with a
+ * message.
+ */
 export type SupabaseRpcResult = {
   readonly data: unknown;
   readonly error: { readonly message: string } | null;
@@ -60,22 +63,25 @@ export type PostgrestSourcesOptions = {
    * `permdock_`). It sets the defaults of `schema`, `fn`, `membersFn` and
    * `versionFn`, which still override it.
    */
-  readonly api?: {
-    readonly schema?: string;
-    readonly prefix?: string;
-  };
-  /** Schema of the functions. Default `permdock`, where the hook generates `subject_for` and `members_of`. */
+  readonly api?: { readonly schema?: string; readonly prefix?: string };
+  /**
+   * Schema of the functions. Default `permdock`, where the hook generates
+   * `subject_for` and `members_of`.
+   */
   readonly schema?: string;
   /** Function name, for a wrapper in an exposed schema. Default `subject_for`. */
   readonly fn?: string;
   readonly membersFn?: string;
-  /** The version-only function `memberships.version` calls. Default `authz_version_for`. */
+  /**
+   * The version-only function `memberships.version` calls. Default
+   * `authz_version_for`.
+   */
   readonly versionFn?: string;
   /**
    * The policy whose declared roles tell custom roles apart. With it,
-   * `customRoles` reads nothing while every role the subject holds is
-   * declared, and `memberships.version` reads the whole subject in one call
-   * when the token claims a custom role, which the custom roles need anyway.
+   * `customRoles` reads nothing while every role the subject holds is declared,
+   * and `memberships.version` reads the whole subject in one call when the
+   * token claims a custom role, which the custom roles need anyway.
    */
   readonly policy?: Policy;
 };
@@ -89,16 +95,19 @@ export type SubjectRecord = {
   readonly memberships: readonly Membership[];
   readonly customRoles: readonly CustomRole[];
   readonly authzVersion?: number;
-  /** The token claims the hook adds besides the memberships: `team_ids` and each `supabase.hook.claims` entry. */
+  /**
+   * The token claims the hook adds besides the memberships: `team_ids` and each
+   * `supabase.hook.claims` entry.
+   */
   readonly claims?: Readonly<Record<string, unknown>>;
 };
 
 export type PostgrestSources = {
   /**
-   * Memberships and the authorization version of any principal, and `list`,
-   * the live members of one scope instance through `members_of`, for
-   * `countHolders` and `whoCan`. Wrap it in `claimsFirst` to read only when
-   * the token was truncated.
+   * Memberships and the authorization version of any principal, and `list`, the
+   * live members of one scope instance through `members_of`, for `countHolders`
+   * and `whoCan`. Wrap it in `claimsFirst` to read only when the token was
+   * truncated.
    */
   readonly memberships: MembershipSource & {
     list(query: {
@@ -108,15 +117,19 @@ export type PostgrestSources = {
   };
   /** The custom roles `principal` holds, for `createPermDock`'s `customRoles`. */
   customRoles(principal: { readonly id: string }): CustomRoleSource;
-  /** The subject the hook would mint for `userId`: anonymous when the user is unknown or suspended. */
+  /**
+   * The subject the hook would mint for `userId`: anonymous when the user is
+   * unknown or suspended.
+   */
   subject(userId: string): Promise<Subject>;
   /**
    * `subject` with its principal read again: roles, memberships and
    * authorization version come from the database, the token's other claims
-   * stay, and `actor`, `delegation`, `session`, `expiresAt` and the context
-   * are kept as they were, so a refreshed OAuth client keeps its ceiling. An
+   * stay, and `actor`, `delegation`, `session`, `expiresAt` and the context are
+   * kept as they were, so a refreshed OAuth client keeps its ceiling. An
    * unknown or suspended user becomes a subject with no principal that still
-   * carries the actor and delegation. A subject with no principal is returned as is.
+   * carries the actor and delegation. A subject with no principal is returned
+   * as is.
    */
   refresh<P extends Principal>(subject: Subject<P>): Promise<Subject<P>>;
   /** The raw record, `undefined` for an unknown user. */
@@ -205,7 +218,10 @@ function versionOf(value: unknown): number | undefined {
     : undefined;
 }
 
-/** Reads `subject_for`'s JSON; anything it cannot read is left out, and a malformed record is no record. */
+/**
+ * Reads `subject_for`'s JSON; anything it cannot read is left out, and a
+ * malformed record is no record.
+ */
 export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
   if (!isRecord(value) || typeof value["id"] !== "string") {
     return undefined;
@@ -245,14 +261,14 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
 /**
  * Membership, custom-role and subject sources over the `subject_for(p_user)`,
  * `authz_version_for(p_user)` and `members_of(p_scope, p_id)` functions
- * `permdock supabase hook generate` writes, for a backend that reaches
- * Postgres only through PostgREST. `memberships.version` reads only the
- * version, so `claimsFirst` with `onStale: 'reread'` reads the full subject
- * only for a stale token; when the version function is missing it falls back
- * to `subject_for`. With `policy`, a token that claims a custom role has its
+ * `permdock supabase hook generate` writes, for a backend that reaches Postgres
+ * only through PostgREST. `memberships.version` reads only the version, so
+ * `claimsFirst` with `onStale: 'reread'` reads the full subject only for a
+ * stale token; when the version function is missing it falls back to
+ * `subject_for`. With `policy`, a token that claims a custom role has its
  * subject read in one `subject_for` call instead, and custom roles are read
- * only for a subject that holds one. Each user and each instance is read once per
- * `postgrestSources` call, so create it per request or per job.
+ * only for a subject that holds one. Each user and each instance is read once
+ * per `postgrestSources` call, so create it per request or per job.
  */
 export function postgrestSources(
   client: SupabaseRpcCaller,

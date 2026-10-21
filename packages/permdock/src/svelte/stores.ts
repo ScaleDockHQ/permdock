@@ -57,7 +57,10 @@ export function getPermDock(): ClientPermDock {
   return sveltePermDock(getStore());
 }
 
-/** `describe` with the provider's `messages`; a call's own `messages` win. Call it during component init. */
+/**
+ * `describe` with the provider's `messages`; a call's own `messages` win. Call
+ * it during component init.
+ */
 export function getDescribe(): (
   decision: Decision,
   options?: DescribeOptions,

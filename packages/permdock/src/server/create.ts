@@ -244,13 +244,7 @@ export function createPermDock<
       for (const leaf of listPermissions(policy.permissions)) {
         scopes[leaf.scope] = leaf.meta.title ?? leaf.key;
       }
-      return {
-        oauth2: {
-          type: "oauth2",
-          flows: {},
-          scopes,
-        },
-      };
+      return { oauth2: { type: "oauth2", flows: {}, scopes } };
     },
   };
 

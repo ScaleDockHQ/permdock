@@ -48,10 +48,7 @@ export const App = defineComponent({
       h(
         Protected,
         { permission: permissions.post.update, data: ownPost },
-        {
-          default: () => h("span", "edit"),
-          denied: () => h("span", "locked"),
-        },
+        { default: () => h("span", "edit"), denied: () => h("span", "locked") },
       ),
       h(DeleteButton),
       h(PermissionBoundary, null, {

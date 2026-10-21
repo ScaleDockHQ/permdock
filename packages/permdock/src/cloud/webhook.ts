@@ -33,10 +33,7 @@ import { webhookVerifier } from "../server/standard-webhooks.ts";
 type Envelope<TType extends CloudEventType, TData> = Omit<
   CloudEvent,
   "type" | "data"
-> & {
-  readonly type: TType;
-  readonly data: TData;
-};
+> & { readonly type: TType; readonly data: TData };
 
 type Types = typeof CLOUD_EVENT_TYPES;
 
@@ -96,8 +93,8 @@ export type PermDockCloudEvent =
 
 export type WebhookOptions = {
   /**
-   * A verifier to reuse across deliveries, so the JWKS is fetched once;
-   * built from `jwks`, `secret`, `replay`, `tolerance` and `now` when absent.
+   * A verifier to reuse across deliveries, so the JWKS is fetched once; built
+   * from `jwks`, `secret`, `replay`, `tolerance` and `now` when absent.
    */
   readonly verifier?: WebhookVerifier;
   /** `cloud().jwks`, a JWKS URL or an inline key set, for `v1a` signatures. */
@@ -112,7 +109,10 @@ export type WebhookOptions = {
   readonly fetch?: typeof fetch;
 };
 
-/** The Standard Webhooks verifier's cause, or `invalid-events` for a signed body that is not a CloudEvents batch. */
+/**
+ * The Standard Webhooks verifier's cause, or `invalid-events` for a signed body
+ * that is not a CloudEvents batch.
+ */
 export type WebhookFailureCause = MessageFailureCause | "invalid-events";
 
 export type VerifiedWebhook =
@@ -177,8 +177,8 @@ function eventsOf(body: string): readonly PermDockCloudEvent[] | null {
 }
 
 /**
- * Verifies a PermDock Cloud webhook delivery: Standard Webhooks headers over
- * an `application/cloudevents-batch+json` body (or one
+ * Verifies a PermDock Cloud webhook delivery: Standard Webhooks headers over an
+ * `application/cloudevents-batch+json` body (or one
  * `application/cloudevents+json` event). There is no unsigned mode, and it
  * never throws.
  */

@@ -32,10 +32,7 @@ function vueGuard(permission: Guarded) {
   return h(
     VueProtected,
     { permission },
-    {
-      default: () => h("b", "granted"),
-      denied: () => h("i", "denied"),
-    },
+    { default: () => h("b", "granted"), denied: () => h("i", "denied") },
   );
 }
 

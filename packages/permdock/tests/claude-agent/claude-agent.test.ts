@@ -33,10 +33,7 @@ function tools() {
       },
     },
     Read: { permission: permissions.post.read, data: () => ownPost },
-    Publish: {
-      permission: permissions.post.publish,
-      data: () => ownPost,
-    },
+    Publish: { permission: permissions.post.publish, data: () => ownPost },
   };
 }
 
@@ -183,9 +180,7 @@ describe("permdock/claude-agent", () => {
       await permissionRequestHook(
         hookInput("Read", { file_path: "/p1" }),
         "t1",
-        {
-          signal,
-        },
+        { signal },
       ),
     ).toEqual({
       hookSpecificOutput: {
@@ -197,10 +192,7 @@ describe("permdock/claude-agent", () => {
       hookInput(
         "mcp__posts__delete_post",
         { id: "p1" },
-        {
-          name: "posts",
-          source: "sdk",
-        },
+        { name: "posts", source: "sdk" },
       ),
       "t2",
       { signal },
@@ -212,10 +204,7 @@ describe("permdock/claude-agent", () => {
       hookInput(
         "mcp__posts__delete_post",
         { id: "p2" },
-        {
-          name: "posts",
-          source: "user",
-        },
+        { name: "posts", source: "user" },
       ),
       "t3",
       { signal },

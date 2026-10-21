@@ -72,27 +72,24 @@ describe("createPermDock", () => {
     expect({
       calls: subject.mock.calls.length,
       wrapped: wrapped.length,
-    }).toEqual({
-      calls: 1,
-      wrapped: 2,
-    });
+    }).toEqual({ calls: 1, wrapped: 2 });
   });
 
   it("serves the evaluations handler through a tenant scope", async () => {
     const scope = vi.fn<(request: Request) => { readonly tenant: string }>(
-      () => ({
-        tenant: "o1",
-      }),
+      () => ({ tenant: "o1" }),
     );
     const kernel = createPermDock(policy, { subject: () => memberUser });
-    const response = await kernel.permdockHandler(scope).POST(
-      new Request("https://api.example/access/v1/evaluations", {
-        method: "POST",
-        body: JSON.stringify({
-          evaluations: [{ action: { name: "post.list" } }],
+    const response = await kernel
+      .permdockHandler(scope)
+      .POST(
+        new Request("https://api.example/access/v1/evaluations", {
+          method: "POST",
+          body: JSON.stringify({
+            evaluations: [{ action: { name: "post.list" } }],
+          }),
         }),
-      }),
-    );
+      );
     expect(response.status).toBe(200);
     expect(scope).toHaveBeenCalledTimes(1);
   });

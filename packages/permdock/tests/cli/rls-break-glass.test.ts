@@ -135,9 +135,7 @@ describe("break-glass RLS generation", () => {
   });
 
   it("reads only the rows of instances where a role holds the break-glass grant", () => {
-    const Record = {
-      "~standard": Doc["~standard"],
-    } as const;
+    const Record = { "~standard": Doc["~standard"] } as const;
     const scoped = definePermissions({
       chart: resource(Record, {
         id: "id",

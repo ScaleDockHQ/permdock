@@ -46,7 +46,10 @@ type CatalogEntry = {
   readonly condition: unknown;
   readonly fingerprint: string;
   readonly sourceSql: string;
-  /** Role-gated branches read back from RLS helper calls and the `role_permissions` seeds. */
+  /**
+   * Role-gated branches read back from RLS helper calls and the
+   * `role_permissions` seeds.
+   */
   readonly grants?: readonly ImportedGrant[];
 };
 
@@ -195,7 +198,10 @@ async function seedsFromDb(query: Query): Promise<readonly RolePermission[]> {
   }
 }
 
-/** `pg_policies.roles` is a `name[]`, which `pg` returns as an array or, untyped, as `{a,b}`. */
+/**
+ * `pg_policies.roles` is a `name[]`, which `pg` returns as an array or,
+ * untyped, as `{a,b}`.
+ */
 function policyRoles(value: unknown): readonly string[] {
   if (Array.isArray(value)) {
     return value.map(String);

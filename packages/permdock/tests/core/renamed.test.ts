@@ -141,9 +141,7 @@ describe("definePermissions renamed", () => {
       definePermissions(shape, { renamed: { "a b": "customer.read" } }),
     ).toThrow("renamed key 'a b' is not a valid key");
     expect(() =>
-      definePermissions(shape, {
-        renamed: { "__proto__.x": "customer.read" },
-      }),
+      definePermissions(shape, { renamed: { "__proto__.x": "customer.read" } }),
     ).toThrow("is not a valid key");
     expect(() =>
       definePermissions(shape, {

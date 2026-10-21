@@ -41,9 +41,9 @@ function metaOf(name: string, value: unknown): CatalogOperation["meta"] {
 }
 
 /**
- * The catalog entries of a `defineOperations` map, in definition order.
- * Throws for a value that is not one, such as a module that exports the
- * definitions object instead of the map.
+ * The catalog entries of a `defineOperations` map, in definition order. Throws
+ * for a value that is not one, such as a module that exports the definitions
+ * object instead of the map.
  */
 export function catalogOperations(value: unknown): readonly CatalogOperation[] {
   if (!isRecord(value)) {
@@ -79,7 +79,10 @@ export function catalogOperations(value: unknown): readonly CatalogOperation[] {
   return out;
 }
 
-/** The configured operations module's catalog entries; `undefined` without one. Throws when it is missing or does not load. */
+/**
+ * The configured operations module's catalog entries; `undefined` without one.
+ * Throws when it is missing or does not load.
+ */
 export async function loadConfiguredOperations(
   cwd: string,
   path: string | undefined,

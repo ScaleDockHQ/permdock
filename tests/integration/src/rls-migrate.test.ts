@@ -100,9 +100,7 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
   const cli = async (args: readonly string[]) => {
     const result = await runPipingDbUrl(
       ["rls", ...args, "--rbac", "supabase"],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     return { code: result.code, out: `${result.stdout}${result.stderr}` };
   };
@@ -278,7 +276,10 @@ export default {
   });
 });
 
-/** A permissions table CentraKit keeps in step with triggers, and the legacy helper that reads it. */
+/**
+ * A permissions table CentraKit keeps in step with triggers, and the legacy
+ * helper that reads it.
+ */
 const MATERIALISED = `create table public.user_permissions (user_id uuid not null, organization_id uuid not null, permission text not null);
 
 create function public.refresh_user_permissions() returns trigger
@@ -308,9 +309,7 @@ describe("rls migrate --retire-out on CentraKit's materialised permissions", () 
   const cli = async (args: readonly string[]) => {
     const result = await runPipingDbUrl(
       ["rls", ...args, "--rbac", "supabase"],
-      {
-        cwd: dir,
-      },
+      { cwd: dir },
     );
     return { code: result.code, out: `${result.stdout}${result.stderr}` };
   };

@@ -597,12 +597,7 @@ describe("cloud", () => {
       kid: "2026-09",
       issuer: "https://elsewhere.example",
     });
-    const policy = {
-      v: 1,
-      fingerprint: "fp_1",
-      catalog: "cat_1",
-      grants: [],
-    };
+    const policy = { v: 1, fingerprint: "fp_1", catalog: "cat_1", grants: [] };
     const good = await signer.sign(
       { policy },
       { typ: "vnd.permdock.policy+jwt", audience: ENV_URL, jti: "doc_1" },

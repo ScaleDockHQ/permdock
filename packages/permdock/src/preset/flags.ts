@@ -12,7 +12,10 @@ import {
   resolvePreset,
 } from "./catalog.ts";
 
-/** One `permdock init` flag per preset key, with the catalogue it takes values from. */
+/**
+ * One `permdock init` flag per preset key, with the catalogue it takes values
+ * from.
+ */
 export const PRESET_FLAGS: {
   readonly [K in keyof Preset]: {
     readonly flag: string;
@@ -34,9 +37,9 @@ export const PRESET_FLAGS: {
 };
 
 /**
- * The `permdock init` flags that select `preset`, leaving out defaults and
- * the features its archetype and integrations already turn on, so
- * `permdock init <flags>` resolves to the same preset.
+ * The `permdock init` flags that select `preset`, leaving out defaults and the
+ * features its archetype and integrations already turn on, so `permdock init
+ * <flags>` resolves to the same preset.
  */
 export function presetFlags(preset: Preset): string[] {
   const implied = resolvePreset({

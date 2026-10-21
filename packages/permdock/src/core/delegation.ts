@@ -11,15 +11,18 @@ import { isActive } from "./validity.ts";
 
 type DelegatedPermission = Pick<Permission, "scope" | "resource" | "action">;
 
-/** The permission's scope and any scope it was renamed from: tokens issued before a rename keep working. */
+/**
+ * The permission's scope and any scope it was renamed from: tokens issued
+ * before a rename keep working.
+ */
 function scopeNames(permission: DelegatedPermission): readonly string[] {
   return [permission.scope, ...formerScopes(permission)];
 }
 
 /**
  * Whether a delegated caller may use a permission its principal holds, through
- * OAuth `scopes`, RFC 9396 `authorizationDetails` or GNAP `access`.
- * `undefined` means covered; otherwise the denial reason `decide` would add.
+ * OAuth `scopes`, RFC 9396 `authorizationDetails` or GNAP `access`. `undefined`
+ * means covered; otherwise the denial reason `decide` would add.
  */
 export function coveredByDelegation(
   permission: DelegatedPermission,
@@ -76,7 +79,10 @@ export function coveredByDelegation(
   return "not-delegated";
 }
 
-/** A `readOnly` actor never uses a permission without `readOnlyHint`, delegated or not. */
+/**
+ * A `readOnly` actor never uses a permission without `readOnlyHint`, delegated
+ * or not.
+ */
 export function readOnlyActorRefuses(
   actor: Actor | undefined,
   permission: Permission,
@@ -203,10 +209,10 @@ function handsOver(
 /**
  * The permission keys the policy's delegations let `subject.actor` use for
  * `subject.principal` right now: the union over every active delegation whose
- * `to` matches the actor and whose `from` the principal holds. `undefined`
- * when none applies, so the call falls back to the token delegation alone.
- * An actor with `readOnly: true` gets only each delegation's read-only keys.
- * Attenuation only: a key here still needs a matching allow and no deny.
+ * `to` matches the actor and whose `from` the principal holds. `undefined` when
+ * none applies, so the call falls back to the token delegation alone. An actor
+ * with `readOnly: true` gets only each delegation's read-only keys. Attenuation
+ * only: a key here still needs a matching allow and no deny.
  */
 export function delegatedPermissions(
   delegations: readonly PolicyDelegation[] | undefined,

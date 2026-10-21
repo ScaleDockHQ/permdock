@@ -5,10 +5,7 @@ import { policyProject, removeProjects } from "./doctor-kit.ts";
 
 afterEach(removeProjects);
 
-const config = {
-  permissions: "src/permissions.ts",
-  policy: "src/policy.ts",
-};
+const config = { permissions: "src/permissions.ts", policy: "src/policy.ts" };
 const POLICY = `roles: [],
   oauthScopes: { 'mcp:read': [permissions.post.read, permissions.note.read] },`;
 

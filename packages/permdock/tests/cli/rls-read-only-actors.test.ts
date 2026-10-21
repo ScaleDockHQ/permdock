@@ -118,9 +118,7 @@ describe("rls.readOnlyActors", () => {
     const cwd = project({
       "permdock.config.ts": config({ readOnlyActors: true }),
     });
-    const result = await run(["rls", "generate", "--out", "rls.sql"], {
-      cwd,
-    });
+    const result = await run(["rls", "generate", "--out", "rls.sql"], { cwd });
     expect(result.code).toBe(0);
     const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
     expect(sql).toMatch(

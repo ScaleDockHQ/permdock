@@ -111,10 +111,7 @@ import { createPermDock } from "permdock/supabase/middleware";
 const { withPermDock, permdockHandler, openapi } = createPermDock(policy, {
   subject: (ctx) =>
     subjectFromSupabase(ctx.jwtClaims, {
-      claims: {
-        roles: "user_role",
-        tenant: "tenant_id",
-      },
+      claims: { roles: "user_role", tenant: "tenant_id" },
     }),
 });
 
@@ -301,10 +298,7 @@ export const { getPermDock, getPermission } = createPermDock(policy, {
     });
     const { data, error } = await supabase.auth.getClaims();
     return subjectFromSupabase(error ? null : data.claims, {
-      claims: {
-        roles: "user_role",
-        tenant: "tenant_id",
-      },
+      claims: { roles: "user_role", tenant: "tenant_id" },
     });
   },
 });
@@ -445,9 +439,7 @@ Revocation reaches the ceiling through the user's grants, not through the delega
 ```ts
 const session = await getSession(); // verified locally against the project JWKS
 const subject = subjectFromSupabaseSession(session, {
-  claims: {
-    roles: "user_role",
-  },
+  claims: { roles: "user_role" },
 });
 ```
 

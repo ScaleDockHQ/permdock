@@ -40,7 +40,10 @@ create table public.job (id text primary key, "orgId" text not null, "ownerId" u
 let db: Postgres | undefined;
 const opened: string[] = [];
 
-/** A supabase-js shaped client over the superuser connection, as a backend role granted the functions calls them. */
+/**
+ * A supabase-js shaped client over the superuser connection, as a backend role
+ * granted the functions calls them.
+ */
 function rpcClient(): SupabaseRpcClient {
   return {
     schema(name) {

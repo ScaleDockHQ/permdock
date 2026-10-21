@@ -281,9 +281,7 @@ create policy "orgs_disable" on public.organization for update to authenticated
       join(cwd, "permdock.config.ts"),
       `export default { policy: ${JSON.stringify(POLICY)}, rls: { dialect: 'supabase' } };`,
     );
-    const missing = await run(["rls", "migrate", "--sql", "supabase"], {
-      cwd,
-    });
+    const missing = await run(["rls", "migrate", "--sql", "supabase"], { cwd });
     expect(missing.code).toBe(2);
     expect(missing.stderr + missing.stdout).toContain(
       "rls migrate needs rls.migrate.helpers",

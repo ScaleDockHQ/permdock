@@ -87,7 +87,10 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     await db?.stop();
   });
 
-  /** A supabase-js shaped client over the superuser connection, as a `service_role` client would call it. */
+  /**
+   * A supabase-js shaped client over the superuser connection, as a
+   * `service_role` client would call it.
+   */
   const client = (): SupabaseRpcClient => ({
     schema(name) {
       return {
@@ -311,10 +314,7 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     for (const id of ["T", "B", "X"]) {
       pairs.push(
         await target.as(
-          {
-            role: "authenticated",
-            settings: jwtClaims(OWNER),
-          },
+          { role: "authenticated", settings: jwtClaims(OWNER) },
           async () => {
             const one = await target.tester.query<{ key: string }>(
               "select k as key from permdock.permitted_organization_permission_keys($1) k order by 1",

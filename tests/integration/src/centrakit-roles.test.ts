@@ -297,10 +297,7 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
   });
 
   it("drops a suspended user and a suspended organization in the hook and both modes", async () => {
-    expect(await mint(SUSPENDED)).toMatchObject({
-      roles: [],
-      memberships: [],
-    });
+    expect(await mint(SUSPENDED)).toMatchObject({ roles: [], memberships: [] });
     expect(
       await permitted("permdock", { sub: SUSPENDED }, "customers.read"),
     ).toEqual([]);

@@ -172,9 +172,7 @@ describe("merging an org-level and a per-row resource over one table", () => {
   });
 
   it("seeds role_permissions under the renamed keys too", async () => {
-    const seeded = await databases().merged.admin.query<{
-      permission: string;
-    }>(
+    const seeded = await databases().merged.admin.query<{ permission: string }>(
       "select distinct permission from permdock.role_permissions where permission like 'file%' order by 1",
     );
     expect(seeded.rows.map((row) => row.permission)).toEqual([

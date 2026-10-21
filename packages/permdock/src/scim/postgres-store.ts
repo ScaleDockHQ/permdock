@@ -16,14 +16,20 @@ import {
   type ScimPatchOp,
 } from "./types.ts";
 
-/** The tables `permdock scim generate` writes; their names are the contract this store reads. */
+/**
+ * The tables `permdock scim generate` writes; their names are the contract this
+ * store reads.
+ */
 export const SCIM_TABLES = {
   users: "scim_users",
   groups: "scim_groups",
   members: "scim_group_members",
 } as const;
 
-/** The constraints whose violation is a SCIM `409 uniqueness`, by the attribute they cover. */
+/**
+ * The constraints whose violation is a SCIM `409 uniqueness`, by the attribute
+ * they cover.
+ */
 export const SCIM_UNIQUE = {
   userName: "scim_users_user_name_key",
   userExternalId: "scim_users_external_id_key",
@@ -33,7 +39,10 @@ export const SCIM_UNIQUE = {
 export const SCIM_SCHEMA = "permdock";
 
 export type PostgresDirectoryStoreOptions = {
-  /** Schema of the generated tables (`permdock scim generate --schema`). Default `permdock`. */
+  /**
+   * Schema of the generated tables (`permdock scim generate --schema`). Default
+   * `permdock`.
+   */
   readonly schema?: string;
 };
 
@@ -138,7 +147,10 @@ function storedGroup(value: unknown): Stored<DirectoryGroup> {
   };
 }
 
-/** A stored or IdP-sent `meta.created` the database can read; anything else is "now". */
+/**
+ * A stored or IdP-sent `meta.created` the database can read; anything else is
+ * "now".
+ */
 function createdParam(created: string): string | null {
   return created !== "" && !Number.isNaN(Date.parse(created)) ? created : null;
 }
@@ -172,7 +184,10 @@ function constraintOf(error: Readonly<Record<string, unknown>>): string {
   return "";
 }
 
-/** A unique violation (`23505`) as `DirectoryUniquenessError`; any other error is rethrown. */
+/**
+ * A unique violation (`23505`) as `DirectoryUniquenessError`; any other error
+ * is rethrown.
+ */
 function uniqueness(error: unknown, kind: "user" | "group"): never {
   if (isRecord(error) && error["code"] === "23505") {
     const constraint = constraintOf(error);
@@ -319,10 +334,7 @@ function window(page: ScimPage): {
   if (page.cursor !== undefined && page.cursor !== "") {
     return { offset: wholeOr(Number(page.cursor), 0), count };
   }
-  return {
-    offset: Math.max(0, wholeOr(page.startIndex, 1) - 1),
-    count,
-  };
+  return { offset: Math.max(0, wholeOr(page.startIndex, 1) - 1), count };
 }
 
 function pageResult<T>(
@@ -393,7 +405,10 @@ type Statements = Readonly<
   >
 >;
 
-/** Reads the row, applies the operations and writes only if no other write landed in between; `write` answers `null` then. */
+/**
+ * Reads the row, applies the operations and writes only if no other write
+ * landed in between; `write` answers `null` then.
+ */
 async function patch<T>(
   read: () => Promise<Stored<T> | null>,
   ops: readonly ScimPatchOp[],
@@ -523,10 +538,10 @@ function findSql(
 
 /**
  * A `DirectoryStore` over the tables `permdock scim generate` writes, called
- * through a `SqlQuery` that may read and write them (the table owner, or a
- * role granted on them). Every method is one statement, so a pool needs no
- * transaction: a group and its members change together, and a PATCH that
- * races another write re-reads the row and applies its operations again.
+ * through a `SqlQuery` that may read and write them (the table owner, or a role
+ * granted on them). Every method is one statement, so a pool needs no
+ * transaction: a group and its members change together, and a PATCH that races
+ * another write re-reads the row and applies its operations again.
  */
 export function postgresDirectoryStore(
   query: SqlQuery,

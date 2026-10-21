@@ -65,9 +65,7 @@ function fakeResend() {
       send: (payloads, options) =>
         respond(
           { payload: payloads, idempotencyKey: options?.idempotencyKey },
-          () => ({
-            data: payloads.map(() => ({ id: nextId() })),
-          }),
+          () => ({ data: payloads.map(() => ({ id: nextId() })) }),
         ),
     },
   };
@@ -238,9 +236,7 @@ describe("resendTransport", () => {
       invoice,
       recipients,
       message,
-      {
-        id: "dlv_batch",
-      },
+      { id: "dlv_batch" },
     );
     await delivery.deliver(
       permdock,
@@ -248,9 +244,7 @@ describe("resendTransport", () => {
       invoice,
       recipients,
       message,
-      {
-        id: "dlv_batch",
-      },
+      { id: "dlv_batch" },
     );
     expect(report.events.map((event) => event.provider)).toEqual([
       { name: "resend", id: "re_1" },

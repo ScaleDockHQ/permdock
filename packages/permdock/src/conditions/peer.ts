@@ -12,9 +12,7 @@ export function loadPeer<T>(id: string, message: string): T {
       };
     }
   ).process?.getBuiltinModule?.("node:module") as
-    | {
-        readonly createRequire: (from: string) => (id: string) => unknown;
-      }
+    | { readonly createRequire: (from: string) => (id: string) => unknown }
     | undefined;
   try {
     if (loader === undefined) {

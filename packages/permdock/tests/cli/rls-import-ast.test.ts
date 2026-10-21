@@ -14,12 +14,7 @@ const memberships = {
     user: "user_id",
     role: "role",
   },
-  team: {
-    table: "team_users",
-    team: "teamId",
-    user: "user_id",
-    role: "role",
-  },
+  team: { table: "team_users", team: "teamId", user: "user_id", role: "role" },
 };
 
 describe("conditionFromAst", () => {

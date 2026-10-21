@@ -3,8 +3,8 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 /**
- * Signs in through the API request context, which shares the page's cookie
- * jar, so the page itself never navigates before `instant()` takes the lock.
+ * Signs in through the API request context, which shares the page's cookie jar,
+ * so the page itself never navigates before `instant()` takes the lock.
  */
 export async function signIn(
   page: Page,

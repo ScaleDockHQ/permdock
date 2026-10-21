@@ -57,9 +57,9 @@ function withinDelegation(
 }
 
 /**
- * Whether the subject's delegation, its delegated ceiling and a read-only
- * actor leave `permission` within reach, whatever the grants say. A hint,
- * never a decision.
+ * Whether the subject's delegation, its delegated ceiling and a read-only actor
+ * leave `permission` within reach, whatever the grants say. A hint, never a
+ * decision.
  */
 export function delegationAllows(
   permdock: PermDock,

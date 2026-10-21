@@ -1,11 +1,11 @@
 import type { Leaf } from "./command.ts";
 
 /**
- * What a command may touch. `files` writes files it owns, `rewrite` edits
- * files the project owns, `database:*` connects to Postgres, `network`
- * calls a remote service, `cloud:write` publishes to PermDock Cloud,
- * `install` runs a package manager. In agent mode `rewrite`, `cloud:write`
- * and `files` with `--force` need the person's consent.
+ * What a command may touch. `files` writes files it owns, `rewrite` edits files
+ * the project owns, `database:*` connects to Postgres, `network` calls a remote
+ * service, `cloud:write` publishes to PermDock Cloud, `install` runs a package
+ * manager. In agent mode `rewrite`, `cloud:write` and `files` with `--force`
+ * need the person's consent.
  */
 export type Effect =
   | "files"
@@ -28,7 +28,10 @@ export type LeafEntry = {
   readonly config: boolean;
   /** Reports findings, so `--format github` and `sarif` apply. */
   readonly findings?: boolean;
-  /** Prints for a shell to read, so agent mode keeps text output unless `--json` asks. */
+  /**
+   * Prints for a shell to read, so agent mode keeps text output unless `--json`
+   * asks.
+   */
   readonly shellOutput?: boolean;
   readonly hidden?: boolean;
   readonly load: () => Promise<Leaf>;
@@ -663,8 +666,8 @@ export type Resolved =
     };
 
 /**
- * Walks positional tokens down the tree until a leaf. Flags may sit
- * anywhere; only bare words name a child.
+ * Walks positional tokens down the tree until a leaf. Flags may sit anywhere;
+ * only bare words name a child.
  */
 export function resolve(argv: readonly string[]): Resolved {
   let node: GroupEntry = ROOT;

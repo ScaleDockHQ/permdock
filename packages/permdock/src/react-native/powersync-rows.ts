@@ -32,7 +32,10 @@ function quoted(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
 }
 
-/** The synced tables `rows` names, each read whole: the subject streams sync only the user's own rows. */
+/**
+ * The synced tables `rows` names, each read whole: the subject streams sync
+ * only the user's own rows.
+ */
 export function rowTables(rows: LocalSnapshotRows): readonly string[] {
   const tables = new Set<string>();
   const column = (item: LocalRowColumn): void => {
@@ -84,7 +87,10 @@ function rowsOf(tables: Tables, table: string): readonly Row[] {
   return (tables[table] ?? []).filter(isRecord);
 }
 
-/** The value a column holds, read through its referenced table or map; `undefined` for none. */
+/**
+ * The value a column holds, read through its referenced table or map;
+ * `undefined` for none.
+ */
 function columnValue(
   row: Row,
   column: LocalRowColumn,
@@ -205,7 +211,10 @@ function customRoleOf({ key, grants, includes }: RoleEntry): CustomRole {
   });
 }
 
-/** Custom roles from the custom-role rows: a tenant role, a shared role (no tenant) or a global role. */
+/**
+ * Custom roles from the custom-role rows: a tenant role, a shared role (no
+ * tenant) or a global role.
+ */
 function customRolesOf(
   permissions: readonly Row[],
   includes: readonly Row[],
@@ -243,7 +252,10 @@ function customRolesOf(
   return [...roles.values()].map(customRoleOf);
 }
 
-/** The user's memberships, global roles and custom roles from the rows of the tables `rows` names. */
+/**
+ * The user's memberships, global roles and custom roles from the rows of the
+ * tables `rows` names.
+ */
 export function readRows(
   rows: LocalSnapshotRows,
   tables: Tables,

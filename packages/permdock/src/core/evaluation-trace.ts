@@ -7,8 +7,8 @@ import type {
 import type { Grant } from "./policy-types.ts";
 
 /**
- * Collects the trace for `explain`. Absent (undefined) on a plain `decide`,
- * so a check without `explain` allocates nothing for it.
+ * Collects the trace for `explain`. Absent (undefined) on a plain `decide`, so
+ * a check without `explain` allocates nothing for it.
  */
 export type Tracer = {
   evaluated: number;

@@ -32,8 +32,8 @@ export function assertParentGraph(
 
 /**
  * Graph relation grantees must reach their resource: `through: 'parent'` from
- * the row to its parent resource or along its own self-parent, and never over
- * a `memberOf` relation, which is tenancy, not the object graph.
+ * the row to its parent resource or along its own self-parent, and never over a
+ * `memberOf` relation, which is tenancy, not the object graph.
  */
 export function assertRelationGrants(
   grants: readonly Grant[],
@@ -186,7 +186,10 @@ function rescopeGrantee(
   return single ?? to;
 }
 
-/** Resolves `tenant` / `team` aliases to declared names; an undeclared scope throws. */
+/**
+ * Resolves `tenant` / `team` aliases to declared names; an undeclared scope
+ * throws.
+ */
 export function rescopeGrant(grant: Grant, declared: readonly Scope[]): Grant {
   const scope = scopeOfGrant(grant.scope, declared);
   const to = rescopeGrantee(grant.to, declared);

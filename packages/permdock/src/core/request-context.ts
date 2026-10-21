@@ -13,8 +13,8 @@ export type RequestContext = Readonly<Record<string, unknown>>;
 export type Report = (error: unknown) => void;
 
 /**
- * Errors an adapter raises around one instance (a `context` hook that threw,
- * an `onDenied` that failed), fed to the instance's `on('error')` handlers and
+ * Errors an adapter raises around one instance (a `context` hook that threw, an
+ * `onDenied` that failed), fed to the instance's `on('error')` handlers and
  * replayed to later ones, as core replays its own.
  */
 function deliver(handler: (payload: unknown) => void, error: unknown): void {
@@ -61,9 +61,9 @@ function errorChannel(queued: readonly unknown[]): {
 }
 
 /**
- * `buildInstance` with an error channel: the instance's `on('error')`
- * replays `errors` raised while resolving the request, and `report` adds
- * more. Kept beside `errorChannel`, so adapters without one do not bundle it.
+ * `buildInstance` with an error channel: the instance's `on('error')` replays
+ * `errors` raised while resolving the request, and `report` adds more. Kept
+ * beside `errorChannel`, so adapters without one do not bundle it.
  */
 export async function buildReportingInstance<
   TUser,

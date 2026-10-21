@@ -51,9 +51,7 @@ function fakeContext(): {
           () => {
             tools.delete(tool.name);
           },
-          {
-            once: true,
-          },
+          { once: true },
         );
         return {};
       },

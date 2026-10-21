@@ -8,7 +8,10 @@ import { subjectClaimJsonSql, subjectClaimSql } from "../sql/subject.ts";
 
 export const TOKEN_SCOPE_ALLOWS = "permdock_token_scope_allows";
 
-/** `rls.tokenScopes` as the SQL generator needs it, or `undefined` when it is off. */
+/**
+ * `rls.tokenScopes` as the SQL generator needs it, or `undefined` when it is
+ * off.
+ */
 export function tokenScopesPlan(
   setting: boolean | undefined,
   policy: Policy,
@@ -31,7 +34,10 @@ export function tokenScopeAllowsCall(
   return `${qualified(ctx, TOKEN_SCOPE_ALLOWS)}(${grant})`;
 }
 
-/** The token's scopes as rows of `s(scope)`: a space-separated string or, outside `guc`, a JSON array. */
+/**
+ * The token's scopes as rows of `s(scope)`: a space-separated string or,
+ * outside `guc`, a JSON array.
+ */
 function tokenScopeRows(ctx: RlsSqlContext): string {
   if (ctx.dialect === "guc") {
     return `regexp_split_to_table(btrim(coalesce(${subjectClaimSql(ctx, "scope")}, '')), '\\s+') s(scope)`;

@@ -192,10 +192,7 @@ export function purposesOf(subject: Subject): readonly string[] {
 export type BreakGlassResult =
   | { readonly kind: "inactive" }
   | { readonly kind: "granted"; readonly obligations: readonly Obligation[] }
-  | {
-      readonly kind: "denied";
-      readonly reason: "purpose" | "reason-required";
-    }
+  | { readonly kind: "denied"; readonly reason: "purpose" | "reason-required" }
   | {
       readonly kind: "denied";
       readonly reason: "insufficient-user-authentication";
@@ -247,7 +244,10 @@ export function evaluateBreakGlass(
   return { kind: "granted", obligations };
 }
 
-/** Support memberships (`via: 'support'`) the subject holds that demand an actor. */
+/**
+ * Support memberships (`via: 'support'`) the subject holds that demand an
+ * actor.
+ */
 export function actorRequiredVias(
   supports: readonly SupportSpec[],
 ): ReadonlySet<string> {
@@ -285,7 +285,10 @@ function withinAgrees(
 
 export type ActivateInput = {
   readonly role: string | Role;
-  /** The scope the activation applies in (a declared name or the `tenant` / `team` alias). */
+  /**
+   * The scope the activation applies in (a declared name or the `tenant` /
+   * `team` alias).
+   */
   readonly scope: string;
   readonly id: string;
   /** Ancestor scope ids, keyed by scope name, for a nested-scope activation. */
@@ -301,26 +304,22 @@ function activationDenied(
 ): Decision {
   const denial: Denial =
     to === undefined ? { role: null, reason } : { role: null, reason, to };
-  return freezeDeep({
-    outcome: "denied",
-    denials: [denial],
-    alternatives: [],
-  });
+  return freezeDeep({ outcome: "denied", denials: [denial], alternatives: [] });
 }
 
 /**
- * Requests a just-in-time role activation. It never writes: a granted
- * decision carries the elevated membership under `elevation` for the app to
- * write. `approval-required` comes back first when the role's `activation`
- * sets `approval`. Fail-closed: an unknown role, an ineligible subject, a
- * missing justification or stale authentication all deny.
+ * Requests a just-in-time role activation. It never writes: a granted decision
+ * carries the elevated membership under `elevation` for the app to write.
+ * `approval-required` comes back first when the role's `activation` sets
+ * `approval`. Fail-closed: an unknown role, an ineligible subject, a missing
+ * justification or stale authentication all deny.
  */
 /**
  * Requests a just-in-time activation of an eligible role for the subject of
  * `permdock`. It never writes: a granted decision carries the elevated
- * membership under `elevation` for the app to write, and
- * `approval-required` comes back first when the role's `activation` sets
- * `approval`. An instance built from a snapshot denies with `unsupported`.
+ * membership under `elevation` for the app to write, and `approval-required`
+ * comes back first when the role's `activation` sets `approval`. An instance
+ * built from a snapshot denies with `unsupported`.
  */
 export function activate(
   permdock: InstanceHandle,

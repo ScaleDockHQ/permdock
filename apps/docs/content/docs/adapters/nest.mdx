@@ -19,14 +19,10 @@ import { policy } from "./policy";
 
 export const { PermDockModule, Protect, InjectPermDock } = createPermDock(
   policy,
-  {
-    subject: (request) => request.user ?? null,
-  },
+  { subject: (request) => request.user ?? null },
 );
 
-@Module({
-  imports: [PermDockModule.forRoot({ guard: "global" })],
-})
+@Module({ imports: [PermDockModule.forRoot({ guard: "global" })] })
 export class AppModule {}
 
 // posts.controller.ts

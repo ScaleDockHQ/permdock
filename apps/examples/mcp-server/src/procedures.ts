@@ -42,7 +42,10 @@ const procedures: ReadonlyMap<string, unknown> = new Map(
   Object.entries(router),
 );
 
-/** A procedure's output as a tool result; its Problem Details refusal as a tool error. */
+/**
+ * A procedure's output as a tool result; its Problem Details refusal as a tool
+ * error.
+ */
 async function toolResult(pending: Promise<unknown>): Promise<CallToolResult> {
   try {
     const output = await pending;

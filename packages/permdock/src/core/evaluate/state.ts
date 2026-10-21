@@ -19,10 +19,7 @@ export type Allow = {
   readonly breakGlass?: true;
 };
 
-export type Candidate = {
-  readonly grant: Grant;
-  readonly custom?: CustomRole;
-};
+export type Candidate = { readonly grant: Grant; readonly custom?: CustomRole };
 
 export type BreakGlass = {
   readonly grant: Grant | undefined;
@@ -52,7 +49,10 @@ export type EvaluationCall = {
   readonly evaluate: Evaluate;
 };
 
-/** One call after validation: its rows, held roles, and the denials and allows the grant stages collect. */
+/**
+ * One call after validation: its rows, held roles, and the denials and allows
+ * the grant stages collect.
+ */
 export type EvaluationState = EvaluationCall &
   Rows & {
     readonly scopes: readonly Scope[];

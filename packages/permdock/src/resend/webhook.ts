@@ -108,9 +108,9 @@ function outcomeOf(
 }
 
 /**
- * The delivery event a verified Resend payload stands for, or `null` for
- * one that is not about a PermDock delivery: opens and clicks (tracking,
- * not delivery), sends, contact and domain events, and mail without the
+ * The delivery event a verified Resend payload stands for, or `null` for one
+ * that is not about a PermDock delivery: opens and clicks (tracking, not
+ * delivery), sends, contact and domain events, and mail without the
  * `permdock_delivery` and `permdock_key` tags.
  */
 function eventOf(payload: unknown, source: string): DeliveryEvent | null {
@@ -173,10 +173,10 @@ async function claim(replay: ReplayStore, key: string): Promise<boolean> {
 /**
  * A fetch handler for Resend webhooks. It verifies the Standard Webhooks
  * signature through `resend.webhooks.verify` (the `svix-*` and `webhook-*`
- * header names both work), claims the message id, and writes one delivery
- * event for `email.delivered`, `email.bounced`, `email.complained`,
- * `email.failed` and `email.suppressed`. A bad signature is a `401`; a sink
- * failure releases the claim and answers `503`, so Resend retries.
+ * header names both work), claims the message id, and writes one delivery event
+ * for `email.delivered`, `email.bounced`, `email.complained`, `email.failed`
+ * and `email.suppressed`. A bad signature is a `401`; a sink failure releases
+ * the claim and answers `503`, so Resend retries.
  */
 export function resendWebhook(
   options: ResendWebhookOptions,

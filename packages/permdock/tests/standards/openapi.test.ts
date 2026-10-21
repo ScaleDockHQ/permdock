@@ -40,9 +40,7 @@ const policy = definePolicy(permissions, {
   roles: [
     role("member", [
       allow(permissions.post.read),
-      allow(permissions.post.delete, {
-        where: { authorId: principal.id },
-      }),
+      allow(permissions.post.delete, { where: { authorId: principal.id } }),
     ]),
   ],
   grants: [
@@ -88,7 +86,10 @@ function options(
   };
 }
 
-/** A whole document: one operation per permission, as an adapter would describe it. */
+/**
+ * A whole document: one operation per permission, as an adapter would describe
+ * it.
+ */
 function documentFor(config: OpenApiPermDockOptions): Record<string, unknown> {
   const factory = createPermDock(policy, config);
   const paths: Record<string, unknown> = {};
@@ -214,9 +215,7 @@ describe("OpenAPI", () => {
     expect(
       factory.security([permissions.status.view, permissions.post.read]),
     ).toEqual([
-      {
-        oauth: [permissions.status.view.scope, permissions.post.read.scope],
-      },
+      { oauth: [permissions.status.view.scope, permissions.post.read.scope] },
     ]);
     expect(
       factory.security([permissions.status.view, permissions.post.read], {
@@ -270,10 +269,7 @@ describe("OpenAPI", () => {
         expect({
           key,
           allowed: REGISTERED_OAI.has(key) || key.startsWith("x-permdock-"),
-        }).toEqual({
-          key,
-          allowed: true,
-        });
+        }).toEqual({ key, allowed: true });
       }
     },
   );

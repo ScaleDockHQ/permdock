@@ -8,10 +8,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 
-const Post = z.object({
-  id: z.string(),
-  authorId: z.string(),
-});
+const Post = z.object({ id: z.string(), authorId: z.string() });
 
 const permissions = definePermissions({
   post: resource(Post, {
@@ -80,9 +77,7 @@ describe("permdock/convex", () => {
   });
 
   it("filter and can never throw for an anonymous caller", async () => {
-    const { withPermDock } = createPermDock(policy, {
-      subject: () => null,
-    });
+    const { withPermDock } = createPermDock(policy, { subject: () => null });
     const list = withPermDock((ctx) => {
       const rows = [
         { id: "p1", authorId: "user-1" },
@@ -93,10 +88,7 @@ describe("permdock/convex", () => {
         filtered: ctx.permdock.filter(permissions.post.read, rows),
       };
     });
-    await expect(list({}, {})).resolves.toEqual({
-      can: false,
-      filtered: [],
-    });
+    await expect(list({}, {})).resolves.toEqual({ can: false, filtered: [] });
   });
 
   it("returns a snapshot from snapshotQuery without failing on denial", async () => {
@@ -108,9 +100,7 @@ describe("permdock/convex", () => {
       handler: (
         ctx: object,
         args: Record<string, never>,
-      ) => Promise<{
-        readonly grants: readonly unknown[];
-      }>;
+      ) => Promise<{ readonly grants: readonly unknown[] }>;
     };
     const snapshot = await query.handler({}, {});
     expect(snapshot.grants.length).toBeGreaterThan(0);

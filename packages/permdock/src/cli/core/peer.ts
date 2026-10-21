@@ -61,7 +61,10 @@ export async function requirePeer<T>(
   }
 }
 
-/** The major version of the installed `name`; `NaN` when its package.json cannot be read, which no minimum rejects. */
+/**
+ * The major version of the installed `name`; `NaN` when its package.json cannot
+ * be read, which no minimum rejects.
+ */
 function installedMajor(name: string): number {
   try {
     const file = createRequire(import.meta.url).resolve(`${name}/package.json`);
@@ -74,7 +77,10 @@ function installedMajor(name: string): number {
   }
 }
 
-/** The package manager whose lockfile the project has, else the one running the CLI. */
+/**
+ * The package manager whose lockfile the project has, else the one running the
+ * CLI.
+ */
 export async function packageManagerOf(
   cwd: string,
 ): Promise<Agent | undefined> {

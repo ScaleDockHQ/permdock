@@ -17,7 +17,8 @@ function rotr(value: number, bits: number): number {
 }
 
 /**
- * SHA-256 of UTF-8 text. Pure JS so `decide` stays synchronous and WinterTC-safe.
+ * SHA-256 of UTF-8 text. Pure JS so `decide` stays synchronous and
+ * WinterTC-safe.
  */
 export function sha256(message: string): Uint8Array {
   const encoder = new TextEncoder();
@@ -99,8 +100,8 @@ export function sha256(message: string): Uint8Array {
 }
 
 /**
- * The one digest notation: `sha-256:` plus the unpadded base64url SHA-256
- * of `text`. An RFC 9651 sf-token, so it fits a structured header as is.
+ * The one digest notation: `sha-256:` plus the unpadded base64url SHA-256 of
+ * `text`. An RFC 9651 sf-token, so it fits a structured header as is.
  */
 export function sha256Digest(text: string): string {
   return `sha-256:${bytesToBase64Url(sha256(text))}`;

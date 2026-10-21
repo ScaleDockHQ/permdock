@@ -77,10 +77,7 @@ describe("rls.assignments on the global-roles table", () => {
     }
     const target = db;
     await target.as(
-      {
-        role: "authenticated",
-        settings: jwtClaims(user),
-      },
+      { role: "authenticated", settings: jwtClaims(user) },
       async () => {
         await target.tester.query(sql);
       },
@@ -173,10 +170,7 @@ describe("rls.assignments on the global-roles table", () => {
     }
     const target = db;
     return target.as(
-      {
-        role: "authenticated",
-        settings: jwtClaims(user),
-      },
+      { role: "authenticated", settings: jwtClaims(user) },
       async () => {
         for (const statement of statements) {
           await target.tester.query(statement);

@@ -156,7 +156,10 @@ function verdictFor(
     : { ok: true, quota: { remaining: left, resetsAt } };
 }
 
-/** What the quota stage of `evaluate` asks about one allow whose grant has a `limit`. */
+/**
+ * What the quota stage of `evaluate` asks about one allow whose grant has a
+ * `limit`.
+ */
 export type QuotaInput = {
   readonly cache: Map<string, number>;
   readonly limit: GrantLimit;

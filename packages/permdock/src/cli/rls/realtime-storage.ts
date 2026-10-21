@@ -11,7 +11,10 @@ import { configError } from "../core/errors.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { permittedByPermissionHelper } from "./permission-keys.ts";
 
-/** What the policies may name: the declared scopes and the permission keys with and without row conditions. */
+/**
+ * What the policies may name: the declared scopes and the permission keys with
+ * and without row conditions.
+ */
 export type HelperTableFacts = {
   readonly scopes: ReadonlySet<string>;
   readonly keys: ReadonlySet<string>;
@@ -73,9 +76,9 @@ function declaredScope(
 }
 
 /**
- * The ids of `scope` where the subject holds `key` through an allow without
- * a row condition, minus a deny of it, as text: `<value> in (…)`. A
- * relationship or a `where` on the same permission never widens it.
+ * The ids of `scope` where the subject holds `key` through an allow without a
+ * row condition, minus a deny of it, as text: `<value> in (…)`. A relationship
+ * or a `where` on the same permission never widens it.
  */
 function permitted(
   ctx: RlsSqlContext,
@@ -216,9 +219,9 @@ function storagePolicies(
  * The `realtime.messages` and `storage.objects` policies `rls.realtime` and
  * `rls.storage` describe. Each one admits a row only where the subject holds
  * the permission in the scope instance its topic segment or folder names,
- * through an allow without a row condition, so the helpers' API-key ceiling
- * and suspension rules apply and a relationship grant on the same permission
- * never reaches a topic or a folder.
+ * through an allow without a row condition, so the helpers' API-key ceiling and
+ * suspension rules apply and a relationship grant on the same permission never
+ * reaches a topic or a folder.
  */
 export function realtimeStoragePolicies(
   ctx: RlsSqlContext,

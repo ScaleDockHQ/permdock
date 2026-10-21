@@ -157,9 +157,7 @@ describe("ownership: membership kinds", () => {
   });
 
   it("drops a resource role held through a kind its for omits", async () => {
-    const tree = definePermissions({
-      folder: resource({ actions: ["read"] }),
-    });
+    const tree = definePermissions({ folder: resource({ actions: ["read"] }) });
     const shared = definePolicy(tree, {
       subject: (user: Principal | null) => user,
       roles: [

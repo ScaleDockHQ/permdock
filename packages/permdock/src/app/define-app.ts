@@ -31,10 +31,10 @@ function assertProduction(policy: Policy, options: AppOptions): void {
 }
 
 /**
- * The in-process services `dev` fills in: one memory approval store that
- * every adapter of the app shares, and memory limits when a grant has a
- * `limit`. They live here, not in the adapters, so an adapter ships no store
- * and an app without `defineApp` ships neither.
+ * The in-process services `dev` fills in: one memory approval store that every
+ * adapter of the app shares, and memory limits when a grant has a `limit`. They
+ * live here, not in the adapters, so an adapter ships no store and an app
+ * without `defineApp` ships neither.
  */
 function devDefaults(policy: Policy, options: AppOptions): AppDefinition {
   return {
@@ -49,10 +49,10 @@ function devDefaults(policy: Policy, options: AppOptions): AppDefinition {
 }
 
 /**
- * Binds the app's sources, features and services to `policy`. The result
- * is a policy: pass it wherever a policy goes (`createPermDock`, every
- * adapter, the CLI) and each picks up the app definition, with its own
- * options taking precedence. The profile defaults to `prod`.
+ * Binds the app's sources, features and services to `policy`. The result is a
+ * policy: pass it wherever a policy goes (`createPermDock`, every adapter, the
+ * CLI) and each picks up the app definition, with its own options taking
+ * precedence. The profile defaults to `prod`.
  */
 export function defineApp<
   TUser,

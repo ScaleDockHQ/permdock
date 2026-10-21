@@ -79,12 +79,12 @@ export type ApiKeyFailureCause =
   | "owner-unavailable";
 
 /** An opaque key split at its last `_`: `pdk_<id>_<secret><checksum>`. */
-export type ApiKeyParts = {
-  readonly id: string;
-  readonly secret: string;
-};
+export type ApiKeyParts = { readonly id: string; readonly secret: string };
 
-/** What an application stores per key: the credential and the key's hash, never the key. */
+/**
+ * What an application stores per key: the credential and the key's hash, never
+ * the key.
+ */
 export type StoredCredential = {
   readonly credential: Credential;
   readonly hash: string;
@@ -93,8 +93,8 @@ export type StoredCredential = {
 /**
  * Splits `pdk_<id>_<secret><checksum>`: `id` is 1 to 128 of `A-Z a-z 0-9 _ -`,
  * the secret 43 base62 characters and the checksum the 6 base62 characters of
- * the CRC-32 of everything before it. Anything else, including a checksum
- * that does not match, is `undefined`.
+ * the CRC-32 of everything before it. Anything else, including a checksum that
+ * does not match, is `undefined`.
  */
 export function parseApiKey(key: unknown): ApiKeyParts | undefined {
   if (
@@ -131,9 +131,9 @@ const FEED_TAIL = /* @__PURE__ */ new RegExp(
 );
 
 /**
- * Splits `pdfeed_<id>_<secret><checksum>`. `id` is `isFeedId`, the secret is
- * 26 lowercase base32 characters and the checksum is 6 more. A checksum that
- * does not match is `undefined`.
+ * Splits `pdfeed_<id>_<secret><checksum>`. `id` is `isFeedId`, the secret is 26
+ * lowercase base32 characters and the checksum is 6 more. A checksum that does
+ * not match is `undefined`.
  */
 export function parseFeedKey(key: unknown): ApiKeyParts | undefined {
   if (
@@ -162,8 +162,8 @@ export function parseFeedKey(key: unknown): ApiKeyParts | undefined {
 }
 
 /**
- * A fresh `pdfeed_<id>_<secret><checksum>`: 26 lowercase base32 characters
- * (130 bits) and a 6-character CRC-32 checksum. The whole key is lowercase.
+ * A fresh `pdfeed_<id>_<secret><checksum>`: 26 lowercase base32 characters (130
+ * bits) and a 6-character CRC-32 checksum. The whole key is lowercase.
  */
 export function generateFeedKey(id: string): string {
   if (!isFeedId(id)) {
@@ -231,11 +231,11 @@ function sameHash(left: string, right: string): boolean {
 }
 
 /**
- * A `CredentialVerifier` over the application's own table: `find` looks a
- * key up by the id in it, and the key's hash is compared in constant time.
- * A record that is not a valid v1 credential, or whose id is not the key's,
- * verifies to `null`. A throwing `find` propagates, so the resolver denies
- * with `source-threw`.
+ * A `CredentialVerifier` over the application's own table: `find` looks a key
+ * up by the id in it, and the key's hash is compared in constant time. A record
+ * that is not a valid v1 credential, or whose id is not the key's, verifies to
+ * `null`. A throwing `find` propagates, so the resolver denies with
+ * `source-threw`.
  */
 export function apiKeyVerifier(options: {
   readonly find: (
@@ -380,24 +380,30 @@ export function memoryCredentialStore(
 
 export type ApiKeySubjectOptions = {
   readonly verifier: CredentialVerifier;
-  /** The definitions, to turn the credential's permission keys into its delegation. */
+  /**
+   * The definitions, to turn the credential's permission keys into its
+   * delegation.
+   */
   readonly permissions: PermissionTree;
   /**
-   * Loads the live owner of a user-bound key: roles and memberships as of
-   * this request, asked with the key's tenant. `null` (a deleted or
-   * suspended user) is anonymous with `owner-unavailable`, and a throw is
-   * `source-threw`. Without it the owner is `{ id, kind: 'user' }` and its
-   * rights come from the `memberships` source passed to `createPermDock`.
+   * Loads the live owner of a user-bound key: roles and memberships as of this
+   * request, asked with the key's tenant. `null` (a deleted or suspended user)
+   * is anonymous with `owner-unavailable`, and a throw is `source-threw`.
+   * Without it the owner is `{ id, kind: 'user' }` and its rights come from the
+   * `memberships` source passed to `createPermDock`.
    */
   readonly principals?: PrincipalSource;
-  /** The tenant the request acts in: a user key is held to its owner's memberships there. */
+  /**
+   * The tenant the request acts in: a user key is held to its owner's
+   * memberships there.
+   */
   readonly tenant?: string;
   /** `true` when the application revoked the credential id; a throw denies. */
   readonly revoked?: (id: string) => boolean | Promise<boolean>;
   /**
-   * The tenant `credentials` policy, checked on every use so a tightened
-   * policy reaches existing keys: a service key's own tenant, a user key's
-   * the `tenant` the resolver is called with. A throw denies.
+   * The tenant `credentials` policy, checked on every use so a tightened policy
+   * reaches existing keys: a service key's own tenant, a user key's the
+   * `tenant` the resolver is called with. A throw denies.
    */
   readonly settings?: SettingsSource;
   /** Receives a `credential` event with operation `used` for sampled uses. */
@@ -521,10 +527,10 @@ function anonymous(): Subject<ApiKeyPrincipal> {
 
 /**
  * Resolves an opaque API key (`pdk_<id>_<secret>`) into the subject its
- * credential acts as. Every failure (a malformed or unknown key, a record
- * that is not a valid credential, expiry, a tenant policy the key breaks, a
- * revoked id, a missing owner, a throwing verifier, source or callback) is
- * the anonymous subject, never a throw.
+ * credential acts as. Every failure (a malformed or unknown key, a record that
+ * is not a valid credential, expiry, a tenant policy the key breaks, a revoked
+ * id, a missing owner, a throwing verifier, source or callback) is the
+ * anonymous subject, never a throw.
  */
 export async function subjectFromApiKey(
   key: string | undefined | null,

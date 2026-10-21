@@ -25,14 +25,23 @@ import {
 import { isMembershipExpired } from "./tenancy.ts";
 import { type Role, findRole } from "./vocabulary.ts";
 
-/** Who a role change is about: their principal id and their membership in the scope instance. */
+/**
+ * Who a role change is about: their principal id and their membership in the
+ * scope instance.
+ */
 export type RoleChangeTarget = {
   readonly id: string;
-  /** The kind of the target's membership in the instance (`staff`, `contact`, ...). */
+  /**
+   * The kind of the target's membership in the instance (`staff`, `contact`,
+   * ...).
+   */
   readonly via?: string;
   /** The roles the target holds in the instance now. */
   readonly roles?: readonly string[];
-  /** `idp` when the identity provider owns the target's membership: the application cannot change it. */
+  /**
+   * `idp` when the identity provider owns the target's membership: the
+   * application cannot change it.
+   */
   readonly managedBy?: "idp";
 };
 
@@ -43,17 +52,16 @@ type RoleChangeBase = {
   readonly within?: Readonly<Record<string, string>>;
   readonly target: RoleChangeTarget;
   /**
-   * How many principals hold `role` in the instance now, from the
-   * application's store. Without it a role with `min`, `max` or
-   * `transferOnly` is denied.
+   * How many principals hold `role` in the instance now, from the application's
+   * store. Without it a role with `min`, `max` or `transferOnly` is denied.
    */
   readonly holders?: number;
 };
 
 /**
  * A role held at a named scope instance (`scope` is a declared name or alias
- * and `id` the instance), or a global role: `scope: 'global'` with no `id`.
- * A global change has no tenant, so `within` and `holders` do not apply to it.
+ * and `id` the instance), or a global role: `scope: 'global'` with no `id`. A
+ * global change has no tenant, so `within` and `holders` do not apply to it.
  */
 export type RoleChange = RoleChangeBase &
   (
@@ -63,10 +71,7 @@ export type RoleChange = RoleChangeBase &
         /** The scope instance. */
         readonly id: string;
       }
-    | {
-        readonly scope: "global";
-        readonly id?: undefined;
-      }
+    | { readonly scope: "global"; readonly id?: undefined }
   );
 
 /**
@@ -114,7 +119,10 @@ function coversInstance(
   );
 }
 
-/** Roles the principal holds at the instance, at an ancestor named in `within`, or globally. */
+/**
+ * Roles the principal holds at the instance, at an ancestor named in `within`,
+ * or globally.
+ */
 function rolesAtInstance(
   policy: Policy,
   principal: Principal,
@@ -141,7 +149,10 @@ function rolesAtInstance(
   return rankRoles(policy, [...names]);
 }
 
-/** Whether the principal holds `role` on a live membership of exactly this instance. */
+/**
+ * Whether the principal holds `role` on a live membership of exactly this
+ * instance.
+ */
 function holdsAt(
   principal: Principal,
   role: string,
@@ -165,8 +176,8 @@ function includedRoles(role: CustomRole): readonly string[] {
 }
 
 /**
- * The membership kinds a custom role may be held through: those every
- * included declared role with `for` allows. `undefined` when none restricts.
+ * The membership kinds a custom role may be held through: those every included
+ * declared role with `for` allows. `undefined` when none restricts.
  */
 function customForKinds(
   policy: Policy,
@@ -237,7 +248,10 @@ function countRules(
   }
 }
 
-/** The holder-count, membership-kind, exclusivity and `assigns` rules of one role, as the catalog lists them (`CatalogRole`). */
+/**
+ * The holder-count, membership-kind, exclusivity and `assigns` rules of one
+ * role, as the catalog lists them (`CatalogRole`).
+ */
 export type RoleRules = {
   readonly key: string;
   readonly min?: number;
@@ -253,25 +267,37 @@ export type RoleChangeCheckInput = {
     readonly kind: "assign" | "revoke" | "transfer";
     readonly target: Pick<RoleChangeTarget, "via" | "roles">;
   };
-  /** How many principals hold the role in the instance now; without it a role with `min`, `max` or `transferOnly` is denied. */
+  /**
+   * How many principals hold the role in the instance now; without it a role
+   * with `min`, `max` or `transferOnly` is denied.
+   */
   readonly holders?: number;
-  /** Every declared role: adds the `exclusiveWith` other roles declare against this one, and with `actorRoles` the `assigns` rule. */
+  /**
+   * Every declared role: adds the `exclusiveWith` other roles declare against
+   * this one, and with `actorRoles` the `assigns` rule.
+   */
   readonly roles?: readonly RoleRules[];
-  /** The roles the actor holds at the instance, highest rank first. With `roles` naming any `assigns`, one of them must assign this role. */
+  /**
+   * The roles the actor holds at the instance, highest rank first. With `roles`
+   * naming any `assigns`, one of them must assign this role.
+   */
   readonly actorRoles?: readonly string[];
 };
 
-/** `by` names the actor role whose `assigns` allowed the change, `null` when the rule did not apply. */
+/**
+ * `by` names the actor role whose `assigns` allowed the change, `null` when the
+ * rule did not apply.
+ */
 export type RoleChangeCheck =
   | { readonly ok: true; readonly by: string | null }
   | { readonly ok: false; readonly denials: readonly Denial[] };
 
 /**
  * The rules of a role change that need no subject: `assigns`, `for`,
- * `exclusiveWith`, `min`, `max` and `transferOnly`, from holder counts and
- * the target's roles alone. `decideRoleChange` runs the same function after
- * its actor, tenant and ceiling checks; a service that holds only the
- * catalog calls it with the `CatalogRole` entries.
+ * `exclusiveWith`, `min`, `max` and `transferOnly`, from holder counts and the
+ * target's roles alone. `decideRoleChange` runs the same function after its
+ * actor, tenant and ceiling checks; a service that holds only the catalog calls
+ * it with the `CatalogRole` entries.
  */
 export function checkRoleChange(
   role: RoleRules,
@@ -373,10 +399,10 @@ function rulesOf(binding: RoleBinding): RoleRules {
 
 export type RoleChangeOptions = {
   /**
-   * `true` when the application loaded `change.within` from its own store
-   * (the instance's stored parent), not from the request. Without it, a
-   * nested instance's tenant comes only from a live membership the actor
-   * holds on that instance or under it.
+   * `true` when the application loaded `change.within` from its own store (the
+   * instance's stored parent), not from the request. Without it, a nested
+   * instance's tenant comes only from a live membership the actor holds on that
+   * instance or under it.
    */
   readonly trusted?: boolean;
 };
@@ -403,11 +429,17 @@ function heldAnchor(
 }
 
 export type AssignAuthority = {
-  /** Role names the ceiling (`assignableRoles`) lets the actor hand out in the instance's tenant, or globally. */
+  /**
+   * Role names the ceiling (`assignableRoles`) lets the actor hand out in the
+   * instance's tenant, or globally.
+   */
   readonly assignable: ReadonlySet<string>;
   /** The actor holds a `meta.manageRoles` role or permission there. */
   readonly manage: boolean;
-  /** Custom roles that allow nothing after the ceiling: not assignable, but revocable by an actor who assigns at their scope. */
+  /**
+   * Custom roles that allow nothing after the ceiling: not assignable, but
+   * revocable by an actor who assigns at their scope.
+   */
   readonly inert?: ReadonlySet<string>;
 };
 
@@ -416,12 +448,12 @@ export type AssignAuthority = {
  * the instance's own principal; nothing in `change` can stand in for it.
  */
 /**
- * Whether the subject of `permdock` may assign, revoke or transfer a role
- * in one scope instance: `assigns`, the ceiling, `for`, `exclusiveWith`,
- * `min`, `max` and `transferOnly`. It never writes; the application does,
- * and generated RLS triggers re-check the holder counts at commit. A nested
- * instance's tenant comes from a live membership the subject holds on it,
- * or from `change.within` only with `{ trusted: true }`; otherwise
+ * Whether the subject of `permdock` may assign, revoke or transfer a role in
+ * one scope instance: `assigns`, the ceiling, `for`, `exclusiveWith`, `min`,
+ * `max` and `transferOnly`. It never writes; the application does, and
+ * generated RLS triggers re-check the holder counts at commit. A nested
+ * instance's tenant comes from a live membership the subject holds on it, or
+ * from `change.within` only with `{ trusted: true }`; otherwise
  * `no-membership`. An instance built from a snapshot denies with
  * `unsupported`.
  */

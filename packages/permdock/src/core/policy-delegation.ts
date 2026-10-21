@@ -110,7 +110,10 @@ export function normalizeDelegation(
   });
 }
 
-/** RFC 6749 section 3.3 `scope-token`: printable ASCII without space, `"` or `\`. */
+/**
+ * RFC 6749 section 3.3 `scope-token`: printable ASCII without space, `"` or
+ * `\`.
+ */
 function isScopeToken(value: string): boolean {
   return /^[!#-[\]-~]+$/u.test(value);
 }

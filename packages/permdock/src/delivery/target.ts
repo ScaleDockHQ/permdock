@@ -24,8 +24,8 @@ export function isDeliveryTarget<C extends DeliveryChannel>(
 
 /**
  * The idempotency key for one recipient of delivery `id`: `pdd_` and the
- * base64url SHA-256 of the delivery id, channel and recipient. It fits the
- * tag and header charsets of every provider, `[A-Za-z0-9_-]`.
+ * base64url SHA-256 of the delivery id, channel and recipient. It fits the tag
+ * and header charsets of every provider, `[A-Za-z0-9_-]`.
  */
 export function idempotencyKeyFor(
   id: string,
@@ -44,8 +44,8 @@ const ADDR_SPEC = /* @__PURE__ */ new RegExp(
 
 /**
  * An RFC 5322 `addr-spec` in dot-atom form with a DNS domain, at most 254
- * characters (RFC 5321 path limit). Quoted local parts, comments and
- * domain literals are refused.
+ * characters (RFC 5321 path limit). Quoted local parts, comments and domain
+ * literals are refused.
  */
 export function isAddrSpec(value: string): boolean {
   return value.length <= 254 && ADDR_SPEC.test(value);

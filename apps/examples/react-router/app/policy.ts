@@ -12,9 +12,7 @@ const member = role(roles.member, [
   allow(permissions.post.read),
   allow(permissions.post.list),
   allow(permissions.post.create),
-  allow(permissions.post.update, {
-    to: relation(permissions.post, "author"),
-  }),
+  allow(permissions.post.update, { to: relation(permissions.post, "author") }),
   allow(permissions.post.delete, {
     where: { authorId: principal.id },
     approval: "human",

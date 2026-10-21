@@ -172,7 +172,10 @@ export function hasBody(ctx: RlsSqlContext): string {
   ))`;
 }
 
-/** The claim `jwt` mode reads platform custom roles from: `customRoleClaim(globalRoles)`. */
+/**
+ * The claim `jwt` mode reads platform custom roles from:
+ * `customRoleClaim(globalRoles)`.
+ */
 const GLOBAL_GRANTS_CLAIM = "role_grants";
 
 export function memberColumn(name: string): string {
@@ -409,8 +412,8 @@ ${customKeysSql(
 
 /**
  * The rows the membership sources select for the subject, one per instance
- * (`scope`, `id`, `within`, `roles`, `via`), with each source's own expiry
- * and suspension filters: the statements the token hook runs.
+ * (`scope`, `id`, `within`, `roles`, `via`), with each source's own expiry and
+ * suspension filters: the statements the token hook runs.
  */
 export function sourcesKeep(sources: readonly SqlMembershipSource[]): boolean {
   return sources.some((source) => source.sql.keeps);
@@ -434,10 +437,7 @@ function sourceUser(index: number): string {
  * source, holding `user` as that source's user column type so each `select`
  * compares the column uncast and its index applies.
  */
-export type Body = {
-  readonly sql: string;
-  readonly vars: readonly string[];
-};
+export type Body = { readonly sql: string; readonly vars: readonly string[] };
 
 export function sqlBody(sql: string): Body {
   return { sql, vars: [] };
@@ -457,7 +457,10 @@ export function sourcesBodyOf(
   };
 }
 
-/** `language sql`, or `plpgsql` returning the query when the body declares variables. */
+/**
+ * `language sql`, or `plpgsql` returning the query when the body declares
+ * variables.
+ */
 export function functionBody(body: Body): string {
   if (body.vars.length === 0) {
     return `language sql

@@ -47,11 +47,13 @@ const decision = await decideCredential(
 );
 if (decision.outcome === "granted") {
   const key = generateApiKey(decision.credential.id);
-  await db.insert(apiKeys).values({
-    id: decision.credential.id,
-    hash: await hashApiKey(key),
-    credential: decision.credential,
-  });
+  await db
+    .insert(apiKeys)
+    .values({
+      id: decision.credential.id,
+      hash: await hashApiKey(key),
+      credential: decision.credential,
+    });
   return key; // shown once
 }
 ```

@@ -20,7 +20,9 @@ import {
 
 const FROM = "Acme <billing@acme.test>";
 
-async function send(message: Partial<EmailMessage>): Promise<{
+async function send(
+  message: Partial<EmailMessage>,
+): Promise<{
   readonly email?: OutgoingEmail;
   readonly reason?: string | undefined;
 }> {

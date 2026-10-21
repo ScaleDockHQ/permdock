@@ -30,7 +30,10 @@ type LevelCtx = {
   readonly gaps: string[];
 };
 
-/** One ceiling grant at one level, with who reaches it: a member holding a custom role that allows the permission at that level. */
+/**
+ * One ceiling grant at one level, with who reaches it: a member holding a
+ * custom role that allows the permission at that level.
+ */
 export type CustomRoleItem = {
   readonly label: string;
   readonly level: string | null;
@@ -40,7 +43,10 @@ export type CustomRoleItem = {
 
 const ALIAS = "cr";
 
-/** The role key column of one role source, with the join to its roles table; `undefined` for a mapped column, which holds declared roles only. */
+/**
+ * The role key column of one role source, with the join to its roles table;
+ * `undefined` for a mapped column, which holds declared roles only.
+ */
 function roleKeyOf(
   role: RoleSource,
   table: string,
@@ -66,8 +72,8 @@ function roleKeyOf(
 /**
  * The `IN (SELECT …)` of each root-scope source: the row's `left` is a tenant
  * where the user holds a custom role with an allow row of `key` at `level`
- * (`null` for an allow with no level). A role column the source maps or
- * fixes holds declared roles only, so it never names a custom role.
+ * (`null` for an allow with no level). A role column the source maps or fixes
+ * holds declared roles only, so it never names a custom role.
  */
 function customRoleIn(
   ctx: LevelCtx,
@@ -119,12 +125,12 @@ function customRoleIn(
 }
 
 /**
- * What a custom role can reach on `resource` through `key`, in `database`
- * mode when the root scope reads membership sources: each allow of `key` by
- * an assignable role at the root scope (the ceiling), once for an allow with
- * no level and once per level the resource declares, narrowed by that
- * level's condition. `skipped` says why a root scope with custom roles
- * reaching `key` has no custom-role stream.
+ * What a custom role can reach on `resource` through `key`, in `database` mode
+ * when the root scope reads membership sources: each allow of `key` by an
+ * assignable role at the root scope (the ceiling), once for an allow with no
+ * level and once per level the resource declares, narrowed by that level's
+ * condition. `skipped` says why a root scope with custom roles reaching `key`
+ * has no custom-role stream.
  */
 export function customRoleItems(
   ctx: LevelCtx,
@@ -132,10 +138,7 @@ export function customRoleItems(
   resource: string,
   key: string,
   table: string,
-): {
-  readonly items: readonly CustomRoleItem[];
-  readonly skipped?: string;
-} {
+): { readonly items: readonly CustomRoleItem[]; readonly skipped?: string } {
   const rls = ctx.config.rls;
   const root = ctx.scopes[0]?.name;
   const field = ctx.policy.scopes.find((scope) => scope.name === root)?.key;

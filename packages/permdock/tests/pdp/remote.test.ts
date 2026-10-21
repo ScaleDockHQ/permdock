@@ -14,10 +14,7 @@ import { fakeFetch, json } from "../fakes/fetch.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 
 const permissions = definePermissions({
-  post: resource(z.object({ id: z.string() }), {
-    id: "id",
-    actions: ["read"],
-  }),
+  post: resource(z.object({ id: z.string() }), { id: "id", actions: ["read"] }),
   tag: resource(z.object({ name: z.string() }), {
     id: "name",
     actions: ["read"],

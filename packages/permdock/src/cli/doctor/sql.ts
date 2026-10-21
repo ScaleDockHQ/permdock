@@ -102,7 +102,10 @@ export function pd046(
 
 const USER_METADATA = /\b(raw_user_meta_data|user_metadata)\b/giu;
 
-/** PD047: SQL that reads `user_metadata`, which every user can edit for themselves. */
+/**
+ * PD047: SQL that reads `user_metadata`, which every user can edit for
+ * themselves.
+ */
 export function pd047(
   cwd: string,
   config: PermDockConfig,
@@ -160,7 +163,10 @@ function createdFunctions(
   });
 }
 
-/** PD048: a function without `set search_path`, so a caller's objects can shadow the ones it names. */
+/**
+ * PD048: a function without `set search_path`, so a caller's objects can shadow
+ * the ones it names.
+ */
 export function pd048(
   cwd: string,
   config: PermDockConfig,
@@ -194,7 +200,10 @@ export function pd048(
     });
 }
 
-/** Roles each `revoke` statement takes `execute` from, per function key or `schema.*`. */
+/**
+ * Roles each `revoke` statement takes `execute` from, per function key or
+ * `schema.*`.
+ */
 function revokedExecute(
   statements: readonly SqlStatement[],
 ): ReadonlyMap<string, ReadonlySet<string>> {
@@ -221,7 +230,10 @@ function revokedExecute(
   return revoked;
 }
 
-/** `supabase.hook.claims` and `hook.before` functions, by key, with the argument type the hook calls them with. */
+/**
+ * `supabase.hook.claims` and `hook.before` functions, by key, with the argument
+ * type the hook calls them with.
+ */
 function hookClaimFunctions(
   config: PermDockConfig,
 ): ReadonlyMap<string, "uuid" | "jsonb"> {
@@ -244,9 +256,9 @@ function hookClaimFunctions(
 /**
  * PD049: a `security definer` function `public` (every role) or, in Supabase's
  * `public` schema, `anon` may still execute: Postgres grants `execute` to
- * `public` on create, and Supabase's default privileges grant it to `anon`.
- * A hook claim function returns any user's claims, so `authenticated` must
- * not execute it either, definer or not.
+ * `public` on create, and Supabase's default privileges grant it to `anon`. A
+ * hook claim function returns any user's claims, so `authenticated` must not
+ * execute it either, definer or not.
  */
 export function pd049(
   cwd: string,
@@ -312,7 +324,10 @@ const ENABLE_RLS = new RegExp(
 const DROP_TABLE =
   /^drop\s+table\s+(?:if\s+exists\s+)?([\s\S]+?)(?:\s+(?:cascade|restrict))?$/iu;
 
-/** PD050: a `public` table without row level security, which the Data API serves whole. */
+/**
+ * PD050: a `public` table without row level security, which the Data API serves
+ * whole.
+ */
 export function pd050(
   cwd: string,
   config: PermDockConfig,
@@ -357,7 +372,10 @@ const CREATE_POLICY = new RegExp(
 );
 const UNWRAPPED_AUTH = /(?<!\bselect\s{1,20})\bauth\.(uid|jwt)\s*\(\s*\)/giu;
 
-/** PD051: a policy that calls `auth.uid()` or `auth.jwt()` bare, so Postgres runs it once per row. */
+/**
+ * PD051: a policy that calls `auth.uid()` or `auth.jwt()` bare, so Postgres
+ * runs it once per row.
+ */
 export function pd051(
   cwd: string,
   config: PermDockConfig,
@@ -392,7 +410,10 @@ export function pd051(
   });
 }
 
-/** PD052: an update policy without `with check`, so nothing states what a row may become. */
+/**
+ * PD052: an update policy without `with check`, so nothing states what a row
+ * may become.
+ */
 export function pd052(
   cwd: string,
   config: PermDockConfig,
@@ -443,9 +464,9 @@ function topLevelParts(body: string): readonly string[] {
 }
 
 /**
- * One column definition or table constraint of a `create table` body: its
- * first column, whether it is a foreign key, and whether a primary key or
- * unique constraint indexes that column.
+ * One column definition or table constraint of a `create table` body: its first
+ * column, whether it is a foreign key, and whether a primary key or unique
+ * constraint indexes that column.
  */
 function tablePart(raw: string): {
   readonly column: string;
@@ -489,7 +510,10 @@ const CREATE_INDEX = new RegExp(
   "iu",
 );
 
-/** PD053: a foreign key no index starts with, so joins and deletes on the referenced row scan the table. */
+/**
+ * PD053: a foreign key no index starts with, so joins and deletes on the
+ * referenced row scan the table.
+ */
 export function pd053(
   cwd: string,
   config: PermDockConfig,
@@ -553,10 +577,10 @@ function at(statement: SqlStatement): string {
 }
 
 /**
- * PD062: SQL that reads or sets a per-claim `request.jwt.claim.<name>`
- * setting. Current PostgREST, `withPostgresClient`, PermDock's `withSubject`
- * and `rls verify` set only `request.jwt.claims`. A function replaced by a
- * later migration is judged by its last definition.
+ * PD062: SQL that reads or sets a per-claim `request.jwt.claim.<name>` setting.
+ * Current PostgREST, `withPostgresClient`, PermDock's `withSubject` and `rls
+ * verify` set only `request.jwt.claims`. A function replaced by a later
+ * migration is judged by its last definition.
  */
 export function pd062(
   cwd: string,
@@ -596,8 +620,8 @@ export function pd062(
 }
 
 /**
- * PD063: a migration statement supautils rejects for `postgres`, so
- * `supabase db push` fails on it.
+ * PD063: a migration statement supautils rejects for `postgres`, so `supabase
+ * db push` fails on it.
  */
 export function pd063(
   cwd: string,

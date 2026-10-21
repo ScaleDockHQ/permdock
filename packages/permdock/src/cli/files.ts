@@ -58,7 +58,10 @@ function segments(path: string): readonly string[] {
   return path.split(/[\\/]/u).filter((part) => part !== "" && part !== ".");
 }
 
-/** Installed packages often ship only `dist`; their own dependencies are never walked. */
+/**
+ * Installed packages often ship only `dist`; their own dependencies are never
+ * walked.
+ */
 function skipDirsFor(path: string): ReadonlySet<string> {
   return segments(path).includes("node_modules")
     ? PACKAGE_SKIP_DIRS
@@ -136,7 +139,8 @@ function walkDir(
 /**
  * The `.sql` files under each entry: a glob, a file, or a directory searched
  * recursively. `order: 'entry'` keeps each entry's matches together in entry
- * order (how `supabase db diff` reads `schema_paths`); the default sorts all paths.
+ * order (how `supabase db diff` reads `schema_paths`); the default sorts all
+ * paths.
  */
 export function sqlFiles(
   cwd: string,
@@ -175,7 +179,10 @@ export function defaultSrcPath(): readonly string[] {
   return ["./src"];
 }
 
-/** Where `doctor` reads source files: `doctor.srcPath`, else `collect.srcPath`, else `./src`. */
+/**
+ * Where `doctor` reads source files: `doctor.srcPath`, else `collect.srcPath`,
+ * else `./src`.
+ */
 export function doctorSrcPath(config: {
   readonly collect?: { readonly srcPath?: readonly string[] };
   readonly doctor?: { readonly srcPath?: readonly string[] };

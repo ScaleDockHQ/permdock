@@ -34,9 +34,7 @@ const policy = definePolicy(permissions, {
     role(
       "admin",
       [allow([permissions.invoice.read, permissions.invoice.void])],
-      {
-        on: "tenant",
-      },
+      { on: "tenant" },
     ),
     role(
       "clerk",

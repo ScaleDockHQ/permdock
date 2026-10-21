@@ -17,10 +17,7 @@ const at = (seconds: number): Instant => ({
   epochMilliseconds: seconds * 1000,
 });
 
-const Report = z.object({
-  id: z.string(),
-  ownerId: z.string(),
-});
+const Report = z.object({ id: z.string(), ownerId: z.string() });
 
 const permissions = definePermissions({
   report: resource(Report, {
@@ -488,16 +485,9 @@ describe("quota windows and keys", () => {
 
   it("forgets windows that have ended", () => {
     const counter = memoryLimitStore();
-    const base = {
-      key: "report.export",
-      subjectId: "u1",
-      count: 1,
-      per: 1,
-    };
+    const base = { key: "report.export", subjectId: "u1", count: 1, per: 1 };
     expect(counter.consume({ ...base, now: { epochMilliseconds: 0 } })).toEqual(
-      {
-        remaining: 0,
-      },
+      { remaining: 0 },
     );
     expect(
       counter.consume({ ...base, now: { epochMilliseconds: 5000 } }),

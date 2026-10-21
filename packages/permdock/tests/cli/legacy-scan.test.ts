@@ -68,11 +68,7 @@ describe("permdock scan --legacy", () => {
     const none = await run(["scan", "--src", "app"], { cwd });
     expect(none.stdout).toContain("No legacy authorization checks found.");
     expect(
-      (
-        await run(["scan", "--src", "app", "--pattern", "("], {
-          cwd,
-        })
-      ).code,
+      (await run(["scan", "--src", "app", "--pattern", "("], { cwd })).code,
     ).toBe(2);
   });
 });

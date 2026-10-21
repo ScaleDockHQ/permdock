@@ -22,7 +22,10 @@ const OPERATION_EFFECTS: readonly OperationEffect[] = Object.freeze([
   "external",
 ]);
 
-/** Plain JSON a host reads to label, confirm or gate an operation; PermDock never decides on it. */
+/**
+ * Plain JSON a host reads to label, confirm or gate an operation; PermDock
+ * never decides on it.
+ */
 export type OperationMeta = {
   readonly risk?: OperationRisk;
   /** What running the operation does, each effect at most once. */
@@ -31,9 +34,9 @@ export type OperationMeta = {
 };
 
 /**
- * Loads the row the check runs on from the operation's input, the binding
- * every surface shares. The row is validated against the permission's
- * resource schema like any request-derived data (invariant 9).
+ * Loads the row the check runs on from the operation's input, the binding every
+ * surface shares. The row is validated against the permission's resource schema
+ * like any request-derived data (invariant 9).
  */
 export type OperationData<TInput = never> = {
   // A method type read as a property is bivariant, so an `Operation<{ id: string }>` stays assignable to `Operation`.
@@ -51,8 +54,8 @@ export type OperationDefinition = {
 
 /**
  * A permission-bound action that agent tools, workflow nodes, MCP operations,
- * HTTP routes and chat commands read by name. `TInput` is the parameter type
- * of `data`; an operation without `data` takes `undefined`.
+ * HTTP routes and chat commands read by name. `TInput` is the parameter type of
+ * `data`; an operation without `data` takes `undefined`.
  */
 export type Operation<
   TInput = unknown,
@@ -89,7 +92,10 @@ export type OperationMap<
   >;
 };
 
-/** MCP tool-name characters (MCP 2025-11-25, Tools: Tool names), so a name works as a tool name unchanged. */
+/**
+ * MCP tool-name characters (MCP 2025-11-25, Tools: Tool names), so a name works
+ * as a tool name unchanged.
+ */
 const NAME = /^[A-Za-z0-9_.-]{1,128}$/u;
 
 const META_KEYS: ReadonlySet<string> = new Set(["risk", "effects", "title"]);

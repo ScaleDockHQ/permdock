@@ -23,8 +23,8 @@ const row = { orgId: "o1", authorId: "u1", tags: ["a"], deletedAt: null };
 const eq: Condition = { op: "eq", field: "orgId", value: "o1" };
 
 /**
- * One sample per operator. `orm` and `rls` say which compilers may refuse it:
- * a refusal is only allowed as the explicit non-portable error.
+ * One sample per operator. `orm` and `rls` say which compilers may refuse it: a
+ * refusal is only allowed as the explicit non-portable error.
  */
 const samples: Record<
   Op,

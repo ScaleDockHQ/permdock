@@ -141,10 +141,7 @@ function nonPlain(value: unknown, path: string, out: string[]): string[] {
 
 describe("snapshots are plain data", () => {
   it("carries only plain, JSON and structured-clone safe values in every shape", async () => {
-    const permdock = getPermDockSync(policy, ana, {
-      relations,
-      customRoles,
-    });
+    const permdock = getPermDockSync(policy, ana, { relations, customRoles });
     const shapes = {
       own: permdock.snapshot(),
       all: permdock.snapshot({ tenants: "all" }),

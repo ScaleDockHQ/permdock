@@ -14,7 +14,10 @@ import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNameOf } from "../sql/tables.ts";
 import { fixtureMembershipSql } from "./verify-pgtap-memberships.ts";
 
-/** A custom role's scope and pinned instance, as the `custom_role_*` tables store them. */
+/**
+ * A custom role's scope and pinned instance, as the `custom_role_*` tables
+ * store them.
+ */
 function customRoleAt(
   role: CustomRole,
   scopes: readonly Scope[],
@@ -100,7 +103,10 @@ export function rowId(row: unknown): unknown {
   return undefined;
 }
 
-/** A fixture value as a SQL literal; untyped, so it coerces to the column like a bound parameter. */
+/**
+ * A fixture value as a SQL literal; untyped, so it coerces to the column like a
+ * bound parameter.
+ */
 function sqlValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "null";
@@ -157,7 +163,10 @@ export function subjectOf(
   };
 }
 
-/** The settings that bind a fixture's subject: the GUCs, or the Supabase JWT claims. */
+/**
+ * The settings that bind a fixture's subject: the GUCs, or the Supabase JWT
+ * claims.
+ */
 export function subjectSettings(
   fixture: RlsFixture,
   subject: Subject,
@@ -217,7 +226,10 @@ type CustomRoleRow = {
   readonly values: readonly unknown[];
 };
 
-/** The `custom_role_*` rows for the fixtures' custom roles; existing rows are kept. */
+/**
+ * The `custom_role_*` rows for the fixtures' custom roles; existing rows are
+ * kept.
+ */
 export function customRoleRows(
   schema: string,
   customRoles: readonly CustomRole[],
@@ -272,8 +284,8 @@ export function customRoleSchema(config: PermDockConfig): string {
 }
 
 /**
- * A pgTAP script that runs each fixture's statement under the fixture's
- * subject and asserts the outcome `can()` gave in-process.
+ * A pgTAP script that runs each fixture's statement under the fixture's subject
+ * and asserts the outcome `can()` gave in-process.
  */
 export function emitPgtap(input: {
   readonly fixtures: readonly RlsFixture[];

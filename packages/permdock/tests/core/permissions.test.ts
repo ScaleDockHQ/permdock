@@ -94,9 +94,7 @@ describe("permissions", () => {
   });
 
   it("merges trees and rejects duplicate keys and resource names", () => {
-    const posts = definePermissions({
-      post: resource({ actions: ["read"] }),
-    });
+    const posts = definePermissions({ post: resource({ actions: ["read"] }) });
     const billing = definePermissions({
       billing: resource({ actions: ["pay"] }),
     });
@@ -109,9 +107,7 @@ describe("permissions", () => {
 
   it("rejects forbidden keys, empty resources and root resources", () => {
     expect(() =>
-      definePermissions({
-        constructor: resource({ actions: ["read"] }),
-      }),
+      definePermissions({ constructor: resource({ actions: ["read"] }) }),
     ).toThrow(/forbidden/);
     expect(() => definePermissions({ post: resource({}) })).toThrow(
       /no actions/,
@@ -415,9 +411,7 @@ describe("definePermissions relation and graph validation", () => {
       definePermissions({ a: resource({ name: "1st", actions: ["read"] }) }),
     ).toThrow(/must start with a letter/u);
     expect(() =>
-      definePermissions({
-        a: resource({ name: "a.b", actions: ["read"] }),
-      }),
+      definePermissions({ a: resource({ name: "a.b", actions: ["read"] }) }),
     ).toThrow(/must start with a letter/u);
   });
 

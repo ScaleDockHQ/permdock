@@ -79,9 +79,7 @@ function setup(
   using = policy,
 ) {
   const directory = new Map(people.map((entry) => [entry.id, entry]));
-  const principals = {
-    principal: (id: string) => directory.get(id) ?? null,
-  };
+  const principals = { principal: (id: string) => directory.get(id) ?? null };
   const automations = memoryAutomationSource([published, serviceRun]);
   const workflow = createPermDock(using, {
     signer,

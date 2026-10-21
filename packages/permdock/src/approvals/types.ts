@@ -20,32 +20,44 @@ export type ApprovalApprovers = {
   readonly distinct?: boolean;
   /** Set when the approval no longer applies once the row's `version` changes. */
   readonly staleOn?: "resource-change";
-  /** Distinct approvers of `by` needed before `status` becomes `approved`; absent means 1. */
+  /**
+   * Distinct approvers of `by` needed before `status` becomes `approved`;
+   * absent means 1.
+   */
   readonly quorum?: number;
-  /** Who else may approve once the request has waited `after` seconds since `createdAt`. */
+  /**
+   * Who else may approve once the request has waited `after` seconds since
+   * `createdAt`.
+   */
   readonly escalation?: {
     readonly after: number;
     readonly to: Approver | readonly Approver[];
   };
 };
 
-/** One recorded approval: who gave it, when, and under `stages` the index of the stage it counts for. */
+/**
+ * One recorded approval: who gave it, when, and under `stages` the index of the
+ * stage it counts for.
+ */
 export type ApprovalSignature = {
   readonly by: string;
   readonly at: string;
   readonly stage?: number;
   readonly vouched?: string;
-  /** The principal `by` approved for, when `by` acted under an `ApprovalDelegation`. */
+  /**
+   * The principal `by` approved for, when `by` acted under an
+   * `ApprovalDelegation`.
+   */
   readonly onBehalfOf?: string;
   /** The `ApprovalDelegation` id `onBehalfOf` was read from. */
   readonly delegation?: string;
 };
 
 /**
- * One out-of-office delegation: `delegate` may approve what `delegator`
- * could approve, from `from` until `until`. Both instants are required, so
- * a delegation cannot be open-ended. `permissions` and `resources` narrow
- * it; absent, it covers every request. `tenant` holds it to one tenant.
+ * One out-of-office delegation: `delegate` may approve what `delegator` could
+ * approve, from `from` until `until`. Both instants are required, so a
+ * delegation cannot be open-ended. `permissions` and `resources` narrow it;
+ * absent, it covers every request. `tenant` holds it to one tenant.
  */
 export type ApprovalDelegation = {
   readonly id: string;
@@ -104,15 +116,24 @@ export type ApprovalRequest = {
   readonly createdAt: string;
   readonly expiresAt: string;
   readonly status: ApprovalStatus;
-  /** Approvals given so far, oldest first; the request is `approved` once there are `approvers.quorum` of them. */
+  /**
+   * Approvals given so far, oldest first; the request is `approved` once there
+   * are `approvers.quorum` of them.
+   */
   readonly approvals?: readonly ApprovalSignature[];
   readonly resolvedAt?: string;
-  /** The approver whose verdict resolved the request (the last of `approvals` on a quorum), or `system:<by>` for a cancellation. */
+  /**
+   * The approver whose verdict resolved the request (the last of `approvals` on
+   * a quorum), or `system:<by>` for a cancellation.
+   */
   readonly resolvedBy?: string;
   readonly vouched?: string;
   readonly note?: string;
   readonly consumedAt?: string;
-  /** The application's own data, set when the request opens; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, set when the request opens; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
 };
 
@@ -128,8 +149,8 @@ export type ApprovalVerdict = {
    */
   readonly relations?: readonly string[];
   /**
-   * The `holder(permission)` approvers (by permission key) that `by` holds
-   * in the request's tenant, as `approverPermissions` read them from the
+   * The `holder(permission)` approvers (by permission key) that `by` holds in
+   * the request's tenant, as `approverPermissions` read them from the
    * approver's own instance. Server-side input, never from the request body.
    * Absent means none, so permission approvers match nobody.
    */
@@ -138,8 +159,8 @@ export type ApprovalVerdict = {
   /**
    * Set when `by` is not an approver and acts for this principal under an
    * `ApprovalDelegation`. Server-side input: the handler resolves the
-   * delegator, and `applyApprovalVerdict` checks them again. `relations`
-   * and `permissions` are that principal's facts, never the delegate's.
+   * delegator, and `applyApprovalVerdict` checks them again. `relations` and
+   * `permissions` are that principal's facts, never the delegate's.
    */
   readonly onBehalfOf?: {
     readonly subject: Subject;
@@ -182,9 +203,9 @@ export type ApprovalStore = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
   /**
-   * Seconds a request opened against this store stays open when the
-   * caller sets no `ttl`; absent means `DEFAULT_APPROVAL_TTL`. A grant's
-   * `approval.ttl` still caps it.
+   * Seconds a request opened against this store stays open when the caller sets
+   * no `ttl`; absent means `DEFAULT_APPROVAL_TTL`. A grant's `approval.ttl`
+   * still caps it.
    */
   readonly ttl?: number;
   create(request: ApprovalRequest): Promise<void> | void;
@@ -230,10 +251,16 @@ export type ApprovalInspectResult =
 
 export const APPROVAL_HEADER = "PermDock-Approval" as const;
 
-/** Seconds a request stays open when neither the store nor the call sets a `ttl`. */
+/**
+ * Seconds a request stays open when neither the store nor the call sets a
+ * `ttl`.
+ */
 export const DEFAULT_APPROVAL_TTL: number = 60 * 60;
 
-/** The approvals a request needs in total: `approvers.quorum` (or 1), or the sum of its stages' quorums. */
+/**
+ * The approvals a request needs in total: `approvers.quorum` (or 1), or the sum
+ * of its stages' quorums.
+ */
 export function approvalQuorum(request: ApprovalRequest): number {
   const stages = request.approvers?.stages;
   if (stages !== undefined) {
@@ -255,7 +282,10 @@ export function escalationOpenAt(request: ApprovalRequest): number | undefined {
   return Date.parse(request.createdAt) + seconds * 1000;
 }
 
-/** The instant from which a stage's own `escalation.to` may approve it, in epoch milliseconds; `undefined` when it has none or `after` does not parse. */
+/**
+ * The instant from which a stage's own `escalation.to` may approve it, in epoch
+ * milliseconds; `undefined` when it has none or `after` does not parse.
+ */
 export function stageEscalationOpenAt(
   request: ApprovalRequest,
   stage: ApprovalStage,

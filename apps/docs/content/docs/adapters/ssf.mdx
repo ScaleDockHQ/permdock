@@ -119,11 +119,7 @@ app.get("/.well-known/ssf-configuration", (c) => transmitter(c.req.raw));
 
 await fanOutSet(
   caepEvents.sessionRevoked({ subject, initiatingEntity: "admin" }),
-  {
-    streams,
-    queue,
-    signer,
-  },
+  { streams, queue, signer },
 );
 ```
 

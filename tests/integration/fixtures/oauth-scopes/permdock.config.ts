@@ -1,4 +1,1 @@
-export default {
-  permissions: "./permissions.ts",
-  policy: "./policy.ts",
-};
+export default { permissions: "./permissions.ts", policy: "./policy.ts" };

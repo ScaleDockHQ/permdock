@@ -72,12 +72,8 @@ describe("permdock/next", () => {
   });
 
   it("exposes the documented factory surface without a module singleton", async () => {
-    const first = createPermDock(policy, {
-      subject: () => memberUser,
-    });
-    const second = createPermDock(policy, {
-      subject: () => adminUser,
-    });
+    const first = createPermDock(policy, { subject: () => memberUser });
+    const second = createPermDock(policy, { subject: () => adminUser });
 
     expect(Object.keys(first).toSorted()).toEqual(
       [
@@ -380,10 +376,7 @@ describe("permdock/next", () => {
 
     await resolveApproval(store, required.token, {
       status: "approved",
-      by: {
-        principal: { id: "u9", roles: ["admin"] },
-        context: {},
-      },
+      by: { principal: { id: "u9", roles: ["admin"] }, context: {} },
     });
 
     const resumed = await POST(
@@ -690,8 +683,6 @@ describe("cacheLifeFor", () => {
         { expiresAt: 1100 },
         { now: Temporal.Instant.fromEpochMilliseconds(1_000_000), min: 60 },
       ),
-    ).toEqual({
-      stale: 100,
-    });
+    ).toEqual({ stale: 100 });
   });
 });

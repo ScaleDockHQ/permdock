@@ -165,9 +165,7 @@ describe("tool updates", () => {
           inputSchema: idInput,
           data: byId,
         },
-        () => ({
-          content: [{ type: "text", text: "v1" }],
-        }),
+        () => ({ content: [{ type: "text", text: "v1" }] }),
       );
     registered.update({
       callback: () => ({ content: [{ type: "text", text: "v2" }] }),
@@ -193,9 +191,7 @@ describe("verified auth info", () => {
       .registerTool(
         "list_posts",
         { permission: permissions.post.list },
-        () => ({
-          content: [{ type: "text", text: "[]" }],
-        }),
+        () => ({ content: [{ type: "text", text: "[]" }] }),
       );
     return server;
   }
@@ -297,9 +293,7 @@ describe("approval resume sources", () => {
           inputSchema: idInput,
           data: byId,
         },
-        ({ id }) => ({
-          content: [{ type: "text", text: `deleted ${id}` }],
-        }),
+        ({ id }) => ({ content: [{ type: "text", text: `deleted ${id}` }] }),
       );
     return server;
   }
@@ -430,9 +424,7 @@ describe("resources and prompts with arguments", () => {
     ]);
     expect(
       await client.getPrompt({ name: "review", arguments: { id: "p1" } }),
-    ).toMatchObject({
-      messages: [{ content: { text: "review p1" } }],
-    });
+    ).toMatchObject({ messages: [{ content: { text: "review p1" } }] });
     await expect(
       client.getPrompt({ name: "review", arguments: { id: "p2" } }),
     ).rejects.toThrow(/Denied/u);

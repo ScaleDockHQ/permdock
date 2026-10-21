@@ -271,11 +271,7 @@ describe("leaf help", () => {
     flags: {
       name: { type: "string", description: "A name" },
       internal: { type: "boolean", description: "Not shown", hidden: true },
-      kind: {
-        type: "enum",
-        options: ["a", "b"],
-        description: "A kind",
-      },
+      kind: { type: "enum", options: ["a", "b"], description: "A kind" },
     },
     run: () => ({ code: 0, output: "" }),
   });
@@ -364,9 +360,7 @@ describe("run", () => {
   it("names the renamed --format of a leaf and refuses an unknown one", async () => {
     const renamed = await run(
       ["rls", "verify", "--format", "pgtap", "--json"],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     expect(JSON.parse(renamed.stdout)).toMatchObject({
       error: { code: "flag_renamed" },
@@ -405,9 +399,7 @@ describe("run", () => {
     temps.push(cwd);
     const result = await run(
       ["skills", "update", "--for", "cursor", "--json"],
-      {
-        cwd,
-      },
+      { cwd },
     );
     expect(result.code).toBe(0);
     expect(existsSync(join(cwd, ".cursor/skills/permdock/SKILL.md"))).toBe(

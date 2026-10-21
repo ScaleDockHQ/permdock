@@ -68,7 +68,10 @@ export function funcName(value: unknown): string | undefined {
   return names.map((item) => stringVal(item) ?? "").join(".");
 }
 
-/** The expression of a scalar `(select <expr>)`, the InitPlan form generate writes. */
+/**
+ * The expression of a scalar `(select <expr>)`, the InitPlan form generate
+ * writes.
+ */
 export function scalarSubselect(value: unknown): unknown {
   const sub = asNode(asNode(unwrap(value))?.["SubLink"]);
   const select = asNode(asNode(sub?.["subselect"])?.["SelectStmt"]);
@@ -180,13 +183,16 @@ function sublinkSelect(
 
 /**
  * A membership subquery: `exists (select … from t …)`, where the row
- * correlation sits inside the `where`, or `col in (select … from t …)` and
- * `col = any (select … from t …)`, where `col` is the row field.
+ * correlation sits inside the `where`, or `col in (select … from t …)` and `col
+ * = any (select … from t …)`, where `col` is the row field.
  */
 export type MembershipSubquery = {
   readonly select: unknown;
   readonly table: string;
-  /** The policy row's column on the outer side of `in` / `any`; absent for `exists`. */
+  /**
+   * The policy row's column on the outer side of `in` / `any`; absent for
+   * `exists`.
+   */
   readonly field?: string;
 };
 
@@ -355,7 +361,10 @@ export function jwtClaim(value: unknown): string | undefined {
   return typeof claim === "string" ? claim : undefined;
 }
 
-/** `auth.jwt()` / `auth.session()`, bare or as a scalar `(select …)`; a column's `->>` is row data, not a claim. */
+/**
+ * `auth.jwt()` / `auth.session()`, bare or as a scalar `(select …)`; a column's
+ * `->>` is row data, not a claim.
+ */
 function isJwtCall(value: unknown): boolean {
   const inner = scalarSubselect(value);
   if (inner !== undefined) {

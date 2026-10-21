@@ -21,7 +21,10 @@ import {
 export type GraphSqlPart =
   | { readonly text: string }
   | { readonly value: string | number | boolean }
-  /** Compared with an uncast column, so its index applies: render a bound parameter or the column's type. */
+  /**
+   * Compared with an uncast column, so its index applies: render a bound
+   * parameter or the column's type.
+   */
   | { readonly subject: true }
   | { readonly column: string };
 
@@ -32,28 +35,40 @@ export type RelationsMapping = {
   /** The table of each resource the graph reads; default the resource name. */
   readonly tables?: Readonly<Record<string, string>>;
   /**
-   * A closure table (`resource`, `ancestor`, `descendant`, `depth`) such as
-   * the one `permdock rls` keeps. Without it, parent walks are a bounded
-   * recursive query over the resource's own table.
+   * A closure table (`resource`, `ancestor`, `descendant`, `depth`) such as the
+   * one `permdock rls` keeps. Without it, parent walks are a bounded recursive
+   * query over the resource's own table.
    */
   readonly closure?: string;
 };
 
 export type GraphSqlOptions = RelationsMapping & {
   readonly resources: ReadonlyMap<string, ResourceNode>;
-  /** Deepest walk the closure holds per resource; a resource absent here walks its table. Default: the closure holds every resource. */
+  /**
+   * Deepest walk the closure holds per resource; a resource absent here walks
+   * its table. Default: the closure holds every resource.
+   */
   readonly closureDepths?: Readonly<Record<string, number>>;
-  /** Ids of `resource` the subject holds `relation` on, in place of the inline query (RLS calls its helper). */
+  /**
+   * Ids of `resource` the subject holds `relation` on, in place of the inline
+   * query (RLS calls its helper).
+   */
   readonly holders?: (resource: string, relation: string) => GraphSql;
   readonly permitted?: (resource: string, permission: string) => GraphSql;
-  /** Ids of `resource` whose `link` points into `targets`, in place of reading its table (RLS calls a helper). */
+  /**
+   * Ids of `resource` whose `link` points into `targets`, in place of reading
+   * its table (RLS calls a helper).
+   */
   readonly linked?: (
     resource: string,
     link: string,
     targets: GraphSql,
   ) => GraphSql;
   readonly restrictedRows?: (resource: string) => GraphSql;
-  /** Qualifies a table or edge name before it is quoted, e.g. with a schema for `search_path = ''`. */
+  /**
+   * Qualifies a table or edge name before it is quoted, e.g. with a schema for
+   * `search_path = ''`.
+   */
   readonly qualify?: (table: string) => string;
 };
 
@@ -71,10 +86,7 @@ export function quoteSqlName(name: string): string {
     .join(".");
 }
 
-type Build = {
-  readonly options: GraphSqlOptions;
-  alias: number;
-};
+type Build = { readonly options: GraphSqlOptions; alias: number };
 
 function text(value: string): GraphSqlPart {
   return { text: value };
@@ -131,7 +143,10 @@ function groupHolders(
   );
 }
 
-/** Who a row of the edge names, when it is not a group of the edge's own resource. */
+/**
+ * Who a row of the edge names, when it is not a group of the edge's own
+ * resource.
+ */
 function edgeHolderFilter(
   build: Build,
   node: ResourceNode,
@@ -182,7 +197,10 @@ function edgeHolderFilter(
   return parts;
 }
 
-/** The nested-group step of an edge whose groups include its own resource: the row names a group of `node`. */
+/**
+ * The nested-group step of an edge whose groups include its own resource: the
+ * row names a group of `node`.
+ */
 function selfGroupWhere(
   spec: EdgeRelation,
   node: ResourceNode,
@@ -196,8 +214,8 @@ function selfGroupWhere(
 }
 
 /**
- * One concrete relation's arm: `select <id>::text as id ...` for every
- * instance of `node` the subject holds `relation` on, through groups too.
+ * One concrete relation's arm: `select <id>::text as id ...` for every instance
+ * of `node` the subject holds `relation` on, through groups too.
  */
 function relationArm(
   build: Build,
@@ -289,7 +307,10 @@ function holderIds(build: Build, resource: string, relation: string): GraphSql {
   return out;
 }
 
-/** One concrete relation's arm, for helpers that guard each arm by the relation asked for. */
+/**
+ * One concrete relation's arm, for helpers that guard each arm by the relation
+ * asked for.
+ */
 export function relationArmSql(
   resource: string,
   relation: string,
@@ -299,7 +320,10 @@ export function relationArmSql(
   return relationArm(build, nodeOf(build, resource), relation);
 }
 
-/** A query of one text column `id`: the instances of `resource` the subject holds `relation` on, after `includes` and groups. */
+/**
+ * A query of one text column `id`: the instances of `resource` the subject
+ * holds `relation` on, after `includes` and groups.
+ */
 export function holderIdsSql(
   resource: string,
   relation: string,
@@ -332,7 +356,10 @@ function heldIds(build: Build, condition: RelatedCondition): GraphSql {
   return parts;
 }
 
-/** Instances of the condition's resource at or below the held ones, within its depth and never through a restricted child. */
+/**
+ * Instances of the condition's resource at or below the held ones, within its
+ * depth and never through a restricted child.
+ */
 function reached(build: Build, condition: RelatedCondition): GraphSql {
   const held = heldIds(build, condition);
   if (condition.depth === 0) {
@@ -382,7 +409,10 @@ function reached(build: Build, condition: RelatedCondition): GraphSql {
   ];
 }
 
-/** Ids the row's `field` may hold: the reached instances, carried back over each link hop. */
+/**
+ * Ids the row's `field` may hold: the reached instances, carried back over each
+ * link hop.
+ */
 function targets(build: Build, condition: RelatedCondition): GraphSql {
   let set = reached(build, condition);
   const hops = condition.hops ?? [];
@@ -417,7 +447,10 @@ function targets(build: Build, condition: RelatedCondition): GraphSql {
   return set;
 }
 
-/** The ids the row's field may hold for `condition` to match, as one text column `id`. */
+/**
+ * The ids the row's field may hold for `condition` to match, as one text column
+ * `id`.
+ */
 export function relatedTargetsSql(
   condition: RelatedCondition,
   options: GraphSqlOptions,
@@ -473,7 +506,10 @@ export function restrictedRowsSql(
   return closedRows({ options, alias: 0 }, above);
 }
 
-/** Whether the row's restricted column keeps it out of `condition` whatever the graph says. */
+/**
+ * Whether the row's restricted column keeps it out of `condition` whatever the
+ * graph says.
+ */
 export function relatedRowGuard(
   condition: RelatedCondition,
 ): string | undefined {
@@ -485,9 +521,9 @@ export function relatedRowGuard(
 }
 
 /**
- * `condition` as a boolean over the filtered row that is never NULL: the
- * row's field is among the reached ids, and with `parent` or `hops` the row
- * is not restricted.
+ * `condition` as a boolean over the filtered row that is never NULL: the row's
+ * field is among the reached ids, and with `parent` or `hops` the row is not
+ * restricted.
  */
 export function relatedSql(
   condition: RelatedCondition,
@@ -526,9 +562,8 @@ export function relatedSql(
 }
 
 /**
- * Renders parts to one SQL string: `placeholder(n)` names the n-th bound
- * value (from 1), `column` names a row column, and the subject id binds as
- * a value.
+ * Renders parts to one SQL string: `placeholder(n)` names the n-th bound value
+ * (from 1), `column` names a row column, and the subject id binds as a value.
  */
 export function renderGraphSql(
   parts: GraphSql,

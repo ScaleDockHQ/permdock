@@ -82,7 +82,10 @@ const CARRIED: ReadonlySet<string> = new Set([
   "memberships",
 ]);
 
-/** Principal refs the snapshot principal does not carry (`claims`, `teamIds`, …) are bound to the subject's values. */
+/**
+ * Principal refs the snapshot principal does not carry (`claims`, `teamIds`, …)
+ * are bound to the subject's values.
+ */
 function isClaimRef(ref: string): boolean {
   const [root, head] = ref.split(".", 2);
   return root === "principal" && !CARRIED.has(String(head));
@@ -273,10 +276,10 @@ export function buildSnapshot(input: {
 }
 
 /**
- * The token delegation as the client sees it. An actor with no token
- * delegation gets an empty `scopes` list so the client ceiling agrees with
- * `no-delegation`, unless a policy delegation applies (`delegated`), which
- * then is the ceiling.
+ * The token delegation as the client sees it. An actor with no token delegation
+ * gets an empty `scopes` list so the client ceiling agrees with
+ * `no-delegation`, unless a policy delegation applies (`delegated`), which then
+ * is the ceiling.
  */
 function snapshotDelegation(
   subject: Subject,

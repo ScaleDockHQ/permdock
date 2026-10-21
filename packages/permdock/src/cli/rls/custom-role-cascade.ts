@@ -19,12 +19,11 @@ function cascadeMatch(prefix: string): string {
 /**
  * The trigger on the application's roles table (`rls.customRoleWrites.roles`):
  * a rename, a move to another tenant, scope or instance, or a delete of a
- * custom role's row carries its grants and includes along. A signed-in
- * caller at trigger depth 1 passes the write functions' checks: authority
- * over the stored definition where it was, and, after a move, membership
- * and authority where it lands and entries inside that scope's ceiling.
- * Other paths (a migration, a job, a nested trigger) move the rows as the
- * function owner.
+ * custom role's row carries its grants and includes along. A signed-in caller
+ * at trigger depth 1 passes the write functions' checks: authority over the
+ * stored definition where it was, and, after a move, membership and authority
+ * where it lands and entries inside that scope's ceiling. Other paths (a
+ * migration, a job, a nested trigger) move the rows as the function owner.
  */
 export function customRoleCascadeSql(ctx: RlsSqlContext): string {
   const custom = ctx.customRoles;

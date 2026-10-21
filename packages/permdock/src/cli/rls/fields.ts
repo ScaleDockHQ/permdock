@@ -18,7 +18,10 @@ import { orSql } from "./policies.ts";
 export const FIELD_VIEWS = {
   /** `<table>_visible`: the `security_invoker` view clients read. */
   view: "_visible",
-  /** `<table>_visible_fields`: the owner-rights companion `--revoke-columns` adds. */
+  /**
+   * `<table>_visible_fields`: the owner-rights companion `--revoke-columns`
+   * adds.
+   */
   companion: "_visible_fields",
   /** The companion's row-key column, joined to the base table's key. */
   key: "permdock_key",
@@ -38,10 +41,16 @@ export type FieldView = {
   readonly resource: string;
   readonly table: string;
   readonly view: string;
-  /** The row key; it always passes through so the view can be filtered and joined. */
+  /**
+   * The row key; it always passes through so the view can be filtered and
+   * joined.
+   */
   readonly key: string;
   readonly columns: readonly FieldColumn[];
-  /** Postgres roles that read the view: `authenticated`, plus `anon` when an `anon` branch reads the table. */
+  /**
+   * Postgres roles that read the view: `authenticated`, plus `anon` when an
+   * `anon` branch reads the table.
+   */
   readonly roles: readonly string[];
   /** Set with `--revoke-columns`. */
   readonly companion?: string;
@@ -54,9 +63,9 @@ function covers(branch: CompiledBranch, column: string): boolean {
 }
 
 /**
- * A read grant that only shapes columns: a field-limited deny (it never
- * denies the row) or an allow with an empty list (it grants nothing). With
- * field views it leaves the row policy and lives in the view's masks.
+ * A read grant that only shapes columns: a field-limited deny (it never denies
+ * the row) or an allow with an empty list (it grants nothing). With field views
+ * it leaves the row policy and lives in the view's masks.
  */
 function fieldOnly(branch: CompiledBranch): boolean {
   if (branch.command !== "select" || branch.fields === undefined) {
@@ -73,9 +82,9 @@ export function rowBranches(
 }
 
 /**
- * Whether the reader is signed in, for branches with no helper call: a grant
- * to any signed-in user relies on `to authenticated` in its policy, which a
- * view does not have.
+ * Whether the reader is signed in, for branches with no helper call: a grant to
+ * any signed-in user relies on `to authenticated` in its policy, which a view
+ * does not have.
  */
 function audience(
   ctx: RlsSqlContext,
@@ -251,9 +260,7 @@ export function fieldViews(
         ? ["anon", "authenticated"]
         : ["authenticated"],
       ...(options.revokeColumns
-        ? {
-            companion: helperObjectName(ctx, table, FIELD_VIEWS.companion),
-          }
+        ? { companion: helperObjectName(ctx, table, FIELD_VIEWS.companion) }
         : {}),
       ...(options.mask === true
         ? { maskFunction: helperObjectName(ctx, table, FIELD_VIEWS.mask) }
@@ -263,7 +270,10 @@ export function fieldViews(
   return views;
 }
 
-/** Columns of `view`'s table that `anon` and `authenticated` keep on the base table with `--revoke-columns`. */
+/**
+ * Columns of `view`'s table that `anon` and `authenticated` keep on the base
+ * table with `--revoke-columns`.
+ */
 function readableColumns(view: FieldView): readonly string[] {
   return view.columns
     .filter((column) => column.mask === undefined)
@@ -343,7 +353,10 @@ from ${quoteQualified(view.table)} t
 left join ${quoteQualified(companion)} f on f.${quoteIdent(FIELD_VIEWS.key)} = t.${quoteIdent(view.key)};`;
 }
 
-/** `select` on only the unrestricted columns (and the key) of the base table, for `--revoke-columns`. */
+/**
+ * `select` on only the unrestricted columns (and the key) of the base table,
+ * for `--revoke-columns`.
+ */
 export function columnGrantSql(view: FieldView, role: string): string {
   return `grant select (${columnList(readableColumns(view))}) on table ${quoteQualified(view.table)} to ${role};`;
 }
@@ -353,11 +366,11 @@ export function columnRevokeSql(view: FieldView): string {
 }
 
 /**
- * `<table>_mask(p_row)`: the row with each restricted column the caller may
- * not read set to null, by the same masks as the view. It reads only the row
- * it is given, so its caller decides which rows; `security invoker`, because
- * it needs nothing beyond the helpers the masks call. The body names the
- * parameter `$1`, since a column called `p_row` would shadow the name.
+ * `<table>_mask(p_row)`: the row with each restricted column the caller may not
+ * read set to null, by the same masks as the view. It reads only the row it is
+ * given, so its caller decides which rows; `security invoker`, because it needs
+ * nothing beyond the helpers the masks call. The body names the parameter `$1`,
+ * since a column called `p_row` would shadow the name.
  */
 function maskFunctionSql(view: FieldView, fn: string): string {
   const table = quoteQualified(view.table);
@@ -390,8 +403,8 @@ grant execute on function ${name}(${table}) to ${view.roles.join(", ")};`;
 /**
  * The view SQL: the `security_invoker` view, and with `--revoke-columns` the
  * owner-rights companion it joins for the restricted columns. The companion
- * masks every column with the full field decision and keeps only rows where
- * one is readable, so reading it directly shows nothing `pick` would not.
+ * masks every column with the full field decision and keeps only rows where one
+ * is readable, so reading it directly shows nothing `pick` would not.
  */
 export function fieldViewsSql(views: readonly FieldView[]): string {
   return views

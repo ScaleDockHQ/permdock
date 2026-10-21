@@ -48,7 +48,8 @@ import {
 /**
  * How a stream query names the signed-in user, its claims and row columns.
  * `powersync` writes Sync Streams SQL; `postgres` writes the same query for
- * `permdock powersync verify` to run, with `$1` the user id and `$2` the claims.
+ * `permdock powersync verify` to run, with `$1` the user id and `$2` the
+ * claims.
  */
 export type StreamDialect = {
   readonly user: string;
@@ -91,11 +92,17 @@ export type PowerSyncStream = {
   readonly queries: readonly string[];
 };
 
-/** A stream of the rows `localSnapshot` builds the user's snapshot from: memberships, roles, custom roles. */
+/**
+ * A stream of the rows `localSnapshot` builds the user's snapshot from:
+ * memberships, roles, custom roles.
+ */
 export type SubjectStream = {
   readonly name: string;
   readonly table: string;
-  /** The user column when every row is the user's own; `verify` checks no other user's row syncs. */
+  /**
+   * The user column when every row is the user's own; `verify` checks no other
+   * user's row syncs.
+   */
   readonly user?: string;
   readonly queries: readonly string[];
 };
@@ -109,21 +116,31 @@ export type PowerSyncPlan = {
     readonly reason: string;
   }[];
   readonly warnings: readonly string[];
-  /** Device names of the tables outside `public` renamed to `<schema>_<table>`, by `schema.table`. */
+  /**
+   * Device names of the tables outside `public` renamed to `<schema>_<table>`,
+   * by `schema.table`.
+   */
   readonly devices: ReadonlyMap<string, string>;
-  /** The grant behind each `does not sync` and `under-syncs` warning; `powersync verify` excuses a granted, unsynced fixture only through one. */
+  /**
+   * The grant behind each `does not sync` and `under-syncs` warning; `powersync
+   * verify` excuses a granted, unsynced fixture only through one.
+   */
   readonly unsynced: readonly PowerSyncGap[];
   /** The synced tables outside `public`, as `schema.table`. */
   readonly outside: readonly string[];
-  /** `alter publication powersync add table …;` for the synced tables outside `public`, which a `for all tables in schema public` publication leaves out. */
+  /**
+   * `alter publication powersync add table …;` for the synced tables outside
+   * `public`, which a `for all tables in schema public` publication leaves
+   * out.
+   */
   readonly publication?: string;
 };
 
 /**
  * A grant a stream leaves rows of out: a declared role (or `anyone`,
- * `authenticated`) by `role`; a custom role's allow at `level` (`null` for
- * no level, absent for every level); or, with `composed`, any custom role
- * with includes or a shared or global scope.
+ * `authenticated`) by `role`; a custom role's allow at `level` (`null` for no
+ * level, absent for every level); or, with `composed`, any custom role with
+ * includes or a shared or global scope.
  */
 export type PowerSyncGap = {
   readonly permission: string;
@@ -132,7 +149,10 @@ export type PowerSyncGap = {
   readonly composed?: true;
 };
 
-/** At most this many queries per stream; a wider `or` product is left out rather than truncated. */
+/**
+ * At most this many queries per stream; a wider `or` product is left out rather
+ * than truncated.
+ */
 const MAX_QUERIES = 32;
 
 type Ctx = {
@@ -143,7 +163,10 @@ type Ctx = {
   readonly dialect: StreamDialect;
   /** The membership sources, read through the custom-role name guard. */
   readonly sources: readonly SqlMembershipSource[];
-  /** Why a source the grant being compiled reads does not sync; the caller turns them into warnings. */
+  /**
+   * Why a source the grant being compiled reads does not sync; the caller turns
+   * them into warnings.
+   */
   readonly gaps: string[];
 };
 
@@ -169,7 +192,10 @@ function every<T>(parts: readonly (T | undefined)[]): readonly T[] | undefined {
   return out;
 }
 
-/** A row value: a literal, or a principal ref the token carries. `undefined` when neither. */
+/**
+ * A row value: a literal, or a principal ref the token carries. `undefined`
+ * when neither.
+ */
 function valueSql(value: ConditionValue, ctx: Ctx): string | undefined {
   if (isConditionRef(value)) {
     if (value.ref === "principal.id") {
@@ -306,7 +332,10 @@ function conditionSql(
   }
 }
 
-/** One `IN (SELECT …)` per role source of the membership table: the row's `left` is an instance the user holds `roles` in. */
+/**
+ * One `IN (SELECT …)` per role source of the membership table: the row's `left`
+ * is an instance the user holds `roles` in.
+ */
 function membershipIn(
   table: RlsMembershipTable,
   idColumn: string,
@@ -365,7 +394,10 @@ function membershipIn(
   });
 }
 
-/** The membership filter of scope `scope`: its `rls.memberships` table, else the union of its membership sources. */
+/**
+ * The membership filter of scope `scope`: its `rls.memberships` table, else the
+ * union of its membership sources.
+ */
 function membershipSql(
   scope: string,
   left: string,
@@ -397,7 +429,10 @@ function membershipSql(
   });
 }
 
-/** Who the grant reaches, as alternatives of clauses; `undefined` when Sync Streams cannot express it. */
+/**
+ * Who the grant reaches, as alternatives of clauses; `undefined` when Sync
+ * Streams cannot express it.
+ */
 function accessSql(
   item: RlsGrant,
   table: string,
@@ -467,7 +502,10 @@ function accessSql(
 /** A table outside `public` as `quotedTable` writes it. */
 const QUOTED_TABLE = /"(\w+)"\."(\w+)"/gu;
 
-/** `permdock_<table>`; a table in the `permdock` schema, `permdock_<table>` already, keeps one prefix. */
+/**
+ * `permdock_<table>`; a table in the `permdock` schema, `permdock_<table>`
+ * already, keeps one prefix.
+ */
 function subjectStreamName(table: string): string {
   return table.startsWith("permdock_") ? table : `permdock_${table}`;
 }
@@ -485,9 +523,8 @@ function roleThroughs(
 }
 
 /**
- * The `SELECT`s of the root-scope ids the user is a member of: the root
- * scope's `rls.memberships` table, else each of its sources that can filter a
- * stream.
+ * The `SELECT`s of the root-scope ids the user is a member of: the root scope's
+ * `rls.memberships` table, else each of its sources that can filter a stream.
  */
 function userTenantIds(ctx: Ctx): readonly string[] {
   const { dialect } = ctx;
@@ -521,7 +558,10 @@ function userTenantIds(ctx: Ctx): readonly string[] {
   });
 }
 
-/** The stream forms of the sources of every scope `rls.memberships` maps no table for. */
+/**
+ * The stream forms of the sources of every scope `rls.memberships` maps no
+ * table for.
+ */
 function unmappedStreams(ctx: Ctx): readonly MembershipStream[] {
   const out = new Set<MembershipStream>();
   for (const scope of ctx.scopes) {
@@ -544,10 +584,10 @@ function unmappedStreams(ctx: Ctx): readonly MembershipStream[] {
 }
 
 /**
- * Streams of the rows a device builds the user's snapshot from: the user's
- * own membership and global-role rows, the roles tables they reference, and
- * the custom roles of the user's tenants. Each query starts from the user's
- * own rows.
+ * Streams of the rows a device builds the user's snapshot from: the user's own
+ * membership and global-role rows, the roles tables they reference, and the
+ * custom roles of the user's tenants. Each query starts from the user's own
+ * rows.
  */
 function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
   const rls = ctx.config.rls;
@@ -658,7 +698,10 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
   return out;
 }
 
-/** The membership sources as `rls generate` reads them: a tenant row of the custom roles table named like a declared role is no role. */
+/**
+ * The membership sources as `rls generate` reads them: a tenant row of the
+ * custom roles table named like a declared role is no role.
+ */
 function guardedSources(
   policy: Policy,
   config: PermDockConfig,
@@ -700,8 +743,8 @@ function unsupported(item: RlsGrant): string | undefined {
 /**
  * Sync Streams for each synced resource: the union of the rows its read
  * permission's allow grants reach. A grant with any part Sync Streams cannot
- * express syncs nothing, and a resource with a deny grant gets no stream, so
- * a stream never holds a row the policy denies.
+ * express syncs nothing, and a resource with a deny grant gets no stream, so a
+ * stream never holds a row the policy denies.
  */
 export function powersyncPlan(
   policy: Policy,
@@ -899,14 +942,20 @@ function planWith(
   };
 }
 
-/** A YAML scalar quoted as oxfmt and Prettier write it: single quotes around a `"`, unless a backslash needs a double-quoted escape. */
+/**
+ * A YAML scalar quoted as oxfmt and Prettier write it: single quotes around a
+ * `"`, unless a backslash needs a double-quoted escape.
+ */
 function yamlString(text: string): string {
   return text.includes('"') && !text.includes("\\")
     ? `'${text.replaceAll("'", "''")}'`
     : JSON.stringify(text);
 }
 
-/** `sync-config.yaml`: edition 3 Sync Streams, one auto-subscribed stream per synced resource. */
+/**
+ * `sync-config.yaml`: edition 3 Sync Streams, one auto-subscribed stream per
+ * synced resource.
+ */
 export function powersyncYaml(plan: PowerSyncPlan): string {
   const lines = [
     "# Generated by permdock powersync generate from the policy. Do not edit.",

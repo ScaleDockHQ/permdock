@@ -19,9 +19,9 @@ type NotSerializable =
   | bigint;
 
 /**
- * `true` when no property, at any depth, is a function, Map, Set, Date,
- * symbol or bigint. Primitives are checked first: an open union
- * (`'a' | (string & {})`) is a string, not an object with string's methods.
+ * `true` when no property, at any depth, is a function, Map, Set, Date, symbol
+ * or bigint. Primitives are checked first: an open union (`'a' | (string &
+ * {})`) is a string, not an object with string's methods.
  */
 type Serializable<T, Depth extends unknown[] = []> = Depth["length"] extends 12
   ? true

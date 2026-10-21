@@ -25,7 +25,10 @@ type Item = {
 const SF_STRING = /^"((?:[\u0020\u0021\u0023-\u005B\u005D-\u007E]|\\["\\])*)"/u;
 const SF_PARAM = /^;([a-z*][a-z0-9_.*-]*)=(-?\d{1,15})/u;
 
-/** An RFC 9651 List of sf-string Items with integer parameters; throws on anything else. */
+/**
+ * An RFC 9651 List of sf-string Items with integer parameters; throws on
+ * anything else.
+ */
 function parseList(field: string): readonly Item[] {
   const items: Item[] = [];
   let rest = field;
@@ -219,9 +222,7 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
     const policy = definePolicy(permissions, {
       roles: [
         role("member", [
-          allow(permissions.report.export, {
-            limit: { count: 1, per: 3600 },
-          }),
+          allow(permissions.report.export, { limit: { count: 1, per: 3600 } }),
         ]),
         role("viewer", [allow(permissions.report.read)]),
       ],

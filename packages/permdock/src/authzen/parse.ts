@@ -24,10 +24,10 @@ export type AuthzenRequestKind =
 export type AuthzenSearchKind = Extract<AuthzenRequestKind, `search/${string}`>;
 
 /**
- * A checked AuthZEN request. An `evaluations` body with no items is the
- * single evaluation AuthZEN 1.0 section 7.1 makes it, so it parses as
- * `kind: "evaluation"`; the `evaluations` items already carry the shared
- * top-level fields.
+ * A checked AuthZEN request. An `evaluations` body with no items is the single
+ * evaluation AuthZEN 1.0 section 7.1 makes it, so it parses as `kind:
+ * "evaluation"`; the `evaluations` items already carry the shared top-level
+ * fields.
  */
 export type AuthzenRequest =
   | AuthzenEvaluationRequest
@@ -179,9 +179,9 @@ function evaluations(
 
 /**
  * Checks a parsed AuthZEN body the way `permdock/authzen` answers it: the body
- * is an object, then each required entity and field in a fixed order, then
- * the `evaluations` array, batch size and semantic. A failure is the 400 (or
- * 413) Problem Details the handler sends, with the same `detail`.
+ * is an object, then each required entity and field in a fixed order, then the
+ * `evaluations` array, batch size and semantic. A failure is the 400 (or 413)
+ * Problem Details the handler sends, with the same `detail`.
  */
 export function parseAuthzenRequest<K extends AuthzenRequestKind>(
   kind: K,
@@ -232,8 +232,8 @@ function parseAny(
 }
 
 /**
- * Reads `request` as an AuthZEN body: `Content-Type: application/json`, at
- * most 1 MiB (a 413 above it), valid JSON, then `parseAuthzenRequest`.
+ * Reads `request` as an AuthZEN body: `Content-Type: application/json`, at most
+ * 1 MiB (a 413 above it), valid JSON, then `parseAuthzenRequest`.
  */
 export async function readAuthzenRequest<K extends AuthzenRequestKind>(
   kind: K,

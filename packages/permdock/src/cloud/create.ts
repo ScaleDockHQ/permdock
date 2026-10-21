@@ -83,7 +83,10 @@ function asApproval(value: unknown): ApprovalRequest | null {
   return value as ApprovalRequest;
 }
 
-/** The refusal PermDock Cloud names in its body, else the one its status implies. */
+/**
+ * The refusal PermDock Cloud names in its body, else the one its status
+ * implies.
+ */
 async function approvalErrorFrom(response: Response): Promise<ApprovalError> {
   let body: unknown;
   try {

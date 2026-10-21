@@ -66,14 +66,20 @@ function pointer(parts: readonly string[]): string {
     .join("/");
 }
 
-/** Checks one response against `cloud-api-v1.json`; answers the problems, none when it conforms. */
+/**
+ * Checks one response against `cloud-api-v1.json`; answers the problems, none
+ * when it conforms.
+ */
 export type CloudApiResponseCheck = (
   method: string,
   path: string,
   response: Response,
 ) => Promise<readonly string[]>;
 
-/** A checker for responses of the PermDock Cloud API, compiled once from `CLOUD_API_DOCUMENT`. */
+/**
+ * A checker for responses of the PermDock Cloud API, compiled once from
+ * `CLOUD_API_DOCUMENT`.
+ */
 export function cloudApiValidator(): CloudApiResponseCheck {
   const ajv = new Ajv2020({
     strict: false,

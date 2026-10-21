@@ -37,9 +37,7 @@ const policy = definePolicy(permissions, {
     role(
       "owner",
       [allow(permissions.billing.view), allow(permissions.billing.manage)],
-      {
-        on: "tenant",
-      },
+      { on: "tenant" },
     ),
     role("member", [allow(permissions.billing.view)], { on: "tenant" }),
     role("platform", [allow(permissions.billing.manage)]),

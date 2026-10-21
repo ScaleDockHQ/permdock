@@ -15,10 +15,7 @@ import { wireDenials } from "./wire-denial.ts";
 export { PermDockValidationError };
 
 /** Where and how a human approves; carries no secret. */
-export type ApprovalHint = {
-  readonly at?: string;
-  readonly hint?: string;
-};
+export type ApprovalHint = { readonly at?: string; readonly hint?: string };
 
 export type ProblemDetails = {
   readonly type: string;
@@ -49,9 +46,15 @@ export class PermDockDeniedError extends Error {
   public readonly scope: string;
   public readonly resource: { readonly type: string; readonly id?: string };
   public readonly subject: Subject;
-  /** The resource's `disclosure` when the denied check carried a row; `'hide'` answers as `404`. */
+  /**
+   * The resource's `disclosure` when the denied check carried a row; `'hide'`
+   * answers as `404`.
+   */
   public readonly disclosure?: Disclosure;
-  /** `PERMDOCK_DENIED;<permission>`; survives the Server Component boundary (`parsePermDockDigest`). */
+  /**
+   * `PERMDOCK_DENIED;<permission>`; survives the Server Component boundary
+   * (`parsePermDockDigest`).
+   */
   public readonly digest: string;
 
   public constructor(input: {
@@ -105,7 +108,10 @@ export class PermDockApprovalRequiredError extends Error {
   public readonly resource: { readonly type: string; readonly id?: string };
   public readonly token: string;
   public readonly reason: string;
-  /** `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`; the token is already bound to this subject. */
+  /**
+   * `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`; the token is already
+   * bound to this subject.
+   */
   public readonly digest: string;
 
   public constructor(input: {

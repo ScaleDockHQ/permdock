@@ -19,11 +19,7 @@ import { definePlans } from "../../src/core/vocabulary.ts";
 const permissions = definePermissions({
   invoice: resource(
     z.object({ id: z.string(), ownerId: z.string(), total: z.number() }),
-    {
-      id: "id",
-      actions: ["read", "delete"],
-      relations: { owner: "ownerId" },
-    },
+    { id: "id", actions: ["read", "delete"], relations: { owner: "ownerId" } },
   ),
   report: resource(z.object({ id: z.string() }), {
     id: "id",

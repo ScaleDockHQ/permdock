@@ -220,16 +220,15 @@ export function toWhere(
 }
 
 type KyselyLike<Trx> = {
-  transaction(): {
-    execute<T>(fn: (trx: Trx) => Promise<T>): Promise<T>;
-  };
+  transaction(): { execute<T>(fn: (trx: Trx) => Promise<T>): Promise<T> };
 };
 
 type Executable = { execute(db: unknown): Promise<unknown> };
 
 /**
- * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so the generated
- * RLS policies decide for the same subject as the in-process checks.
+ * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so
+ * the generated RLS policies decide for the same subject as the in-process
+ * checks.
  */
 export function withSubject<Trx, T>(
   db: KyselyLike<Trx>,
@@ -266,8 +265,9 @@ type KyselySelectable = {
 };
 
 /**
- * One query for one row: `{ found: false }` when `key` matches nothing, otherwise whether the
- * permission filter keeps the row. Throws when `key` matches more than one row.
+ * One query for one row: `{ found: false }` when `key` matches nothing,
+ * otherwise whether the permission filter keeps the row. Throws when `key`
+ * matches more than one row.
  */
 export async function checkRow(
   db: KyselySelectable,
@@ -283,9 +283,7 @@ export async function checkRow(
     .selectFrom(table as never)
     .select(((eb: KyselyExpressionBuilder) =>
       (
-        sql`coalesce(${filter(eb)}, false)` as {
-          as(alias: string): unknown;
-        }
+        sql`coalesce(${filter(eb)}, false)` as { as(alias: string): unknown }
       ).as("granted")) as never)
     .where(key as never)
     .limit(2)

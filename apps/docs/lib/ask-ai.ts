@@ -103,12 +103,17 @@ export const pageInput = toolInput(
   },
 );
 
-/** The `@vercel/firewall` rule ID; the rule is configured in the Vercel Firewall. */
+/**
+ * The `@vercel/firewall` rule ID; the rule is configured in the Vercel
+ * Firewall.
+ */
 export const askAiRateLimitId = "docs-ask-ai";
 
 export type AskAiChecks = {
   readonly isBot: () => Promise<boolean>;
-  readonly rateLimit: (request: Request) => Promise<{
+  readonly rateLimit: (
+    request: Request,
+  ) => Promise<{
     readonly rateLimited: boolean;
     readonly error?: "not-found" | "blocked";
   }>;
@@ -130,8 +135,8 @@ export function askAiProblem(
 }
 
 /**
- * Bot and rate-limit checks before the model runs. A missing rate-limit rule
- * or a failed check closes Ask AI instead of leaving it unlimited.
+ * Bot and rate-limit checks before the model runs. A missing rate-limit rule or
+ * a failed check closes Ask AI instead of leaving it unlimited.
  */
 export async function guardAskAi(
   request: Request,

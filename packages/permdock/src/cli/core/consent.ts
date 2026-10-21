@@ -9,8 +9,8 @@ export type ConsentReason = "rewrite" | "cloud:write" | "overwrite";
 
 /**
  * The reasons a run needs consent: it edits files the project owns, it
- * publishes to the Cloud, or `--force` overwrites files PermDock did not
- * write. A `--dry-run` or `--check` run writes nothing and needs none.
+ * publishes to the Cloud, or `--force` overwrites files PermDock did not write.
+ * A `--dry-run` or `--check` run writes nothing and needs none.
  */
 export function consentReasons(
   effects: readonly Effect[],
@@ -40,8 +40,8 @@ export function quote(token: string): string {
 }
 
 /**
- * The argv as a command line to run again, `--confirm` dropped. Secrets
- * only arrive through `--*-stdin` flags, so the line holds none.
+ * The argv as a command line to run again, `--confirm` dropped. Secrets only
+ * arrive through `--*-stdin` flags, so the line holds none.
  */
 export function replayArgv(argv: readonly string[]): readonly string[] {
   const out: string[] = [];
@@ -61,8 +61,8 @@ export function replayArgv(argv: readonly string[]): readonly string[] {
 
 /**
  * A short token bound to what the person agrees to, the directory and the
- * command line. Hex, because a base64url token may start with `-` and parse
- * as a flag. 16 characters, as better-supabase's.
+ * command line. Hex, because a base64url token may start with `-` and parse as
+ * a flag. 16 characters, as better-supabase's.
  */
 export function consentToken(
   reasons: readonly ConsentReason[],

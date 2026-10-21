@@ -12,7 +12,10 @@ import {
 } from "../../src/approvals/index.ts";
 import { testApprovalStore } from "../../src/testing/conformance/approvals.ts";
 
-/** A custom store that keeps its own list and pages it with the exported helpers. */
+/**
+ * A custom store that keeps its own list and pages it with the exported
+ * helpers.
+ */
 function pagedStore(): ApprovalStore {
   const inner = memoryApprovalStore();
   return {

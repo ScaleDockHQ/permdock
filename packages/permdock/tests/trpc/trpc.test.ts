@@ -170,11 +170,7 @@ describe("permdock/trpc", () => {
       // SAFETY: toBeInstanceOf above checked the error is a TRPCError.
       const denied = error as TRPCError;
       expect(denied.code).toBe("FORBIDDEN");
-      expect(denied.cause).toEqual(
-        expect.objectContaining({
-          status: 403,
-        }),
-      );
+      expect(denied.cause).toEqual(expect.objectContaining({ status: 403 }));
     }
   });
 

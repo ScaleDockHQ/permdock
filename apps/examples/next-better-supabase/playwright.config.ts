@@ -22,10 +22,7 @@ export default defineConfig({
   webServer: {
     command: "node scripts/serve.ts",
     url: `${baseURL}/api/health`,
-    env: {
-      EXPOSE_TESTING_API: "1",
-      PORT: String(port),
-    },
+    env: { EXPOSE_TESTING_API: "1", PORT: String(port) },
     reuseExistingServer: false,
     // `serve` stops the Postgres container on SIGTERM.
     gracefulShutdown: { signal: "SIGTERM", timeout: 30_000 },

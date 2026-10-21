@@ -52,7 +52,10 @@ export function approverPermissions(
   });
 }
 
-/** The permission approvers `subject` holds on `request`, read through `permdockFor`. */
+/**
+ * The permission approvers `subject` holds on `request`, read through
+ * `permdockFor`.
+ */
 export async function heldPermissions(
   request: ApprovalRequest,
   subject: Subject,

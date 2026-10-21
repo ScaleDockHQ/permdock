@@ -17,7 +17,10 @@ import {
 
 type Post = { readonly id: string; readonly title: string };
 
-/** A dependency-free implementer: trims `title`, so a rule sees the parsed value. */
+/**
+ * A dependency-free implementer: trims `title`, so a rule sees the parsed
+ * value.
+ */
 function handWritten(
   extra: Readonly<Record<string, unknown>> = {},
 ): StandardSchemaV1<unknown, Post> {

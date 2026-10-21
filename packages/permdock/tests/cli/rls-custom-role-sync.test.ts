@@ -70,11 +70,7 @@ describe("customRoleSyncSql", () => {
       sync: "trigger",
       permissions: {
         ...from.permissions,
-        role: {
-          through: "public.roles",
-          on: { role_id: "id" },
-          column: "key",
-        },
+        role: { through: "public.roles", on: { role_id: "id" }, column: "key" },
       },
     };
     expect(customRoleSyncSql(ctx, qualifiedFrom, undefined)).toContain(

@@ -1,4 +1,7 @@
-/** Global roles referenced through the application's roles table, which also holds tenant custom roles under the same names. */
+/**
+ * Global roles referenced through the application's roles table, which also
+ * holds tenant custom roles under the same names.
+ */
 export default {
   permissions: "../custom-role-writes/permissions.ts",
   policy: "../custom-role-writes/policy.ts",

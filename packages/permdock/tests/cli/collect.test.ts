@@ -160,10 +160,7 @@ describe("runCollect", () => {
     });
     expect(
       catalogFile(cwd, "catalog.json", doc(3, "assert"), true),
-    ).toMatchObject({
-      code: 1,
-      data: { stale: true },
-    });
+    ).toMatchObject({ code: 1, data: { stale: true } });
   });
 
   it("catalog --check compares Markdown as written and reports a missing file", () => {

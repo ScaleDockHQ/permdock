@@ -26,7 +26,10 @@ export const NO_ENDPOINT: Decision = {
   alternatives: [],
 };
 
-/** The row's id under the snapshot's id field, or `undefined` for a row without one. */
+/**
+ * The row's id under the snapshot's id field, or `undefined` for a row without
+ * one.
+ */
 function rowId(
   snapshot: Snapshot,
   permission: Permission,
@@ -68,7 +71,10 @@ export type Batch = {
   clear(): void;
 };
 
-/** Collects the checks the snapshot cannot answer and posts them as one AuthZEN batch per microtask. */
+/**
+ * Collects the checks the snapshot cannot answer and posts them as one AuthZEN
+ * batch per microtask.
+ */
 export function createBatch(options: BatchOptions): Batch {
   const { answers, endpoint } = options;
   let queued: {

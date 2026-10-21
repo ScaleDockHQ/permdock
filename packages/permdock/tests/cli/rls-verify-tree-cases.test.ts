@@ -25,10 +25,7 @@ const permissions = definePermissions({
   node: resource(Node, {
     actions: ["read"],
     parent: { field: "parentId", resource: "node" },
-    relations: {
-      owner: { field: "ownerId" },
-      share: { edge: "node_shares" },
-    },
+    relations: { owner: { field: "ownerId" }, share: { edge: "node_shares" } },
   }),
   leaf: resource(Leaf, {
     actions: ["read"],

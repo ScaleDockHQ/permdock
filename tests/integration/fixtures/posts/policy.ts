@@ -2,10 +2,7 @@ import { allow, definePolicy, principal, role, sqlFunction } from "permdock";
 
 import { permissions, roles } from "./permissions.ts";
 
-export type User = {
-  readonly id: string;
-  readonly roles: readonly string[];
-};
+export type User = { readonly id: string; readonly roles: readonly string[] };
 
 export const policy = definePolicy(
   { permissions, roles },
@@ -15,9 +12,7 @@ export const policy = definePolicy(
         allow(permissions.post.read),
         allow(permissions.post.list),
         allow(permissions.post.create),
-        allow(permissions.post.update, {
-          where: { authorId: principal.id },
-        }),
+        allow(permissions.post.update, { where: { authorId: principal.id } }),
         allow(permissions.job.read, {
           where: sqlFunction("job_permitted", {
             args: [{ field: "id" }],

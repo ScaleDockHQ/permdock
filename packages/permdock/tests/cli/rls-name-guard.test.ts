@@ -89,10 +89,7 @@ describe("a tenant row named like a declared role", () => {
 
 describe("PD072", () => {
   const config = (roles: RlsCustomRoleTable) => ({
-    rls: {
-      membershipSources: [source],
-      customRoleWrites: { roles },
-    },
+    rls: { membershipSources: [source], customRoleWrites: { roles } },
   });
 
   it("warns when a source reads keys through the tenant-writable roles table", () => {

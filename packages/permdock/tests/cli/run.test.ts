@@ -145,17 +145,13 @@ describe("run", () => {
       code: 2,
       stderr: "catalog: --kind needs a value.\n",
     });
-    const passed = await run(["catalog", "--", "--kind", "markdown"], {
-      cwd,
-    });
+    const passed = await run(["catalog", "--", "--kind", "markdown"], { cwd });
     expect(passed.code).toBe(0);
     expect(passed.stdout).toContain('"key": "post.update"');
   });
 
   it("defineConfig is an identity", () => {
-    const config = defineConfig({
-      permissions: "./src/permissions.ts",
-    });
+    const config = defineConfig({ permissions: "./src/permissions.ts" });
     expect(config.permissions).toBe("./src/permissions.ts");
   });
 

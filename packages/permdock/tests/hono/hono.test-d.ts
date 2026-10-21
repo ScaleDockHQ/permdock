@@ -11,9 +11,7 @@ import { ownPost, permissions, policy } from "../fixtures/quick-start.ts";
 
 type QuickStartPermDock = PermDockOf<typeof policy>;
 
-const { middleware, protect } = createPermDock(policy, {
-  subject: () => null,
-});
+const { middleware, protect } = createPermDock(policy, { subject: () => null });
 
 describe("permdock/hono Env typing", () => {
   it("types c.get(permdock) without an app Env generic", () => {

@@ -239,12 +239,7 @@ describe.each([
   async function claimsFor(user: string, tenant: string): Promise<Claims> {
     return mode === "jwt"
       ? { ...(await mint(user)), tenant_id: tenant }
-      : {
-          sub: user,
-          role: "authenticated",
-          aal: "aal1",
-          tenant_id: tenant,
-        };
+      : { sub: user, role: "authenticated", aal: "aal1", tenant_id: tenant };
   }
 
   async function rlsRows(claims: Claims, table: Table): Promise<string[]> {
@@ -316,9 +311,7 @@ describe.each([
           const fromClaims = await getPermDock(
             policy,
             subjectFromSupabase(claims, {
-              claims: {
-                memberships: "memberships",
-              },
+              claims: { memberships: "memberships" },
             }).principal,
           );
           expect(

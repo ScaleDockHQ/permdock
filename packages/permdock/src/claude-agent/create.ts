@@ -13,9 +13,9 @@ export type ClaudeMcpServer = {
 };
 
 /**
- * What `subject`, `actor` and `tenant` receive: the `canUseTool` options or
- * the hook input. The subject comes from the app that started the query,
- * never from these fields.
+ * What `subject`, `actor` and `tenant` receive: the `canUseTool` options or the
+ * hook input. The subject comes from the app that started the query, never from
+ * these fields.
  */
 export type ClaudeAgentContext = {
   readonly toolName: string;
@@ -134,7 +134,10 @@ export function createPermDock<
   const sources = options.mcpSources ?? ["sdk"];
   const { agent, kernel } = agentRuntime(policy, options, "claude-agent");
 
-  /** `null`: an unmapped tool under `unmapped: 'allow'`, which PermDock does not decide. */
+  /**
+   * `null`: an unmapped tool under `unmapped: 'allow'`, which PermDock does not
+   * decide.
+   */
   const decide = async (
     context: ClaudeAgentContext,
     input: unknown,
@@ -193,9 +196,5 @@ export function createPermDock<
     };
   };
 
-  return Object.freeze({
-    ...agent,
-    canUseTool,
-    permissionRequestHook,
-  });
+  return Object.freeze({ ...agent, canUseTool, permissionRequestHook });
 }

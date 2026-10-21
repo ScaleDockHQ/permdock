@@ -536,10 +536,7 @@ describe("compileConditionSql memberOf", () => {
       {
         memberships: {
           scopes: {
-            team: {
-              ...memberships.scopes.team,
-              via: { value: "staff" },
-            },
+            team: { ...memberships.scopes.team, via: { value: "staff" } },
           },
         },
         ownership: { kinds: { lead: ["staff"] }, assigns: [], counted: [] },
@@ -552,10 +549,7 @@ describe("compileConditionSql memberOf", () => {
       {
         memberships: {
           scopes: {
-            team: {
-              ...memberships.scopes.team,
-              via: { value: "contact" },
-            },
+            team: { ...memberships.scopes.team, via: { value: "contact" } },
           },
         },
         ownership: { kinds: { lead: ["staff"] }, assigns: [], counted: [] },
@@ -658,9 +652,7 @@ describe("compileConditionSql memberOf", () => {
   });
 
   it("reads a sourced scope through member_<scope>_ids in database mode", () => {
-    const source = {
-      sql: { table: "m", columns: ["user_id"], scope: "team" },
-    };
+    const source = { sql: { table: "m", columns: ["user_id"], scope: "team" } };
     expect(
       sql(
         { op: "memberOf", scope: "team", field: "team_id", roles: [] },

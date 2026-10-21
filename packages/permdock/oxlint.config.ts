@@ -10,8 +10,8 @@ import {
 
 /**
  * An adapter family's runtime imports go through its kit and nothing else
- * outside its own folder: not core internals, not another adapter. Type
- * imports stay free, because they are erased.
+ * outside its own folder: not core internals, not another adapter. Type imports
+ * stay free, because they are erased.
  */
 function kitBoundary(
   family: string,
@@ -39,9 +39,7 @@ export default defineConfig({
   overrides: [
     {
       files: ["src/**/*.{ts,tsx}"],
-      rules: {
-        "typescript/no-generated-empty-object-type": "error",
-      },
+      rules: { "typescript/no-generated-empty-object-type": "error" },
     },
     {
       files: [

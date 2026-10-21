@@ -264,10 +264,7 @@ describe("shared custom roles", () => {
     const steward = getPermDockSync(
       policy,
       memberOf(["acme", ["steward"]], ["globex", ["steward"]]),
-      {
-        tenant: "acme",
-        customRoles: memoryCustomRoleSource([viewer, reader]),
-      },
+      { tenant: "acme", customRoles: memoryCustomRoleSource([viewer, reader]) },
     );
     const offered = steward.assignableRoles();
     expect(offered.map((leaf) => leaf.key)).toEqual([

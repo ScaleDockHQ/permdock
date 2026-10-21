@@ -1,7 +1,10 @@
 import type { GrantValidity } from "../../core/policy-types.ts";
 import type { CompiledBranch } from "./compile.ts";
 
-/** True when `sql` is one parenthesised expression, so AND / OR need not wrap it again. */
+/**
+ * True when `sql` is one parenthesised expression, so AND / OR need not wrap it
+ * again.
+ */
 function isWrapped(sql: string): boolean {
   if (!sql.startsWith("(") || !sql.endsWith(")")) {
     return false;
@@ -60,7 +63,10 @@ export function andSql(
   return present.length === 1 ? present[0] : present.map(wrapSql).join(" and ");
 }
 
-/** `USING` and `WITH CHECK` for a branch: its access check ANDed with its row conditions. */
+/**
+ * `USING` and `WITH CHECK` for a branch: its access check ANDed with its row
+ * conditions.
+ */
 export function branchClauses(branch: CompiledBranch): {
   readonly using?: string;
   readonly check?: string;

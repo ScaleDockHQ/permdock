@@ -45,7 +45,9 @@ async function causeOf(
   return result.ok ? "ok" : result.cause;
 }
 
-async function ed25519(kid: string): Promise<{
+async function ed25519(
+  kid: string,
+): Promise<{
   readonly privateJwk: Record<string, unknown>;
   readonly publicJwk: Record<string, unknown>;
 }> {

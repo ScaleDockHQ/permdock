@@ -54,10 +54,7 @@ const policy = definePolicy(permissions, {
     }),
   ],
   grants: [
-    allow(drive.read, {
-      to: relation(drive, "viewer"),
-      requires: file.read,
-    }),
+    allow(drive.read, { to: relation(drive, "viewer"), requires: file.read }),
   ],
   subject: (user: User) => ({
     id: user.id,
@@ -90,10 +87,7 @@ const customRoles = {
 };
 
 async function readable(user: User): Promise<readonly string[]> {
-  const permdock = getPermDockSync(policy, user, {
-    relations,
-    customRoles,
-  });
+  const permdock = getPermDockSync(policy, user, { relations, customRoles });
   await permdock.prefetchRelations(drive.read, drives);
   return drives
     .filter((row) => permdock.can(drive.read, row))
@@ -249,9 +243,7 @@ describe("requires with a list of permissions", () => {
     },
   });
   const readableBy = async (user: User): Promise<readonly string[]> => {
-    const permdock = getPermDockSync(listPolicy, user, {
-      relations: shares,
-    });
+    const permdock = getPermDockSync(listPolicy, user, { relations: shares });
     await permdock.prefetchRelations(listed.drive.read, drives);
     return drives
       .filter((row) => permdock.can(listed.drive.read, row))
@@ -332,10 +324,7 @@ describe("requires and a delegated key's scopes", () => {
       role("driveAdmin", [allow(drive.read)], { on: "tenant" }),
     ],
     grants: [
-      allow(drive.read, {
-        to: relation(drive, "viewer"),
-        requires: file.read,
-      }),
+      allow(drive.read, { to: relation(drive, "viewer"), requires: file.read }),
     ],
     subject: () => null,
   });

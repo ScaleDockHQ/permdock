@@ -1,15 +1,18 @@
 import { readPath } from "./paths.ts";
 
-/** Where a value lives in verified claims: a dotted path (`app_metadata.roles`), or a function over the claims. */
+/**
+ * Where a value lives in verified claims: a dotted path (`app_metadata.roles`),
+ * or a function over the claims.
+ */
 export type ClaimPath =
   | string
   | ((claims: Readonly<Record<string, unknown>>) => unknown);
 
 /**
- * How one provider's verified claims map to a principal. Every subject
- * provider takes it as `claims`; each field it leaves out keeps that
- * provider's default. Mapping only: core never verifies a token, and a claim
- * becomes a principal field only after the provider verified the token.
+ * How one provider's verified claims map to a principal. Every subject provider
+ * takes it as `claims`; each field it leaves out keeps that provider's default.
+ * Mapping only: core never verifies a token, and a claim becomes a principal
+ * field only after the provider verified the token.
  */
 export type ClaimsMap = {
   readonly id?: ClaimPath;
@@ -35,7 +38,10 @@ export type ClaimsMap = {
   readonly session?: ClaimPath;
 };
 
-/** The value at `path`; a function that throws reads as absent, so a bad mapping fails closed. */
+/**
+ * The value at `path`; a function that throws reads as absent, so a bad mapping
+ * fails closed.
+ */
 export function readClaim(
   claims: Readonly<Record<string, unknown>>,
   path: ClaimPath,

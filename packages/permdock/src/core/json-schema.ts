@@ -4,10 +4,10 @@ import { isRecord } from "./compact.ts";
 import { isForbiddenKey } from "./paths.ts";
 
 /**
- * The JSON Schema 2020-12 keywords the package's own schemas use;
- * `checkSchema` interprets exactly these. `$ref` resolves only `#/$defs/<name>`
- * against the root node. Annotations (`title`, `description`, `format`) are
- * ignored, so a `format` always sits next to a `pattern` that enforces it.
+ * The JSON Schema 2020-12 keywords the package's own schemas use; `checkSchema`
+ * interprets exactly these. `$ref` resolves only `#/$defs/<name>` against the
+ * root node. Annotations (`title`, `description`, `format`) are ignored, so a
+ * `format` always sits next to a `pattern` that enforces it.
  */
 export type JsonSchemaNode = {
   readonly $schema?: string;
@@ -158,7 +158,10 @@ function resolveRef(root: JsonSchemaNode, ref: string): JsonSchemaNode {
   return target;
 }
 
-/** Validates a `copyJson` result against `node`, reading `$ref` targets from `root`. */
+/**
+ * Validates a `copyJson` result against `node`, reading `$ref` targets from
+ * `root`.
+ */
 export function checkSchema(
   node: JsonSchemaNode,
   value: unknown,
@@ -307,7 +310,10 @@ export function checkSchema(
   }
 }
 
-/** The path of the first `__proto__`, `constructor` or `prototype` key in `value`, if any. */
+/**
+ * The path of the first `__proto__`, `constructor` or `prototype` key in
+ * `value`, if any.
+ */
 export function forbiddenKeyPath(
   value: unknown,
   path: Path = [],

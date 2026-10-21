@@ -22,7 +22,10 @@ export type RiscEventName =
 
 export type SsfEventName = CaepEventName | RiscEventName;
 
-/** An SSF 1.0 stream `verification` event: the `state` the receiver asked the transmitter to echo. */
+/**
+ * An SSF 1.0 stream `verification` event: the `state` the receiver asked the
+ * transmitter to echo.
+ */
 export type SsfVerification = {
   readonly state?: string;
   readonly jti: string;
@@ -64,7 +67,10 @@ export type SsfOnEvent = {
   readonly [K in SsfEventName]?: SsfEventHandler;
 } & {
   readonly "*"?: SsfEventHandler;
-  /** SSF 1.0 section 8.1.4.1 stream verification; it names a stream, never a subject. */
+  /**
+   * SSF 1.0 section 8.1.4.1 stream verification; it names a stream, never a
+   * subject.
+   */
   readonly verification?: (input: SsfVerification) => void | Promise<void>;
 };
 
@@ -108,13 +114,9 @@ export type PollOptions = {
   readonly signal?: AbortSignal;
 };
 
-export type PollHandle = {
-  readonly stop: () => void;
-};
+export type PollHandle = { readonly stop: () => void };
 
-export type PollResult = {
-  readonly acked: readonly string[];
-};
+export type PollResult = { readonly acked: readonly string[] };
 
 export type SsfPermDockOptions = {
   readonly issuer?: string;
@@ -134,9 +136,9 @@ export type SsfPermDockOptions = {
   readonly revocations?: RevocationFeed;
   readonly clockTolerance?: number;
   /**
-   * Seconds a SET without `exp` is accepted after its `iat`; default one
-   * day. The replay record is kept at least that long, so a replayed SET
-   * is refused for as long as its signature would verify.
+   * Seconds a SET without `exp` is accepted after its `iat`; default one day.
+   * The replay record is kept at least that long, so a replayed SET is refused
+   * for as long as its signature would verify.
    */
   readonly maxTokenAge?: number;
 };
@@ -148,11 +150,12 @@ export type SsfReceiver = {
   on(event: "event", handler: SsfEventListener): () => void;
 };
 
-export type SsfPermDock = {
-  readonly receiver: SsfReceiver;
-};
+export type SsfPermDock = { readonly receiver: SsfReceiver };
 
-/** One event of a SET: the event-type URI, the RFC 9493 subject and the event's own claims. */
+/**
+ * One event of a SET: the event-type URI, the RFC 9493 subject and the event's
+ * own claims.
+ */
 export type SetEvent = {
   readonly type: string;
   readonly subject: SetSubject;
@@ -186,7 +189,10 @@ export type SignSetOptions = {
   readonly issuedAt?: number;
 };
 
-/** Why `pushSet` did not deliver: the RFC 8935 `err` code in kebab case, or a transport failure. */
+/**
+ * Why `pushSet` did not deliver: the RFC 8935 `err` code in kebab case, or a
+ * transport failure.
+ */
 export type SetDeliveryFailureCause =
   | "invalid-request"
   | "invalid-key"
@@ -202,24 +208,30 @@ export type SetDelivery =
       readonly ok: false;
       readonly cause: SetDeliveryFailureCause;
       readonly description?: string;
-      /** `true` when the same SET may be pushed again: a network failure, a timeout or a `5xx`. */
+      /**
+       * `true` when the same SET may be pushed again: a network failure, a
+       * timeout or a `5xx`.
+       */
       readonly retry: boolean;
     };
 
 export type PushSetOptions = {
-  /** The receiver's RFC 8935 push endpoint, the stream's `delivery.endpoint_url`. */
+  /**
+   * The receiver's RFC 8935 push endpoint, the stream's
+   * `delivery.endpoint_url`.
+   */
   readonly endpoint: string;
-  /** The `Authorization` header value, the stream's `delivery.authorization_header`. */
+  /**
+   * The `Authorization` header value, the stream's
+   * `delivery.authorization_header`.
+   */
   readonly authorization?: string;
   readonly fetch?: typeof fetch;
   readonly signal?: AbortSignal;
 };
 
 /** A receiver's report that one SET failed (RFC 8936 section 2.4 `setErrs`). */
-export type SetError = {
-  readonly err: string;
-  readonly description: string;
-};
+export type SetError = { readonly err: string; readonly description: string };
 
 /**
  * The SETs a transmitter holds for RFC 8936 poll delivery, per stream. A SET
@@ -242,7 +254,10 @@ export type SetQueue = {
 
 export type SetPollHandlerOptions = {
   readonly queue: SetQueue;
-  /** The stream id the request's credentials may poll, or `null` to refuse it with `401`. */
+  /**
+   * The stream id the request's credentials may poll, or `null` to refuse it
+   * with `401`.
+   */
   readonly authorize: (
     request: Request,
   ) => string | null | Promise<string | null>;

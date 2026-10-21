@@ -27,7 +27,10 @@ export type CliContext = {
   readonly color: boolean;
   /** Styling for stderr, which takes colour on its own terms. */
   readonly errStyle: Style;
-  /** A person at a terminal, not an agent, not `--json`, not `--yes`: a leaf may prompt. */
+  /**
+   * A person at a terminal, not an agent, not `--json`, not `--yes`: a leaf may
+   * prompt.
+   */
   readonly interactive: boolean;
   /** An AI agent runs the CLI: no prompts, no login flow. */
   readonly agent: boolean;

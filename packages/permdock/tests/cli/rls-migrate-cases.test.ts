@@ -265,9 +265,7 @@ describe("runRlsMigrate skips", () => {
   it("skips the global form when permdock_has is not generated", async () => {
     const { report } = await migrate(
       `create policy p on t using (is_admin('doc.read'));`,
-      {
-        target: target({ sql: "" }),
-      },
+      { target: target({ sql: "" }) },
     );
     expect(reasons(report)).toEqual([
       ["missing-helper", "rls generate writes no permdock_has"],

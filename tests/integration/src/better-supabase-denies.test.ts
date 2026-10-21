@@ -17,7 +17,10 @@ import { ask, askAs } from "./support/pglite.ts";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/permission-denies");
 
-/** The inline SQL a policy carries; `"provider"` and a missing value fail the test. */
+/**
+ * The inline SQL a policy carries; `"provider"` and a missing value fail the
+ * test.
+ */
 function inlineSql<T>(sql: T | "provider" | undefined): T {
   if (sql === undefined || sql === "provider") {
     throw new Error("expected the policy to carry inline SQL");

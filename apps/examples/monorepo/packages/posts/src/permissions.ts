@@ -17,7 +17,4 @@ export const postPermissions = definePermissions({
   }),
 });
 
-export const postRoleVocab = defineRoles({
-  member: {},
-  admin: {},
-});
+export const postRoleVocab = defineRoles({ member: {}, admin: {} });

@@ -19,8 +19,8 @@ const TREE_X_SCHEMA: unique symbol = Symbol.for("permdock.x-schema");
 export type VocabularyOptions<X = never> = {
   /**
    * A Standard Schema for every leaf's `meta.x`, validated synchronously at
-   * definition time. On a role tree it also checks the `meta.x` of custom
-   * roles a `CustomRoleSource` returns; an invalid one is dropped, not the role.
+   * definition time. On a role tree it also checks the `meta.x` of custom roles
+   * a `CustomRoleSource` returns; an invalid one is dropped, not the role.
    */
   readonly x?: AppDataSchema<X>;
 };
@@ -30,9 +30,7 @@ export type VocabularyOptions<X = never> = {
  * `'portal'`, `'platform'`); `permdock.audiences()` lists the distinct
  * audiences of the roles held in the active scope.
  */
-export type RoleMeta = ActionMeta & {
-  readonly audience?: string;
-};
+export type RoleMeta = ActionMeta & { readonly audience?: string };
 
 export type Role<K extends string = string> = {
   readonly key: K;
@@ -40,7 +38,10 @@ export type Role<K extends string = string> = {
   readonly on?: string;
   readonly assignable: boolean;
   readonly meta: RoleMeta;
-  /** A shared custom role: the platform defines it for every tenant, and a tenant admin cannot edit it. */
+  /**
+   * A shared custom role: the platform defines it for every tenant, and a
+   * tenant admin cannot edit it.
+   */
   readonly shared?: true;
   readonly kind: typeof ROLE_KIND;
 };
@@ -58,17 +59,11 @@ export type RoleInit = {
   readonly meta?: RoleMeta;
 };
 
-export type PlanInit = {
-  readonly meta?: ActionMeta;
-};
+export type PlanInit = { readonly meta?: ActionMeta };
 
-export type RoleTree = {
-  readonly [key: string]: Role;
-};
+export type RoleTree = { readonly [key: string]: Role };
 
-export type PlanTree = {
-  readonly [key: string]: Plan;
-};
+export type PlanTree = { readonly [key: string]: Plan };
 
 export type Vocabulary = {
   readonly permissions?: unknown;

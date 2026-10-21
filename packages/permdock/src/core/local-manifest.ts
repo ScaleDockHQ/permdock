@@ -18,7 +18,10 @@ import { rankRoles, usesAssigns } from "./role-rank.ts";
 import { scopeList } from "./scopes.ts";
 import { buildSnapshot, snapshotGrant } from "./snapshot.ts";
 
-/** A relation grantee needs the relation graph, which a device does not hold: the grant decides on the server only. */
+/**
+ * A relation grantee needs the relation graph, which a device does not hold:
+ * the grant decides on the server only.
+ */
 function localGrant(grant: Grant): SnapshotGrant {
   const relational = flattenGrantee(grant.to).some(
     (item) => item.kind === "relation",

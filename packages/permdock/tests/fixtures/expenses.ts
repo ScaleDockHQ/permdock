@@ -25,9 +25,7 @@ const managerThenApprover = {
   mode: "sequential",
   stages: [
     { by: relation(permissions.expense, "manager") },
-    {
-      by: relation(permissions.report, "approver", { through: ["report"] }),
-    },
+    { by: relation(permissions.report, "approver", { through: ["report"] }) },
   ],
 } as const;
 
@@ -55,13 +53,7 @@ export const policy = definePolicy(permissions, {
 
 export const rows = {
   expense: [
-    {
-      id: "e1",
-      orgId: "o1",
-      managerId: "mia",
-      reportId: "r1",
-      amount: 5000,
-    },
+    { id: "e1", orgId: "o1", managerId: "mia", reportId: "r1", amount: 5000 },
     { id: "e2", orgId: "o1", managerId: "mia", reportId: "r1", amount: 10 },
   ],
   report: [{ id: "r1", approverId: "rob" }],

@@ -55,7 +55,10 @@ create schema pd_db;
 grant usage on schema pd_db to authenticated;
 `;
 
-/** An extra claim another package owns: one entry per organization the user is a member of. */
+/**
+ * An extra claim another package owns: one entry per organization the user is a
+ * member of.
+ */
 const FEATURE_CLAIMS = `
 create schema billing;
 create function billing.feature_claims(uid uuid) returns jsonb language sql stable as $$
@@ -168,10 +171,7 @@ describe("member_<scope>_ids_for against Postgres", () => {
     const tester = db.tester;
     for (const user of USERS) {
       const own = await db.as(
-        {
-          role: "authenticated",
-          settings: jwtClaims(user),
-        },
+        { role: "authenticated", settings: jwtClaims(user) },
         async () =>
           (
             await tester.query<{ id: string }>(

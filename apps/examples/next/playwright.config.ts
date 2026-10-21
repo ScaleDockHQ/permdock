@@ -2,7 +2,10 @@ import { defineConfig } from "@playwright/test";
 
 import { origin as baseURL, port } from "./tests/instant/origin.ts";
 
-/** `instant()` needs a production build compiled with the testing API; `next dev` gives no verdict. */
+/**
+ * `instant()` needs a production build compiled with the testing API; `next
+ * dev` gives no verdict.
+ */
 export default defineConfig({
   testDir: "tests/instant",
   testMatch: "*.instant.ts",

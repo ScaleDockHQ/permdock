@@ -361,10 +361,7 @@ export async function runDoctor(input: {
   }
   const fixed: string[] = [];
   if (input.fix) {
-    const skills = runSkillsInstall({
-      cwd: input.cwd,
-      agents: [],
-    });
+    const skills = runSkillsInstall({ cwd: input.cwd, agents: [] });
     fixed.push(`skills: ${skills.output}`);
     const collected = await runCollect({
       cwd: input.cwd,
@@ -415,7 +412,10 @@ export async function runDoctor(input: {
   };
 }
 
-/** PD059: the configured policy module throws or exports no policy, so every policy check is skipped. */
+/**
+ * PD059: the configured policy module throws or exports no policy, so every
+ * policy check is skipped.
+ */
 async function pd059(project: Project): Promise<readonly DoctorFinding[]> {
   const load = await project.policyLoad();
   if (load.status !== "failed") {
@@ -431,7 +431,10 @@ async function pd059(project: Project): Promise<readonly DoctorFinding[]> {
   ];
 }
 
-/** PD060: a source file under srcPath has a syntax error, so collect and usage miss what it references. */
+/**
+ * PD060: a source file under srcPath has a syntax error, so collect and usage
+ * miss what it references.
+ */
 async function pd060(project: Project): Promise<readonly DoctorFinding[]> {
   const collected = await project.collected();
   return (collected.scan?.unparsed ?? []).map((item) => ({
@@ -442,7 +445,10 @@ async function pd060(project: Project): Promise<readonly DoctorFinding[]> {
   }));
 }
 
-/** A usage message for the first `--only` value that names no check code or group. */
+/**
+ * A usage message for the first `--only` value that names no check code or
+ * group.
+ */
 function unknownOnly(wanted: ReadonlySet<string>): string | undefined {
   const known = new Set<string>();
   for (const check of DOCTOR_CHECKS) {

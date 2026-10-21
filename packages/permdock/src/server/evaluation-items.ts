@@ -27,10 +27,10 @@ function firstWins(
 }
 
 /**
- * Indexes `tree` once. The lookup tries `action` as a permission key or
- * scope, then `<resource.type>.<action>`, then the leaf with that resource
- * and action; current names win over former ones and earlier leaves over
- * later ones. Anything else is `undefined`, which the caller denies.
+ * Indexes `tree` once. The lookup tries `action` as a permission key or scope,
+ * then `<resource.type>.<action>`, then the leaf with that resource and action;
+ * current names win over former ones and earlier leaves over later ones.
+ * Anything else is `undefined`, which the caller denies.
  */
 export function permissionLookup(tree: PermissionTree): PermissionLookup {
   const current = new Map<string, Permission>();
@@ -65,7 +65,10 @@ export function permissionLookup(tree: PermissionTree): PermissionLookup {
 /** AuthZEN's sentinel resource id for a collection: the type as a whole, no row. */
 const COLLECTION_ID = "*";
 
-/** A resource id as a row id: `undefined` for none, a non-scalar or the collection sentinel `*`. */
+/**
+ * A resource id as a row id: `undefined` for none, a non-scalar or the
+ * collection sentinel `*`.
+ */
 export function wireResourceId(id: unknown): string | undefined {
   if (typeof id !== "string" && typeof id !== "number") {
     return undefined;
@@ -74,7 +77,10 @@ export function wireResourceId(id: unknown): string | undefined {
   return text === COLLECTION_ID ? undefined : text;
 }
 
-/** The row an item's resource describes: its `properties`, else `{ id }`, else none for `id: "*"`. */
+/**
+ * The row an item's resource describes: its `properties`, else `{ id }`, else
+ * none for `id: "*"`.
+ */
 export function itemResourceData(
   resource: EvaluationResource | undefined,
 ): unknown {

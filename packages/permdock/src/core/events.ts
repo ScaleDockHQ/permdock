@@ -71,7 +71,10 @@ export type EvalEnv = {
   readonly customGrants: readonly CustomGrant[];
   readonly listeners: ListenerMap;
   readonly sink: DecisionSink | undefined;
-  /** The `limits()` feature; without it a grant with a `limit` denies with `limit-unavailable`. */
+  /**
+   * The `limits()` feature; without it a grant with a `limit` denies with
+   * `limit-unavailable`.
+   */
   readonly limits: Limits | undefined;
   readonly limitCache: Map<string, number>;
   readonly team: string | undefined;
@@ -98,7 +101,10 @@ function credentialRef(
     : undefined;
 }
 
-/** `context.supportSession` counts only next to the `support` actor `subjectFromSupportSession` sets. */
+/**
+ * `context.supportSession` counts only next to the `support` actor
+ * `subjectFromSupportSession` sets.
+ */
 function supportSessionRef(
   subject: Subject,
 ): DecisionEvent["subject"]["supportSession"] {

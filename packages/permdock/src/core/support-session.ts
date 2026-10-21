@@ -16,10 +16,10 @@ import { sha256Digest } from "./sha256.ts";
 import { isRfc3339, nowSeconds, rfc3339, secondsOf } from "./time.ts";
 
 /**
- * SupportSession v1: a support staff member (`actor`, kind `support`)
- * viewing the app as `principal` in `tenant`, for a stated `reason`. Each
- * request in the session acts as `principal` with their live rights,
- * narrowed to `permissions`.
+ * SupportSession v1: a support staff member (`actor`, kind `support`) viewing
+ * the app as `principal` in `tenant`, for a stated `reason`. Each request in
+ * the session acts as `principal` with their live rights, narrowed to
+ * `permissions`.
  */
 export type SupportSession = {
   readonly v: 1;
@@ -84,7 +84,10 @@ export type DecideSupportSessionOptions = {
   readonly approval?: boolean;
   /** The `token` of an approval the application consumed for this request. */
   readonly approved?: string;
-  /** The principal id that approved; required with `approved` and never the actor. */
+  /**
+   * The principal id that approved; required with `approved` and never the
+   * actor.
+   */
   readonly approvedBy?: string;
   /** The start time; defaults to the clock. */
   readonly now?: Instant;
@@ -103,8 +106,8 @@ function isReason(value: unknown): value is string {
 }
 
 /**
- * Validates an untrusted support-session record and returns a frozen copy
- * with only the v1 fields, or `undefined`.
+ * Validates an untrusted support-session record and returns a frozen copy with
+ * only the v1 fields, or `undefined`.
  */
 export function parseSupportSession(
   input: unknown,
@@ -186,21 +189,21 @@ function sessionToken(
 }
 
 /**
- * Decides whether the subject of `permdock` may start the support session
- * in `request`. The actor must be a signed-in person acting for themselves
+ * Decides whether the subject of `permdock` may start the support session in
+ * `request`. The actor must be a signed-in person acting for themselves
  * (`exceeds-creator` otherwise), give a `reason` (`reason-required`), be a
- * member of the tenant (`tenant-mismatch`) and be able to use every
- * permission (`exceeds-creator`). Without `permissions` the session gets the
- * actor's read-only permissions. The tenant's `supportSessions` policy then
- * applies, and the result is `approval-required` until `approved` carries
- * its token and `approvedBy` names someone other than the actor.
+ * member of the tenant (`tenant-mismatch`) and be able to use every permission
+ * (`exceeds-creator`). Without `permissions` the session gets the actor's
+ * read-only permissions. The tenant's `supportSessions` policy then applies,
+ * and the result is `approval-required` until `approved` carries its token and
+ * `approvedBy` names someone other than the actor.
  */
 /**
- * Decides whether the subject of `permdock` may start the support session
- * in `request` and returns the record to sign: a stated reason, membership
- * of the tenant, the actor's own reach, the tenant's `supportSessions`
- * policy and approval by someone else. An instance built from a snapshot
- * denies with `unsupported`.
+ * Decides whether the subject of `permdock` may start the support session in
+ * `request` and returns the record to sign: a stated reason, membership of the
+ * tenant, the actor's own reach, the tenant's `supportSessions` policy and
+ * approval by someone else. An instance built from a snapshot denies with
+ * `unsupported`.
  */
 export function decideSupportSession(
   permdock: InstanceHandle,

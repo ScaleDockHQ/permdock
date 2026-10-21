@@ -80,7 +80,10 @@ type MapContext = {
   readonly seeds: readonly RolePermission[];
 };
 
-/** A call to one of the generated RLS helpers (`permdock_has`, `permitted_<scope>_ids`), in either policy shape. */
+/**
+ * A call to one of the generated RLS helpers (`permdock_has`,
+ * `permitted_<scope>_ids`), in either policy shape.
+ */
 export type HelperCall = {
   readonly scope: HelperScope;
   readonly key: string;
@@ -141,7 +144,10 @@ function helperCall(value: unknown): HelperCall | undefined {
 
 const MEMBER = /^member_([a-z][a-z0-9_]*)_ids$/u;
 
-/** `col in (select member_<scope>_ids())`: any live membership of the row's instance. */
+/**
+ * `col in (select member_<scope>_ids())`: any live membership of the row's
+ * instance.
+ */
 function memberCall(
   value: unknown,
 ): { readonly scope: string; readonly column: string } | undefined {
@@ -207,7 +213,10 @@ function helperCondition(
   };
 }
 
-/** One role-gated branch of an imported policy: which roles, at which scope, under which row condition. */
+/**
+ * One role-gated branch of an imported policy: which roles, at which scope,
+ * under which row condition.
+ */
 export type ImportedGrant = {
   readonly key: string;
   readonly permission: string;
@@ -235,8 +244,8 @@ function helperCalls(conjunct: unknown): readonly HelperCall[] | undefined {
 /**
  * The role structure of a policy that calls the helpers: each OR branch's
  * helper calls become grants (roles from the `role_permissions` seeds), the
- * branch's other conjuncts become their `where`. Restrictive policies are
- * read through their outer `not`.
+ * branch's other conjuncts become their `where`. Restrictive policies are read
+ * through their outer `not`.
  */
 export async function helperGrants(
   sql: string | undefined,
@@ -416,12 +425,7 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
         .map((arg) => argFromNode(arg))
         .filter((item): item is SqlFunctionArg => item !== undefined);
     // SAFETY: twin comes from the project's own rls.functions config, which documents it as a Condition.
-    return {
-      op: "sqlFunction",
-      name,
-      args,
-      twin: mapping.twin as Condition,
-    };
+    return { op: "sqlFunction", name, args, twin: mapping.twin as Condition };
   }
   const op = operatorName(node);
   const expr = asNode(node["A_Expr"]);

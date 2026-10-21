@@ -33,9 +33,7 @@ const policy = definePolicy(permissions, {
     role(
       "guest",
       [allow(permissions.quote.read, { where: { status: "sent" } })],
-      {
-        on: permissions.quote,
-      },
+      { on: permissions.quote },
     ),
     role("commenter", [allow(permissions.file.read)], {
       on: permissions.folder,
@@ -185,11 +183,7 @@ describe("rls generate with resource roles that set for", () => {
           folder: members(via),
         },
       },
-      ownership: {
-        kinds: { commenter: ["staff"] },
-        assigns: [],
-        counted: [],
-      },
+      ownership: { kinds: { commenter: ["staff"] }, assigns: [], counted: [] },
     }).policies.find((item) => item.name === "file_select")?.using;
 
   it("checks the membership kind column", () => {
@@ -212,11 +206,7 @@ describe("rls generate with resource roles that set for", () => {
           folder: members("via"),
         },
       },
-      ownership: {
-        kinds: { commenter: ["staff"] },
-        assigns: [],
-        counted: [],
-      },
+      ownership: { kinds: { commenter: ["staff"] }, assigns: [], counted: [] },
     }).policies.find((item) => item.name === "quote_select")?.using;
     expect(quote).toContain("quote_members");
     expect(quote).not.toContain("coalesce");

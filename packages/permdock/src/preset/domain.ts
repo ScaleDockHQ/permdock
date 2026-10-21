@@ -27,7 +27,10 @@ export type GrantSpec = {
 export type RoleSpec = {
   readonly name: string;
   readonly grants: readonly GrantSpec[];
-  /** The top role of an organisation: holds everything, at least one per organisation. */
+  /**
+   * The top role of an organisation: holds everything, at least one per
+   * organisation.
+   */
   readonly top?: true;
   /** Roles this one may hand out, when organisations are on. */
   readonly assigns?: readonly string[];
@@ -244,11 +247,7 @@ export const DOMAINS: Readonly<Record<ArchetypeId, DomainSpec>> = {
         actions: ["assign", "close"],
         owner: "ownerId",
       },
-      {
-        name: "report",
-        fields: { title: "z.string()" },
-        preset: "readable",
-      },
+      { name: "report", fields: { title: "z.string()" }, preset: "readable" },
     ],
     roles: [
       {

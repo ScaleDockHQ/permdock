@@ -30,10 +30,7 @@ async function asUser(
 ): Promise<readonly string[]> {
   return visibleIds(
     db,
-    {
-      role: "authenticated",
-      settings: jwtClaims(user),
-    },
+    { role: "authenticated", settings: jwtClaims(user) },
     sql,
   );
 }

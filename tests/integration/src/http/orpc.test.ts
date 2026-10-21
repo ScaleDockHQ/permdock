@@ -29,10 +29,7 @@ const STATUS: Readonly<Record<string, number>> = {
 const Org = z.object({ org: z.string() });
 const Row = Org.extend({ id: z.string() });
 
-const ok = (status: number, body: unknown): HttpResult => ({
-  status,
-  body,
-});
+const ok = (status: number, body: unknown): HttpResult => ({ status, body });
 
 testHttpAdapter({
   name: "permdock/orpc over RPCHandler with BatchLinkPlugin",
@@ -79,9 +76,7 @@ testHttpAdapter({
               p.project.create,
               // SAFETY: this procedure's input schema is an object with a `body` field
               (opts) => (opts.input as { readonly body?: unknown }).body,
-              {
-                trusted: false,
-              },
+              { trusted: false },
             ),
           )
           .handler(({ context }) => context.permdockData),

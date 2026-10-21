@@ -13,10 +13,7 @@ import {
 } from "../../src/index.ts";
 import { testRlsParity } from "../../src/testing/rls-parity.ts";
 
-const Post = z.object({
-  id: z.string(),
-  authorId: z.string(),
-});
+const Post = z.object({ id: z.string(), authorId: z.string() });
 
 const permissions = definePermissions({
   post: resource(Post, {

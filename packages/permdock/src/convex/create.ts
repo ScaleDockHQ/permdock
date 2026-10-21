@@ -19,7 +19,10 @@ import {
   PermDockValidationError,
 } from "../core/errors.ts";
 
-/** Convex's runtime sends `data` to the client only for an error carrying this symbol. */
+/**
+ * Convex's runtime sends `data` to the client only for an error carrying this
+ * symbol.
+ */
 const CONVEX_ERROR = Symbol.for("ConvexError");
 
 export class ConvexError extends Error {

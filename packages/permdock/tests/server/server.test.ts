@@ -61,9 +61,7 @@ describe("permdock/server", () => {
   });
 
   it("protects a granted instance action and 404s a missing row", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => memberUser,
-    });
+    const { protect } = createPermDock(policy, { subject: () => memberUser });
     const granted = await protect(
       permissions.post.update,
       () => ownPost,
@@ -85,9 +83,7 @@ describe("permdock/server", () => {
   });
 
   it("returns Problem Details with WWW-Authenticate on a deny", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => memberUser,
-    });
+    const { protect } = createPermDock(policy, { subject: () => memberUser });
     const denied = await protect(
       permissions.post.update,
       () => otherPost,
@@ -110,9 +106,7 @@ describe("permdock/server", () => {
   });
 
   it("answers 401 with a bare Bearer challenge to a caller without credentials", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => null,
-    });
+    const { protect } = createPermDock(policy, { subject: () => null });
     const denied = await protect(
       permissions.post.read,
       () => ownPost,
@@ -236,10 +230,7 @@ describe("permdock/server", () => {
     const store = memoryApprovalStore();
     const { getPermDock: permdockFor, permdockHandler } = createPermDock(
       policy,
-      {
-        subject: () => memberUser,
-        store,
-      },
+      { subject: () => memberUser, store },
     );
     const permdock = await permdockFor(request());
     const required = permdock.decide(permissions.post.delete, ownPost);
@@ -326,9 +317,7 @@ describe("permdock/server", () => {
 
 describe("permdock/server protect", () => {
   it("validates a loader unless it is marked trusted", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => adminUser,
-    });
+    const { protect } = createPermDock(policy, { subject: () => adminUser });
     const forged = { id: "p2", authorId: "u9", orgId: "o1" };
     const trusted = await protect(permissions.post.publish, () => forged, {
       trusted: true,

@@ -11,7 +11,10 @@ const POLL_TIMEOUT_MS = 30_000;
 const MAX_SETS_BYTES = 4_194_304;
 
 export type PollSetsOptions = {
-  /** The transmitter's RFC 8936 poll endpoint, the stream's `delivery.endpoint_url`. */
+  /**
+   * The transmitter's RFC 8936 poll endpoint, the stream's
+   * `delivery.endpoint_url`.
+   */
   readonly endpoint: string;
   /** The `Authorization` header value. */
   readonly authorization?: string;
@@ -27,11 +30,11 @@ export type PollSetsOptions = {
   readonly signal?: AbortSignal;
 };
 
-/** One SET from a poll response: its `jti` and the compact JWS, not yet verified. */
-export type PolledSet = {
-  readonly jti: string;
-  readonly set: string;
-};
+/**
+ * One SET from a poll response: its `jti` and the compact JWS, not yet
+ * verified.
+ */
+export type PolledSet = { readonly jti: string; readonly set: string };
 
 export type PollSetsResult =
   | {

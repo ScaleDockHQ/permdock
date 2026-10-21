@@ -46,7 +46,10 @@ export type PermDockProviderProps = ProviderOptionsBase & {
     | PromiseLike<Snapshot | string>;
   /** A change switches the active tenant (`refresh({ tenant })`). */
   readonly tenant?: string;
-  /** Read on every request, with `verifier`, so a rotated token applies without a new store. */
+  /**
+   * Read on every request, with `verifier`, so a rotated token applies without
+   * a new store.
+   */
   readonly headers?: Readonly<Record<string, string>>;
   readonly verifier?: TokenVerifier;
   /** What every `<Protected>` below renders for a slot it leaves out. */

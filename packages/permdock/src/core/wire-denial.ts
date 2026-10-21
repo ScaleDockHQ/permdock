@@ -11,9 +11,9 @@ import { compact } from "./compact.ts";
 
 /**
  * A denial as it leaves the process: in a decision event, a Problem Details
- * body, an MCP or WebMCP refusal and the decision endpoint. `detail` is a
- * JSON value (a string, or `LimitDetail` on `limit`); what a closure threw
- * and a validation error stay in process.
+ * body, an MCP or WebMCP refusal and the decision endpoint. `detail` is a JSON
+ * value (a string, or `LimitDetail` on `limit`); what a closure threw and a
+ * validation error stay in process.
  */
 export type WireDenial = {
   readonly role: string | null;
@@ -22,7 +22,10 @@ export type WireDenial = {
   readonly detail?: unknown;
 };
 
-/** A `Decision` whose denials are `WireDenial`s, as the decision endpoint sends it. */
+/**
+ * A `Decision` whose denials are `WireDenial`s, as the decision endpoint sends
+ * it.
+ */
 export type WireDecision =
   | GrantedDecision
   | ApprovalRequiredDecision

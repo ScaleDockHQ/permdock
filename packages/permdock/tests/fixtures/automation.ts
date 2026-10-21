@@ -13,10 +13,7 @@ import { role } from "../../src/core/role-builder.ts";
 const org = { organization: { field: "orgId", memberOf: "organization" } };
 
 export const permissions = definePermissions({
-  invoice: resource({
-    actions: ["read", "send", "delete"],
-    relations: org,
-  }),
+  invoice: resource({ actions: ["read", "send", "delete"], relations: org }),
   report: resource({ actions: ["run"], relations: org }),
 });
 

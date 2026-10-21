@@ -114,10 +114,9 @@ describe("principalFromMemberships", () => {
       false,
     );
     expect(
-      permdock.tenant("o3").can(permissions.project.read, {
-        id: "p3",
-        organization_id: "o3",
-      }),
+      permdock
+        .tenant("o3")
+        .can(permissions.project.read, { id: "p3", organization_id: "o3" }),
     ).toBe(false);
   });
 

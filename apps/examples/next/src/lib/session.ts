@@ -41,7 +41,10 @@ export async function sessionUserId(): Promise<string | null> {
   return verifySession((await cookies()).get(SESSION_COOKIE)?.value ?? null);
 }
 
-/** Memberships come from the store on every call, so a role change applies on the next render. */
+/**
+ * Memberships come from the store on every call, so a role change applies on
+ * the next render.
+ */
 export async function currentUser(): Promise<User | null> {
   const id = await sessionUserId();
   const person = people.find((item) => item.id === id) ?? null;

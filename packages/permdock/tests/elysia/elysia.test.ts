@@ -52,20 +52,22 @@ describe("permdock/elysia", () => {
     const { middleware, protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const app = new Elysia().use(middleware()).delete(
-      "/posts/:id",
-      (ctx) => ({
-        ok: true,
-        via: isElysiaPermDockContext(ctx)
-          ? ctx.permdock.subject.principal?.id
-          : undefined,
-      }),
-      {
-        beforeHandle: protect(permissions.post.update, ({ params }) =>
-          params?.["id"] === "p1" ? ownPost : otherPost,
-        ),
-      },
-    );
+    const app = new Elysia()
+      .use(middleware())
+      .delete(
+        "/posts/:id",
+        (ctx) => ({
+          ok: true,
+          via: isElysiaPermDockContext(ctx)
+            ? ctx.permdock.subject.principal?.id
+            : undefined,
+        }),
+        {
+          beforeHandle: protect(permissions.post.update, ({ params }) =>
+            params?.["id"] === "p1" ? ownPost : otherPost,
+          ),
+        },
+      );
 
     const allowed = await app.handle(
       new Request("http://localhost/posts/p1", { method: "DELETE" }),
@@ -83,9 +85,7 @@ describe("permdock/elysia", () => {
   });
 
   it("answers 401 with a bare Bearer challenge to a caller without credentials", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => null,
-    });
+    const { protect } = createPermDock(policy, { subject: () => null });
     const app = new Elysia().get("/posts/:id", () => ({ ok: true }), {
       beforeHandle: protect(permissions.post.read, () => ownPost),
     });

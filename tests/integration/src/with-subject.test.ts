@@ -83,9 +83,7 @@ describe("withSubject runs Drizzle, Kysely and Prisma under the generated RLS", 
     const out = join(dir, "workspace.sql");
     const generated = await run(
       ["rls", "generate", "--target", "sql", "--out", out],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);

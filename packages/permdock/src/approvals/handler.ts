@@ -41,18 +41,28 @@ export type ApprovalsHandlerOptions = {
   readonly subject: (
     request: Request,
   ) => Subject | null | undefined | Promise<Subject | null | undefined>;
-  /** Refuse the principal even on grants that set `approval: { distinct: false }`. */
+  /**
+   * Refuse the principal even on grants that set `approval: { distinct: false
+   * }`.
+   */
   readonly requireDistinctApprover?: boolean;
   readonly signer?: TokenSigner;
   readonly audience?: string | readonly string[];
-  /** Where `relation()` approvers are read, by the request's resource id; without it they match nobody. */
+  /**
+   * Where `relation()` approvers are read, by the request's resource id;
+   * without it they match nobody.
+   */
   readonly relations?: RelationSource;
-  /** The policy's permission tree, for `through` links and `includes` on relation approvers. */
+  /**
+   * The policy's permission tree, for `through` links and `includes` on
+   * relation approvers.
+   */
   readonly permissions?: PermissionTree;
   /**
    * The approver's own instance in the request's tenant, for
    * `holder(permission)` approvers (custom roles included when the instance
-   * reads a `CustomRoleSource`). Without it, or when it throws, they match nobody.
+   * reads a `CustomRoleSource`). Without it, or when it throws, they match
+   * nobody.
    */
   readonly permdockFor?: (
     approver: Subject,
@@ -65,8 +75,8 @@ export type ApprovalsHandlerOptions = {
    */
   readonly approvalDelegations?: ApprovalDelegationSource;
   /**
-   * Resolves a delegator's subject from their principal id. Server-side:
-   * never from the request body. A throw matches nobody.
+   * Resolves a delegator's subject from their principal id. Server-side: never
+   * from the request body. A throw matches nobody.
    */
   readonly subjectFor?: (
     principalId: string,
@@ -144,8 +154,8 @@ function decodeSegment(segment: string): string | undefined {
 }
 
 /**
- * The route the path names and the methods it allows. The handler mounts at
- * any prefix, so a path reads from its last segments; a path naming none is
+ * The route the path names and the methods it allows. The handler mounts at any
+ * prefix, so a path reads from its last segments; a path naming none is
  * `undefined` (`404`).
  */
 function parseRoute(
@@ -221,9 +231,7 @@ function signatureLink(url: URL): Record<string, string> {
     /\/(?:approve|reject)\/*$/u,
     "/signature",
   );
-  return {
-    Link: `<${target.href}>; rel="alternate"; type="application/jwt"`,
-  };
+  return { Link: `<${target.href}>; rel="alternate"; type="application/jwt"` };
 }
 
 async function resolveSubject(
@@ -269,7 +277,10 @@ async function factsFor(
   };
 }
 
-/** The caller as themselves, or the first delegation that makes them an approver. */
+/**
+ * The caller as themselves, or the first delegation that makes them an
+ * approver.
+ */
 async function actingApprover(
   request: ApprovalRequest,
   subject: Subject,
@@ -361,7 +372,10 @@ function canView(
   return mayResolve(request, subject, requireDistinct, options);
 }
 
-/** The requester and who answered: the signed approval carries the resume token, so only they read it. */
+/**
+ * The requester and who answered: the signed approval carries the resume token,
+ * so only they read it.
+ */
 function party(request: ApprovalRequest, principalId: string): boolean {
   return (
     request.subject.principal?.id === principalId ||
@@ -421,7 +435,10 @@ type NoteRead = {
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_NOTE_LENGTH = 2000;
 
-/** An unreadable body is no note; an oversized body or note is refused, never truncated. */
+/**
+ * An unreadable body is no note; an oversized body or note is refused, never
+ * truncated.
+ */
 async function readNote(request: Request): Promise<NoteRead> {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {

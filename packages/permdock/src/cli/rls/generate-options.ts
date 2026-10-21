@@ -17,7 +17,10 @@ export type RlsGenerateInput = {
   readonly dialect: RlsDialect;
   readonly out?: string;
   readonly from?: string;
-  /** `--project`: rebuild the policy with `policyFromCatalog` from the Cloud project's pushed catalog and policy. */
+  /**
+   * `--project`: rebuild the policy with `policyFromCatalog` from the Cloud
+   * project's pushed catalog and policy.
+   */
   readonly project?: string;
   /** The Cloud API base URL `project` is read from. */
   readonly url?: string;
@@ -38,11 +41,17 @@ export type RlsGenerateInput = {
   readonly capabilities?: boolean;
   readonly fields?: string;
   readonly revokeColumns?: boolean;
-  /** `--split helpers,seeds,policies,hook`: one file per part, `{part}` in `out` naming it. */
+  /**
+   * `--split helpers,seeds,policies,hook`: one file per part, `{part}` in `out`
+   * naming it.
+   */
   readonly split?: string;
   /** `--schemas`; default from `resolveSchemas`. */
   readonly schemas?: SupabaseSchemas;
-  /** migra only: the privileges `supabase db diff` drops go here (`-` prints them); needs the `helpers` or `hook` part. */
+  /**
+   * migra only: the privileges `supabase db diff` drops go here (`-` prints
+   * them); needs the `helpers` or `hook` part.
+   */
   readonly grantsOut?: string;
   /**
    * The `seeds` part goes here instead of `{part}` in `out` (`-` prints it), so
@@ -50,20 +59,32 @@ export type RlsGenerateInput = {
    * gets a new `<version>_permdock_seeds.sql` only when the rows changed.
    */
   readonly seedsOut?: string;
-  /** `--no-seeds`: the `seeds` part is not written; the project seeds `role_permissions` itself. */
+  /**
+   * `--no-seeds`: the `seeds` part is not written; the project seeds
+   * `role_permissions` itself.
+   */
   readonly noSeeds?: boolean;
   /**
-   * The `rls.customRoles.from` copy goes here (`-` prints it). A directory
-   * gets a new `<version>_permdock_backfill.sql` only when the copy changed.
+   * The `rls.customRoles.from` copy goes here (`-` prints it). A directory gets
+   * a new `<version>_permdock_backfill.sql` only when the copy changed.
    */
   readonly backfillOut?: string;
-  /** Only the helpers, their seeds and the scaffold: no table policies, for a project whose policies are hand-written. */
+  /**
+   * Only the helpers, their seeds and the scaffold: no table policies, for a
+   * project whose policies are hand-written.
+   */
   readonly helpersOnly?: boolean;
-  /** Legacy-named wrappers over the helpers, one per `rls.migrate.helpers` entry. */
+  /**
+   * Legacy-named wrappers over the helpers, one per `rls.migrate.helpers`
+   * entry.
+   */
   readonly shims?: boolean;
   /** `false` returns the SQL and its policies without touching `out`. */
   readonly write?: boolean;
-  /** `--db-url-stdin`: index suggestions leave out what the database already indexes or lacks. */
+  /**
+   * `--db-url-stdin`: index suggestions leave out what the database already
+   * indexes or lacks.
+   */
   readonly db?: string;
   readonly connect?: SqlConnect;
   readonly io: CliIo;
@@ -106,7 +127,10 @@ export function generateOptions(
   return { fieldsMode, revokeColumns };
 }
 
-/** Whether `--split` names `part`, which then leaves the helpers or the warnings. */
+/**
+ * Whether `--split` names `part`, which then leaves the helpers or the
+ * warnings.
+ */
 export function splitsPart(raw: string | undefined, part: SplitPart): boolean {
   const split = parseSplit(raw);
   return typeof split !== "string" && split?.includes(part) === true;

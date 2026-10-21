@@ -38,7 +38,8 @@ function isPermDock(value: unknown): value is PermDock {
 
 /**
  * `ctx.permdock` from an upstream `withPermDock()`. `withFeatureFlag` types its
- * `evaluate` context as `BaseContext`, so the contribution is read through a guard.
+ * `evaluate` context as `BaseContext`, so the contribution is read through a
+ * guard.
  */
 function permdockOf(ctx: BaseContext): PermDock | null {
   const value: unknown = Reflect.get(ctx, "permdock");

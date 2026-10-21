@@ -46,7 +46,10 @@ const EXTENSIONS: ReadonlySet<ProblemCode> = new Set([
   "write_failed",
 ]);
 
-/** Codes better-supabase adds after the pinned commit; each moves out of here once the pin includes it. */
+/**
+ * Codes better-supabase adds after the pinned commit; each moves out of here
+ * once the pin includes it.
+ */
 const PENDING_UPSTREAM: ReadonlySet<ProblemCode> = new Set<ProblemCode>();
 
 const shared = PROBLEM_CODES.filter((code) => upstreamCodes.has(code));
@@ -55,7 +58,10 @@ const ajv = new Ajv2020({ allErrors: true, strictRequired: false });
 ajv.addFormat("uri", true);
 const validate = ajv.compile(schema);
 
-/** The envelope with only the problem members better-supabase defines, so PermDock's extensions don't count. */
+/**
+ * The envelope with only the problem members better-supabase defines, so
+ * PermDock's extensions don't count.
+ */
 function upstreamShape(stdout: string): unknown {
   const parsed: unknown = JSON.parse(stdout);
   if (typeof parsed !== "object" || parsed === null) {

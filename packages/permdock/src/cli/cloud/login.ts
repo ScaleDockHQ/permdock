@@ -44,7 +44,10 @@ export type LoginInput = {
   readonly io: CliIo;
 };
 
-/** Opens `url` in the default browser; a failure leaves the printed URL to the user. */
+/**
+ * Opens `url` in the default browser; a failure leaves the printed URL to the
+ * user.
+ */
 function openBrowser(url: string): void {
   const [command, args] =
     process.platform === "darwin"
@@ -173,7 +176,10 @@ export type LogoutInput = {
   readonly io: CliIo;
 };
 
-/** Revokes the stored login (RFC 7009) and deletes it; a revocation failure still deletes it. */
+/**
+ * Revokes the stored login (RFC 7009) and deletes it; a revocation failure
+ * still deletes it.
+ */
 export async function runLogout(input: LogoutInput): Promise<CommandResult> {
   const issuer = cloudUrl(input.url, input.env);
   const runtime = cliRuntime(input.io, input.env);

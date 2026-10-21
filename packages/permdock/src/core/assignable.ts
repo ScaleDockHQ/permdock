@@ -62,18 +62,24 @@ function assignableCandidates(policy: Policy): readonly Role[] {
 export type Assignable = {
   readonly roles: readonly Role[];
   readonly permissions: readonly Permission[];
-  /** Per assignable permission key with levels, the levels the subject may hand out. */
+  /**
+   * Per assignable permission key with levels, the levels the subject may hand
+   * out.
+   */
   readonly levels: Readonly<Record<string, readonly string[]>>;
   /** A `meta.manageRoles` role or permission lifted the intersection. */
   readonly manage: boolean;
-  /** Custom roles held at a scope the subject assigns at that allow nothing: never offered, still revocable. */
+  /**
+   * Custom roles held at a scope the subject assigns at that allow nothing:
+   * never offered, still revocable.
+   */
   readonly inert: readonly string[];
 };
 
 /**
- * The levels a held allow of a permission covers: its own `level`, every
- * level when it has no row condition, or the levels whose condition equals
- * its condition.
+ * The levels a held allow of a permission covers: its own `level`, every level
+ * when it has no row condition, or the levels whose condition equals its
+ * condition.
  */
 function heldLevels(
   policy: Policy,
@@ -95,9 +101,10 @@ function heldLevels(
 
 /**
  * What the subject may hand out in `tenant`: declared assignable roles and the
- * tenant custom-role ceiling, narrowed by `allowed` (`CustomRoleSource.assignable`),
- * then intersected with the permissions the subject holds there. Holding a
- * role or a granted permission with `meta.manageRoles` lifts the intersection.
+ * tenant custom-role ceiling, narrowed by `allowed`
+ * (`CustomRoleSource.assignable`), then intersected with the permissions the
+ * subject holds there. Holding a role or a granted permission with
+ * `meta.manageRoles` lifts the intersection.
  */
 export function assignableIn(
   policy: Policy,

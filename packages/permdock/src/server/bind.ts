@@ -34,14 +34,20 @@ import {
   invalidSignatureResponse,
 } from "./web-bot-auth.ts";
 
-/** The options of every framework adapter; `TContext` is what its callbacks receive. */
+/**
+ * The options of every framework adapter; `TContext` is what its callbacks
+ * receive.
+ */
 export type ServerAdapterOptions<TContext, TUser = unknown> = InstanceOptions &
   ServerAdapterServices & {
     /** The user, or a full `Subject` (core then skips `policy.subject`). */
     readonly subject: (
       context: TContext,
     ) => TUser | Subject | Promise<TUser | Subject>;
-    /** The agent or service acting for the subject; anything but an `Actor` is ignored. */
+    /**
+     * The agent or service acting for the subject; anything but an `Actor` is
+     * ignored.
+     */
     readonly actor?: (context: TContext) => unknown;
     readonly tenant?: TenantOption<TContext>;
     /**
@@ -56,15 +62,24 @@ export type ServerAdapterOptions<TContext, TUser = unknown> = InstanceOptions &
 /** The services an adapter hands to its kernel unchanged. */
 export type ServerAdapterServices = {
   readonly store?: ApprovalStore;
-  /** `getPermDock` from `permdock/pdp`; `protect` then decides delegated permissions remotely. */
+  /**
+   * `getPermDock` from `permdock/pdp`; `protect` then decides delegated
+   * permissions remotely.
+   */
   readonly pdp?: PdpFactory;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
   /** `webBotAuthVerifier(options)`; a verified bot becomes the actor. */
   readonly webBotAuth?: WebBotAuthVerifier;
-  /** Wraps each instance after `otel`; build it with `wrapPermDock` to cover derived instances. */
+  /**
+   * Wraps each instance after `otel`; build it with `wrapPermDock` to cover
+   * derived instances.
+   */
   readonly wrap?: PermDockWrap;
-  /** Replaces the response of a refused guard; it can never turn a refusal into a grant. */
+  /**
+   * Replaces the response of a refused guard; it can never turn a refusal into
+   * a grant.
+   */
   readonly deniedResponse?: DeniedResponse;
 };
 
@@ -79,7 +94,10 @@ export type AnyGuard<V extends PolicyVocabulary = PolicyVocabulary> =
 
 export type BoundKernel<TContext, V extends PolicyVocabulary> = {
   readonly kernel: ServerPermDock<V>;
-  /** The `Request` for `context`, built once and mapped back to it for the option callbacks. */
+  /**
+   * The `Request` for `context`, built once and mapped back to it for the
+   * option callbacks.
+   */
   readonly bind: (context: TContext) => Request;
   /**
    * A new `Request` for `context`, for a body a parser consumed since `bind`,
@@ -87,13 +105,25 @@ export type BoundKernel<TContext, V extends PolicyVocabulary> = {
    */
   readonly rebind: (context: TContext) => Request;
   readonly scopeOf: (context: TContext) => Promise<TenantScope>;
-  /** The `permdockHandler` scope: the `tenant` option against the request's context. */
+  /**
+   * The `permdockHandler` scope: the `tenant` option against the request's
+   * context.
+   */
   readonly handlerScope: (request: Request) => Promise<TenantScope>;
-  /** The instance for `context`; an invalid Web Bot Auth signature throws `InvalidSignatureError`. */
+  /**
+   * The instance for `context`; an invalid Web Bot Auth signature throws
+   * `InvalidSignatureError`.
+   */
   readonly getPermDock: (context: TContext) => Promise<PermDock<V>>;
-  /** The instance for `context`; an invalid Web Bot Auth signature is its `401` response. */
+  /**
+   * The instance for `context`; an invalid Web Bot Auth signature is its `401`
+   * response.
+   */
   readonly attach: (context: TContext) => Promise<Attached<V>>;
-  /** `protect` for `context`: `data` reads the framework context and the tenant comes from `scopeOf`. */
+  /**
+   * `protect` for `context`: `data` reads the framework context and the tenant
+   * comes from `scopeOf`.
+   */
   readonly guard: (
     permission: Permission | null,
     data: ((context: TContext) => unknown) | undefined,
@@ -102,7 +132,10 @@ export type BoundKernel<TContext, V extends PolicyVocabulary> = {
   ) => Promise<AnyGuard<V>>;
 };
 
-/** The server kernel with the subject and actor callbacks reading the context `contextOf` maps a `Request` to. */
+/**
+ * The server kernel with the subject and actor callbacks reading the context
+ * `contextOf` maps a `Request` to.
+ */
 export function adapterKernel<
   TContext,
   TUser,
@@ -240,7 +273,10 @@ export function bindKernel<
   };
 }
 
-/** The instance `build` resolves; an invalid Web Bot Auth signature is its `401` response. */
+/**
+ * The instance `build` resolves; an invalid Web Bot Auth signature is its `401`
+ * response.
+ */
 export async function attached<V extends PolicyVocabulary>(
   build: () => Promise<PermDock<V>>,
 ): Promise<Attached<V>> {
@@ -255,7 +291,10 @@ export async function attached<V extends PolicyVocabulary>(
   }
 }
 
-/** Sets `permdock`, and `permdockData` when a loader returned a row, on a framework request or context. */
+/**
+ * Sets `permdock`, and `permdockData` when a loader returned a row, on a
+ * framework request or context.
+ */
 export function decorate<V extends PolicyVocabulary>(
   target: object,
   instance: PermDock<V>,
@@ -269,7 +308,10 @@ export function decorate<V extends PolicyVocabulary>(
   );
 }
 
-/** One connection per socket: every handler of `socket` gets the promise the first one opened. */
+/**
+ * One connection per socket: every handler of `socket` gets the promise the
+ * first one opened.
+ */
 export function socketConnection(
   sockets: WeakMap<object, Promise<Connection>>,
   socket: object,

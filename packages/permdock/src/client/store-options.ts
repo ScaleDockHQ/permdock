@@ -32,7 +32,10 @@ export type AdapterStoreOptions = Pick<
   readonly endpoint?: string | false;
 };
 
-/** One hint per store: the first check `endpoint: false` turns into a `server-only` denial. */
+/**
+ * One hint per store: the first check `endpoint: false` turns into a
+ * `server-only` denial.
+ */
 function hintOnce(): (permission: Permission) => void {
   let shown = false;
   return (permission) => {

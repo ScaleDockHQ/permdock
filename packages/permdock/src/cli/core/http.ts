@@ -5,7 +5,10 @@ import { TERMINAL_TIMEOUT_MS } from "../../terminal/device.ts";
 import { CliError, describeError } from "./errors.ts";
 import { cliVersion } from "./version.ts";
 
-/** `permdock-cli/<version> node/<version> <platform>`, sent on every request the CLI makes. */
+/**
+ * `permdock-cli/<version> node/<version> <platform>`, sent on every request the
+ * CLI makes.
+ */
 function userAgent(): string {
   return `permdock-cli/${cliVersion()} node/${process.versions.node} ${process.platform}`;
 }
@@ -21,8 +24,8 @@ export type HttpRequest = {
 };
 
 /**
- * Every outbound request: the user agent, a timeout joined to the run's
- * abort signal, and a `network_error` CLI error when nothing answers.
+ * Every outbound request: the user agent, a timeout joined to the run's abort
+ * signal, and a `network_error` CLI error when nothing answers.
  */
 export async function httpRequest(
   io: Pick<CliIo, "fetch" | "signal">,
@@ -49,8 +52,8 @@ export async function httpRequest(
 }
 
 /**
- * A 401 or 403 as an `auth_required` action: the credential is missing,
- * expired or lacks a scope, and `next` says how to get one.
+ * A 401 or 403 as an `auth_required` action: the credential is missing, expired
+ * or lacks a scope, and `next` says how to get one.
  */
 export function authFailure(
   response: Response,
@@ -63,10 +66,6 @@ export function authFailure(
   return new CliError(
     "action",
     `${message} (HTTP ${String(response.status)})`,
-    {
-      code: "auth_required",
-      extensions: { status: response.status },
-      next,
-    },
+    { code: "auth_required", extensions: { status: response.status }, next },
   );
 }

@@ -420,9 +420,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       .registerTool(
         "list_posts",
         { permission: permissions.post.list },
-        () => ({
-          content: [{ type: "text", text: "[]" }],
-        }),
+        () => ({ content: [{ type: "text", text: "[]" }] }),
       );
 
     const plain = await connect(server, { authInfo: auth(["post:list"]) });
@@ -474,9 +472,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
     const { client } = await connect(server, session);
     expect(await names(client)).toEqual([]);
     const refused = await client.callTool({ name: "list_posts" });
-    expect(refused.structuredContent).toMatchObject({
-      error: "invalid_token",
-    });
+    expect(refused.structuredContent).toMatchObject({ error: "invalid_token" });
 
     session.authInfo = {
       ...auth(["post:list"]),
@@ -956,9 +952,7 @@ describe("actorKind", () => {
       { permission: permissions.post.list },
       () => ({ content: [{ type: "text", text: "[]" }] }),
     );
-    const { client } = await connect(server, {
-      authInfo: auth(["post:list"]),
-    });
+    const { client } = await connect(server, { authInfo: auth(["post:list"]) });
     await client.callTool({ name: "list_posts", arguments: {} });
     expect(seen).toContainEqual({ client: "mcp-tester" });
   });

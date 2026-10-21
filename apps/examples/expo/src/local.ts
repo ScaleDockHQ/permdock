@@ -9,7 +9,10 @@ if (!parseLocalSnapshotManifest(manifest)) {
   throw new Error("src/permdock-manifest.json is invalid: run pnpm gen");
 }
 
-/** Stands in for the rows a sync engine (PowerSync, Electric, SQLite) keeps on the device. */
+/**
+ * Stands in for the rows a sync engine (PowerSync, Electric, SQLite) keeps on
+ * the device.
+ */
 type UserRow = { readonly id: string; roles: readonly string[] };
 
 export const user: UserRow = { id: "u1", roles: ["member"] };

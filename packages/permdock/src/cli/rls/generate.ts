@@ -54,9 +54,15 @@ export type GenerateOutcome = {
   readonly text: string;
   /** The policies `text` creates; set when `write` is false. */
   readonly policies?: readonly CompiledPolicy[];
-  /** For Drizzle and Prisma, the SQL written next to `text` for a custom migration. */
+  /**
+   * For Drizzle and Prisma, the SQL written next to `text` for a custom
+   * migration.
+   */
   readonly migration?: string;
-  /** The seeded `role_permissions` rows and the policy's keys; set when `write` is false. */
+  /**
+   * The seeded `role_permissions` rows and the policy's keys; set when `write`
+   * is false.
+   */
   readonly seeds?: readonly RolePermission[];
   /** The indexes the policies and helpers read through. */
   readonly indexes?: readonly IndexTarget[];
@@ -91,8 +97,8 @@ function loadPolicy(
 const PROJECT_COMMAND = "permdock rls generate";
 
 /**
- * The policy `policyFromCatalog` rebuilds from the project's pushed catalog
- * and policy; a project with no pushed policy fails with `policy-not-published`.
+ * The policy `policyFromCatalog` rebuilds from the project's pushed catalog and
+ * policy; a project with no pushed policy fails with `policy-not-published`.
  */
 async function projectPolicyOf(
   input: RlsGenerateInput,

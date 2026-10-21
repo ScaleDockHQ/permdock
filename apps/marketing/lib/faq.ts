@@ -1,7 +1,4 @@
-export type FaqItem = {
-  readonly question: string;
-  readonly answer: string;
-};
+export type FaqItem = { readonly question: string; readonly answer: string };
 
 export const faqItems: readonly FaqItem[] = [
   {

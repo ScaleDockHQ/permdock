@@ -43,9 +43,7 @@ export async function readConfig(
     throw new CliError(
       "usage",
       `PermDock CLI: config file not found: ${path}`,
-      {
-        code: "config_not_found",
-      },
+      { code: "config_not_found" },
     );
   }
   // Lazy: jiti and the core load only when there is a config file to read.

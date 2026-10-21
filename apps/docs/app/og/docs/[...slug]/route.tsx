@@ -5,9 +5,7 @@ import { ImageResponse } from "next/og";
 import { appName } from "@/lib/shared";
 import { getPageImageUrl, source } from "@/lib/source";
 
-type OgRouteContext = {
-  params: Promise<{ slug: string[] }>;
-};
+type OgRouteContext = { params: Promise<{ slug: string[] }> };
 
 export async function GET(
   _req: Request,
@@ -23,16 +21,15 @@ export async function GET(
       description={page.data.description ?? ""}
       site={appName}
     />,
-    {
-      width: 1200,
-      height: 630,
-    },
+    { width: 1200, height: 630 },
   );
 }
 
 export function generateStaticParams() {
-  return source.getPages().map((page) => ({
-    lang: page.locale,
-    slug: getPageImageUrl(page).segments,
-  }));
+  return source
+    .getPages()
+    .map((page) => ({
+      lang: page.locale,
+      slug: getPageImageUrl(page).segments,
+    }));
 }

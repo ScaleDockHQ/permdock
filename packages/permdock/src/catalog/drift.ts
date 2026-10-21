@@ -11,7 +11,10 @@ import { freezeDeep } from "../core/freeze.ts";
 import { hostedGrantDrops } from "../core/hosted.ts";
 import { operationFindings } from "./operation-findings.ts";
 
-/** The finding a drop reason becomes; `null` for a reason the catalog did not cause. */
+/**
+ * The finding a drop reason becomes; `null` for a reason the catalog did not
+ * cause.
+ */
 function findingCode(reason: HostedGrantDropReason): CatalogFindingCode | null {
   switch (reason) {
     case "unknown-permission":
@@ -63,7 +66,10 @@ export function hostedGrantFindings(
 export type CatalogDriftInput = {
   readonly previous: CatalogDocument;
   readonly next: CatalogDocument;
-  /** The policy rebuilt from `next` (`policyFromCatalog`), which live hosted grants must still pass. */
+  /**
+   * The policy rebuilt from `next` (`policyFromCatalog`), which live hosted
+   * grants must still pass.
+   */
   readonly policy: Policy;
   /** The live hosted grants; absent or `null` when the environment has none. */
   readonly document?: PolicyDocument | null;

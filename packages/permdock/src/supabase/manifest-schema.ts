@@ -2,7 +2,10 @@ import type { JsonSchemaNode } from "../core/json-schema.ts";
 
 import { freezeDeep } from "../core/freeze.ts";
 
-/** `schemas/supabase-manifest-v1.json`, which `parseSupabaseManifest` checks against; a test keeps the two equal. */
+/**
+ * `schemas/supabase-manifest-v1.json`, which `parseSupabaseManifest` checks
+ * against; a test keeps the two equal.
+ */
 export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://permdock.com/schemas/supabase-manifest-v1.json",
@@ -23,22 +26,14 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
     $schema: {
       const: "https://permdock.com/schemas/supabase-manifest-v1.json",
     },
-    version: {
-      const: 1,
-    },
+    version: { const: 1 },
     hook: {
       type: "object",
       required: ["schema", "function", "out"],
       properties: {
-        schema: {
-          $ref: "#/$defs/identifier",
-        },
-        function: {
-          const: "custom_access_token_hook",
-        },
-        out: {
-          type: "string",
-        },
+        schema: { $ref: "#/$defs/identifier" },
+        function: { const: "custom_access_token_hook" },
+        out: { type: "string" },
         schemas: {
           enum: ["pg-delta", "migra", "migrations"],
           description:
@@ -57,31 +52,17 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["schema", "functions"],
       properties: {
-        schema: {
-          $ref: "#/$defs/identifier",
-        },
-        functions: {
-          type: "array",
-          items: {
-            $ref: "#/$defs/helperName",
-          },
-        },
+        schema: { $ref: "#/$defs/identifier" },
+        functions: { type: "array", items: { $ref: "#/$defs/helperName" } },
       },
     },
-    tenantClaim: {
-      $ref: "#/$defs/identifier",
-    },
+    tenantClaim: { $ref: "#/$defs/identifier" },
     budget: {
       type: "object",
       required: ["bytes", "measure"],
       properties: {
-        bytes: {
-          type: "integer",
-          minimum: 1,
-        },
-        measure: {
-          type: "string",
-        },
+        bytes: { type: "integer", minimum: 1 },
+        measure: { type: "string" },
       },
     },
     claims: {
@@ -90,23 +71,17 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         type: "object",
         required: ["name", "source", "budget"],
         properties: {
-          name: {
-            $ref: "#/$defs/identifier",
-          },
+          name: { $ref: "#/$defs/identifier" },
           source: {
             type: "string",
             pattern:
               "^(permdock|[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*)$",
           },
-          budget: {
-            type: "boolean",
-          },
+          budget: { type: "boolean" },
         },
       },
     },
-    authzVersion: {
-      type: "boolean",
-    },
+    authzVersion: { type: "boolean" },
     managementApi: {
       description:
         "The Management API fields that make a hosted project call the generated hook, as `permdock supabase inspect` prints and `--out` writes them.",
@@ -131,23 +106,12 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["schema", "function", "args"],
       properties: {
-        schema: {
-          $ref: "#/$defs/identifier",
-        },
-        function: {
-          const: "permdock_bump_authz_version_for",
-        },
-        args: {
-          const: "p_users uuid[]",
-        },
+        schema: { $ref: "#/$defs/identifier" },
+        function: { const: "permdock_bump_authz_version_for" },
+        args: { const: "p_users uuid[]" },
       },
     },
-    memberships: {
-      type: "array",
-      items: {
-        $ref: "#/$defs/membership",
-      },
-    },
+    memberships: { type: "array", items: { $ref: "#/$defs/membership" } },
     rls: {
       type: "object",
       required: [
@@ -159,32 +123,18 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         "memberships",
       ],
       properties: {
-        schema: {
-          $ref: "#/$defs/identifier",
-        },
-        mode: {
-          enum: ["jwt", "database"],
-        },
-        tenantClaim: {
-          $ref: "#/$defs/identifier",
-        },
+        schema: { $ref: "#/$defs/identifier" },
+        mode: { enum: ["jwt", "database"] },
+        tenantClaim: { $ref: "#/$defs/identifier" },
         scopes: {
           type: "array",
           items: {
             type: "object",
             required: ["name", "type"],
             properties: {
-              name: {
-                type: "string",
-                pattern: "^[a-z][a-z0-9_]*$",
-              },
-              type: {
-                type: "string",
-              },
-              within: {
-                type: "string",
-                pattern: "^[a-z][a-z0-9_]*$",
-              },
+              name: { type: "string", pattern: "^[a-z][a-z0-9_]*$" },
+              type: { type: "string" },
+              within: { type: "string", pattern: "^[a-z][a-z0-9_]*$" },
             },
           },
         },
@@ -194,15 +144,9 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
             type: "object",
             required: ["name", "args", "returns", "execute"],
             properties: {
-              name: {
-                $ref: "#/$defs/helperName",
-              },
-              args: {
-                type: "string",
-              },
-              returns: {
-                type: "string",
-              },
+              name: { $ref: "#/$defs/helperName" },
+              args: { type: "string" },
+              returns: { type: "string" },
               execute: {
                 type: "array",
                 items: {
@@ -212,38 +156,19 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
             },
           },
         },
-        memberships: {
-          type: "array",
-          items: {
-            $ref: "#/$defs/membership",
-          },
-        },
-        customRoles: {
-          type: "boolean",
-        },
+        memberships: { type: "array", items: { $ref: "#/$defs/membership" } },
+        customRoles: { type: "boolean" },
         roles: {
           type: "object",
           required: ["table", "user", "role"],
           additionalProperties: false,
           properties: {
-            table: {
-              type: "string",
-            },
-            user: {
-              $ref: "#/$defs/column",
-            },
+            table: { type: "string" },
+            user: { $ref: "#/$defs/column" },
             role: {
               oneOf: [
-                {
-                  $ref: "#/$defs/role",
-                },
-                {
-                  type: "array",
-                  minItems: 2,
-                  items: {
-                    $ref: "#/$defs/role",
-                  },
-                },
+                { $ref: "#/$defs/role" },
+                { type: "array", minItems: 2, items: { $ref: "#/$defs/role" } },
               ],
             },
           },
@@ -252,14 +177,10 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
           type: "object",
           additionalProperties: false,
           properties: {
-            users: {
-              $ref: "#/$defs/activeRow",
-            },
+            users: { $ref: "#/$defs/activeRow" },
             scopes: {
               type: "object",
-              additionalProperties: {
-                $ref: "#/$defs/activeRow",
-              },
+              additionalProperties: { $ref: "#/$defs/activeRow" },
             },
             memberships: {
               type: "object",
@@ -270,9 +191,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
                   description:
                     "The permission keys a membership whose disabledAt column is set still holds.",
                   type: "array",
-                  items: {
-                    type: "string",
-                  },
+                  items: { type: "string" },
                 },
               },
             },
@@ -282,41 +201,19 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
           type: "object",
           required: ["tables"],
           additionalProperties: false,
-          properties: {
-            tables: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-            },
-          },
+          properties: { tables: { type: "array", items: { type: "string" } } },
         },
-        tokenScopes: {
-          type: "boolean",
-        },
+        tokenScopes: { type: "boolean" },
         apiKeys: {
           type: "object",
           required: ["claim", "scopes", "tenant", "roles", "serviceRoles"],
           additionalProperties: false,
           properties: {
-            claim: {
-              type: "string",
-            },
-            scopes: {
-              type: "string",
-            },
-            tenant: {
-              type: "string",
-            },
-            roles: {
-              type: "string",
-            },
-            serviceRoles: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-            },
+            claim: { type: "string" },
+            scopes: { type: "string" },
+            tenant: { type: "string" },
+            roles: { type: "string" },
+            serviceRoles: { type: "array", items: { type: "string" } },
           },
         },
       },
@@ -332,14 +229,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
     markers: {
       type: "object",
       required: ["hook", "grants"],
-      properties: {
-        hook: {
-          const: "v1",
-        },
-        grants: {
-          const: "v1",
-        },
-      },
+      properties: { hook: { const: "v1" }, grants: { const: "v1" } },
     },
     requires: {
       description:
@@ -372,34 +262,18 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
           type: "string",
           pattern: "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
         },
-        user: {
-          $ref: "#/$defs/user",
-        },
-        scope: {
-          $ref: "#/$defs/value",
-        },
-        id: {
-          $ref: "#/$defs/column",
-        },
+        user: { $ref: "#/$defs/user" },
+        scope: { $ref: "#/$defs/value" },
+        id: { $ref: "#/$defs/column" },
         role: {
           oneOf: [
-            {
-              $ref: "#/$defs/role",
-            },
-            {
-              type: "array",
-              minItems: 2,
-              items: {
-                $ref: "#/$defs/role",
-              },
-            },
+            { $ref: "#/$defs/role" },
+            { type: "array", minItems: 2, items: { $ref: "#/$defs/role" } },
           ],
         },
         within: {
           oneOf: [
-            {
-              $ref: "#/$defs/column",
-            },
+            { $ref: "#/$defs/column" },
             {
               type: "object",
               required: ["columns"],
@@ -407,65 +281,34 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
               properties: {
                 columns: {
                   type: "object",
-                  additionalProperties: {
-                    $ref: "#/$defs/identifier",
-                  },
+                  additionalProperties: { $ref: "#/$defs/identifier" },
                 },
               },
             },
           ],
         },
-        via: {
-          $ref: "#/$defs/value",
-        },
-        expiresAt: {
-          $ref: "#/$defs/column",
-        },
-        disabledAt: {
-          $ref: "#/$defs/column",
-        },
-        columns: {
-          type: "array",
-          items: {
-            $ref: "#/$defs/identifier",
-          },
-        },
+        via: { $ref: "#/$defs/value" },
+        expiresAt: { $ref: "#/$defs/column" },
+        disabledAt: { $ref: "#/$defs/column" },
+        columns: { type: "array", items: { $ref: "#/$defs/identifier" } },
       },
     },
-    identifier: {
-      type: "string",
-      pattern: "^[A-Za-z_][A-Za-z0-9_]*$",
-    },
+    identifier: { type: "string", pattern: "^[A-Za-z_][A-Za-z0-9_]*$" },
     activeRow: {
       type: "object",
       required: ["table", "id"],
       additionalProperties: false,
       properties: {
-        table: {
-          type: "string",
-        },
-        id: {
-          $ref: "#/$defs/identifier",
-        },
-        disabledAt: {
-          $ref: "#/$defs/identifier",
-        },
-        status: {
-          $ref: "#/$defs/identifier",
-        },
-        active: {
-          type: "array",
-          items: {
-            type: "string",
-          },
-        },
+        table: { type: "string" },
+        id: { $ref: "#/$defs/identifier" },
+        disabledAt: { $ref: "#/$defs/identifier" },
+        status: { $ref: "#/$defs/identifier" },
+        active: { type: "array", items: { type: "string" } },
         keep: {
           description:
             "A scope only: the permission keys members of a suspended instance still hold.",
           type: "array",
-          items: {
-            type: "string",
-          },
+          items: { type: "string" },
         },
       },
     },
@@ -478,23 +321,13 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["column"],
       additionalProperties: false,
-      properties: {
-        column: {
-          $ref: "#/$defs/identifier",
-        },
-      },
+      properties: { column: { $ref: "#/$defs/identifier" } },
     },
     role: {
       oneOf: [
-        {
-          $ref: "#/$defs/value",
-        },
-        {
-          $ref: "#/$defs/through",
-        },
-        {
-          $ref: "#/$defs/mapped",
-        },
+        { $ref: "#/$defs/value" },
+        { $ref: "#/$defs/through" },
+        { $ref: "#/$defs/mapped" },
       ],
     },
     mapped: {
@@ -502,35 +335,20 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
       required: ["column", "map"],
       additionalProperties: false,
       properties: {
-        column: {
-          $ref: "#/$defs/identifier",
-        },
+        column: { $ref: "#/$defs/identifier" },
         map: {
           type: "object",
-          additionalProperties: {
-            type: ["string", "null"],
-          },
+          additionalProperties: { type: ["string", "null"] },
         },
       },
     },
-    user: {
-      oneOf: [
-        {
-          $ref: "#/$defs/column",
-        },
-        {
-          $ref: "#/$defs/through",
-        },
-      ],
-    },
+    user: { oneOf: [{ $ref: "#/$defs/column" }, { $ref: "#/$defs/through" }] },
     through: {
       type: "object",
       required: ["column", "through"],
       additionalProperties: false,
       properties: {
-        column: {
-          $ref: "#/$defs/identifier",
-        },
+        column: { $ref: "#/$defs/identifier" },
         through: {
           type: "object",
           required: ["table", "id", "column"],
@@ -540,21 +358,15 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
               type: "string",
               pattern: "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
             },
-            id: {
-              $ref: "#/$defs/identifier",
-            },
-            column: {
-              $ref: "#/$defs/identifier",
-            },
+            id: { $ref: "#/$defs/identifier" },
+            column: { $ref: "#/$defs/identifier" },
           },
         },
       },
     },
     value: {
       oneOf: [
-        {
-          $ref: "#/$defs/column",
-        },
+        { $ref: "#/$defs/column" },
         {
           type: "object",
           required: ["value"],
@@ -562,15 +374,8 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
           properties: {
             value: {
               oneOf: [
-                {
-                  type: "string",
-                },
-                {
-                  type: "array",
-                  items: {
-                    type: "string",
-                  },
-                },
+                { type: "string" },
+                { type: "array", items: { type: "string" } },
               ],
             },
           },

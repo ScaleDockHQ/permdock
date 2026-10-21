@@ -28,19 +28,13 @@ const FIXTURE = join(HERE, "../fixtures/requires");
 async function visible(db: Postgres, user: string): Promise<readonly string[]> {
   return visibleIds(
     db,
-    {
-      role: "authenticated",
-      settings: jwtClaims(user),
-    },
+    { role: "authenticated", settings: jwtClaims(user) },
     "select id from public.drive order by id",
   );
 }
 
 async function inProcess(user: RequiresUser): Promise<readonly string[]> {
-  const permdock = await getPermDock(policy, user, {
-    relations,
-    customRoles,
-  });
+  const permdock = await getPermDock(policy, user, { relations, customRoles });
   return readableIds(permdock, permissions.drive.read, drives);
 }
 
@@ -102,10 +96,7 @@ describe("requires in RLS: a share counts only where the role permission is held
     for (const user of users) {
       const got = await visibleIds(
         target,
-        {
-          role: "authenticated",
-          settings: jwtClaims(user.id),
-        },
+        { role: "authenticated", settings: jwtClaims(user.id) },
         "select id from permdock.permitted_drive_rows('drive.read') id order by id",
       );
       const named = (

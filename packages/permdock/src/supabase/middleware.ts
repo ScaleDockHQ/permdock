@@ -51,8 +51,8 @@ export type SupabaseMiddlewareContext = {
 
 /**
  * A Supabase secret key that acts as a tenant service principal. `id` is the
- * principal id, `roles` are held in `tenant` only, and `permissions` caps
- * what the key may do, as a `service` credential does.
+ * principal id, `roles` are held in `tenant` only, and `permissions` caps what
+ * the key may do, as a `service` credential does.
  */
 export type SupabaseSecretKey = {
   readonly id: string;
@@ -92,17 +92,23 @@ export type SupabaseMiddlewarePermDockOptions<TUser = unknown> =
     };
 
 export type WithPermDockConfig = {
-  /** Run `protect` before the handler; a denial short-circuits with Problem Details. */
+  /**
+   * Run `protect` before the handler; a denial short-circuits with Problem
+   * Details.
+   */
   readonly protect?: Permission;
   /**
-   * The OAuth scopes that reach the handler: a delegated token holding none
-   * of them is refused with `insufficient_scope`. Without `protect`, the
-   * handler needs a signed-in principal and checks no permission.
+   * The OAuth scopes that reach the handler: a delegated token holding none of
+   * them is refused with `insufficient_scope`. Without `protect`, the handler
+   * needs a signed-in principal and checks no permission.
    */
   readonly oauthScopes?: readonly string[];
   /** Load the row `protect` decides on; `null` or `undefined` yields 404. */
   readonly data?: (ctx: SupabaseMiddlewareContext, request: Request) => unknown;
-  /** `true` when `data` returns a row the server loaded; anything else is validated before the check. */
+  /**
+   * `true` when `data` returns a row the server loaded; anything else is
+   * validated before the check.
+   */
   readonly trusted?: boolean;
 };
 

@@ -378,10 +378,7 @@ describe("permdock/react-native nativeStore", () => {
     expect(
       store.permissionState(permissions.post.update, ownPost).allowed,
     ).toBe(false);
-    const empty = nativeStore({
-      storage: asyncStorage(),
-      subjectId: "u1",
-    });
+    const empty = nativeStore({ storage: asyncStorage(), subjectId: "u1" });
     await settle();
     expect(empty.get().subject.principal).toBeNull();
     expect(empty.get().status()).toBe("server-only");
@@ -407,11 +404,7 @@ describe("permdock/react-native nativeStore", () => {
     const storage = asyncStorage({ [SNAPSHOT_KEY]: JSON.stringify(snapshot) });
     const first = nativeStore({ storage, subjectId: "u1" });
     await settle();
-    const second = nativeStore({
-      storage,
-      subjectId: "u1",
-      previous: first,
-    });
+    const second = nativeStore({ storage, subjectId: "u1", previous: first });
     expect(second.get().status()).not.toBe("pending");
     expect(
       second.permissionState(permissions.post.update, ownPost).allowed,

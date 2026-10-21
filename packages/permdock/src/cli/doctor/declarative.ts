@@ -27,7 +27,10 @@ function uncommented(text: string): string {
   return text.replaceAll(/--[^\n]*/gu, "").replaceAll(/\/\*[\s\S]*?\*\//gu, "");
 }
 
-/** Whether `text` starts with a line `rls generate` or `supabase hook generate` writes. */
+/**
+ * Whether `text` starts with a line `rls generate` or `supabase hook generate`
+ * writes.
+ */
 function generatedByPermDock(text: string): boolean {
   return (
     text.startsWith("-- permdock:") ||
@@ -39,9 +42,9 @@ function generatedByPermDock(text: string): boolean {
  * PD042: under migra, a hook declared under `supabase/schemas` reaches the
  * database through `supabase db diff`, which drops its `supabase_auth_admin`
  * grants. pg-delta keeps them, so the check runs only for `migra`. A function
- * created (or dropped and created again) without them is executable by
- * `public` and not by the auth server, so a migration at or after the one
- * that creates it must carry the grants.
+ * created (or dropped and created again) without them is executable by `public`
+ * and not by the auth server, so a migration at or after the one that creates
+ * it must carry the grants.
  */
 export function pd042(
   cwd: string,
@@ -103,10 +106,10 @@ function generatedSchemaFiles(
 
 /**
  * PD068: PermDock generates for pg-delta (the default), but
- * `supabase/config.toml` does not set `[experimental.pgdelta] enabled =
- * true`, so Supabase CLI 2.x diffs the schema files with migra. migra drops
- * the hook's `supabase_auth_admin` grants and the helpers' privileges, and
- * PermDock wrote no `--grants-out` file to restore them.
+ * `supabase/config.toml` does not set `[experimental.pgdelta] enabled = true`,
+ * so Supabase CLI 2.x diffs the schema files with migra. migra drops the hook's
+ * `supabase_auth_admin` grants and the helpers' privileges, and PermDock wrote
+ * no `--grants-out` file to restore them.
  */
 export function pd068(
   cwd: string,
@@ -138,8 +141,8 @@ export function pd068(
 /**
  * PD069: leftovers of declarative schemas on migra in a pg-delta project:
  * `[db.migrations] schema_paths`, which pg-delta's dependency order makes
- * unnecessary, and numbered `NNN_permdock_<part>.sql` files that duplicate
- * the per-schema layout `rls generate --split` now writes.
+ * unnecessary, and numbered `NNN_permdock_<part>.sql` files that duplicate the
+ * per-schema layout `rls generate --split` now writes.
  */
 export function pd069(
   cwd: string,
@@ -173,22 +176,28 @@ export function pd069(
   return findings;
 }
 
-/** The `[db.migrations] schema_paths` globs of `supabase/config.toml`, or Supabase's default. */
+/**
+ * The `[db.migrations] schema_paths` globs of `supabase/config.toml`, or
+ * Supabase's default.
+ */
 function schemaPaths(cwd: string): readonly string[] {
   const paths = supabaseConfig(cwd).schemaPaths ?? [];
   return paths.length === 0 ? ["./schemas/**/*.sql"] : paths;
 }
 
-/** Schema files in the order `supabase db diff` applies them: each glob in turn, sorted within it. */
+/**
+ * Schema files in the order `supabase db diff` applies them: each glob in turn,
+ * sorted within it.
+ */
 function orderedSchemaFiles(cwd: string): readonly string[] {
   return sqlFiles(join(cwd, "supabase"), schemaPaths(cwd), { order: "entry" });
 }
 
 /**
- * PD043: under migra, `db diff` applies schema files in `schema_paths`
- * order, so a policy that calls `permdock_has` or `permitted_<scope>_ids`
- * before the file that defines them fails to apply. pg-delta orders by
- * dependencies instead.
+ * PD043: under migra, `db diff` applies schema files in `schema_paths` order,
+ * so a policy that calls `permdock_has` or `permitted_<scope>_ids` before the
+ * file that defines them fails to apply. pg-delta orders by dependencies
+ * instead.
  */
 export function pd043(
   cwd: string,

@@ -23,9 +23,15 @@ export const APPROVE_ACTION = "permdock:approve";
 export const REJECT_ACTION = "permdock:reject";
 
 export type ApprovalCardOptions = {
-  /** The app's approval page: a base URL the request id is appended to, or a function of the prompt. Must be https. */
+  /**
+   * The app's approval page: a base URL the request id is appended to, or a
+   * function of the prompt. Must be https.
+   */
   readonly approvalUrl: ApprovalUrl;
-  /** `false` leaves out the approve and reject buttons, so the page is the only place to decide. Defaults to `true`. */
+  /**
+   * `false` leaves out the approve and reject buttons, so the page is the only
+   * place to decide. Defaults to `true`.
+   */
   readonly buttons?: boolean;
 };
 
@@ -34,11 +40,11 @@ function oneLine(value: string): string {
 }
 
 /**
- * A Chat SDK card for an approval prompt: the detail, who asked, the
- * permission and the expiry, a link to the approval page, and approve and
- * reject buttons that carry the request id, never its token. A click is
- * applied by `approvalActions` as the verified clicking user. Throws a
- * `TypeError` for an approval page that is not https.
+ * A Chat SDK card for an approval prompt: the detail, who asked, the permission
+ * and the expiry, a link to the approval page, and approve and reject buttons
+ * that carry the request id, never its token. A click is applied by
+ * `approvalActions` as the verified clicking user. Throws a `TypeError` for an
+ * approval page that is not https.
  */
 export function approvalCard(
   prompt: ApprovalPrompt,

@@ -43,7 +43,10 @@ function config(rls: PermDockConfig["rls"] = {}): PermDockConfig {
   return { policy: "./src/policy.ts", rls };
 }
 
-/** Answers the fixture statement (the one after `set_config`) with `rows` matched rows. */
+/**
+ * Answers the fixture statement (the one after `set_config`) with `rows`
+ * matched rows.
+ */
 function rowsFor(
   decide: (call: SqlCall) => number | string,
 ): (call: SqlCall) => SqlReply | undefined {
@@ -189,11 +192,7 @@ describe("rls verify --db-url-stdin through an injected client", () => {
   it("binds GUC settings under the configured prefix and claim names", async () => {
     const sql = fakeSql(rowsFor(() => 1));
     const cwd = app([
-      {
-        subject: { ...author, tenant: "o1" },
-        row: own,
-        action: "post.read",
-      },
+      { subject: { ...author, tenant: "o1" }, row: own, action: "post.read" },
     ]);
     await runRlsVerify({
       cwd,

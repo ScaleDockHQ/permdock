@@ -39,9 +39,9 @@ export type AdoptionScanOptions = {
 };
 
 /**
- * Lines that look like an authorization check written without PermDock:
- * the work left before a permission can be enforced. It reads source text
- * only and runs nothing; a finding is a place to look, not a verdict.
+ * Lines that look like an authorization check written without PermDock: the
+ * work left before a permission can be enforced. It reads source text only and
+ * runs nothing; a finding is a place to look, not a verdict.
  */
 function scanLegacy(options: AdoptionScanOptions): readonly LegacyFinding[] {
   const custom = (options.patterns ?? []).map((source) => ({

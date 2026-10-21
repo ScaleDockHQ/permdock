@@ -16,14 +16,17 @@ export type SupabasePrincipal = Principal & {
 export type SupabaseInclude = "email" | "phone" | "is_anonymous";
 
 /**
- * A column that holds a foreign key: the value is `column` of `through`,
- * joined on `on`. A role reads its key from a roles table
- * (`{ through: 'roles', on: { role_id: 'id' }, column: 'key' }`); a
- * membership source's user can read its user id from a profile table
- * (`{ through: 'contact_profiles', on: { contact_profile_id: 'id' }, column: 'user_id' }`).
+ * A column that holds a foreign key: the value is `column` of `through`, joined
+ * on `on`. A role reads its key from a roles table (`{ through: 'roles', on: {
+ * role_id: 'id' }, column: 'key' }`); a membership source's user can read its
+ * user id from a profile table (`{ through: 'contact_profiles', on: {
+ * contact_profile_id: 'id' }, column: 'user_id' }`).
  */
 export type RoleThrough = {
-  /** The referenced table; unqualified, it is in the schema of the table that references it. */
+  /**
+   * The referenced table; unqualified, it is in the schema of the table that
+   * references it.
+   */
   readonly through: string;
   /** One entry: the referencing column to the column of `through` it references. */
   readonly on: Readonly<Record<string, string>>;
@@ -33,8 +36,8 @@ export type RoleThrough = {
 
 /**
  * A role column whose values are not role keys: each value maps to a role key,
- * or to `null` for no role, and an unlisted value is no role
- * (`{ column: 'kind', map: { admin: 'owner', user: null } }`).
+ * or to `null` for no role, and an unlisted value is no role (`{ column:
+ * 'kind', map: { admin: 'owner', user: null } }`).
  */
 export type RoleMap = {
   readonly column: string;
@@ -53,7 +56,10 @@ export type SupabaseMembershipTable = {
     | RoleThrough
     | RoleMap
     | readonly (string | RoleThrough | RoleMap)[];
-  /** Per scope name, the column holding that scope's id: the table's own scope and its ancestors. */
+  /**
+   * Per scope name, the column holding that scope's id: the table's own scope
+   * and its ancestors.
+   */
   readonly columns?: Readonly<Record<string, string>>;
   readonly tenant?: string;
   readonly team?: string;
@@ -62,7 +68,10 @@ export type SupabaseMembershipTable = {
   readonly disabledAt?: string;
 };
 
-/** A table whose row says whether a user or a scope instance is active. A missing row counts as suspended. */
+/**
+ * A table whose row says whether a user or a scope instance is active. A
+ * missing row counts as suspended.
+ */
 export type SupabaseActiveRow = {
   readonly table: string;
   /** Column holding the user id or the scope instance id. */
@@ -74,12 +83,15 @@ export type SupabaseActiveRow = {
   readonly active?: readonly string[];
 };
 
-/** A scope's active-row table, with the permissions its suspended instances keep. */
+/**
+ * A scope's active-row table, with the permissions its suspended instances
+ * keep.
+ */
 export type SupabaseSuspendedScope = SupabaseActiveRow & {
   /**
    * Permissions (references or keys) members of a suspended instance, and of
-   * every instance nested in it, still hold; such a membership carries them
-   * as `keep`.
+   * every instance nested in it, still hold; such a membership carries them as
+   * `keep`.
    */
   readonly keep?: readonly (string | { readonly key: string })[];
 };
@@ -91,7 +103,10 @@ export type SupabaseSuspendedMembership = {
 export type SupabaseSuspension = {
   /** A suspended user holds no role and no membership. */
   readonly users?: SupabaseActiveRow;
-  /** Per scope name: a suspended instance voids its memberships and every membership nested under it, except for `keep`. */
+  /**
+   * Per scope name: a suspended instance voids its memberships and every
+   * membership nested under it, except for `keep`.
+   */
   readonly scopes?: Readonly<Record<string, SupabaseSuspendedScope>>;
   readonly memberships?: SupabaseSuspendedMembership;
 };
@@ -105,25 +120,42 @@ type SupabaseMemberships = {
 };
 
 export type AuthorizeSqlOptions = {
-  /** Postgres schema of `authorize`, `user_roles`, `role_permissions` and `app_permission`. Default `permdock`. */
+  /**
+   * Postgres schema of `authorize`, `user_roles`, `role_permissions` and
+   * `app_permission`. Default `permdock`.
+   */
   readonly schema?: string;
-  /** `database` (default) reads the tables on every call; `jwt` reads the hook-injected claims. */
+  /**
+   * `database` (default) reads the tables on every call; `jwt` reads the
+   * hook-injected claims.
+   */
   readonly authorize?: "database" | "jwt";
-  /** The policy's first scope, which `requested_tenant` is an instance of. Default `tenant`. */
+  /**
+   * The policy's first scope, which `requested_tenant` is an instance of.
+   * Default `tenant`.
+   */
   readonly scope?: string;
-  /** Membership table for tenant requests in `database` mode; without one they deny. */
+  /**
+   * Membership table for tenant requests in `database` mode; without one they
+   * deny.
+   */
   readonly tenant?: boolean | SupabaseMembershipTable;
   /**
-   * Tenant requests also answer from custom roles, through the `permdock_custom_keys` function
-   * `permdock rls generate --custom-roles` emits: the `custom_role_*` tables in `database` mode,
-   * the `memberships[].grants` claim in `jwt` mode. `declared` role names never resolve as custom.
+   * Tenant requests also answer from custom roles, through the
+   * `permdock_custom_keys` function `permdock rls generate --custom-roles`
+   * emits: the `custom_role_*` tables in `database` mode, the
+   * `memberships[].grants` claim in `jwt` mode. `declared` role names never
+   * resolve as custom.
    */
   readonly customRoles?: {
     readonly declared: readonly string[];
     /** Stored allows may carry a level (`custom_role_permissions.level`). */
     readonly levels?: true;
   };
-  /** A suspended user, or a suspended instance of `scope` for a tenant request, answers `false`. */
+  /**
+   * A suspended user, or a suspended instance of `scope` for a tenant request,
+   * answers `false`.
+   */
   readonly suspension?: SupabaseSuspension;
 };
 
@@ -148,7 +180,10 @@ export type SupabaseRealtime = {
   >;
 };
 
-/** Storage buckets whose object paths hold a scope instance id in folder `folder` (default 1). */
+/**
+ * Storage buckets whose object paths hold a scope instance id in folder
+ * `folder` (default 1).
+ */
 export type SupabaseStorage = {
   readonly buckets: Readonly<
     Record<
@@ -167,7 +202,10 @@ export type SupabaseStorage = {
 export type SupabaseRlsOptions = {
   readonly roleClaim?: string;
   readonly tenantClaim?: string;
-  /** Postgres type of tenant columns; the tenant claim is cast to it. `rls generate` defaults to `uuid`. */
+  /**
+   * Postgres type of tenant columns; the tenant claim is cast to it. `rls
+   * generate` defaults to `uuid`.
+   */
   readonly tenantType?: string;
   readonly memberships?: SupabaseMembershipTable | SupabaseMemberships;
   readonly suspension?: SupabaseSuspension;
@@ -187,8 +225,9 @@ export type SupabaseRlsConfig = {
 };
 
 /**
- * The structural shape `subjectFromSupabaseSession` reads: a discriminant and the verified JWT claims.
- * Matches any session object of that shape without importing its library.
+ * The structural shape `subjectFromSupabaseSession` reads: a discriminant and
+ * the verified JWT claims. Matches any session object of that shape without
+ * importing its library.
  */
 export type SupabaseSessionLike = {
   readonly kind: string;
@@ -210,26 +249,39 @@ export type SupabaseSubjectOptions = {
   readonly schema?: StandardSchemaV1;
   readonly include?: readonly SupabaseInclude[];
   readonly declared?: readonly string[];
-  /** Names for OAuth client ids: an `oauth-client` actor gets `client` set to the name of its id, which a policy delegation matches with `to: { kind: 'oauth-client', client }`. */
+  /**
+   * Names for OAuth client ids: an `oauth-client` actor gets `client` set to
+   * the name of its id, which a policy delegation matches with `to: { kind:
+   * 'oauth-client', client }`.
+   */
   readonly clients?: ClientNames;
-  /** `'deny'` maps a token with `is_anonymous: true` (`signInAnonymously()`) to the anonymous subject, as `rls.anonymousSignIns: 'deny'` does in RLS. */
+  /**
+   * `'deny'` maps a token with `is_anonymous: true` (`signInAnonymously()`) to
+   * the anonymous subject, as `rls.anonymousSignIns: 'deny'` does in RLS.
+   */
   readonly anonymousSignIns?: "deny";
   /**
-   * `true` once the caller checked the session against the Auth server for this request
-   * (`auth.getUser()` or an equivalent session check): a token with a `session_id` gets
-   * `subject.liveSession`, which `{ subject: { session: { live: true } } }` requires. Never read from claims.
+   * `true` once the caller checked the session against the Auth server for this
+   * request (`auth.getUser()` or an equivalent session check): a token with a
+   * `session_id` gets `subject.liveSession`, which `{ subject: { session: {
+   * live: true } } }` requires. Never read from claims.
    */
   readonly liveSession?: boolean;
-  /** Audit hook: `membership-dropped` for a `memberships` entry that could not be read, `invalid-chain` for a malformed `act`. */
+  /**
+   * Audit hook: `membership-dropped` for a `memberships` entry that could not
+   * be read, `invalid-chain` for a malformed `act`.
+   */
   readonly onAuth?: (event: AuthEvent) => void;
 };
 
 /**
- * Who acts for the user. `oauth-client`: a third-party app or an agent chain (`client_id`, or an
- * `act` without `kind`). `support`: a support session (`act.kind: "support"` with `session_id`).
- * `impersonation`: an admin acting as the user (`act.kind: "impersonation"`). `agent`: an agent
- * run better-supabase's `agentClaims` minted (`act.kind: "agent"`), with the `tools` it may call.
- * `chain` is a copy of the token's `act` claim when it has one.
+ * Who acts for the user. `oauth-client`: a third-party app or an agent chain
+ * (`client_id`, or an `act` without `kind`). `support`: a support session
+ * (`act.kind: "support"` with `session_id`). `impersonation`: an admin acting
+ * as the user (`act.kind: "impersonation"`). `agent`: an agent run
+ * better-supabase's `agentClaims` minted (`act.kind: "agent"`), with the
+ * `tools` it may call. `chain` is a copy of the token's `act` claim when it has
+ * one.
  */
 export type SupabaseActor =
   | {

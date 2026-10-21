@@ -11,7 +11,10 @@ import type { Permission } from "../core/permission-types.ts";
 export type CredentialGuardOptions = {
   /** The request's PermDock instance. */
   readonly permdock: () => PermDock | Promise<PermDock>;
-  /** The permission that resolves a token or connects an account; decided on the ref. */
+  /**
+   * The permission that resolves a token or connects an account; decided on the
+   * ref.
+   */
   readonly use: Permission;
   /** The permission that revokes a stored credential; defaults to `use`. */
   readonly revoke?: Permission;
@@ -20,10 +23,10 @@ export type CredentialGuardOptions = {
 /**
  * `provider` with every `getToken`, `startAuthorization`,
  * `completeAuthorization` and `revoke` decided by PermDock first, on the
- * `CredentialRef` as the row. Anything but `granted` is a `forbidden`
- * error with hint `PERMDOCK_DENIED`, and a failed check is one too.
- * `capabilities` and `verifyInbound` (a third party's request, with no
- * user) pass through. Build it per request, with that request's PermDock.
+ * `CredentialRef` as the row. Anything but `granted` is a `forbidden` error
+ * with hint `PERMDOCK_DENIED`, and a failed check is one too. `capabilities`
+ * and `verifyInbound` (a third party's request, with no user) pass through.
+ * Build it per request, with that request's PermDock.
  */
 export function credentialGuard(
   provider: CredentialProvider,

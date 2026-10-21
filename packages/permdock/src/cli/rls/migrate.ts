@@ -57,7 +57,10 @@ export type MigrateSkip = {
   readonly call: string;
   readonly reason: MigrateSkipReason;
   readonly detail: string;
-  /** The exact replacement call, when only the place the call sits in blocks the rewrite. */
+  /**
+   * The exact replacement call, when only the place the call sits in blocks the
+   * rewrite.
+   */
   readonly suggestion?: string;
 };
 
@@ -68,7 +71,10 @@ export type MigrateReport = {
   readonly retire?: RetirePlan;
 };
 
-/** What the rewrite checks a key and a helper name against: `rls generate`'s own output. */
+/**
+ * What the rewrite checks a key and a helper name against: `rls generate`'s own
+ * output.
+ */
 export type MigrateTarget = {
   readonly schema: string;
   readonly sql: string;
@@ -174,7 +180,10 @@ function callEnd(text: string, start: number): number {
   return -1;
 }
 
-/** The top-level arguments of the call at `start`, as written; `end` is past its closing paren. */
+/**
+ * The top-level arguments of the call at `start`, as written; `end` is past its
+ * closing paren.
+ */
 function argTexts(text: string, start: number, end: number): string[] {
   const open = text.indexOf("(", start);
   const args: string[] = [];
@@ -232,7 +241,10 @@ function isNullConst(node: unknown): boolean {
 
 const literal = quoteSqlLiteral;
 
-/** The PermDock key for a legacy one: `keys` first, then `renamed`, then the longest matching prefix. */
+/**
+ * The PermDock key for a legacy one: `keys` first, then `renamed`, then the
+ * longest matching prefix.
+ */
 export function mapKey(
   config: RlsMigrateConfig,
   key: string,
@@ -463,7 +475,10 @@ class Rewriter {
     return this.#row(this.#config.scopes?.[named] ?? named, idArg, keyArg, 1);
   }
 
-  /** `selected`: the call is already a `select` target, so `permdock_has` needs no wrapping subquery. */
+  /**
+   * `selected`: the call is already a `select` target, so `permdock_has` needs
+   * no wrapping subquery.
+   */
   public rewrite(call: Call, selected: boolean): Outcome {
     const { helper, args } = call;
     this.#args = argTexts(this.#text, call.start, call.end);
@@ -547,7 +562,10 @@ function bodyStrings(statement: unknown): readonly string[] {
   return found;
 }
 
-/** What `call`, written inside a function body, becomes: the rewrite that its place keeps from being applied. */
+/**
+ * What `call`, written inside a function body, becomes: the rewrite that its
+ * place keeps from being applied.
+ */
 async function suggest(
   call: string,
   config: RlsMigrateConfig,
@@ -575,7 +593,10 @@ async function suggest(
   return "to" in outcome ? outcome.to : undefined;
 }
 
-/** Rewrites the configured helper calls in one file's policies; everything else is reported. */
+/**
+ * Rewrites the configured helper calls in one file's policies; everything else
+ * is reported.
+ */
 async function migrateSql(
   file: string,
   text: string,
@@ -748,7 +769,10 @@ function describe(report: MigrateReport, write: boolean): string {
   return lines.join("\n");
 }
 
-/** `permdock rls migrate`: a dry run unless `write`; exits 1 while a key is unknown. */
+/**
+ * `permdock rls migrate`: a dry run unless `write`; exits 1 while a key is
+ * unknown.
+ */
 export async function runRlsMigrate(
   input: MigrateRunInput,
 ): Promise<CommandResult> {

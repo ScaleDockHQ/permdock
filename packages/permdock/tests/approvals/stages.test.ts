@@ -61,10 +61,7 @@ group("approval modes and approver kinds", () => {
       mode: "all",
       stages: [
         { by: { kind: "user", id: "cfo" } },
-        {
-          by: { kind: "role", role: "admin", scope: "global" },
-          quorum: 2,
-        },
+        { by: { kind: "role", role: "admin", scope: "global" }, quorum: 2 },
       ],
       ttl: 86_400,
     });
@@ -124,9 +121,7 @@ group("approval modes and approver kinds", () => {
     ).toThrow(/needs an instance action/u);
     expect(
       build(
-        allow(tree.doc.read, {
-          approval: { by: relation(tree.team, "lead") },
-        }),
+        allow(tree.doc.read, { approval: { by: relation(tree.team, "lead") } }),
       ),
     ).toThrow(/must live on 'doc'/u);
     expect(
@@ -173,10 +168,7 @@ group("approval modes and approver kinds", () => {
       [],
     );
     expect(await approverRelations(request, member("mia"), {})).toEqual([]);
-    const noId: ApprovalRequest = {
-      ...request,
-      resource: { type: "expense" },
-    };
+    const noId: ApprovalRequest = { ...request, resource: { type: "expense" } };
     expect(await approverRelations(noId, member("mia"), options)).toEqual([]);
   });
 

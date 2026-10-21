@@ -202,7 +202,10 @@ export function secretBytes(secret: Uint8Array | string): Uint8Array {
   return secret;
 }
 
-/** The verifier options of a subject config: `audience: false` means none is checked. */
+/**
+ * The verifier options of a subject config: `audience: false` means none is
+ * checked.
+ */
 export function verifierOptions(
   options: JwtSubjectOptions,
 ): JoseTokenVerifierOptions {

@@ -113,9 +113,7 @@ function fakeApi(parent?: Record<string, unknown>): {
         if (parent === undefined) {
           return undefined;
         }
-        return {
-          attributes: parent,
-        };
+        return { attributes: parent };
       },
     },
     metrics: {
@@ -398,9 +396,7 @@ describe("permdock/otel", () => {
 
   it("times the span and histogram around the decision, in seconds", async () => {
     const { api, spans, histograms } = fakeApi();
-    const permdock = withOtel(getPermDockSync(policy, memberUser), {
-      api,
-    });
+    const permdock = withOtel(getPermDockSync(policy, memberUser), { api });
     permdock.can(permissions.post.update, ownPost);
     const [span] = spans;
     expect(span?.startTime).toBeTypeOf("number");
@@ -413,9 +409,7 @@ describe("permdock/otel", () => {
 
   it("instruments instances derived through tenant() and team()", async () => {
     const { api, spans } = fakeApi();
-    const permdock = withOtel(getPermDockSync(policy, memberUser), {
-      api,
-    });
+    const permdock = withOtel(getPermDockSync(policy, memberUser), { api });
     permdock.tenant("acme").can(permissions.post.update, ownPost);
     permdock.team("red").tenant("acme").can(permissions.post.update, ownPost);
     expect(spans).toHaveLength(2);
@@ -424,9 +418,7 @@ describe("permdock/otel", () => {
 
   it("instruments instances derived through derive()", async () => {
     const { api, spans } = fakeApi();
-    const permdock = withOtel(getPermDockSync(policy, memberUser), {
-      api,
-    });
+    const permdock = withOtel(getPermDockSync(policy, memberUser), { api });
     const derived = await permdock.derive({});
     derived.can(permissions.post.update, ownPost);
     expect(spans).toHaveLength(1);

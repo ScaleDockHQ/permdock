@@ -158,9 +158,9 @@ export function useApproval(decision: Decision): ApprovalHandle {
 
 /**
  * What a permission-gated control renders: `hidden`, `disabled`,
- * `needsApproval`, `upgrade` and a localised `reason`, from the same
- * snapshot as `usePermission`. React and React Native share it; a recipe
- * renders the fields and decides nothing.
+ * `needsApproval`, `upgrade` and a localised `reason`, from the same snapshot
+ * as `usePermission`. React and React Native share it; a recipe renders the
+ * fields and decides nothing.
  */
 export function useGate(
   permission: Permission,

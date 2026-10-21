@@ -7,10 +7,10 @@ import { CLAIM, type RlsSqlContext } from "./context.ts";
 import { qualified, quoteIdent, quoteLiteral } from "./quote.ts";
 
 /**
- * A role with `for` counts only on a membership of one of those kinds:
- * `case role when 'admin' then via = any(...) ... else true end`. A missing
- * kind (`viaExpr` null) holds none of them. A constant kind folds into the
- * roles it excludes, or no filter. `undefined` when nothing is filtered.
+ * A role with `for` counts only on a membership of one of those kinds: `case
+ * role when 'admin' then via = any(...) ... else true end`. A missing kind
+ * (`viaExpr` null) holds none of them. A constant kind folds into the roles it
+ * excludes, or no filter. `undefined` when nothing is filtered.
  */
 export function kindFilterSql(
   ctx: RlsSqlContext,
@@ -38,7 +38,10 @@ export function kindFilterSql(
   return `case ${roleExpr} ${arms.join(" ")} else true end`;
 }
 
-/** The kind check for one known role; `undefined` when it has no `for` or a constant kind it allows. */
+/**
+ * The kind check for one known role; `undefined` when it has no `for` or a
+ * constant kind it allows.
+ */
 export function roleKindSql(
   ctx: RlsSqlContext,
   role: string,
@@ -79,7 +82,10 @@ export function keyTenantSql(
     : `(${named} is null or (${tenant})::text = ${named})`;
 }
 
-/** The active-tenant claim cast to the tenant column's type, so the comparison uses the column's index. */
+/**
+ * The active-tenant claim cast to the tenant column's type, so the comparison
+ * uses the column's index.
+ */
 export function tenantClaimSql(ctx: RlsSqlContext): string {
   return `${subjectClaimSql(ctx, ctx.tenantClaim)}::${tenantTypeOf(ctx)}`;
 }
@@ -92,7 +98,10 @@ export function userIdHelperSql(ctx: Pick<RlsSqlContext, "schema">): string {
 
 export const SESSION_LIVE_HELPER = "permdock_session_live";
 
-/** `{ subject: { session: { live: true } } }` in a policy; only Supabase has `auth.sessions`. */
+/**
+ * `{ subject: { session: { live: true } } }` in a policy; only Supabase has
+ * `auth.sessions`.
+ */
 export function liveSessionSql(ctx: RlsSqlContext): string {
   if (ctx.dialect !== "supabase") {
     throw configError(
@@ -207,7 +216,10 @@ function viaAllowed(value: string | null, allowed: readonly string[]): boolean {
   return allowed.includes(value ?? "");
 }
 
-/** The membership kind of a row `m` of `table`: its column as text, or its constant (`null` without one). */
+/**
+ * The membership kind of a row `m` of `table`: its column as text, or its
+ * constant (`null` without one).
+ */
 export function memberVia(table: RlsMembershipTable): MemberVia {
   const via = table.via;
   if (via === undefined) {

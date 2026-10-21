@@ -104,10 +104,7 @@ describe("resolveRelated", () => {
         op: "and",
         conditions: [
           eq,
-          {
-            op: "not",
-            condition: unrestrictedViewerOfParent,
-          },
+          { op: "not", condition: unrestrictedViewerOfParent },
           {
             op: "sqlFunction",
             name: "f",
@@ -156,9 +153,7 @@ describe("resolveRelated", () => {
     await expect(
       resolveRelated(
         { condition: viewerOfParent, partial: false } as WhereResult,
-        {
-          run: () => Promise.resolve([]),
-        },
+        { run: () => Promise.resolve([]) },
       ),
     ).rejects.toMatchObject({ code: "non-portable-condition" });
   });

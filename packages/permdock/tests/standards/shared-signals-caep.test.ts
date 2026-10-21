@@ -34,10 +34,7 @@ const CAEP_EVENTS = [
 ] as const;
 
 const permissions = definePermissions({
-  post: resource(z.object({ id: z.string() }), {
-    id: "id",
-    actions: ["read"],
-  }),
+  post: resource(z.object({ id: z.string() }), { id: "id", actions: ["read"] }),
 });
 const policy = definePolicy(permissions, {
   subject: () => null,
@@ -422,10 +419,7 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.9.0", () => {
       expect({
         operation,
         caption: captionOf(fixture, "activity_id", ocsf["activity_id"]),
-      }).toEqual({
-        operation,
-        caption: expected,
-      });
+      }).toEqual({ operation, caption: expected });
       expect(ocsf["type_uid"]).toBe(
         fixture.uid * 100 + Number(ocsf["activity_id"]),
       );

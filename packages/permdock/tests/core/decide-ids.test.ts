@@ -29,10 +29,7 @@ const policy = definePolicy(
   },
 );
 const subject: Subject = {
-  principal: {
-    id: "u1",
-    memberships: [{ tenant: "acme", roles: ["reader"] }],
-  },
+  principal: { id: "u1", memberships: [{ tenant: "acme", roles: ["reader"] }] },
   context: {},
 };
 const rows = [
@@ -68,9 +65,7 @@ describe("decideIds", () => {
       { data: () => new Map(rows.map((row) => [row.id, row])) },
     );
     expect(outcomes(decisions)).toEqual(["granted", "denied"]);
-    expect(decisions[1]).toMatchObject({
-      denials: [{ reason: "validation" }],
-    });
+    expect(decisions[1]).toMatchObject({ denials: [{ reason: "validation" }] });
   });
 
   it("denies every id with validation when the loader throws", async () => {
@@ -79,9 +74,7 @@ describe("decideIds", () => {
         throw new Error("down");
       },
     });
-    expect(decisions[0]).toMatchObject({
-      denials: [{ reason: "validation" }],
-    });
+    expect(decisions[0]).toMatchObject({ denials: [{ reason: "validation" }] });
   });
 
   it("denies a snapshot instance with unsupported", async () => {

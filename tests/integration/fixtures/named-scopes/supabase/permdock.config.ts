@@ -41,10 +41,7 @@ export default {
           user: "user_id",
           role: "role",
           via: "via",
-          columns: {
-            customer: "customer_id",
-            organization: "organization_id",
-          },
+          columns: { customer: "customer_id", organization: "organization_id" },
           expiresAt: "expires_at",
         },
       },

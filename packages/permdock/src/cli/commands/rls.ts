@@ -25,7 +25,10 @@ const membershipsFlag = {
   },
 } as const;
 
-/** The flags that shape the generated SQL; verify --introspect and migrate take them too. */
+/**
+ * The flags that shape the generated SQL; verify --introspect and migrate take
+ * them too.
+ */
 const shapeFlags = {
   target: {
     type: "enum",
@@ -156,7 +159,10 @@ const SHAPE_DEFAULTS: ShapeValues = {
   "db-url-stdin": false,
 };
 
-/** Every RlsRunInput field at its "not given" value, with the shape flags applied. */
+/**
+ * Every RlsRunInput field at its "not given" value, with the shape flags
+ * applied.
+ */
 async function rlsInput(
   ctx: CliContext,
   verb: string,

@@ -360,11 +360,7 @@ export function visitFunctionCall(
   }
   const plain = PLAIN_RECEIVERS.has(receiver.type);
   ctx.edits.push(
-    {
-      start: node.callee.start,
-      end: receiver.start,
-      text: plain ? "" : "(",
-    },
+    { start: node.callee.start, end: receiver.start, text: plain ? "" : "(" },
     {
       start: receiver.end,
       end: next?.start ?? node.end - 1,

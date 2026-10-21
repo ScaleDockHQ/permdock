@@ -15,14 +15,20 @@ export type SourceCtx = {
 
 type Alternatives = readonly (readonly string[])[];
 
-/** The tables a query reads and the filters that keep the user's own rows of one source. */
+/**
+ * The tables a query reads and the filters that keep the user's own rows of one
+ * source.
+ */
 export type OwnRows = {
   readonly table: string;
   readonly from: string;
   readonly where: readonly string[];
 };
 
-/** The sources that can hold scope `name`: every table source and the junction sources of that scope. */
+/**
+ * The sources that can hold scope `name`: every table source and the junction
+ * sources of that scope.
+ */
 export function scopeSourcesOf(
   sources: readonly SqlMembershipSource[],
   name: string,
@@ -79,7 +85,10 @@ function anyOf(clauses: readonly string[]): string {
     : `(${clauses.join(" OR ")})`;
 }
 
-/** The user's own rows of the source, of scope `scope` when the source has a scope column. */
+/**
+ * The user's own rows of the source, of scope `scope` when the source has a
+ * scope column.
+ */
 export function ownRows(
   stream: MembershipStream,
   dialect: StreamDialect,
@@ -114,7 +123,10 @@ export function ownRows(
   };
 }
 
-/** The filter of one role source for role `role`; `undefined` when the source never holds it. */
+/**
+ * The filter of one role source for role `role`; `undefined` when the source
+ * never holds it.
+ */
 function roleFilter(
   stream: MembershipStream,
   source: RoleSource,
@@ -164,7 +176,10 @@ function roleFilter(
   };
 }
 
-/** The kinds filter of role `role`: `[]` for none, `undefined` when no row of the source has one of its kinds. */
+/**
+ * The kinds filter of role `role`: `[]` for none, `undefined` when no row of
+ * the source has one of its kinds.
+ */
 function kindFilter(
   stream: MembershipStream,
   role: string,
@@ -231,7 +246,10 @@ export function sourceIn(
   return out;
 }
 
-/** The roles tables the source joins through, each with the query of the rows the user's own rows reference. */
+/**
+ * The roles tables the source joins through, each with the query of the rows
+ * the user's own rows reference.
+ */
 export function roleTableRows(
   stream: MembershipStream,
   dialect: StreamDialect,

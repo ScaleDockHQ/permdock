@@ -317,7 +317,10 @@ language sql as $$ select null::text where false $$;
 grant usage on schema public to authenticated;
 `;
 
-/** `rls verify --kind pgtap` run in `cwd`, written to a temporary file; `stdout` is the script. */
+/**
+ * `rls verify --kind pgtap` run in `cwd`, written to a temporary file; `stdout`
+ * is the script.
+ */
 async function pgtapScript(
   cwd: string,
   fixturesPath: string,

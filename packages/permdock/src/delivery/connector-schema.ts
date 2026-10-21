@@ -5,7 +5,8 @@ import { freezeDeep } from "../core/freeze.ts";
 /**
  * `schemas/connector-v1.json`: the body of a PermDock Cloud connector, one
  * `oneOf` branch per kind with a closed `config`. Only the `otlp` and `siem`
- * `headers` maps hold a secret; a store seals their values and lists names only.
+ * `headers` maps hold a secret; a store seals their values and lists names
+ * only.
  */
 export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -19,34 +20,18 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "webhook",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "webhook" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
           required: ["url"],
           properties: {
-            url: {
-              type: "string",
-              pattern: "^https://",
-            },
+            url: { type: "string", pattern: "^https://" },
             types: {
               type: "array",
-              items: {
-                type: "string",
-                minLength: 1,
-              },
+              items: { type: "string", minLength: 1 },
               uniqueItems: true,
               description: "CloudEvents types to deliver; all when absent.",
             },
@@ -60,41 +45,24 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "otlp",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "otlp" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
           required: ["endpoint"],
           properties: {
-            endpoint: {
-              type: "string",
-              pattern: "^https://",
-            },
+            endpoint: { type: "string", pattern: "^https://" },
             headers: {
               type: "object",
               description:
                 "Request headers sent to the collector, such as an Authorization header; write-only.",
-              additionalProperties: {
-                type: "string",
-              },
+              additionalProperties: { type: "string" },
             },
             signals: {
               type: "array",
-              items: {
-                enum: ["logs", "traces"],
-              },
+              items: { enum: ["logs", "traces"] },
               minItems: 1,
               uniqueItems: true,
             },
@@ -107,19 +75,9 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "siem",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "siem" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
@@ -135,17 +93,12 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
                 "datadog",
               ],
             },
-            endpoint: {
-              type: "string",
-              pattern: "^https://",
-            },
+            endpoint: { type: "string", pattern: "^https://" },
             headers: {
               type: "object",
               description:
                 "Request headers sent to the collector, such as the Splunk HEC Authorization or Datadog DD-API-KEY; write-only.",
-              additionalProperties: {
-                type: "string",
-              },
+              additionalProperties: { type: "string" },
             },
           },
         },
@@ -156,34 +109,17 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "evidence",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "evidence" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
           required: ["format", "destination"],
           properties: {
-            format: {
-              enum: ["jws", "ocsf", "csv"],
-            },
-            destination: {
-              type: "string",
-              pattern: "^https://",
-            },
-            schedule: {
-              enum: ["hourly", "daily"],
-            },
+            format: { enum: ["jws", "ocsf", "csv"] },
+            destination: { type: "string", pattern: "^https://" },
+            schedule: { enum: ["hourly", "daily"] },
           },
         },
       },
@@ -194,33 +130,16 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "scim",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "scim" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
           required: ["tenant", "target"],
           properties: {
-            tenant: {
-              type: "string",
-              minLength: 1,
-              maxLength: 256,
-            },
-            target: {
-              type: "string",
-              pattern: "^https://",
-            },
+            tenant: { type: "string", minLength: 1, maxLength: 256 },
+            target: { type: "string", pattern: "^https://" },
             groupRoles: {
               type: "object",
               description: "Group id to declared assignable role.",
@@ -240,39 +159,18 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "caep-transmitter",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "caep-transmitter" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
           required: ["issuer", "delivery"],
           properties: {
-            issuer: {
-              type: "string",
-              pattern: "^https://",
-            },
-            jwks_uri: {
-              type: "string",
-              pattern: "^https://",
-            },
-            delivery: {
-              enum: ["push", "poll"],
-            },
-            poll_endpoint: {
-              type: "string",
-              pattern: "^https://",
-            },
+            issuer: { type: "string", pattern: "^https://" },
+            jwks_uri: { type: "string", pattern: "^https://" },
+            delivery: { enum: ["push", "poll"] },
+            poll_endpoint: { type: "string", pattern: "^https://" },
           },
         },
       },
@@ -283,39 +181,19 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "federated-upstream",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "federated-upstream" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
           required: ["discovery", "client_id"],
           properties: {
-            discovery: {
-              type: "string",
-              pattern: "^https://",
-            },
-            client_id: {
-              type: "string",
-              minLength: 1,
-              maxLength: 256,
-            },
+            discovery: { type: "string", pattern: "^https://" },
+            client_id: { type: "string", minLength: 1, maxLength: 256 },
             scopes: {
               type: "array",
-              items: {
-                type: "string",
-                minLength: 1,
-              },
+              items: { type: "string", minLength: 1 },
               uniqueItems: true,
             },
           },
@@ -327,32 +205,16 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "chat",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "chat" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
           required: ["platform", "workspace"],
           properties: {
-            platform: {
-              enum: ["slack", "teams"],
-            },
-            workspace: {
-              type: "string",
-              minLength: 1,
-              maxLength: 256,
-            },
+            platform: { enum: ["slack", "teams"] },
+            workspace: { type: "string", minLength: 1, maxLength: 256 },
           },
         },
       },
@@ -363,28 +225,15 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "email",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "email" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
           required: ["from"],
           properties: {
-            from: {
-              type: "string",
-              pattern: "^[^@\\s]+@[^@\\s]+$",
-            },
+            from: { type: "string", pattern: "^[^@\\s]+@[^@\\s]+$" },
           },
         },
       },
@@ -395,37 +244,17 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
       type: "object",
       required: ["kind", "name", "config"],
       properties: {
-        id: {
-          type: "string",
-          minLength: 1,
-          maxLength: 256,
-        },
-        kind: {
-          const: "vercel-oidc",
-        },
-        name: {
-          type: "string",
-          minLength: 1,
-          maxLength: 200,
-        },
+        id: { type: "string", minLength: 1, maxLength: 256 },
+        kind: { const: "vercel-oidc" },
+        name: { type: "string", minLength: 1, maxLength: 200 },
         config: {
           type: "object",
           additionalProperties: false,
           required: ["team_id"],
           properties: {
-            team_id: {
-              type: "string",
-              minLength: 1,
-              maxLength: 256,
-            },
-            project_id: {
-              type: "string",
-              minLength: 1,
-              maxLength: 256,
-            },
-            environment: {
-              enum: ["production", "preview", "development"],
-            },
+            team_id: { type: "string", minLength: 1, maxLength: 256 },
+            project_id: { type: "string", minLength: 1, maxLength: 256 },
+            environment: { enum: ["production", "preview", "development"] },
           },
         },
       },

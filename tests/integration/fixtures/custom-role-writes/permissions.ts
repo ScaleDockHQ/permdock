@@ -8,9 +8,7 @@ export const permissions = definePermissions(
       relations: { org: { field: "orgId", memberOf: "tenant" } },
       levels: { own: { ownerId: principal.id }, all: {} },
     }),
-    member: resource({
-      collection: { assignRole: { manageRoles: true } },
-    }),
+    member: resource({ collection: { assignRole: { manageRoles: true } } }),
   },
   { renamed: { "task.read": "job.read" } },
 );

@@ -15,8 +15,8 @@ type UpgradePromptProps = {
 };
 
 /**
- * Shown only when a plan would grant the action (every denial is
- * not-entitled): names the plans and offers the upgrade.
+ * Shown only when a plan would grant the action (every denial is not-entitled):
+ * names the plans and offers the upgrade.
  */
 export function UpgradePrompt({
   permission,

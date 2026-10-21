@@ -28,9 +28,7 @@ function throwExit(code: number): never {
   throw new TerminalExit(code);
 }
 
-const deploys = definePermissions({
-  environment: resource(crud()),
-});
+const deploys = definePermissions({ environment: resource(crud()) });
 
 const ops = definePolicy(deploys, {
   roles: [

@@ -62,7 +62,8 @@ describe("describePolicy with nested rows", () => {
 
 /**
  * The attenuation invariants of security/delegation.mdx, one vector each,
- * exercised through a policy delegation and checked on the snapshot client too.
+ * exercised through a policy delegation and checked on the snapshot client
+ * too.
  */
 const delegating = definePolicy(permissions, {
   roles: [
@@ -96,9 +97,7 @@ describe("describePolicy through a policy delegation", () => {
     snapshot: true,
     matrix: {
       // Agent ≤ user: a delegation never adds what the principal lacks.
-      [permissions.doc.read.key]: {
-        open: { vera: "granted", ed: "granted" },
-      },
+      [permissions.doc.read.key]: { open: { vera: "granted", ed: "granted" } },
       // Outside the delegated set is not-delegated even though the user may.
       [permissions.doc.list.key]: {
         vera: { denials: [{ role: null, reason: "not-delegated" }] },

@@ -3,7 +3,10 @@ import Link from "next/link";
 
 import { organizations } from "../../lib/store.ts";
 
-/** Rendered in the static shell with `active={null}`, so the links never wait for params. */
+/**
+ * Rendered in the static shell with `active={null}`, so the links never wait
+ * for params.
+ */
 export function OrgSwitcher(props: { readonly active: string | null }) {
   return (
     <nav

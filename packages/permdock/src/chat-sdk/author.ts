@@ -5,15 +5,18 @@ import type { ChatAuthor } from "../chat/subject.ts";
 import { compact } from "../core/compact.ts";
 
 export type ChatSdkAuthorOptions = {
-  /** The platform workspace the bot is installed in, matched against identity links. */
+  /**
+   * The platform workspace the bot is installed in, matched against identity
+   * links.
+   */
   readonly workspace?: string;
 };
 
 /**
  * The `ChatAuthor` of a Chat SDK message or action, named by its adapter
- * (`adapter.name`, such as `slack`). `null` for a bot, this bot, the
- * platform itself or an empty id. Reads only `userId`: the email and display
- * name never identify anyone.
+ * (`adapter.name`, such as `slack`). `null` for a bot, this bot, the platform
+ * itself or an empty id. Reads only `userId`: the email and display name never
+ * identify anyone.
  */
 export function chatSdkAuthor(
   user: Pick<Author, "userId" | "isBot" | "isMe" | "isSystem">,

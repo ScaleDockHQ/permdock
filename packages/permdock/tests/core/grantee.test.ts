@@ -49,10 +49,7 @@ const NOW = 1_800_000_000;
 const anonymous: Subject = { principal: null, context: {} };
 const user = (
   extra: Partial<NonNullable<Subject["principal"]>> = {},
-): Subject => ({
-  principal: { id: "u1", ...extra },
-  context: {},
-});
+): Subject => ({ principal: { id: "u1", ...extra }, context: {} });
 
 describe("relation() validation", () => {
   it.each([

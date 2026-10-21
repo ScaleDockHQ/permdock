@@ -20,35 +20,50 @@ export const CLAIM: RegExp = SQL_IDENT;
 
 export type RlsSqlContext = {
   readonly dialect: RlsDialect;
-  /** `rls.anonymousSignIns`: `'deny'` keeps an `is_anonymous` token out of every branch but `anyone()`'s. */
+  /**
+   * `rls.anonymousSignIns`: `'deny'` keeps an `is_anonymous` token out of every
+   * branch but `anyone()`'s.
+   */
   readonly anonymousSignIns?: "deny";
-  /** The policy's scopes in order (the implicit `tenant` / `team` pair when it declares none). */
+  /**
+   * The policy's scopes in order (the implicit `tenant` / `team` pair when it
+   * declares none).
+   */
   readonly scopes: readonly Scope[];
   readonly memberships?: RlsMemberships;
   /**
-   * `database` mode: the `tableMembershipSource` / `junctionMembershipSource` sources the helpers read
-   * for a scope `memberships` maps no table for (the same SQL the hook runs).
+   * `database` mode: the `tableMembershipSource` / `junctionMembershipSource`
+   * sources the helpers read for a scope `memberships` maps no table for (the
+   * same SQL the hook runs).
    */
   readonly sources?: readonly SqlMembershipSource[];
   /**
    * `rls.membershipSources ?? supabase.hook.memberships` in either mode: what
-   * `member_<scope>_ids_for(p_user)` reads for a scope `memberships` maps no table for.
+   * `member_<scope>_ids_for(p_user)` reads for a scope `memberships` maps no
+   * table for.
    */
   readonly memberSources?: readonly SqlMembershipSource[];
   readonly tenantClaim: string;
-  /** Scopes whose `member_<scope>_ids(p_roles text[])` overload `rls.migrate`'s `role` helpers rewrite to. */
+  /**
+   * Scopes whose `member_<scope>_ids(p_roles text[])` overload `rls.migrate`'s
+   * `role` helpers rewrite to.
+   */
   readonly roleMemberScopes?: readonly string[];
-  /** `rls.roleValues`: a legacy role value to the PermDock role it is; the `role` shim maps through it. */
+  /**
+   * `rls.roleValues`: a legacy role value to the PermDock role it is; the
+   * `role` shim maps through it.
+   */
   readonly roleValues?: Readonly<Record<string, string>>;
   /**
    * SQL for the subject's user id in place of the dialect's (`auth.uid()`):
-   * `p_user` inside a `_for` helper, which answers for a user the caller names.
+   * `p_user` inside a `_for` helper, which answers for a user the caller
+   * names.
    */
   readonly subjectId?: string;
   /**
    * `'all'` (`rls.tenants`): the helpers and `memberOf` checks admit every
-   * tenant the subject holds a membership in, ignoring the tenant claim.
-   * Unset, they narrow to the tenant claim when the token carries one.
+   * tenant the subject holds a membership in, ignoring the tenant claim. Unset,
+   * they narrow to the tenant claim when the token carries one.
    */
   readonly tenants?: "all";
   readonly grantSet?: true;
@@ -58,19 +73,35 @@ export type RlsSqlContext = {
   /** Resources `rls.tables` marks `false`: every action compiles as `'none'`. */
   readonly tableless?: ReadonlySet<string>;
   readonly inlineFunctions?: boolean;
-  /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `permdock`, a schema the Data API does not expose. */
+  /**
+   * Schema of `role_permissions` and the RLS helpers (`permdock_has`,
+   * `permitted_<scope>_ids`). Default `permdock`, a schema the Data API does
+   * not expose.
+   */
   readonly schema?: string;
-  /** `rls.seeds: 'function'`: the `role_permissions` rows are written by `<schema>.seed()`; `'view'`: `role_permissions` is a view over them. */
+  /**
+   * `rls.seeds: 'function'`: the `role_permissions` rows are written by
+   * `<schema>.seed()`; `'view'`: `role_permissions` is a view over them.
+   */
   readonly seeds?: "function" | "view";
-  /** Where the helpers read roles and memberships: tables (`database`) or claims (`jwt`, the default). */
+  /**
+   * Where the helpers read roles and memberships: tables (`database`) or claims
+   * (`jwt`, the default).
+   */
   readonly authorize?: "database" | "jwt";
   /** Claim holding the global role (string or array). Default `user_role`. */
   readonly roleClaim?: string;
-  /** Postgres type of the tenant column; the tenant claim is cast to it. Default `uuid`. */
+  /**
+   * Postgres type of the tenant column; the tenant claim is cast to it. Default
+   * `uuid`.
+   */
   readonly tenantType?: string;
   /** Postgres type of the team column. Defaults to `tenantType`. */
   readonly teamType?: string;
-  /** Postgres type of each scope's id column; overrides `tenantType` / `teamType`. */
+  /**
+   * Postgres type of each scope's id column; overrides `tenantType` /
+   * `teamType`.
+   */
   readonly scopeTypes?: Readonly<Record<string, string>>;
   /**
    * Set when custom roles compile: the helpers also resolve tenant-defined
@@ -79,17 +110,35 @@ export type RlsSqlContext = {
   readonly customRoles?: {
     readonly declared: readonly string[];
     readonly assignable: readonly string[];
-    /** Former key to current key; a stored custom-role entry under a former key resolves like the current one. */
+    /**
+     * Former key to current key; a stored custom-role entry under a former key
+     * resolves like the current one.
+     */
     readonly renamed?: Readonly<Record<string, string>>;
-    /** Every declared permission key: a saved entry naming another key is `unknown-permission`. */
+    /**
+     * Every declared permission key: a saved entry naming another key is
+     * `unknown-permission`.
+     */
     readonly permissions?: readonly string[];
-    /** Keys of permissions with `meta.manageRoles`: holding one lifts the hand-out check, as in-process. */
+    /**
+     * Keys of permissions with `meta.manageRoles`: holding one lifts the
+     * hand-out check, as in-process.
+     */
     readonly manage?: readonly string[];
-    /** Keys of which the caller must hold one before any custom-role write (`rls.customRoleWrites.requires`). */
+    /**
+     * Keys of which the caller must hold one before any custom-role write
+     * (`rls.customRoleWrites.requires`).
+     */
     readonly requires?: readonly string[];
-    /** The application's roles table whose renames, moves and deletes cascade to the custom-role tables (`rls.customRoleWrites.roles`). */
+    /**
+     * The application's roles table whose renames, moves and deletes cascade to
+     * the custom-role tables (`rls.customRoleWrites.roles`).
+     */
     readonly table?: RlsCustomRoleTable;
-    /** The function the by-id writers call after a save (`rls.customRoleWrites.audit`). */
+    /**
+     * The function the by-id writers call after a save
+     * (`rls.customRoleWrites.audit`).
+     */
     readonly audit?: RlsCustomRoleAudit;
     /**
      * Set when a resource declares levels: stored allows may carry a level
@@ -97,19 +146,34 @@ export type RlsSqlContext = {
      * assignable roles' grants get one `<grant key>@<level>` key per level.
      */
     readonly levels?: true;
-    /** The sync triggers (`rls.customRoles.from.sync`) as SQL, built from the legacy tables. */
+    /**
+     * The sync triggers (`rls.customRoles.from.sync`) as SQL, built from the
+     * legacy tables.
+     */
     readonly sync?: string;
   };
-  /** Set when link capabilities compile: resource-scoped grants also get `anon` branches. */
+  /**
+   * Set when link capabilities compile: resource-scoped grants also get `anon`
+   * branches.
+   */
   readonly capabilities?: true;
   readonly apiKeys?: ApiKeysPlan;
   /** `rls.tokenScopes`: the scope-to-keys map a delegated token is narrowed by. */
   readonly tokenScopes?: TokenScopesPlan;
-  /** Role ownership rules (`for`, `assigns`, `min`, `max`, `transferOnly`), when any role declares one. */
+  /**
+   * Role ownership rules (`for`, `assigns`, `min`, `max`, `transferOnly`), when
+   * any role declares one.
+   */
   readonly ownership?: RlsOwnership;
-  /** Scopes whose holder-count and transfer-only triggers `rls.ownershipTriggers` leaves out; `'all'` for every scope. */
+  /**
+   * Scopes whose holder-count and transfer-only triggers
+   * `rls.ownershipTriggers` leaves out; `'all'` for every scope.
+   */
   readonly skipOwnershipTriggers?: "all" | readonly string[];
-  /** `rls.assignments`: assignment triggers on the membership tables, the global-roles table and these extra tables. */
+  /**
+   * `rls.assignments`: assignment triggers on the membership tables, the
+   * global-roles table and these extra tables.
+   */
   readonly assignments?: {
     readonly tables: readonly RlsAssignmentTable[];
     readonly ownRole?: "refuse" | Readonly<Record<string, "refuse">>;
@@ -120,17 +184,32 @@ export type RlsSqlContext = {
    * that type; a column without an entry compares as text.
    */
   readonly columnTypes?: Readonly<Record<string, string>>;
-  /** Array columns of the table, each with its item type: `contains` on one compiles to `v = any(col)`. */
+  /**
+   * Array columns of the table, each with its item type: `contains` on one
+   * compiles to `v = any(col)`.
+   */
   readonly arrayColumns?: Readonly<Record<string, string>>;
-  /** Active-row tables; scope keys are declared names (`checkSuspension` resolves aliases). */
+  /**
+   * Active-row tables; scope keys are declared names (`checkSuspension`
+   * resolves aliases).
+   */
   readonly suspension?: RlsSuspension;
-  /** The permission key of the grant being compiled, for the suspension `keep` of its inline checks. */
+  /**
+   * The permission key of the grant being compiled, for the suspension `keep`
+   * of its inline checks.
+   */
   readonly permission?: string;
-  /** `rls.roles`: the app's global-roles table, in place of the generated `user_roles`. */
+  /**
+   * `rls.roles`: the app's global-roles table, in place of the generated
+   * `user_roles`.
+   */
   readonly roles?: GlobalRoles;
   /** Set when field views compile: grant keys also split by field set. */
   readonly fields?: "views" | "mask";
-  /** `rls.tables` entries with `via`, by resource: policies filter on the parent's id through `via.helper`. */
+  /**
+   * `rls.tables` entries with `via`, by resource: policies filter on the
+   * parent's id through `via.helper`.
+   */
   readonly vias?: Readonly<Record<string, ResolvedVia>>;
   /** Graph grants: the closure depth kept for each walked resource. */
   readonly graph?: {
@@ -152,7 +231,10 @@ export type ApiKeysPlan = {
 };
 
 export type TokenScopesPlan = {
-  /** Each OAuth scope to the permission keys it reaches, from `delegatedScopeMap`. */
+  /**
+   * Each OAuth scope to the permission keys it reaches, from
+   * `delegatedScopeMap`.
+   */
   readonly scopes: Readonly<Record<string, readonly string[]>>;
 };
 
@@ -182,9 +264,9 @@ export type RlsOwnership = {
 };
 
 /**
- * The permission an active-instance check is for: a key known when the SQL
- * is generated, or the SQL of one read at run time. Without one, a
- * suspended instance keeps nothing.
+ * The permission an active-instance check is for: a key known when the SQL is
+ * generated, or the SQL of one read at run time. Without one, a suspended
+ * instance keeps nothing.
  */
 export type CheckedPermission =
   | { readonly key: string }

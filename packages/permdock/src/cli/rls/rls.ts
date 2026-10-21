@@ -51,7 +51,10 @@ export type RlsRunInput = {
   readonly dialect: string | undefined;
   readonly out: string | undefined;
   readonly from: string | undefined;
-  /** `generate --project`: the policy comes from the Cloud project instead of a module. */
+  /**
+   * `generate --project`: the policy comes from the Cloud project instead of a
+   * module.
+   */
   readonly project?: string | undefined;
   readonly url?: string | undefined;
   readonly sql: string | undefined;
@@ -274,7 +277,10 @@ async function migrate(input: RlsRunInput): Promise<CommandResult> {
   });
 }
 
-/** `verify --introspect` with `--helpers-only`: helpers and seeds exactly, hand-written policies by their keys. */
+/**
+ * `verify --introspect` with `--helpers-only`: helpers and seeds exactly,
+ * hand-written policies by their keys.
+ */
 async function introspectHelpersOnly(
   db: string,
   expected: ExpectedRls,
@@ -309,7 +315,10 @@ async function introspectHelpersOnly(
   }
 }
 
-/** `verify --introspect`: the catalogs against what `generate` would write with the same flags. */
+/**
+ * `verify --introspect`: the catalogs against what `generate` would write with
+ * the same flags.
+ */
 async function introspect(
   input: RlsRunInput,
   ignore: readonly VerifyIgnore[],

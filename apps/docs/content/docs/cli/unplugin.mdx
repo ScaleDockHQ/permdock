@@ -64,9 +64,7 @@ Vite plugin under `vite.plugins`. Client UI is `permdock/vue`. A server route (N
 import { createPermDockUnplugin } from "permdock/unplugin";
 
 export default defineNuxtConfig({
-  vite: {
-    plugins: [createPermDockUnplugin.vite()],
-  },
+  vite: { plugins: [createPermDockUnplugin.vite()] },
 });
 ```
 
@@ -80,9 +78,7 @@ import { defineConfig } from "astro/config";
 import { createPermDockUnplugin } from "permdock/unplugin";
 
 export default defineConfig({
-  vite: {
-    plugins: [createPermDockUnplugin.vite()],
-  },
+  vite: { plugins: [createPermDockUnplugin.vite()] },
 });
 ```
 

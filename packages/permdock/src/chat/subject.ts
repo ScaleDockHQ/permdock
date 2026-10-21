@@ -5,9 +5,9 @@ import { compact } from "../core/compact.ts";
 import { loadPrincipalByIdentity } from "../core/principal-source.ts";
 
 /**
- * The platform user behind a chat message or action. Fill it only from an
- * event whose platform signature the transport verified; a body field or a
- * model argument is never an author.
+ * The platform user behind a chat message or action. Fill it only from an event
+ * whose platform signature the transport verified; a body field or a model
+ * argument is never an author.
  */
 export type ChatAuthor = {
   /** The chat platform (`slack`, `teams`, `discord`, …). */
@@ -18,7 +18,10 @@ export type ChatAuthor = {
   readonly workspace?: string;
 };
 
-/** The principal a chat author's identity link names, as the `PrincipalSource` returns it. */
+/**
+ * The principal a chat author's identity link names, as the `PrincipalSource`
+ * returns it.
+ */
 export type ChatPrincipal = Principal;
 
 export type SubjectFromChatOptions = {
@@ -44,7 +47,10 @@ export function isChatAuthor(value: unknown): value is ChatAuthor {
   );
 }
 
-/** The principal linked to `author`, or `null` for an unlinked or malformed author. Never throws. */
+/**
+ * The principal linked to `author`, or `null` for an unlinked or malformed
+ * author. Never throws.
+ */
 function principalFromChat(
   author: ChatAuthor | null | undefined,
   principals: PrincipalSource,
@@ -64,8 +70,8 @@ function principalFromChat(
 }
 
 /**
- * The subject a chat author acts as: the principal its identity link
- * names, or anonymous when there is no link. Never throws.
+ * The subject a chat author acts as: the principal its identity link names, or
+ * anonymous when there is no link. Never throws.
  */
 export async function subjectFromChat(
   author: ChatAuthor | null | undefined,

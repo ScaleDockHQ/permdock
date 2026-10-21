@@ -213,8 +213,8 @@ function refusing(keyword: string): StandardSchemaV1 {
 /**
  * A Standard Schema that validates against a catalog resource's JSON Schema.
  * `null` (no JSON Schema in the catalog) gives `undefined`. A schema that uses
- * a keyword outside the supported subset rejects every value, so a hosted
- * check never validates less than the code did.
+ * a keyword outside the supported subset rejects every value, so a hosted check
+ * never validates less than the code did.
  */
 export function resourceSchemaFromJson(
   json: unknown,

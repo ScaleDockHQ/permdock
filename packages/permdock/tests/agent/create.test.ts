@@ -21,11 +21,7 @@ const Model = z.object({ id: z.string() });
 
 const permissions = definePermissions({
   doc: resource(Doc, { id: "id", actions: ["read"], collection: ["search"] }),
-  model: resource(Model, {
-    id: "id",
-    actions: ["use"],
-    collection: ["basic"],
-  }),
+  model: resource(Model, { id: "id", actions: ["use"], collection: ["basic"] }),
 });
 
 type User = { readonly id: string; readonly roles: readonly string[] };
@@ -251,10 +247,7 @@ describe("permdock/ai-sdk model gate", () => {
   });
 
   it("skips the model check without models", async () => {
-    const permdock = createAiSdk(policy, {
-      subject: userOf,
-      operations,
-    });
+    const permdock = createAiSdk(policy, { subject: userOf, operations });
     await expect(
       permdock
         .capabilityMiddleware({ user: member.user })

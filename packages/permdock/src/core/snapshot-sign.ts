@@ -10,14 +10,20 @@ export type SignSnapshotOptions = {
   readonly audience?: string | readonly string[];
 };
 
-/** The claims of a `vnd.permdock.snapshot+jwt` apart from `iss`, `aud` and `jti`. */
+/**
+ * The claims of a `vnd.permdock.snapshot+jwt` apart from `iss`, `aud` and
+ * `jti`.
+ */
 export type SnapshotClaims = {
   readonly snapshot: Omit<Snapshot, "issuedAt" | "expiresAt">;
   /** The principal's id; absent for an anonymous snapshot. */
   readonly sub?: string;
   /** `issuedAt` in NumericDate seconds; absent when it is not after the epoch. */
   readonly iat?: number;
-  /** `expiresAt` in NumericDate seconds; absent when the snapshot has none, and the signer then sets its default. */
+  /**
+   * `expiresAt` in NumericDate seconds; absent when the snapshot has none, and
+   * the signer then sets its default.
+   */
   readonly exp?: number;
 };
 
@@ -37,7 +43,10 @@ export function snapshotClaims(snapshot: Snapshot): SnapshotClaims {
   });
 }
 
-/** Signs `snapshot` as a `vnd.permdock.snapshot+jwt` with the claims `snapshotClaims` answers. */
+/**
+ * Signs `snapshot` as a `vnd.permdock.snapshot+jwt` with the claims
+ * `snapshotClaims` answers.
+ */
 export function signSnapshot(
   snapshot: Snapshot,
   signer: TokenSigner,
@@ -56,8 +65,8 @@ export function signSnapshot(
 }
 
 /**
- * The `snapshot` claim of verified claims with `issuedAt` and `expiresAt`
- * taken from `iat` and `exp`; `undefined` when the claim is not an object.
+ * The `snapshot` claim of verified claims with `issuedAt` and `expiresAt` taken
+ * from `iat` and `exp`; `undefined` when the claim is not an object.
  */
 export function snapshotClaim(claims: JwtClaims): unknown {
   const claim = claims["snapshot"];

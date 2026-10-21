@@ -87,8 +87,8 @@ function helperEntry(
 }
 
 /**
- * The helpers `rls generate` writes beyond the ones the hook's claims feed:
- * the `_for` forms in `database` mode, and the assignment checks when a role
+ * The helpers `rls generate` writes beyond the ones the hook's claims feed: the
+ * `_for` forms in `database` mode, and the assignment checks when a role
  * declares `assigns` (known only with the policy).
  */
 function trustedHelpers(
@@ -231,7 +231,10 @@ function activeRowManifest(
   };
 }
 
-/** The `rls` settings a package writing SQL next to the helpers reads: custom roles, global roles, suspension and assignment triggers. */
+/**
+ * The `rls` settings a package writing SQL next to the helpers reads: custom
+ * roles, global roles, suspension and assignment triggers.
+ */
 function rlsSettings(
   parts: Parts,
   config: PermDockConfig,
@@ -278,9 +281,7 @@ function rlsSettings(
                 }),
             ...(suspension.memberships === undefined
               ? {}
-              : {
-                  memberships: { keep: keptKeys(suspension.memberships) },
-                }),
+              : { memberships: { keep: keptKeys(suspension.memberships) } }),
           },
         }),
     ...(assigned === undefined ? {} : { assignments: { tables: assigned } }),
@@ -413,7 +414,10 @@ export function manifestOf(
   };
 }
 
-/** The manifest without the token hook: what a project with no `supabase.hook` records. */
+/**
+ * The manifest without the token hook: what a project with no `supabase.hook`
+ * records.
+ */
 export function databaseManifestOf(
   parts: Parts,
   out: string,
@@ -432,7 +436,10 @@ export function databaseManifestOf(
   return rest;
 }
 
-/** The first line of the generated hook: fields `--check` compares before the full text. */
+/**
+ * The first line of the generated hook: fields `--check` compares before the
+ * full text.
+ */
 export function hookMarker(manifest: SupabaseHookManifest): string {
   return `${HOOK_MARKER} schema=${manifest.hook.schema} tenant=${manifest.tenantClaim} budget=${String(manifest.budget.bytes)} claims=${manifest.claims.map((claim) => claim.name).join(",")}`;
 }

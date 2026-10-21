@@ -18,7 +18,10 @@ export function pepPolicy(provider: DecisionProvider) {
   });
 }
 
-/** Every post permission is delegated to the PDP; local roles still have to grant too. */
+/**
+ * Every post permission is delegated to the PDP; local roles still have to
+ * grant too.
+ */
 export function localPdp(options: {
   readonly url: string;
   readonly fetch?: typeof fetch;

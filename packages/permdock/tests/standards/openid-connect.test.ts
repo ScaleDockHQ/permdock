@@ -220,10 +220,7 @@ describe("OpenID Connect Discovery 1.0 and RFC 8414", () => {
       }),
     ).toThrow(/issuer must match/u);
     expect(() =>
-      jwtSubjectResolver({
-        discovery: ISSUER,
-        jwks: { keys: [] },
-      }),
+      jwtSubjectResolver({ discovery: ISSUER, jwks: { keys: [] } }),
     ).toThrow(/mutually exclusive/u);
   });
 });
@@ -417,9 +414,7 @@ describe("RFC 9470 OAuth 2.0 Step Up Authentication Challenge", () => {
     const decision = permdock.decide(
       permissions.payout.create,
       { id: "p1" },
-      {
-        now: at(NOW),
-      },
+      { now: at(NOW) },
     );
     expect(decision).toMatchObject({
       outcome: "denied",
@@ -461,10 +456,7 @@ describe("OpenID Connect Back-Channel Logout 1.0", () => {
       actions: ["read"],
     }),
   });
-  const policy = definePolicy(permissions, {
-    subject: () => null,
-    grants: [],
-  });
+  const policy = definePolicy(permissions, { subject: () => null, grants: [] });
 
   async function logoutToken(
     claims: Record<string, unknown>,

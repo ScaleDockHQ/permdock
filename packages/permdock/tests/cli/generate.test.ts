@@ -169,11 +169,7 @@ const CASES: readonly (readonly [
   [
     "object without properties",
     { type: "object", properties: [] },
-    {
-      zod: "z.object({})",
-      valibot: "v.object({})",
-      arktype: "type({})",
-    },
+    { zod: "z.object({})", valibot: "v.object({})", arktype: "type({})" },
   ],
   [
     "nesting past the depth limit",
@@ -199,9 +195,7 @@ describe("schemaExpression", () => {
     const shared: JsonSchema = {
       type: "object",
       required: ["tags"],
-      properties: {
-        tags: { type: "array", items: { $ref: "Tag" } },
-      },
+      properties: { tags: { type: "array", items: { $ref: "Tag" } } },
     };
     const resolve = (node: JsonSchema): JsonSchema =>
       node["$ref"] === "Root"

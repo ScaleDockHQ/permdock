@@ -89,9 +89,9 @@ const carol = principal("carol");
 const session = { id: "session-1", auth: { initiator: alice, current: alice } };
 
 /**
- * The toolApproval eve 0.58.1 builds in `harness/tools.js`
- * (`buildApprovalFn` + `buildToolApproval`): it calls the tool's
- * `approval.request` with the session context and passes the answer through.
+ * The toolApproval eve 0.58.1 builds in `harness/tools.js` (`buildApprovalFn` +
+ * `buildToolApproval`): it calls the tool's `approval.request` with the session
+ * context and passes the answer through.
  */
 function eveToolApproval(adapter: EvePermDock): ToolApproval {
   // SAFETY: mirrors the approval function eve 0.58.1 builds, which reads only toolCall

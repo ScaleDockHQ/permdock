@@ -14,7 +14,10 @@ import { idList, isId } from "../core/ids.ts";
 import { type Subject, anonymousSubject } from "../core/subject.ts";
 import { type Instant, nowSeconds } from "../core/time.ts";
 
-/** The fields of better-supabase's `ResolvedShareLink` a link subject is built from. */
+/**
+ * The fields of better-supabase's `ResolvedShareLink` a link subject is built
+ * from.
+ */
 export type ShareLinkRow = {
   readonly id: string;
   readonly organizationId: string;
@@ -38,22 +41,34 @@ export type ShareLinkResolver = {
 
 /** How links on one better-supabase subject type map to PermDock. */
 export type ShareLinkTarget = {
-  /** The resource the subject type's rows are; RLS matches it against `capability.on.resource`. */
+  /**
+   * The resource the subject type's rows are; RLS matches it against
+   * `capability.on.resource`.
+   */
   readonly resource: Permission | PermissionTree;
-  /** PermDock roles for each share-link role (`{ view: ['guest'] }`). A role with no entry is refused. */
+  /**
+   * PermDock roles for each share-link role (`{ view: ['guest'] }`). A role
+   * with no entry is refused.
+   */
   readonly roles: Readonly<Record<string, readonly string[]>>;
 };
 
 export type ShareLinkSubjectOptions = {
   readonly shareLinks: ShareLinkResolver;
-  /** One entry per subject type a guest page serves, keyed by better-supabase's `subjectType`. */
+  /**
+   * One entry per subject type a guest page serves, keyed by better-supabase's
+   * `subjectType`.
+   */
   readonly links: Readonly<Record<string, ShareLinkTarget>>;
-  /** Lifetime of the subject in seconds, capped by the link's own expiry. Default 300, at most 3600. */
+  /**
+   * Lifetime of the subject in seconds, capped by the link's own expiry.
+   * Default 300, at most 3600.
+   */
   readonly ttl?: number;
   /**
-   * The link policies of the link's organization (`row.organizationId`);
-   * every one must hold, and a throw denies. A row carries no creation
-   * time, so a `maxLifetime` rule refuses every share link.
+   * The link policies of the link's organization (`row.organizationId`); every
+   * one must hold, and a throw denies. A row carries no creation time, so a
+   * `maxLifetime` rule refuses every share link.
    */
   readonly linkPolicy?: (
     capability: Capability,
@@ -101,13 +116,13 @@ function isRow(value: unknown): value is ShareLinkRow {
 }
 
 /**
- * Resolves a better-supabase share-link token into the `link` subject it
- * acts as, for `exchangeCapability` and `--capabilities` RLS. The row is
- * read on every call, so a revoked or expired link stops resolving at
- * once. An unknown token, subject type or role, a malformed row, a broken
- * link policy, a `resolve` error and a throw are the anonymous subject. So
- * is a link pinned to a version: a capability grants the subject's current
- * rows, so a pinned link reads through `versions.getShared(token)` instead.
+ * Resolves a better-supabase share-link token into the `link` subject it acts
+ * as, for `exchangeCapability` and `--capabilities` RLS. The row is read on
+ * every call, so a revoked or expired link stops resolving at once. An unknown
+ * token, subject type or role, a malformed row, a broken link policy, a
+ * `resolve` error and a throw are the anonymous subject. So is a link pinned to
+ * a version: a capability grants the subject's current rows, so a pinned link
+ * reads through `versions.getShared(token)` instead.
  */
 export async function subjectFromShareLink(
   token: string | undefined | null,

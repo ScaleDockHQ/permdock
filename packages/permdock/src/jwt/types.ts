@@ -46,7 +46,10 @@ export type JwksCacheOptions = {
   readonly minTtl?: number;
   readonly maxTtl?: number;
   readonly cooldown?: number;
-  /** Milliseconds a discovery or JWKS request may take before it counts as failed. Default 5000. */
+  /**
+   * Milliseconds a discovery or JWKS request may take before it counts as
+   * failed. Default 5000.
+   */
   readonly timeout?: number;
 };
 
@@ -71,7 +74,10 @@ export type JoseTokenSignerOptions = {
   readonly kid: string;
   /** `iss` of every output; required. */
   readonly issuer: string;
-  /** `aud` for an output whose `sign` call names none; without either, `sign` rejects. */
+  /**
+   * `aud` for an output whose `sign` call names none; without either, `sign`
+   * rejects.
+   */
   readonly audience?: string | readonly string[];
 };
 
@@ -96,12 +102,18 @@ export type JwtSubjectOptions = Omit<JoseTokenVerifierOptions, "audience"> & {
     | {
         readonly from?: "act";
         readonly kind?: string;
-        /** Names for client ids (`ClientNames`): the actor gets `client` set to the name of `act.sub`. */
+        /**
+         * Names for client ids (`ClientNames`): the actor gets `client` set to
+         * the name of `act.sub`.
+         */
         readonly clients?: ClientNames;
       }
     | ((claims: JwtClaims) => Actor | undefined);
   readonly sender?: "none" | "dpop" | "mtls";
-  /** With `sender: "dpop"`, rejects a proof `jti` already used by the same key within 60 seconds. */
+  /**
+   * With `sender: "dpop"`, rejects a proof `jti` already used by the same key
+   * within 60 seconds.
+   */
   readonly replay?: ReplayStore;
   readonly memberships?: MembershipSource;
   readonly verifier?: TokenVerifier;

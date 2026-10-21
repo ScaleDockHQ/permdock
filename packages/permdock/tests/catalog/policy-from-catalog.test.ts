@@ -154,10 +154,7 @@ describe("policyFromCatalog", () => {
           deny(tree.doc.purge, () => false),
         ]),
       ],
-      subject: (user: { id: string }) => ({
-        id: user.id,
-        roles: ["member"],
-      }),
+      subject: (user: { id: string }) => ({ id: user.id, roles: ["member"] }),
     });
     const hosted = rebuild(policy);
     const row = { id: "d1", ownerId: "u1" };
@@ -182,10 +179,7 @@ describe("policyFromCatalog", () => {
     });
     const policy = definePolicy(tree, {
       roles: [role("member", [allow(tree.doc.update)])],
-      subject: (user: { id: string }) => ({
-        id: user.id,
-        roles: ["member"],
-      }),
+      subject: (user: { id: string }) => ({ id: user.id, roles: ["member"] }),
     });
     const hosted = rebuild(policy);
     const copy = getPermDockSync(hosted, { id: "u1" });

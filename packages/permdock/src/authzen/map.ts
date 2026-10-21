@@ -62,7 +62,10 @@ export function resourceData(item: AuthzenItem): unknown {
   return itemResourceData(item.resource);
 }
 
-/** The row id an item names; `undefined` for none and for the collection sentinel `id: "*"`. */
+/**
+ * The row id an item names; `undefined` for none and for the collection
+ * sentinel `id: "*"`.
+ */
 export function resourceIdOf(item: AuthzenItem): string | undefined {
   return wireResourceId(item.resource?.id);
 }
@@ -131,7 +134,10 @@ export type PermDockContext = {
   readonly reason?: "unknown-permission";
 };
 
-/** Only the outcome, denial reasons and token leave the PDP; `alternatives` are `search/action`. */
+/**
+ * Only the outcome, denial reasons and token leave the PDP; `alternatives` are
+ * `search/action`.
+ */
 export type EvaluationContext = EvaluationReasons & {
   readonly permdock: PermDockContext;
 };
@@ -165,10 +171,7 @@ function permdockContext(decision: Decision): PermDockContext {
 export function evaluationRow(
   decision: Decision,
   permission: string,
-): {
-  readonly decision: boolean;
-  readonly context: EvaluationContext;
-} {
+): { readonly decision: boolean; readonly context: EvaluationContext } {
   return {
     decision: decision.outcome === "granted",
     context: {

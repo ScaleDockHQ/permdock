@@ -29,7 +29,10 @@ const PAGE = readFileSync(
   "utf8",
 );
 
-/** The first column of the markdown table whose header row is `heading`, ignoring column padding. */
+/**
+ * The first column of the markdown table whose header row is `heading`,
+ * ignoring column padding.
+ */
 function tableColumn(heading: string): readonly string[] {
   const lines = PAGE.split("\n");
   const start = lines.findIndex(

@@ -12,9 +12,7 @@ function GitHubIcon() {
 
 export function baseOptions(): BaseLayoutProps {
   return {
-    nav: {
-      title: appName,
-    },
+    nav: { title: appName },
     // `githubUrl` renders its icon as role="img" without a title, which axe
     // reports as svg-img-alt.
     links: [

@@ -40,11 +40,7 @@ const storage = {
 async function generate(
   rls: Record<string, unknown>,
   dialect = "supabase",
-): Promise<{
-  code: number;
-  sql: string;
-  output: string;
-}> {
+): Promise<{ code: number; sql: string; output: string }> {
   const cwd = project({
     "permdock.config.ts": `export default ${JSON.stringify({
       permissions: policyPath,

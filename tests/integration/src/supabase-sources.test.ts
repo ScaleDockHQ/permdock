@@ -132,9 +132,7 @@ describe("permdock supabase hook generate against Postgres", () => {
     }
     const result = await runPipingDbUrl(
       ["supabase", "hook", "generate", "--out", out],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     if (result.code !== 0) {
       throw new Error(`hook generate: ${result.stdout}${result.stderr}`);
@@ -169,7 +167,10 @@ describe("permdock supabase hook generate against Postgres", () => {
     );
   }
 
-  /** Auth puts the user's `raw_app_meta_data` into the event's claims as `app_metadata`. */
+  /**
+   * Auth puts the user's `raw_app_meta_data` into the event's claims as
+   * `app_metadata`.
+   */
   async function appMetadata(user: string): Promise<unknown> {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
@@ -331,9 +332,7 @@ describe("permdock supabase hook generate against Postgres", () => {
           role(
             roles.owner,
             [allow([permissions.quote.read, permissions.quote.delete])],
-            {
-              on: "organization",
-            },
+            { on: "organization" },
           ),
         ],
         grants: [

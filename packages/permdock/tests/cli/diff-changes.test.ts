@@ -194,9 +194,7 @@ describe("grant change descriptions", () => {
   });
 
   it("does not list an allow removed with its role or permission", () => {
-    const diff = compare([open], [], {
-      b: { roles: [], permissions: [] },
-    });
+    const diff = compare([open], [], { b: { roles: [], permissions: [] } });
     expect(kinds(diff)).toEqual(["permission-removed", "role-removed"]);
     const scoped = compare([grant({ scope: "tenant" })], [], {
       a: { scopes: [{ name: "tenant", key: "tenantId" }] },

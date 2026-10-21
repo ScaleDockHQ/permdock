@@ -113,14 +113,10 @@ describe("subjectFromBetterAuth", () => {
   it("never throws and fails closed to anonymous", async () => {
     await expect(
       subjectFromBetterAuth(null, { auth: {} }),
-    ).resolves.toMatchObject({
-      principal: null,
-    });
+    ).resolves.toMatchObject({ principal: null });
     await expect(
       subjectFromBetterAuth(undefined, { auth: {} }),
-    ).resolves.toMatchObject({
-      principal: null,
-    });
+    ).resolves.toMatchObject({ principal: null });
     await expect(
       subjectFromBetterAuth({ cookie: "raw" }, { auth: {} }),
     ).resolves.toMatchObject({ principal: null });
@@ -297,11 +293,7 @@ describe("subjectFromBetterAuth", () => {
     const subject = await subjectFromBetterAuth(
       { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
       {
-        auth: {
-          api: {
-            getActiveMember: async () => ACME_MEMBERS.members[0],
-          },
-        },
+        auth: { api: { getActiveMember: async () => ACME_MEMBERS.members[0] } },
         memberships: "active",
       },
     );
@@ -383,9 +375,7 @@ describe("rolesFromAccessControl", () => {
         ac: {},
         roles: {
           member: { statements: { post: ["read", "create"] } },
-          admin: {
-            statements: { post: ["read", "delete"], ghost: ["haunt"] },
-          },
+          admin: { statements: { post: ["read", "delete"], ghost: ["haunt"] } },
         },
       },
       permissions,

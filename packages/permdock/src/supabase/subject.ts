@@ -46,7 +46,10 @@ const REGISTERED: ReadonlySet<string> = new Set([
   "scope",
 ]);
 
-/** Top-level first, then `app_metadata`. `null` counts as absent: the RBAC hook writes `null` for a user with no role row. */
+/**
+ * Top-level first, then `app_metadata`. `null` counts as absent: the RBAC hook
+ * writes `null` for a user with no role row.
+ */
 function claimNamed(claims: Record<string, unknown>, name: string): unknown {
   const top = Object.hasOwn(claims, name) ? claims[name] : undefined;
   if (top !== undefined && top !== null) {
@@ -59,7 +62,10 @@ function claimNamed(claims: Record<string, unknown>, name: string): unknown {
   return undefined;
 }
 
-/** A `ClaimPath`: a name read at the top level, then in `app_metadata`; or a function over the claims. */
+/**
+ * A `ClaimPath`: a name read at the top level, then in `app_metadata`; or a
+ * function over the claims.
+ */
 function claimAt(claims: Record<string, unknown>, path: ClaimPath): unknown {
   return typeof path === "string"
     ? claimNamed(claims, path)
@@ -91,7 +97,10 @@ type ReadMemberships = {
   readonly dropped: readonly number[];
 };
 
-/** Reads the `memberships` claim; an entry it cannot read is dropped and its index reported. */
+/**
+ * Reads the `memberships` claim; an entry it cannot read is dropped and its
+ * index reported.
+ */
 export function readMemberships(value: unknown): ReadMemberships {
   if (!Array.isArray(value)) {
     return { memberships: [], dropped: [] };
@@ -198,7 +207,10 @@ function asStrings(value: unknown): readonly string[] {
     : [];
 }
 
-/** `claims[plans][tenant]`: only the active tenant's entry, never another tenant's. */
+/**
+ * `claims[plans][tenant]`: only the active tenant's entry, never another
+ * tenant's.
+ */
 function plansFor(
   claims: Record<string, unknown>,
   name: ClaimPath | undefined,
@@ -240,11 +252,13 @@ function isToolList(value: unknown): value is readonly string[] {
 }
 
 /**
- * The outer `act` level by its `kind`, the marker a support tool writes: none is an OAuth client
- * or agent chain, `support` a support session (with `session_id`), `impersonation` an admin acting
- * as the user, `agent` an agent run with the `tools` it may call. Any other `kind`, a support level
- * without `session_id`, and an agent level with `session_id`, `tools` that are not non-empty
- * strings or a `read_only` that is not a boolean are invalid, as better-supabase reads them.
+ * The outer `act` level by its `kind`, the marker a support tool writes: none
+ * is an OAuth client or agent chain, `support` a support session (with
+ * `session_id`), `impersonation` an admin acting as the user, `agent` an agent
+ * run with the `tools` it may call. Any other `kind`, a support level without
+ * `session_id`, and an agent level with `session_id`, `tools` that are not
+ * non-empty strings or a `read_only` that is not a boolean are invalid, as
+ * better-supabase reads them.
  */
 function actingParty(
   outer: Record<string, unknown>,
@@ -357,14 +371,15 @@ function readActor(claims: Record<string, unknown>): SupabaseActorResult {
 }
 
 /**
- * Who acts for the user: the outermost `sub` of an RFC 8693 `act` chain (the current
- * actor; nested levels are prior actors, kept on `chain` for audit), else the
- * OAuth `client_id` of a third-party app. The outer level's `kind` names the actor:
- * none is `oauth-client`, `support` a support session, `impersonation` an admin acting as the
- * user. Reads only `act` and `client_id`; the caller applies the role rule first (`anon` and
- * `service_role` are anonymous and carry no actor). An `act` that is not a chain of objects each
- * with a non-empty `sub`, that names another `kind`, or a support level without `session_id`,
- * is `{ ok: false }` and must deny.
+ * Who acts for the user: the outermost `sub` of an RFC 8693 `act` chain (the
+ * current actor; nested levels are prior actors, kept on `chain` for audit),
+ * else the OAuth `client_id` of a third-party app. The outer level's `kind`
+ * names the actor: none is `oauth-client`, `support` a support session,
+ * `impersonation` an admin acting as the user. Reads only `act` and
+ * `client_id`; the caller applies the role rule first (`anon` and
+ * `service_role` are anonymous and carry no actor). An `act` that is not a
+ * chain of objects each with a non-empty `sub`, that names another `kind`, or a
+ * support level without `session_id`, is `{ ok: false }` and must deny.
  */
 export function actorOf(claims: unknown): SupabaseActorResult {
   try {
@@ -593,8 +608,9 @@ export function subjectFromSupabase(
 }
 
 /**
- * A verified session object (`{ kind, claims }`) in, `Subject` out.
- * Only `kind: 'user'` sessions map; `anon`, `service`, `invalid` and anything else are anonymous.
+ * A verified session object (`{ kind, claims }`) in, `Subject` out. Only `kind:
+ * 'user'` sessions map; `anon`, `service`, `invalid` and anything else are
+ * anonymous.
  */
 export function subjectFromSupabaseSession(
   session: SupabaseSessionLike | null | undefined,

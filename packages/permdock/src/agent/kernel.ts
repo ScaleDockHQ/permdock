@@ -29,7 +29,10 @@ import { refusalText } from "./denied-text.ts";
 import { modelReason, thrownReason, unmappedReason } from "./reason.ts";
 import { eligiblePreview, stepUpFor } from "./step-up.ts";
 
-/** The resume token an agent run carries under the namespaced `permdockApproval` key. */
+/**
+ * The resume token an agent run carries under the namespaced `permdockApproval`
+ * key.
+ */
 export function approvalTokenOf(context: unknown): string | undefined {
   if (context === null || typeof context !== "object") {
     return undefined;
@@ -70,7 +73,10 @@ export function createAgentKernel<
   policy: Policy<TUser, Principal, V>,
   given: AgentKernelOptions<TContext, TUser>,
 ): {
-  /** One instance per context object while a call is in flight; later calls re-read the subject. */
+  /**
+   * One instance per context object while a call is in flight; later calls
+   * re-read the subject.
+   */
   readonly instance: (context: TContext) => Promise<PermDock<V>>;
   readonly decideTool: (
     toolName: string,
@@ -102,12 +108,18 @@ export function createAgentKernel<
     args: unknown,
     context: TContext,
   ) => Promise<string | undefined>;
-  /** With `eligible`, also the tools an activation of an eligible role would open; a listing hint. */
+  /**
+   * With `eligible`, also the tools an activation of an eligible role would
+   * open; a listing hint.
+   */
   readonly allowedToolNames: (
     context: TContext,
     listOptions?: { readonly eligible?: boolean },
   ) => Promise<ReadonlySet<string>>;
-  /** Sends `error` to the `on('error')` handlers of an instance this kernel built. */
+  /**
+   * Sends `error` to the `on('error')` handlers of an instance this kernel
+   * built.
+   */
   readonly report: (permdock: PermDock<V> | undefined, error: unknown) => void;
 } {
   const options = withApp(policy, given);

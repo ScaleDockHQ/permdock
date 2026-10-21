@@ -33,7 +33,10 @@ function schemaOf(table: string): string {
   return table.includes(".") ? beforeFirst(table, ".") : "public";
 }
 
-/** The roles-table column a reference joins on, after checking it points at `roles`. */
+/**
+ * The roles-table column a reference joins on, after checking it points at
+ * `roles`.
+ */
 function roleRef(
   role: RoleThrough,
   table: string,
@@ -108,12 +111,21 @@ function sourceSql(source: RoleSource, table: string, label: string): string {
   return roleColumn(source, table, "x", { label, prefix: PREFIX }).lookup;
 }
 
-/** The legacy-table reads of custom roles, as SQL over a row `r` of the roles table; shared by the backfill and the sync trigger. */
+/**
+ * The legacy-table reads of custom roles, as SQL over a row `r` of the roles
+ * table; shared by the backfill and the sync trigger.
+ */
 export type RebuildPlan = {
   readonly rolesTable: string;
-  /** `select` list of a role row: `tenant_id`, `scope`, `scope_id`, `role`, `permissions_ref`, `includes_ref`. */
+  /**
+   * `select` list of a role row: `tenant_id`, `scope`, `scope_id`, `role`,
+   * `permissions_ref`, `includes_ref`.
+   */
   readonly identity: string;
-  /** Rows that are roles PermDock holds: not a skipped tenant row, not a declared name. */
+  /**
+   * Rows that are roles PermDock holds: not a skipped tenant row, not a
+   * declared name.
+   */
   readonly eligible: string;
   readonly permsRef: { readonly ref: string; readonly id: string };
   readonly includesRef:
@@ -122,9 +134,9 @@ export type RebuildPlan = {
   readonly scopes: string;
   /**
    * PL/pgSQL over a record `v` (`tenant_id`, `scope`, `scope_id`, `role`,
-   * `permissions_ref`, `includes_ref`) and the variables `v_allow`,
-   * `v_deny`, `v_include`, `v_lost`, `v_dropped`: sets the entries and
-   * appends what PermDock cannot hold to `v_dropped`.
+   * `permissions_ref`, `includes_ref`) and the variables `v_allow`, `v_deny`,
+   * `v_include`, `v_lost`, `v_dropped`: sets the entries and appends what
+   * PermDock cannot hold to `v_dropped`.
    */
   readonly collect: string;
   readonly replace: string;
@@ -313,7 +325,10 @@ ${includeBlock}`;
   };
 }
 
-/** `v_dropped` grouped per legacy role (`role: a, b; other: c`), capped at 50 entries. */
+/**
+ * `v_dropped` grouped per legacy role (`role: a, b; other: c`), capped at 50
+ * entries.
+ */
 export const DROPPED_LIST = `(select string_agg(g.role || ': ' || g.items, '; ' order by g.role)
     from (
       select split_part(l.d, ': ', 1) as role, string_agg(substr(l.d, strpos(l.d, ': ') + 2), ', ' order by l.d) as items

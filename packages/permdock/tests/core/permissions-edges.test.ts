@@ -17,14 +17,10 @@ import { tree } from "../fixtures/org-tree.ts";
 describe("permission tree and builder edges", () => {
   it("merges permission trees, finds keys and refuses an empty merge or a bare resource", () => {
     const billing = definePermissions({
-      billing: {
-        invoice: resource({ actions: ["pay"] }),
-      },
+      billing: { invoice: resource({ actions: ["pay"] }) },
     });
     const extra = definePermissions({
-      billing: {
-        credit: resource({ actions: ["refund"] }),
-      },
+      billing: { credit: resource({ actions: ["refund"] }) },
     });
     const merged = mergePermissions(billing, extra);
     expect(findPermission(merged, "billing.invoice.pay")?.action).toBe("pay");

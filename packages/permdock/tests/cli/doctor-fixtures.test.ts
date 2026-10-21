@@ -29,11 +29,7 @@ export const policy = definePolicy(permissions, {
       join(cwd, "memberships.json"),
       JSON.stringify({
         customRoles: [
-          {
-            tenant: "o1",
-            name: "staff",
-            includes: ["preparer", "approver"],
-          },
+          { tenant: "o1", name: "staff", includes: ["preparer", "approver"] },
         ],
         memberships: [{ principal: "u1", roles: ["preparer", "approver"] }],
       }),
@@ -48,9 +44,7 @@ export const policy = definePolicy(permissions, {
 };
 `,
     );
-    const result = await run(["doctor", "--json", "--only", "PD018"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "PD018"], { cwd });
     expect(findingCodes(result.stdout)).toContain("PD018");
     expect(result.stdout).toContain("ghost");
     expect(result.stdout).toContain("staff");
@@ -75,11 +69,7 @@ export const policy = definePolicy(permissions, {
     );
     const fixture = {
       customRoles: [
-        {
-          tenant: "o1",
-          name: "reader",
-          grants: [{ permission: "post.read" }],
-        },
+        { tenant: "o1", name: "reader", grants: [{ permission: "post.read" }] },
         {
           tenant: "o1",
           name: "grabby",
@@ -99,9 +89,7 @@ export const policy = definePolicy(permissions, {
 };
 `,
     );
-    const result = await run(["doctor", "--json", "--only", "PD023"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "PD023"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
@@ -149,9 +137,7 @@ export const policy = definePolicy(permissions, {
 };
 `,
     );
-    const result = await run(["doctor", "--json", "--only", "scopes"], {
-      cwd,
-    });
+    const result = await run(["doctor", "--json", "--only", "scopes"], { cwd });
     // SAFETY: the --json report printed by `permdock doctor` under test.
     const report = jsonData(result.stdout) as {
       readonly findings: readonly {

@@ -109,11 +109,7 @@ describe("decideAutomation", () => {
     );
     expect(decision).toEqual({
       outcome: "granted",
-      automation: {
-        ...record,
-        run: "report.run",
-        name: "Monthly invoices",
-      },
+      automation: { ...record, run: "report.run", name: "Monthly invoices" },
     });
     expect(Object.isFrozen(decision)).toBe(true);
   });
@@ -254,8 +250,6 @@ describe("decideAutomation", () => {
     }
     expect(
       await decideAutomation(fromSnapshot(snapshot), request),
-    ).toMatchObject({
-      denials: [{ reason: "unsupported" }],
-    });
+    ).toMatchObject({ denials: [{ reason: "unsupported" }] });
   });
 });

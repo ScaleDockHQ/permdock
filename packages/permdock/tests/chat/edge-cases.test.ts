@@ -50,9 +50,7 @@ const policy = definePolicy(p, {
 
 const invoices: Readonly<
   Record<string, { readonly id: string; readonly orgId: string }>
-> = {
-  i1: { id: "i1", orgId: "o1" },
-};
+> = { i1: { id: "i1", orgId: "o1" } };
 
 const operations = defineOperations(p, {
   "invoice.pay": {
@@ -64,9 +62,7 @@ const operations = defineOperations(p, {
     permission: p.invoice.export,
     meta: { risk: "medium", title: "Export invoices" },
   },
-  "invoice.ping": {
-    permission: p.invoice.ping,
-  },
+  "invoice.ping": { permission: p.invoice.ping },
 });
 
 function link(user: string, principal: string) {

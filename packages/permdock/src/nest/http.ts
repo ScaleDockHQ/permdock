@@ -37,7 +37,8 @@ function isFastifyReply(value: unknown): value is ReplyLike {
 
 /**
  * `@nestjs/platform-express` hands the guard an `IncomingMessage`;
- * `@nestjs/platform-fastify` hands it a `FastifyRequest` whose stream is `raw`.
+ * `@nestjs/platform-fastify` hands it a `FastifyRequest` whose stream is
+ * `raw`.
  */
 export function toRequest(req: NodeRequest): Request {
   if (isReadable(req)) {

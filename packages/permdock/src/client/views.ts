@@ -114,8 +114,7 @@ type DecidePermDock = {
 
 /**
  * What `Protected` renders: `pending` while an endpoint answer is in flight,
- * `approval` for an approval-required decision, `denied` for any other
- * denial.
+ * `approval` for an approval-required decision, `denied` for any other denial.
  */
 export type ProtectedView =
   | (PermissionState & { readonly slot: "pending" | "denied" })
@@ -132,7 +131,10 @@ export type ProtectedView =
       readonly slot: "default";
     };
 
-/** The root's view of another tenant for a `Protected` with a `tenant` prop; `undefined` answers the active one. */
+/**
+ * The root's view of another tenant for a `Protected` with a `tenant` prop;
+ * `undefined` answers the active one.
+ */
 export function scopedTenant(
   root: PermDock,
   tenant: string | undefined,
@@ -140,7 +142,10 @@ export function scopedTenant(
   return tenant === undefined ? undefined : root.tenant(tenant);
 }
 
-/** An instance whose every read answers from `current()`, so a held reference follows the store. */
+/**
+ * An instance whose every read answers from `current()`, so a held reference
+ * follows the store.
+ */
 export function livePermDock(current: () => ClientPermDock): ClientPermDock {
   // SAFETY: the empty target is never read; the get trap answers from the store's current instance.
   return new Proxy({} as ClientPermDock, {
@@ -265,7 +270,10 @@ export function describeWith(
     );
 }
 
-/** The `GateView` of a permission state; `describeDecision` localises the reason. */
+/**
+ * The `GateView` of a permission state; `describeDecision` localises the
+ * reason.
+ */
 export function gateView(
   state: PermissionState,
   describeDecision: (decision: Decision) => DecisionDescription,

@@ -7,16 +7,22 @@ import { discoverAuthorizationServer } from "../../terminal/device.ts";
 import { PLATFORM_SCOPES, POLICY_NOT_PUBLISHED } from "./platform.ts";
 
 export type TestCloudPlatformOptions = {
-  /** A `PERMDOCK_CLOUD_TOKEN` for `project`: read-only, pinned to one environment. */
+  /**
+   * A `PERMDOCK_CLOUD_TOKEN` for `project`: read-only, pinned to one
+   * environment.
+   */
   readonly token: string;
   /** The project the token reads; defaults to the environment. */
   readonly project?: string;
-  /** A project with no `cloud push` yet and a login token that reads it; the `policy-not-published` check is skipped without it. */
-  readonly unpublished?: {
-    readonly project: string;
-    readonly token: string;
-  };
-  /** A login token with `projects:read` and without `policy:read`; the `insufficient_scope` check is skipped without it. */
+  /**
+   * A project with no `cloud push` yet and a login token that reads it; the
+   * `policy-not-published` check is skipped without it.
+   */
+  readonly unpublished?: { readonly project: string; readonly token: string };
+  /**
+   * A login token with `projects:read` and without `policy:read`; the
+   * `insufficient_scope` check is skipped without it.
+   */
   readonly projectsOnly?: string;
   /** Registers a test MCP client with RFC 7591; skipped unless true. */
   readonly registration?: boolean;
@@ -26,7 +32,10 @@ type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
 const ITEM = /^"[^"]+"(?:;[a-z]+=-?\d+)+$/u;
 
-/** Whether a RateLimit or RateLimit-Policy field value lists items with the parameters `keys` (draft-ietf-httpapi-ratelimit-headers-11). */
+/**
+ * Whether a RateLimit or RateLimit-Policy field value lists items with the
+ * parameters `keys` (draft-ietf-httpapi-ratelimit-headers-11).
+ */
 function rateLimitField(
   value: string | null,
   keys: readonly string[],

@@ -12,8 +12,8 @@ function dbUrl(value: unknown): string | null {
 }
 
 /**
- * The local stack's database URL from `supabase status`. Each worktree's
- * stack runs on ports the CLI picks, so `config.toml` names no port to read.
+ * The local stack's database URL from `supabase status`. Each worktree's stack
+ * runs on ports the CLI picks, so `config.toml` names no port to read.
  */
 export function stackDbUrl(): string {
   const status: unknown = JSON.parse(

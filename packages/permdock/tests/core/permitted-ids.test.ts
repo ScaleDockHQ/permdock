@@ -153,9 +153,7 @@ describe("permittedIds over fields, validity and conditioned denies", () => {
       role(
         "timed",
         [allow(tree.note.read, { validUntil: "2100-01-01T00:00:00Z" })],
-        {
-          on: "group",
-        },
+        { on: "group" },
       ),
       role("blocked", [allow(tree.note.read), deny(tree.note.read)], {
         on: "group",

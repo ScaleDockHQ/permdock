@@ -45,11 +45,7 @@ describe("permdock/terminal", () => {
     expect(
       exitCode({
         outcome: "approval-required",
-        grant: {
-          role: "member",
-          permission: "post.delete",
-          approval: "human",
-        },
+        grant: { role: "member", permission: "post.delete", approval: "human" },
         reason: "human",
         token: "pd1.x",
       }),
@@ -270,9 +266,7 @@ describe("permdock/terminal", () => {
     it("continues after an interactive confirm when the token still matches", async () => {
       const { protect } = createPermDock(selfApproved, {
         subject: () => memberUser,
-        interactive: {
-          confirm: async () => true,
-        },
+        interactive: { confirm: async () => true },
         runtime: { exit: throwExit, write: (): void => undefined },
       });
       const run = protect(
@@ -285,9 +279,7 @@ describe("permdock/terminal", () => {
     it("exits 77 when the interactive prompt is declined", async () => {
       const { protect } = createPermDock(selfApproved, {
         subject: () => memberUser,
-        interactive: {
-          confirm: async () => false,
-        },
+        interactive: { confirm: async () => false },
         runtime: { exit: throwExit, write: (): void => undefined },
       });
       const run = protect(
@@ -489,9 +481,7 @@ describe("permdock/terminal", () => {
     const file = path.join(dir, "credentials.json");
     writeFileSync(
       file,
-      JSON.stringify({
-        profiles: { default: { access_token: "leaked" } },
-      }),
+      JSON.stringify({ profiles: { default: { access_token: "leaked" } } }),
       { mode: 0o644 },
     );
     chmodSync(file, 0o644);

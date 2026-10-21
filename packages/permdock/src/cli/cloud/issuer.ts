@@ -34,7 +34,10 @@ export function firstNonEmpty(
   return "";
 }
 
-/** `--url`, then `PERMDOCK_CLOUD_URL`, then the platform issuer; never a trailing slash. */
+/**
+ * `--url`, then `PERMDOCK_CLOUD_URL`, then the platform issuer; never a
+ * trailing slash.
+ */
 export function cloudUrl(flag: string | undefined, env: Env): string {
   return firstNonEmpty(
     flag,

@@ -8,9 +8,9 @@ import { supabaseManifestSchema } from "./manifest-schema.ts";
 /**
  * What `permdock supabase inspect --json` prints and `--out` writes to
  * `permdock.manifest.json`: the contract between the generated hook and SQL
- * helpers and a package that writes policies or claims next to them.
- * `version` is the major of this shape; a field is only
- * ever added within it. `schemas/supabase-manifest-v1.json` is its JSON Schema.
+ * helpers and a package that writes policies or claims next to them. `version`
+ * is the major of this shape; a field is only ever added within it.
+ * `schemas/supabase-manifest-v1.json` is its JSON Schema.
  */
 export type SupabaseHookManifest = {
   readonly $schema: "https://permdock.com/schemas/supabase-manifest-v1.json";
@@ -38,23 +38,24 @@ export type SupabaseHookManifest = {
     readonly functions: readonly string[];
   };
   readonly tenantClaim: string;
-  readonly budget: {
-    readonly bytes: number;
-    readonly measure: string;
-  };
+  readonly budget: { readonly bytes: number; readonly measure: string };
   readonly claims: readonly SupabaseHookClaim[];
   readonly authzVersion: boolean;
   /**
    * With `authzVersion`, the function that bumps the listed users' `authz_ver`,
    * for a membership source outside the hook. It is `security definer` and no
-   * client role may execute it: call it from a trigger owned by the table's owner.
+   * client role may execute it: call it from a trigger owned by the table's
+   * owner.
    */
   readonly authzVersionBump?: {
     readonly schema: string;
     readonly function: "permdock_bump_authz_version_for";
     readonly args: "p_users uuid[]";
   };
-  /** The Management API fields that make a hosted project call the hook; `permdock supabase inspect` adds them. */
+  /**
+   * The Management API fields that make a hosted project call the hook;
+   * `permdock supabase inspect` adds them.
+   */
   readonly managementApi?: {
     readonly hook_custom_access_token_enabled: true;
     readonly hook_custom_access_token_uri: string;
@@ -100,19 +101,28 @@ export type SupabaseManifestValue =
   | SupabaseManifestColumn
   | { readonly value: string | readonly string[] };
 
-/** A column that references another table: the value (role key or user id) is `column` of `table`, matched on `id`. */
+/**
+ * A column that references another table: the value (role key or user id) is
+ * `column` of `table`, matched on `id`.
+ */
 export type SupabaseManifestThrough = {
   readonly table: string;
   readonly id: string;
   readonly column: string;
 };
 
-/** A role column (with `through` when it references a roles table), or the fixed roles every row holds. */
+/**
+ * A role column (with `through` when it references a roles table), or the fixed
+ * roles every row holds.
+ */
 export type SupabaseManifestRole =
   | SupabaseManifestValue
   | (SupabaseManifestColumn & { readonly through: SupabaseManifestThrough })
   | (SupabaseManifestColumn & {
-      /** Each column value to the role key it stands for, or `null` for no role; an unlisted value is no role. */
+      /**
+       * Each column value to the role key it stands for, or `null` for no role;
+       * an unlisted value is no role.
+       */
       readonly map: Readonly<Record<string, string | null>>;
     });
 
@@ -120,16 +130,28 @@ export type SupabaseManifestRole =
 export type SupabaseManifestMembership = {
   /** `schema.table`, `public` when the source names no schema. */
   readonly table: string;
-  /** The user id column, with `through` when it references the table that holds the user id. */
+  /**
+   * The user id column, with `through` when it references the table that holds
+   * the user id.
+   */
   readonly user:
     | SupabaseManifestColumn
     | (SupabaseManifestColumn & { readonly through: SupabaseManifestThrough });
-  /** A column for `tableMembershipSource`, the fixed scope for `junctionMembershipSource`. */
+  /**
+   * A column for `tableMembershipSource`, the fixed scope for
+   * `junctionMembershipSource`.
+   */
   readonly scope: SupabaseManifestValue;
   readonly id: SupabaseManifestColumn;
-  /** A role column, the fixed roles every row holds, or several role columns whose keys the row holds together. */
+  /**
+   * A role column, the fixed roles every row holds, or several role columns
+   * whose keys the row holds together.
+   */
   readonly role: SupabaseManifestRole | readonly SupabaseManifestRole[];
-  /** A `jsonb` column of ancestor ids keyed by scope, or one column per ancestor scope. */
+  /**
+   * A `jsonb` column of ancestor ids keyed by scope, or one column per ancestor
+   * scope.
+   */
   readonly within?:
     | SupabaseManifestColumn
     | { readonly columns: Readonly<Record<string, string>> };
@@ -145,11 +167,17 @@ export type SupabaseManifestHelper = {
   /** The argument list, `p_grant text`, or `''` for none. */
   readonly args: string;
   readonly returns: string;
-  /** The roles granted `execute`; a field view `anon` reads adds `anon` to the `authenticated` ones. */
+  /**
+   * The roles granted `execute`; a field view `anon` reads adds `anon` to the
+   * `authenticated` ones.
+   */
   readonly execute: readonly string[];
 };
 
-/** A table whose row says whether a user or a scope instance is active (`rls.suspension`); a missing row counts as suspended. */
+/**
+ * A table whose row says whether a user or a scope instance is active
+ * (`rls.suspension`); a missing row counts as suspended.
+ */
 export type SupabaseManifestActiveRow = {
   /** `schema.table`. */
   readonly table: string;
@@ -160,13 +188,19 @@ export type SupabaseManifestActiveRow = {
   /** A status column; only a row whose value is in `active` is active. */
   readonly status?: string;
   readonly active?: readonly string[];
-  /** A scope only: the permission keys members of a suspended instance still hold. */
+  /**
+   * A scope only: the permission keys members of a suspended instance still
+   * hold.
+   */
   readonly keep?: readonly string[];
 };
 
 export type SupabaseManifestRls = {
   readonly schema: string;
-  /** Where the helpers read roles and memberships: the claims (`jwt`) or the tables (`database`). */
+  /**
+   * Where the helpers read roles and memberships: the claims (`jwt`) or the
+   * tables (`database`).
+   */
   readonly mode: "jwt" | "database";
   readonly tenantClaim: string;
   /** The declared scopes, root first, with the Postgres type of their ids. */
@@ -176,13 +210,14 @@ export type SupabaseManifestRls = {
     readonly within?: string;
   }[];
   /**
-   * Every function `rls generate` writes for policies and trusted SQL to
-   * call: `permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids` and
-   * `permdock_user_id`, the caller's user id; in `database` mode `permdock_has_for`, `permitted_<scope>_ids_for` and
+   * Every function `rls generate` writes for policies and trusted SQL to call:
+   * `permdock_has`, `permitted_<scope>_ids`, `member_<scope>_ids` and
+   * `permdock_user_id`, the caller's user id; in `database` mode
+   * `permdock_has_for`, `permitted_<scope>_ids_for` and
    * `member_<scope>_ids_for`; and when a role declares `assigns`,
    * `permdock_can_assign`, `permdock_can_assign_any` and, with custom roles,
-   * `permdock_can_assign_custom_role`, each with its `_for` form where one
-   * is written. A helper whose `execute` is empty is for trusted SQL only.
+   * `permdock_can_assign_custom_role`, each with its `_for` form where one is
+   * written. A helper whose `execute` is empty is for trusted SQL only.
    */
   readonly helpers: readonly SupabaseManifestHelper[];
   /**
@@ -191,7 +226,10 @@ export type SupabaseManifestRls = {
    * `memberships`.
    */
   readonly memberships: readonly SupabaseManifestMembership[];
-  /** Whether custom roles live in the helpers' tables (`rls.customRoles` in `database` mode). */
+  /**
+   * Whether custom roles live in the helpers' tables (`rls.customRoles` in
+   * `database` mode).
+   */
   readonly customRoles?: boolean;
   /** The global-roles table the hook and the `database` mode helpers read. */
   readonly roles?: {
@@ -199,19 +237,25 @@ export type SupabaseManifestRls = {
     readonly user: SupabaseManifestColumn;
     readonly role: SupabaseManifestRole | readonly SupabaseManifestRole[];
   };
-  /** `rls.suspension`: a suspended user, or a suspended scope instance, holds nothing but its scope's `keep`. */
+  /**
+   * `rls.suspension`: a suspended user, or a suspended scope instance, holds
+   * nothing but its scope's `keep`.
+   */
   readonly suspension?: {
     readonly users?: SupabaseManifestActiveRow;
     readonly scopes?: Readonly<Record<string, SupabaseManifestActiveRow>>;
     readonly memberships?: { readonly keep: readonly string[] };
   };
   /**
-   * `rls.assignments`: the tables whose client writes the assignment
-   * triggers check against `permdock_can_assign_any`, so SQL writing rows
-   * there needs no role-ceiling check of its own.
+   * `rls.assignments`: the tables whose client writes the assignment triggers
+   * check against `permdock_can_assign_any`, so SQL writing rows there needs no
+   * role-ceiling check of its own.
    */
   readonly assignments?: { readonly tables: readonly string[] };
-  /** `rls.tokenScopes`: the helpers narrow a delegated token by its `scope` claim through `permdock_token_scope_allows`. */
+  /**
+   * `rls.tokenScopes`: the helpers narrow a delegated token by its `scope`
+   * claim through `permdock_token_scope_allows`.
+   */
   readonly tokenScopes?: boolean;
   readonly apiKeys?: {
     readonly claim: string;
@@ -238,7 +282,10 @@ export type SupabaseDatabaseManifest = Omit<
   | "memberships"
 >;
 
-/** What `parseSupabaseManifest` returns: a manifest with or without the token hook. */
+/**
+ * What `parseSupabaseManifest` returns: a manifest with or without the token
+ * hook.
+ */
 export type SupabaseManifest = SupabaseDatabaseManifest | SupabaseHookManifest;
 
 /** Whether the manifest describes a token hook. */
@@ -251,8 +298,8 @@ export function hasTokenHook(
 /**
  * Reads a `permdock.manifest.json` document (parsed, or the JSON text) and
  * validates it against `schemas/supabase-manifest-v1.json`. Returns a
- * deep-frozen copy built from own keys; throws `PermDockValidationError`
- * with every issue, so a manifest of another major is refused.
+ * deep-frozen copy built from own keys; throws `PermDockValidationError` with
+ * every issue, so a manifest of another major is refused.
  */
 export function parseSupabaseManifest(json: unknown): SupabaseManifest {
   const issues: StandardSchemaV1.Issue[] = [];

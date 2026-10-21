@@ -17,7 +17,10 @@ export async function forward(
   });
 }
 
-/** Listens on an ephemeral port and forwards the runner's requests over real HTTP. */
+/**
+ * Listens on an ephemeral port and forwards the runner's requests over real
+ * HTTP.
+ */
 export async function listen(server: Server): Promise<HttpMounted> {
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);

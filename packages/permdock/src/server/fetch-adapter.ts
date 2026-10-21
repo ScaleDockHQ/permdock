@@ -25,7 +25,10 @@ import { hasCredentials } from "./http.ts";
 import { problemFromError } from "./map-error.ts";
 import { methodNotAllowed } from "./problem.ts";
 
-/** What `protect` checks: a permission, an operation from `defineOperations`, or `null` for a route that needs only OAuth scopes. */
+/**
+ * What `protect` checks: a permission, an operation from `defineOperations`, or
+ * `null` for a route that needs only OAuth scopes.
+ */
 export type ProtectTarget = Permission | Operation | null;
 
 /** Reads a value from the framework context; may be async. */
@@ -67,7 +70,10 @@ export type PermDockHandlers<TContext> = {
 /** The members every meta-framework adapter shares, over its own context type. */
 export type FetchAdapter<TContext, V extends PolicyVocabulary> = {
   readonly kernel: ServerPermDock<V>;
-  /** The instance for the request behind `context`; throws `InvalidSignatureError` for a bad Web Bot Auth signature. */
+  /**
+   * The instance for the request behind `context`; throws
+   * `InvalidSignatureError` for a bad Web Bot Auth signature.
+   */
   readonly getPermDock: (context: TContext) => Promise<PermDock<V>>;
   readonly getSnapshot: (
     context: TContext,
@@ -86,17 +92,26 @@ export type FetchAdapter<TContext, V extends PolicyVocabulary> = {
     context: TContext,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
-  /** Runs `work`, answering a thrown PermDock error with its Problem Details response. */
+  /**
+   * Runs `work`, answering a thrown PermDock error with its Problem Details
+   * response.
+   */
   readonly mapErrors: <R>(
     context: TContext,
     work: () => R | Promise<R>,
   ) => Promise<R | Response>;
   readonly handlers: () => PermDockHandlers<TContext>;
-  /** The decision endpoint as one handler: `GET` and `HEAD`, `POST`, else `405` with `Allow`. */
+  /**
+   * The decision endpoint as one handler: `GET` and `HEAD`, `POST`, else `405`
+   * with `Allow`.
+   */
   readonly handler: () => (context: TContext) => Promise<Response>;
 };
 
-/** Where a route handler finds the request: the adapter context and the object the instance is set on. */
+/**
+ * Where a route handler finds the request: the adapter context and the object
+ * the instance is set on.
+ */
 export type RouteEvent<TEvent, TContext> = {
   readonly context: (event: TEvent) => TContext;
   readonly locals: (event: TEvent) => object;
@@ -132,7 +147,10 @@ export function guardedRoute<TEvent, TContext, V extends PolicyVocabulary>(
   };
 }
 
-/** `withPermDock(handler)`: the instance on the event's locals, built when no middleware set it. */
+/**
+ * `withPermDock(handler)`: the instance on the event's locals, built when no
+ * middleware set it.
+ */
 export function instanceRoute<TEvent, TContext, V extends PolicyVocabulary>(
   adapter: FetchAdapter<TContext, V>,
   route: RouteEvent<TEvent, TContext>,
@@ -153,8 +171,8 @@ const ALLOW = "GET, HEAD, POST";
 
 /**
  * The permission and row loader behind a `protect` target. For an operation,
- * `input` reads its input from the request and the operation's `data` loads
- * the row; an operation without `data` checks the permission with no row.
+ * `input` reads its input from the request and the operation's `data` loads the
+ * row; an operation without `data` checks the permission with no row.
  */
 export function protectTarget<TContext>(
   target: ProtectTarget,
@@ -188,9 +206,9 @@ function held<V extends PolicyVocabulary>(
 }
 
 /**
- * The kernel of an adapter whose framework hands its handlers a Fetch
- * `Request` inside its own context object (SvelteKit, Astro, h3, SolidStart,
- * TanStack Start).
+ * The kernel of an adapter whose framework hands its handlers a Fetch `Request`
+ * inside its own context object (SvelteKit, Astro, h3, SolidStart, TanStack
+ * Start).
  */
 export function fetchAdapter<
   TContext extends object,

@@ -83,8 +83,8 @@ function rulesHold(event: Record<string, unknown>): boolean {
 }
 
 /**
- * Validates one untrusted sink event against its family's schema and returns
- * a frozen copy, or `null` for anything else. Never throws.
+ * Validates one untrusted sink event against its family's schema and returns a
+ * frozen copy, or `null` for anything else. Never throws.
  */
 export function parseSinkEvent(value: unknown): SinkEvent | null {
   if (!isRecord(value)) {
@@ -106,8 +106,8 @@ export function parseSinkEvent(value: unknown): SinkEvent | null {
 
 /**
  * Validates an untrusted list of sink events, such as a request body a sink
- * receiver read. Each event that fails its schema is dropped, and a value
- * that is not an array yields no events. Never throws.
+ * receiver read. Each event that fails its schema is dropped, and a value that
+ * is not an array yields no events. Never throws.
  */
 export function parseSinkEvents(value: unknown): readonly SinkEvent[] {
   if (!Array.isArray(value)) {
@@ -121,7 +121,10 @@ export function parseSinkEvents(value: unknown): readonly SinkEvent[] {
   );
 }
 
-/** Validates the data of a `com.permdock.catalog.*` CloudEvent; `null` when it does not match. */
+/**
+ * Validates the data of a `com.permdock.catalog.*` CloudEvent; `null` when it
+ * does not match.
+ */
 export function parseCatalogEventData(value: unknown): CatalogEventData | null {
   const copy = jsonMatching(value, CATALOG_EVENT_SCHEMA);
   // SAFETY: copy is a JSON copy that matched the catalog event schema.

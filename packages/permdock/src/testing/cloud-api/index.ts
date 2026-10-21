@@ -42,13 +42,22 @@ export type CloudApiKeys = {
 export type TestCloudApiOptions = {
   readonly environment?: string;
   readonly fetch?: typeof globalThis.fetch;
-  /** Signs the `PermDock-Approver` tokens; its issuer is a trusted issuer for `approver`. */
+  /**
+   * Signs the `PermDock-Approver` tokens; its issuer is a trusted issuer for
+   * `approver`.
+   */
   readonly approver: CloudApproverOptions;
-  /** A fresh `PermDock-Subject` token per call; the snapshot checks are skipped without it. */
+  /**
+   * A fresh `PermDock-Subject` token per call; the snapshot checks are skipped
+   * without it.
+   */
   readonly subject?: () => string | Promise<string>;
   /** Verifies the environment's policy documents for `testPolicySource`. */
   readonly verifier?: TokenVerifier;
-  /** AuthZEN vectors for the hosted ADS, with the caller's credentials as `headers`. */
+  /**
+   * AuthZEN vectors for the hosted ADS, with the caller's credentials as
+   * `headers`.
+   */
   readonly authzen?: {
     readonly vectors: AuthzenVectors;
     readonly headers?: Readonly<Record<string, string>>;
@@ -109,8 +118,8 @@ async function problemCode(response: Response): Promise<unknown> {
  * Runs the conformance runners and the HTTP contract checks against one
  * PermDock Cloud environment, and validates every response body against
  * `cloud-api-v1.json`. Point it at a test environment: it creates approvals,
- * sends decision events and deliveries to `.invalid` addresses, and pushes
- * the catalog the environment already holds.
+ * sends decision events and deliveries to `.invalid` addresses, and pushes the
+ * catalog the environment already holds.
  */
 export function testCloudApi(
   baseUrl: string,

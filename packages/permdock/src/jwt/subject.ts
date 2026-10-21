@@ -67,10 +67,10 @@ function mtlsThumbprint(claims: JwtClaims): string | undefined {
 
 /**
  * The sender constraint to enforce. Without a configured `sender`, a token
- * whose `cnf` binds it to a key or a certificate is held to that binding,
- * never accepted as a bearer token (RFC 9449 section 7.1, RFC 8705
- * section 3). An explicit `sender: "none"` is the opt-out for a gateway
- * that verified the binding upstream.
+ * whose `cnf` binds it to a key or a certificate is held to that binding, never
+ * accepted as a bearer token (RFC 9449 section 7.1, RFC 8705 section 3). An
+ * explicit `sender: "none"` is the opt-out for a gateway that verified the
+ * binding upstream.
  */
 function senderFor(
   options: JwtSubjectOptions,

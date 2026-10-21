@@ -35,29 +35,32 @@ import {
 } from "./approvers.ts";
 
 export type AuthorizationProviderOptions = {
-  /** `permdock.manifest.json`, parsed or as JSON text, from `permdock supabase inspect --out`. */
+  /**
+   * `permdock.manifest.json`, parsed or as JSON text, from `permdock supabase
+   * inspect --out`.
+   */
   readonly manifest: unknown;
   /**
-   * `permissions.catalog.json` from `permdock catalog`. Without it the
-   * provider lists no permissions, so better-supabase refuses every key in
-   * a bucket, topic or module check.
+   * `permissions.catalog.json` from `permdock catalog`. Without it the provider
+   * lists no permissions, so better-supabase refuses every key in a bucket,
+   * topic or module check.
    */
   readonly catalog?: unknown;
   /** The scope tenants are; defaults to the manifest's one root scope. */
   readonly scope?: string;
   /**
-   * The permission that lets a user decide a tool call waiting for
-   * approval: the `'ai-tool'` entry of `approvers` (`holder(approver)`)
-   * unless `approvers` names one. The requester is never their own approver.
+   * The permission that lets a user decide a tool call waiting for approval:
+   * the `'ai-tool'` entry of `approvers` (`holder(approver)`) unless
+   * `approvers` names one. The requester is never their own approver.
    */
   readonly approver?: Permission;
   /**
    * Who may approve each request kind, for better-supabase's `isApprover`:
-   * `'ai-tool'`, `'support-session'` or the approvals block's
-   * `'<subject type>.<action>'`, each mapped to `user()`, `holder()` or
-   * `anyOf()` approvers. A kind it does not name has no provider approver,
-   * which for tool calls and support sessions means nobody but the service
-   * role. Needs `permdock_is_approver` from `rls.approvals`.
+   * `'ai-tool'`, `'support-session'` or the approvals block's `'<subject
+   * type>.<action>'`, each mapped to `user()`, `holder()` or `anyOf()`
+   * approvers. A kind it does not name has no provider approver, which for tool
+   * calls and support sessions means nobody but the service role. Needs
+   * `permdock_is_approver` from `rls.approvals`.
    */
   readonly approvers?: ProviderApprovers;
 };
@@ -66,7 +69,10 @@ type DisabledRow = NonNullable<
   NonNullable<AuthorizationProvider["suspension"]>["user"]
 >;
 
-/** The templates that call one `rls generate` helper; the others are built below. */
+/**
+ * The templates that call one `rls generate` helper; the others are built
+ * below.
+ */
 type Template = Exclude<
   keyof AuthorizationFunctions,
   "canApprove" | "isApprover" | "holdersOf" | "actorMayWrite" | "permitted"
@@ -74,7 +80,10 @@ type Template = Exclude<
 
 type TemplateEntry = {
   readonly helper: string;
-  /** The manifest's `rls.helpers` name that `rls generate` writes alongside `helper`. */
+  /**
+   * The manifest's `rls.helpers` name that `rls generate` writes alongside
+   * `helper`.
+   */
   readonly listedAs?: string;
   readonly args: string;
   readonly role: string;
@@ -188,8 +197,8 @@ const OPTIONAL: readonly Template[] = [
 
 /**
  * Postgres aliases of the id types better-supabase reads (`uuid`, `text`,
- * `bigint`, `integer`), matching its `moduleIdType` from
- * `better-supabase/sql`, which this runtime entry does not import.
+ * `bigint`, `integer`), matching its `moduleIdType` from `better-supabase/sql`,
+ * which this runtime entry does not import.
  */
 const ID_TYPES: Readonly<Record<string, string>> = {
   uuid: "uuid",
@@ -378,9 +387,9 @@ function grantsCommandOf(
 
 /**
  * better-supabase's `permitted` template. An instance of a scope (`{resource}`
- * names the scope) is checked against that scope's ids; any other resource
- * at the tenant, and with a catalog only for a key without row conditions.
- * Without a catalog better-supabase refuses every key anyway.
+ * names the scope) is checked against that scope's ids; any other resource at
+ * the tenant, and with a catalog only for a key without row conditions. Without
+ * a catalog better-supabase refuses every key anyway.
  */
 function permittedTemplate(
   schema: string,
@@ -430,9 +439,9 @@ const EFFECTS: Readonly<
 
 /**
  * The catalog's `defineOperations` entries as better-supabase operations. A
- * name with a `.` is used as written (`workflow.node.http`); any other is
- * the tool `ai.tool.<name>` and `mcp.tool.<name>`. `critical` risk is
- * `high`, and `send` and `spend` effects are `external`.
+ * name with a `.` is used as written (`workflow.node.http`); any other is the
+ * tool `ai.tool.<name>` and `mcp.tool.<name>`. `critical` risk is `high`, and
+ * `send` and `spend` effects are `external`.
  */
 function operationsOf(
   catalog: CatalogDocument,
@@ -465,7 +474,10 @@ function operationsOf(
   return operations;
 }
 
-/** better-supabase's `delegation.scopes`, the same map `rls.tokenScopes` compiles. */
+/**
+ * better-supabase's `delegation.scopes`, the same map `rls.tokenScopes`
+ * compiles.
+ */
 function delegatedScopes(
   catalog: CatalogDocument | undefined,
 ): Record<string, string[]> {
@@ -475,15 +487,15 @@ function delegatedScopes(
 /**
  * better-supabase's `authorization` config value, built from PermDock's
  * manifest and catalog: the scopes, the `rls generate` helpers as SQL
- * templates, the membership tables, suspension rows, the token hook and
- * every catalog key with `sqlComplete` set from its `rowConditions`. A
- * `_for` template and `permissionsFor` are set only when the manifest lists
- * their helper, which `rls.mode: 'database'` writes; `isApprover` only with
- * `approvers` and `permdock_is_approver`, and otherwise `canApprove` only
- * with `approver`. `holdersOf` (`permitted_<tenant scope>_users`) and
+ * templates, the membership tables, suspension rows, the token hook and every
+ * catalog key with `sqlComplete` set from its `rowConditions`. A `_for`
+ * template and `permissionsFor` are set only when the manifest lists their
+ * helper, which `rls.mode: 'database'` writes; `isApprover` only with
+ * `approvers` and `permdock_is_approver`, and otherwise `canApprove` only with
+ * `approver`. `holdersOf` (`permitted_<tenant scope>_users`) and
  * `actorMayWrite` (`permdock_actor_may_write()`) are set when the manifest
- * lists their helper. Throws when the manifest or catalog is invalid, or when the
- * tenant scope is ambiguous.
+ * lists their helper. Throws when the manifest or catalog is invalid, or when
+ * the tenant scope is ambiguous.
  */
 export function authorizationProvider(
   options: AuthorizationProviderOptions,

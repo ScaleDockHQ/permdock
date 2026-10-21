@@ -97,7 +97,9 @@ async function agentRequest(
   });
 }
 
-async function rejection(promise: Promise<unknown>): Promise<{
+async function rejection(
+  promise: Promise<unknown>,
+): Promise<{
   readonly status: number;
   readonly contentType: string | null;
   readonly body: Readonly<Record<string, unknown>>;
@@ -273,10 +275,9 @@ describe("RFC 9421 HTTP Message Signatures (February 2024)", () => {
 describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
   it("rejects with Problem Details of type invalid-signature, never as anonymous", async () => {
     const failure = await rejection(
-      webBotAuthVerifier({
-        keys: () => publicKey,
-        now: at,
-      }).verify(vectorRequest({ Signature: "sig-b26=:AAAA:" })),
+      webBotAuthVerifier({ keys: () => publicKey, now: at }).verify(
+        vectorRequest({ Signature: "sig-b26=:AAAA:" }),
+      ),
     );
     expect(failure.status).toBe(403);
     expect(failure.contentType).toBe("application/problem+json");
@@ -318,10 +319,9 @@ describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
       'Signature-Input tag must be "web-bot-auth"',
     );
     const noAuthority = await rejection(
-      webBotAuthVerifier({
-        keys: () => agentKey,
-        now: at,
-      }).verify(await agentRequest({}, ["@method", "@path"])),
+      webBotAuthVerifier({ keys: () => agentKey, now: at }).verify(
+        await agentRequest({}, ["@method", "@path"]),
+      ),
     );
     expect(noAuthority.body["detail"]).toBe(
       "Signature-Input must cover @authority",
@@ -341,10 +341,9 @@ describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
 
   it("a key the lookup does not know rejects, and a throwing lookup rejects", async () => {
     const unknown = await rejection(
-      webBotAuthVerifier({
-        keys: () => undefined,
-        now: at,
-      }).verify(await agentRequest()),
+      webBotAuthVerifier({ keys: () => undefined, now: at }).verify(
+        await agentRequest(),
+      ),
     );
     expect(unknown.body["detail"]).toBe("Web Bot Auth key was not found");
     const thrown = await rejection(
@@ -442,10 +441,9 @@ describe("draft-meunier-http-message-signatures-directory-05", () => {
       '"not a url"',
     ]) {
       const failure = await rejection(
-        webBotAuthVerifier({
-          keys,
-          now: at,
-        }).verify(await agentRequest({ "Signature-Agent": agent })),
+        webBotAuthVerifier({ keys, now: at }).verify(
+          await agentRequest({ "Signature-Agent": agent }),
+        ),
       );
       expect(failure.body["detail"]).toBe("Web Bot Auth key was not found");
     }

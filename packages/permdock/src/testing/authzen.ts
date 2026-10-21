@@ -173,7 +173,10 @@ type TodoUser = {
   readonly roles: readonly ("admin" | "editor" | "viewer" | "evil_genius")[];
 };
 
-/** The AuthZEN interop Todo directory: each user is addressable by email or by identity. */
+/**
+ * The AuthZEN interop Todo directory: each user is addressable by email or by
+ * identity.
+ */
 export const authzenTodoUsers: readonly TodoUser[] = Object.freeze([
   {
     id: "rick@the-citadel.com",
@@ -236,7 +239,10 @@ const everyone = [
   allow(todo.can_read_todos),
 ];
 
-/** The interop Todo rules: viewers read, editors write their own, admins delete and evil geniuses update anything. */
+/**
+ * The interop Todo rules: viewers read, editors write their own, admins delete
+ * and evil geniuses update anything.
+ */
 export const authzenTodoPolicy: Policy = definePolicy(authzenTodoPermissions, {
   roles: [
     role("viewer", everyone),
@@ -276,7 +282,10 @@ const TODOS = Object.freeze(
   })),
 );
 
-/** Rows for `resources.todo.list` and records for `subjects.list` in the Todo domain. */
+/**
+ * Rows for `resources.todo.list` and records for `subjects.list` in the Todo
+ * domain.
+ */
 export const authzenTodoData: {
   readonly todos: readonly { readonly id: string; readonly ownerID: string }[];
   readonly users: readonly { readonly id: string }[];
@@ -304,9 +313,9 @@ function expectedFor(user: TodoUser, action: string, ownerID: string): boolean {
 }
 
 /**
- * PermDock's vectors over the interop Todo domain, in the interop layout:
- * every user against every action on their own and on Rick's todo, one batch
- * per user, and the three searches.
+ * PermDock's vectors over the interop Todo domain, in the interop layout: every
+ * user against every action on their own and on Rick's todo, one batch per
+ * user, and the three searches.
  */
 export function authzenTodoVectors(): AuthzenVectors {
   const rick = authzenTodoUsers[0];
@@ -378,9 +387,7 @@ export function authzenTodoVectors(): AuthzenVectors {
               properties: mortyTodo,
             },
           },
-          expected: {
-            results: actions.map((name) => ({ name })),
-          },
+          expected: { results: actions.map((name) => ({ name })) },
         },
       ],
       resource: [

@@ -340,11 +340,7 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
       { name: "kysely (pg)", exists: false, run: kyselyRun },
       { name: "kysely (pg, exists)", exists: true, run: kyselyRun },
       { name: "prisma 7 (adapter-pg)", exists: false, run: prismaRun },
-      {
-        name: "prisma 7 (schema fields)",
-        exists: false,
-        run: prismaSchemaRun,
-      },
+      { name: "prisma 7 (schema fields)", exists: false, run: prismaSchemaRun },
     );
   }, 180_000);
 

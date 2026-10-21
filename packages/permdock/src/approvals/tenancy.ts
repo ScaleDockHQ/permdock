@@ -5,8 +5,8 @@ import { rootMembershipId } from "../core/scopes.ts";
 /**
  * The tenants a subject acts in for approvals: `principal.tenant` and the
  * instance of every membership at the first scope. A membership at a nested
- * scope (a team, or one with `within`) names no tenant, even when its parent
- * is the request's tenant.
+ * scope (a team, or one with `within`) names no tenant, even when its parent is
+ * the request's tenant.
  */
 export function membershipTenants(subject: Subject): readonly string[] {
   const principal = subject.principal;

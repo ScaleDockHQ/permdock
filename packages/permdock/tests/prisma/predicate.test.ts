@@ -32,9 +32,7 @@ function field(name: string): PrismaFieldProxy {
 
 const model = new Proxy<Record<string, PrismaFieldProxy>>(
   {},
-  {
-    get: (_, name) => (typeof name === "string" ? field(name) : undefined),
-  },
+  { get: (_, name) => (typeof name === "string" ? field(name) : undefined) },
 );
 
 const combinators: PrismaCombinators = {
@@ -132,10 +130,7 @@ describe("permdock/prisma toPredicate (Prisma 8)", () => {
       condition: { op: "notIn", field: "a", value: ["x", "y"] },
       sql: 'not a in ["x","y"]',
     },
-    {
-      condition: { op: "notIn", field: "a", value: [] },
-      sql: "a is not null",
-    },
+    { condition: { op: "notIn", field: "a", value: [] }, sql: "a is not null" },
     { condition: { op: "isNull", field: "a", value: true }, sql: "a is null" },
     {
       condition: { op: "isNull", field: "a", value: false },

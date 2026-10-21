@@ -94,9 +94,7 @@ describe("global custom roles", () => {
 
   it("grant through principal.roles and nothing else", async () => {
     const customRoles = memoryCustomRoleSource([platformRole]);
-    const holder = getPermDockSync(policy, subject(["tier2"]), {
-      customRoles,
-    });
+    const holder = getPermDockSync(policy, subject(["tier2"]), { customRoles });
     expect(holder.can(permissions.tenant.suspend)).toBe(true);
     expect(holder.can(permissions.tenant.read)).toBe(true);
     expect(holder.can(permissions.tenant.delete)).toBe(false);
@@ -118,10 +116,7 @@ describe("global custom roles", () => {
 
   it("ignore a platform role that carries a tenant, team or id", async () => {
     // SAFETY: deliberately malformed input to check the runtime guard.
-    const forged = {
-      ...platformRole,
-      tenant: "o1",
-    } as unknown as CustomRole;
+    const forged = { ...platformRole, tenant: "o1" } as unknown as CustomRole;
     const permdock = getPermDockSync(policy, subject(["tier2"]), {
       customRoles: { rolesFor: () => [], globalRoles: () => [forged] },
     });

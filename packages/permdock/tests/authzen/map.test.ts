@@ -253,10 +253,7 @@ describe("mergeEvaluationItem and paging", () => {
         action: { name: "update" },
         subject: "bad",
       }),
-    ).toEqual({
-      ...shared,
-      action: { name: "update" },
-    });
+    ).toEqual({ ...shared, action: { name: "update" } });
     expect(
       mergeEvaluationItem(shared, {
         subject: { id: "u" },

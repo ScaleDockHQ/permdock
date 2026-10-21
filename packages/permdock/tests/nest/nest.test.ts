@@ -53,9 +53,7 @@ async function listen(
 describe("permdock/nest", () => {
   it("sets a request-scoped instance and protects routes", async () => {
     const { PermDockModule, PermDockGuard, Protect, InjectPermDock } =
-      createPermDock(policy, {
-        subject: () => memberUser,
-      });
+      createPermDock(policy, { subject: () => memberUser });
 
     class PostsController {
       public remove(permdock: {
@@ -132,10 +130,9 @@ describe("permdock/nest", () => {
     });
 
     class AppModule {}
-    Module({
-      imports: [PermDockModule],
-      controllers: [permdockHandler()],
-    })(AppModule);
+    Module({ imports: [PermDockModule], controllers: [permdockHandler()] })(
+      AppModule,
+    );
 
     const request = await listen(AppModule);
     const response = await request("/api/permdock", {

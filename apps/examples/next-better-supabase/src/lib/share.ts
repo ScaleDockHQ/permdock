@@ -12,7 +12,10 @@ import { env } from "../env.ts";
 import { permissions, policy } from "../policy.ts";
 import { postgres } from "./supabase/server.ts";
 
-/** `resolve` runs as anon: its security definer function reads only the link table. */
+/**
+ * `resolve` runs as anon: its security definer function reads only the link
+ * table.
+ */
 const shareLinks = createShareLinks({ transport: sqlTransport(postgres.anon) });
 
 type SigningKey = Readonly<Record<string, unknown>> & { readonly kid: string };
@@ -32,8 +35,8 @@ function signingKey(raw: string | undefined): SigningKey | null {
 
 /**
  * The quote a share-link token points at, read under RLS with the link's
- * capability; `null` for an unknown, revoked or expired link. Each call
- * counts one use of the link.
+ * capability; `null` for an unknown, revoked or expired link. Each call counts
+ * one use of the link.
  */
 export async function sharedQuote(token: string): Promise<QuoteRow | null> {
   const subject = await subjectFromShareLink(token, {

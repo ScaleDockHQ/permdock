@@ -12,10 +12,7 @@ import { role } from "../../src/core/role-builder.ts";
 import { getPermDockSync, remotePdp } from "../../src/pdp/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 
-const Post = z.object({
-  id: z.string(),
-  authorId: z.string(),
-});
+const Post = z.object({ id: z.string(), authorId: z.string() });
 
 const permissions = definePermissions({
   post: resource(Post, {
@@ -64,10 +61,7 @@ describe("permdock/pdp", () => {
         fetch: async () => jsonResponse({ decision: true }),
       }),
     ]);
-    const permdock = createCore(policy, {
-      id: "user-1",
-      roles: ["member"],
-    });
+    const permdock = createCore(policy, { id: "user-1", roles: ["member"] });
     expect(permdock.can(permissions.post.read, post)).toBe(false);
     expect(reasonOf(permdock.decide(permissions.post.read, post))).toBe(
       "pdp-unavailable",

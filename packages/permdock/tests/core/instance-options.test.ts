@@ -24,11 +24,7 @@ const alice: Subject = {
 };
 
 const approvalPolicies = memoryApprovalPolicySource([
-  {
-    permission: "expense.read",
-    tenant: "o1",
-    approval: { by: "finance" },
-  },
+  { permission: "expense.read", tenant: "o1", approval: { by: "finance" } },
 ]);
 
 describe("instanceOptions", () => {

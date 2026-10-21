@@ -49,14 +49,20 @@ export type BreakingChange = {
   readonly detail: string;
 };
 
-/** A grant present on both sides with the same identity (permission, effect, role, grantee, scope) and a different body. */
+/**
+ * A grant present on both sides with the same identity (permission, effect,
+ * role, grantee, scope) and a different body.
+ */
 export type GrantChange = {
   readonly before: CatalogGrant;
   readonly after: CatalogGrant;
   readonly changes: readonly string[];
 };
 
-/** A delegation present on both sides with the same `from` and `to` and a different body. */
+/**
+ * A delegation present on both sides with the same `from` and `to` and a
+ * different body.
+ */
 export type DelegationChange = {
   readonly before: CatalogDelegation;
   readonly after: CatalogDelegation;
@@ -71,10 +77,7 @@ export type ImpactRow = {
   readonly after: "granted" | "denied" | "approval-required" | "unknown";
 };
 
-export type PermissionRename = {
-  readonly from: string;
-  readonly to: string;
-};
+export type PermissionRename = { readonly from: string; readonly to: string };
 
 /** One level of one permission (`resource(…, { levels })`). */
 export type PermissionLevel = {
@@ -88,10 +91,16 @@ export type CatalogDiff = {
   readonly permissions: {
     readonly added: readonly string[];
     readonly removed: readonly string[];
-    /** Keys of `a` that `b` keeps as a `renamedFrom` alias of a new key; not breaking. */
+    /**
+     * Keys of `a` that `b` keeps as a `renamedFrom` alias of a new key; not
+     * breaking.
+     */
     readonly renamed: readonly PermissionRename[];
   };
-  /** Levels per permission kept on both sides; a removed level is breaking, since stored custom roles that pick it then deny. */
+  /**
+   * Levels per permission kept on both sides; a removed level is breaking,
+   * since stored custom roles that pick it then deny.
+   */
   readonly levels: {
     readonly added: readonly PermissionLevel[];
     readonly removed: readonly PermissionLevel[];
@@ -105,19 +114,28 @@ export type CatalogDiff = {
     readonly removed: readonly string[];
     readonly changed: readonly string[];
   };
-  /** Absent when either catalog carries no `grants` section (built without the policy). */
+  /**
+   * Absent when either catalog carries no `grants` section (built without the
+   * policy).
+   */
   readonly grants?: {
     readonly added: readonly CatalogGrant[];
     readonly removed: readonly CatalogGrant[];
     readonly changed: readonly GrantChange[];
   };
-  /** Absent when either catalog carries no `grants` section; a catalog with grants and no `delegations` declares none. */
+  /**
+   * Absent when either catalog carries no `grants` section; a catalog with
+   * grants and no `delegations` declares none.
+   */
   readonly delegations?: {
     readonly added: readonly CatalogDelegation[];
     readonly removed: readonly CatalogDelegation[];
     readonly changed: readonly DelegationChange[];
   };
-  /** `operation-*` findings (`operationFindings`): a raised `meta.risk` or a removed approval; not breaking. */
+  /**
+   * `operation-*` findings (`operationFindings`): a raised `meta.risk` or a
+   * removed approval; not breaking.
+   */
   readonly operations: readonly CatalogFinding[];
   readonly impact?: readonly ImpactRow[];
   readonly breaking: readonly BreakingChange[];
@@ -179,7 +197,10 @@ function setDiff(
   };
 }
 
-/** What makes two grants "the same grant" across versions: everything but the body. */
+/**
+ * What makes two grants "the same grant" across versions: everything but the
+ * body.
+ */
 function grantIdentity(grant: CatalogGrant): string {
   return canonicalJson({
     permission: grant.permission,
@@ -275,7 +296,10 @@ const validFrom = (value: CatalogGrant["validity"]): number =>
 const validUntil = (value: CatalogGrant["validity"]): number =>
   secondsOf(value?.until) ?? Number.POSITIVE_INFINITY;
 
-/** Narrowed when the window starts later or ends earlier than before; a new window on an open grant narrows it. */
+/**
+ * Narrowed when the window starts later or ends earlier than before; a new
+ * window on an open grant narrows it.
+ */
 function validityChange(
   before: CatalogGrant["validity"],
   after: CatalogGrant["validity"],
@@ -397,7 +421,10 @@ function aliasesOf(catalog: CatalogDocument): ReadonlyMap<string, string> {
   );
 }
 
-/** `a` with every key `b` renamed written as its new key, so grants compare by the current name. */
+/**
+ * `a` with every key `b` renamed written as its new key, so grants compare by
+ * the current name.
+ */
 function underNames(a: Side, aliases: ReadonlyMap<string, string>): Side {
   if (a.catalog.grants === undefined || aliases.size === 0) {
     return a;
@@ -470,11 +497,7 @@ export function diffCatalogs(original: Side, b: Side): CatalogDiff {
       renamed.push({ from: key, to });
     }
   }
-  const permissions = {
-    added: keyDiff.added,
-    removed: removedKeys,
-    renamed,
-  };
+  const permissions = { added: keyDiff.added, removed: removedKeys, renamed };
   for (const key of permissions.removed) {
     breaking.push({
       kind: "permission-removed",
@@ -651,9 +674,7 @@ async function impactOf(input: {
     const permdock = await getPermDock(
       policy,
       fixtureSubject(fixture.subject),
-      {
-        customRoles: memoryCustomRoleSource(customRoles),
-      },
+      { customRoles: memoryCustomRoleSource(customRoles) },
     );
     const [decision] = permdock.simulate(
       [[permission, fixtureRow(fixture, permission.kind)]],

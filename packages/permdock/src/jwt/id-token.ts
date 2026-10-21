@@ -10,13 +10,19 @@ import { compact } from "../core/compact.ts";
 import { idTokenMismatch } from "./map-claims.ts";
 import { joseTokenVerifier } from "./verifier.ts";
 
-/** `TokenFailureCause` plus `nonce-mismatch`; a `TokenVerifier` never returns it. */
+/**
+ * `TokenFailureCause` plus `nonce-mismatch`; a `TokenVerifier` never returns
+ * it.
+ */
 export type IdTokenFailureCause = TokenFailureCause | "nonce-mismatch";
 
 export type VerifyIdTokenOptions = {
   /** The OpenID Provider's issuer; `iss` must equal it. */
   readonly issuer: string;
-  /** The relying party's `client_id`; `aud` must contain it and `azp`, when present, must equal it. */
+  /**
+   * The relying party's `client_id`; `aud` must contain it and `azp`, when
+   * present, must equal it.
+   */
   readonly clientId: string;
   /** The `nonce` sent in the authentication request; the token's must equal it. */
   readonly nonce?: string;
@@ -51,9 +57,9 @@ export type VerifyIdTokenResult =
 
 /**
  * Verifies an OpenID Connect ID token for a relying party (Core section
- * 3.1.3.7): signature, `iss`, `aud`, `exp`, `iat`, `typ` `JWT` or absent,
- * `azp` and, when `nonce` is given, `nonce`. It does not check `at_hash`,
- * `c_hash`, `auth_time` or `acr`. Never throws.
+ * 3.1.3.7): signature, `iss`, `aud`, `exp`, `iat`, `typ` `JWT` or absent, `azp`
+ * and, when `nonce` is given, `nonce`. It does not check `at_hash`, `c_hash`,
+ * `auth_time` or `acr`. Never throws.
  */
 export async function verifyIdToken(
   token: string,

@@ -19,10 +19,7 @@ const withClaims = defineMiddleware<
   undefined,
   Record<never, never>,
   SupabaseJwtClaims | null
->({
-  key: "jwtClaims",
-  run: () => async () => ({ jwtClaims: memberClaims }),
-});
+>({ key: "jwtClaims", run: () => async () => ({ jwtClaims: memberClaims }) });
 
 const subjectOptions = {
   claims: { roles: "user_role", tenant: "tenant_id" },

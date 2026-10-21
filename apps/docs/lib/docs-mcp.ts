@@ -23,7 +23,10 @@ export type DocsMcpSources<C extends LoaderConfig> = {
 const instructions =
   "Public PermDock documentation. Tools are read-only. Never send a subject, token or policy.";
 
-/** The public docs MCP: `search`, `list_pages` and `get_page`, one server per request. */
+/**
+ * The public docs MCP: `search`, `list_pages` and `get_page`, one server per
+ * request.
+ */
 export function createDocsMcpHandler<C extends LoaderConfig>(
   sources: DocsMcpSources<C>,
 ): McpHttpHandler {

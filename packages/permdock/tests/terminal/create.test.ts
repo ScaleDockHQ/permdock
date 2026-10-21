@@ -201,10 +201,10 @@ describe("terminal output", () => {
       await expect(
         protect(permissions.post.delete, () => ownPost)(async () => "ran")(),
       ).rejects.toMatchObject({ code: 77 });
-      expect({
+      expect({ json, hint: lines.join("").includes("pass a store") }).toEqual({
         json,
-        hint: lines.join("").includes("pass a store"),
-      }).toEqual({ json, hint: !json });
+        hint: !json,
+      });
     }
   });
 });
@@ -360,10 +360,7 @@ describe("terminal filterCommands and logout", () => {
   it("defaults to hide and reads instance permissions from the snapshot", async () => {
     const { getPermDock: permdockFor, filterCommands } = createPermDock(
       policy,
-      {
-        subject: () => memberUser,
-        runtime: quiet().runtime,
-      },
+      { subject: () => memberUser, runtime: quiet().runtime },
     );
     await permdockFor();
     expect(filterCommands(entries).map((entry) => entry.name)).toEqual([

@@ -5,9 +5,9 @@ export type AccessReviewStatus = "open" | "closed";
 export type AccessReviewItemStatus = "pending" | "kept" | "revoked";
 
 /**
- * Access review v1: who holds `permissions` in one tenant, and who may
- * confirm or revoke each holding. PermDock records the reviewer's decision
- * and never changes the role or membership itself.
+ * Access review v1: who holds `permissions` in one tenant, and who may confirm
+ * or revoke each holding. PermDock records the reviewer's decision and never
+ * changes the role or membership itself.
  */
 export type AccessReview = {
   readonly v: 1;
@@ -23,7 +23,10 @@ export type AccessReview = {
   readonly complete: boolean;
 };
 
-/** One holding in a review. `via` names the roles the population attributed it to. */
+/**
+ * One holding in a review. `via` names the roles the population attributed it
+ * to.
+ */
 export type AccessReviewItem = {
   readonly v: 1;
   readonly id: string;

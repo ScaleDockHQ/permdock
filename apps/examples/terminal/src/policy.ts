@@ -2,10 +2,7 @@ import { allow, definePolicy, role } from "permdock";
 
 import { permissions } from "./permissions.ts";
 
-export type User = {
-  readonly id: string;
-  readonly roles: readonly string[];
-};
+export type User = { readonly id: string; readonly roles: readonly string[] };
 
 const developer = role("developer", [
   allow(permissions.deploy.read),

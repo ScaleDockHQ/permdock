@@ -8,7 +8,10 @@ export type AppStateModule = {
   ): { remove(): void };
 };
 
-/** The default export of `@react-native-community/netinfo`, as `netInfoOnline` calls it. */
+/**
+ * The default export of `@react-native-community/netinfo`, as `netInfoOnline`
+ * calls it.
+ */
 export type NetInfoModule = {
   addEventListener(
     listener: (state: {
@@ -19,8 +22,8 @@ export type NetInfoModule = {
 };
 
 /**
- * `subscribeForeground` over `AppState`: `active` returns to the foreground
- * and `background` leaves it. iOS `inactive` (a system sheet over the app) is
+ * `subscribeForeground` over `AppState`: `active` returns to the foreground and
+ * `background` leaves it. iOS `inactive` (a system sheet over the app) is
  * neither.
  */
 export function appStateForeground(
@@ -40,7 +43,10 @@ export function appStateForeground(
   };
 }
 
-/** `subscribeOnline` over NetInfo. An unknown (`null`) connection counts as online. */
+/**
+ * `subscribeOnline` over NetInfo. An unknown (`null`) connection counts as
+ * online.
+ */
 export function netInfoOnline(netInfo: NetInfoModule): SubscribeOnline {
   return (listener) =>
     netInfo.addEventListener((state) => {

@@ -30,9 +30,7 @@ const config: KnipConfig = {
       // Example sources are read as documentation; their exports show the shape.
       entry: ["src/**/*.{ts,tsx,vue,svelte}"],
     },
-    "apps/examples/react-router": {
-      entry: ["app/**/*.{ts,tsx}"],
-    },
+    "apps/examples/react-router": { entry: ["app/**/*.{ts,tsx}"] },
     "apps/examples/expo": {
       entry: ["src/**/*.{ts,tsx}"],
       // Expo resolves these native peers and config plugins at build time.
@@ -72,9 +70,7 @@ const config: KnipConfig = {
       ],
     },
     "tests/*": {},
-    "tests/bundle": {
-      entry: ["src/fixtures/rsc/{register,render}.ts"],
-    },
+    "tests/bundle": { entry: ["src/fixtures/rsc/{register,render}.ts"] },
     "tests/integration": {
       entry: ["fixtures/**/*.ts", "src/support/openai-resume.ts"],
       // The gitignored client `prisma generate` writes to src/support/prisma imports its runtime.
@@ -99,9 +95,7 @@ const config: KnipConfig = {
       // The suite spawns the `deno` binary this package installs.
       ignoreDependencies: ["deno"],
     },
-    "tests/types": {
-      entry: ["src/*.ts"],
-    },
+    "tests/types": { entry: ["src/*.ts"] },
     "tests/types/*": {
       // Listed so turbo builds them before this TypeScript version checks `../src`.
       ignoreDependencies: ["permdock", "zod"],

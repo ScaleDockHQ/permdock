@@ -9,9 +9,9 @@ export function isContact(principal: Principal | null | undefined): boolean {
 }
 
 /**
- * A contact's memberships: only the `{ on }` ones count, each as
- * `via: 'contact'` and without seats, so a role whose `for` excludes
- * `contact` never applies and no `plan()` grantee matches.
+ * A contact's memberships: only the `{ on }` ones count, each as `via:
+ * 'contact'` and without seats, so a role whose `for` excludes `contact` never
+ * applies and no `plan()` grantee matches.
  */
 export function contactMemberships(
   memberships: readonly Membership[],
@@ -35,7 +35,10 @@ function optsIn(policy: Policy, grant: Grant): boolean {
   return binding?.for?.includes("contact") === true;
 }
 
-/** Whether `subject` may use the allow `grant`: false only for a contact and a write its role does not open to contacts. */
+/**
+ * Whether `subject` may use the allow `grant`: false only for a contact and a
+ * write its role does not open to contacts.
+ */
 export function contactMayUse(
   policy: Policy,
   subject: Subject,
@@ -50,9 +53,9 @@ export function contactMayUse(
 }
 
 /**
- * The allows a contact may use for `permission`: all of them for a
- * read-only permission, otherwise only those from a role whose `for` lists
- * `contact`. Every other subject keeps every allow.
+ * The allows a contact may use for `permission`: all of them for a read-only
+ * permission, otherwise only those from a role whose `for` lists `contact`.
+ * Every other subject keeps every allow.
  */
 export function contactAllows<TAllow extends { readonly grant: Grant }>(
   policy: Policy,

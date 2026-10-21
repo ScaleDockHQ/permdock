@@ -56,10 +56,7 @@ const policy = definePolicy(permissions, {
     role(
       "owner",
       [allow(permissions.job.read), allow(permissions.job.update)],
-      {
-        on: "tenant",
-        assignable: true,
-      },
+      { on: "tenant", assignable: true },
     ),
   ],
 });

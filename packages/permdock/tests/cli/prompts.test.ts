@@ -28,11 +28,7 @@ beforeEach(() => {
 });
 
 function io(interactive: boolean): CliIo {
-  return {
-    stdout: () => undefined,
-    stderr: () => undefined,
-    interactive,
-  };
+  return { stdout: () => undefined, stderr: () => undefined, interactive };
 }
 
 describe("skills install prompt", () => {

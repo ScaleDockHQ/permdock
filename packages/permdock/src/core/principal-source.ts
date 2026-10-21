@@ -11,7 +11,10 @@ export type PrincipalIdentity = {
   readonly kind: "email" | "chat";
   /** The chat platform (`slack`, `teams`, …); absent for email. */
   readonly provider?: string;
-  /** The address (RFC 5322 `addr-spec`) or the platform user id. Emails compare trimmed and case-insensitively. */
+  /**
+   * The address (RFC 5322 `addr-spec`) or the platform user id. Emails compare
+   * trimmed and case-insensitively.
+   */
   readonly value: string;
   /** The chat workspace or team id. */
   readonly workspace?: string;
@@ -25,18 +28,27 @@ export type PrincipalIdentity = {
 export type PrincipalSource<TPrincipal extends Principal = Principal> = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  /** The principal as of this request, or `null` for one deleted, suspended or unknown. */
+  /**
+   * The principal as of this request, or `null` for one deleted, suspended or
+   * unknown.
+   */
   principal(
     id: string,
     options?: { readonly tenant?: string },
   ): TPrincipal | null | Promise<TPrincipal | null>;
-  /** The principal an app-owned identity link points to, or `null` when none does. */
+  /**
+   * The principal an app-owned identity link points to, or `null` when none
+   * does.
+   */
   principalByIdentity?(
     identity: PrincipalIdentity,
   ): TPrincipal | null | Promise<TPrincipal | null>;
 };
 
-/** One `memoryPrincipalSource` identity link: `identity` resolves to the principal with id `principal`. */
+/**
+ * One `memoryPrincipalSource` identity link: `identity` resolves to the
+ * principal with id `principal`.
+ */
 export type PrincipalIdentityLink = {
   readonly identity: PrincipalIdentity;
   readonly principal: string;
@@ -48,8 +60,8 @@ function nonEmpty(value: unknown): value is string {
 
 /**
  * A `PrincipalIdentity` in the form sources compare: an email trimmed and
- * lower-cased with no provider or workspace, a chat identity with a
- * provider. Anything else, inherited fields included, is `undefined`.
+ * lower-cased with no provider or workspace, a chat identity with a provider.
+ * Anything else, inherited fields included, is `undefined`.
  */
 export function normalizeIdentity(
   value: unknown,
@@ -127,9 +139,9 @@ export async function loadPrincipal<TPrincipal extends Principal>(
 }
 
 /**
- * `source.principalByIdentity(identity)` over the normalised identity,
- * failing closed: no source or method, an invalid identity, `null`, a throw
- * or a rejection is `null`.
+ * `source.principalByIdentity(identity)` over the normalised identity, failing
+ * closed: no source or method, an invalid identity, `null`, a throw or a
+ * rejection is `null`.
  */
 export async function loadPrincipalByIdentity<TPrincipal extends Principal>(
   source: PrincipalSource<TPrincipal> | undefined,
@@ -148,9 +160,9 @@ export async function loadPrincipalByIdentity<TPrincipal extends Principal>(
 }
 
 /**
- * In-process principals for tests and single-replica apps. `identities`
- * links an email or chat identity to a principal id; each answer is a fresh
- * frozen copy. `tenant` is not a filter, as for a database source.
+ * In-process principals for tests and single-replica apps. `identities` links
+ * an email or chat identity to a principal id; each answer is a fresh frozen
+ * copy. `tenant` is not a filter, as for a database source.
  */
 export function memoryPrincipalSource<TPrincipal extends Principal>(input: {
   readonly principals: readonly TPrincipal[];

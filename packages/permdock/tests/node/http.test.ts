@@ -177,10 +177,7 @@ describe("sendResponse and isServerResponse", () => {
     // SAFETY: sendResponse uses only statusCode, setHeader and end.
     await sendResponse(
       res as unknown as ServerResponse,
-      new Response("ok", {
-        status: 201,
-        headers: { "x-a": "1" },
-      }),
+      new Response("ok", { status: 201, headers: { "x-a": "1" } }),
     );
     expect({
       status: res.statusCode,

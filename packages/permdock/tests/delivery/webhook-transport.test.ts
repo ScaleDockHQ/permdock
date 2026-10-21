@@ -36,12 +36,7 @@ async function target(address: string): Promise<DeliveryTarget<"webhook">> {
   if (decision.outcome !== "granted") {
     throw new Error("expected granted");
   }
-  return {
-    channel: "webhook",
-    address,
-    principal: "u_1",
-    decision,
-  };
+  return { channel: "webhook", address, principal: "u_1", decision };
 }
 
 function capture(status: number) {

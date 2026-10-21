@@ -6,9 +6,9 @@ import { keptKeys } from "../../supabase/keep.ts";
 import { policyOf } from "./inputs.ts";
 
 /**
- * PD061: a suspended scope keeps permissions. Each scope's kept keys are
- * listed for review, since its members hold them while the instance is
- * suspended, and a key the definitions do not declare is named apart.
+ * PD061: a suspended scope keeps permissions. Each scope's kept keys are listed
+ * for review, since its members hold them while the instance is suspended, and
+ * a key the definitions do not declare is named apart.
  */
 export async function pd061(
   input: DoctorInput,

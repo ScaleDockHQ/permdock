@@ -82,7 +82,10 @@ const automations = (
   automation: (id) => (id === "auto_1" ? { id, version, revoked } : null),
 });
 
-/** What a JavaScript caller can pass: any field, including an explicit `undefined`. */
+/**
+ * What a JavaScript caller can pass: any field, including an explicit
+ * `undefined`.
+ */
 type Loose<T> = { readonly [K in keyof T]?: T[K] | undefined };
 
 const base: RunTicketInput = {

@@ -151,9 +151,7 @@ The same hook names exist in React Native, Vue, Svelte and Solid. Read [building
 import { createPermDock } from "permdock/next";
 
 export const { getPermDock, requirePermission, permdockHandler } =
-  createPermDock(policy, {
-    subject: async () => getUser(await cookies()),
-  });
+  createPermDock(policy, { subject: async () => getUser(await cookies()) });
 
 // in a page or Server Action
 await requirePermission(permissions.post.update, post); // forbidden() / unauthorized() on a denial

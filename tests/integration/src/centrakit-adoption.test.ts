@@ -265,10 +265,7 @@ describe("CentraKit adoption shapes", () => {
       "create role shim_caller nologin; grant shim_caller to tester; grant execute on function public.has_org_permission(uuid, text) to shim_caller",
     );
     const ok = await db.as(
-      {
-        role: "shim_caller",
-        settings: jwtClaims(ADMIN),
-      },
+      { role: "shim_caller", settings: jwtClaims(ADMIN) },
       async () =>
         (
           await db!.tester.query<{ ok: boolean }>(
@@ -458,10 +455,7 @@ describe("CentraKit adoption shapes", () => {
     expect(request.approvers).toMatchObject({ mode: "sequential" });
     const approve = async (who: string) => {
       const handler = approvalsHandler(store, {
-        subject: () => ({
-          principal: staff(who, ["viewer"]),
-          context: {},
-        }),
+        subject: () => ({ principal: staff(who, ["viewer"]), context: {} }),
         relations,
         permissions,
       });
@@ -486,7 +480,10 @@ describe("CentraKit adoption shapes", () => {
   });
 });
 
-/** CentraKit's own custom-role grants, before adoption, and an audit module that registers a table by creating its trigger. */
+/**
+ * CentraKit's own custom-role grants, before adoption, and an audit module that
+ * registers a table by creating its trigger.
+ */
 const LEGACY_ROLES = `
 create table role_permissions (role_id uuid not null references roles (id), permission text not null);
 insert into role_permissions values

@@ -39,10 +39,7 @@ describe("bindConditionRefs", () => {
       conditions: [
         { op: "eq", field: "ownerId", value: "u1" },
         { op: "in", field: "teamId", value: ["t1", "t2"] },
-        {
-          op: "not",
-          condition: { op: "eq", field: "region", value: "eu" },
-        },
+        { op: "not", condition: { op: "eq", field: "region", value: "eu" } },
       ],
     });
   });
@@ -71,11 +68,7 @@ describe("bindConditionRefs", () => {
     ).toEqual({ op: "in", field: "teamId", value: ["u1", "x"] });
     expect(
       bindConditionRefs(
-        {
-          op: "eq",
-          field: "teamId",
-          value: { ref: "principal.teams" },
-        },
+        { op: "eq", field: "teamId", value: { ref: "principal.teams" } },
         {
           principal: { id: "u1", teams: ["t1", { nested: true }] },
           context: {},

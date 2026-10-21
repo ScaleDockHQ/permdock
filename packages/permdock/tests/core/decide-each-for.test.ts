@@ -139,9 +139,7 @@ describe("decideEach", () => {
 
 describe("decideFor", () => {
   it("decides for another principal in the caller's tenant without widening the caller", async () => {
-    const permdock = getPermDockSync(policy, subjectOf(alice), {
-      principals,
-    });
+    const permdock = getPermDockSync(policy, subjectOf(alice), { principals });
     const forBob = await permdock.decideFor(
       "bob",
       permissions.invoice.refund,
@@ -181,9 +179,7 @@ describe("decideFor", () => {
   });
 
   it("denies a target outside the caller's tenant with tenant-mismatch", async () => {
-    const permdock = getPermDockSync(policy, subjectOf(alice), {
-      principals,
-    });
+    const permdock = getPermDockSync(policy, subjectOf(alice), { principals });
     const decision = await permdock.decideFor(
       "carol",
       permissions.invoice.read,
@@ -337,9 +333,7 @@ describe("decideFor", () => {
   });
 
   it("is unsupported on a snapshot instance; decideEach works there", async () => {
-    const permdock = getPermDockSync(policy, subjectOf(alice), {
-      principals,
-    });
+    const permdock = getPermDockSync(policy, subjectOf(alice), { principals });
     const offline = fromSnapshot(
       permdock.snapshot({ include: [permissions.invoice.read] }),
     );

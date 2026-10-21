@@ -55,10 +55,7 @@ describe("permdock init and the preset catalogue", () => {
       expect({
         key,
         default: spec?.type === "enum" ? spec.default : undefined,
-      }).toEqual({
-        key,
-        default: PRESET_DEFAULTS[key],
-      });
+      }).toEqual({ key, default: PRESET_DEFAULTS[key] });
     }
   });
 

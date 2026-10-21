@@ -21,7 +21,10 @@ export function combineWhere(
   return { op: "and", conditions: [left, right] };
 }
 
-/** Seats (`Membership.entitlements`) held through memberships that apply under the active tenant. */
+/**
+ * Seats (`Membership.entitlements`) held through memberships that apply under
+ * the active tenant.
+ */
 function seatsInTenant(
   subject: Subject,
   scopes: readonly Scope[] | undefined,
@@ -80,28 +83,19 @@ function matchOne(
       if (grantee.acr !== undefined && grantee.acr.length > 0) {
         const acr = principalAssurance?.acr;
         if (acr === undefined || !grantee.acr.includes(acr)) {
-          return {
-            matched: false,
-            reason: "insufficient-user-authentication",
-          };
+          return { matched: false, reason: "insufficient-user-authentication" };
         }
       }
       if (grantee.amr !== undefined && grantee.amr.length > 0) {
         const amr = principalAssurance?.amr ?? [];
         if (!grantee.amr.every((method) => amr.includes(method))) {
-          return {
-            matched: false,
-            reason: "insufficient-user-authentication",
-          };
+          return { matched: false, reason: "insufficient-user-authentication" };
         }
       }
       if (grantee.maxAge !== undefined) {
         const authTime = principalAssurance?.authTime;
         if (authTime === undefined || now - authTime > grantee.maxAge) {
-          return {
-            matched: false,
-            reason: "insufficient-user-authentication",
-          };
+          return { matched: false, reason: "insufficient-user-authentication" };
         }
       }
       return { matched: true };
@@ -138,7 +132,10 @@ function matchOne(
   }
 }
 
-/** A kind this build does not know, from a forged snapshot or a newer document, never matches. */
+/**
+ * A kind this build does not know, from a forged snapshot or a newer document,
+ * never matches.
+ */
 function unknownGrantee(_grantee: never): GranteeMatch {
   return { matched: false, reason: "no-grant", unknown: true };
 }

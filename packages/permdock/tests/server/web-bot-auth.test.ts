@@ -170,10 +170,7 @@ describe("webBotAuthVerifier", () => {
       const request = await signed(signer, { components, headers });
       expect(
         await webBotAuthVerifier(options(() => signer.jwk)).verify(request),
-      ).toEqual({
-        id: signer.jwk.kid,
-        kind: "web-bot-auth",
-      });
+      ).toEqual({ id: signer.jwk.kid, kind: "web-bot-auth" });
     }
   });
 

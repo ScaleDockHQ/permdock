@@ -144,11 +144,7 @@ describe("grant validity", () => {
       expect(decision.outcome).toBe("denied");
       if (decision.outcome === "denied") {
         expect(decision.denials).toEqual([
-          {
-            role: "contractor",
-            reason: "inactive-grant",
-            detail: WINDOW,
-          },
+          { role: "contractor", reason: "inactive-grant", detail: WINDOW },
         ]);
       }
     }

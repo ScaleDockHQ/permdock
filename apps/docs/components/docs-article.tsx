@@ -43,9 +43,7 @@ export async function DocsArticle({
       </div>
       <DocsBody>
         <MDX
-          components={getMDXComponents({
-            a: createRelativeLink(source, page),
-          })}
+          components={getMDXComponents({ a: createRelativeLink(source, page) })}
         />
       </DocsBody>
       {page.data.lastModified ? (

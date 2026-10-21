@@ -9,10 +9,10 @@ import { DROPPED_LIST, rebuildPlan } from "./custom-role-rebuild.ts";
 /**
  * `rls.customRoles.from.sync: 'trigger'`: after-row triggers on the legacy
  * permissions table, and on the includes table when mapped, rebuild each
- * affected role through `permdock_trusted_replace_custom_role_grants`, with
- * the same reads the backfill uses. An entry outside the ceiling is dropped
- * with a warning rather than aborting the legacy write, and a tenant role
- * whose name a shared role holds is skipped with a warning (`name-taken`).
+ * affected role through `permdock_trusted_replace_custom_role_grants`, with the
+ * same reads the backfill uses. An entry outside the ceiling is dropped with a
+ * warning rather than aborting the legacy write, and a tenant role whose name a
+ * shared role holds is skipped with a warning (`name-taken`).
  */
 export function customRoleSyncSql(
   ctx: RlsSqlContext,

@@ -121,11 +121,7 @@ describe("rls generate options", () => {
         cwd,
         config: {
           policy: "./manage.ts",
-          rls: {
-            authorize,
-            memberships,
-            approvals: { delegations: true },
-          },
+          rls: { authorize, memberships, approvals: { delegations: true } },
         },
         target: "sql",
         dialect: "supabase",

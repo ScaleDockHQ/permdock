@@ -15,8 +15,8 @@ export function tableKey(name: string): string {
  * membership (user, scope, id, `within`, role, `via`, expiry), and the id and
  * value columns of a table a role or user column references, keyed by
  * {@link tableKey}. A client that can write one can give itself a membership.
- * The hook's sources count even when `rls.membershipSources` replaces them
- * for the helpers: the token's claims still come from them.
+ * The hook's sources count even when `rls.membershipSources` replaces them for
+ * the helpers: the token's claims still come from them.
  */
 export function membershipColumns(
   config: PermDockConfig,

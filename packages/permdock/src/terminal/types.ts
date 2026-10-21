@@ -36,7 +36,10 @@ export type StoredCredential = {
   readonly refresh_token?: string;
   readonly expires_at?: number;
   readonly token_type?: string;
-  /** The granted scopes (RFC 6749 section 3.3), when the token response names them. */
+  /**
+   * The granted scopes (RFC 6749 section 3.3), when the token response names
+   * them.
+   */
   readonly scope?: string;
 };
 
@@ -62,7 +65,10 @@ export type InteractiveConfirm = (input: {
   readonly token: string;
 }) => Promise<boolean>;
 
-/** Asks the user to type `expected` before a destructive action; resolves with what they typed. */
+/**
+ * Asks the user to type `expected` before a destructive action; resolves with
+ * what they typed.
+ */
 export type TypedConfirm = (input: {
   readonly permission: string;
   readonly resource: { readonly type: string; readonly id?: string };
@@ -96,8 +102,8 @@ export type TerminalStorageOptions = {
   readonly dir?: string;
   /**
    * `Entry` from `@napi-rs/keyring`: tokens go to the OS keychain under
-   * `service`, one entry per profile. Without it, or when the keychain
-   * throws, they go to the mode-0600 credentials file.
+   * `service`, one entry per profile. Without it, or when the keychain throws,
+   * they go to the mode-0600 credentials file.
    */
   readonly keyring?: new (service: string, account: string) => KeyringEntry;
 };
@@ -111,13 +117,16 @@ export type TerminalPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly device?: DeviceFlowOptions;
   readonly interactive?:
     | boolean
-    | {
-        readonly confirm?: InteractiveConfirm;
-        readonly typed?: TypedConfirm;
-      };
-  /** Runs a destructive action without the typed confirmation; defaults to `--yes` / `-y` in argv. */
+    | { readonly confirm?: InteractiveConfirm; readonly typed?: TypedConfirm };
+  /**
+   * Runs a destructive action without the typed confirmation; defaults to
+   * `--yes` / `-y` in argv.
+   */
   readonly yes?: boolean;
-  /** Decides and prints the decision without running the action; defaults to `--dry-run` in argv. */
+  /**
+   * Decides and prints the decision without running the action; defaults to
+   * `--dry-run` in argv.
+   */
   readonly dryRun?: boolean;
   readonly output?: { readonly json?: boolean };
   readonly approval?: ApprovalHint;

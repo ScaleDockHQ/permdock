@@ -16,8 +16,4 @@ export const permissions = definePermissions({
   }),
 });
 
-export const ownPost = {
-  id: "p1",
-  authorId: "user_1",
-  orgId: "org_1",
-};
+export const ownPost = { id: "p1", authorId: "user_1", orgId: "org_1" };

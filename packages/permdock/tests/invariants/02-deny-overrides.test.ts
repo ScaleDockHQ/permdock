@@ -53,10 +53,7 @@ describe("invariant 2: deny overrides allow", () => {
         roles: [role("editor", grants)],
         subject,
       });
-      const permdock = getPermDockSync(policy, {
-        id: "u1",
-        roles: ["editor"],
-      });
+      const permdock = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
       expect(permdock.can(permissions.doc.update, locked)).toBe(false);
       expect(permdock.can(permissions.doc.update, open)).toBe(true);
     }
@@ -117,10 +114,7 @@ describe("invariant 2: deny overrides allow", () => {
       ],
       subject,
     });
-    const permdock = getPermDockSync(policy, {
-      id: "u1",
-      roles: ["editor"],
-    });
+    const permdock = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
     expect(permdock.decide(permissions.doc.update, locked).outcome).toBe(
       "denied",
     );
@@ -139,10 +133,7 @@ describe("invariant 2: deny overrides allow", () => {
       ],
       subject,
     });
-    const permdock = getPermDockSync(policy, {
-      id: "u1",
-      roles: ["editor"],
-    });
+    const permdock = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
     const where = permdock.where(permissions.doc.read);
     expect(where.condition).toEqual({
       op: "not",
@@ -194,10 +185,7 @@ describe("invariant 2: deny overrides allow", () => {
         ],
         subject,
       });
-      const permdock = getPermDockSync(policy, {
-        id: "u1",
-        roles: ["editor"],
-      });
+      const permdock = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
       const client = fromSnapshot(permdock.snapshot());
       for (const [_name, rows, allowed] of pairs) {
         expect(permdock.can(permissions.doc.update, rows)).toBe(allowed);

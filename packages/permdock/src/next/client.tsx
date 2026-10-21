@@ -20,7 +20,10 @@ export type PermissionBoundaryFallback =
 export type PermissionBoundaryProps = {
   /** Rendered in place of the children when one throws `PermDockDeniedError`. */
   readonly denied?: PermissionBoundaryFallback;
-  /** Rendered when a child throws `PermDockApprovalRequiredError`; defaults to `denied`. */
+  /**
+   * Rendered when a child throws `PermDockApprovalRequiredError`; defaults to
+   * `denied`.
+   */
   readonly approval?: PermissionBoundaryFallback;
 };
 

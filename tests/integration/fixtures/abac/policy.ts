@@ -15,10 +15,7 @@ export const policy = definePolicy(permissions, {
   grants: [
     allow(permissions.report.read, {
       to: authenticated(),
-      where: {
-        region: attrs.region,
-        clearance: { lte: attrs.clearance },
-      },
+      where: { region: attrs.region, clearance: { lte: attrs.clearance } },
     }),
     allow([permissions.ticket.read, permissions.ticket.update], {
       to: authenticated(),

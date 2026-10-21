@@ -12,10 +12,7 @@ describe("preset arity", () => {
     const permissions = definePermissions({
       post: resource(
         Post,
-        crud({
-          id: "id",
-          actions: { publish: { title: "Publish post" } },
-        }),
+        crud({ id: "id", actions: { publish: { title: "Publish post" } } }),
       ),
     });
     expectTypeOf(permissions.post.publish.key).toEqualTypeOf<"post.publish">();

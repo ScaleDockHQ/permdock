@@ -46,10 +46,7 @@ async function actor(roles: readonly string[]): Promise<PermDock> {
   return getPermDockSync(policy, { id: "u_actor", roles }, {});
 }
 
-const target: { id: string; roles: string[] } = {
-  id: "u_target",
-  roles: [],
-};
+const target: { id: string; roles: string[] } = { id: "u_target", roles: [] };
 
 function reasons(decision: ReturnType<typeof decideRoleChange>) {
   return decision.outcome === "denied"

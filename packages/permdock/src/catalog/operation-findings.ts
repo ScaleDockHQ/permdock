@@ -27,8 +27,8 @@ function requiresApproval(
 
 /**
  * Operations, matched by name, whose `meta.risk` rose or whose permission
- * stopped requiring approval between two catalogs. A new or removed
- * operation is not a finding.
+ * stopped requiring approval between two catalogs. A new or removed operation
+ * is not a finding.
  */
 export function operationFindings(
   previous: OperationCatalog,

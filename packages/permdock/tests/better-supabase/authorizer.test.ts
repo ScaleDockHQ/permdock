@@ -130,11 +130,7 @@ describe("authorizer", () => {
   it("grants a held permission for the claims' memberships", async () => {
     expect(
       await pd.evaluate(
-        request(quote.read, {
-          claims: claims(),
-          tenant: ORG,
-          properties: row,
-        }),
+        request(quote.read, { claims: claims(), tenant: ORG, properties: row }),
       ),
     ).toEqual({ outcome: "granted" });
   });

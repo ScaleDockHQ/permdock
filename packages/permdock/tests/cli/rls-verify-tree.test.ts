@@ -6,7 +6,10 @@ import { policy } from "../fixtures/graph.ts";
 
 type Row = Readonly<Record<string, unknown>>;
 
-/** Echoes inserts back as rows and answers every visibility select with `visible`. */
+/**
+ * Echoes inserts back as rows and answers every visibility select with
+ * `visible`.
+ */
 function database(
   visible: "all" | "none",
   required: Readonly<Record<string, readonly Row[]>> = {},

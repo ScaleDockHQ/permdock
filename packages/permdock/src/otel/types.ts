@@ -75,9 +75,7 @@ export type OtelApi = {
     readonly getTracer: (name: string) => OtelTracer;
     readonly getActiveSpan?: () => OtelSpan | undefined;
   };
-  readonly metrics?: {
-    readonly getMeter: (name: string) => OtelMeter;
-  };
+  readonly metrics?: { readonly getMeter: (name: string) => OtelMeter };
 };
 
 export type OtelOptions = {

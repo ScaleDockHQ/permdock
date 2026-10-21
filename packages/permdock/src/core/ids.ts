@@ -39,7 +39,10 @@ export function idList(value: unknown): readonly string[] | undefined {
   return [...new Set(value)];
 }
 
-/** Whether two ids are the same id once both are read as text; a missing id matches nothing. */
+/**
+ * Whether two ids are the same id once both are read as text; a missing id
+ * matches nothing.
+ */
 export function sameId(left: unknown, right: unknown): boolean {
   const text = idText(left);
   return text !== undefined && text === idText(right);

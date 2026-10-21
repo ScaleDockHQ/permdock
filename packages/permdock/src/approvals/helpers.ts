@@ -80,9 +80,9 @@ export function summarizeSubject(subject: Subject): ApprovalRequest["subject"] {
 }
 
 /**
- * The window (`meta.ttl`, else the store's `ttl`, else the default) capped by the grant's
- * `approval.ttl`: a grant shortens how long a request stays open, never
- * extends it.
+ * The window (`meta.ttl`, else the store's `ttl`, else the default) capped by
+ * the grant's `approval.ttl`: a grant shortens how long a request stays open,
+ * never extends it.
  */
 function approvalTtl(
   storeTtl: number | undefined,
@@ -149,9 +149,7 @@ export async function requestApproval(
       token: decision.token,
       permission: leaf.key,
       scope: leaf.scope,
-      resource: meta.resource ?? {
-        type: leaf.resource,
-      },
+      resource: meta.resource ?? { type: leaf.resource },
       subject: summarizeSubject(meta.subject),
       membership: meta.membership,
       approvers,
@@ -352,13 +350,16 @@ export async function resumeDecision(input: {
   readonly resource: { readonly type: string; readonly id?: string };
   readonly adapter: string;
   readonly token: string | undefined;
-  /** `false` for checks that do not run the action, such as the decision endpoint. */
+  /**
+   * `false` for checks that do not run the action, such as the decision
+   * endpoint.
+   */
   readonly consume?: boolean;
   readonly now?: Instant;
   /**
-   * Seconds a request this call opens stays open; absent means the
-   * store's `ttl`, else `DEFAULT_APPROVAL_TTL`. The grant's `approval.ttl`
-   * still caps it.
+   * Seconds a request this call opens stays open; absent means the store's
+   * `ttl`, else `DEFAULT_APPROVAL_TTL`. The grant's `approval.ttl` still caps
+   * it.
    */
   readonly ttl?: number;
 }): Promise<Decision> {
@@ -456,11 +457,7 @@ export async function cancelApprovals(
       try {
         await store.resolve(
           request.token,
-          compact<ApprovalVerdict>({
-            status: "rejected",
-            by,
-            note: meta.note,
-          }),
+          compact<ApprovalVerdict>({ status: "rejected", by, note: meta.note }),
         );
         return true;
       } catch {
@@ -471,7 +468,10 @@ export async function cancelApprovals(
   return outcomes.filter(Boolean).length;
 }
 
-/** The token of a `PermDock-Approval` field: one RFC 9651 sf-token Item with no parameters, else `undefined`. */
+/**
+ * The token of a `PermDock-Approval` field: one RFC 9651 sf-token Item with no
+ * parameters, else `undefined`.
+ */
 export function readApprovalHeader(
   headers: Headers | { readonly get: (name: string) => string | null },
 ): string | undefined {
@@ -492,14 +492,14 @@ export function resumeFromHeader(
 
 /**
  * The token to resume `decision` with when the caller carries none: the
- * decision's own token when the store holds an approved or rejected request
- * for it, so `resumeDecision` resumes (or denies) the call without the
- * caller passing the token back. The token already binds permission,
- * resource (or the call's data when there is no row id), subject and actor.
- * A pending request counts only with `denyPending: true`, which makes the
- * call deny with `approval-pending` instead of asking again. `undefined` when
- * the decision needs no approval, there is no store, or the store has no
- * unexpired request for the token; a store that throws counts as none.
+ * decision's own token when the store holds an approved or rejected request for
+ * it, so `resumeDecision` resumes (or denies) the call without the caller
+ * passing the token back. The token already binds permission, resource (or the
+ * call's data when there is no row id), subject and actor. A pending request
+ * counts only with `denyPending: true`, which makes the call deny with
+ * `approval-pending` instead of asking again. `undefined` when the decision
+ * needs no approval, there is no store, or the store has no unexpired request
+ * for the token; a store that throws counts as none.
  */
 export async function storedApprovalToken(
   store: ApprovalStore | undefined,

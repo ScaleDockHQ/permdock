@@ -1,4 +1,7 @@
-/** The largest request body PermDock reads when a handler sets no smaller cap: 1 MiB. */
+/**
+ * The largest request body PermDock reads when a handler sets no smaller cap: 1
+ * MiB.
+ */
 export const MAX_BODY_BYTES = 1_048_576;
 
 export type BodyText =
@@ -6,9 +9,10 @@ export type BodyText =
   | { readonly ok: false; readonly cause: "too-large" | "unreadable" };
 
 /**
- * The request or response body as UTF-8 text, read until `maxBytes` and no further. A
- * `Content-Length` above the cap is refused before the body is touched; a body
- * that runs past the cap whatever its header says is cancelled mid-stream.
+ * The request or response body as UTF-8 text, read until `maxBytes` and no
+ * further. A `Content-Length` above the cap is refused before the body is
+ * touched; a body that runs past the cap whatever its header says is cancelled
+ * mid-stream.
  */
 export async function readBodyText(
   request: Request | Response,

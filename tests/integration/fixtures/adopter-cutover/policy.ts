@@ -13,9 +13,7 @@ export const policy = definePolicy(permissions, {
     role(
       "admin",
       [allow([job.read, job.update, job.create, invite.create, invite.read])],
-      {
-        on: "tenant",
-      },
+      { on: "tenant" },
     ),
     role("member", [allow([job.read, job.create])], { on: "tenant" }),
     role("support", [allow([job.read])], { assignable: true }),

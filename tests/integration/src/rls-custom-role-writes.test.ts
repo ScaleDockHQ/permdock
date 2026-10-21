@@ -120,7 +120,10 @@ describe("permdock_replace_custom_role_grants with levels, renamed keys and mana
       [at.tenant, at.scope, role, [...allow]],
     );
 
-  /** Runs `sql` as the table owner, the way a migration or a job does, and rolls back. */
+  /**
+   * Runs `sql` as the table owner, the way a migration or a job does, and rolls
+   * back.
+   */
   const asOwner = (sql: string, values: readonly unknown[]): Promise<string> =>
     outcome(async () => {
       if (db === undefined) {

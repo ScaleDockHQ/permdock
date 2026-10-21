@@ -67,11 +67,7 @@ Every `subjectFrom*` mapper takes its input first and its options second, so it 
 
 ```ts
 const resolve: SubjectResolver<unknown, SupabasePrincipal> = (claims) =>
-  subjectFromSupabase(claims, {
-    claims: {
-      tenant: "org_id",
-    },
-  });
+  subjectFromSupabase(claims, { claims: { tenant: "org_id" } });
 const resolveKey: SubjectResolver<string | null, ApiKeyPrincipal> = (
   key,
   scope,
@@ -156,10 +152,7 @@ const claims = z.object({
 
 const { data, error } = await supabase.auth.getClaims();
 export const subject = subjectFromSupabase(error ? null : data.claims, {
-  claims: {
-    roles: "user_role",
-    tenant: "tenant_id",
-  },
+  claims: { roles: "user_role", tenant: "tenant_id" },
   schema: claims, // invalid claims drop `principal.claims`, never the subject
 });
 // subject.principal is SupabasePrincipal; custom fields live on principal.claims

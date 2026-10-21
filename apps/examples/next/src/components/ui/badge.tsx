@@ -20,9 +20,7 @@ const badgeVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
     },
-    defaultVariants: {
-      variant: "default",
-    },
+    defaultVariants: { variant: "default" },
   },
 );
 
@@ -35,16 +33,11 @@ function Badge({
   return useRender({
     defaultTagName: "span",
     props: mergeProps<"span">(
-      {
-        className: cn(badgeVariants({ variant }), className),
-      },
+      { className: cn(badgeVariants({ variant }), className) },
       props,
     ),
     render,
-    state: {
-      slot: "badge",
-      variant,
-    },
+    state: { slot: "badge", variant },
   });
 }
 

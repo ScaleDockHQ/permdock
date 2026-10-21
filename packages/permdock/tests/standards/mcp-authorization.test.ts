@@ -239,10 +239,8 @@ describe("MCP 2026-07-28 Multi Round-Trip Requests", () => {
   const approvals = () => {
     const store = memoryApprovalStore();
     return () =>
-      server({
-        store,
-        approval: { at: "https://app.example.com/approvals" },
-      }).mcp;
+      server({ store, approval: { at: "https://app.example.com/approvals" } })
+        .mcp;
   };
 
   it("an approval is an input_required result with a URL elicitation and a requestState", async () => {

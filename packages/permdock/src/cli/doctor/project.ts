@@ -55,7 +55,10 @@ function isWorkspaceRoot(files: DoctorFiles, dir: string): boolean {
   }
 }
 
-/** Whether `dir` holds a skills lock: PermDock's own, or the `skills` CLI's naming the `permdock` skill. */
+/**
+ * Whether `dir` holds a skills lock: PermDock's own, or the `skills` CLI's
+ * naming the `permdock` skill.
+ */
 function hasSkillsLock(files: DoctorFiles, dir: string): boolean {
   if (files.exists(join(dir, ".permdock/skills-lock.json"))) {
     return true;
@@ -240,10 +243,10 @@ const COMPANION = new RegExp(
 );
 
 /**
- * Views run as their owner unless `security_invoker` is set, so they read
- * past RLS on the tables beneath them. The `<table>_visible_fields`
- * companion `rls generate --revoke-columns` writes reads as its owner on
- * purpose and carries a comment that says so.
+ * Views run as their owner unless `security_invoker` is set, so they read past
+ * RLS on the tables beneath them. The `<table>_visible_fields` companion `rls
+ * generate --revoke-columns` writes reads as its owner on purpose and carries a
+ * comment that says so.
  */
 export function pd022(
   cwd: string,
@@ -295,9 +298,9 @@ export function pd022(
 const AUTH_ROLE = /\bauth\.role\s*\(\s*\)/giu;
 
 /**
- * PD040: `auth.role()` in a migration. Supabase deprecated it; a policy
- * names its Postgres roles with `to authenticated` instead, and the role
- * claim it reads is the one PostgREST already switched to.
+ * PD040: `auth.role()` in a migration. Supabase deprecated it; a policy names
+ * its Postgres roles with `to authenticated` instead, and the role claim it
+ * reads is the one PostgREST already switched to.
  */
 export function pd040(
   cwd: string,
@@ -337,10 +340,7 @@ const CLIENT_ROLES: ReadonlySet<string> = new Set([
 ]);
 
 /** Writable columns per privilege: a revoke of one leaves the other in place. */
-type Writable = {
-  readonly insert: Set<string>;
-  readonly update: Set<string>;
-};
+type Writable = { readonly insert: Set<string>; readonly update: Set<string> };
 
 function applyPrivilege(writable: Writable, verb: string, part: string): void {
   const match =
@@ -380,10 +380,10 @@ const REVOKE_DEFAULT_TABLES =
   /^alter\s+default\s+privileges\s+(?:for\s+(?:role|user)\s+[\w\s,"]+?\s+)?in\s+schema\s+"?public"?\s+revoke\s+[\s\S]+?\s+on\s+tables\s+from\s+[\s\S]*\b(?:anon|authenticated)\b/iu;
 
 /**
- * Columns of `table` a client role may insert or update, per the migrations
- * in order; `*` for every column. On Supabase a table created in `public`
- * starts writable: the default privileges grant `anon` and `authenticated`
- * everything, until a migration revokes them.
+ * Columns of `table` a client role may insert or update, per the migrations in
+ * order; `*` for every column. On Supabase a table created in `public` starts
+ * writable: the default privileges grant `anon` and `authenticated` everything,
+ * until a migration revokes them.
  */
 function clientWritable(
   files: DoctorFiles,
@@ -436,7 +436,10 @@ function clientWritable(
   return new Set([...writable.insert, ...writable.update]);
 }
 
-/** Membership columns a client can write: a user who sets `user_id` or `role` grants themselves access. */
+/**
+ * Membership columns a client can write: a user who sets `user_id` or `role`
+ * grants themselves access.
+ */
 function membershipFindings(
   files: DoctorFiles,
   cwd: string,

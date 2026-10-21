@@ -96,7 +96,10 @@ function link(extra: Partial<Link> = {}): Promise<string> {
   );
 }
 
-/** The `/portal/quotes?token=` handler: verify the link, then exchange it for a Supabase token. */
+/**
+ * The `/portal/quotes?token=` handler: verify the link, then exchange it for a
+ * Supabase token.
+ */
 async function portal(
   url: string,
   options: Partial<Parameters<typeof subjectFromCapability>[1]> = {},
@@ -150,9 +153,7 @@ describe("link capabilities through the Supabase exchange", () => {
     const out = join(dir, "rls.sql");
     const result = await run(
       ["rls", "generate", "--target", "sql", "--out", out],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);

@@ -30,12 +30,7 @@ describe("permission and resource x", () => {
           meta: { title: "Invoice", x: { owner: "billing" } },
         }),
       },
-      {
-        x: {
-          permission: Risk,
-          resource: z.object({ owner: z.string() }),
-        },
-      },
+      { x: { permission: Risk, resource: z.object({ owner: z.string() }) } },
     );
     expect(tree.invoice.send.meta.x).toEqual({ risk: "high" });
     expect(tree.invoice.read.meta).toEqual({});
@@ -53,12 +48,7 @@ describe("permission and resource x", () => {
     ).toThrow(/meta.x of action 'send' is invalid/u);
     expect(() =>
       definePermissions(
-        {
-          invoice: resource({
-            actions: ["send"],
-            meta: { x: { owner: 1 } },
-          }),
-        },
+        { invoice: resource({ actions: ["send"], meta: { x: { owner: 1 } } }) },
         { x: { resource: z.object({ owner: z.string() }) } },
       ),
     ).toThrow(/meta.x of resource 'invoice' is invalid/u);

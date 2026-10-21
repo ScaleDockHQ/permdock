@@ -39,7 +39,10 @@ export function seedFromRow(
   };
 }
 
-/** `role_permissions` rows from the `insert ... values` statements of a SQL dump. */
+/**
+ * `role_permissions` rows from the `insert ... values` statements of a SQL
+ * dump.
+ */
 export async function seedsFromSql(
   sql: string,
 ): Promise<readonly RolePermission[]> {

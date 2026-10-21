@@ -283,18 +283,22 @@ describe("postgrestSources", () => {
       memberships: claimsFirst(sources.memberships),
     });
     expect(
-      permdock.tenant("acme").can(permissions.asset.read, {
-        id: "a1",
-        organization_id: "acme",
-        customer_id: "c1",
-      }),
+      permdock
+        .tenant("acme")
+        .can(permissions.asset.read, {
+          id: "a1",
+          organization_id: "acme",
+          customer_id: "c1",
+        }),
     ).toBe(true);
     expect(
-      permdock.tenant("acme").can(permissions.asset.update, {
-        id: "a1",
-        organization_id: "acme",
-        customer_id: "c1",
-      }),
+      permdock
+        .tenant("acme")
+        .can(permissions.asset.update, {
+          id: "a1",
+          organization_id: "acme",
+          customer_id: "c1",
+        }),
     ).toBe(false);
   });
 
@@ -372,9 +376,7 @@ describe("postgrestSources", () => {
     ).rejects.toThrow("PermDock: permdock.list_members failed: boom");
     expect(
       await postgrestSources({
-        schema: () => ({
-          rpc: async () => ({ data: null, error: null }),
-        }),
+        schema: () => ({ rpc: async () => ({ data: null, error: null }) }),
       }).memberships.list(query),
     ).toEqual([]);
     expect(

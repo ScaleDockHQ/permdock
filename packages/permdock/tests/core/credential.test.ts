@@ -498,9 +498,7 @@ describe("decideCredential", () => {
     const instance = getPermDockSync(
       policy,
       userSubject("u_1", ["developer"]),
-      {
-        settings: capped,
-      },
+      { settings: capped },
     );
     expect(await decideCredential(instance, long, { now: NOW })).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
@@ -639,11 +637,7 @@ describe("decideCredential", () => {
     const otherCreator = await decideCredential(
       permdockFor(userSubject("u_2", ["developer"])),
       readKey,
-      {
-        now: NOW,
-        settings,
-        approved: pending.token,
-      },
+      { now: NOW, settings, approved: pending.token },
     );
     expect(otherCreator.outcome).toBe("approval-required");
   });

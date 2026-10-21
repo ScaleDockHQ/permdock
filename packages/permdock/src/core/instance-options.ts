@@ -12,9 +12,9 @@ type InstanceKey =
   | "principals";
 
 /**
- * The data sources an adapter passes through to every instance it creates.
- * Each adapter's options type extends this, so a source added to core
- * reaches every adapter without a per-adapter change.
+ * The data sources an adapter passes through to every instance it creates. Each
+ * adapter's options type extends this, so a source added to core reaches every
+ * adapter without a per-adapter change.
  */
 export type InstanceOptions = Pick<PermDockOptions, InstanceKey>;
 

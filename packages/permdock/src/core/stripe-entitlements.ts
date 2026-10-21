@@ -1,6 +1,9 @@
 import type { EntitlementSource } from "./interfaces.ts";
 
-/** The part of the Stripe Node SDK this source calls: `stripe.entitlements.activeEntitlements.list`. */
+/**
+ * The part of the Stripe Node SDK this source calls:
+ * `stripe.entitlements.activeEntitlements.list`.
+ */
 export type StripeEntitlementsClient = {
   readonly entitlements: {
     readonly activeEntitlements: {

@@ -61,16 +61,9 @@ const roles = defineRoles({
   support: {},
 });
 
-const plans = definePlans({
-  pro: { meta: { title: "Pro" } },
-});
+const plans = definePlans({ pro: { meta: { title: "Pro" } } });
 
-const row = {
-  id: "p1",
-  authorId: "u1",
-  orgId: "acme",
-  published: false,
-};
+const row = { id: "p1", authorId: "u1", orgId: "acme", published: false };
 
 describe("typed vocabulary", () => {
   it("builds frozen Role and Plan leaves", () => {
@@ -148,9 +141,7 @@ describe("grantee selectors", () => {
           allow(permissions.post.update, {
             to: relation(permissions.post, "author"),
           }),
-          allow(permissions.post.delete, {
-            to: [roles.member, plans.pro],
-          }),
+          allow(permissions.post.delete, { to: [roles.member, plans.pro] }),
           allow(permissions.post.create, {
             to: [roles.member, assurance({ acr: ["mfa"] })],
           }),
@@ -219,9 +210,7 @@ describe("principal refs and snapshots", () => {
       subject: () => ({ id: "u1", roles: ["member"] }),
       roles: [
         role("member", [
-          allow(permissions.post.update, {
-            where: { authorId: principal.id },
-          }),
+          allow(permissions.post.update, { where: { authorId: principal.id } }),
         ]),
       ],
     });

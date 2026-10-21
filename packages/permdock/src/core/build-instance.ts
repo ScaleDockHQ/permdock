@@ -8,8 +8,8 @@ import { instanceOptions } from "./instance-options.ts";
 import { getPermDock } from "./permdock.ts";
 
 /**
- * `resolve()`, or `null` when it throws: a subject or delegation that cannot
- * be resolved is absent. `rethrow` sees the error first, so a framework's
+ * `resolve()`, or `null` when it throws: a subject or delegation that cannot be
+ * resolved is absent. `rethrow` sees the error first, so a framework's
  * control-flow throws (Next.js `redirect`, `notFound`) pass through.
  */
 export async function resolveOrNull<T>(

@@ -30,11 +30,7 @@ function operation(
   key: string,
   risk?: CatalogOperation["meta"]["risk"],
 ): CatalogOperation {
-  return {
-    name,
-    permission: key,
-    meta: risk === undefined ? {} : { risk },
-  };
+  return { name, permission: key, meta: risk === undefined ? {} : { risk } };
 }
 
 function catalog(

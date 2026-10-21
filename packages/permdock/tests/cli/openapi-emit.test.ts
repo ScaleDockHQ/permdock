@@ -94,10 +94,7 @@ function operation(
   return paths[route]?.[method];
 }
 
-const BASE = {
-  openapi: "3.2.0",
-  info: { title: "mini", version: "1" },
-};
+const BASE = { openapi: "3.2.0", info: { title: "mini", version: "1" } };
 
 describe("runOpenapi usage errors", () => {
   it.each([
@@ -206,9 +203,7 @@ describe("runOpenapi document output", () => {
     const cwd = app({
       ...BASE,
       paths: {
-        "/current-post": {
-          get: { "x-permdock-permissions": ["post.read"] },
-        },
+        "/current-post": { get: { "x-permdock-permissions": ["post.read"] } },
         "/posts/{orgId}/drafts/{postId}": {
           get: { "x-permdock-permissions": ["post.list", "post.read"] },
         },
@@ -254,9 +249,7 @@ describe("runOpenapi document output", () => {
     });
     expect(schemes["permdockOAuth"]).toMatchObject({
       type: "oauth2",
-      flows: {
-        authorizationCode: { authorizationUrl: AUTH, tokenUrl: TOKEN },
-      },
+      flows: { authorizationCode: { authorizationUrl: AUTH, tokenUrl: TOKEN } },
     });
   });
 

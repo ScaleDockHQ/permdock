@@ -483,9 +483,7 @@ const RUNTIME: Readonly<Record<string, Node>> = {
           "An at+jwt naming the subject, exp at most five minutes after iat",
         ),
       ],
-      responses: {
-        "200": jwt("A vnd.permdock.snapshot+jwt"),
-      },
+      responses: { "200": jwt("A vnd.permdock.snapshot+jwt") },
     }),
   },
   [`${ENV}/catalog`]: {
@@ -1003,7 +1001,8 @@ const bearer = (description: string): Node => ({
 
 /**
  * `schemas/cloud-api-v1.json`: the PermDock Cloud HTTP API as an OpenAPI 3.1
- * document. The route tables in `adapters/cloud.mdx` and `docs:drift` keep it whole.
+ * document. The route tables in `adapters/cloud.mdx` and `docs:drift` keep it
+ * whole.
  */
 export const CLOUD_API_DOCUMENT: Readonly<Record<string, unknown>> = freezeDeep(
   {

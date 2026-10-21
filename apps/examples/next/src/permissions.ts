@@ -39,10 +39,6 @@ export const permissions = definePermissions({
   }),
 });
 
-export const roles = defineRoles({
-  admin: {},
-  member: {},
-  contact: {},
-});
+export const roles = defineRoles({ admin: {}, member: {}, contact: {} });
 
 export type RoleName = keyof typeof roles;

@@ -14,7 +14,10 @@ function approval(state: PermissionBoundaryState) {
   return <ApprovalNotice state={state} />;
 }
 
-/** A Client Component, so the approval fallback can be a function of the boundary state. */
+/**
+ * A Client Component, so the approval fallback can be a function of the
+ * boundary state.
+ */
 export function DeleteBoundary(props: { readonly children: ReactNode }) {
   return (
     <PermissionBoundary

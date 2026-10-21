@@ -50,13 +50,14 @@ export type WhereShorthand<T = Record<string, unknown>> = {
 } & ("subject" extends keyof T
   ? {
       readonly [K in keyof T as Exclude<K, "subject">]?: FieldWhere<T[K]>;
-    } & {
-      readonly subject?: SubjectWhere | FieldWhere<T["subject"]>;
-    }
+    } & { readonly subject?: SubjectWhere | FieldWhere<T["subject"]> }
   : {
       readonly [K in keyof T]?: FieldWhere<T[K]>;
     } & {
-      /** Holds only when the resolver checked the session live (`liveSession: true`). */
+      /**
+       * Holds only when the resolver checked the session live (`liveSession:
+       * true`).
+       */
       readonly subject?: SubjectWhere;
     });
 
@@ -205,7 +206,10 @@ function normalizeSqlFunction(input: {
   });
 }
 
-/** `{ session: … }` under `subject`; any other value is a comparison on a `subject` field. */
+/**
+ * `{ session: … }` under `subject`; any other value is a comparison on a
+ * `subject` field.
+ */
 function isSubjectCondition(
   value: unknown,
 ): value is Readonly<Record<string, unknown>> {

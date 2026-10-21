@@ -59,7 +59,10 @@ export type TrpcOpenApiHooks = {
 };
 
 export type TrpcPermDock<TCtx = object> = {
-  /** The `PermDock` for one procedure call, for code the middleware does not run before. */
+  /**
+   * The `PermDock` for one procedure call, for code the middleware does not run
+   * before.
+   */
   readonly getPermDock: (opts: TrpcMiddlewareOpts<TCtx>) => Promise<PermDock>;
   readonly middleware: () => TrpcMiddleware;
   readonly protect: (
@@ -82,7 +85,10 @@ export type TrpcPermDock<TCtx = object> = {
 
 const PROBLEM = Symbol.for("permdock.problem");
 
-/** A `TRPCError` for a revoked subscription; the Problem Details body rides on `cause`. */
+/**
+ * A `TRPCError` for a revoked subscription; the Problem Details body rides on
+ * `cause`.
+ */
 function trpcErrorFrom(error: PermDockRevokedError): TRPCError {
   const problem = error.toProblemDetails();
   const cause: Record<PropertyKey, unknown> = { ...problem };
@@ -100,16 +106,12 @@ async function throwTrpcError(response: Response): Promise<never> {
     Object.defineProperty(cause, PROBLEM, { value: true, enumerable: true });
   }
   const code = rpcCode(response.status);
-  throw new TRPCError({
-    code,
-    message: problemMessage(cause, code),
-    cause,
-  });
+  throw new TRPCError({ code, message: problemMessage(cause, code), cause });
 }
 
 /**
- * A PermDock error thrown further down (an `assert` in a resolver) arrives as
- * a failed middleware result; it becomes the same TRPCError `protect` throws.
+ * A PermDock error thrown further down (an `assert` in a resolver) arrives as a
+ * failed middleware result; it becomes the same TRPCError `protect` throws.
  */
 function mapDownstream(result: unknown): Promise<unknown> {
   // SAFETY: checked to be a non-null object first; ok is only compared.
@@ -145,10 +147,7 @@ export function errorFormatter<TShape extends { readonly data: object }>(opts: {
     PropertyKey,
     unknown
   >;
-  return {
-    ...opts.shape,
-    data: { ...opts.shape.data, ...problem },
-  };
+  return { ...opts.shape, data: { ...opts.shape.data, ...problem } };
 }
 
 export function createPermDock<
@@ -194,7 +193,10 @@ export function createPermDock<
       return mapDownstream(await opts.next({ ctx: nextCtx }));
     }) as TrpcMiddleware;
 
-  /** Wraps a subscription's iterable so revocation ends it and unreadable items drop. */
+  /**
+   * Wraps a subscription's iterable so revocation ends it and unreadable items
+   * drop.
+   */
   const guardSubscription = async (
     result: unknown,
     opts: TrpcMiddlewareOpts<TCtx>,
@@ -277,10 +279,7 @@ export function createPermDock<
   const kernelOpenApi = kernel.openapi;
   const openapi: TrpcOpenApiHooks = {
     security: (permission: Permission) => ({
-      openapi: {
-        protect: true,
-        ...kernelOpenApi.security(permission),
-      },
+      openapi: { protect: true, ...kernelOpenApi.security(permission) },
     }),
     securitySchemes: kernelOpenApi.securitySchemes,
   };

@@ -175,18 +175,16 @@ function wrap<V extends PolicyVocabulary>(
       return local;
     }
     try {
-      return await provider.decide({
-        permission,
-        data,
-        subject,
-        local,
-      });
+      return await provider.decide({ permission, data, subject, local });
     } catch {
       return denied("pdp-unavailable");
     }
   };
 
-  /** The local trace; a remote decision evaluated no local grant, so its trace is empty. */
+  /**
+   * The local trace; a remote decision evaluated no local grant, so its trace
+   * is empty.
+   */
   const explain = async (
     permission: Permission,
     data?: unknown,
@@ -435,7 +433,10 @@ function wrap<V extends PolicyVocabulary>(
   return wrapped;
 }
 
-/** The PDP-aware instance, built synchronously like core `getPermDockSync`; use `getPermDock` for asynchronous inputs. */
+/**
+ * The PDP-aware instance, built synchronously like core `getPermDockSync`; use
+ * `getPermDock` for asynchronous inputs.
+ */
 export function getPermDockSync<
   TUser,
   TPrincipal extends Principal = Principal,

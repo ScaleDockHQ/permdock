@@ -20,11 +20,7 @@ The identity link is app data: one row per `kind`, `provider`, `value` and `work
 ```ts
 import { createPermDock } from "permdock/chat";
 
-const chat = createPermDock(policy, {
-  principals,
-  memberships,
-  store,
-});
+const chat = createPermDock(policy, { principals, memberships, store });
 
 const pay = chat.protect(operations["invoice.pay"], async ({ input, row }) => {
   await invoices.pay(input.id);

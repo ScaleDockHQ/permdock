@@ -22,7 +22,10 @@ import {
   role,
 } from "../../src/index.ts";
 
-/** Walks a ref proxy by key; the proxy answers every key, so `undefined` is a test bug. */
+/**
+ * Walks a ref proxy by key; the proxy answers every key, so `undefined` is a
+ * test bug.
+ */
 function refAt(root: SubjectRef, ...path: readonly string[]): SubjectRef {
   let current = root;
   for (const key of path) {
@@ -249,9 +252,7 @@ describe("request context in RLS", () => {
         allow(permissions.doc.read, {
           where: {
             region: claim("attrs.region"),
-            clearance: {
-              lte: claim("attrs.clearance"),
-            },
+            clearance: { lte: claim("attrs.clearance") },
           },
         }),
         allow(permissions.doc.update, {

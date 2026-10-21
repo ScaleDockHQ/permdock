@@ -32,9 +32,7 @@ export const collect: Leaf = defineLeaf({
         throw new CliError(
           "usage",
           "collect: --watch writes the catalog; drop --check",
-          {
-            code: "invalid_value",
-          },
+          { code: "invalid_value" },
         );
       }
       // Lazy: the watcher loads only when this command runs, not for --help.

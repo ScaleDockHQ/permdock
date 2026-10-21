@@ -242,9 +242,7 @@ describe("pushSet", () => {
     const token = await signSet(
       caepEvents.sessionRevoked({ subject }),
       signer,
-      {
-        audience: "https://other.example.com",
-      },
+      { audience: "https://other.example.com" },
     );
     expect(
       await pushSet(token, {
@@ -323,10 +321,7 @@ describe("setPollHandler", () => {
     const token = await signSet(
       caepEvents.sessionRevoked({ subject }),
       signer,
-      {
-        audience: AUDIENCE,
-        jti: "set_1",
-      },
+      { audience: AUDIENCE, jti: "set_1" },
     );
     await queue.enqueue("s_1", "set_1", token);
     await queue.enqueue("s_1", "set_2", "not-a-jwt");

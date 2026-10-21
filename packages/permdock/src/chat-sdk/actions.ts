@@ -18,7 +18,10 @@ export type ApprovalActionsOptions = ChatSdkAuthorOptions & {
 };
 
 export type ApprovalActions = {
-  /** The action ids to register: `chat.onAction(actions.actionIds, actions.onAction)`. */
+  /**
+   * The action ids to register: `chat.onAction(actions.actionIds,
+   * actions.onAction)`.
+   */
   readonly actionIds: readonly [typeof APPROVE_ACTION, typeof REJECT_ACTION];
   readonly onAction: (event: ActionEvent) => Promise<void>;
 };
@@ -44,10 +47,10 @@ async function reply(
 }
 
 /**
- * Applies the approve and reject buttons of `approvalCard`. The clicking
- * user, as the Chat SDK adapter verified them, is resolved through
- * `ChatPermDock.resolveAction`; the button value names the request by id.
- * A click from an unlinked user, the requester or a bot records nothing.
+ * Applies the approve and reject buttons of `approvalCard`. The clicking user,
+ * as the Chat SDK adapter verified them, is resolved through
+ * `ChatPermDock.resolveAction`; the button value names the request by id. A
+ * click from an unlinked user, the requester or a bot records nothing.
  */
 export function approvalActions(
   permdock: ChatPermDock,

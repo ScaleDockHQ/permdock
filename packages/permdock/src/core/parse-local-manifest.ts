@@ -124,9 +124,9 @@ function isRows(value: unknown): boolean {
 }
 
 /**
- * Whether `value` has the shape `localSnapshotManifest(policy)` writes, with
- * no prototype keys. A JSON import widens `v: 1` to `number`; this narrows it
- * back without a cast.
+ * Whether `value` has the shape `localSnapshotManifest(policy)` writes, with no
+ * prototype keys. A JSON import widens `v: 1` to `number`; this narrows it back
+ * without a cast.
  */
 export function parseLocalSnapshotManifest(
   value: unknown,

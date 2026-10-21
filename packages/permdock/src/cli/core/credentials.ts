@@ -17,8 +17,8 @@ export function redact(text: string, secrets: Iterable<string>): string {
 }
 
 /**
- * The secret piped in for `--<flag>-stdin`, when it was passed, registered
- * for redaction.
+ * The secret piped in for `--<flag>-stdin`, when it was passed, registered for
+ * redaction.
  */
 export async function secretInput(
   ctx: CliContext,

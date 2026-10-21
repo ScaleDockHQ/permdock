@@ -7,25 +7,28 @@ import { isReadonlyArray } from "./compact.ts";
 export type UserApprover = { readonly kind: "user"; readonly id: string };
 
 /**
- * Whoever holds `permission` in the request's tenant, through any role,
- * custom roles included. Checked only through verdict facts
- * (`ApprovalVerdict.permissions`) that the handler computes from the
- * approver's own instance.
+ * Whoever holds `permission` in the request's tenant, through any role, custom
+ * roles included. Checked only through verdict facts
+ * (`ApprovalVerdict.permissions`) that the handler computes from the approver's
+ * own instance.
  */
 export type PermissionApprover = {
   readonly kind: "permission";
   readonly permission: string;
 };
 
-/** An approver who matches at least one item; an item that is a list matches when every entry does. */
+/**
+ * An approver who matches at least one item; an item that is a list matches
+ * when every entry does.
+ */
 export type AnyOfApprover = {
   readonly kind: "any-of";
   readonly of: readonly (Approver | readonly Approver[])[];
 };
 
 /**
- * Who may approve: a subject-only grantee, a `relation()` the approver holds
- * on the requested row (checked when the verdict is given), `user(id)`,
+ * Who may approve: a subject-only grantee, a `relation()` the approver holds on
+ * the requested row (checked when the verdict is given), `user(id)`,
  * `holder(permission)`, or `anyOf(...)`. A list (or `allOf(...)`) matches an
  * approver who satisfies every item.
  */
@@ -39,13 +42,13 @@ export type ApproverInput =
   | GranteeInput
   | UserApprover
   | PermissionApprover
-  | {
-      readonly kind: "any-of";
-      readonly of: readonly ApproverInput[];
-    }
+  | { readonly kind: "any-of"; readonly of: readonly ApproverInput[] }
   | readonly ApproverInput[];
 
-/** Approves when the approver holds `permission` in the request's tenant (any role, custom roles included). */
+/**
+ * Approves when the approver holds `permission` in the request's tenant (any
+ * role, custom roles included).
+ */
 export function holder(permission: Permission): PermissionApprover {
   const key: unknown = permission?.key;
   if (typeof key !== "string" || key === "") {
@@ -109,7 +112,10 @@ export function flattenApprovers(
   return [input as Approver];
 }
 
-/** Every approver `input` names, inside `anyOf` groups too, for reading facts and labels. */
+/**
+ * Every approver `input` names, inside `anyOf` groups too, for reading facts
+ * and labels.
+ */
 export function approverLeaves(
   input: Approver | readonly Approver[] | undefined,
 ): readonly Approver[] {
@@ -131,10 +137,9 @@ export function isPermissionApprover(
   );
 }
 
-export function isAnyOfInput(value: unknown): value is {
-  readonly kind: "any-of";
-  readonly of: readonly ApproverInput[];
-} {
+export function isAnyOfInput(
+  value: unknown,
+): value is { readonly kind: "any-of"; readonly of: readonly ApproverInput[] } {
   return (
     value !== null &&
     typeof value === "object" &&

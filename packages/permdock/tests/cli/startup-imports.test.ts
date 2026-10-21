@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "../../src");
 const STATIC_IMPORT =
   /^(?:import|export)\s+(?!type\s)(?:[\s\S]*?\sfrom\s+)?"([^"]+)";/gmu;
-/** The did-you-mean distance runs on every unknown command, so it loads up front. */
+/**
+ * The did-you-mean distance runs on every unknown command, so it loads up
+ * front.
+ */
 const STARTUP_PACKAGES: ReadonlySet<string> = new Set(["fastest-levenshtein"]);
 
 function staticImports(file: string): readonly string[] {

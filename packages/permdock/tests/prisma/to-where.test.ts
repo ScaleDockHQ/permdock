@@ -95,10 +95,7 @@ describe("permdock/prisma toWhere", () => {
         return [];
       },
     });
-    expect(seen?.["where"]).toEqual({
-      AND: [{ OR: [] }, { OR: [] }],
-      OR: [],
-    });
+    expect(seen?.["where"]).toEqual({ AND: [{ OR: [] }, { OR: [] }], OR: [] });
   });
 });
 

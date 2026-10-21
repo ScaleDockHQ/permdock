@@ -28,7 +28,10 @@ export function scimResponse(
   });
 }
 
-/** RFC 7644 section 3.12: `scimType` is defined for `400` and `409` only, so other statuses omit it. */
+/**
+ * RFC 7644 section 3.12: `scimType` is defined for `400` and `409` only, so
+ * other statuses omit it.
+ */
 export function scimError(
   status: number,
   scimType: string,
@@ -60,8 +63,8 @@ export function forbidden(): Response {
 }
 
 /**
- * RFC 7644 section 3.14 `meta.version`: a weak entity tag over the
- * resource as rendered, `meta.location` excluded so every URL agrees.
+ * RFC 7644 section 3.14 `meta.version`: a weak entity tag over the resource as
+ * rendered, `meta.location` excluded so every URL agrees.
  */
 function withVersion(
   resource: Record<string, unknown>,
@@ -87,7 +90,10 @@ function entityTags(field: string): readonly string[] {
     .filter((tag) => tag !== "");
 }
 
-/** RFC 9110 section 13.1.1 `If-Match` against a weak `meta.version`: `true` when the request may proceed. */
+/**
+ * RFC 9110 section 13.1.1 `If-Match` against a weak `meta.version`: `true` when
+ * the request may proceed.
+ */
 export function ifMatchHolds(request: Request, version: string): boolean {
   const field = request.headers.get("if-match");
   if (field === null) {
@@ -97,7 +103,10 @@ export function ifMatchHolds(request: Request, version: string): boolean {
   return tags.includes("*") || tags.includes(version.replace(/^W\//u, ""));
 }
 
-/** RFC 9110 section 13.1.2 `If-None-Match`: `true` when the client holds `version`. */
+/**
+ * RFC 9110 section 13.1.2 `If-None-Match`: `true` when the client holds
+ * `version`.
+ */
 export function ifNoneMatchHolds(request: Request, version: string): boolean {
   const field = request.headers.get("if-none-match");
   if (field === null) {
@@ -148,10 +157,7 @@ function appData(x: AppData | undefined): {
 } {
   return x === undefined
     ? { schemas: [], body: {} }
-    : {
-        schemas: [APP_DATA_EXTENSION],
-        body: { [APP_DATA_EXTENSION]: { x } },
-      };
+    : { schemas: [APP_DATA_EXTENSION], body: { [APP_DATA_EXTENSION]: { x } } };
 }
 
 export function renderUser(

@@ -19,9 +19,9 @@ type ErrorBoundaryProps = Parameters<typeof ErrorBoundary>[0];
 
 /**
  * Catches `PermDockDeniedError` and `PermDockApprovalRequiredError` thrown
- * below it and renders `denied`, or `approval` for an approval request
- * (default `denied`), with the refused permission and `retry()`. Any other
- * error goes to the next `ErrorBoundary` up.
+ * below it and renders `denied`, or `approval` for an approval request (default
+ * `denied`), with the refused permission and `retry()`. Any other error goes to
+ * the next `ErrorBoundary` up.
  */
 export function PermissionBoundary(
   props: PermissionBoundaryProps,

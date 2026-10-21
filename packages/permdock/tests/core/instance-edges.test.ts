@@ -67,9 +67,7 @@ describe("instance edges", () => {
       tenants: "all",
       include: [tree.post],
       audience: "ads",
-      signer: {
-        sign: async () => "jws",
-      },
+      signer: { sign: async () => "jws" },
     });
     expect(signed).toBe("jws");
     const json = permdock.snapshot();

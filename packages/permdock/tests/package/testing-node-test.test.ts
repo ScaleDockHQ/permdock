@@ -13,7 +13,10 @@ afterEach(() => {
   }
 });
 
-/** A `node:test` file that runs an exhaustive matrix through the built `permdock/testing/core`. */
+/**
+ * A `node:test` file that runs an exhaustive matrix through the built
+ * `permdock/testing/core`.
+ */
 function matrixFile(readCell: string): string {
   return `import assert from "node:assert/strict";
 import { test } from "node:test";

@@ -180,10 +180,7 @@ describe("searchActions", () => {
     const member = await searchActions(
       policy,
       memberUser,
-      {
-        type: "post",
-        id: "p1",
-      },
+      { type: "post", id: "p1" },
       { data: ownPost },
     );
     expect(member.map((entry) => entry.name)).toEqual([
@@ -275,10 +272,7 @@ describe("searchSubjects", () => {
     };
     expect(
       await Promise.all([
-        searchSubjects(policy, lister, {
-          ...request,
-          action: { name: "fly" },
-        }),
+        searchSubjects(policy, lister, { ...request, action: { name: "fly" } }),
         searchSubjects(policy, lister, {
           ...request,
           subject: { type: "agent" },

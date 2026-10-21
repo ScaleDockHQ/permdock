@@ -24,7 +24,10 @@ type RenameDriftPaths = {
 /** Sections of the Naming page that list former names. */
 const RENAMED_SECTIONS = new Set([RENAMED_HEADING, "## Renamed before 0.1.0"]);
 
-/** Former wire values: `typ` strings, the CloudEvents type prefix and the SCIM group extension URN. */
+/**
+ * Former wire values: `typ` strings, the CloudEvents type prefix and the SCIM
+ * group extension URN.
+ */
 const OLD_WIRE_VALUES: readonly string[] = [
   "permdock-snapshot+jwt",
   "permdock-approval+jwt",
@@ -40,9 +43,9 @@ function read(path: string): string {
 }
 
 /**
- * Former export and type names from the 0.5 rename map. A name some entry
- * still exports at run time stays allowed; option and method rows are
- * ordinary words (`store`, `source`, `permdock`) and never banned.
+ * Former export and type names from the 0.5 rename map. A name some entry still
+ * exports at run time stays allowed; option and method rows are ordinary words
+ * (`store`, `source`, `permdock`) and never banned.
  */
 function oldIdentifiers(exportsFile: string): readonly string[] {
   // SAFETY: exports.json is the bundle test's own baseline, entry to sorted runtime export names
@@ -59,7 +62,10 @@ function oldIdentifiers(exportsFile: string): readonly string[] {
   return [...new Set(names)].toSorted();
 }
 
-/** The text a reader sees as code: fenced blocks and inline code spans, with each line's number. */
+/**
+ * The text a reader sees as code: fenced blocks and inline code spans, with
+ * each line's number.
+ */
 function codeLines(text: string): readonly (readonly [number, string])[] {
   const out: (readonly [number, string])[] = [];
   let fenced = false;
@@ -83,7 +89,10 @@ function codeLines(text: string): readonly (readonly [number, string])[] {
   return out;
 }
 
-/** The Naming page with the sections that list former names blanked, keeping line numbers. */
+/**
+ * The Naming page with the sections that list former names blanked, keeping
+ * line numbers.
+ */
 function withoutRenamedSections(text: string): string {
   let skipping = false;
   return text
@@ -133,7 +142,10 @@ function oldNames(paths: RenameDriftPaths): readonly string[] {
   return found;
 }
 
-/** The names a cell can mean: the code span itself, and its last identifier (`scimHandler({ store })` is `store`). */
+/**
+ * The names a cell can mean: the code span itself, and its last identifier
+ * (`scimHandler({ store })` is `store`).
+ */
 function cellNames(cell: string): readonly string[] {
   const code = cell.replaceAll("`", "").trim();
   const last = [...code.matchAll(/[A-Za-z_$][\w$]*/gu)].at(-1)?.[0];
@@ -145,8 +157,9 @@ function rowMatches(row: Rename, old: string, next: string): boolean {
 }
 
 /**
- * Every `.changeset/rename-*.md` `| Old | New |` row is a codemod map row, and every map row is
- * in one or in a released `packages/permdock/CHANGELOG.md` table, where versioning moves them.
+ * Every `.changeset/rename-*.md` `| Old | New |` row is a codemod map row, and
+ * every map row is in one or in a released `packages/permdock/CHANGELOG.md`
+ * table, where versioning moves them.
  */
 function changesetRenames(root: string): readonly string[] {
   const dir = join(root, ".changeset");
@@ -177,7 +190,10 @@ function changesetRenames(root: string): readonly string[] {
   return problems;
 }
 
-/** Old names in the docs, changeset tables against the codemod map, and the Naming page section against it. */
+/**
+ * Old names in the docs, changeset tables against the codemod map, and the
+ * Naming page section against it.
+ */
 export function renameDrift(paths: RenameDriftPaths): readonly string[] {
   return [
     ...oldNames(paths),

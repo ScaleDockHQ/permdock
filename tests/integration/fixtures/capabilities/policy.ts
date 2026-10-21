@@ -11,8 +11,8 @@ import { z } from "zod";
 
 /**
  * Share links next to staff access: a guest link reads one sent quote, a
- * commenter link on a folder reaches that folder's files, and staff read
- * every quote of their organization.
+ * commenter link on a folder reaches that folder's files, and staff read every
+ * quote of their organization.
  */
 const Quote = z.object({
   id: z.string(),

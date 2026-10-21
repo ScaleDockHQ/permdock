@@ -1,7 +1,7 @@
 /**
- * The CLI names 0.5.0 changed, in one table. `run()` turns an old spelling
- * into a `flag_renamed` or `command_moved` problem, the codemod rewrites
- * scripts and workflows from it, and the docs Naming page lists it.
+ * The CLI names 0.5.0 changed, in one table. `run()` turns an old spelling into
+ * a `flag_renamed` or `command_moved` problem, the codemod rewrites scripts and
+ * workflows from it, and the docs Naming page lists it.
  */
 
 /** A flag a leaf no longer takes, and what replaces it. */
@@ -14,9 +14,9 @@ export type FlagRename = {
   /** For an enum flag whose values changed too: old value to new value. */
   readonly values?: Readonly<Record<string, string>>;
   /**
-   * Shown instead of a replacement when there is none, or as advice. A
-   * rename with a hint and no `rewrite` needs a person: the codemod reports
-   * it instead of rewriting it.
+   * Shown instead of a replacement when there is none, or as advice. A rename
+   * with a hint and no `rewrite` needs a person: the codemod reports it instead
+   * of rewriting it.
    */
   readonly hint?: string;
   /** What the codemod writes in place of the old boolean flag; `""` drops it. */
@@ -24,10 +24,7 @@ export type FlagRename = {
 };
 
 /** A group that used to run a default action when called bare. */
-export type CommandMove = {
-  readonly from: string;
-  readonly to: string;
-};
+export type CommandMove = { readonly from: string; readonly to: string };
 
 const DB_COMMANDS = [
   "rls generate",
@@ -51,11 +48,7 @@ export const FLAG_RENAMES: readonly FlagRename[] = [
     hint: "--db-url-stdin or DATABASE_URL",
   },
   { commands: ["rls generate"], from: "--force", to: "--force-rls" },
-  {
-    commands: ["rls verify"],
-    from: "--format",
-    to: "--kind",
-  },
+  { commands: ["rls verify"], from: "--format", to: "--kind" },
   { commands: ["rls verify"], from: "--emit", to: "--kind" },
   {
     commands: ["catalog"],
@@ -146,7 +139,10 @@ export const COMMAND_MOVES: readonly CommandMove[] = [
   { from: "arazzo", to: "arazzo check" },
 ];
 
-/** A leaf whose default flipped: a call with none of `unless` gains `add` to keep its old behaviour. */
+/**
+ * A leaf whose default flipped: a call with none of `unless` gains `add` to
+ * keep its old behaviour.
+ */
 export type DefaultChange = {
   readonly command: string;
   readonly unless: readonly string[];

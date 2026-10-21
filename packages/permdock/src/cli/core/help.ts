@@ -255,7 +255,10 @@ function document(
   };
 }
 
-/** `<command> --help --json`: the `cli-commands-v1` document with that command only. */
+/**
+ * `<command> --help --json`: the `cli-commands-v1` document with that command
+ * only.
+ */
 export function leafDocument(
   path: readonly string[],
   entry: LeafEntry,

@@ -85,10 +85,7 @@ function tools() {
       },
     },
     list_posts: { permission: permissions.post.list },
-    publish_post: {
-      permission: permissions.post.publish,
-      data: () => ownPost,
-    },
+    publish_post: { permission: permissions.post.publish, data: () => ownPost },
   };
 }
 

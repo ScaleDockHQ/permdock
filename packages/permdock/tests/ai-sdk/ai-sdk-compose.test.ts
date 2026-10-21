@@ -59,9 +59,7 @@ describe("permdock/ai-sdk composition", () => {
     expect(params.toolChoice).toEqual({ type: "none" });
     expect(
       await composeToolApproval(registry(asked))(call("weather")),
-    ).toMatchObject({
-      type: "denied",
-    });
+    ).toMatchObject({ type: "denied" });
     expect(asked).toEqual([]);
   });
 

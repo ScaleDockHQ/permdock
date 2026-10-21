@@ -21,11 +21,7 @@ const Model = z.object({ id: z.string() });
 
 const permissions = definePermissions({
   doc: resource(Doc, { id: "id", actions: ["read"], collection: ["search"] }),
-  model: resource(Model, {
-    id: "id",
-    actions: ["use"],
-    collection: ["basic"],
-  }),
+  model: resource(Model, { id: "id", actions: ["use"], collection: ["basic"] }),
 });
 
 type User = { readonly id: string; readonly roles: readonly string[] };

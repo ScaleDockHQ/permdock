@@ -10,8 +10,8 @@ const port = process.env["PORT"] ?? "3489";
 
 /**
  * The demo server: a throwaway Postgres with the migrations and seed, a fresh
- * ES256 key whose public half the app verifies against inline, then
- * `next build` and `next start` (only a production server prefetches).
+ * ES256 key whose public half the app verifies against inline, then `next
+ * build` and `next start` (only a production server prefetches).
  */
 const database = await startDatabase();
 const { publicKey, privateKey } = await generateKeyPair("ES256", {

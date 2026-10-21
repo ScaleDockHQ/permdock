@@ -1,6 +1,9 @@
 import { env } from "@/env";
 
-/** Sentry reports only from production builds that have a DSN; local dev and tests stay silent. */
+/**
+ * Sentry reports only from production builds that have a DSN; local dev and
+ * tests stay silent.
+ */
 export function sentryOptions(): {
   readonly dsn: string | undefined;
   readonly enabled: boolean;

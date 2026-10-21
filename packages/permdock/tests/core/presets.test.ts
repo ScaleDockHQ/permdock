@@ -18,11 +18,7 @@ const Setting = z.object({ id: z.string() });
 
 function shapes(leaves: readonly Permission[]) {
   return leaves
-    .map((leaf) => ({
-      key: leaf.key,
-      kind: leaf.kind,
-      meta: { ...leaf.meta },
-    }))
+    .map((leaf) => ({ key: leaf.key, kind: leaf.kind, meta: { ...leaf.meta } }))
     .toSorted((left, right) => left.key.localeCompare(right.key));
 }
 
@@ -39,10 +35,7 @@ describe("presets", () => {
           update: {},
           delete: { destructive: true },
         },
-        collection: {
-          create: {},
-          list: { readOnly: true },
-        },
+        collection: { create: {}, list: { readOnly: true } },
       }),
     });
     expect(shapes(listPermissions(fromPreset))).toEqual(
@@ -54,10 +47,7 @@ describe("presets", () => {
     const fromPreset = definePermissions({
       post: resource(
         Post,
-        crud({
-          id: "id",
-          actions: { publish: { title: "Publish post" } },
-        }),
+        crud({ id: "id", actions: { publish: { title: "Publish post" } } }),
       ),
     });
     const handwritten = definePermissions({
@@ -69,10 +59,7 @@ describe("presets", () => {
           delete: { destructive: true },
           publish: { title: "Publish post" },
         },
-        collection: {
-          create: {},
-          list: { readOnly: true },
-        },
+        collection: { create: {}, list: { readOnly: true } },
       }),
     });
     expect(shapes(listPermissions(fromPreset))).toEqual(
@@ -125,10 +112,7 @@ describe("presets", () => {
       post: resource(Post, crud({ id: "id" })),
       comment: resource(
         Comment,
-        crud({
-          id: "id",
-          parent: { field: "postId", resource: "post" },
-        }),
+        crud({ id: "id", parent: { field: "postId", resource: "post" } }),
       ),
     });
     expect(getResource(permissions, "post")?.id).toBe("id");
@@ -159,9 +143,7 @@ describe("presets", () => {
   });
 
   it("accepts schema-less resource(readable())", () => {
-    const permissions = definePermissions({
-      report: resource(readable()),
-    });
+    const permissions = definePermissions({ report: resource(readable()) });
     expect(permissions.report.read.kind).toBe("instance");
     expect(permissions.report.list.kind).toBe("collection");
     expect(getResource(permissions, "report")?.schema).toBeUndefined();

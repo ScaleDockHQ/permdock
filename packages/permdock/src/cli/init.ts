@@ -57,11 +57,10 @@ function decoded(code: string, command: string): Preset {
 }
 
 /**
- * Writes the preset's owned files into `cwd` and lists what to install.
- * An existing file is kept unless `force` is set, so `init` never
- * overwrites code the application already changed. It installs nothing
- * and calls no network: the package manager and shadcn commands are
- * printed for the person to run.
+ * Writes the preset's owned files into `cwd` and lists what to install. An
+ * existing file is kept unless `force` is set, so `init` never overwrites code
+ * the application already changed. It installs nothing and calls no network:
+ * the package manager and shadcn commands are printed for the person to run.
  */
 export function runInit(options: InitOptions): CommandResult {
   const preset =

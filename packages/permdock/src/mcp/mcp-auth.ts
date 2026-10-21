@@ -9,14 +9,20 @@ import { isRecord } from "../core/compact.ts";
 import { hasScope } from "../core/oauth-scopes.ts";
 import { protectedResourceMetadataUrl } from "../server/problem.ts";
 
-/** `_meta` key on `tools/call`, `resources/read` and `prompts/get` carrying an approval token. */
+/**
+ * `_meta` key on `tools/call`, `resources/read` and `prompts/get` carrying an
+ * approval token.
+ */
 export const APPROVAL_META_KEY = "dev.permdock/approval";
 
 export const CLIENT_CAPABILITIES = "io.modelcontextprotocol/clientCapabilities";
 
 const PROTOCOL_VERSION = "io.modelcontextprotocol/protocolVersion";
 
-/** The first protocol revision whose list results define `ttlMs` and `cacheScope`. */
+/**
+ * The first protocol revision whose list results define `ttlMs` and
+ * `cacheScope`.
+ */
 const CACHEABLE_LISTS_SINCE = "2026-07-28";
 
 export type Context = {
@@ -82,8 +88,8 @@ export function sameResource(
 
 /**
  * Whether the request was sent under a revision that defines `cacheScope` on
- * list results. Only those requests carry the per-request envelope; a
- * 2025-era request has none and gets no cache fields.
+ * list results. Only those requests carry the per-request envelope; a 2025-era
+ * request has none and gets no cache fields.
  */
 export function definesCacheScope(context: Context): boolean {
   const version = context.mcpReq?.envelope?.[PROTOCOL_VERSION];
@@ -102,7 +108,10 @@ export function tenantOf(
   return (call) => tenant(call.authInfo ?? {});
 }
 
-/** What the kernel sees of one MCP request; built per call so no two share an instance. */
+/**
+ * What the kernel sees of one MCP request; built per call so no two share an
+ * instance.
+ */
 export type McpCall = { readonly authInfo?: McpAuthInfo };
 
 export type Reach = {

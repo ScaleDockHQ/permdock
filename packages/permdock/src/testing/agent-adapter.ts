@@ -19,9 +19,9 @@ export const AGENT_THROWING_ROW = "throws";
 export type AgentToolName = "project_read" | "api_keys_revoke_all";
 
 /**
- * What a mount wires into its adapter. The subject and the tenant come from
- * the server-side context the mount builds for each call, never from the
- * tool arguments.
+ * What a mount wires into its adapter. The subject and the tenant come from the
+ * server-side context the mount builds for each call, never from the tool
+ * arguments.
  */
 export type AgentScenarioDomain = {
   readonly policy: typeof saasPolicy;
@@ -31,9 +31,8 @@ export type AgentScenarioDomain = {
    */
   readonly subject: (user: string | null, org: string) => Principal | null;
   /**
-   * `project_read` loads the row named by `args.id`: `null` for an unknown
-   * id, a throw for `AGENT_THROWING_ROW`. `api_keys_revoke_all` needs
-   * approval.
+   * `project_read` loads the row named by `args.id`: `null` for an unknown id,
+   * a throw for `AGENT_THROWING_ROW`. `api_keys_revoke_all` needs approval.
    */
   readonly tools: ToolMap & { readonly [K in AgentToolName]: ToolMap[K] };
   readonly customRoles: CustomRoleSource;

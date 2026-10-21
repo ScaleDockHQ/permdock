@@ -4,10 +4,10 @@ import { quoteSqlLiteral } from "../../core/sql.ts";
 import { saasSeed } from "./seed.ts";
 
 /**
- * Postgres tables for the SaaS domain. Column names match the resource
- * fields (`"orgId"`, `"ownerId"`) so generated RLS and ORM filters compile
- * against them without a column map. RLS is enabled and forced on the row
- * tables; policies come from `permdock rls generate`.
+ * Postgres tables for the SaaS domain. Column names match the resource fields
+ * (`"orgId"`, `"ownerId"`) so generated RLS and ORM filters compile against
+ * them without a column map. RLS is enabled and forced on the row tables;
+ * policies come from `permdock rls generate`.
  */
 export const saasSchemaSql = `
 create table org (

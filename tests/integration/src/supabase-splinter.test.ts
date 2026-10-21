@@ -71,7 +71,10 @@ grant select, update on public.invoice to anon, authenticated;
 type Scenario = {
   readonly name: string;
   readonly tables: string;
-  /** A fixture folder under `tests/integration/fixtures`, or an inline `rls` block. */
+  /**
+   * A fixture folder under `tests/integration/fixtures`, or an inline `rls`
+   * block.
+   */
   readonly fixture?: string;
   readonly config?: {
     readonly permissions: string;

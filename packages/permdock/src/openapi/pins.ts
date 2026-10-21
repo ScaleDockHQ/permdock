@@ -4,11 +4,12 @@ export const DRAFT_PINS = {
   overlay: "1.2-dev@edd4adea",
 } as const;
 
-export const PROFILE_NAMES = {
-  fapi2: "fapi-20-security-profile",
-} as const;
+export const PROFILE_NAMES = { fapi2: "fapi-20-security-profile" } as const;
 
-/** PermDock's published `supportedParametersSchema` per profile, stable across pins. */
+/**
+ * PermDock's published `supportedParametersSchema` per profile, stable across
+ * pins.
+ */
 export const PROFILE_PARAMETERS = {
   fapi2: "https://permdock.com/schemas/security-profiles/fapi2.json",
 } as const;

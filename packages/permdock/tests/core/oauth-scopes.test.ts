@@ -83,10 +83,7 @@ describe("oauthScopes", () => {
   });
 
   it("enters the fingerprint and refuses keys it cannot use", () => {
-    const plain = definePolicy(permissions, {
-      roles: policy.roles,
-      subject,
-    });
+    const plain = definePolicy(permissions, { roles: policy.roles, subject });
     expect(plain.fingerprint).not.toBe(policy.fingerprint);
     const define = (
       oauthScopes: Record<string, readonly never[] | readonly unknown[]>,
@@ -115,9 +112,7 @@ describe("oauthScopes", () => {
     guarded.registerTool(
       "list_tasks",
       { permission: permissions.task.list },
-      () => ({
-        content: [{ type: "text", text: "[]" }],
-      }),
+      () => ({ content: [{ type: "text", text: "[]" }] }),
     );
     guarded.registerTool(
       "update_task",

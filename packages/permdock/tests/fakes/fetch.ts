@@ -24,8 +24,8 @@ export function json(
 
 /**
  * A `fetch` that records each request and answers through `reply`; a request
- * `reply` returns nothing for is answered 404. A thrown value becomes a
- * network failure.
+ * `reply` returns nothing for is answered 404. A thrown value becomes a network
+ * failure.
  */
 export function fakeFetch(
   reply: (

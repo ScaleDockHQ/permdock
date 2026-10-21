@@ -82,13 +82,7 @@ describe("membership and role source edges", () => {
     expect(membershipField(post, "team", graph)).toBeUndefined();
     const cycled = post!;
     const looping = new Map([
-      [
-        "post",
-        {
-          ...cycled,
-          parent: { field: "orgId", resource: "post" },
-        },
-      ],
+      ["post", { ...cycled, parent: { field: "orgId", resource: "post" } }],
     ]);
     expect(
       membershipField(looping.get("post"), "org", looping),

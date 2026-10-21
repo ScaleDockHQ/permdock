@@ -30,7 +30,10 @@ async function rejection(promise: Promise<unknown>): Promise<unknown> {
   throw new Error("expected a rejection");
 }
 
-/** Runs the browser leg: the platform's `/oauth/authorize` redirect back to the app. */
+/**
+ * Runs the browser leg: the platform's `/oauth/authorize` redirect back to the
+ * app.
+ */
 async function authorize(fetchFn: typeof fetch, url: string): Promise<string> {
   const response = await fetchFn(url, { redirect: "manual" });
   return response.headers.get("location") ?? "";
@@ -371,10 +374,7 @@ describe("bearerChallenge", () => {
       bearerChallenge(
         'Basic realm="x", Negotiate abc==, Bearer error_description="a \\"b\\""',
       ),
-    ).toEqual({
-      scheme: "bearer",
-      params: { error_description: 'a "b"' },
-    });
+    ).toEqual({ scheme: "bearer", params: { error_description: 'a "b"' } });
   });
 
   it("answers null without a Bearer challenge", () => {

@@ -13,7 +13,10 @@ import type {
 
 import { freezeDeep } from "../core/freeze.ts";
 
-/** The part of a Workflow SDK `Hook` the waiter reads: awaiting it suspends the run. */
+/**
+ * The part of a Workflow SDK `Hook` the waiter reads: awaiting it suspends the
+ * run.
+ */
 export type WorkflowSdkHook = {
   readonly then: PromiseLike<unknown>["then"];
   dispose(): void;
@@ -42,7 +45,10 @@ export type WorkflowSdkStart<TArgs extends unknown[], TRun> = (
 export type WorkflowSdkWaiterOptions = {
   readonly createHook: WorkflowSdkCreateHook;
   readonly resumeHook: WorkflowSdkResumeHook;
-  /** With `sleep`, a wait ends at the request's `expiresAt`; without it, only a wake ends it. */
+  /**
+   * With `sleep`, a wait ends at the request's `expiresAt`; without it, only a
+   * wake ends it.
+   */
   readonly sleep?: WorkflowSdkSleep;
 };
 
@@ -55,9 +61,9 @@ export function approvalHookToken(token: string): string {
 
 /**
  * An `ApprovalWaiter` over Workflow SDK hooks. `wait` parks the run on a hook
- * and must run inside the workflow function; `wake` resumes it from an
- * approval handler. The hook carries no verdict: the run decides again from
- * the approval store after it wakes.
+ * and must run inside the workflow function; `wake` resumes it from an approval
+ * handler. The hook carries no verdict: the run decides again from the approval
+ * store after it wakes.
  */
 export function workflowSdkWaiter(
   options: WorkflowSdkWaiterOptions,
@@ -130,8 +136,8 @@ function hookDenied(): Decision {
 
 /**
  * Resumes hook `token` with `payload` only when `caller` is granted
- * `permission` on `row`. A token alone never resumes a run. A hook that is
- * gone or a resume that throws denies with `validation`.
+ * `permission` on `row`. A token alone never resumes a run. A hook that is gone
+ * or a resume that throws denies with `validation`.
  */
 export async function authorizeHook(
   resumeHook: WorkflowSdkResumeHook,

@@ -27,16 +27,11 @@ const policy = definePolicy(permissions, {
   grants: [
     allow(permissions.record.read, {
       to: authenticated(),
-      where: {
-        region: claim("attrs.region"),
-        ownerId: principal.id,
-      },
+      where: { region: claim("attrs.region"), ownerId: principal.id },
     }),
     allow(permissions.record.delete, {
       to: authenticated(),
-      where: {
-        region: { notIn: claim("attrs.blocked") },
-      },
+      where: { region: { notIn: claim("attrs.blocked") } },
     }),
   ],
   subject: (user: {

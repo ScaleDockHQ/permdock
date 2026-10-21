@@ -32,23 +32,30 @@ import {
 
 export type CredentialKind = "user" | "service" | "feed";
 
-/** A feed id: lowercase, so a mail system that lowercases a local part still matches. At most 16 characters, so `pdfeed_<id>_<secret>` fits an email local part. */
+/**
+ * A feed id: lowercase, so a mail system that lowercases a local part still
+ * matches. At most 16 characters, so `pdfeed_<id>_<secret>` fits an email local
+ * part.
+ */
 export function isFeedId(value: string): boolean {
   return /^[a-z0-9-]{1,16}$/u.test(value);
 }
 
-/** One permission (a key) a credential may use: on every instance, or only on `ids`. */
+/**
+ * One permission (a key) a credential may use: on every instance, or only on
+ * `ids`.
+ */
 export type CredentialPermission = {
   readonly permission: string;
   readonly ids?: readonly string[];
 };
 
 /**
- * Credential v1: what a verified API key stands for, never the secret. A
- * `user` credential acts as its owner (`principal`) narrowed to
- * `permissions`, and to the memberships inside `tenant` when it names one;
- * a `service` credential is its own `service` principal holding `roles` in
- * `tenant`, narrowed the same way.
+ * Credential v1: what a verified API key stands for, never the secret. A `user`
+ * credential acts as its owner (`principal`) narrowed to `permissions`, and to
+ * the memberships inside `tenant` when it names one; a `service` credential is
+ * its own `service` principal holding `roles` in `tenant`, narrowed the same
+ * way.
  */
 export type Credential = {
   readonly v: 1;
@@ -57,12 +64,15 @@ export type Credential = {
   /** The owner of a `user` credential, or the id of the service principal. */
   readonly principal: string;
   /**
-   * The instance of the first scope the key is held to. Required on a
-   * service credential, where its roles are held; optional on a user
-   * credential, where it keeps only the owner's memberships inside it.
+   * The instance of the first scope the key is held to. Required on a service
+   * credential, where its roles are held; optional on a user credential, where
+   * it keeps only the owner's memberships inside it.
    */
   readonly tenant?: string;
-  /** Service: the roles it holds in `tenant`. Feed: the resource roles it holds on `on`. */
+  /**
+   * Service: the roles it holds in `tenant`. Feed: the resource roles it holds
+   * on `on`.
+   */
   readonly roles?: readonly string[];
   /** Feed only: the resource instance the roles are held on. */
   readonly on?: { readonly resource: string; readonly id: string };
@@ -75,9 +85,7 @@ export type Credential = {
   readonly name?: string;
 };
 
-export type ApiKeyPrincipal = Principal & {
-  readonly credential: Credential;
-};
+export type ApiKeyPrincipal = Principal & { readonly credential: Credential };
 
 /**
  * What one scope instance allows for API keys created in it. Every rule only
@@ -137,13 +145,19 @@ export type CredentialDecision =
   | {
       readonly outcome: "approval-required";
       readonly credential: Credential;
-      /** Bound to the credential's content and its creator; pass it as `approved` to resume. */
+      /**
+       * Bound to the credential's content and its creator; pass it as
+       * `approved` to resume.
+       */
       readonly token: string;
     }
   | { readonly outcome: "denied"; readonly denials: readonly Denial[] };
 
 export type DecideCredentialOptions = {
-  /** Where the tenant's `credentials` policy comes from. Without it, only the no-expiry rule applies. */
+  /**
+   * Where the tenant's `credentials` policy comes from. Without it, only the
+   * no-expiry rule applies.
+   */
   readonly settings?: SettingsSource;
   /** The `token` of an approval the application consumed for this request. */
   readonly approved?: string;
@@ -222,10 +236,10 @@ function parsePermissions(
 }
 
 /**
- * Validates an untrusted credential record and returns a frozen copy with
- * only the v1 fields, or `undefined`. Unknown fields are dropped; a wrong
- * type in a known field, a service credential without `tenant` and `roles`,
- * or a user credential with `roles`, rejects the whole record.
+ * Validates an untrusted credential record and returns a frozen copy with only
+ * the v1 fields, or `undefined`. Unknown fields are dropped; a wrong type in a
+ * known field, a service credential without `tenant` and `roles`, or a user
+ * credential with `roles`, rejects the whole record.
  */
 export function parseCredential(input: unknown): Credential | undefined {
   const value = ownRecord(input);
@@ -326,9 +340,9 @@ function leafByKey(tree: PermissionTree): ReadonlyMap<string, Permission> {
 
 /**
  * The delegation a credential narrows its principal to: OAuth scopes for
- * permissions on every instance, one RFC 9396 entry per id otherwise. A key
- * the definitions no longer declare is dropped, so a credential whose every
- * key is gone delegates nothing and every check is denied.
+ * permissions on every instance, one RFC 9396 entry per id otherwise. A key the
+ * definitions no longer declare is dropped, so a credential whose every key is
+ * gone delegates nothing and every check is denied.
  */
 export function credentialDelegation(
   credential: Credential,
@@ -361,21 +375,18 @@ export function credentialDelegation(
 }
 
 /**
- * The subject a verified credential acts as. A `user` credential is its
- * owner, passed live as `owner` (roles and memberships as of this request),
- * with the credential's delegation: every check is the owner's rights
- * intersected with the key's. One that names a `tenant` makes it the active
- * tenant, and `getPermDock` then keeps only the owner's memberships
- * inside it and no global role. A `service` credential is a `service`
- * principal whose only membership is `roles` in `tenant`. An owner whose id
- * is not the credential's `principal`, or who is not a user, is anonymous.
+ * The subject a verified credential acts as. A `user` credential is its owner,
+ * passed live as `owner` (roles and memberships as of this request), with the
+ * credential's delegation: every check is the owner's rights intersected with
+ * the key's. One that names a `tenant` makes it the active tenant, and
+ * `getPermDock` then keeps only the owner's memberships inside it and no global
+ * role. A `service` credential is a `service` principal whose only membership
+ * is `roles` in `tenant`. An owner whose id is not the credential's
+ * `principal`, or who is not a user, is anonymous.
  */
 export function credentialSubject(
   credential: Credential,
-  options: {
-    readonly permissions: PermissionTree;
-    readonly owner?: Principal;
-  },
+  options: { readonly permissions: PermissionTree; readonly owner?: Principal },
 ): Subject<ApiKeyPrincipal> | Subject {
   const delegation = credentialDelegation(credential, options.permissions);
   let principal: ApiKeyPrincipal;
@@ -463,10 +474,7 @@ function permissionEntries(
   request: CredentialRequest,
   declared: ReadonlyMap<string, Permission>,
 ):
-  | readonly {
-      readonly leaf: Permission;
-      readonly ids?: readonly string[];
-    }[]
+  | readonly { readonly leaf: Permission; readonly ids?: readonly string[] }[]
   | undefined {
   if (
     !isReadonlyArray(request.permissions) ||
@@ -767,25 +775,24 @@ export function credentialTenant(
 
 /**
  * Decides whether the subject of `permdock` may create the credential in
- * `request`. The creator must be a signed-in user or service that is not
- * itself a link or a credential; a delegated creator hands out only what its
- * delegation covers. A key's tenant must be one the creator is a member of;
- * a service key's roles among the creator's `assignableRoles` there and its
+ * `request`. The creator must be a signed-in user or service that is not itself
+ * a link or a credential; a delegated creator hands out only what its
+ * delegation covers. A key's tenant must be one the creator is a member of; a
+ * service key's roles among the creator's `assignableRoles` there and its
  * permissions within `assignablePermissions` there (`exceeds-creator`). The
- * `credentials` policy of the key's tenant (its own, or for a user key
- * without one the creator's active tenant) then applies (`credential-policy`; a
+ * `credentials` policy of the key's tenant (its own, or for a user key without
+ * one the creator's active tenant) then applies (`credential-policy`; a
  * settings source that throws denies with `rule: 'unavailable'`), and
- * `approval` makes the result `approval-required` until `approved` carries
- * its token. PermDock never stores the credential; the application does,
- * after a `granted` result.
+ * `approval` makes the result `approval-required` until `approved` carries its
+ * token. PermDock never stores the credential; the application does, after a
+ * `granted` result.
  */
 /**
  * Decides whether the subject of `permdock` may create the credential in
  * `request`: the creator's own reach, the `credentials` policy of the key's
- * tenant (the call's `settings`, else the instance's), and `approval`.
- * PermDock never stores the credential; the application does, after a
- * `granted` result. An instance built from a snapshot denies with
- * `unsupported`.
+ * tenant (the call's `settings`, else the instance's), and `approval`. PermDock
+ * never stores the credential; the application does, after a `granted` result.
+ * An instance built from a snapshot denies with `unsupported`.
  */
 export function decideCredential(
   permdock: InstanceHandle,

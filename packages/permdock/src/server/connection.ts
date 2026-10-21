@@ -15,7 +15,10 @@ export type ConnectionData<T> =
   | (() => T | null | undefined | Promise<T | null | undefined>);
 
 export type ConnectionOptions<T = unknown> = {
-  /** The permission the stream or socket is opened for; re-checked after every revalidation. */
+  /**
+   * The permission the stream or socket is opened for; re-checked after every
+   * revalidation.
+   */
   readonly permission?: Permission;
   /** The row for `permission`, or a loader re-run on every revalidation. */
   readonly data?: ConnectionData<T>;
@@ -29,8 +32,8 @@ export type Connection = {
   /** Aborts with a `PermDockRevokedError` when the connection must end. */
   readonly signal: AbortSignal;
   /**
-   * Per-message decision. Data is validated against the resource schema
-   * first unless `{ trusted: true }` marks it as a row the server loaded.
+   * Per-message decision. Data is validated against the resource schema first
+   * unless `{ trusted: true }` marks it as a row the server loaded.
    */
   readonly check: (
     permission: Permission,

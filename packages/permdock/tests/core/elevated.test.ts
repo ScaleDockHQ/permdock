@@ -123,12 +123,7 @@ describe("E1 role activation", () => {
     id: "u2",
     assurance: { authTime: Math.floor(Date.now() / 1000) },
     memberships: [
-      {
-        scope: "organization",
-        id: "T",
-        roles: ["nurse"],
-        eligible: ["admin"],
-      },
+      { scope: "organization", id: "T", roles: ["nurse"], eligible: ["admin"] },
     ],
   };
 
@@ -450,10 +445,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   };
 
   it("refuses a within that differs from the eligible membership", async () => {
-    const permdock = getPermDockSync(nested(false), {
-      principal,
-      context: {},
-    });
+    const permdock = getPermDockSync(nested(false), { principal, context: {} });
     const forged = activate(permdock, {
       role: "team-admin",
       scope: "team",
@@ -467,10 +459,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   });
 
   it("mints the eligible membership ancestors when within is omitted", async () => {
-    const permdock = getPermDockSync(nested(false), {
-      principal,
-      context: {},
-    });
+    const permdock = getPermDockSync(nested(false), { principal, context: {} });
     const decision = activate(permdock, {
       role: "team-admin",
       scope: "team",
@@ -483,10 +472,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   });
 
   it("binds the approval token to the ancestors", async () => {
-    const root = getPermDockSync(nested(true), {
-      principal,
-      context: {},
-    });
+    const root = getPermDockSync(nested(true), { principal, context: {} });
     const other = getPermDockSync(nested(true), {
       principal: {
         ...principal,

@@ -188,8 +188,8 @@ revoke execute on function ${guard}(${userArg}${tenantType}, text, text, text) f
 }
 
 /**
- * The functions an application calls to save, rename and delete a custom
- * role in \`database\` mode, with the rules of \`validateCustomRole\` and
+ * The functions an application calls to save, rename and delete a custom role
+ * in \`database\` mode, with the rules of \`validateCustomRole\` and
  * \`assignablePermissions\`: entries inside the ceiling of the role's scope,
  * includes naming declared roles, and only permissions and levels the caller
  * may hand out, for the new definition and the stored one alike. A platform

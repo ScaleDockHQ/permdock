@@ -80,9 +80,7 @@ describe("adapters forward approvalPolicies", () => {
       .registerTool(
         "list_posts",
         { permission: permissions.post.list },
-        () => ({
-          content: [{ type: "text", text: "[]" }],
-        }),
+        () => ({ content: [{ type: "text", text: "[]" }] }),
       );
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
     await server.connect(serverSide);

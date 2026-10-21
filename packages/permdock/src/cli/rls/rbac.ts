@@ -22,14 +22,21 @@ export type RbacOptions = {
   /** Postgres schema for the enums, tables and functions. Default `permdock`. */
   readonly schema: string;
   /**
-   * `database` reads `user_roles` (and the memberships table) on every statement: role changes
-   * apply immediately. `jwt` reads the hook-injected claims: no query, stale until the token refreshes.
+   * `database` reads `user_roles` (and the memberships table) on every
+   * statement: role changes apply immediately. `jwt` reads the hook-injected
+   * claims: no query, stale until the token refreshes.
    */
   readonly authorize: RbacAuthorizeMode;
   readonly memberships?: RlsMembershipTable;
-  /** The policy's first scope; `authorize(permission, tenant)` answers for an instance of it. */
+  /**
+   * The policy's first scope; `authorize(permission, tenant)` answers for an
+   * instance of it.
+   */
   readonly scope?: string;
-  /** Declared role names when custom roles compile; `authorize()` then answers from them too. */
+  /**
+   * Declared role names when custom roles compile; `authorize()` then answers
+   * from them too.
+   */
   readonly customRoles?: {
     readonly declared: readonly string[];
     readonly levels?: true;
@@ -39,7 +46,10 @@ export type RbacOptions = {
 };
 
 export type RbacScaffold = {
-  /** Enums and `user_roles`: emitted before the helpers, which read `user_roles`. */
+  /**
+   * Enums and `user_roles`: emitted before the helpers, which read
+   * `user_roles`.
+   */
   readonly head: string;
   /** `authorize()` and its grants. */
   readonly tail: string;
@@ -105,7 +115,10 @@ exception when duplicate_object then null;
 end $$;`;
 }
 
-/** A read policy and `select` grant for `supabase_auth_admin` on a table the hook reads. */
+/**
+ * A read policy and `select` grant for `supabase_auth_admin` on a table the
+ * hook reads.
+ */
 export function authAdminRead(table: string, label: string): string {
   const t = quoteQualified(table);
   const policy = quoteIdent(`permdock_auth_admin_read_${label}`);
@@ -119,10 +132,10 @@ create policy ${policy} on ${t}
 
 /**
  * Supabase's Custom Claims and RBAC scaffold on top of the PermDock helpers:
- * enums, `user_roles` and `authorize()` over the shared `role_permissions`.
- * The token hook comes only from `permdock supabase hook generate`, so one
- * function writes the claims. Policies never call `authorize()` per row; they
- * call the helpers. Never grants anything to `service_role`.
+ * enums, `user_roles` and `authorize()` over the shared `role_permissions`. The
+ * token hook comes only from `permdock supabase hook generate`, so one function
+ * writes the claims. Policies never call `authorize()` per row; they call the
+ * helpers. Never grants anything to `service_role`.
  */
 export function rbacScaffold(
   policy: Policy,
