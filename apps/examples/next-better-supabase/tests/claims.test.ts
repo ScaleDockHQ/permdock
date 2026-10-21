@@ -14,7 +14,7 @@ const server = createServer(betterSupabase, {
     publishableKey: "sb_publishable_test",
     jwksUrl: new URL(`${PROJECT_URL}/auth/v1/.well-known/jwks.json`),
   },
-  auth: { jwks: { keys: [...signer.jwks.keys] } },
+  auth: { jwks: signer.jwks },
 });
 
 const sessionFor = async (claims: Readonly<Record<string, unknown>>) => {
