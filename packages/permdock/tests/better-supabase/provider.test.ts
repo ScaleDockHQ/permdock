@@ -226,7 +226,75 @@ describe(authorizationProvider, () => {
     });
     expect(provider.functions).not.toHaveProperty("holdersOf");
     expect(provider.functions).not.toHaveProperty("actorMayWrite");
+    expect(provider.functions).not.toHaveProperty("teamIdsOf");
     expect(provider).not.toHaveProperty("problems");
+  });
+
+  describe("teamIdsOf", () => {
+    const teamManifest = (name: string, listed: boolean) =>
+      withRls({
+        scopes: [
+          { name: "tenant", type: "uuid" },
+          { name, type: "uuid", within: "tenant" },
+        ],
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          ...(listed
+            ? [
+                {
+                  name: `member_${name}_ids_of`,
+                  args: "p_user uuid",
+                  returns: "setof uuid",
+                  execute: ["authenticated"],
+                },
+              ]
+            : []),
+        ],
+      });
+
+    it.each(["team", "teams"])(
+      "calls member_%s_ids_of({user}) for a team scope",
+      (name) => {
+        const provider = authorizationProvider({
+          manifest: teamManifest(name, true),
+          catalog: emptyCatalog,
+        });
+        expect(provider.functions.teamIdsOf).toBe(
+          `permdock.member_${name}_ids_of({user})`,
+        );
+        expect(provider.requires).toContainEqual({
+          function: `permdock.member_${name}_ids_of`,
+          args: "uuid",
+          role: "authenticated",
+        });
+      },
+    );
+
+    it("stays unset without the helper or a team scope", () => {
+      expect(
+        authorizationProvider({
+          manifest: teamManifest("team", false),
+          catalog: emptyCatalog,
+        }).functions,
+      ).not.toHaveProperty("teamIdsOf");
+      expect(
+        authorizationProvider({
+          manifest: teamManifest("squad", true),
+          catalog: emptyCatalog,
+        }).functions,
+      ).not.toHaveProperty("teamIdsOf");
+    });
+
+    it("passes better-supabase's conformance kit", async () => {
+      await expect(
+        testAuthorizationProvider(
+          authorizationProvider({
+            manifest: teamManifest("team", true),
+            catalog: emptyCatalog,
+          }),
+        ),
+      ).resolves.toBeDefined();
+    });
   });
 
   it("marks a key with row conditions as not complete in SQL", () => {

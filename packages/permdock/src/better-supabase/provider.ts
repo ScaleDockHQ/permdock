@@ -71,7 +71,12 @@ type DisabledRow = NonNullable<
  */
 type Template = Exclude<
   keyof AuthorizationFunctions,
-  "canApprove" | "isApprover" | "holdersOf" | "actorMayWrite" | "permitted"
+  | "canApprove"
+  | "isApprover"
+  | "holdersOf"
+  | "teamIdsOf"
+  | "actorMayWrite"
+  | "permitted"
 >;
 
 type TemplateEntry = {
@@ -179,6 +184,14 @@ const listedName = (entry: TemplateEntry): string =>
  * functions; better-supabase fills it for the tenant scope only.
  */
 const HOLDERS_OF = "permitted_{scope}_users";
+/**
+ * better-supabase calls `teamIdsOf` from RLS policies as `authenticated`, so it
+ * fills from the caller-bound `member_<scope>_ids_of`, never from the `_for`
+ * form only `supabase_auth_admin` may execute.
+ */
+const TEAM_IDS_OF = "member_{scope}_ids_of";
+/** The scope names better-supabase reads as its teams (doctor BS417). */
+const TEAM_SCOPE = /^teams?$/u;
 const ACTOR_MAY_WRITE = "permdock_actor_may_write";
 
 const OPTIONAL: readonly Template[] = [
@@ -491,8 +504,9 @@ function delegatedScopes(
  * `approvers` and `permdock_is_approver`, and otherwise `canApprove` only with
  * `approver`. `holdersOf` (`permitted_<tenant scope>_users`) and
  * `actorMayWrite` (`permdock_actor_may_write()`) are set when the manifest
- * lists their helper. Throws when the manifest or catalog is invalid, or when
- * the tenant scope is ambiguous.
+ * lists their helper, and so is `teamIdsOf` (`member_<scope>_ids_of({user})`)
+ * for a scope named `team` or `teams`. Throws when the manifest or catalog is
+ * invalid, or when the tenant scope is ambiguous.
  */
 export function authorizationProvider(
   options: AuthorizationProviderOptions,
@@ -609,6 +623,20 @@ export function authorizationProvider(
       role: "postgres",
     });
   }
+  let teamIdsOf: string | undefined;
+  const teamHelper = scopeNames
+    .filter((scope) => TEAM_SCOPE.test(scope))
+    .map((scope) => helpers.get(TEAM_IDS_OF.replace("{scope}", scope)))
+    .find((helper) => helper !== undefined);
+  if (teamHelper !== undefined) {
+    const fn = `${schema}.${sqlIdent(teamHelper.name)}`;
+    teamIdsOf = `${fn}({user})`;
+    requires.push({
+      function: fn,
+      args: argTypes(teamHelper.args),
+      role: "authenticated",
+    });
+  }
   let actorMayWrite: string | undefined;
   if (helpers.has(ACTOR_MAY_WRITE)) {
     const fn = `${schema}.${sqlIdent(ACTOR_MAY_WRITE)}`;
@@ -628,6 +656,7 @@ export function authorizationProvider(
     idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,
     isPlatform: `${schema}.${TEMPLATES.isPlatform.sql}`,
     ...(holdersOf === undefined ? {} : { holdersOf }),
+    ...(teamIdsOf === undefined ? {} : { teamIdsOf }),
     ...(actorMayWrite === undefined ? {} : { actorMayWrite }),
     ...(isApprover === undefined ? {} : { isApprover }),
     ...(permitted === undefined ? {} : { permitted }),
