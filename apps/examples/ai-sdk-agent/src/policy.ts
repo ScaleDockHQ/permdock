@@ -1,4 +1,11 @@
-import { allow, definePolicy, deny, principal, role } from "permdock";
+import {
+  allow,
+  assurance,
+  definePolicy,
+  deny,
+  principal,
+  role,
+} from "permdock";
 
 import { permissions } from "./permissions.ts";
 
@@ -29,6 +36,12 @@ const admin = role("admin", [
 
 export const policy = definePolicy(permissions, {
   roles: [member, admin],
+  grants: [
+    allow(permissions.post.publish, {
+      where: { authorId: principal.id },
+      to: assurance({ acr: "mfa", maxAge: 300 }),
+    }),
+  ],
   subject: (user: User | null) =>
     user === null
       ? null

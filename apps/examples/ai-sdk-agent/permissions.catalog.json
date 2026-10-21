@@ -1,8 +1,8 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-14T01:05:26.089Z",
-  "generator": "permdock@0.4.0",
+  "generatedAt": "2026-10-21T09:43:59.771Z",
+  "generator": "permdock@0.6.0",
   "fingerprint": "sha-256:E7G4R7NhectdtojbU3Zsh6WN8PJnXy5K7ZLDvAjp7gk",
   "resources": {
     "post": {
@@ -46,7 +46,7 @@
       "usages": [
         {
           "file": "src/policy.ts",
-          "line": 14,
+          "line": 21,
           "call": "allow"
         }
       ],
@@ -62,17 +62,17 @@
       "usages": [
         {
           "file": "src/agent.ts",
-          "line": 19,
+          "line": 23,
           "call": "tools"
         },
         {
           "file": "src/policy.ts",
-          "line": 16,
+          "line": 23,
           "call": "allow"
         },
         {
           "file": "src/policy.ts",
-          "line": 25,
+          "line": 32,
           "call": "allow"
         }
       ],
@@ -88,12 +88,12 @@
       "usages": [
         {
           "file": "src/agent.ts",
-          "line": 16,
+          "line": 20,
           "call": "tools"
         },
         {
           "file": "src/policy.ts",
-          "line": 13,
+          "line": 20,
           "call": "allow"
         }
       ],
@@ -108,14 +108,24 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/agent.ts",
+          "line": 27,
+          "call": "tools"
+        },
+        {
           "file": "src/policy.ts",
-          "line": 26,
+          "line": 33,
           "call": "allow"
         },
         {
           "file": "src/policy.ts",
-          "line": 27,
+          "line": 34,
           "call": "deny"
+        },
+        {
+          "file": "src/policy.ts",
+          "line": 40,
+          "call": "allow"
         }
       ],
       "rowConditions": true
@@ -130,7 +140,7 @@
       "usages": [
         {
           "file": "src/policy.ts",
-          "line": 12,
+          "line": 19,
           "call": "allow"
         }
       ],
@@ -146,12 +156,12 @@
       "usages": [
         {
           "file": "src/policy.ts",
-          "line": 15,
+          "line": 22,
           "call": "allow"
         },
         {
           "file": "src/policy.ts",
-          "line": 24,
+          "line": 31,
           "call": "allow"
         }
       ],
