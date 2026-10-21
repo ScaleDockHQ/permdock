@@ -68,9 +68,9 @@ function all<T>(
 
 function then<T, R>(
   value: T | Promise<T>,
-  next: (resolved: T) => R,
+  map: (resolved: T) => R,
 ): R | Promise<R> {
-  return isThenable(value) ? Promise.resolve(value).then(next) : next(value);
+  return isThenable(value) ? Promise.resolve(value).then(map) : map(value);
 }
 
 /**

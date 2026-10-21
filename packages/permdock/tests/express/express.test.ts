@@ -178,6 +178,7 @@ describe("permdock/express getPermDock", () => {
             other: permdock.can(permissions.post.update, otherPost),
           });
         })
+        // oxlint-disable-next-line promise/no-callback-in-promise -- Express takes a failure through `next`
         .catch(next);
     });
     const request = await listen(app);

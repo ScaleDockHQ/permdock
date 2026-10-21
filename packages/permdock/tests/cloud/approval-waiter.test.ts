@@ -127,9 +127,10 @@ describe("cloudApprovalWaiter", () => {
       store: pendingStore(),
     });
     let settled = false;
-    const waiting = cloud.wait("pd1.parked").then(() => {
+    const waiting = (async () => {
+      await cloud.wait("pd1.parked");
       settled = true;
-    });
+    })();
     await Promise.resolve();
     expect(settled).toBe(false);
     const response = await cloud.webhook(

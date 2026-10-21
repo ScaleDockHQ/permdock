@@ -112,22 +112,25 @@ function CopyLink() {
     },
     [],
   );
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      if (timer.current) {
+        clearTimeout(timer.current);
+      }
+      timer.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard is unavailable outside a secure context.
+    }
+  }
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(window.location.href);
-          setCopied(true);
-          if (timer.current) {
-            clearTimeout(timer.current);
-          }
-          timer.current = setTimeout(() => setCopied(false), 2000);
-        } catch {
-          // Clipboard is unavailable outside a secure context.
-        }
+      onClick={() => {
+        void copyLink();
       }}
     >
       {copied ? (

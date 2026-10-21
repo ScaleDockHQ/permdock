@@ -214,41 +214,41 @@ export async function openConnection<T>(
 
   let schedule: ((permdock: PermDock) => void) | undefined;
 
+  const step = async (): Promise<void> => {
+    if (controller.signal.aborted || closed) {
+      return;
+    }
+    let rebuilt: PermDock;
+    try {
+      rebuilt = await input.rebuild();
+    } catch {
+      abort("subject-changed");
+      return;
+    }
+    const id = principalId(rebuilt);
+    if (
+      id === undefined ||
+      current === undefined ||
+      id !== principalId(current)
+    ) {
+      abort("subject-changed");
+      return;
+    }
+    if (!(await admits(rebuilt))) {
+      return;
+    }
+    current = rebuilt;
+    for (const timer of timers) {
+      clearTimeout(timer);
+    }
+    timers.clear();
+    schedule?.(rebuilt);
+  };
+
   const revalidate = (): void => {
-    chain = chain
-      .then(async () => {
-        if (controller.signal.aborted || closed) {
-          return;
-        }
-        let next: PermDock;
-        try {
-          next = await input.rebuild();
-        } catch {
-          abort("subject-changed");
-          return;
-        }
-        const id = principalId(next);
-        if (
-          id === undefined ||
-          current === undefined ||
-          id !== principalId(current)
-        ) {
-          abort("subject-changed");
-          return;
-        }
-        if (!(await admits(next))) {
-          return;
-        }
-        current = next;
-        for (const timer of timers) {
-          clearTimeout(timer);
-        }
-        timers.clear();
-        schedule?.(next);
-      })
-      .catch(() => {
-        abort("subject-changed");
-      });
+    chain = chain.then(step).catch(() => {
+      abort("subject-changed");
+    });
   };
 
   schedule = (permdock: PermDock): void => {

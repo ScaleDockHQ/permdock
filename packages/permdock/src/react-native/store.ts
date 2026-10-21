@@ -73,9 +73,9 @@ export function connectSource(
     void Promise.resolve()
       .then(() => source.get())
       .then(
-        (next) => {
-          if (active && mine === seq && !unchanged(store, next)) {
-            store.replace(next);
+        (snapshot) => {
+          if (active && mine === seq && !unchanged(store, snapshot)) {
+            store.replace(snapshot);
           }
         },
         () => undefined,

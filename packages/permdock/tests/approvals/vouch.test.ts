@@ -40,7 +40,7 @@ function person(id: string): Subject {
 describe("vouchApproval", () => {
   it("resolves with the app's verdict in one step and records the rule", async () => {
     const store = memoryApprovalStore();
-    store.create(request());
+    void store.create(request());
     const approved = await vouchApproval(store, "pd1.vouch", {
       status: "approved",
       by: person("u_manager"),
@@ -54,7 +54,7 @@ describe("vouchApproval", () => {
       note: "second-level manager",
       approvals: [{ by: "u_manager", vouched: "manager-chain" }],
     });
-    store.create(request({ token: "pd1.vouch-2" }));
+    void store.create(request({ token: "pd1.vouch-2" }));
     const rejected = await vouchApproval(store, "pd1.vouch-2", {
       status: "rejected",
       by: person("u_delegate"),
@@ -69,7 +69,7 @@ describe("vouchApproval", () => {
 
   it("still refuses the actor, the requester, a repeated approver and a closed request", async () => {
     const store = memoryApprovalStore();
-    store.create(request());
+    void store.create(request());
     const vouch = (by: string) =>
       vouchApproval(store, "pd1.vouch", {
         status: "approved",
@@ -94,7 +94,7 @@ describe("vouchApproval", () => {
       code: "approval-not-pending",
     });
     const loose = memoryApprovalStore();
-    loose.create(
+    void loose.create(
       request({
         approvers: { by: user("u_cfo"), quorum: 2, distinct: false },
         approvals: [{ by: "u_finance", at: new Date().toISOString() }],
@@ -118,7 +118,7 @@ describe("vouchApproval", () => {
 
   it("needs a rule name, and the HTTP handler never takes one from a body", async () => {
     const store = memoryApprovalStore();
-    store.create(request());
+    void store.create(request());
     await expect(
       vouchApproval(store, "pd1.vouch", {
         status: "approved",

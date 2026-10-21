@@ -260,9 +260,9 @@ describe("memoryRevocationFeed", () => {
     expect(() =>
       feed.revoke({ principal: "u1", kind: "grant" as never }),
     ).toThrow(TypeError);
-    feed.revoke({ principal: "u1", kind: "changed" });
+    void feed.revoke({ principal: "u1", kind: "changed" });
     stop();
-    feed.revoke({ principal: "u2", kind: "changed" });
+    void feed.revoke({ principal: "u2", kind: "changed" });
     expect(seen).toStrictEqual(["u1"]);
   });
 });

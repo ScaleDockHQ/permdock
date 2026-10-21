@@ -308,7 +308,7 @@ describe("permdock/workflow: awaitApproval", () => {
       status: "approved",
       by: userSubject("u_9", ["owner"]),
     });
-    waiter.wake(token);
+    void waiter.wake(token);
     expect((await pending).outcome).toBe("granted");
     expect(
       (await workflow.awaitApproval(ticket, permissions.invoice.read, invoice))

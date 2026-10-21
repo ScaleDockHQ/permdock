@@ -132,8 +132,7 @@ export function testCloudApi(
   const environment = options.environment ?? "production";
   const { issuer } = cloudEndpoints({ url, environment });
   const check = cloudApiValidator();
-  const problems: string[] = [];
-  const checks: Promise<void>[] = [];
+  const checks: Promise<readonly string[]>[] = [];
   const recording = async (
     input: Request | string | URL,
     init?: RequestInit,
@@ -145,11 +144,7 @@ export function testCloudApi(
       pathname === `${METADATA}${prefix}`
         ? METADATA
         : pathname.slice(prefix.length);
-    checks.push(
-      check(request.method, path, response.clone()).then((found) => {
-        problems.push(...found);
-      }),
-    );
+    checks.push(check(request.method, path, response.clone()));
     return response;
   };
   const client = cloud({
@@ -414,7 +409,6 @@ export function testCloudApi(
   });
 
   it("answers every request in the shapes cloud-api-v1.json documents", async () => {
-    await Promise.all(checks);
-    expect(problems).toStrictEqual([]);
+    expect((await Promise.all(checks)).flat()).toStrictEqual([]);
   });
 }

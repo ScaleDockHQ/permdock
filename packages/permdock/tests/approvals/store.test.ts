@@ -61,7 +61,7 @@ function pending(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
 describe("memoryApprovalStore", () => {
   it("creates, lists, resolves and expires requests", async () => {
     const store = memoryApprovalStore();
-    store.create(pending());
+    void store.create(pending());
     expect((await store.get("pd1.token-1"))?.status).toBe("pending");
     expect((await store.list({ status: "pending" })).items).toHaveLength(1);
     expect((await store.list({ tenant: "o_1" })).items).toHaveLength(1);
@@ -90,20 +90,20 @@ describe("memoryApprovalStore", () => {
 
   it("keeps a resolved request when the same call asks again", async () => {
     const store = memoryApprovalStore();
-    store.create(pending());
-    store.resolve("pd1.token-1", {
+    void store.create(pending());
+    void store.resolve("pd1.token-1", {
       status: "approved",
       by: subject("u_9", "o_1"),
     });
-    store.create(pending({ detail: "asked again" }));
+    void store.create(pending({ detail: "asked again" }));
     expect((await store.get("pd1.token-1"))?.status).toBe("approved");
     expect((await store.list({ status: "pending" })).items).toHaveLength(0);
   });
 
   it("replaces an expired request on a new ask", async () => {
     const store = memoryApprovalStore();
-    store.create(pending({ expiresAt: past }));
-    store.create(pending());
+    void store.create(pending({ expiresAt: past }));
+    void store.create(pending());
     expect((await store.get("pd1.token-1"))?.status).toBe("pending");
     expect((await store.get("pd1.token-1"))?.expiresAt).toBe(future);
   });
@@ -115,7 +115,7 @@ describe("memoryApprovalStore", () => {
     expect(() =>
       store.resolve("missing", { status: "approved", by: subject("u_9") }),
     ).toThrow("approval was not found");
-    store.create(pending());
+    void store.create(pending());
     expect(() =>
       store.resolve("pd1.token-1", {
         status: "approved",
@@ -126,7 +126,7 @@ describe("memoryApprovalStore", () => {
 
   it("marks stale pending requests expired", async () => {
     const store = memoryApprovalStore();
-    store.create(pending({ expiresAt: past }));
+    void store.create(pending({ expiresAt: past }));
     expect(store.expire({ epochMilliseconds: Date.now() })).toBe(1);
     expect((await store.get("pd1.token-1"))?.status).toBe("expired");
     expect(store.expire({ epochMilliseconds: Date.now() })).toBe(0);
@@ -137,17 +137,19 @@ describe("memoryApprovalStore", () => {
     const store = memoryApprovalStore({
       now: () => ({ epochMilliseconds: later }),
     });
-    store.create(pending());
-    store.create(pending({ id: "apr_2", detail: "asked again" }));
+    void store.create(pending());
+    void store.create(pending({ id: "apr_2", detail: "asked again" }));
     expect((await store.get("pd1.token-1"))?.id).toBe("apr_2");
 
-    store.create(pending({ token: "pd1.token-2", expiresAt: past }));
+    void store.create(pending({ token: "pd1.token-2", expiresAt: past }));
     expect(store.expire()).toBe(2);
 
     const open = memoryApprovalStore({
       now: () => ({ epochMilliseconds: later }),
     });
-    open.create(pending({ expiresAt: new Date(later + 1000).toISOString() }));
+    void open.create(
+      pending({ expiresAt: new Date(later + 1000).toISOString() }),
+    );
     expect(open.cancel?.({}, { by: "u_9" })).toBe(1);
     expect((await open.get("pd1.token-1"))?.resolvedAt).toBe(
       new Date(later).toISOString(),
@@ -156,7 +158,7 @@ describe("memoryApprovalStore", () => {
 
   it("refuses resolve on an expired pending request", () => {
     const store = memoryApprovalStore();
-    store.create(pending({ expiresAt: past }));
+    void store.create(pending({ expiresAt: past }));
     expect(() =>
       store.resolve("pd1.token-1", {
         status: "approved",
@@ -253,7 +255,7 @@ describe("request and resume helpers", () => {
     ).toThrow("approver must be authenticated");
     expect((await store.list({ status: "approved" })).items).toHaveLength(0);
 
-    store.create(pending({ token: "pd1.gone", status: "expired" }));
+    void store.create(pending({ token: "pd1.gone", status: "expired" }));
     expect(await inspectApproval(store, "pd1.gone")).toStrictEqual({
       ok: false,
       cause: "approval-expired",
@@ -270,7 +272,7 @@ describe("request and resume helpers", () => {
         by: { principal: null, context: {} },
       }),
     ).rejects.toThrow("approver must be authenticated");
-    store.create(
+    void store.create(
       pending({
         token: "pd1.old-ok",
         status: "approved",
@@ -287,7 +289,7 @@ describe("request and resume helpers", () => {
 
   it("classifies rejected and expired resumes", async () => {
     const store = memoryApprovalStore();
-    store.create(pending({ token: "pd1.rej" }));
+    void store.create(pending({ token: "pd1.rej" }));
     await resolveApproval(
       store,
       "pd1.rej",
@@ -297,7 +299,7 @@ describe("request and resume helpers", () => {
     const rejected = await inspectApproval(store, "pd1.rej");
     expect(rejected).toStrictEqual({ ok: false, cause: "approval-rejected" });
 
-    store.create(pending({ token: "pd1.old", expiresAt: past }));
+    void store.create(pending({ token: "pd1.old", expiresAt: past }));
     const expired = await inspectApproval(store, "pd1.old");
     expect(expired).toStrictEqual({ ok: false, cause: "approval-expired" });
   });
@@ -343,7 +345,7 @@ describe("request and resume helpers", () => {
 
   it("refuses a principal-as-approver when four-eyes is required", async () => {
     const store = memoryApprovalStore();
-    store.create(pending());
+    void store.create(pending());
     await expect(
       resolveApproval(
         store,
@@ -356,7 +358,7 @@ describe("request and resume helpers", () => {
 
   it("refuses an approver who does not match approval.by", async () => {
     const store = memoryApprovalStore();
-    store.create(
+    void store.create(
       pending({
         approvers: {
           by: { kind: "role", role: "admin", scope: "tenant" },
@@ -387,7 +389,7 @@ describe("request and resume helpers", () => {
 
   it("refuses every approver for a relation approver it cannot check", async () => {
     const store = memoryApprovalStore();
-    store.create(
+    void store.create(
       pending({
         approvers: {
           by: { kind: "relation", resource: "post", relation: "owner" },
@@ -405,10 +407,10 @@ describe("request and resume helpers", () => {
 
   it("cancels pending requests for a session without checking eligibility", async () => {
     const store = memoryApprovalStore();
-    store.create(
+    void store.create(
       pending({ subject: { ...pending().subject, session: "sid-1" } }),
     );
-    store.create(
+    void store.create(
       pending({
         token: "pd1.other",
         subject: { ...pending().subject, session: "sid-2" },
@@ -438,7 +440,7 @@ describe("approvalsHandler", () => {
     readonly store: ReturnType<typeof memoryApprovalStore>;
     readonly fetch: (request: Request) => Promise<Response>;
   } {
-    store.create(pending());
+    void store.create(pending());
     const fetch = approvalsHandler(store, {
       ...(options?.requireDistinctApprover === undefined
         ? {}
@@ -650,7 +652,7 @@ describe("approvalsHandler", () => {
     ).toBe(404);
 
     const bareStore = memoryApprovalStore();
-    bareStore.create(
+    void bareStore.create(
       pending({ subject: { principal: { id: "u_1", roles: ["member"] } } }),
     );
     const bareHandler = approvalsHandler(bareStore, {

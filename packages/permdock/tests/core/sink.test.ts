@@ -32,7 +32,7 @@ const event = (id: string): DecisionEvent => ({
 describe("memoryDecisionSink", () => {
   it("buffers events and drops the oldest past capacity", () => {
     const sink = memoryDecisionSink({ capacity: 2 });
-    sink.write([event("1"), event("2"), event("3")]);
+    void sink.write([event("1"), event("2"), event("3")]);
     expect(
       sink
         .events()

@@ -93,10 +93,10 @@ export function PermDockProvider(
       store
         .get()
         .refresh()
-        .catch(() => undefined)
         .finally(() => {
           inFlight = false;
-        });
+        })
+        .catch(() => undefined);
     };
     const startTimer = (): void => {
       if (typeof mode === "number" && timer === undefined) {

@@ -57,7 +57,7 @@ describe("memoryIdempotencyStore", () => {
       headers: [],
       body: "{}",
     };
-    store.set("expired", response, Date.now() - 1);
+    void store.set("expired", response, Date.now() - 1);
     expect(store.get("expired")).toBeUndefined();
     expect(store.get("expired")).toBeUndefined();
   });

@@ -121,9 +121,9 @@ describe("mmkvStorage", () => {
         instance as Parameters<typeof mmkvStorage>[0],
       );
       expect(storage.getItem("k")).toBeNull();
-      storage.setItem("k", "v");
+      void storage.setItem("k", "v");
       expect(storage.getItem("k")).toBe("v");
-      storage.removeItem("k");
+      void storage.removeItem("k");
       expect(items.size).toBe(0);
     }
   });

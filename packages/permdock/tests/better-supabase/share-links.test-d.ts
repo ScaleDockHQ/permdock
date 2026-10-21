@@ -27,7 +27,7 @@ describe("subjectFromShareLink", () => {
   });
 
   it("refuses a target without a resource", () => {
-    subjectFromShareLink("tok", {
+    void subjectFromShareLink("tok", {
       shareLinks,
       // @ts-expect-error a target names the resource its rows are
       links: { posts: { roles: { view: ["viewer"] } } },

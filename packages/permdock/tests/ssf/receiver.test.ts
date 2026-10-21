@@ -730,8 +730,8 @@ describe("SSF claim helpers", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW * 1000);
     const store = memoryReplayStore();
-    store.remember("a", NOW + 10);
-    store.remember("b");
+    void store.remember("a", NOW + 10);
+    void store.remember("b");
     expect(store.seen("a")).toBe(true);
     vi.setSystemTime((NOW + 11) * 1000);
     expect([store.seen("a"), store.seen("b")]).toStrictEqual([false, true]);

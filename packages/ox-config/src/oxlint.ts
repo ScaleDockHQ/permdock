@@ -200,6 +200,8 @@ export const core: OxlintConfig = defineConfig({
     "typescript/no-explicit-any": "error",
     "typescript/no-floating-promises": "error",
     "typescript/no-misused-promises": "error",
+    "promise/catch-or-return": ["error", { allowThen: true }],
+    "promise/always-return": ["error", { ignoreLastCallback: true }],
     "typescript/no-non-null-assertion": "error",
     "typescript/no-unnecessary-condition": "error",
     "typescript/no-unsafe-argument": "error",
@@ -255,16 +257,14 @@ export const core: OxlintConfig = defineConfig({
     "typescript/no-generated-empty-object-type": "off",
     // Config files (`*.config.ts`) need a default export; `library` turns it back on (193 findings).
     "import/no-default-export": "off",
-    // Promise chains in adapters return the chain; `await` would add a microtask (83 findings).
+    // A promise handed on unresolved cannot be awaited: a Next.js layout passes
+    // `snapshotPromise` to the client so the page streams, and sync Node
+    // handlers end with a fire-and-forget `.catch` (93 findings).
     "promise/prefer-await-to-then": "off",
-    // Callback-style framework hooks (Express, Fastify, Nest) are the adapter contract (14 findings).
+    // Flags every parameter named `callback`, `error`, `next` or `done`, such as
+    // `it.each` rows and MCP handler wrappers, not only continuation-passing
+    // code (22 findings).
     "promise/prefer-await-to-callbacks": "off",
-    // `.then` callbacks that only run a side effect (store writes, UI state) have nothing to return (11 findings).
-    "promise/always-return": "off",
-    // Express `next` and resolver continuations are called from promise callbacks by contract (5 findings).
-    "promise/no-callback-in-promise": "off",
-    // `.then(onFulfilled, onRejected)` handles rejection, which this rule does not recognise (3 findings).
-    "promise/catch-or-return": "off",
   },
   overrides: [
     {
@@ -434,8 +434,6 @@ export const test: OxlintConfig = defineConfig({
     "eslint/require-await": "off",
     // Test doubles return promises without async (217 findings).
     "typescript/promise-function-async": "off",
-    // Store tests fire writes and assert on the next read (50 findings).
-    "typescript/no-floating-promises": "off",
     // Arrow shorthand returns void calls in callbacks (9 findings).
     "typescript/no-confusing-void-expression": "off",
     // `void` marks deliberately ignored promises (15 findings).

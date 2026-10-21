@@ -100,7 +100,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
     if (method === "POST" && path === "/approvals") {
       // SAFETY: the cloud client under test posts the ApprovalRequest it was given.
       const record = (await request.json()) as ApprovalRequest;
-      store.create(record);
+      void store.create(record);
       return new Response(null, { status: 204 });
     }
     const token = request.headers.get("PermDock-Approval") ?? "";
@@ -403,7 +403,7 @@ describe("cloud", () => {
       },
       fetch: backend.fetch,
     });
-    client.sink.write([
+    void client.sink.write([
       {
         type: "directory",
         at: new Date().toISOString(),

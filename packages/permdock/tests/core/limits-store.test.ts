@@ -85,9 +85,9 @@ describe("memoryLimitStore", () => {
 
   it("sweeps only the counters whose window has passed", () => {
     const store = memoryLimitStore();
-    store.consume({ ...input, key: "minute", per: 60 });
-    store.consume({ ...input, key: "day", per: 86_400 });
-    store.consume({
+    void store.consume({ ...input, key: "minute", per: 60 });
+    void store.consume({ ...input, key: "day", per: 86_400 });
+    void store.consume({
       ...input,
       key: "later",
       per: 3600,

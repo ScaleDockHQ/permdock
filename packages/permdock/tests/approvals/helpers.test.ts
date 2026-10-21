@@ -93,8 +93,8 @@ const deletePost = {
 
 function approved(token: string, overrides: Partial<ApprovalRequest> = {}) {
   const store = memoryApprovalStore();
-  store.create(pending(token, overrides));
-  store.resolve(token, { status: "approved", by: approver });
+  void store.create(pending(token, overrides));
+  void store.resolve(token, { status: "approved", by: approver });
   return store;
 }
 
@@ -419,9 +419,9 @@ describe("cancelApprovals", () => {
 
   it("rejects each pending request as the system when the store has no cancel", async () => {
     const inner = memoryApprovalStore();
-    inner.create(pending("a"));
-    inner.create(pending("b"));
-    inner.create(pending("c"));
+    void inner.create(pending("a"));
+    void inner.create(pending("b"));
+    void inner.create(pending("c"));
     const store: ApprovalStore = {
       create: (record) => inner.create(record),
       get: (token) => inner.get(token),
@@ -462,7 +462,7 @@ describe("storedApprovalToken", () => {
   ])("answers %s", async (_label, overrides, denyPending, expected) => {
     const store = memoryApprovalStore();
     if (overrides !== null) {
-      store.create(pending("t1", overrides));
+      void store.create(pending("t1", overrides));
     }
     expect(
       await storedApprovalToken(store, required("t1"), { denyPending }),
@@ -489,7 +489,7 @@ describe("storedApprovalToken", () => {
 
   it("reads expiry against the now option", async () => {
     const store = memoryApprovalStore();
-    store.create(pending("t1", { status: "approved" }));
+    void store.create(pending("t1", { status: "approved" }));
     const later = new Date(Date.parse(future) + 1_000);
     expect([
       await storedApprovalToken(store, required("t1")),

@@ -213,7 +213,7 @@ describe("receiver.push", () => {
 
   it("cancels pending approvals for the revoked session", async () => {
     const store = memoryApprovalStore();
-    store.create({
+    void store.create({
       v: 1,
       id: "apr-ssf",
       token: "pd1.ssf",
@@ -804,7 +804,7 @@ describe("revocations", () => {
       });
       const store = memoryApprovalStore();
       const now = Temporal.Now.instant();
-      store.create({
+      void store.create({
         v: 1,
         id: `apr-${name}`,
         token: `pd1.${name}`,

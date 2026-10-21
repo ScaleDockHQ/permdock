@@ -424,7 +424,7 @@ describe("PROBLEM_EXAMPLES", () => {
   async function approverRefusal(): Promise<Response> {
     const store = memoryApprovalStore();
     const now = Temporal.Now.instant();
-    store.create({
+    void store.create({
       v: 1,
       id: "apr_1",
       token: "pd1.request",

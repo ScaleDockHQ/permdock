@@ -36,12 +36,14 @@ function pending(
 
 function seeded(): ApprovalStore {
   const store = memoryApprovalStore();
-  store.create(pending("own", { id: "u_1", roles: ["member"], tenant: "o_1" }));
-  store.create(
+  void store.create(
+    pending("own", { id: "u_1", roles: ["member"], tenant: "o_1" }),
+  );
+  void store.create(
     pending("acme", { id: "u_2", roles: ["member"], tenant: "o_acme" }),
   );
-  store.create(pending("loose", { id: "u_3", roles: ["member"] }));
-  store.create(pending("anon", null));
+  void store.create(pending("loose", { id: "u_3", roles: ["member"] }));
+  void store.create(pending("anon", null));
   return store;
 }
 
@@ -68,7 +70,7 @@ describe("approvalsHandler GET by id", () => {
 
   it("hides a tenantless request from a principal who may not resolve it", async () => {
     const store = memoryApprovalStore();
-    store.create({
+    void store.create({
       ...pending("closed", { id: "u_3", roles: ["member"] }),
       approvers: { by: { kind: "user", id: "u_8" } },
     });
@@ -89,7 +91,7 @@ describe("approvalsHandler GET by id", () => {
 
   it("keeps a resolved tenantless request visible to who resolved it", async () => {
     const store = memoryApprovalStore();
-    store.create({
+    void store.create({
       ...pending("done", { id: "u_3", roles: ["member"] }),
       approvers: { by: { kind: "user", id: "u_8" } },
     });
@@ -233,7 +235,7 @@ describe("approvalsHandler HTTP semantics", () => {
 
   function closed(): ApprovalStore {
     const store = memoryApprovalStore();
-    store.create({
+    void store.create({
       ...pending("closed", { id: "u_3", roles: ["member"] }),
       approvers: { by: { kind: "user", id: "u_8" } },
     });
@@ -348,7 +350,7 @@ describe("approvalsHandler HTTP semantics", () => {
 
   it("serves the signature to an earlier quorum approver and not to a stranger, and 404s an undecodable id", async () => {
     const store = memoryApprovalStore();
-    store.create({
+    void store.create({
       ...pending("quorum", { id: "u_3", roles: ["member"] }),
       status: "approved",
       approvals: [

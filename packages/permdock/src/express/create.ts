@@ -54,6 +54,7 @@ export type ExpressPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
 };
 
 function run(work: () => Promise<void>, next: (err?: unknown) => void): void {
+  // oxlint-disable-next-line promise/no-callback-in-promise -- Express takes a failure through `next`
   work().catch(next);
 }
 

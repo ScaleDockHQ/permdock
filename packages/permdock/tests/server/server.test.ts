@@ -238,7 +238,7 @@ describe("permdock/server", () => {
     if (required.outcome !== "approval-required") {
       throw new Error("expected approval-required");
     }
-    store.create({
+    void store.create({
       v: 1,
       id: "r1",
       token: required.token,

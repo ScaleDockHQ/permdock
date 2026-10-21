@@ -678,18 +678,20 @@ export function memoryDecisionSink(
       if (options.signer === undefined) {
         return;
       }
-      return signDecisionBatch(
-        events,
-        options.signer,
-        compact<SignDecisionBatchOptions>({
-          audience: options.audience,
-          source: options.source,
-        }),
-      )
-        .then((batch) => {
-          signed.push(batch);
-        })
-        .catch(() => undefined);
+      const { signer } = options;
+      const sign = async (): Promise<void> => {
+        signed.push(
+          await signDecisionBatch(
+            events,
+            signer,
+            compact<SignDecisionBatchOptions>({
+              audience: options.audience,
+              source: options.source,
+            }),
+          ),
+        );
+      };
+      return sign().catch(() => undefined);
     },
     events(): readonly SinkEvent[] {
       return [...buffer];

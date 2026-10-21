@@ -32,8 +32,6 @@ export default defineConfig({
     // JSX renders optional strings behind a truthiness check (5 findings).
     "typescript/strict-boolean-expressions": "off",
     // The copy button takes an async click handler (1 finding).
-    "typescript/no-misused-promises": "off",
-    // The copy button takes an async click handler (1 finding).
     "typescript/strict-void-return": "off",
     // Effects return a cleanup only when they start a timer (1 finding).
     "typescript/consistent-return": "off",
