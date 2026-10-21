@@ -115,6 +115,18 @@ insert into public.invoice values
 `;
 }
 
+// An owner-rights RPC: it reads every row past RLS and column grants, so only
+// the generated mask function stands between it and the restricted columns.
+const REPORT = `
+create function public.invoice_report() returns setof public.invoice
+language sql stable security definer set search_path = ''
+as $$
+  select m.* from public.invoice i cross join lateral permdock.invoice_mask(i) m order by i.id
+$$;
+revoke all on function public.invoice_report() from public;
+grant execute on function public.invoice_report() to authenticated;
+`;
+
 type Subject = {
   readonly id: string;
   readonly roles?: readonly string[];
@@ -168,7 +180,7 @@ function configFor(shape: Shape): string {
   const rls = {
     dialect: shape.dialect,
     tenantType: "text",
-    fields: "views",
+    fields: "mask",
     revokeColumns: shape.revoke,
   };
   return `export default ${JSON.stringify(
@@ -340,6 +352,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
             STUBS[shape.dialect],
             tableSql(shape.dialect),
             readFileSync(out, "utf8"),
+            REPORT,
           ].join("\n"),
         );
       } catch (cause) {
@@ -464,6 +477,42 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
       } else {
         expect(direct.rows).toEqual([{ note: "other note" }]);
       }
+    },
+  );
+
+  it.each(SHAPES)(
+    "$dialect revoke=$revoke: an owner-rights RPC masks each row like the view",
+    async (shape) => {
+      const s = clients.get(shapeName(shape));
+      if (s === undefined) {
+        throw new Error("PermDock: database missing");
+      }
+      const settings = financeSettings(shape.dialect);
+      const masked = await asRole(s, "authenticated", settings, async () =>
+        s.query("select * from public.invoice_report()"),
+      );
+      const visible = await asRole(s, "authenticated", settings, async () =>
+        s.query("select * from invoice_visible order by id"),
+      );
+      expect(masked.code).toBeUndefined();
+      expect(
+        masked.rows.map((row) => [
+          row["id"],
+          row["orgId"],
+          row["amount"],
+          row["note"],
+          row["title"],
+        ]),
+      ).toEqual([
+        ["i-globex", null, null, null, "Globex"],
+        ["i-other", "acme", 200, null, "Other"],
+        ["i-own", "acme", 100, null, "Own"],
+        ["i-public", null, null, null, "Public"],
+      ]);
+      const ids = new Set(visible.rows.map((row) => row["id"]));
+      expect(masked.rows.filter((row) => ids.has(row["id"]))).toEqual(
+        visible.rows,
+      );
     },
   );
 

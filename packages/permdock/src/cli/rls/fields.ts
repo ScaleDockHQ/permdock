@@ -24,6 +24,8 @@ export const FIELD_VIEWS = {
   key: "permdock_key",
   /** Marks the companion so doctor PD022 knows it reads as its owner on purpose. */
   comment: "permdock:field-companion",
+  /** `<table>_mask(p_row)`: the row-masking function `fields: 'mask'` adds. */
+  mask: "_mask",
 } as const;
 
 export type FieldColumn = {
@@ -43,6 +45,8 @@ export type FieldView = {
   readonly roles: readonly string[];
   /** Set with `--revoke-columns`. */
   readonly companion?: string;
+  /** `<helper schema>.<table>_mask`, set with `fields: 'mask'`. */
+  readonly maskFunction?: string;
 };
 
 function covers(branch: CompiledBranch, column: string): boolean {
@@ -141,14 +145,19 @@ export function viewName(table: string, suffix: string): string {
 }
 
 /**
- * `<helper schema>.<table>_visible_fields`: outside the Data API's schemas,
- * so its owner rights reach clients only through the `_visible` join.
+ * `<helper schema>.<table><suffix>`: outside the Data API's schemas, so the
+ * companion's owner rights reach clients only through the `_visible` join and
+ * the mask function is neither an RPC nor a computed field.
  */
-function companionName(ctx: RlsSqlContext, table: string): string {
+function helperObjectName(
+  ctx: RlsSqlContext,
+  table: string,
+  suffix: string,
+): string {
   const base = table.startsWith("public.")
     ? table.slice("public.".length)
     : table.replaceAll(".", "_");
-  return `${helperSchema(ctx)}.${viewName(base, FIELD_VIEWS.companion)}`;
+  return `${helperSchema(ctx)}.${viewName(base, suffix)}`;
 }
 
 /**
@@ -160,7 +169,11 @@ export function fieldViews(
   policy: Policy,
   ctx: RlsSqlContext,
   branches: readonly CompiledBranch[],
-  options: { readonly revokeColumns: boolean; readonly helpersOnly?: boolean },
+  options: {
+    readonly revokeColumns: boolean;
+    readonly helpersOnly?: boolean;
+    readonly mask?: boolean;
+  },
   warnings: string[],
 ): readonly FieldView[] {
   const byTable = new Map<string, CompiledBranch[]>();
@@ -186,7 +199,7 @@ export function fieldViews(
     const names = schemaColumns(policy, resource);
     if (names === undefined) {
       throw configError(
-        `PermDock CLI: --fields views needs the ${resource} schema's JSON Schema (Standard JSON Schema) to list the columns of ${table}`,
+        `PermDock CLI: --fields ${options.mask === true ? "mask" : "views"} needs the ${resource} schema's JSON Schema (Standard JSON Schema) to list the columns of ${table}`,
       );
     }
     const key = policy.resources.get(resource)?.id ?? "id";
@@ -238,7 +251,12 @@ export function fieldViews(
         ? ["anon", "authenticated"]
         : ["authenticated"],
       ...(options.revokeColumns
-        ? { companion: companionName(ctx, table) }
+        ? {
+            companion: helperObjectName(ctx, table, FIELD_VIEWS.companion),
+          }
+        : {}),
+      ...(options.mask === true
+        ? { maskFunction: helperObjectName(ctx, table, FIELD_VIEWS.mask) }
         : {}),
     });
   }
@@ -335,6 +353,41 @@ export function columnRevokeSql(view: FieldView): string {
 }
 
 /**
+ * `<table>_mask(p_row)`: the row with each restricted column the caller may
+ * not read set to null, by the same masks as the view. It reads only the row
+ * it is given, so its caller decides which rows; `security invoker`, because
+ * it needs nothing beyond the helpers the masks call. The body names the
+ * parameter `$1`, since a column called `p_row` would shadow the name.
+ */
+function maskFunctionSql(view: FieldView, fn: string): string {
+  const table = quoteQualified(view.table);
+  const name = quoteQualified(fn);
+  const nulls = view.columns.flatMap((column) =>
+    column.mask === undefined
+      ? []
+      : [
+          `case when ${column.mask} then '{}'::jsonb else pg_catalog.jsonb_build_object(${quoteLiteral(column.name)}, null) end`,
+        ],
+  );
+  return `-- ${fn}: a row of ${view.table} with ${restrictedColumns(view).join(", ")} null unless a read grant covers the column for the row, for SQL that reads ${view.table} without ${view.view}
+create or replace function ${name}(p_row ${table})
+returns ${table}
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select pg_catalog.jsonb_populate_record(
+    $1,
+    ${nulls.join("\n    || ")}
+  )
+  from (select ($1).*) r
+$$;
+revoke all on function ${name}(${table}) from public, anon, authenticated;
+grant execute on function ${name}(${table}) to ${view.roles.join(", ")};`;
+}
+
+/**
  * The view SQL: the `security_invoker` view, and with `--revoke-columns` the
  * owner-rights companion it joins for the restricted columns. The companion
  * masks every column with the full field decision and keeps only rows where
@@ -344,11 +397,16 @@ export function fieldViewsSql(views: readonly FieldView[]): string {
   return views
     .map((view) => {
       const head = `-- field view over ${view.table}: ${restrictedColumns(view).join(", ")} read as null unless a read grant covers the column for the row`;
+      const mask =
+        view.maskFunction === undefined
+          ? []
+          : [maskFunctionSql(view, view.maskFunction)];
       if (view.companion === undefined) {
         return [
           head,
           inlineViewSql(view),
           grantView(view.view, view.roles),
+          ...mask,
         ].join("\n");
       }
       return [
@@ -358,6 +416,7 @@ export function fieldViewsSql(views: readonly FieldView[]): string {
         grantView(view.companion, view.roles),
         joinedViewSql(view, view.companion),
         grantView(view.view, view.roles),
+        ...mask,
       ].join("\n");
     })
     .join("\n\n");

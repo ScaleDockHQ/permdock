@@ -19,7 +19,7 @@ Flags
   --tenant-type <type>                   Postgres type of the tenant column
   --custom-roles                         Emit the custom role tables and helpers
   --capabilities                         Emit the link capability helpers
-  --fields <views>                       Field security
+  --fields <views|mask>                  Field security
   --revoke-columns                       Revoke restricted columns on the table
   --helpers-only                         Write the helpers and keep the policies hand-written
   --shims                                Wrap each rls.migrate helper under its legacy name

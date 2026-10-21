@@ -206,7 +206,7 @@ export async function pd030(
       continue;
     }
     const table = tableFor(resource, tableNames(rls.tables));
-    if (rls.fields !== "views") {
+    if (rls.fields === undefined) {
       findings.push({
         code: "PD030",
         severity: "warning",

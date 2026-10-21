@@ -233,11 +233,13 @@ describe("permdock rls generate --fields views", () => {
     const unknown = await generate(cwd, ["--fields", "columns"]);
     expect(unknown.code).toBe(2);
     expect(unknown.stderr).toContain(
-      "rls generate: --fields 'columns' is not one of views.",
+      "rls generate: --fields 'columns' is not one of views, mask.",
     );
     const alone = await generate(cwd, ["--revoke-columns"]);
     expect(alone.code).toBe(2);
-    expect(alone.stderr).toContain("--revoke-columns needs --fields views");
+    expect(alone.stderr).toContain(
+      "--revoke-columns needs --fields views or mask",
+    );
   });
 
   it("reads fields and revokeColumns from the rls config", async () => {
@@ -292,6 +294,105 @@ export const permissions = definePermissions({
     expect(result.code).not.toBe(0);
     expect(`${result.stdout}${result.stderr}`).toContain(
       "--fields views needs the invoice schema's JSON Schema",
+    );
+  });
+});
+
+function functionOf(sql: string, name: string): string {
+  const start = sql.indexOf(`create or replace function "permdock"."${name}"`);
+  return start === -1 ? "" : sql.slice(start, sql.indexOf("$$;", start) + 3);
+}
+
+describe("permdock rls generate --fields mask", () => {
+  it("adds a row-masking function per field view and leaves views mode without one", async () => {
+    const cwd = appCopy();
+    const views = await generate(cwd, ["--fields", "views"]);
+    expect(views.sql).not.toContain("invoice_mask");
+    const { code, sql } = await generate(cwd, ["--fields", "mask"]);
+    expect(code).toBe(0);
+    expect(viewOf(sql, "invoice_visible")).toBe(
+      viewOf(views.sql, "invoice_visible"),
+    );
+    const fn = functionOf(sql, "invoice_mask");
+    expect(fn).toContain('"permdock"."invoice_mask"(p_row "public"."invoice")');
+    expect(fn).toContain('returns "public"."invoice"');
+    expect(fn).toContain("security invoker");
+    expect(fn).toContain("set search_path = ''");
+    expect(fn).toContain("pg_catalog.jsonb_populate_record(\n    $1,");
+    expect(fn).toContain("from (select ($1).*) r");
+    expect(fn).not.toContain("security definer");
+    for (const column of ["orgId", "authorId", "amount", "note"]) {
+      expect(fn).toContain(
+        `else pg_catalog.jsonb_build_object('${column}', null) end`,
+      );
+    }
+    expect(fn).not.toContain("'id', null");
+    expect(fn).not.toContain("'title', null");
+    const viewMask = (column: string): string =>
+      /case when (.*) then "\w+" end as/u.exec(
+        viewOf(sql, "invoice_visible")
+          .split("\n")
+          .find((line) => line.includes(`"${column}" end`)) ?? "",
+      )?.[1] ?? "";
+    const fnMask = (column: string): string =>
+      /case when (.*) then '\{\}'::jsonb/u.exec(
+        fn.split("\n").find((line) => line.includes(`'${column}', null`)) ?? "",
+      )?.[1] ?? "";
+    for (const column of ["amount", "note"]) {
+      expect(fnMask(column)).not.toBe("");
+      expect(fnMask(column)).toBe(viewMask(column));
+    }
+    expect(sql).toContain(
+      'revoke all on function "permdock"."invoice_mask"("public"."invoice") from public, anon, authenticated;',
+    );
+    expect(sql).toContain(
+      'grant execute on function "permdock"."invoice_mask"("public"."invoice") to anon, authenticated;',
+    );
+    expect(sql).not.toMatch(/service_role/iu);
+  });
+
+  it("keeps the function beside the companion with --revoke-columns and in the Drizzle migration", async () => {
+    const cwd = appCopy();
+    const { code, sql } = await generate(cwd, [
+      "--fields",
+      "mask",
+      "--revoke-columns",
+    ]);
+    expect(code).toBe(0);
+    expect(viewOf(sql, "invoice_visible_fields", "permdock")).not.toBe("");
+    expect(functionOf(sql, "invoice_mask")).not.toBe("");
+    const drizzle = await generate(
+      cwd,
+      ["--fields", "mask"],
+      "drizzle",
+      "policies.ts",
+    );
+    expect(drizzle.code).toBe(0);
+    expect(readFileSync(join(cwd, "policies.migration.sql"), "utf8")).toContain(
+      'create or replace function "permdock"."invoice_mask"',
+    );
+  });
+
+  it("reads fields: 'mask' from the rls config, and the views still import", async () => {
+    const cwd = appCopy();
+    writeFileSync(
+      join(cwd, "permdock.config.ts"),
+      `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/policy.ts',
+  rls: { dialect: 'supabase', tenantType: 'text', fields: 'mask' },
+};
+`,
+    );
+    const { sql } = await generate(cwd, []);
+    expect(functionOf(sql, "invoice_mask")).not.toBe("");
+    const imported = await run(
+      ["rls", "import", "--sql", "rls.sql", "--out", "generated.ts"],
+      { cwd },
+    );
+    expect(imported.code).toBe(0);
+    expect(imported.stdout).toContain(
+      "field view invoice_visible over invoice: orgId, authorId, amount, note are field-limited",
     );
   });
 });
@@ -383,6 +484,10 @@ describe("permdock doctor field views", () => {
     expect(await findings(`, fields: 'views', revokeColumns: true`)).toEqual(
       [],
     );
+    expect(await findings(`, fields: 'mask'`)).toEqual([
+      "invoice_visible masks orgId, authorId, amount, note, but invoice still returns them to a direct read",
+    ]);
+    expect(await findings(`, fields: 'mask', revokeColumns: true`)).toEqual([]);
   });
 
   it("PD022 leaves the generated companion alone", async () => {
