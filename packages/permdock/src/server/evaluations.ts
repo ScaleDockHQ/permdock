@@ -63,13 +63,16 @@ export function unknownSemanticProblem(): Response {
  * Evaluates `items` under `semantic`: all at once for `execute_all`, else in
  * order, stopping after the first deny or permit.
  */
-export async function evaluateBatch<T extends { readonly decision: boolean }>(
-  items: readonly unknown[],
+export async function evaluateBatch<
+  T extends { readonly decision: boolean },
+  I = unknown,
+>(
+  items: readonly I[],
   semantic: EvaluationsSemantic,
-  rowOf: (item: unknown) => Promise<T>,
+  rowOf: (item: I) => Promise<T>,
 ): Promise<T[]> {
   if (semantic === "execute_all") {
-    return Promise.all(items.map(rowOf));
+    return Promise.all(items.map((item) => rowOf(item)));
   }
   const stopOn = semantic === "permit_on_first_permit";
   const rows: T[] = [];
