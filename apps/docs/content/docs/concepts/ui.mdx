@@ -158,7 +158,7 @@ Provider hooks such as Clerk's `useOrganization`, Better Auth's `useActiveOrgani
 ```tsx
 const memberships = useMemberships(); // Membership[] from the snapshot
 const roles = useRoles(); // Role[] held in the active tenant
-const { roles: teamRoles } = useRoles({ team: "t_design" });
+const { roles: teamRoles } = useRoles({ scope: "team", id: "t_design" }); // only that team's memberships
 ```
 
 Render a "Your roles in Acme" chip list from `useRoles()`, an organisation list from `useMemberships()` filtered to `tenant` entries, and a shared-with-me list from `on` entries. The display label for a role is `role.meta.title` on the `Role` leaf; the snapshot's `vocabulary` carries it, so the client needs no catalog for titles.

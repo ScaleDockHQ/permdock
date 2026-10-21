@@ -119,14 +119,15 @@ export function useRoles(options: RolesOptions = {}): {
   readonly roles: readonly Role[];
 } {
   const permdock = usePermDock();
-  const { tenant, team } = options;
+  const { tenant, scope, id } = options;
   return useMemo(
     () =>
       rolesView(permdock, {
         ...(tenant === undefined ? {} : { tenant }),
-        ...(team === undefined ? {} : { team }),
+        ...(scope === undefined ? {} : { scope }),
+        ...(id === undefined ? {} : { id }),
       }),
-    [permdock, tenant, team],
+    [permdock, tenant, scope, id],
   );
 }
 

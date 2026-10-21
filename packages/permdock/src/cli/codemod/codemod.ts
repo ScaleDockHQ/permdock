@@ -11,7 +11,7 @@ import { rel } from "../files.ts";
 import { rewriteCliCalls } from "./cli-calls.ts";
 import { moveConfigKeys } from "./config-moves.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
-import { CONFIG_MOVES_0_8 } from "./renames-0.8.ts";
+import { CONFIG_MOVES_0_8, SIGNATURE_CHANGES_0_8 } from "./renames-0.8.ts";
 import {
   AWAIT_RENAMES_0_5,
   CALL_RENAMES_0_5,
@@ -38,7 +38,7 @@ export const CODEMOD_0_5: RenameSet = Object.freeze({
 
 export const CODEMOD_0_8: RenameSet = Object.freeze({
   renames: [],
-  signatures: [],
+  signatures: SIGNATURE_CHANGES_0_8,
   configMoves: CONFIG_MOVES_0_8,
 });
 

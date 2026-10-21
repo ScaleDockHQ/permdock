@@ -60,7 +60,16 @@ export type TenantView = {
 
 export type FilterResult<T> = readonly T[] & { readonly partial: boolean };
 
-export type RolesOptions = { readonly tenant?: string; readonly team?: string };
+/**
+ * Which held roles `useRoles` lists: those of a tenant (the active one by
+ * default), or only those on the memberships of one `scope`, and of one
+ * instance `id` of it.
+ */
+export type RolesOptions = {
+  readonly tenant?: string;
+  readonly scope?: string;
+  readonly id?: string;
+};
 
 /**
  * The provider options Vue, Svelte and Solid share; each adds its own reactive

@@ -655,6 +655,18 @@ describe("the codemod module", () => {
       );
     });
 
+    it("reports a 0.8 useRoles call that may pass team", async () => {
+      const source =
+        'import { useRoles } from "permdock/react";\nexport const roles = () => useRoles({ team: "t1" });\n';
+      const dir = project({ "src/roles.ts": source });
+      const result = await run(["codemod", "0.8", "--cwd", dir]);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain(
+        '`useRoles({ team: id })` is now `useRoles({ scope: "team", id })`',
+      );
+      expect(readFileSync(join(dir, "src/roles.ts"), "utf8")).toBe(source);
+    });
+
     it("writes nothing on a dry run and reports JSON", async () => {
       const dir = project(files);
       const result = await run([

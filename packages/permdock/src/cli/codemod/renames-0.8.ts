@@ -1,4 +1,5 @@
 import type { ConfigMove } from "./config-moves.ts";
+import type { SignatureChange } from "./renames-0.5.ts";
 
 const MEMBERSHIP_TABLES = [
   ["rls", "memberships", "scopes", "*"],
@@ -27,4 +28,29 @@ export const CONFIG_MOVES_0_8: readonly ConfigMove[] = Object.freeze([
       to: [...table, "columns", scope],
     })),
   ),
+]);
+
+/**
+ * 0.8 drops `team` from the client `RolesOptions`; `{ scope, id }` names any
+ * scope. Reported, since only the reader knows the scope a `team` id belongs
+ * to.
+ */
+export const SIGNATURE_CHANGES_0_8: readonly SignatureChange[] = Object.freeze([
+  {
+    name: "useRoles",
+    entries: [
+      "permdock/react",
+      "permdock/react-native",
+      "permdock/vue",
+      "permdock/solid",
+    ],
+    before: "useRoles({ team: id })",
+    after: 'useRoles({ scope: "team", id })',
+  },
+  ...["roles", "rolesFor"].map((name) => ({
+    name,
+    entries: ["permdock/svelte"],
+    before: `${name}(() => ({ team: id }))`,
+    after: `${name}(() => ({ scope: "team", id }))`,
+  })),
 ]);

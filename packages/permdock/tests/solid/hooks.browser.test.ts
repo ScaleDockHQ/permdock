@@ -131,7 +131,7 @@ describe("permdock/solid hooks", () => {
       () => {
         const tenant = useTenant();
         const acme = useRoles(() => ({ tenant: "acme" }));
-        const team = useRoles(() => ({ team: "no-such-team" }));
+        const team = useRoles(() => ({ scope: "team", id: "no-such-team" }));
         const held = useRoles();
         const assignable = useAssignableRoles();
         const leaves = useAssignablePermissions();
@@ -155,7 +155,7 @@ describe("permdock/solid hooks", () => {
       },
     );
     expect(view.root.textContent).toBe(
-      "acme:acme,globex:admin:admin:admin:admin,member,viewer:true:alice:false",
+      "acme:acme,globex:admin::admin:admin,member,viewer:true:alice:false",
     );
     await switchTo?.("globex");
     expect(view.root.textContent?.startsWith("globex:")).toBe(true);

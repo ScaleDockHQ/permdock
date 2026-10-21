@@ -83,12 +83,12 @@ export function rolesView(
   permdock: ClientPermDock,
   options: RolesOptions,
 ): { readonly roles: readonly Role[] } {
-  const scoped =
-    options.team === undefined ? permdock : permdock.team(options.team);
   return {
-    roles: scoped.heldRoles(
-      options.tenant === undefined ? undefined : { tenant: options.tenant },
-    ),
+    roles: permdock.heldRoles({
+      ...(options.tenant === undefined ? {} : { tenant: options.tenant }),
+      ...(options.scope === undefined ? {} : { scope: options.scope }),
+      ...(options.id === undefined ? {} : { id: options.id }),
+    }),
   };
 }
 
