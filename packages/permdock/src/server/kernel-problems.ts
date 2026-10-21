@@ -4,6 +4,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
 
 import { compact } from "../core/compact.ts";
+import { LOAD_FAILED } from "../core/decision.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { problemDetails } from "../core/problem-details.ts";
 import { decisionResponse, problemFromDecision } from "./problem.ts";
@@ -12,13 +13,6 @@ export const NOT_DELEGATED: Extract<Decision, { readonly outcome: "denied" }> =
   freezeDeep({
     outcome: "denied",
     denials: [{ role: null, reason: "not-delegated" }],
-    alternatives: [],
-  });
-
-export const LOAD_FAILED: Extract<Decision, { readonly outcome: "denied" }> =
-  freezeDeep({
-    outcome: "denied",
-    denials: [{ role: null, reason: "validation" }],
     alternatives: [],
   });
 

@@ -10,6 +10,7 @@ export type {
 } from "../core/snapshot-cache.ts";
 export { createPermDock } from "./create.ts";
 export type {
+  ActionResult,
   GetPermDockQuery,
   GetSnapshotQuery,
   NextPermDock,
@@ -17,5 +18,10 @@ export type {
   PermDockHandler,
   PermissionRequirementOptions,
   NextPermDockProviderProps,
+  ProtectAction,
+  ProtectActionOptions,
+  ProtectedAction,
+  ProtectedActionContext,
+  ProtectedActionHandler,
   ServerPermissionState,
 } from "./types.ts";

@@ -33,6 +33,8 @@ const TRUSTED_SITES: Readonly<Record<string, string>> = {
   "authzen/create.ts:loaded": "a row the application `load` read by id",
   "authzen/search.ts:decide":
     "decideAuthzen forwards the loaded flag `authzen/create.ts` sets",
+  "next/action.ts":
+    "the row the application `data` loader read, after `input` validated the argument",
   "server/route-guard.ts": "the application opted in through protect options",
   "server/connection.ts": "the application opted in on the check",
 };
