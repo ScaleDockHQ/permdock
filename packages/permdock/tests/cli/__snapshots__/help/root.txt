@@ -20,6 +20,7 @@ Database
   rls        Generate, import, verify or migrate Postgres RLS policies
   supabase   Generate the Supabase Custom Access Token Hook, or inspect its manifest
   powersync  Generate PowerSync Sync Streams from the policy, or verify them
+  scim       Generate the Postgres tables postgresDirectoryStore keeps a SCIM directory in
 
 Interop
   openapi  Emit security into an OpenAPI document, or import one into a definition
