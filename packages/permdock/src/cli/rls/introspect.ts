@@ -44,7 +44,11 @@ export type ExpectedRls = {
   readonly grants: Readonly<
     Record<string, Readonly<Record<string, readonly Privilege[]>>>
   >;
-  /** `security definer` functions, as `schema.name`. */
+  /**
+   * `security definer` functions, as `schema.name(type, …)` with the input
+   * parameter types `oidvectortypes` prints; `*` stands for a `%type`
+   * reference.
+   */
   readonly helpers: readonly string[];
   /**
    * The indexes the policies and helpers read through; only their first column
@@ -93,15 +97,152 @@ export function normalizeTableName(table: string): string {
 const FUNCTION_HEADER =
   /create or replace function ("?)([A-Za-z_][\w$]*)\1\.("?)([A-Za-z_][\w$]*)\3\s*\(([\s\S]*?)\nas \$/gu;
 
+const TYPE_ALIASES: Readonly<Record<string, string>> = {
+  int: "integer",
+  int4: "integer",
+  int2: "smallint",
+  int8: "bigint",
+  bool: "boolean",
+  varchar: "character varying",
+  char: "character",
+  float4: "real",
+  float8: "double precision",
+  timestamp: "timestamp without time zone",
+  timestamptz: "timestamp with time zone",
+  time: "time without time zone",
+  timetz: "time with time zone",
+};
+
+/**
+ * A parameter type as `oidvectortypes` prints it: lower case, no quotes, no
+ * schema, no type modifier, aliases spelled out. A `%type` reference is `*`,
+ * which matches any type.
+ */
+function normalizeParameterType(type: string): string {
+  const text = type.trim().toLowerCase().replaceAll('"', "");
+  if (text.endsWith("%type")) {
+    return "*";
+  }
+  const array = /(?:\[\d*\])+$/u.exec(text)?.[0] ?? "";
+  const base = text
+    .slice(0, text.length - array.length)
+    .replaceAll(/\([^)]*\)/gu, "")
+    .replaceAll(/\s+/gu, " ")
+    .trim();
+  const unqualified = /^[\w$]+(?:\.[\w$]+)+$/u.test(base)
+    ? (base.split(".").at(-1) ?? base)
+    : base;
+  return `${TYPE_ALIASES[unqualified] ?? unqualified}${"[]".repeat(array.split("[").length - 1)}`;
+}
+
+function splitTopLevel(text: string): readonly string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let quoted = false;
+  let start = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "'") {
+      quoted = !quoted;
+    } else if (!quoted && char === "(") {
+      depth += 1;
+    } else if (!quoted && char === ")") {
+      depth -= 1;
+    } else if (!quoted && depth === 0 && char === ",") {
+      parts.push(text.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts.map((part) => part.trim()).filter((part) => part !== "");
+}
+
+/**
+ * The input parameter types of a function header that starts after its opening
+ * parenthesis. Every generated parameter is named, so the first word of a
+ * parameter with more than one is its name.
+ */
+function parameterTypes(header: string): readonly string[] {
+  let depth = 0;
+  let end = header.length;
+  for (let index = 0; index < header.length; index += 1) {
+    const char = header[index];
+    if (char === "(") {
+      depth += 1;
+    } else if (char === ")") {
+      if (depth === 0) {
+        end = index;
+        break;
+      }
+      depth -= 1;
+    }
+  }
+  return splitTopLevel(header.slice(0, end)).flatMap((parameter) => {
+    const plain = parameter.replace(/\s+(?:default\b|=)[\s\S]*$/iu, "");
+    const words = plain.split(/\s+/u);
+    const mode = words[0]?.toLowerCase();
+    if (mode === "out") {
+      return [];
+    }
+    const rest =
+      mode === "in" || mode === "inout" || mode === "variadic"
+        ? words.slice(1)
+        : words;
+    return [
+      normalizeParameterType(
+        (rest.length > 1 ? rest.slice(1) : rest).join(" "),
+      ),
+    ];
+  });
+}
+
+/** `schema.name(type, type)`, the key a helper is checked by. */
+function signatureOf(name: string, types: readonly string[]): string {
+  return `${name}(${types.join(", ")})`;
+}
+
 function helpersOf(sql: string): readonly string[] {
   const found = new Set<string>();
   for (const match of sql.matchAll(FUNCTION_HEADER)) {
-    const [header = "", , schema = "", , name = ""] = match;
+    const [header = "", , schema = "", , name = "", rest = ""] = match;
     if (/\bsecurity definer\b/u.test(header)) {
-      found.add(`${schema}.${name}`);
+      found.add(signatureOf(`${schema}.${name}`, parameterTypes(rest)));
     }
   }
   return [...found];
+}
+
+function nameOfSignature(signature: string): string {
+  return signature.slice(0, signature.indexOf("("));
+}
+
+function typesOfSignature(signature: string): readonly string[] {
+  return splitTopLevel(
+    signature.slice(signature.indexOf("(") + 1, signature.lastIndexOf(")")),
+  ).map(normalizeParameterType);
+}
+
+/** The actual overload `expected` names; `*` matches any parameter type. */
+function matchHelper(
+  expected: string,
+  actual: ActualRls["helpers"],
+): ActualRls["helpers"][string] | undefined {
+  if (Object.hasOwn(actual, expected)) {
+    return actual[expected];
+  }
+  const name = nameOfSignature(expected);
+  const want = typesOfSignature(expected);
+  for (const [signature, helper] of Object.entries(actual)) {
+    const have = typesOfSignature(signature);
+    if (
+      nameOfSignature(signature) === name &&
+      have.length === want.length &&
+      want.every((type, index) => type === "*" || type === have[index])
+    ) {
+      return helper;
+    }
+  }
+  return undefined;
 }
 
 export function expectedRls(
@@ -309,7 +450,7 @@ export function diffRls(
     }
   }
   for (const helper of expected.helpers) {
-    const have = actual.helpers[helper];
+    const have = matchHelper(helper, actual.helpers);
     if (have === undefined) {
       out.push(
         rlsFinding(
@@ -360,7 +501,7 @@ where grantee in ('anon', 'anonymous', 'authenticated')
   and lower(privilege_type) in ('select', 'insert', 'update', 'delete')
   and table_schema || '.' || table_name = any($1::text[])`;
 
-const HELPERS_SQL = `select n.nspname || '.' || p.proname as target, p.prosecdef as definer,
+const HELPERS_SQL = `select n.nspname || '.' || p.proname || '(' || oidvectortypes(p.proargtypes) || ')' as target, p.prosecdef as definer,
   coalesce(array_to_string(p.proconfig, ','), '') as config
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
@@ -395,7 +536,9 @@ export async function introspectRls(
         client.query(POLICIES_SQL, [tables]),
         client.query(TABLES_SQL, [tables]),
         client.query(GRANTS_SQL, [tables]),
-        client.query(HELPERS_SQL, [[...expected.helpers]]),
+        client.query(HELPERS_SQL, [
+          [...new Set(expected.helpers.map(nameOfSignature))],
+        ]),
         client.query(INDEX_COLUMNS_SQL, [indexed]),
         client.query(COLUMNS_SQL, [indexed]),
       ]);
@@ -437,7 +580,10 @@ export async function introspectRls(
       grants: byTable,
       helpers: Object.fromEntries(
         helpers.rows.map((row) => [
-          String(row["target"]),
+          signatureOf(
+            nameOfSignature(String(row["target"])),
+            typesOfSignature(String(row["target"])),
+          ),
           {
             securityDefiner: row["definer"] === true,
             emptySearchPath: String(row["config"])

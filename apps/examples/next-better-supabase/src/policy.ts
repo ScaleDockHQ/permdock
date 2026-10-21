@@ -27,6 +27,7 @@ export const policy = definePolicy(
             permissions.quotes.update,
             permissions.audit.view,
             permissions.audit.revert,
+            permissions.roles.manage,
           ]),
         ],
         { on: "organization", min: 1 },

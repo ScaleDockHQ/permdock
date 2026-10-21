@@ -96,6 +96,11 @@ export function buildCatalog(
         renamedFrom:
           formerKeys(leaf).length === 0 ? undefined : formerKeys(leaf),
         levels: leafLevels(tree, leaf),
+        orderedLevels:
+          leaf.kind === "instance" &&
+          getResource(tree, leaf.resource)?.orderedLevels === true
+            ? (true as const)
+            : undefined,
         hostable: hostable.has(leaf.key) ? (true as const) : undefined,
         rowConditions: rowConditions?.has(leaf.key) ?? true,
         approvals: approvals.get(leaf.key),

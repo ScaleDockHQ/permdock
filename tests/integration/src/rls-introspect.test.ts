@@ -173,6 +173,26 @@ describe("rls verify --introspect", () => {
     }
   });
 
+  it("checks each overload of a helper by its own signature", async () => {
+    const pg = started();
+    await pg.admin.query(`
+      create function permdock.permdock_has() returns boolean language sql stable as $$ select false $$;
+      create function permdock.permdock_has(p_grant text, p_extra integer) returns boolean language sql stable as $$ select false $$;
+    `);
+    try {
+      for (let run = 0; run < 3; run += 1) {
+        const result = await verify(pg.uri);
+        expect(result.out).toContain("no drift");
+        expect(result.code).toBe(0);
+      }
+    } finally {
+      await pg.admin.query(`
+        drop function permdock.permdock_has();
+        drop function permdock.permdock_has(text, integer);
+      `);
+    }
+  });
+
   it("reports policies, grants, RLS and helpers that drifted", async () => {
     const pg = started();
     await pg.admin.query(`
@@ -187,8 +207,8 @@ describe("rls verify --introspect", () => {
       expect.arrayContaining([
         "public.doc: policy hand_written is not generated (permissive select); a permissive one widens access [policy-extra:public.doc:hand_written]",
         "public.doc: authenticated holds insert, which no generated policy allows [grant-extra:public.doc:authenticated.insert]",
-        "permdock.permdock_has: helper is not security definer [helper-definer:permdock.permdock_has:helper]",
-        "permdock.permitted_tenant_ids: helper does not set search_path = '' [helper-search-path:permdock.permitted_tenant_ids:helper]",
+        "permdock.permdock_has(text): helper is not security definer [helper-definer:permdock.permdock_has(text):helper]",
+        "permdock.permitted_tenant_ids(text): helper does not set search_path = '' [helper-search-path:permdock.permitted_tenant_ids(text):helper]",
       ]),
     );
     await pg.admin.query("alter table doc disable row level security");

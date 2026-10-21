@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-21T08:41:54.277Z",
-  "generator": "permdock@0.6.0",
-  "fingerprint": "sha-256:xLa3QGuqXtLe6WtPEyf2NaV_qr0vBW2qg2jRN5rBJdA",
+  "generatedAt": "2026-10-21T18:26:20.894Z",
+  "generator": "permdock@0.7.0",
+  "fingerprint": "sha-256:2VY9uDRP6NWXTNcU989MMBZa3-z22VbDWKWkvnXaTFc",
   "resources": {
     "staff": {
       "id": "id",
@@ -111,6 +111,11 @@
       "id": "id",
       "schema": null,
       "definedIn": "src/permissions.ts"
+    },
+    "roles": {
+      "id": "id",
+      "schema": null,
+      "definedIn": "src/permissions.ts"
     }
   },
   "permissions": [
@@ -156,7 +161,7 @@
       "usages": [
         {
           "file": "src/agent/tools.ts",
-          "line": 80,
+          "line": 86,
           "call": "tools"
         },
         {
@@ -181,7 +186,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 41,
+          "line": 42,
           "call": "reference"
         }
       ],
@@ -197,7 +202,7 @@
       "usages": [
         {
           "file": "src/lib/share.ts",
-          "line": 51,
+          "line": 54,
           "call": "can"
         },
         {
@@ -207,12 +212,12 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 41,
+          "line": 42,
           "call": "reference"
         },
         {
           "file": "src/policy.ts",
-          "line": 45,
+          "line": 46,
           "call": "allow"
         }
       ],
@@ -228,12 +233,28 @@
       "usages": [
         {
           "file": "src/agent/tools.ts",
-          "line": 82,
+          "line": 88,
           "call": "tools"
         },
         {
           "file": "src/policy.ts",
           "line": 27,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
+      "key": "roles.manage",
+      "scope": "roles:manage",
+      "resource": "roles",
+      "action": "manage",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 30,
           "call": "reference"
         }
       ],
@@ -259,7 +280,7 @@
         },
         {
           "file": "src/app/api/staff/route.ts",
-          "line": 12,
+          "line": 15,
           "call": "tools"
         },
         {
@@ -269,7 +290,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 36,
+          "line": 37,
           "call": "reference"
         }
       ],
@@ -290,7 +311,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 36,
+          "line": 37,
           "call": "reference"
         }
       ],
@@ -415,6 +436,17 @@
     },
     {
       "permission": "quotes.update",
+      "effect": "allow",
+      "role": "owner",
+      "to": {
+        "kind": "role",
+        "role": "owner",
+        "scope": "organization"
+      },
+      "scope": "organization"
+    },
+    {
+      "permission": "roles.manage",
       "effect": "allow",
       "role": "owner",
       "to": {

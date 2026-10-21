@@ -80,14 +80,14 @@ const clean: ActualRls = {
   rlsEnabled: { "public.post": true },
   grants: { "public.post": { authenticated: ["select"] } },
   helpers: {
-    "app.permdock_has": { securityDefiner: true, emptySearchPath: true },
+    "app.permdock_has(text)": { securityDefiner: true, emptySearchPath: true },
   },
 };
 
 describe("rls verify --introspect", () => {
   it("expects the security definer helpers, table grants and policies generate writes", () => {
     expect(normalizeTableName('"app"."post"')).toBe("app.post");
-    expect(expected.helpers).toStrictEqual(["app.permdock_has"]);
+    expect(expected.helpers).toStrictEqual(["app.permdock_has(text)"]);
     expect(expected.tables).toStrictEqual(["public.post"]);
     expect(expected.grants).toStrictEqual({
       "public.post": { anon: [], authenticated: ["select"] },
@@ -117,7 +117,7 @@ describe("rls verify --introspect", () => {
       "public.post: policy deny_post_delete is permissive, expected restrictive",
       "public.post: policy deny_post_delete applies to anon, authenticated, expected authenticated",
       "public.post: authenticated lacks select, so the policy answers 42501 instead of filtering",
-      "app.permdock_has: helper is missing",
+      "app.permdock_has(text): helper is missing",
     ]);
     expect(diffRls(expected, { ...clean, rlsEnabled: {} })).toStrictEqual([
       "public.post: table is missing",
@@ -162,6 +162,86 @@ describe("rls verify --introspect", () => {
       }),
     ).toStrictEqual([
       "public.post: no index starts with author_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes",
+    ]);
+  });
+
+  it("checks each overload of a helper by its own signature", () => {
+    const overloads = expectedRls(
+      [],
+      `create or replace function "app".permdock_permission_keys()
+returns setof text
+language sql
+stable
+as $$ select '' $$;
+create or replace function "app".permdock_permission_keys(p_scope text)
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$ select '' $$;
+create or replace function "app".by_id(p_role_id "public"."roles"."id"%type, p_keys text[] default '{}', p_row "public"."job")
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$ begin end $$;
+create or replace function "app".typed(p_at timestamptz, p_n int4, p_name varchar(40), in p_flag bool, out p_ok boolean)
+returns boolean
+language sql
+security definer
+set search_path = ''
+as $$ select true $$;`,
+    );
+    expect(overloads.helpers).toStrictEqual([
+      "app.permdock_permission_keys(text)",
+      "app.by_id(*, text[], job)",
+      "app.typed(timestamp with time zone, integer, character varying, boolean)",
+    ]);
+    const safe = { securityDefiner: true, emptySearchPath: true };
+    const invoker = { securityDefiner: false, emptySearchPath: false };
+    const actual = (helpers: ActualRls["helpers"]): ActualRls => ({
+      ...clean,
+      policies: [],
+      rlsEnabled: {},
+      helpers,
+    });
+    for (const helpers of [
+      {
+        "app.permdock_permission_keys()": invoker,
+        "app.permdock_permission_keys(text)": safe,
+      },
+      {
+        "app.permdock_permission_keys(text)": safe,
+        "app.permdock_permission_keys()": invoker,
+      },
+    ]) {
+      expect(
+        diffRls(overloads, {
+          ...actual(helpers),
+          helpers: {
+            ...helpers,
+            "app.by_id(uuid, text[], job)": safe,
+            "app.typed(timestamp with time zone, integer, character varying, boolean)":
+              safe,
+          },
+        }),
+      ).toStrictEqual([]);
+    }
+    expect(
+      diffRls(
+        overloads,
+        actual({
+          "app.permdock_permission_keys(text)": invoker,
+          "app.permdock_permission_keys()": safe,
+          "app.by_id(uuid, text)": safe,
+        }),
+      ),
+    ).toStrictEqual([
+      "app.permdock_permission_keys(text): helper is not security definer",
+      "app.permdock_permission_keys(text): helper does not set search_path = ''",
+      "app.by_id(*, text[], job): helper is missing",
+      "app.typed(timestamp with time zone, integer, character varying, boolean): helper is missing",
     ]);
   });
 
@@ -225,7 +305,7 @@ describe("diffRls details", () => {
         rlsEnabled: { "public.post": true },
         grants: { "public.post": { anon: ["select", "delete"] } },
         helpers: {
-          "app.permdock_has": {
+          "app.permdock_has(text)": {
             securityDefiner: false,
             emptySearchPath: false,
           },
@@ -236,8 +316,8 @@ describe("diffRls details", () => {
       "public.post: policy hand_written is not generated (permissive all); a permissive one widens access",
       "public.post: policy hand_guard is not generated (restrictive delete); a permissive one widens access",
       "public.post: anon holds delete, which no generated policy allows",
-      "app.permdock_has: helper is not security definer",
-      "app.permdock_has: helper does not set search_path = ''",
+      "app.permdock_has(text): helper is not security definer",
+      "app.permdock_has(text): helper does not set search_path = ''",
     ]);
     expect(
       diffRls(permissive, {
@@ -250,7 +330,7 @@ describe("diffRls details", () => {
     ).toStrictEqual([
       "public.post: policy post_select is missing",
       "public.post: row level security is disabled",
-      "app.permdock_has: helper is missing",
+      "app.permdock_has(text): helper is missing",
     ]);
     expect(
       diffRls(
@@ -317,9 +397,9 @@ describe("introspectRls and introspectMixed through an injected client", () => {
       if (call.sql.includes("p.prosecdef")) {
         return {
           rows: [
-            { target: "app.a", definer: true, config: "search_path=''" },
+            { target: "app.a()", definer: true, config: "search_path=''" },
             {
-              target: "app.b",
+              target: "app.b(text, character varying[])",
               definer: "true",
               config: "search_path=public,work_mem=1",
             },
@@ -352,8 +432,11 @@ describe("introspectRls and introspectMixed through an injected client", () => {
       rlsEnabled: { "public.post": true, "public.off": false },
       grants: { "public.post": { anon: ["select", "update"] } },
       helpers: {
-        "app.a": { securityDefiner: true, emptySearchPath: true },
-        "app.b": { securityDefiner: false, emptySearchPath: false },
+        "app.a()": { securityDefiner: true, emptySearchPath: true },
+        "app.b(text, character varying[])": {
+          securityDefiner: false,
+          emptySearchPath: false,
+        },
       },
     });
     expect(sql.calls[0]?.values).toStrictEqual([["public.post"]]);

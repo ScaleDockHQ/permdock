@@ -65,6 +65,26 @@ describe(customRoleSyncSql, () => {
     );
   });
 
+  it("checks a signed-in caller before the row is written, against the copy as it stood", () => {
+    const sql = customRoleSyncSql(ctx, from, undefined);
+    expect(sql).toContain(
+      `create trigger "permdock_sync_custom_role_guard_permissions"\n  before insert or update or delete on "public"."role_permissions"`,
+    );
+    expect(sql).toContain(
+      `create trigger "permdock_sync_custom_role_guard_includes"\n  before insert or update or delete on "public"."role_includes"`,
+    );
+    expect(sql).toContain(
+      `if not (coalesce((select "permdock".permdock_user_id())::text, '') <> '' and pg_trigger_depth() = 1) then`,
+    );
+    expect(sql).toContain(
+      `perform "permdock".permdock_custom_role_guard(v.tenant_id, v.scope, v.scope_id, v.role);`,
+    );
+    expect(sql).toContain(
+      `from "permdock".permdock_custom_role_beyond(v.tenant_id, v.scope, v.scope_id, v_allow, v_deny, v_include) b;`,
+    );
+    expect(sql).toContain("not-assignable-by");
+  });
+
   it("accepts a schema-qualified through table", () => {
     const qualifiedFrom: RlsCustomRolesFrom = {
       sync: "trigger",

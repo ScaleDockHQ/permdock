@@ -255,6 +255,12 @@ export type ResourceOptions<
    */
   readonly levels?: Readonly<Record<string, ResourceLevel>>;
   /**
+   * `true`: `levels` run from narrowest to widest in declaration order, and a
+   * holder of a level may hand out every level declared before it. Evaluation
+   * is unchanged: each level still applies only its own condition.
+   */
+  readonly orderedLevels?: true;
+  /**
    * Display text and app data for the resource; carried to the catalog, never
    * read in evaluation.
    */
@@ -296,6 +302,8 @@ export type ResourceNode<T = unknown> = {
    * them.
    */
   readonly levels?: Readonly<Record<string, ResourceLevel>>;
+  /** Set when the resource declares `orderedLevels: true`. */
+  readonly orderedLevels?: true;
   /** The resource's `meta`, when it declares one. */
   readonly meta?: ResourceMeta;
 };

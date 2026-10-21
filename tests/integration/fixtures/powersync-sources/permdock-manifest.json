@@ -113,6 +113,12 @@
                 "scope": "tenant"
               }
             ]
+          },
+          "reach": ["own", "team", "all"],
+          "levelReach": {
+            "own": ["own"],
+            "team": ["team"],
+            "all": ["all"]
           }
         },
         "job.update": {
@@ -192,6 +198,12 @@
                 "scope": "tenant"
               }
             ]
+          },
+          "reach": ["own", "team", "all"],
+          "levelReach": {
+            "own": ["own"],
+            "team": ["team"],
+            "all": ["all"]
           }
         }
       },
@@ -220,7 +232,52 @@
             "scope": "tenant"
           }
         ]
+      },
+      "includeReach": {
+        "owner": {
+          "job.read": ["own", "team", "all"],
+          "job.update": ["own", "team", "all"]
+        }
       }
+    }
+  },
+  "assignable": {
+    "roles": [
+      {
+        "name": "owner",
+        "on": "tenant",
+        "allows": ["job.read", "job.update"]
+      }
+    ],
+    "manage": {
+      "roles": [],
+      "permissions": []
+    },
+    "permissions": [
+      {
+        "key": "job.read",
+        "scope": "job:read",
+        "resource": "job",
+        "action": "read",
+        "meta": {},
+        "kind": "instance"
+      },
+      {
+        "key": "job.update",
+        "scope": "job:update",
+        "resource": "job",
+        "action": "update",
+        "meta": {},
+        "kind": "instance"
+      }
+    ],
+    "levels": {
+      "job.read": ["own", "team", "all"],
+      "job.update": ["own", "team", "all"]
+    },
+    "grants": {
+      "0": ["own", "team", "all"],
+      "1": ["own", "team", "all"]
     }
   },
   "rows": {

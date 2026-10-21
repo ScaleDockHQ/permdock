@@ -43,6 +43,8 @@ export const permissions = definePermissions({
   }),
   // better-supabase's audit block checks these at the organization (`blocks.audit.permissions`).
   audit: resource({ collection: ["view", "revert"] }),
+  // Editing `public.role_permissions`, the app's own copy of each custom role.
+  roles: resource({ collection: ["manage"] }),
 });
 
 export const roles = defineRoles({

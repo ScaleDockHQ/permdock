@@ -581,6 +581,8 @@ export type Policy<
    * when none are declared.
    */
   readonly levels?: PolicyLevels;
+  /** Resources declared with `orderedLevels: true`, sorted; absent when none. */
+  readonly orderedLevels?: readonly string[];
   /**
    * Coarse OAuth scopes in declaration order; absent when the policy declares
    * none.

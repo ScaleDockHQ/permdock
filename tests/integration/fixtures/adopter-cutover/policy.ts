@@ -2,7 +2,7 @@ import { allow, definePolicy, role } from "permdock";
 
 import { permissions } from "./permissions.ts";
 
-const { invite, job } = permissions;
+const { invite, job, role: roles } = permissions;
 
 export const policy = definePolicy(permissions, {
   roles: [
@@ -12,7 +12,16 @@ export const policy = definePolicy(permissions, {
     }),
     role(
       "admin",
-      [allow([job.read, job.update, job.create, invite.create, invite.read])],
+      [
+        allow([
+          job.read,
+          job.update,
+          job.create,
+          invite.create,
+          invite.read,
+          roles.manage,
+        ]),
+      ],
       { on: "tenant" },
     ),
     role("member", [allow([job.read, job.create])], { on: "tenant" }),

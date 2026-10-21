@@ -9,6 +9,11 @@ import type {
 } from "../core/snapshot-types.ts";
 import type { CustomRole, Membership, Subject } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
+import type {
+  CustomAllow,
+  HeldGrant,
+  LocalCustomRole,
+} from "./local-assignable.ts";
 
 import { bindConditionRefs } from "../conditions/bind.ts";
 import { compact } from "../core/compact.ts";
@@ -22,8 +27,13 @@ import {
   tenantOf,
 } from "../core/scopes.ts";
 import { heldRoleNames } from "../core/snapshot-subject.ts";
-import { resolveActiveTenant } from "../core/tenancy.ts";
+import { isMembershipExpired, resolveActiveTenant } from "../core/tenancy.ts";
 import { rfc3339, secondsAt } from "../core/time.ts";
+import {
+  entryReach,
+  includeReach,
+  localAssignableFor,
+} from "./local-assignable.ts";
 
 /** What the device holds for the signed-in user, read from its local database. */
 export type LocalSnapshotData = {
@@ -102,7 +112,10 @@ function renamed(grant: SnapshotGrant, name: string): SnapshotGrant {
 function customGrants(
   table: LocalCustomRoleTable,
   role: CustomRole,
-): readonly SnapshotGrant[] {
+): {
+  readonly grants: readonly SnapshotGrant[];
+  readonly allows: readonly CustomAllow[];
+} {
   const entries: readonly unknown[] = Array.isArray(role.grants)
     ? role.grants
     : [];
@@ -137,6 +150,7 @@ function customGrants(
     allows.push({ key, level });
   }
   const out: SnapshotGrant[] = [];
+  const reached: CustomAllow[] = [];
   const included = new Set<string>();
   const names: readonly unknown[] = Array.isArray(role.includes)
     ? role.includes
@@ -152,6 +166,12 @@ function customGrants(
       }
       if (grant.effect === "allow") {
         included.add(grant.permission);
+        if (!removed.has(grant.permission) && typeof name === "string") {
+          reached.push({
+            key: grant.permission,
+            reach: includeReach(table, name, grant.permission),
+          });
+        }
       }
     }
   }
@@ -163,9 +183,22 @@ function customGrants(
       ? table.permissions[key]
       : undefined;
     const grants = typeof level === "string" ? row?.levels?.[level] : row?.all;
-    out.push(...(grants ?? []));
+    if (grants !== undefined && grants.length > 0) {
+      out.push(...grants);
+      reached.push({
+        key,
+        reach: entryReach(
+          table,
+          key,
+          typeof level === "string" ? level : undefined,
+        ),
+      });
+    }
   }
-  return out.map((grant) => renamed(grant, role.name));
+  return {
+    grants: out.map((grant) => renamed(grant, role.name)),
+    allows: reached,
+  };
 }
 
 function isList(value: unknown): boolean {
@@ -234,15 +267,31 @@ export function buildLocalSnapshot(
   const declared = new Set(manifest.roles);
   const globalRoles = new Set(input?.roles ?? []);
   const grants: SnapshotGrant[] = [];
-  const attach = (grant: SnapshotGrant, membership?: Membership): void => {
-    grants.push(
-      bindGrant(
-        membership === undefined ? grant : { ...grant, membership },
-        subject,
-      ),
+  const held: HeldGrant[] = [];
+  const attach = (
+    grant: SnapshotGrant,
+    membership?: Membership,
+    reach?: readonly string[],
+  ): void => {
+    const bound = bindGrant(
+      membership === undefined ? grant : { ...grant, membership },
+      subject,
     );
+    grants.push(bound);
+    if (
+      membership === undefined ||
+      (tenantOf(membership, scopes) === tenant &&
+        !isMembershipExpired(membership, now))
+    ) {
+      held.push({ grant: bound, reach });
+    }
   };
-  for (const grant of manifest.grants) {
+  const grantReach = manifest.assignable?.grants;
+  for (const [index, grant] of manifest.grants.entries()) {
+    const reach =
+      grantReach !== undefined && Object.hasOwn(grantReach, String(index))
+        ? grantReach[String(index)]
+        : undefined;
     const roleItems = flattenGrantee(grant.to).filter(
       (item) => item.kind === "role",
     );
@@ -260,7 +309,7 @@ export function buildLocalSnapshot(
     }
     const scoped = roleItems.filter((item) => item.scope !== "global");
     if (scoped.length === 0) {
-      attach(grant);
+      attach(grant, undefined, reach);
       continue;
     }
     for (const membership of memberships) {
@@ -274,7 +323,7 @@ export function buildLocalSnapshot(
               : membership.on !== undefined),
         )
       ) {
-        attach(grant, membership);
+        attach(grant, membership, reach);
       }
     }
   }
@@ -294,6 +343,8 @@ export function buildLocalSnapshot(
       role.scope === "global" ||
       !sharedNames.has(role.name),
   );
+  const tenantCustom: LocalCustomRole[] = [];
+  const tenantRoles = new Set<string>();
   for (const role of custom) {
     const scope = customScope(role, scopes);
     const table =
@@ -303,14 +354,36 @@ export function buildLocalSnapshot(
     if (scope === undefined || table === undefined) {
       continue;
     }
-    const resolved = customGrants(table, role);
+    const { grants: resolved, allows } = customGrants(table, role);
+    const reachOf = (permission: string): readonly string[] | undefined => [
+      ...new Set(
+        allows
+          .filter((allow) => allow.key === permission)
+          .flatMap((allow) => allow.reach ?? []),
+      ),
+    ];
     if (scope === "global") {
       if (role.tenant === undefined && globalRoles.has(role.name)) {
         for (const grant of resolved) {
-          attach(grant);
+          attach(grant, undefined, reachOf(grant.permission));
         }
       }
       continue;
+    }
+    if (
+      tenant !== undefined &&
+      (role.shared === true
+        ? role.tenant === undefined
+        : role.tenant === tenant) &&
+      !tenantRoles.has(role.name)
+    ) {
+      tenantRoles.add(role.name);
+      tenantCustom.push({
+        name: role.name,
+        scope,
+        shared: role.shared === true,
+        allows,
+      });
     }
     const id = role.team ?? role.id;
     for (const membership of memberships) {
@@ -326,7 +399,7 @@ export function buildLocalSnapshot(
         membership.roles.includes(role.name)
       ) {
         for (const grant of resolved) {
-          attach(grant, membership);
+          attach(grant, membership, reachOf(grant.permission));
         }
       }
     }
@@ -341,6 +414,7 @@ export function buildLocalSnapshot(
           { rank: manifest.rank ?? [] },
           now,
         );
+  const rules = manifest.assignable;
   return freezeDeep(
     compact<Snapshot>({
       v: 1 as const,
@@ -349,6 +423,19 @@ export function buildLocalSnapshot(
       roles,
       grants,
       tenants: tenant === undefined ? [] : [tenant],
+      assignable:
+        tenant === undefined || rules === undefined
+          ? undefined
+          : [
+              localAssignableFor({
+                rules,
+                custom: manifest.custom,
+                tenant,
+                heldNames: roles,
+                held,
+                customRoles: tenantCustom,
+              }),
+            ],
       scopes: manifest.scopes,
       vocabulary: manifest.vocabulary,
     }),

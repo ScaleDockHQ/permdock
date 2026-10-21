@@ -185,6 +185,17 @@ function materialiseResource(
       `PermDock: resource '${name}' declares levels but no instance actions`,
     );
   }
+  const ordered = init.options.orderedLevels;
+  if (ordered !== undefined && ordered !== true) {
+    throw new Error(
+      `PermDock: orderedLevels on '${name}' must be true when set`,
+    );
+  }
+  if (ordered === true && Object.keys(levels).length < 2) {
+    throw new Error(
+      `PermDock: resource '${name}' sets orderedLevels with fewer than two levels`,
+    );
+  }
   const meta = resourceMetaFor(name, init.options.meta, build.x?.resource);
   const resourceNode: ResourceNode = Object.freeze({
     ...(meta === undefined ? {} : { meta }),
@@ -204,6 +215,7 @@ function materialiseResource(
     instanceActions: instanceSet,
     collectionActions: collectionSet,
     levels: Object.freeze(levels),
+    ...(ordered === true ? { orderedLevels: true as const } : {}),
   });
   assertIncludes(resourceNode);
   registry.set(name, resourceNode);

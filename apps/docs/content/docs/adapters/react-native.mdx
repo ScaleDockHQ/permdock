@@ -212,7 +212,7 @@ The local snapshot decides like the server snapshot for the same rows, with thes
 
 - A grant on a relation grantee (`relation(job, 'watcher')`) is `server-only` on the device: the relation graph is not in the manifest.
 - A custom role resolves through tables the server computed per permission, level and included role. An entry the manifest does not know, such as a permission added after the build, grants nothing until the manifest is rebuilt.
-- `useAssignableRoles` and `useAssignablePermissions` return nothing; the role editor needs the server snapshot.
+- `useAssignableRoles`, `useAssignablePermissions` and `assignableLevels` answer for the active `tenant` from the same rows, the way `assignableRoles()` and `assignablePermissions()` do on the server: the `assigns` graph or the held grants, `manageRoles`, `orderedLevels`, and the tenant's custom roles the subject may hand out. A grant through a relation counts as held but reaches no level, as on the server. Without a `tenant`, the lists are empty.
 
 With `snapshotUrl` set as well, the latest answer wins: the server snapshot after a revalidation, the local one after the next row change.
 

@@ -274,6 +274,9 @@
               "type": "string"
             }
           },
+          "orderedLevels": {
+            "const": true
+          },
           "hostable": {
             "const": true
           },

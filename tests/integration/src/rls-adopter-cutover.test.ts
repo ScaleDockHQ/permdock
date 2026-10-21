@@ -18,6 +18,7 @@ const OTHER = "00000000-0000-4000-8000-0000000000a3";
 const MEMBER = "00000000-0000-4000-8000-0000000000a4";
 const CLAIMER = "00000000-0000-4000-8000-0000000000a5";
 const STRANGER = "00000000-0000-4000-8000-0000000000a6";
+const MANAGER = "00000000-0000-4000-8000-0000000000a7";
 
 const SETUP = `
 create role authenticated nologin;
@@ -35,7 +36,7 @@ grant usage on schema auth to authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
 grant usage on schema public to authenticated, anon;
 insert into auth.users (id) values
-  ('${TENANT}'), ('${SHARED}'), ('${OTHER}'), ('${MEMBER}'), ('${CLAIMER}'), ('${STRANGER}');
+  ('${TENANT}'), ('${SHARED}'), ('${OTHER}'), ('${MEMBER}'), ('${CLAIMER}'), ('${STRANGER}'), ('${MANAGER}');
 create table public.app_roles (
   id serial primary key,
   organization_id text,
@@ -62,6 +63,7 @@ create table public.account_users (
 );
 create table public.job (id text primary key, "orgId" text not null, "ownerId" uuid not null);
 create table public.invite (id text primary key, "orgId" text not null);
+create table public.role (id text primary key, "orgId" text not null);
 insert into public.job values
   ('j-tenant', 'acme', '${TENANT}'),
   ('j-shared', 'acme', '${SHARED}'),
@@ -333,5 +335,75 @@ describe("RLS adopter cutover: database mode with an application roles table", (
       select 'acme', '${CLAIMER}'::uuid, id from public.app_roles where name = 'owner' and organization_id = 'acme' and not is_system`);
     expect(await ids(CLAIMER, "job.delete")).toStrictEqual([]);
     expect(await ids(CLAIMER, "job.read")).toStrictEqual([]);
+  });
+
+  describe("a signed-in write to the legacy permissions table", () => {
+    const insert = (role: string, permission: string, level: string | null) =>
+      started().tester.query(
+        "insert into public.app_role_permissions (role_id, permission, level) select id, $2, $3 from public.app_roles where name = $1 and organization_id = 'acme'",
+        [role, permission, level],
+      );
+
+    beforeAll(async () => {
+      const admin = started().admin;
+      await admin.query(
+        "grant select, insert, update, delete on public.app_roles, public.app_role_permissions to authenticated",
+      );
+      await admin.query(
+        "insert into public.app_roles (organization_id, name) values ('acme', 'manager'), ('acme', 'helper')",
+      );
+      await admin.query(`insert into public.app_role_permissions (role_id, permission, level)
+        select id, 'role.manage', null from public.app_roles where name = 'manager'
+        union all select id, 'job.read', 'all' from public.app_roles where name = 'manager'`);
+      await admin.query(`insert into public.organization_members (organization_id, user_id, role_id)
+        select 'acme', '${MANAGER}'::uuid, id from public.app_roles where name = 'manager'`);
+    });
+
+    it("refuses a member who widens a role they hold, before the copy changes", async () => {
+      expect(await grants("manager")).toStrictEqual([
+        "tenant:job.read@all:allow",
+        "tenant:role.manage:allow",
+      ]);
+      await expect(
+        started().as(asUser(MANAGER), () =>
+          insert("manager", "job.update", null),
+        ),
+      ).rejects.toMatchObject({ code: "42501" });
+      expect(await grants("manager")).toStrictEqual([
+        "tenant:job.read@all:allow",
+        "tenant:role.manage:allow",
+      ]);
+      expect(await ids(MANAGER, "job.update")).toStrictEqual([]);
+    });
+
+    it("refuses the same entries in a multi-row statement", async () => {
+      await expect(
+        started().as(asUser(MANAGER), () =>
+          started().tester.query(
+            "insert into public.app_role_permissions (role_id, permission, level) select id, p, null from public.app_roles, unnest(array['job.read', 'job.update']) p where name = 'manager'",
+          ),
+        ),
+      ).rejects.toMatchObject({ code: "42501" });
+    });
+
+    it("refuses a role whose stored definition the caller may not hand out", async () => {
+      await expect(
+        started().as(asUser(MANAGER), () =>
+          insert("reader", "job.read", "all"),
+        ),
+      ).rejects.toMatchObject({ code: "42501" });
+    });
+
+    it("copies an entry the caller may hand out", async () => {
+      const copied = await started().as(asUser(MANAGER), async () => {
+        await insert("helper", "job.read", "all");
+        return (
+          await started().tester.query<{ entry: string }>(
+            "select permission || ':' || effect as entry from permdock.permdock_role_permissions('helper', 'tenant', 'acme', null)",
+          )
+        ).rows.map((row) => row.entry);
+      });
+      expect(copied).toStrictEqual(["job.read:allow"]);
+    });
   });
 });

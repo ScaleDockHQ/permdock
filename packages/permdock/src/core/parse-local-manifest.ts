@@ -39,7 +39,15 @@ function isGrantTable(value: unknown): boolean {
   return isRecord(value) && Object.values(value).every(isGrants);
 }
 
+function isStringTable(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (isRecord(value) && Object.values(value).every(isStrings))
+  );
+}
+
 function isCustomTable(value: unknown): boolean {
+  const reach = isRecord(value) ? value["includeReach"] : undefined;
   return (
     isRecord(value) &&
     isRecord(value["permissions"]) &&
@@ -47,9 +55,40 @@ function isCustomTable(value: unknown): boolean {
       (row) =>
         isRecord(row) &&
         isGrants(row["all"]) &&
-        (row["levels"] === undefined || isGrantTable(row["levels"])),
+        (row["levels"] === undefined || isGrantTable(row["levels"])) &&
+        (row["reach"] === undefined || isStrings(row["reach"])) &&
+        isStringTable(row["levelReach"]),
     ) &&
-    isGrantTable(value["includes"])
+    isGrantTable(value["includes"]) &&
+    (reach === undefined ||
+      (isRecord(reach) && Object.values(reach).every(isStringTable)))
+  );
+}
+
+function isAssignable(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const { roles, manage, permissions } = value;
+  return (
+    Array.isArray(roles) &&
+    roles.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item["name"] === "string" &&
+        typeof item["on"] === "string" &&
+        isStrings(item["allows"]),
+    ) &&
+    isRecord(manage) &&
+    isStrings(manage["roles"]) &&
+    isStrings(manage["permissions"]) &&
+    isStringTable(value["assigns"]) &&
+    Array.isArray(permissions) &&
+    permissions.every(
+      (leaf) => isRecord(leaf) && typeof leaf["key"] === "string",
+    ) &&
+    isStringTable(value["levels"]) &&
+    isStringTable(value["grants"])
   );
 }
 
@@ -143,6 +182,7 @@ export function parseLocalSnapshotManifest(
     isRecord(value["custom"]) &&
     Object.values(value["custom"]).every(isCustomTable) &&
     (value["rows"] === undefined || isRows(value["rows"])) &&
+    (value["assignable"] === undefined || isAssignable(value["assignable"])) &&
     safeKeys(value)
   );
 }

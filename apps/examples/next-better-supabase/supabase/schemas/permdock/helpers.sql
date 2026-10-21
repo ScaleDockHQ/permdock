@@ -713,6 +713,20 @@ begin
       message = 'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform'),
       hint = 'not-member';
   end if;
+  if not exists (
+    select 1 from "permdock".role_permissions rp
+    where rp.effect = 'allow'
+      and rp.permission = any(array['roles.manage']::text[])
+      and ("permdock".permdock_has(rp.grant_key)
+        or (p_scope <> 'global'
+          and (p_tenant::text in (select x::text from "permdock".permitted_organization_ids(rp.grant_key) x)
+            or (case p_scope when 'organization' then false when 'customer' then p_scope_id in (select x::text from "permdock".permitted_customer_ids(rp.grant_key) x) else false end))))
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'permdock: the caller may not manage roles in ' || coalesce(p_tenant::text, 'the platform'),
+      hint = 'manage-roles';
+  end if;
   select array_agg(permission) filter (where c.effect = 'allow'),
     array_agg(c.permission) filter (where c.effect = 'deny')
   into v_allow, v_deny
@@ -794,6 +808,20 @@ begin
       message = 'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform'),
       hint = 'not-member';
   end if;
+  if not exists (
+    select 1 from "permdock".role_permissions rp
+    where rp.effect = 'allow'
+      and rp.permission = any(array['roles.manage']::text[])
+      and ("permdock".permdock_has_for(p_user, rp.grant_key)
+        or (p_scope <> 'global'
+          and (p_tenant::text in (select x::text from "permdock".permitted_organization_ids_for(p_user, rp.grant_key) x)
+            or (case p_scope when 'organization' then false when 'customer' then p_scope_id in (select x::text from "permdock".permitted_customer_ids_for(p_user, rp.grant_key) x) else false end))))
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'permdock: the caller may not manage roles in ' || coalesce(p_tenant::text, 'the platform'),
+      hint = 'manage-roles';
+  end if;
   select array_agg(permission) filter (where c.effect = 'allow'),
     array_agg(c.permission) filter (where c.effect = 'deny')
   into v_allow, v_deny
@@ -825,7 +853,7 @@ as $$
 declare
   v_key text := p_entry;
 begin
-  if p_entry is null or not (v_key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])) then
+  if p_entry is null or not (v_key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
     return 'unknown-permission';
   end if;
   if not exists (
@@ -869,7 +897,7 @@ begin
     end if;
   end loop;
   foreach v_entry in array coalesce(p_deny, '{}'::text[]) loop
-    if not (v_entry = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])) then
+    if not (v_entry = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
       raise exception using
         errcode = '22023',
         message = 'permdock: ' || v_entry || ' is not a declared permission',
@@ -1160,6 +1188,167 @@ create or replace trigger "permdock_custom_role_cascade"
   for each row execute function "permdock".permdock_cascade_custom_role();
 
 
+-- rls.customRoles.from.sync: a write to the application's role tables rebuilds the role's PermDock grants
+
+create or replace function "permdock".permdock_sync_custom_role_permissions()
+returns trigger
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v record;
+  v_allow text[];
+  v_deny text[];
+  v_include text[];
+  v_lost text[];
+  v_dropped text[];
+  v_refs text[] := array[
+    case when tg_op <> 'INSERT' then old."role_id"::text end,
+    case when tg_op <> 'DELETE' then new."role_id"::text end
+  ];
+begin
+  for v in
+    select r."organization_id"::uuid as tenant_id, case when r."organization_id"::uuid is null then 'global' else 'organization' end as scope, null::text as scope_id, r."key"::text as role, r."id" as permissions_ref
+    from "public"."roles" r
+    where not (r."organization_id"::uuid is not null and coalesce(r."is_system", false)) and not (r."key"::text = any(array['contact', 'guest', 'member', 'owner']::text[])) and r."id"::text = any(v_refs)
+  loop
+    if v.role is null or not (v.scope = 'global' or v.scope = any(array['organization', 'customer']::text[])) then
+      raise warning 'permdock sync: % has scope %, which is not declared', coalesce(v.role, 'null'), coalesce(v.scope, 'null');
+      continue;
+    end if;
+    if v.tenant_id is not null and "permdock".permdock_is_shared_role(v.scope, v.role) then
+      raise warning 'permdock sync: % is the name of a shared custom role (name-taken); the legacy write is not copied', v.role;
+      continue;
+    end if;
+    v_dropped := '{}'::text[];
+    with raw as (
+      select x."permission"::text as legacy, 'allow' as effect, null::text as level
+      from "public"."role_permissions" x
+      where x."role_id" = v.permissions_ref
+    ),
+    mapped as (
+      select n.legacy, n.legacy as key, n.effect, n.level
+      from raw n
+    ),
+    judged as (
+      select m.legacy, m.key, m.effect, m.level as level, case
+          when m.effect not in ('allow', 'deny') then 'effect ' || m.effect || ' is not allow or deny'
+          when m.key is null or not (m.key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
+          when m.effect = 'allow' and not exists (select 1 from "permdock".permdock_ceiling c where c.scope = v.scope and c.effect = 'allow' and c.permission = m.key) then 'outside the ceiling of ' || v.scope
+        end as dropped
+      from mapped m
+    )
+    select array_agg(distinct j.key) filter (where j.dropped is null and j.effect = 'allow'),
+      array_agg(distinct j.key) filter (where j.dropped is null and j.effect = 'deny'),
+      array_agg(v.role || ': ' || coalesce(j.legacy, 'null') || ', ' || j.dropped) filter (where j.dropped is not null)
+    into v_allow, v_deny, v_lost
+    from judged j;
+    v_dropped := v_dropped || coalesce(v_lost, '{}'::text[]);
+    v_include := null;
+    v_include := array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is not distinct from v.tenant_id and c.scope = v.scope and c.scope_id is not distinct from v.scope_id and c.role = v.role);
+    perform "permdock".permdock_trusted_replace_custom_role_grants(v.tenant_id, v.scope, v.scope_id, v.role, v_allow, v_deny, v_include);
+    if cardinality(v_dropped) > 0 then
+      raise warning 'permdock sync: dropped % entr(ies) PermDock cannot hold: %', cardinality(v_dropped), (select string_agg(g.role || ': ' || g.items, '; ' order by g.role)
+    from (
+      select split_part(l.d, ': ', 1) as role, string_agg(substr(l.d, strpos(l.d, ': ') + 2), ', ' order by l.d) as items
+      from (select u.d from unnest(v_dropped) as u(d) order by u.d limit 50) l
+      group by 1
+    ) g);
+    end if;
+  end loop;
+  return null;
+end;
+$$;
+revoke execute on function "permdock".permdock_sync_custom_role_permissions() from public, anon, authenticated;
+create or replace trigger "permdock_sync_custom_role_permissions"
+  after insert or update or delete on "public"."role_permissions"
+  for each row execute function "permdock".permdock_sync_custom_role_permissions();
+
+-- a signed-in caller writes only what the guarded replace would accept
+
+create or replace function "permdock".permdock_sync_custom_role_guard_permissions()
+returns trigger
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v record;
+  v_allow text[];
+  v_deny text[];
+  v_include text[];
+  v_lost text[];
+  v_dropped text[];
+  v_beyond text;
+  v_refs text[] := array[
+    case when tg_op <> 'INSERT' then old."role_id"::text end,
+    case when tg_op <> 'DELETE' then new."role_id"::text end
+  ];
+begin
+  if not (coalesce((select "permdock".permdock_user_id())::text, '') <> '' and pg_trigger_depth() = 1) then
+    return coalesce(new, old);
+  end if;
+  for v in
+    select r."organization_id"::uuid as tenant_id, case when r."organization_id"::uuid is null then 'global' else 'organization' end as scope, null::text as scope_id, r."key"::text as role, r."id" as permissions_ref
+    from "public"."roles" r
+    where not (r."organization_id"::uuid is not null and coalesce(r."is_system", false)) and not (r."key"::text = any(array['contact', 'guest', 'member', 'owner']::text[])) and r."id"::text = any(v_refs)
+  loop
+    if v.role is null or not (v.scope = 'global' or v.scope = any(array['organization', 'customer']::text[])) then
+      continue;
+    end if;
+    if v.tenant_id is not null and "permdock".permdock_is_shared_role(v.scope, v.role) then
+      continue;
+    end if;
+    perform "permdock".permdock_custom_role_guard(v.tenant_id, v.scope, v.scope_id, v.role);
+    if tg_op = 'DELETE' then
+      continue;
+    end if;
+    v_dropped := '{}'::text[];
+    with raw as (
+      select x."permission"::text as legacy, 'allow' as effect, null::text as level
+      from (select new.*) x
+      where x."role_id" = v.permissions_ref
+    ),
+    mapped as (
+      select n.legacy, n.legacy as key, n.effect, n.level
+      from raw n
+    ),
+    judged as (
+      select m.legacy, m.key, m.effect, m.level as level, case
+          when m.effect not in ('allow', 'deny') then 'effect ' || m.effect || ' is not allow or deny'
+          when m.key is null or not (m.key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
+          when m.effect = 'allow' and not exists (select 1 from "permdock".permdock_ceiling c where c.scope = v.scope and c.effect = 'allow' and c.permission = m.key) then 'outside the ceiling of ' || v.scope
+        end as dropped
+      from mapped m
+    )
+    select array_agg(distinct j.key) filter (where j.dropped is null and j.effect = 'allow'),
+      array_agg(distinct j.key) filter (where j.dropped is null and j.effect = 'deny'),
+      array_agg(v.role || ': ' || coalesce(j.legacy, 'null') || ', ' || j.dropped) filter (where j.dropped is not null)
+    into v_allow, v_deny, v_lost
+    from judged j;
+    v_dropped := v_dropped || coalesce(v_lost, '{}'::text[]);
+    v_include := null;
+    select string_agg(b, ', ' order by b) into v_beyond
+    from "permdock".permdock_custom_role_beyond(v.tenant_id, v.scope, v.scope_id, v_allow, v_deny, v_include) b;
+    if v_beyond is not null then
+      raise exception using
+        errcode = '42501',
+        message = 'permdock: ' || v.role || ' would allow ' || v_beyond || ', which the caller may not hand out',
+        hint = 'not-assignable-by';
+    end if;
+  end loop;
+  return coalesce(new, old);
+end;
+$$;
+revoke execute on function "permdock".permdock_sync_custom_role_guard_permissions() from public, anon, authenticated;
+create or replace trigger "permdock_sync_custom_role_guard_permissions"
+  before insert or update or delete on "public"."role_permissions"
+  for each row execute function "permdock".permdock_sync_custom_role_guard_permissions();
+
+
 -- save a custom role by its row id: the row supplies tenant, scope, instance and name; the caller checks of permdock_replace_custom_role_grants apply, and stored denies and includes stay
 create or replace function "permdock".permdock_replace_custom_role_grants_by_id(p_role_id "public"."roles"."id"%type, p_permissions text[])
 returns void
@@ -1284,7 +1473,7 @@ begin
     and c.scope_id is not distinct from v.scope_id
     and c.role = v.role
   where c.effect = 'allow'
-    and c.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])
+    and c.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
   order by 1, 2;
 end;
 $$;
@@ -1332,7 +1521,7 @@ language sql
 stable
 set search_path = ''
 as $$
-  select k.permission from unnest(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[]) k(permission) order by 1
+  select k.permission from unnest(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[]) k(permission) order by 1
 $$;
 revoke execute on function "permdock".permdock_permission_keys() from public, anon;
 grant execute on function "permdock".permdock_permission_keys() to authenticated;
@@ -1348,7 +1537,7 @@ as $$
   from "permdock".role_permissions rp
   where rp.scope = p_scope
     and rp.effect = 'allow'
-    and rp.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'staff.list', 'staff.read']::text[])
+    and rp.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
   order by 1
 $$;
 revoke execute on function "permdock".permdock_permission_keys(text) from public, anon;
@@ -1440,7 +1629,7 @@ set search_path = ''
 as $$
   select g.grant_key
   from pg_catalog.jsonb_array_elements_text(coalesce(
-    '{"customer":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]}},"organization":{"audit.revert":{"allow":["audit.revert"],"deny":[]},"audit.view":{"allow":["audit.view"],"deny":[]},"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]},"quotes.update":{"allow":["quotes.update"],"deny":[]},"staff.list":{"allow":["staff.list"],"deny":[]},"staff.read":{"allow":["staff.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
+    '{"customer":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]}},"organization":{"audit.revert":{"allow":["audit.revert"],"deny":[]},"audit.view":{"allow":["audit.view"],"deny":[]},"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]},"quotes.update":{"allow":["quotes.update"],"deny":[]},"roles.manage":{"allow":["roles.manage"],"deny":[]},"staff.list":{"allow":["staff.list"],"deny":[]},"staff.read":{"allow":["staff.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
     '[]'::jsonb
   )) g(grant_key)
 $$;
@@ -1499,6 +1688,7 @@ begin
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
+      ('roles.manage', 'organization', 'allow', 'roles.manage'),
       ('staff.list', 'organization', 'allow', 'staff.list'),
       ('staff.read', 'organization', 'allow', 'staff.read')
   ),
@@ -1602,6 +1792,7 @@ begin
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
+      ('roles.manage', 'organization', 'allow', 'roles.manage'),
       ('staff.list', 'organization', 'allow', 'staff.list'),
       ('staff.read', 'organization', 'allow', 'staff.read')
   ),
@@ -2065,6 +2256,7 @@ begin
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
+      ('roles.manage', 'organization', 'allow', 'roles.manage'),
       ('staff.list', 'organization', 'allow', 'staff.list'),
       ('staff.read', 'organization', 'allow', 'staff.read')
   ),
@@ -2165,6 +2357,7 @@ begin
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
+      ('roles.manage', 'organization', 'allow', 'roles.manage'),
       ('staff.list', 'organization', 'allow', 'staff.list'),
       ('staff.read', 'organization', 'allow', 'staff.read')
   ),

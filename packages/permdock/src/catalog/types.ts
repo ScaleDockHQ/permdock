@@ -25,6 +25,11 @@ export type CatalogPermission = {
    * levels })`); absent when none.
    */
   readonly levels?: readonly string[];
+  /**
+   * `true` when `levels` run from narrowest to widest (`resource(…, {
+   * orderedLevels: true })`); absent otherwise.
+   */
+  readonly orderedLevels?: true;
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
   /**

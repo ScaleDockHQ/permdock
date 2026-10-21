@@ -278,6 +278,12 @@
                 "scope": "organization"
               }
             ]
+          },
+          "reach": ["own", "team", "all"],
+          "levelReach": {
+            "own": ["own"],
+            "team": ["team"],
+            "all": ["all"]
           }
         },
         "job.update": {
@@ -444,6 +450,12 @@
                 "scope": "organization"
               }
             ]
+          },
+          "reach": ["own", "team", "all"],
+          "levelReach": {
+            "own": ["own"],
+            "team": ["team"],
+            "all": ["all"]
           }
         },
         "customer.read": {
@@ -613,7 +625,80 @@
             "scope": "organization"
           }
         ]
+      },
+      "includeReach": {
+        "admin": {
+          "job.read": ["own", "team", "all"],
+          "job.update": ["own", "team", "all"]
+        },
+        "support": {
+          "job.read": ["own", "team", "all"]
+        },
+        "technician": {
+          "job.read": ["own"],
+          "job.update": ["own"]
+        }
       }
+    }
+  },
+  "assignable": {
+    "roles": [
+      {
+        "name": "admin",
+        "on": "organization",
+        "allows": ["customer.read", "job.read", "job.update"]
+      },
+      {
+        "name": "technician",
+        "on": "organization",
+        "allows": ["job.read", "job.update"]
+      },
+      {
+        "name": "pro",
+        "on": "organization",
+        "allows": ["customer.read"]
+      }
+    ],
+    "manage": {
+      "roles": [],
+      "permissions": []
+    },
+    "permissions": [
+      {
+        "key": "job.read",
+        "scope": "job:read",
+        "resource": "job",
+        "action": "read",
+        "meta": {},
+        "kind": "instance"
+      },
+      {
+        "key": "job.update",
+        "scope": "job:update",
+        "resource": "job",
+        "action": "update",
+        "meta": {},
+        "kind": "instance"
+      },
+      {
+        "key": "customer.read",
+        "scope": "customer:read",
+        "resource": "customer",
+        "action": "read",
+        "meta": {},
+        "kind": "instance"
+      }
+    ],
+    "levels": {
+      "job.read": ["own", "team", "all"],
+      "job.update": ["own", "team", "all"]
+    },
+    "grants": {
+      "0": ["own", "team", "all"],
+      "1": ["own", "team", "all"],
+      "3": ["own"],
+      "4": ["own"],
+      "6": ["own", "team", "all"]
     }
   },
   "rows": {

@@ -12,7 +12,8 @@ create trigger "permdock_custom_role_name_guard"
 create trigger permdock_holders_org after insert on public.user_roles
   for each row execute function f();
 create trigger "other" after insert on t for each row execute function f();
-create trigger "permdock_sync_custom_role_permissions" after insert on public.role_permissions for each row execute function f();`;
+create trigger "permdock_sync_custom_role_permissions" after insert on public.role_permissions for each row execute function f();
+create trigger "permdock_sync_custom_role_guard_permissions" before insert on public.role_permissions for each row execute function f();`;
 
 describe(generatedTriggers, () => {
   it("names each trigger, its table and the option behind it", () => {
@@ -35,6 +36,12 @@ describe(generatedTriggers, () => {
         table: "public.role_permissions",
         reason:
           "customRoles.from.sync: each write to the legacy table rebuilds the role's grants",
+      },
+      {
+        name: "permdock_sync_custom_role_guard_permissions",
+        table: "public.role_permissions",
+        reason:
+          "customRoles.from.sync: a signed-in caller writes only entries they may hand out",
       },
     ]);
   });

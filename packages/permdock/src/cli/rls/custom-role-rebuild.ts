@@ -140,6 +140,14 @@ export type RebuildPlan = {
    * PermDock cannot hold to `v_dropped`.
    */
   readonly collect: string;
+  /**
+   * The same over the trigger's `new` row alone, per mapped table: the entries
+   * one legacy write adds.
+   */
+  readonly collectNew: {
+    readonly permissions: string;
+    readonly includes: string;
+  };
   readonly replace: string;
   readonly perms: string;
   readonly includes: string;
@@ -258,15 +266,16 @@ export function rebuildPlan(
     `${col(pRef.id)} as permissions_ref`,
     ...(iRef === undefined ? [] : [`${col(iRef.id)} as includes_ref`]),
   ].join(", ");
-  const includeBlock =
+  const includeBlock = (rows: string | undefined): string =>
     i === undefined ||
     iTable === undefined ||
     iRef === undefined ||
-    included === undefined
+    included === undefined ||
+    rows === undefined
       ? "    v_include := null;"
       : `    with raw as (
       select ${included} as role
-      from ${quoteTable(iTable)} x
+      from ${rows}
       where x.${quoteIdent(iRef.ref)} = v.includes_ref
     ),
     judged as (
@@ -286,9 +295,9 @@ export function rebuildPlan(
     from judged j;
     v_dropped := v_dropped || coalesce(v_lost, '{}'::text[]);`;
 
-  const collect = `    with raw as (
+  const permissionsBlock = (rows: string): string => `    with raw as (
       select ${legacy} as legacy, ${effect} as effect, ${level} as level
-      from ${quoteTable(pTable)} x
+      from ${rows}
       where x.${quoteIdent(pRef.ref)} = v.permissions_ref
     ),
     mapped as (
@@ -308,8 +317,10 @@ export function rebuildPlan(
       array_agg(v.role || ': ' || coalesce(j.legacy, 'null') || ', ' || j.dropped) filter (where j.dropped is not null)
     into v_allow, v_deny, v_lost
     from judged j;
-    v_dropped := v_dropped || coalesce(v_lost, '{}'::text[]);
-${includeBlock}`;
+    v_dropped := v_dropped || coalesce(v_lost, '{}'::text[]);`;
+  const legacyRows =
+    iTable === undefined ? undefined : `${quoteTable(iTable)} x`;
+  const newRow = "(select new.*) x";
   return {
     rolesTable,
     identity: `select ${tenant} as tenant_id, ${scope} as scope, ${scopeId} as scope_id, ${col(roles.key)}::text as role, ${refs}`,
@@ -317,7 +328,15 @@ ${includeBlock}`;
     permsRef: pRef,
     includesRef: iRef,
     scopes,
-    collect,
+    collect: `${permissionsBlock(`${quoteTable(pTable)} x`)}
+${includeBlock(legacyRows)}`,
+    collectNew: {
+      permissions: `${permissionsBlock(newRow)}
+    v_include := null;`,
+      includes: `    v_allow := null;
+    v_deny := null;
+${includeBlock(newRow)}`,
+    },
     replace,
     perms,
     includes,
