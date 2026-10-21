@@ -1,6 +1,6 @@
 # 0043. The better-supabase peer range ends below the minor after the newest tested release
 
-- Status: accepted
+- Status: superseded by 0045
 - Date: 2026-10-21
 - Supersedes: the "no upper bound" part of 0040
 

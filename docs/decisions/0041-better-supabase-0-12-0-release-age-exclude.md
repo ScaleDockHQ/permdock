@@ -1,6 +1,6 @@
 # 0041. better-supabase 0.12.0 skips the one-day release age
 
-- Status: accepted
+- Status: superseded by 0045
 - Date: 2026-10-21
 
 ## Context

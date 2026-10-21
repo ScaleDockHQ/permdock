@@ -35,20 +35,16 @@ function matrixOf(file: string): readonly string[] {
 }
 
 const peer = /^\s+better-supabase: "([^"]*)"$/mu.exec(workspace)?.[1];
-const range = /^>=(\d+\.\d+\.\d+) <(\d+\.\d+\.\d+)$/u.exec(peer ?? "");
-const floor = range?.[1];
-const bound = range?.[2];
+const floor = /^>=(\d+\.\d+\.\d+)$/u.exec(peer ?? "")?.[1];
 const catalog = /^ {2}better-supabase: ([\d.]+)$/mu.exec(workspace)?.[1];
 
 describe("better-supabase peer range", () => {
-  it("has a floor and an upper bound", () => {
+  it("is a floor with no upper bound", () => {
     expect(floor).toBeDefined();
-    expect(bound).toBeDefined();
   });
 
-  it("ends below the minor after the catalog pin, the newest version CI tests", () => {
-    const [major, minor] = parse(catalog ?? "");
-    expect(bound).toBe(`${String(major)}.${String(minor + 1)}.0`);
+  it("starts at or below the catalog pin", () => {
+    expect(compare(floor ?? "", catalog ?? "")).toBeLessThanOrEqual(0);
   });
 
   for (const file of WORKFLOWS) {
@@ -57,7 +53,7 @@ describe("better-supabase peer range", () => {
       const sorted = matrix.toSorted(compare);
 
       it("lists versions from lowest to latest", () => {
-        expect(matrix).toStrictEqual(sorted);
+        expect(matrix).toEqual(sorted);
       });
 
       it("tests the floor of the peer range", () => {

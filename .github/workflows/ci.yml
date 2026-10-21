@@ -126,8 +126,8 @@ jobs:
       - name: Integration
         run: pnpm run test:integration --shard=${{ matrix.shard }}/3
 
-  # The peer floor and the latest better-supabase release; the range has no upper
-  # bound (tests/package/better-supabase-peer-range.test.ts).
+  # The peer floor and the catalog pin, which are the same release while the floor is
+  # 0.13.0; the range has no upper bound (tests/package/better-supabase-peer-range.test.ts).
   better-supabase:
     name: better-supabase ${{ matrix.better-supabase }}
     needs: build
@@ -139,7 +139,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        better-supabase: ["0.11.0", "0.12.0"]
+        better-supabase: ["0.13.0"]
     steps:
       - uses: actions/checkout@v7
         with:
