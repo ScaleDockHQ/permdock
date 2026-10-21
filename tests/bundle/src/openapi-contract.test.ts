@@ -25,7 +25,8 @@ describe("permdock/openapi contract helpers", () => {
         {
           name: "relative-only",
           setup(pluginBuild): void {
-            pluginBuild.onResolve({ filter: /^[^./]/u }, (args) => ({
+            // oxlint-disable-next-line eslint/require-unicode-regexp -- esbuild runs the filter as a Go regexp, which has no u flag
+            pluginBuild.onResolve({ filter: /^[^./]/ }, (args) => ({
               path: args.path,
               external: true,
             }));

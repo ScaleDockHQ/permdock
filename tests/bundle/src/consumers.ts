@@ -49,7 +49,8 @@ async function bundled(source: string): Promise<readonly Uint8Array[]> {
       {
         name: "externals",
         setup(pluginBuild): void {
-          pluginBuild.onResolve({ filter: /^[^./]/u }, (args) =>
+          // oxlint-disable-next-line eslint/require-unicode-regexp -- esbuild runs the filter as a Go regexp, which has no u flag
+          pluginBuild.onResolve({ filter: /^[^./]/ }, (args) =>
             args.path === "permdock" || args.path.startsWith("permdock/")
               ? undefined
               : { path: args.path, external: true },
