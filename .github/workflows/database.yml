@@ -41,9 +41,9 @@ jobs:
       # The peer floor and the latest better-supabase release; the range has no upper
       # bound. The last entry is the catalog pin the committed SQL is generated from.
       matrix:
-        better-supabase: ["0.11.0"]
+        better-supabase: ["0.11.0", "0.12.0"]
     env:
-      CATALOG: ${{ matrix.better-supabase == '0.11.0' }}
+      CATALOG: ${{ matrix.better-supabase == '0.12.0' }}
     defaults:
       run:
         working-directory: apps/examples/next-better-supabase
