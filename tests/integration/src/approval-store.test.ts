@@ -46,5 +46,15 @@ afterAll(async () => {
 });
 
 describe("Drizzle approval store recipe on Postgres", () => {
-  testApprovalStore(store, { reopen: openStore });
+  testApprovalStore(store, {
+    reopen: openStore,
+    capabilities: {
+      expire: async (token) => {
+        await pg.admin.query(
+          "update permdock_approvals set status = 'expired' where token = $1",
+          [token],
+        );
+      },
+    },
+  });
 });

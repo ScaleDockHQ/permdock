@@ -10,6 +10,7 @@ import type {
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
 import { APPROVAL_REQUEST_SCHEMA } from "../../src/approvals/request-schema.ts";
 import { PERMDOCK_CLAIMS_SCHEMA } from "../../src/cli/claims-schema.ts";
+import { nowMillis } from "../../src/core/time.ts";
 import { testApprovalStore } from "../../src/testing/index.ts";
 
 function schemaFile(name: string): Readonly<Record<string, unknown>> {
@@ -74,7 +75,15 @@ describe("schemas/approval-request-v1.json", () => {
   });
 
   describe("accepts every request an approval store holds", () => {
-    testApprovalStore(validated);
+    testApprovalStore(validated, {
+      capabilities: {
+        expire: async () => {
+          await inner.expire({
+            epochMilliseconds: nowMillis() + 2 * 60 * 60 * 1000,
+          });
+        },
+      },
+    });
     it("saw requests", () => {
       expect(seen.length).toBeGreaterThan(10);
     });
