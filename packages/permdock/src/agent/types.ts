@@ -11,6 +11,7 @@ import type { Boundary } from "../core/validation.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
 import type { DeniedText } from "./denied-text.ts";
+import type { StepUp } from "./step-up.ts";
 
 /** The part of an operation a tool decision reads; an `OperationMap` entry is one. */
 export type ToolBinding = Pick<Operation, "permission" | "data" | "results"> &
@@ -88,6 +89,8 @@ export type AgentKernelOptions<TContext, TUser = unknown> = InstanceOptions & {
   readonly wrap?: (instance: PermDock) => PermDock;
   /** Replaces the text of a denied or approval-required verdict; nothing else. */
   readonly deniedText?: DeniedText;
+  /** Sets `stepUp` on a denied verdict a sign-in or a role activation could lift. */
+  readonly stepUp?: boolean;
   /** Request values merged into `subject.context`, under `policy.context`. */
   readonly context?: (
     context: TContext,
@@ -136,6 +139,8 @@ export type ToolVerdict =
       > | null;
       readonly permission: Permission | undefined;
       readonly reason: string;
+      /** What the user can do to lift the denial; set only by an adapter with step-ups on (`permdock/ai-sdk` `stepUp`). */
+      readonly stepUp?: StepUp;
     }
   | {
       readonly outcome: "approval-required";

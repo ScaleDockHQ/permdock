@@ -1,4 +1,5 @@
 import type { AgentPermDock } from "../agent/create.ts";
+import type { StepUp } from "../agent/step-up.ts";
 import type { AgentAdapterOptions, ToolVerdict } from "../agent/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
@@ -13,6 +14,7 @@ import {
   compact,
   PermDockApprovalRequiredError,
   PermDockDeniedError,
+  stepUpText,
 } from "../agent/kit.ts";
 
 export type AiSdkContext = {
@@ -24,7 +26,15 @@ export type AiSdkContext = {
 export type AiSdkPermDockOptions<TUser = unknown> = AgentAdapterOptions<
   AiSdkContext,
   TUser
->;
+> & {
+  /**
+   * Turns a denial the user can lift into `user-approval`: a missing
+   * step-up authentication, or a role the user is eligible to activate.
+   * The re-check decides again and runs the tool only when granted. `at` is
+   * the page the user signs in again at; `acr_values` and `max_age` are added.
+   */
+  readonly stepUp?: { readonly at?: string };
+};
 
 /** What an AI SDK tool approval function may return; `undefined` is `not-applicable`. */
 export type ToolApprovalResult =
@@ -50,6 +60,12 @@ export type ToolApprovalStatus =
       readonly type: "user-approval";
       readonly reason: string;
       readonly token: string;
+    }
+  | {
+      readonly type: "user-approval";
+      readonly reason: string;
+      /** What the user does before approving; there is no approval request in the store. */
+      readonly stepUp: StepUp;
     };
 
 /** Structural `GenericToolApprovalFunction` options from `ai`. */
@@ -253,7 +269,10 @@ export function createPermDock<
   given: AiSdkPermDockOptions<TUser>,
 ): AiSdkPermDock<V> {
   const options = withApp(policy, given);
-  const { agent, kernel } = agentRuntime(policy, options, "ai-sdk");
+  const stepUp = options.stepUp;
+  const { agent, kernel } = agentRuntime(policy, options, "ai-sdk", {
+    stepUp: stepUp !== undefined,
+  });
 
   const byPermission = new Map<string, string>();
   for (const [name, binding] of Object.entries(options.operations)) {
@@ -290,10 +309,19 @@ export function createPermDock<
     if (verdict.outcome === "granted") {
       return "approved";
     }
+    const recheck = isRecheck(call.messages, call.toolCall.toolCallId);
     if (verdict.outcome === "denied") {
-      return { type: "denied", reason: verdict.reason };
+      return verdict.stepUp !== undefined &&
+        verdict.permission !== undefined &&
+        !recheck
+        ? {
+            type: "user-approval",
+            reason: stepUpText(verdict.stepUp, verdict.permission, stepUp?.at),
+            stepUp: verdict.stepUp,
+          }
+        : { type: "denied", reason: verdict.reason };
     }
-    if (isRecheck(call.messages, call.toolCall.toolCallId)) {
+    if (recheck) {
       return {
         type: "denied",
         reason: `${verdict.summary} No approval is recorded for this call.`,
@@ -341,7 +369,9 @@ export function createPermDock<
       if (params.tools === undefined) {
         return params;
       }
-      const allowed = await kernel.allowedToolNames(context);
+      const allowed = await kernel.allowedToolNames(context, {
+        eligible: stepUp !== undefined,
+      });
       const keeps = (name: unknown): boolean =>
         typeof name === "string" && (allowed.has(name) || passes(name));
       const tools = params.tools.filter((tool) => keeps(tool.name));
@@ -382,10 +412,14 @@ export function createPermDock<
       if (verdict.outcome === "granted") {
         return false;
       }
+      const recheck = isRecheck(needsOptions.messages, needsOptions.toolCallId);
       if (verdict.outcome === "denied") {
+        if (verdict.stepUp !== undefined && !recheck) {
+          return true;
+        }
         throw deniedError(verdict, permission, await kernel.instance(context));
       }
-      if (isRecheck(needsOptions.messages, needsOptions.toolCallId)) {
+      if (recheck) {
         throw new PermDockApprovalRequiredError({
           decision: verdict.decision,
           permission: permission.key,

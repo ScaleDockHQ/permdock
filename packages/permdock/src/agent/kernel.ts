@@ -27,6 +27,7 @@ import {
 import { resourceRef } from "../core/resource-ref.ts";
 import { refusalText } from "./denied-text.ts";
 import { modelReason, thrownReason, unmappedReason } from "./reason.ts";
+import { eligiblePreview, stepUpFor } from "./step-up.ts";
 
 /** The resume token an agent run carries under the namespaced `permdockApproval` key. */
 export function approvalTokenOf(context: unknown): string | undefined {
@@ -101,8 +102,10 @@ export function createAgentKernel<
     args: unknown,
     context: TContext,
   ) => Promise<string | undefined>;
+  /** With `eligible`, also the tools an activation of an eligible role would open; a listing hint. */
   readonly allowedToolNames: (
     context: TContext,
+    listOptions?: { readonly eligible?: boolean },
   ) => Promise<ReadonlySet<string>>;
   /** Sends `error` to the `on('error')` handlers of an instance this kernel built. */
   readonly report: (permdock: PermDock<V> | undefined, error: unknown) => void;
@@ -325,7 +328,7 @@ export function createAgentKernel<
         ),
       };
     }
-    return {
+    return compact<ToolVerdict>({
       outcome: "denied",
       decision,
       permission: binding.permission,
@@ -334,7 +337,11 @@ export function createAgentKernel<
         binding.permission,
         permdock.subject.principal?.id,
       ),
-    };
+      stepUp:
+        options.stepUp === true
+          ? stepUpFor(permdock, binding.permission, data, decision)
+          : undefined,
+    });
   };
 
   const evaluate = async (
@@ -432,13 +439,17 @@ export function createAgentKernel<
 
   const allowedToolNames = async (
     context: TContext,
+    listOptions: { readonly eligible?: boolean } = {},
   ): Promise<ReadonlySet<string>> => {
     const permdock = await instance(context);
+    const preview =
+      listOptions.eligible === true ? eligiblePreview(permdock) : undefined;
     const allowed = new Set<string>();
     for (const [name, binding] of Object.entries(tools)) {
       if (
         actorMayCallTool(permdock.subject.actor, name) &&
-        permdock.mayUse(binding.permission)
+        (permdock.mayUse(binding.permission) ||
+          preview?.mayUse(binding.permission) === true)
       ) {
         allowed.add(name);
       }

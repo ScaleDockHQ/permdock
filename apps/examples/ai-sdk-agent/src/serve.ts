@@ -31,6 +31,12 @@ async function route(request: Request): Promise<Response> {
     });
     return json({ result });
   }
+  if (request.method === "GET" && path === "/publish_post") {
+    const result = await toolApproval({
+      toolCall: { toolName: "publish_post", input: { id: ownPost.id } },
+    });
+    return json({ result });
+  }
   return json({ error: "not found" }, 404);
 }
 

@@ -9,7 +9,11 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
     subject: () => memberUser,
     actor: () => ({ id: "agent-1", kind: "ai-sdk" }),
     delegation: () => ({
-      scopes: [permissions.post.list.scope, permissions.post.delete.scope],
+      scopes: [
+        permissions.post.list.scope,
+        permissions.post.delete.scope,
+        permissions.post.publish.scope,
+      ],
     }),
     operations: defineOperations(permissions, {
       list_posts: {
@@ -19,7 +23,12 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
         permission: permissions.post.delete,
         data: () => ownPost,
       },
+      publish_post: {
+        permission: permissions.post.publish,
+        data: () => ownPost,
+      },
     }),
+    stepUp: { at: "https://app.example.com/reauth" },
   });
 
 export async function approveDelete() {
