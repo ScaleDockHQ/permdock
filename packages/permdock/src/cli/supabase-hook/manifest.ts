@@ -149,9 +149,8 @@ function trustedHelpers(
     ...(readOnlyActorKinds(config.rls?.readOnlyActors) === undefined
       ? []
       : [helperEntry(ACTOR_MAY_WRITE, "", "boolean", client)]),
-    ...(!config.rls?.approvals
-      ? []
-      : [
+    ...(config.rls?.approvals
+      ? [
           helperEntry(
             IS_APPROVER,
             typeof config.rls.approvals === "object" &&
@@ -161,7 +160,8 @@ function trustedHelpers(
             "boolean",
             client,
           ),
-        ]),
+        ]
+      : []),
     ...forUser,
   ];
   const assigns =

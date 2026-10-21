@@ -83,7 +83,7 @@ async function memberSnapshot(): Promise<Snapshot> {
   const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return snapshot;
 }
@@ -177,7 +177,7 @@ describe("permdock/react hooks on the client", () => {
     const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const store = createClientStore({
       snapshot,
@@ -285,7 +285,7 @@ describe("permdock/react <Protected> on the client", () => {
     const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const globexProject = { ...ownProject, id: "g1", orgId: "globex" };
     const view = mount(

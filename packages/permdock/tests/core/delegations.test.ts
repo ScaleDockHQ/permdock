@@ -75,7 +75,7 @@ type TestPermDock = Awaited<ReturnType<typeof getPermDockSync>>;
 function unsigned(permdock: TestPermDock): Snapshot {
   const snapshot = permdock.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("unsigned snapshot expected");
+    throw new TypeError("unsigned snapshot expected");
   }
   return snapshot;
 }

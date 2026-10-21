@@ -18,7 +18,7 @@ const TRUSTED_READER_GRANT =
   /^grant usage on schema "[^"\n]+" to [^\n;]+;\ngrant execute on function [^\n]+\.permdock_trusted_role_permissions(?:_by_id)?\([^)\n]*\) to [^\n;]+;$/gmu;
 
 function assertNoServiceRole(text: string): void {
-  if (/\bservice_role\b/iu.test(text.replace(TRUSTED_READER_GRANT, ""))) {
+  if (/\bservice_role\b/iu.test(text.replaceAll(TRUSTED_READER_GRANT, ""))) {
     throw new Error("PermDock CLI: generated RLS must never emit service_role");
   }
 }
@@ -184,7 +184,7 @@ function helpersNote(helpers: string | undefined, how: string): string[] {
 }
 
 function camelCase(name: string): string {
-  return name.replace(/[_-]+([a-z0-9])/gi, (_, char: string) =>
+  return name.replaceAll(/[_-]+([a-z0-9])/gi, (_, char: string) =>
     char.toUpperCase(),
   );
 }
@@ -210,11 +210,11 @@ function identifier(name: string, what: string): string {
 }
 
 function quoted(text: string): string {
-  return `'${text.replace(/[\\']/g, (match) => `\\${match}`)}'`;
+  return `'${text.replaceAll(/[\\']/g, (match) => `\\${match}`)}'`;
 }
 
 function templateText(text: string): string {
-  return text.replace(/[\\`]|\$\{/g, (match) => `\\${match}`);
+  return text.replaceAll(/[\\`]|\$\{/g, (match) => `\\${match}`);
 }
 
 export type DrizzleEmitOptions = {

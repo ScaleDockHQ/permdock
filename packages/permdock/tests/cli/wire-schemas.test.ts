@@ -85,7 +85,7 @@ const signedOutputs = json(
 function signedOutput(typ: string): Record<string, unknown> {
   const token = signedOutputs[typ];
   if (typeof token !== "string") {
-    throw new Error(`no fixture ${typ}`);
+    throw new TypeError(`no fixture ${typ}`);
   }
   return claimsOf(token);
 }

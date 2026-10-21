@@ -68,7 +68,7 @@ function literal(value: string | number | boolean | null | undefined): string {
   }
   if (typeof value === "number") {
     if (!Number.isFinite(value)) {
-      throw new Error("PermDock: non-finite number in fixture seed");
+      throw new TypeError("PermDock: non-finite number in fixture seed");
     }
     return String(value);
   }

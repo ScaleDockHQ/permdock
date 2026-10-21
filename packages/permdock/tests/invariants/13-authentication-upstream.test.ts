@@ -207,7 +207,7 @@ describe("invariant 13: authentication is upstream", () => {
     const plain = permdock.snapshot();
     const delegated = asAgent.snapshot();
     if (plain instanceof Promise || delegated instanceof Promise) {
-      throw new Error("unsigned snapshot expected");
+      throw new TypeError("unsigned snapshot expected");
     }
     expect(plain.delegated).toBeUndefined();
     expect(delegated.delegated).toEqual(["project.read"]);

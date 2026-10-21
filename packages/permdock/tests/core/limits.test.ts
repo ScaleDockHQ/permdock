@@ -244,7 +244,7 @@ describe("quota grants", () => {
     });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected json snapshot");
+      throw new TypeError("expected json snapshot");
     }
     const exportGrant = snapshot.grants.find(
       (grant) => grant.permission === permissions.report.export.key,

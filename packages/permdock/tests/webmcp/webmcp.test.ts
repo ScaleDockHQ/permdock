@@ -24,7 +24,7 @@ async function clientOf(user: User) {
   const server = getPermDockSync(policy, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise || typeof snapshot === "string") {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return fromSnapshot(snapshot);
 }
@@ -80,7 +80,7 @@ describe("registerTools", () => {
     const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise || typeof snapshot === "string") {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const permdock = fromSnapshot({ ...snapshot, simulated: true });
     const { context, tools } = fakeContext();

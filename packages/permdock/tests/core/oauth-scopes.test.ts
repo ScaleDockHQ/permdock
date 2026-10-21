@@ -75,7 +75,7 @@ describe("oauthScopes", () => {
     expect(permdock.can(permissions.task.update, {})).toBe(true);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("unsigned snapshot expected");
+      throw new TypeError("unsigned snapshot expected");
     }
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.project.read, {})).toBe(true);

@@ -23,7 +23,7 @@ async function clientOf(user: User): Promise<WebMcpPermDock> {
   const server = getPermDockSync(policy, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise || typeof snapshot === "string") {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return fromSnapshot(snapshot);
 }
@@ -189,7 +189,7 @@ describe("WebMCP: agent-supplied arguments are untrusted", () => {
     const server = getPermDockSync(policy, adminUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise || typeof snapshot === "string") {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const { context, active } = strictContext();
     registerTools(context, permissions.post, {

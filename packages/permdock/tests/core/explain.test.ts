@@ -159,7 +159,7 @@ describe("explain", () => {
     const permdock = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     const explained = client.explain(permissions.doc.update, locked);

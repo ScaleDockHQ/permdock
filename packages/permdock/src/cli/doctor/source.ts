@@ -338,7 +338,8 @@ export function pd011(
   for (const source of sources) {
     if (
       /tenant['"]?\s*:\s*['"]hd['"]/u.test(source.text) ||
-      (/accounts\.google\.com/u.test(source.text) && /tenant/.test(source.text))
+      (/accounts\.google\.com/u.test(source.text) &&
+        source.text.includes("tenant"))
     ) {
       findings.push({
         code: "PD011",

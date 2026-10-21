@@ -148,26 +148,27 @@ export async function resolveToken(
         if (stored === null) {
           break;
         }
-        if (stored.expires_at !== undefined && stored.expires_at <= now()) {
-          if (options.device !== undefined) {
-            const refreshed = await refreshCredential(
-              options.device,
-              stored,
-              options.runtime,
-            );
-            if (refreshed !== null) {
-              writeCredentials(
-                options.storage,
-                options.profile,
-                refreshed,
-                options.runtime,
-              );
-              return refreshed.access_token;
-            }
-          }
+        if (stored.expires_at === undefined || stored.expires_at > now()) {
+          return stored.access_token;
+        }
+        if (options.device === undefined) {
           break;
         }
-        return stored.access_token;
+        const refreshed = await refreshCredential(
+          options.device,
+          stored,
+          options.runtime,
+        );
+        if (refreshed !== null) {
+          writeCredentials(
+            options.storage,
+            options.profile,
+            refreshed,
+            options.runtime,
+          );
+          return refreshed.access_token;
+        }
+        break;
       }
       case "ci-oidc": {
         const oidc = await fromCiOidc(options.runtime, source);

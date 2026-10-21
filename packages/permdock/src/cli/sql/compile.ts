@@ -463,11 +463,11 @@ function assignKeys(
         named.add(group);
       }
       const grantKey =
-        group !== undefined
-          ? `${permission}#${group}`
-          : lists.length === 1
+        group === undefined
+          ? lists.length === 1
             ? permission
-            : `${permission}#${index + 1}`;
+            : `${permission}#${index + 1}`
+          : `${permission}#${group}`;
       for (const entry of list) {
         keys.set(entry, grantKey);
       }

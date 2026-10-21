@@ -72,7 +72,7 @@ describe("instance edges", () => {
     expect(signed).toBe("jws");
     const json = permdock.snapshot();
     if (json instanceof Promise) {
-      throw new Error("expected json");
+      throw new TypeError("expected json");
     }
     expect(json.expiresAt).toBe("2286-11-20T17:46:39.000Z");
     expect(permdock.memberships()).toEqual([]);
@@ -115,7 +115,7 @@ describe("instance edges", () => {
       tenant: "o1",
     });
     if (Array.isArray(preview)) {
-      throw new Error("expected instance");
+      throw new TypeError("expected instance");
     }
     expect(preview.tenants()).toEqual(["o1"]);
   });

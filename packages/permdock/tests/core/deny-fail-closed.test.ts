@@ -77,7 +77,7 @@ describe("a deny that cannot be evaluated denies", () => {
     const server = getPermDockSync(policy, user);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     const decision = client.decide(permissions.invoice.update, invoice);

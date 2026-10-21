@@ -77,18 +77,10 @@ export default defineConfig({
         "eslint/no-await-in-loop": "off",
         // Patterns match SQL and TypeScript source text (31 findings).
         "eslint/require-unicode-regexp": "off",
-        // Guard clauses read `if (!flag)` first (3 findings).
-        "eslint/no-negated-condition": "off",
-        // Guard clauses read `if (!flag)` first (3 findings).
-        "unicorn/no-negated-condition": "off",
         // pgsql-parser and oxc-parser ASTs arrive untyped (5 findings).
         "typescript/no-unsafe-assignment": "off",
         // Optional flags and AST fields are checked for presence (2 findings).
         "typescript/strict-boolean-expressions": "off",
-        // SQL templates keep identifiers aligned (2 findings).
-        "typescript/no-unnecessary-template-expression": "off",
-        // Regex `.test` keeps SQL token matching uniform (1 finding).
-        "typescript/prefer-includes": "off",
         // CLI internals are not a published API (14 findings).
         "typescript/explicit-function-return-type": "off",
         // Node built-ins are imported by name (34 findings).
@@ -97,12 +89,8 @@ export default defineConfig({
         "unicorn/prefer-import-meta-properties": "off",
         // Generated SQL is built one push per statement (12 findings).
         "unicorn/prefer-single-call": "off",
-        // Generated SQL is built one push per statement (1 finding).
-        "unicorn/no-immediate-mutation": "off",
         // Lexers index UTF-16 code units to match parser offsets (1 finding).
         "unicorn/prefer-code-point": "off",
-        // Global regexes with capture groups use `replace` (4 findings).
-        "unicorn/prefer-string-replace-all": "off",
         // The bin entry awaits at top level (1 finding).
         "node/no-top-level-await": "off",
         // Commands read PERMDOCK_COLLECT and injected env from the environment (3 findings).
@@ -116,8 +104,6 @@ export default defineConfig({
         "node/no-process-env": "off",
         // Token lookup tries refresh, CI OIDC and device flow in order (6 findings).
         "eslint/no-await-in-loop": "off",
-        // Token lookup nests source, refresh and retry checks (1 finding).
-        "eslint/max-depth": "off",
       },
     },
     {

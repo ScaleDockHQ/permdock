@@ -316,7 +316,7 @@ describe("resolveCustomRole with levels", () => {
     const server = await permdockFor(memberships, [dispatcher]);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
     for (const leaf of [
@@ -428,7 +428,7 @@ describe("assignableLevels", () => {
     );
     const snapshot = steward.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
     expect(
@@ -455,7 +455,7 @@ describe("assignableLevels", () => {
     expect(malformed.assignableLevels(permissions.job.close)).toEqual([]);
     const trimmed = steward.snapshot({ include: [permissions.member] });
     if (trimmed instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     expect(trimmed.assignable?.[0]?.levels).toBeUndefined();
   });
@@ -467,7 +467,7 @@ describe("assignableLevels", () => {
     );
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
     expect(client.assignableLevels(permissions.job.update)).toEqual(["team"]);

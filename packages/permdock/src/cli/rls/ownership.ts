@@ -132,13 +132,7 @@ export function unsatisfiedKinds(
       readonly via: string | null | undefined;
     }[] = [];
     const mapped = scopeTable(ctx, scope)?.table;
-    if (mapped !== undefined) {
-      const via = memberVia(mapped);
-      held.push({
-        label: mapped.table,
-        via: typeof via === "string" ? undefined : (via.value ?? undefined),
-      });
-    } else {
+    if (mapped === undefined) {
       for (const source of ctx.memberSources ?? ctx.sources ?? []) {
         if (source.sql.scope !== undefined && source.sql.scope !== scope) {
           continue;
@@ -154,6 +148,12 @@ export function unsatisfiedKinds(
                 : undefined,
         });
       }
+    } else {
+      const via = memberVia(mapped);
+      held.push({
+        label: mapped.table,
+        via: typeof via === "string" ? undefined : (via.value ?? undefined),
+      });
     }
     if (
       held.length === 0 ||

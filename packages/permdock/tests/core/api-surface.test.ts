@@ -233,7 +233,7 @@ describe("principal refs and snapshots", () => {
     const permdock = getPermDockSync(policy, { id: "u1" });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected json snapshot");
+      throw new TypeError("expected json snapshot");
     }
     expect(snapshot.v).toBe(1);
     expect(snapshot.grants[0]?.to).toMatchObject({

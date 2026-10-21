@@ -601,18 +601,18 @@ function rewriteImports(ctx: Context, removed: ReadonlySet<string>): void {
     if (rename === undefined || imported === undefined || removed.has(local)) {
       continue;
     }
-    if (local !== binding.imported) {
+    if (local === binding.imported) {
       replace(
         ctx,
         imported,
-        imported.type === "Literal" ? JSON.stringify(rename.to) : rename.to,
+        ctx.kept.has(local) ? `${rename.to} as ${local}` : rename.to,
         rename.from,
       );
     } else {
       replace(
         ctx,
         imported,
-        ctx.kept.has(local) ? `${rename.to} as ${local}` : rename.to,
+        imported.type === "Literal" ? JSON.stringify(rename.to) : rename.to,
         rename.from,
       );
     }

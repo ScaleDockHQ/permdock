@@ -191,7 +191,7 @@ describe("grant validity", () => {
     expect(permdock.can(permissions.doc.update, doc, options)).toBe(false);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("unsigned snapshot expected");
+      throw new TypeError("unsigned snapshot expected");
     }
     const client = fromSnapshot(snapshot);
     expect(client.decide(permissions.doc.read, doc, options).outcome).toBe(
@@ -218,7 +218,7 @@ describe("grant validity", () => {
     const permdock = await contractor();
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("unsigned snapshot expected");
+      throw new TypeError("unsigned snapshot expected");
     }
     const read = snapshot.grants.find(
       (grant) => grant.permission === "doc.read",
@@ -248,7 +248,7 @@ describe("grant validity", () => {
     const permdock = await contractor();
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("unsigned snapshot expected");
+      throw new TypeError("unsigned snapshot expected");
     }
     const grants = snapshot.grants.filter((grant) => grant.effect !== "deny");
     for (const grant of snapshot.grants) {

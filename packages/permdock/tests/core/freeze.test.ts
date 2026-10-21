@@ -28,7 +28,7 @@ type MapWriter = {
 
 function writer(collection: object): MapWriter {
   if (!(collection instanceof Map)) {
-    throw new Error("not a Map");
+    throw new TypeError("not a Map");
   }
   return collection;
 }

@@ -50,7 +50,7 @@ describe("claims in snapshots", () => {
     const permdock = getPermDockSync(policy, user);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise || typeof snapshot !== "object") {
-      throw new Error("expected a json snapshot");
+      throw new TypeError("expected a json snapshot");
     }
     expect(snapshot.subject.principal).not.toHaveProperty("claims");
     const where = (key: string): unknown =>

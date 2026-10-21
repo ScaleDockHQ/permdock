@@ -415,8 +415,6 @@ export const test: OxlintConfig = defineConfig({
     "import/max-dependencies": "off",
     // Test patterns match ASCII output (132 findings).
     "eslint/require-unicode-regexp": "off",
-    // tsc noUnusedLocals already reports unused bindings (7 findings).
-    "eslint/no-unused-vars": "off",
     // Tests import the module under test from its folder (445 findings).
     "import/no-relative-parent-imports": "off",
     // Tests pass malformed input to prove fail-closed behaviour (54 findings).
@@ -443,10 +441,6 @@ export const test: OxlintConfig = defineConfig({
     "typescript/no-floating-promises": "off",
     // Arrow shorthand returns void calls in callbacks (9 findings).
     "typescript/no-confusing-void-expression": "off",
-    // Template literals keep matrix titles uniform (1 finding).
-    "typescript/no-unnecessary-template-expression": "off",
-    // Tests throw plain Error to simulate failing closures and parsers (34 findings).
-    "unicorn/prefer-type-error": "off",
     // `void` marks deliberately ignored promises (15 findings).
     "eslint/no-void": "off",
     // Ordered steps model sequential requests and pages (158 findings).

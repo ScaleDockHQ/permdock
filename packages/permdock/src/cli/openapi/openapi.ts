@@ -373,19 +373,19 @@ export async function runOpenapi(input: {
     };
   }
   const result =
-    covered !== undefined
-      ? openapi.overlay({
-          extends: input.doc,
-          version: input.overlay,
-          operations: covered.operations,
-        })
-      : applyDocument(
+    covered === undefined
+      ? applyDocument(
           parsed,
           policy,
           openapi,
           input.arity === true,
           input.target,
-        );
+        )
+      : openapi.overlay({
+          extends: input.doc,
+          version: input.overlay,
+          operations: covered.operations,
+        });
   const conformance = outputConformance(
     parsed,
     result,

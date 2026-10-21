@@ -133,7 +133,9 @@ export function parseFlags(
       continue;
     }
     if (flag.type === "boolean") {
-      if (eq !== -1) {
+      if (eq === -1) {
+        values.set(found.name, !found.negated);
+      } else {
         const raw = token.slice(eq + 1);
         if (raw !== "true" && raw !== "false") {
           throw new CliError(
@@ -143,8 +145,6 @@ export function parseFlags(
           );
         }
         values.set(found.name, (raw === "true") !== found.negated);
-      } else {
-        values.set(found.name, !found.negated);
       }
       continue;
     }

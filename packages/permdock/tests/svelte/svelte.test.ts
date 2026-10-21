@@ -37,7 +37,7 @@ async function memberSnapshot() {
   const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return snapshot;
 }
@@ -96,7 +96,7 @@ describe("permdock/svelte", () => {
     const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const store = createSvelteStore({ snapshot, tenant: "globex" });
     const globexProject = { ...ownProject, id: "g1", orgId: "globex" };

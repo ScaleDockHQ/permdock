@@ -32,7 +32,7 @@ async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
   const server = getPermDockSync(policy as never, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   // SAFETY: snapshot() without a signer returns a Snapshot; the erased generic hides its type.
   return snapshot as Snapshot;

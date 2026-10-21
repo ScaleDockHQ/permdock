@@ -286,7 +286,7 @@ describe("decideRoleChange: global roles with an assigns graph", () => {
     const root = getPermDockSync(graph, { id: "u_actor", roles: ["root"] }, {});
     const snapshot = root.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     expect(
       fromSnapshot(JSON.parse(JSON.stringify(snapshot))).assignableRoles({

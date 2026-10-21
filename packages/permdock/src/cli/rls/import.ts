@@ -301,7 +301,13 @@ export async function runRlsImport(input: {
     if (policies.length === 0) {
       policies = splitPolicies(sql);
     }
-  } else if (input.db !== undefined) {
+  } else if (input.db === undefined) {
+    return {
+      code: 2,
+      output:
+        "PermDock CLI: rls import needs --sql <file> or a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
+    };
+  } else {
     try {
       const fromDb = await policiesFromDb(
         input.db,
@@ -315,12 +321,6 @@ export async function runRlsImport(input: {
     } catch (cause) {
       return usageResult(cause);
     }
-  } else {
-    return {
-      code: 2,
-      output:
-        "PermDock CLI: rls import needs --sql <file> or a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
-    };
   }
   const memberships =
     parseMembershipsFlag(input.memberships) ?? input.config.rls?.memberships;

@@ -96,7 +96,7 @@ describe("organisation role with team reach", () => {
     const permdock = getPermDockSync(policy, subject, { tenant: "acme" });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
     for (const leaf of [permissions.job.read, permissions.job.update]) {

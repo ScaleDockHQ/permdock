@@ -113,7 +113,7 @@ describe("supabase.hook.teams", () => {
     });
     const teams = claims["team_ids"];
     if (!Array.isArray(teams)) {
-      throw new Error("team_ids is not an array");
+      throw new TypeError("team_ids is not an array");
     }
     expect(teams.length).toBeLessThan(31);
     expect(

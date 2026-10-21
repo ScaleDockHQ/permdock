@@ -25,7 +25,9 @@ export async function snapshotFixture(
   );
   const target = options.simulated === true ? instance.simulate({}) : instance;
   if (Array.isArray(target)) {
-    throw new Error("PermDock: snapshotFixture expected a PermDock instance");
+    throw new TypeError(
+      "PermDock: snapshotFixture expected a PermDock instance",
+    );
   }
   const snapshot =
     options.include === undefined && options.tenants === undefined
@@ -39,7 +41,7 @@ export async function snapshotFixture(
             : { tenants: options.tenants }),
         });
   if (typeof snapshot === "string" || snapshot instanceof Promise) {
-    throw new Error("PermDock: snapshotFixture expected a JSON snapshot");
+    throw new TypeError("PermDock: snapshotFixture expected a JSON snapshot");
   }
   return snapshot;
 }

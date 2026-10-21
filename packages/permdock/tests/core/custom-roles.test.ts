@@ -797,7 +797,7 @@ describe("assigning custom roles", () => {
     );
     const snapshot = editor.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     expect(client.assignableRoles().map((leaf) => leaf.key)).toEqual(
@@ -875,7 +875,7 @@ describe("snapshot parity", () => {
       const server = await permdockFor([membership], [fixture.custom]);
       const snapshot = server.snapshot();
       if (snapshot instanceof Promise) {
-        throw new Error("expected JSON snapshot");
+        throw new TypeError("expected JSON snapshot");
       }
       const cached = snapshotFor(policy, subjectIn([membership]), {
         tenant: "acme",
@@ -908,7 +908,7 @@ describe("snapshot parity", () => {
     );
     const snapshot = server.snapshot({ include: [permissions.post] });
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     expect(
       snapshot.grants.every((grant) => grant.permission.startsWith("post.")),
@@ -918,7 +918,7 @@ describe("snapshot parity", () => {
     ).toEqual(["post.read", "post.update", "post.create"]);
     const full = server.snapshot();
     if (full instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     expect(full.grants).toContainEqual(
       expect.objectContaining({

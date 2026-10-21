@@ -68,7 +68,7 @@ describe("invariant 5: identity is by key", () => {
     const permdock = getPermDockSync(policy, memberUser);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected a JSON snapshot");
+      throw new TypeError("expected a JSON snapshot");
     }
     expect(JSON.stringify(snapshot)).toContain('"post.update"');
   });

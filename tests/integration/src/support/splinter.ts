@@ -130,7 +130,7 @@ function generatedObjects(sql: string): readonly string[] {
     ...sql.matchAll(
       /create policy\s+(?:"[^"]+"|\w+)\s+on\s+((?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))?)/giu,
     ),
-  ].map((match) => `${unquoted(String(match[1]))}`);
+  ].map((match) => unquoted(String(match[1])));
   return [...new Set([...schemas, ...named])];
 }
 

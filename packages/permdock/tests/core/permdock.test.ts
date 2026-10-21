@@ -155,12 +155,12 @@ describe("getPermDockSync", () => {
     }
     const preview = permdock.simulate({ roles: ["admin"] });
     if (Array.isArray(preview)) {
-      throw new Error("expected instance");
+      throw new TypeError("expected instance");
     }
     expect(preview.can(permissions.post.publish, ownPost)).toBe(true);
     const snapshot = preview.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected json snapshot");
+      throw new TypeError("expected json snapshot");
     }
     expect(snapshot.simulated).toBe(true);
   });
@@ -169,7 +169,7 @@ describe("getPermDockSync", () => {
     const permdock = await permdockFor(memberUser);
     const snapshot = permdock.snapshot({ include: [permissions.post] });
     if (snapshot instanceof Promise) {
-      throw new Error("expected json snapshot");
+      throw new TypeError("expected json snapshot");
     }
     expect(snapshot.v).toBe(1);
     expect(
@@ -444,7 +444,7 @@ describe("getPermDockSync", () => {
     expect(permdock.can(permissions.post.read, otherPost)).toBe(false);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const grant = snapshot.grants.find(
       (item) => item.permission === "post.read",

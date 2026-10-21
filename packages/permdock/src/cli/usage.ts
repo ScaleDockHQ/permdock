@@ -418,8 +418,11 @@ function ignored(key: string, patterns: readonly string[]): boolean {
 }
 
 function formatUsage(report: UsageReport): string {
-  const lines = ["permdock usage", ""];
-  lines.push(`  defined but unused (${String(report.unused.length)})`);
+  const lines = [
+    "permdock usage",
+    "",
+    `  defined but unused (${String(report.unused.length)})`,
+  ];
   for (const finding of report.unused) {
     lines.push(`    ${finding.key.padEnd(28)} ${finding.detail}`);
   }

@@ -294,13 +294,13 @@ export async function helperGrants(
     if (calls.length === 0) {
       continue;
     }
-    const condition: Condition | undefined = !portable
-      ? unportable
-      : rest.length === 0
+    const condition: Condition | undefined = portable
+      ? rest.length === 0
         ? undefined
         : rest.length === 1
           ? rest[0]
-          : { op: "and", conditions: rest };
+          : { op: "and", conditions: rest }
+      : unportable;
     for (const call of calls) {
       const permission =
         seeds.find((seed) => seed.grantKey === call.key)?.permission ??

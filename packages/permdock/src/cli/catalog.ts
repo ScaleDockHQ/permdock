@@ -43,7 +43,20 @@ export async function runCatalog(input: {
   }
   const from = input.from ?? input.config.permissions;
   let document: CatalogDocument;
-  if (from !== undefined) {
+  if (from === undefined) {
+    const collected = await runCollect({
+      cwd: input.cwd,
+      config: input.config,
+      collect: input.config.collect ?? {},
+      check: false,
+      now: input.now,
+      io: input.io,
+    });
+    if (collected.document === undefined) {
+      return { code: collected.code, output: collected.message };
+    }
+    document = collected.document;
+  } else {
     const abs = resolve(input.cwd, from);
     if (!existsSync(abs)) {
       return { code: 2, output: `PermDock CLI: module not found: ${from}` };
@@ -65,19 +78,6 @@ export async function runCatalog(input: {
       await loadConfiguredPolicy(input.cwd, input.config.policy),
       await loadConfiguredOperations(input.cwd, input.config.operations),
     );
-  } else {
-    const collected = await runCollect({
-      cwd: input.cwd,
-      config: input.config,
-      collect: input.config.collect ?? {},
-      check: false,
-      now: input.now,
-      io: input.io,
-    });
-    if (collected.document === undefined) {
-      return { code: collected.code, output: collected.message };
-    }
-    document = collected.document;
   }
   const filtered =
     input.include.length === 0

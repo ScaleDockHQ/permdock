@@ -32,7 +32,7 @@ describe("fromSnapshot", () => {
     const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, ownPost)).toBe(true);
@@ -53,7 +53,7 @@ describe("fromSnapshot", () => {
     const server = getPermDockSync(policy, adminUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.publish, ownPost)).toBe(true);
@@ -67,7 +67,7 @@ describe("fromSnapshot", () => {
     const server = getPermDockSync(policy, null);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, ownPost)).toBe(false);
@@ -80,7 +80,7 @@ describe("fromSnapshot", () => {
     const server = getPermDockSync(policy, memberUser);
     const full = server.snapshot();
     if (full instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const scoped = fromSnapshot({ ...full, include: ["billing"] });
     const decision = scoped.decide(permissions.post.update, ownPost);
@@ -114,7 +114,7 @@ describe("fromSnapshot", () => {
     const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     expect(() => client.assert(permissions.post.publish, ownPost)).toThrow(
@@ -126,7 +126,7 @@ describe("fromSnapshot", () => {
     const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     expect(client.tenants()).toEqual(snapshot.tenants);
@@ -149,7 +149,7 @@ describe("fromSnapshot", () => {
     });
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, ownPost)).toBe(true);
@@ -285,7 +285,7 @@ describe("fromSnapshot instance surface", () => {
     const asOwner = client.simulate({ roles: [vocabulary.owner, "contact"] });
     const ownerView = asOwner.snapshot();
     if (typeof ownerView === "string" || ownerView instanceof Promise) {
-      throw new Error("expected a JSON snapshot");
+      throw new TypeError("expected a JSON snapshot");
     }
     expect({
       simulated: ownerView.simulated,
