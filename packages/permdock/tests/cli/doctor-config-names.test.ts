@@ -44,6 +44,22 @@ describe("doctor config names", () => {
     });
   });
 
+  it("reports a SQL helper name Postgres would truncate", async () => {
+    const long = "a".repeat(47);
+    const findings = await pd077({
+      cwd: policyProject({ policy: `scopes: { ${long}: { key: 'orgId' } },` }),
+      config: { policy: "src/policy.ts" },
+    });
+    expect(findings).toStrictEqual([
+      {
+        code: "PD077",
+        severity: "error",
+        message: `scope '${long}' names the SQL helper 'permitted_${long}_ids_for', longer than the 63 bytes Postgres keeps; shorten the name`,
+        fix: "rename the scope or resource so each generated SQL helper has its own name of at most 63 bytes",
+      },
+    ]);
+  });
+
   it("finds nothing without a policy", async () => {
     expect(
       await pd077({ cwd: cwd(), config: { rls: { tables: { x: "x" } } } }),

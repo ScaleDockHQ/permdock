@@ -112,7 +112,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD074` | `supabase.hook` is set, but `supabase/config.toml` does not enable `[auth.hook.custom_access_token]` or names another function                                                                                                                                                                             | warning         |
 | `PD075` | Two resources that `rls.tables` maps to one table, so the same rows carry two sets of keys and helpers; `doctor.sharedTables` lists tables split on purpose                                                                                                                                                | warning         |
 | `PD076` | `rls.actions` entries set to `'none'` on a verb that compiles to `'none'` anyway, or entries for a verb no permission uses                                                                                                                                                                                 | info            |
-| `PD077` | A config key or value names a scope, resource or action the policy does not declare, such as a Realtime topic `{organisation}` placeholder                                                                                                                                                                 | error           |
+| `PD077` | A config key or value names a scope, resource or action the policy does not declare, such as a Realtime topic `{organisation}` placeholder; or two of them give one SQL helper name                                                                                                                        | error           |
 
 ### PD001: server-only imports in client entries
 
@@ -470,7 +470,9 @@ error PD077  rls.realtime.topics['org:{organisation}:quotes'] names the scope 'o
              fix: use one of organization, team, tenant, or pass the policy value to defineConfig to catch this at compile time
 ```
 
-[Typed config](/docs/cli/config#typed-config) reports the same names when the config compiles. `--only rls` and `--only scopes` run PD077.
+[Typed config](/docs/cli/config#typed-config) reports the same names when the config compiles.
+
+PD077 also reports a SQL helper name `rls generate` cannot write: a scope and a resource that both give `permitted_<name>_ids` (scope `project` beside a graph resource `project`), or a name longer than the 63 bytes Postgres keeps, which Postgres would truncate into another helper's name. `rls generate` and `supabase inspect` refuse the same config with `config_invalid`. `--only rls` and `--only scopes` run PD077.
 
 ## Side effects
 

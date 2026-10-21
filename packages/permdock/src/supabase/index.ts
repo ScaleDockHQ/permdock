@@ -58,9 +58,12 @@ export type {
   SupabaseManifestColumn,
   SupabaseManifestHelper,
   SupabaseManifestMembership,
+  SupabaseManifestNames,
   SupabaseManifestRequires,
+  SupabaseManifestResourceNames,
   SupabaseManifestRls,
   SupabaseManifestRole,
+  SupabaseManifestScopeNames,
   SupabaseManifestThrough,
   SupabaseManifestValue,
 } from "./manifest.ts";

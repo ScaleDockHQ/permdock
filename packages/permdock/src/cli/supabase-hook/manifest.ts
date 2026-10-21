@@ -41,6 +41,7 @@ import {
   permittedForHelper,
   permittedIdsHelper,
 } from "../sql/names.ts";
+import { resolveNames } from "../sql/resolve-names.ts";
 import { customRolesOn, HELPERS } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
 import { hookClaims } from "./claims.ts";
@@ -424,6 +425,14 @@ export function manifestOf(
     ),
     markers: { hook: "v1", grants: "v1" },
     requires: requiredCapabilities(config, policy),
+    ...(policy === undefined
+      ? {}
+      : {
+          names: resolveNames(policy, config, {
+            schema: parts.helpers.schema,
+            tenantClaim: parts.tenantClaim,
+          }),
+        }),
   };
 }
 

@@ -2,6 +2,8 @@ import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import { listPermissions } from "../../index.ts";
+import { describeError } from "../core/errors.ts";
+import { resolveNames } from "../sql/resolve-names.ts";
 import { policyOf } from "./inputs.ts";
 
 const PLACEHOLDER = /\{([^{}]*)\}/gu;
@@ -68,7 +70,8 @@ function namedIn(config: PermDockConfig): readonly Named[] {
  * PD077: a config key or value names a scope, resource or action the policy
  * does not declare, such as a Realtime topic `{organisation}` placeholder for
  * the scope `organization`. `defineConfig` with the policy value reports the
- * same names at compile time.
+ * same names at compile time. Also a SQL helper name `resolveNames` rejects:
+ * two sources sharing one, or one Postgres cannot hold.
  */
 export async function pd077(
   input: DoctorInput,
@@ -86,12 +89,32 @@ export async function pd077(
     resource: new Set(leaves.map((leaf) => leaf.resource)),
     action: new Set(leaves.map((leaf) => leaf.action)),
   };
-  return namedIn(input.config)
+  const unknown = namedIn(input.config)
     .filter((entry) => !declared[entry.kind].has(entry.name))
-    .map((entry) => ({
+    .map((entry): DoctorFinding => ({
       code: "PD077",
-      severity: "error" as const,
+      severity: "error",
       message: `${entry.where} names the ${entry.kind} '${entry.name}', which the policy does not declare`,
       fix: `use one of ${[...declared[entry.kind]].toSorted().join(", ")}, or pass the policy value to defineConfig to catch this at compile time`,
     }));
+  return [...unknown, ...helperNames(policy, input.config)];
+}
+
+function helperNames(
+  policy: Parameters<typeof resolveNames>[0],
+  config: PermDockConfig,
+): readonly DoctorFinding[] {
+  try {
+    resolveNames(policy, config);
+    return [];
+  } catch (cause) {
+    return [
+      {
+        code: "PD077",
+        severity: "error",
+        message: describeError(cause).replace(/^PermDock CLI: /u, ""),
+        fix: "rename the scope or resource so each generated SQL helper has its own name of at most 63 bytes",
+      },
+    ];
+  }
 }
