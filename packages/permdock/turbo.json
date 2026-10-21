@@ -10,6 +10,14 @@
       "dependsOn": ["$TURBO_EXTENDS$", "//#authzen:vectors"],
       "inputs": ["$TURBO_DEFAULT$", "tests/testing/fixtures/authzen/**"],
       "env": ["$TURBO_EXTENDS$", "PERMDOCK_COLLECT"]
+    },
+    "gen:check": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/testing-fixtures.ts",
+        "$TURBO_ROOT$/apps/examples/next-better-supabase/permissions.catalog.json",
+        "$TURBO_ROOT$/apps/examples/next-better-supabase/permdock.manifest.json"
+      ]
     }
   }
 }

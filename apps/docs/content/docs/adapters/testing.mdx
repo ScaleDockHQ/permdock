@@ -142,6 +142,18 @@ for (const scenario of saasScenarios) {
 
 Matrix rows are keyed by `permission.key` computed from the reference (`[permissions.post.update.key]`), never by a string literal, because an object literal cannot be keyed by the reference itself. The matrix is a test, not a report; the permission inventory comes from `permdock catalog`.
 
+`permdock/testing/fixtures` exports two real documents from `apps/examples/next-better-supabase`, for testing code that consumes PermDock's files rather than its runtime, such as a Cloud implementation or a catalog viewer. `betterSupabaseCatalog` is its `permissions.catalog.json` (`catalog-v1`: resources, permissions, scopes, roles, grants and delegations) and `betterSupabaseManifest` its `permdock.manifest.json` (`supabase-manifest-v1`). Both are parsed with `parseCatalog` and `parseSupabaseManifest` at import. `pnpm gen:check` fails when the copies drift from the example.
+
+```ts
+import {
+  betterSupabaseCatalog,
+  betterSupabaseManifest,
+} from "permdock/testing/fixtures";
+
+const pushed = await client.catalog.push(betterSupabaseCatalog);
+expect(pushed.fingerprint).toBe(betterSupabaseCatalog.fingerprint);
+```
+
 ## Request lifecycle
 
 Tests do not run a request, but the helpers follow the same order as adapters so failures point at the right layer:

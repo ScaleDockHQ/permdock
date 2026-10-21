@@ -53,7 +53,7 @@ export function evaluationsSemantic(
   return EVALUATIONS_SEMANTICS.find((semantic) => semantic === value);
 }
 
-export function unknownSemanticProblem(): Response {
+function unknownSemanticProblem(): Response {
   return validationProblem(
     `options.evaluations_semantic must be one of ${EVALUATIONS_SEMANTICS.join(", ")}`,
   );
