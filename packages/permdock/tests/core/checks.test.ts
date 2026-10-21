@@ -69,6 +69,20 @@ describe("decideAll", () => {
     expect(Object.isFrozen(decisions)).toBe(true);
   });
 
+  it("answers the same on an instance built from a snapshot", () => {
+    const permdock = fromSnapshot(
+      getPermDockSync(policy, memberUser).snapshot(),
+    );
+    const decisions = permdock.decideAll([
+      permissions.post.list,
+      permissions.post.publish,
+    ]);
+    expect(decisions.map((decision) => decision.outcome)).toEqual([
+      "granted",
+      "denied",
+    ]);
+  });
+
   it("matches decide for each check", () => {
     const permdock = getPermDockSync(policy, adminUser);
     const [decision] = permdock.decideAll([

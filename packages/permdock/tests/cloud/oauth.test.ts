@@ -196,6 +196,20 @@ describe("cloudOAuth", () => {
     expect(await rejection(plain.authorizeUrl())).toMatchObject({
       code: "discovery-failed",
     });
+    const unparsable = cloudOAuth({
+      clientId: "app",
+      redirectUri: REDIRECT,
+      url: BASE,
+      fetch: metadata({
+        issuer: BASE,
+        authorization_endpoint: `${BASE}/oauth/authorize`,
+        token_endpoint: "not a url",
+        code_challenge_methods_supported: ["S256"],
+      }),
+    });
+    expect(await rejection(unparsable.refresh("rt"))).toMatchObject({
+      code: "discovery-failed",
+    });
   });
 
   it("authenticates a confidential client with client_secret_basic", async () => {
@@ -238,6 +252,85 @@ describe("cloudOAuth", () => {
     expect(await rejection(client.listProjects("at"))).toMatchObject({
       code: "unexpected-response",
     });
+  });
+
+  it("maps the read API's refusals and sends the cursor", async () => {
+    const answers: Response[] = [];
+    const urls: string[] = [];
+    const client = cloudOAuth({
+      clientId: "app",
+      redirectUri: REDIRECT,
+      url: BASE,
+      fetch: (input) => {
+        urls.push(String(input));
+        return Promise.resolve(answers.shift() ?? new Response(null));
+      },
+    });
+    const refused = async (response: Response): Promise<unknown> => {
+      answers.push(response);
+      return rejection(client.listProjects("at"));
+    };
+    expect(await refused(new Response(null, { status: 403 }))).toMatchObject({
+      code: "forbidden",
+      status: 403,
+    });
+    expect(
+      await refused(
+        new Response(null, { status: 429, headers: { "retry-after": "30" } }),
+      ),
+    ).toMatchObject({ code: "rate-limited", status: 429 });
+    expect(await refused(new Response(null, { status: 503 }))).toMatchObject({
+      code: "unexpected-response",
+      status: 503,
+    });
+    expect(await refused(new Response("not json"))).toMatchObject({
+      code: "unexpected-response",
+    });
+    const project = {
+      id: "prj",
+      name: "Project",
+      environment: "prj",
+      catalog: { version: 2, fingerprint: "sha-256:x" },
+    };
+    expect(
+      await refused(Response.json({ items: [{ ...project, catalog: {} }] })),
+    ).toMatchObject({ code: "unexpected-response" });
+    answers.push(Response.json({ items: [project], next: "c2" }));
+    expect(await client.listProjects("at", { cursor: "c1" })).toEqual({
+      items: [project],
+      next: "c2",
+    });
+    expect(urls.at(-1)).toBe(`${BASE}/v1/projects?cursor=c1`);
+  });
+
+  it("refuses a token answer that is not JSON or a callback that is not a URL", async () => {
+    const client = cloudOAuth({
+      clientId: "app",
+      redirectUri: REDIRECT,
+      url: BASE,
+      fetch: (input) =>
+        Promise.resolve(
+          String(input).endsWith("/oauth-authorization-server")
+            ? Response.json({
+                issuer: BASE,
+                authorization_endpoint: `${BASE}/oauth/authorize`,
+                token_endpoint: `${BASE}/oauth/token`,
+                code_challenge_methods_supported: ["S256"],
+              })
+            : new Response("<html>", { status: 502 }),
+        ),
+    });
+    expect(await rejection(client.refresh("rt"))).toMatchObject({
+      code: "unexpected-response",
+      status: 502,
+    });
+    expect(
+      await rejection(
+        client.exchangeCode("not a url", { state: "s", codeVerifier: "v" }),
+      ),
+    ).toMatchObject({ code: "authorization-denied" });
+    expect(isCloudAuthError(new Error("plain"))).toBe(false);
+    expect(isCloudAuthError("CloudAuthError")).toBe(false);
   });
 
   it("answers unreachable when fetch throws", async () => {
@@ -288,5 +381,6 @@ describe("bearerChallenge", () => {
     expect(bearerChallenge(null)).toBeNull();
     expect(bearerChallenge('Basic realm="x"')).toBeNull();
     expect(bearerChallenge("")).toBeNull();
+    expect(bearerChallenge("=")).toBeNull();
   });
 });

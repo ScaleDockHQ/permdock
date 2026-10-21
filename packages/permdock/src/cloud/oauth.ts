@@ -117,10 +117,7 @@ function isLoopback(hostname: string): boolean {
 }
 
 /** An endpoint must be `https:`, except on a loopback issuer, which a local Cloud serves over plain HTTP. */
-function secureEndpoint(value: string | undefined, issuer: string): boolean {
-  if (value === undefined) {
-    return false;
-  }
+function secureEndpoint(value: string, issuer: string): boolean {
   try {
     const url = new URL(value);
     return (
