@@ -115,9 +115,16 @@ export async function pushSet(
     await response.body?.cancel();
     return { ok: true };
   }
+  return deliveryFailure(response);
+}
+
+/** The `SetDelivery` failure for a non-`2xx` RFC 8935 or RFC 8936 response. */
+export async function deliveryFailure(
+  response: Response,
+): Promise<Extract<SetDelivery, { readonly ok: false }>> {
   const { err, description } = await errorBody(response);
   if (response.status === 429 || response.status >= 500) {
-    return compact<SetDelivery>({
+    return compact<Extract<SetDelivery, { readonly ok: false }>>({
       ok: false,
       cause: "unavailable",
       description,
@@ -136,7 +143,12 @@ export async function pushSet(
       ? ERR_CAUSES[err]
       : undefined) ??
     "invalid-request";
-  return compact<SetDelivery>({ ok: false, cause, description, retry: false });
+  return compact<Extract<SetDelivery, { readonly ok: false }>>({
+    ok: false,
+    cause,
+    description,
+    retry: false,
+  });
 }
 
 function reason(value: CaepReason | undefined): unknown {

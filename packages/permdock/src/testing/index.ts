@@ -104,6 +104,7 @@ export {
   testReplayStore,
   testRevocationFeed,
   testSetQueue,
+  testSsfStreamStore,
   testTokenSigner,
   testTokenVerifier,
 } from "./conformance/credentials.ts";

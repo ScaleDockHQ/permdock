@@ -1,6 +1,11 @@
 import { expect, it, vi } from "vitest";
 
-import type { ReplayStore, SetQueue } from "../../ssf/index.ts";
+import type {
+  ReplayStore,
+  SetQueue,
+  SsfStreamConfiguration,
+  SsfStreamStore,
+} from "../../ssf/index.ts";
 
 import { nowMillis, nowSeconds } from "../../core/time.ts";
 import {
@@ -79,6 +84,89 @@ export function testSetQueue(queue: SetQueue): void {
     expect(await queue.pending("stream-c", 10)).toEqual([
       { jti: "c3", set: "set-c3" },
     ]);
+  });
+}
+
+function streamConfiguration(
+  id: string,
+  description?: string,
+): SsfStreamConfiguration {
+  return {
+    stream_id: id,
+    iss: "https://transmitter.example",
+    aud: "receiver",
+    events_requested: [],
+    delivery: { method: "urn:ietf:rfc:8936" },
+    ...(description === undefined ? {} : { description }),
+  };
+}
+
+export function testSsfStreamStore(store: SsfStreamStore): void {
+  const id = (suffix: string): string =>
+    `stream-${suffix}-${crypto.randomUUID()}`;
+
+  it("creates an enabled stream and reads it back by id and by owner", async () => {
+    const first = id("a");
+    const second = id("b");
+    const owner = `owner-${crypto.randomUUID()}`;
+    await store.create(owner, streamConfiguration(first));
+    await store.create(owner, streamConfiguration(second));
+    await store.create("someone-else", streamConfiguration(id("c")));
+    expect(await store.get(first)).toEqual({
+      owner,
+      configuration: streamConfiguration(first),
+    });
+    expect(await store.status(first)).toEqual({
+      stream_id: first,
+      status: "enabled",
+    });
+    const listed = await store.list(owner);
+    expect(listed.map((stream) => stream.configuration.stream_id)).toEqual([
+      first,
+      second,
+    ]);
+    const all = await store.list();
+    expect(all.map((stream) => stream.configuration.stream_id)).toEqual(
+      expect.arrayContaining([first, second]),
+    );
+  });
+
+  it("answers null for a stream that does not exist", async () => {
+    expect(await store.get(id("missing"))).toBeNull();
+    expect(await store.status(id("missing"))).toBeNull();
+  });
+
+  it("replaces the configuration and keeps the owner and status", async () => {
+    const stream = id("update");
+    await store.create("owner-update", streamConfiguration(stream));
+    await store.setStatus({
+      stream_id: stream,
+      status: "paused",
+      reason: "maintenance",
+    });
+    await store.update(streamConfiguration(stream, "renamed"));
+    expect(await store.get(stream)).toEqual({
+      owner: "owner-update",
+      configuration: streamConfiguration(stream, "renamed"),
+    });
+    expect(await store.status(stream)).toEqual({
+      stream_id: stream,
+      status: "paused",
+      reason: "maintenance",
+    });
+  });
+
+  it("forgets a deleted stream and its status", async () => {
+    const stream = id("delete");
+    await store.create("owner-delete", streamConfiguration(stream));
+    await store.delete(stream);
+    expect(await store.get(stream)).toBeNull();
+    expect(await store.status(stream)).toBeNull();
+    expect(
+      (await store.list("owner-delete")).some(
+        (entry) => entry.configuration.stream_id === stream,
+      ),
+    ).toBe(false);
   });
 }
 

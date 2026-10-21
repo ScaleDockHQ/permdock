@@ -42,6 +42,14 @@ export function eventName(uri: string): SsfEventName | undefined {
   return undefined;
 }
 
+/** Every CAEP and RISC event URI PermDock's receiver handles. */
+export function knownEventTypes(): readonly string[] {
+  return [
+    ...CAEP_NAMES.map((name) => `${CAEP_PREFIX}${name}`),
+    ...RISC_NAMES.map((name) => `${RISC_PREFIX}${name}`),
+  ];
+}
+
 /** RISC events that end every session of the subject. */
 export function revokesAccount(name: string): boolean {
   return RISC_NAMES.some((known) => known === name);
