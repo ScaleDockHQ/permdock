@@ -5,6 +5,7 @@ import type { Membership } from "../core/subject.ts";
 
 import { compact } from "../core/compact.ts";
 import { activate } from "../core/elevated.ts";
+import { delegationAllows } from "../core/may-use.ts";
 import { stepUpOf } from "../core/problem-details.ts";
 import { isMembershipExpired, nowSeconds } from "../core/tenancy.ts";
 
@@ -32,6 +33,8 @@ const FINAL: ReadonlySet<DenialReason> = new Set<DenialReason>([
   "deny",
   "validation",
   "anonymous",
+  "not-delegated",
+  "no-delegation",
   "agent-tool-not-delegated",
   "approval",
   "stale-approval",
@@ -104,10 +107,12 @@ function activationFor(
 
 /**
  * The step-up that could lift `decision`, or `undefined`. A denial with
- * `insufficient-user-authentication` asks for a fresh sign-in; any other
+ * `insufficient-user-authentication` asks for a fresh sign-in when the
+ * delegation and the actor still cover the permission; any other
  * denial asks for the first eligible role whose activation the simulated
  * decision grants. A matched deny, a validation failure, an anonymous
- * subject, an undelegated tool and a failed approval resume never step up.
+ * subject, a delegation that does not cover the call, an undelegated tool
+ * and a failed approval resume never step up.
  */
 export function stepUpFor(
   permdock: PermDock,
@@ -122,14 +127,16 @@ export function stepUpFor(
   ) {
     return undefined;
   }
-  if (
-    decision.denials.some(
-      (denial) => denial.reason === "insufficient-user-authentication",
-    )
-  ) {
-    return { kind: "authentication", ...stepUpOf(decision) };
-  }
   try {
+    if (
+      decision.denials.some(
+        (denial) => denial.reason === "insufficient-user-authentication",
+      )
+    ) {
+      return delegationAllows(permdock, permission)
+        ? { kind: "authentication", ...stepUpOf(decision) }
+        : undefined;
+    }
     return activationFor(permdock, permission, data);
   } catch {
     return undefined;

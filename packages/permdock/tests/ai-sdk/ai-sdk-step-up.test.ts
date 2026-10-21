@@ -166,6 +166,23 @@ describe("permdock/ai-sdk stepUp: authentication", () => {
     });
   });
 
+  it("never steps up past an agent's delegation", async () => {
+    const { toolApproval } = createPermDock(policy, {
+      // SAFETY: every call in this file passes a runtimeContext object carrying user.
+      subject: ({ runtimeContext }) =>
+        (runtimeContext as { readonly user: Principal }).user,
+      actor: () => ({ id: "agent-1", kind: "ai-sdk" }),
+      delegation: () => ({ scopes: [permissions.post.read.scope] }),
+      operations,
+      stepUp: {},
+    });
+    for (const toolName of ["delete_post", "archive_post"]) {
+      expect(await toolApproval(call(toolName, member))).toMatchObject({
+        type: "denied",
+      });
+    }
+  });
+
   it("never steps up an unmapped tool", async () => {
     const { toolApproval } = adapter({});
     expect(await toolApproval(call("explode", member))).toEqual({

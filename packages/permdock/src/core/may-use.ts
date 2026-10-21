@@ -40,6 +40,42 @@ function blocksEveryRow(grant: SnapshotGrant): boolean {
   );
 }
 
+function withinDelegation(
+  permdock: PermDock,
+  permission: Permission,
+  ceiling: readonly string[] | undefined,
+): boolean {
+  return (
+    (ceiling === undefined || ceiling.includes(permission.key)) &&
+    !readOnlyActorRefuses(permdock.subject.actor, permission) &&
+    delegationMayCover(
+      permission,
+      permdock.subject.delegation,
+      permdock.subject.actor !== undefined && ceiling === undefined,
+    )
+  );
+}
+
+/**
+ * Whether the subject's delegation, its delegated ceiling and a read-only
+ * actor leave `permission` within reach, whatever the grants say. A hint,
+ * never a decision.
+ */
+export function delegationAllows(
+  permdock: PermDock,
+  permission: Permission,
+): boolean {
+  try {
+    const snapshot = permdock.snapshot();
+    return (
+      "grants" in snapshot &&
+      withinDelegation(permdock, permission, snapshot.delegated)
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Whether `permission` could be granted to this instance's subject for some
  * row: the grants its snapshot carries for the active tenant, minus an
@@ -49,22 +85,9 @@ function blocksEveryRow(grant: SnapshotGrant): boolean {
 export function mayUse(permdock: PermDock, permission: Permission): boolean {
   try {
     const snapshot = permdock.snapshot();
-    if (!("grants" in snapshot)) {
-      return false;
-    }
-    const ceiling = snapshot.delegated;
     if (
-      (ceiling !== undefined && !ceiling.includes(permission.key)) ||
-      readOnlyActorRefuses(permdock.subject.actor, permission)
-    ) {
-      return false;
-    }
-    if (
-      !delegationMayCover(
-        permission,
-        permdock.subject.delegation,
-        permdock.subject.actor !== undefined && ceiling === undefined,
-      )
+      !("grants" in snapshot) ||
+      !withinDelegation(permdock, permission, snapshot.delegated)
     ) {
       return false;
     }
@@ -128,16 +151,9 @@ export function permittedIds(
     }
     const scopes = scopeList(snapshot.scopes);
     const name = resolveScope(scopes, scope);
-    const ceiling = snapshot.delegated;
     if (
       name === undefined ||
-      (ceiling !== undefined && !ceiling.includes(permission.key)) ||
-      readOnlyActorRefuses(permdock.subject.actor, permission) ||
-      !delegationMayCover(
-        permission,
-        permdock.subject.delegation,
-        permdock.subject.actor !== undefined && ceiling === undefined,
-      )
+      !withinDelegation(permdock, permission, snapshot.delegated)
     ) {
       return [];
     }
