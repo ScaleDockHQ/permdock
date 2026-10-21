@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import {
   indexKeysFromProject,
   indexKeysFromSql,
+  tablesFromSql,
   withoutServedTargets,
 } from "../../src/cli/rls/index-scan.ts";
 
@@ -75,6 +76,24 @@ describe("indexKeysFromSql", () => {
         columns: ["user_id", "organization_id"],
       },
       { table: "public.jobs", columns: ["owner_id"] },
+    ]);
+  });
+});
+
+describe("tablesFromSql", () => {
+  it("lists created tables, qualified, without temporary ones or comments", () => {
+    expect([
+      ...tablesFromSql(`
+-- create table public.commented (id int);
+create table public.organization_members (id uuid);
+CREATE UNLOGGED TABLE IF NOT EXISTS app."Jobs" (id uuid);
+create table audit_events partition of events for values in ('audit');
+create temp table scratch (id int);
+`),
+    ]).toEqual([
+      "public.organization_members",
+      "app.Jobs",
+      "public.audit_events",
     ]);
   });
 });

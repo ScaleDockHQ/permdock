@@ -118,13 +118,18 @@ export type RlsTableVia = {
   readonly scope?: string;
 };
 
-/** A resource's table: its `schema.table`, or an object that adds `via`. */
+/**
+ * A resource's table: its `schema.table`, an object that adds `via`, or
+ * `false` for a resource with no table (a console permission), which gets no
+ * policies while its role grants are still seeded.
+ */
 export type RlsTable =
   | string
+  | false
   | { readonly table?: string; readonly via: RlsTableVia };
 
 export type RlsConfig = {
-  /** Per resource, the table its policies target; the table is named after the resource when unset. */
+  /** Per resource, the table its policies target; the table is named after the resource when unset, and `false` means it has none. */
   readonly tables?: Readonly<Record<string, RlsTable>>;
   readonly dialect?: RlsDialect;
   readonly memberships?: RlsMemberships;

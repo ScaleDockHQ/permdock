@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { principal } from "../../src/conditions/refs.ts";
+import { claim, principal } from "../../src/conditions/refs.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { authenticated } from "../../src/core/grantee.ts";
 import {
@@ -12,7 +12,6 @@ import {
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
-import { refAt } from "../fixtures/refs.ts";
 
 const Entry = z.object({
   id: z.string(),
@@ -29,14 +28,14 @@ const policy = definePolicy(permissions, {
     allow(permissions.record.read, {
       to: authenticated(),
       where: {
-        region: refAt(principal, "claims", "attrs", "region"),
+        region: claim("attrs.region"),
         ownerId: principal.id,
       },
     }),
     allow(permissions.record.delete, {
       to: authenticated(),
       where: {
-        region: { notIn: refAt(principal, "claims", "attrs", "blocked") },
+        region: { notIn: claim("attrs.blocked") },
       },
     }),
   ],

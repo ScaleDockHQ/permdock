@@ -189,10 +189,12 @@ A role held at the organisation that reaches only the rows of the principal's te
 ```ts
 role(roles.manager, [
   allow([permissions.job.read, permissions.job.update], {
-    where: { teamId: { in: principal.claims.team_ids } },
+    where: { teamId: { in: claim("team_ids") } },
   }),
 ]); // on: 'organization'
 ```
+
+`claim("team_ids")` is `principal.claims.team_ids`, typed for apps that compile with `noUncheckedIndexedAccess` ([conditions](/docs/concepts/conditions)).
 
 - **In-process**, the list comes from the subject: `principal.claims.team_ids` from a verified token, or a principal attribute such as `principal.teamIds` that `subject()` loads. A missing or non-array value matches no row.
 - **Snapshots** bind the list to the subject's value when they are built, because the snapshot principal carries only `id`, `roles`, `plans`, `tenant` and `memberships`. `fromSnapshot(snapshot).decide` therefore agrees with `decide`; a team change reaches the client with the next snapshot.
