@@ -72,8 +72,8 @@ describe("permdock/ai-sdk", () => {
       toolCall: { toolName: "delete_post", input: { id: "p1" } },
     });
     expect(asked).toMatchObject({ type: "user-approval" });
-    if (typeof asked === "string" || asked.type !== "user-approval") {
-      throw new Error("expected user-approval");
+    if (typeof asked === "string" || !("token" in asked)) {
+      throw new Error("expected user-approval with a token");
     }
     expect(await store.get(asked.token)).not.toBeNull();
 

@@ -48,6 +48,8 @@ if (decision.outcome === "granted") {
 }
 ```
 
+An agent run can ask for the activation: with `stepUp` on `permdock/ai-sdk`, a tool call that the activation of an eligible role would grant pauses as `user-approval` with `stepUp: { kind: 'activation', role, scope, id }`, and the re-check after the app writes the membership decides again ([AI SDK adapter](/docs/adapters/ai-sdk)).
+
 Fail-closed: an unknown role, an ineligible subject, a missing justification when `justification: 'required'`, or stale authentication all deny (`unknown-role`, `no-membership`, `reason-required`, `insufficient-user-authentication`). `duration` and `maxDuration` are whole seconds, and `duration` is capped at `maxDuration`. The elevation's `within` is copied from the eligible membership, never from the input: a `within` that disagrees with it is denied with `no-membership`, and the approval token covers it, so an approval for a team in one organization cannot activate the same team id in another. Expiry is the existing `expiresAt` check plus the revocation counter; the Supabase hook already includes the elevated row. `permdock doctor` PD033 warns on an `activation` without `maxDuration`, and on an activation role a fixture membership also holds standing.
 
 ## Break-glass

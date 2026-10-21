@@ -131,7 +131,7 @@ function decideModelOn(
   }
 }
 
-/** Builds the agent contract and its kernel for an adapter named `adapter`. */
+/** Builds the agent contract and its kernel for an adapter named `adapter`; `runtime.stepUp` sets `stepUp` on denied verdicts. */
 export function agentRuntime<
   TContext,
   TUser,
@@ -141,6 +141,7 @@ export function agentRuntime<
   policy: Policy<TUser, TPrincipal, V>,
   options: AgentPermDockOptions<TContext, TUser>,
   adapter: string,
+  runtime: { readonly stepUp?: boolean } = {},
 ): AgentRuntime<TContext, V> {
   const kernel = createAgentKernel<TContext, TUser, V>(policy, {
     ...compact({
@@ -151,6 +152,7 @@ export function agentRuntime<
       context: options.context,
       wrap: composeWraps(options.otel, options.wrap),
       deniedText: options.deniedText,
+      stepUp: runtime.stepUp,
     }),
     ...instanceOptions(options),
     subject: options.subject,

@@ -30,6 +30,8 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
 
 Pass `toolApproval` into `generateText` / `ToolLoopAgent`. Wrap the model with `wrapLanguageModel({ model, middleware: capabilityMiddleware({ user }) })` per caller. Use `needsApproval(permissions.post.delete)` only on `WorkflowAgent`. `denied` maps to `'denied'`, `approval-required` to `'user-approval'`, and `'not-applicable'` is never returned ([AI SDK adapter](https://permdock.com/docs/adapters/ai-sdk)). Tools without a permission are hidden and denied unless `unmapped: 'allow'`; to combine PermDock with the app's own confirmation, pass `composeToolApproval(appApproval)` as `toolApproval` instead of wrapping the adapter: the app's function is asked only for calls PermDock grants, and its answer passes through (`undefined` stays not applicable; an unreadable answer denies).
 
+To let the user fix a denial in the loop, pass `stepUp: { at: "https://app.example.com/reauth" }` (`at` optional). An `insufficient-user-authentication` denial, or one that activating a role the user is `eligible` for would grant, then becomes `{ type: 'user-approval', reason, stepUp }`. `stepUp` is `{ kind: 'authentication', acrValues, maxAge }` or `{ kind: 'activation', role, scope, id }`. For an activation, call `activate(permdock, { role, scope, id, reason })` and write `decision.elevation`. The SDK's re-check decides again and runs the tool only when `granted`. Never build a `withStepUp` wrapper. A step-up status has no `token`, so narrow with `'token' in status` before reading it.
+
 ## Claude Agent SDK — `permdock/claude-agent`
 
 ```ts

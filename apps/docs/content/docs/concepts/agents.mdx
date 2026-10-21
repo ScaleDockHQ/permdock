@@ -25,6 +25,8 @@ const agent = createPermDock(policy, {
 
 `decideOperation(name, input, ctx)` loads the row through the operation's `data` resolver, validates it against the resource schema, decides and resumes an approval when the call carries an approval token. It never throws. An operation that `operations` does not name is denied unless `unmapped: 'allow'`. `allowedOperations(ctx)` lists the names the subject could be granted for some row; it is a listing hint for the tool list, never a decision.
 
+A denied `OperationVerdict` may carry `stepUp` (`StepUp`): `{ kind: 'authentication', acrValues, maxAge }` when a fresh sign-in would lift it, or `{ kind: 'activation', role, scope, id, within }` when activating an eligible role would. Only an adapter with step-ups on sets it, today `permdock/ai-sdk` with its `stepUp` option ([AI SDK adapter](/docs/adapters/ai-sdk)). It is a hint for the user and never a grant.
+
 ## Model gate
 
 `models` maps a model id to the permission that unlocks it. `decideModel(id, ctx)` returns the decision for one model, and a model `models` does not name is denied. `permittedModels(ctx)` returns the granted ids in declaration order, so the first entry is a sensible default. The gate is an ordinary permission check: plans, roles, tenant settings and delegations apply to it like any other permission.
