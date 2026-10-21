@@ -210,6 +210,8 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 
 Two elevated-access features ride the same `ApprovalRequest` machinery ([elevated access](/docs/concepts/elevated-access)). Role activation with `activation: { approval }` returns `approval-required` from `permdock.activate`; once resolved, the granted decision carries the `via: 'elevated'` membership to write under `elevation`. Support access asks a tenant owner to consent: the request's `membership` is the `via: 'support'` row, and on `consume` the app writes it. Both reuse the replay-safe token and four-eyes default above; neither lets PermDock write the membership.
 
+In an AI SDK tool loop, `stepUp` on `permdock/ai-sdk` pauses a call that a fresh sign-in or the activation of an eligible role would lift. It uses the same `user-approval` status as an approval, carrying `stepUp` instead of `token`. No `ApprovalRequest` is created: the user raises their own access, and the re-check decides again and runs the tool only when it is `granted` ([AI SDK adapter](/docs/adapters/ai-sdk)).
+
 ## Sources
 
 - [AI SDK 7 tool approvals](https://ai-sdk.dev/docs/agents/tool-approvals): `toolApproval` outcomes and `WorkflowAgent` `needsApproval`.

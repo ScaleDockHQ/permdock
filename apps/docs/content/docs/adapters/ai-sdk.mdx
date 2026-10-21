@@ -67,6 +67,25 @@ generateText({
 - `deniedText({ decision, permission, text })` may replace the denial reason or the approval summary the model reads, and nothing else; `undefined`, an empty string or a throw keeps PermDock's text.
 - `otel` takes `(permdock) => withOtel(permdock, options)` from `permdock/otel` and wraps each instance first ([OpenTelemetry](/docs/adapters/otel)).
 - `wrap` wraps each instance after `otel`; build it with `wrapPermDock` ([wrapping an instance](/docs/guides/extending#wrapping-an-instance)).
+- `stepUp` turns a denial the user can lift into a `user-approval` pause, so the user can step up instead of the model reading a refusal. Two denials qualify. The first is `insufficient-user-authentication`, which asks for a fresh sign-in. The second is a denial that activating a role the user is `eligible` for would grant ([elevated access](/docs/concepts/elevated-access)). Without `stepUp`, both stay `denied`.
+
+```ts
+const { toolApproval, capabilityMiddleware } = createPermDock(policy, {
+  subject: ({ runtimeContext }) => runtimeContext.user,
+  operations,
+  stepUp: { at: "https://app.example.com/reauth" }, // optional sign-in page
+});
+
+await toolApproval(call);
+// { type: 'user-approval',
+//   reason: 'Sign in again to use post.delete: https://app.example.com/reauth?acr_values=mfa&max_age=300',
+//   stepUp: { kind: 'authentication', acrValues: ['mfa'], maxAge: 300 } }
+// { type: 'user-approval',
+//   reason: 'Activate the admin role on organization T to use post.archive.',
+//   stepUp: { kind: 'activation', role: 'admin', scope: 'organization', id: 'T' } }
+```
+
+- The AI SDK shows `reason` on the approval request; `stepUp` is there for an app that wraps `toolApproval` and renders its own control. `at` is the page the user signs in again at. PermDock adds the RFC 9470 `acr_values` and `max_age` the failing grants ask for, and leaves the URL out when `at` is absent or does not parse. For an activation, the app calls `activate(permdock, { role, scope, id, reason })` and writes `decision.elevation`. The step-up status carries `stepUp` instead of `token`: there is no approval request in the store, so narrow with `'token' in status` before reading `token`. With `stepUp`, `needsApproval` suspends a `WorkflowAgent` for the same denials, and `capabilityMiddleware` keeps the tools an eligible activation would open. `deniedText` does not rewrite the step-up `reason`, because the user reads it, not the model.
 
 ## Request lifecycle
 
@@ -80,9 +99,10 @@ generateText({
 | `granted`                                     | `approved`            | tool executes                                           |
 | `denied`                                      | `denied`              | `reason` carries denials and alternatives for the model |
 | `approval-required`                           | `user-approval`       | UI or workflow asks a human; `Decision.token` attached  |
+| `denied` a step-up lifts, with `stepUp` set   | `user-approval`       | the user signs in again or activates a role; `stepUp`   |
 | unmapped tool, validation error, thrown error | `denied`              | fail closed                                             |
 
-5. On `user-approval`, the human's answer returns as an approval response. AI SDK then calls `toolApproval` again for the same `toolCallId`; the adapter recognises this re-check from the `tool-approval-request` in `messages` and answers `denied` unless a matching approval is recorded in `store` (the SDK treats any other answer as approved). The adapter re-runs `decide` and compares `Decision.token` (hash of permission key, resource id, subject, actor) with the token issued in step 4; a mismatch is denied. This is the problem `experimental_toolApprovalSecret` addresses by signing approval payloads; PermDock adds the check that the approved call is the same call.
+5. On `user-approval`, the human's answer returns as an approval response. After a step-up, the re-check decides again on the subject `runtimeContext` now carries: `granted` answers `approved` and anything else `denied`, so the user's answer alone never runs the tool. AI SDK then calls `toolApproval` again for the same `toolCallId`; the adapter recognises this re-check from the `tool-approval-request` in `messages` and answers `denied` unless a matching approval is recorded in `store` (the SDK treats any other answer as approved). The adapter re-runs `decide` and compares `Decision.token` (hash of permission key, resource id, subject, actor) with the token issued in step 4; a mismatch is denied. This is the problem `experimental_toolApprovalSecret` addresses by signing approval payloads; PermDock adds the check that the approved call is the same call.
 6. Every step emits `on('decision')` so audit logging and `permdock/otel` see the same events as any other adapter.
 
 `WorkflowAgent` follows the same path but suspends the durable workflow at step 5 instead of returning to the caller; on resume, the token check runs before the tool executes.
@@ -105,6 +125,13 @@ generateText({
 ## Example app
 
 `apps/examples/ai-sdk-agent`: HTTP harness on `127.0.0.1:3472` with `GET /health`. `GET /list_posts` calls `toolApproval` and returns `approved`. `GET /delete_post` returns `user-approval`. No model API key. `tests/integration` runs a multi-step `streamText` loop with a scripted model against a Postgres `ApprovalStore`: a granted step runs, a denied one is skipped, the owner's approval resumes the gated call once on a fresh instance, and replaying the approval response runs nothing.
+
+## Why
+
+- **A step-up is an option on the factory, not a wrapper.** The AI SDK has one place a tool call pauses for a person, the `user-approval` status of `toolApproval`. Another function around `toolApproval` would be a second integration point that apps forget to install. The `with*` prefix is reserved for the Supabase middleware pipeline, `withSubject` and `withOtel` ([naming](/docs/getting-started/naming)). `stepUp` is the name `permdock/mcp` already gives the same idea, so one word means "send the user to raise their own access" on both runtimes. It is opt-in because it changes what a denial looks like to a running loop.
+- **Only denials the user can lift step up.** A fresh sign-in lifts `insufficient-user-authentication`. Activating a role the subject is already `eligible` for lifts a denial that a simulated decision with that role's elevated membership grants. `activate` must also accept the role, or only ask for a reason or a sign-in. A matched deny, a validation failure, an anonymous caller, a tool the actor was not delegated and a failed approval resume stay `denied`, because nothing the user does in the moment changes them. Purpose of use and break-glass are not offered: `context.purpose` comes from the server, never from a chat prompt.
+- **The step-up never grants.** It pauses the loop and names what the user can do; the access comes from a new sign-in or a written elevated membership that `subject` reads on the next call. The re-check decides again against the server-derived subject and approves only `granted`, the same rule an approval resume follows. An activation that needs approval goes through the approval flow of `activate` and its own token. The `stepUp` hint is computed from the subject's own memberships, never from model output.
+- **Only the AI SDK adapter takes it today.** The shared agent kernel can set `stepUp` on a denied `OperationVerdict`, and only `permdock/ai-sdk` turns it on. Claude Agent, Eve and OpenAI each pause through a different hook, and mapping them is a separate change.
 
 ## Related standards
 
