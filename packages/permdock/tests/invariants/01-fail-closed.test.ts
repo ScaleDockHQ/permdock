@@ -70,6 +70,7 @@ describe("invariant 1: fail-closed", () => {
     const permdock = getPermDockSync(policy, memberUser);
     const decision = permdock.decide(permissions.post.update, {
       ...ownPost,
+      // @ts-expect-error the row breaks its schema on purpose
       published: "yes",
     });
     expect(decision.outcome).toBe("denied");

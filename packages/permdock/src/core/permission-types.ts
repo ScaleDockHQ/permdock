@@ -2,6 +2,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { AppData, AppDataSchema, WithX } from "./app-data.ts";
 import type {
+  PERMISSION_ROW,
   RESOURCE_BRAND,
   RESOURCE_NAME,
   RESOURCE_X,
@@ -93,7 +94,19 @@ export type Permission<
   readonly action: string;
   readonly meta: ActionMeta;
   readonly kind: Kind;
-} & ([T] extends [never] ? unknown : unknown);
+  /**
+   * The resource row type. Method syntax keeps it bivariant: a typed leaf is
+   * still a `Permission`, and an untyped one still takes a typed closure.
+   */
+  // oxlint-disable-next-line typescript/method-signature-style -- bivariant in T
+  [PERMISSION_ROW]?(row: T): void;
+};
+
+/**
+ * The row type of a permission's resource; `unknown` for an untyped
+ * `Permission`.
+ */
+export type RowOf<P> = P extends Permission<string, infer T> ? T : unknown;
 
 export type ResourceParent = {
   readonly field: string;

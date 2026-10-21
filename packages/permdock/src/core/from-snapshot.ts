@@ -154,7 +154,11 @@ export function fromSnapshot(
     canAll: (checks, decideOptions) => canAllWith(can, checks, decideOptions),
     decideAll: (checks, decideOptions) =>
       decideAllWith(decide, checks, decideOptions),
-    decideEach(permission, rows, decideOptions) {
+    decideEach(
+      permission: Permission,
+      rows: readonly unknown[],
+      decideOptions?: DecideOptions,
+    ) {
       return Object.freeze(
         rows.map((row) => run(permission, row, decideOptions)),
       );

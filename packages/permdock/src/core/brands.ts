@@ -27,3 +27,9 @@ export declare const RESOURCE_NAME: unique symbol;
  * only; it has no value.
  */
 export declare const POLICY_SCOPES: unique symbol;
+
+/**
+ * Phantom key carrying a permission's row type for `RowOf`. Type only; a leaf
+ * never has it at run time, so leaves stay plain JSON.
+ */
+export declare const PERMISSION_ROW: unique symbol;

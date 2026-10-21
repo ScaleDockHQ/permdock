@@ -7,6 +7,7 @@ import type { DescribeMessages } from "../core/describe.ts";
 import type { ProblemDetails } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
+import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
@@ -163,11 +164,18 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * denies; Next.js interrupts (`redirect()`, `notFound()`, request-time
    * bailouts) from `subject` or `tenant` pass through.
    */
-  readonly getPermission: (
-    permission: Permission,
-    data?: unknown,
-    query?: GetPermDockQuery,
-  ) => Promise<ServerPermissionState>;
+  readonly getPermission: {
+    <D>(
+      permission: Permission,
+      data?: UncheckedData<D>,
+      query?: GetPermDockQuery,
+    ): Promise<ServerPermissionState>;
+    <P extends Permission>(
+      permission: P,
+      data?: RowData<P>,
+      query?: GetPermDockQuery,
+    ): Promise<ServerPermissionState>;
+  };
   /**
    * The session's snapshot for a `'use cache: private'` function the app owns:
    * calls `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub),
@@ -180,11 +188,18 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * subject and `forbidden()` otherwise (`experimental.authInterrupts`);
    * approval-required and boundary validation throw as from `assert`.
    */
-  readonly requirePermission: (
-    permission: Permission,
-    data?: unknown,
-    options?: PermissionRequirementOptions,
-  ) => Promise<Extract<Decision, { readonly outcome: "granted" }>>;
+  readonly requirePermission: {
+    <D>(
+      permission: Permission,
+      data?: UncheckedData<D>,
+      options?: PermissionRequirementOptions,
+    ): Promise<Extract<Decision, { readonly outcome: "granted" }>>;
+    <P extends Permission>(
+      permission: P,
+      data?: RowData<P>,
+      options?: PermissionRequirementOptions,
+    ): Promise<Extract<Decision, { readonly outcome: "granted" }>>;
+  };
   /**
    * Never awaits: passes an unawaited snapshot to the client provider, whose
    * hooks suspend.

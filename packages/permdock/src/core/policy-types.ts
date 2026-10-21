@@ -253,7 +253,7 @@ export type GrantOptions<T = Record<string, unknown>> = {
   readonly approval?: ApprovalOption;
   readonly limit?: GrantLimit;
   readonly reason?: string;
-  readonly fields?: readonly (keyof T & string)[];
+  readonly fields?: readonly (unknown extends T ? string : keyof T & string)[];
   /**
    * A stable name for the grant. On a deny, a `breakGlass` override may lift
    * it; on any grant, it is reported on `decision.matched.name` and on decision

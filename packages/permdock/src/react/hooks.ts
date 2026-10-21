@@ -4,6 +4,7 @@ import type { ClientStore } from "../client/store.ts";
 import type { GateMode, GateView } from "../client/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
+import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership } from "../core/subject.ts";
@@ -63,6 +64,14 @@ export function usePermDock<
 // The hooks reach the store through `permdock`: the React Compiler keeps only
 // the dependencies a memoised callback reads, and `permdock` is the one that
 // changes when the store does.
+export function usePermission<D>(
+  permission: Permission,
+  data?: UncheckedData<D>,
+): PermissionState;
+export function usePermission<P extends Permission>(
+  permission: P,
+  data?: RowData<P>,
+): PermissionState;
 export function usePermission(
   permission: Permission,
   data?: unknown,
@@ -86,7 +95,7 @@ export function usePermissions(
 }
 
 export function useFilter<T>(
-  permission: Permission<string, T, "instance">,
+  permission: Permission<string, NoInfer<T>, "instance">,
   rows: readonly T[],
 ): FilterResult<T> {
   const permdock = usePermDock();
@@ -162,6 +171,16 @@ export function useApproval(decision: Decision): ApprovalHandle {
  * as `usePermission`. React and React Native share it; a recipe renders the
  * fields and decides nothing.
  */
+export function useGate<D>(
+  permission: Permission,
+  data?: UncheckedData<D>,
+  options?: { readonly mode?: GateMode },
+): GateView;
+export function useGate<P extends Permission>(
+  permission: P,
+  data?: RowData<P>,
+  options?: { readonly mode?: GateMode },
+): GateView;
 export function useGate(
   permission: Permission,
   data?: unknown,

@@ -269,8 +269,10 @@ export type {
   LoadedRows,
   DeriveOptions,
   PermDock,
+  RowData,
   RowPair,
   SimulateOptions,
+  UncheckedData,
   SnapshotOptions,
   WhereResult,
 } from "./core/permdock.ts";
@@ -322,8 +324,10 @@ export type {
   ResourceRelation,
   ResourceRelationInput,
   ResourceRestricted,
+  RowOf,
 } from "./core/permission-types.ts";
 export type {
+  PERMISSION_ROW,
   POLICY_SCOPES,
   RESOURCE_NAME,
   RESOURCE_X,

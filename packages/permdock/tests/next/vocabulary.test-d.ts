@@ -11,9 +11,8 @@ import type {
 import { createPermDock } from "../../src/next/index.ts";
 import { permissions, policy } from "../fixtures/vocabulary.ts";
 
-const { getPermDock, protectAction } = createPermDock(policy, {
-  subject: () => null,
-});
+const { getPermDock, getPermission, protectAction, requirePermission } =
+  createPermDock(policy, { subject: () => null });
 
 describe("permdock/next vocabulary", () => {
   it("types getPermDock by the policy vocabulary", async () => {
@@ -36,5 +35,16 @@ describe("permdock/next vocabulary", () => {
     });
     expectTypeOf(action).parameter(0).toBeUnknown();
     expectTypeOf(action).returns.resolves.toEqualTypeOf<ActionResult<number>>();
+  });
+
+  it("types data on getPermission and requirePermission", async () => {
+    await getPermission(permissions.post.update, { authorId: "u1" });
+    await requirePermission(permissions.post.update, { published: true });
+    const body: unknown = JSON.parse("{}");
+    await requirePermission(permissions.post.update, body);
+    // @ts-expect-error published is a boolean
+    await getPermission(permissions.post.update, { published: "yes" });
+    // @ts-expect-error published is a boolean
+    await requirePermission(permissions.post.update, { published: "yes" });
   });
 });

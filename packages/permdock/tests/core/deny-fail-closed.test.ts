@@ -52,6 +52,7 @@ describe("a deny that cannot be evaluated denies", () => {
 
   it("denies when a deny has an opaque where", async () => {
     const policy = policyWith(
+      // @ts-expect-error an opaque where is not an Invoice field
       deny(permissions.invoice.update, { where: opaqueWhere }),
     );
     const permdock = getPermDockSync(policy, user);
@@ -89,6 +90,7 @@ describe("a deny that cannot be evaluated denies", () => {
     const policy = definePolicy(permissions, {
       roles: [
         role("member", [
+          // @ts-expect-error an opaque where is not an Invoice field
           allow(permissions.invoice.update, { where: { not: opaqueWhere } }),
         ]),
       ],
@@ -104,6 +106,7 @@ describe("a deny that cannot be evaluated denies", () => {
     const policy = definePolicy(permissions, {
       roles: [
         role("member", [
+          // @ts-expect-error an opaque where is not an Invoice field
           allow(permissions.invoice.update, { where: opaqueWhere }),
           allow(permissions.invoice.update, { where: { amount: { lt: 100 } } }),
         ]),

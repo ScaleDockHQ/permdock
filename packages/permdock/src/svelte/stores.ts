@@ -5,6 +5,7 @@ import { readable, toStore } from "svelte/store";
 import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
+import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
@@ -70,6 +71,14 @@ export function getDescribe(): (
   return describeWith(getUi().messages);
 }
 
+export function permission<D>(
+  reference: Permission,
+  data?: () => UncheckedData<D>,
+): Readable<PermissionState>;
+export function permission<P extends Permission>(
+  reference: P,
+  data?: () => RowData<P>,
+): Readable<PermissionState>;
 export function permission(
   reference: Permission,
   data?: () => unknown,
@@ -101,7 +110,7 @@ export function permissionsFor(
 }
 
 export function filtered<T>(
-  reference: Permission<string, T, "instance">,
+  reference: Permission<string, NoInfer<T>, "instance">,
   rows: () => readonly T[],
 ): Readable<FilterResult<T>> {
   return filteredFor(getStore(), reference, rows);
@@ -109,7 +118,7 @@ export function filtered<T>(
 
 export function filteredFor<T>(
   store: ClientStore,
-  reference: Permission<string, T, "instance">,
+  reference: Permission<string, NoInfer<T>, "instance">,
   rows: () => readonly T[],
 ): Readable<FilterResult<T>> {
   return fromStore(store, () => filterResult(store.get(), reference, rows()));

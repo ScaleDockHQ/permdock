@@ -126,6 +126,7 @@ describe("permdock/orpc request discovery and failures", () => {
       .$context<Ctx>()
       .use(middleware())
       .handler(({ context }) => {
+        // @ts-expect-error the row breaks its schema on purpose
         context.permdock.assert(permissions.post.update, { id: 5 });
         return "ok";
       });

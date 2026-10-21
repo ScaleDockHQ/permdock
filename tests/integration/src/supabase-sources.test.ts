@@ -344,7 +344,7 @@ describe("permdock supabase hook generate against Postgres", () => {
       id: "q",
       organization_id: "T",
       customer_id: "c",
-      status: "sent",
+      status: "sent" as const,
     };
     const memberships = claimsFirst(sources(query), {
       version: authzVersion({ query }),

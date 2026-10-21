@@ -201,16 +201,20 @@ definePermissions({
 
 ### Type-level view
 
-Two phantom type parameters ride along with each leaf: the key literal, the instance type, and the kind.
+Three type parameters ride along with each leaf: the key literal, the row type and the kind. The row type sits on a type-only `PERMISSION_ROW` key that no leaf has at run time, and `RowOf<P>` reads it back (`unknown` for a resource without a schema).
 
 ```ts
 type UpdatePost = typeof permissions.post.update; // Permission<'post.update', Post, 'instance'>
 type CreatePost = typeof permissions.post.create; // Permission<'post.create', Post, 'collection'>: optional body
+type Row = RowOf<UpdatePost>; // Post
 
-function guard<K extends string, T>(permission: Permission<K, T>, data: T) {
-  /* ... */
-}
+permdock.can(permissions.post.update, { authorId: user.id }); // any part of a Post
+permdock.can(permissions.post.update, { current: post, next: draft }); // an update's pair
+permdock.can(permissions.post.update, { published: "yes" }); // type error: published is a boolean
+permdock.can(permissions.post.update, await request.json()); // unknown: parsed at run time
 ```
+
+`data` on `can`, `decide`, `assert`, `explain` and `decideEach` is a `RowData<P>`: a `Partial` of the row or a `{ current, next }` pair of them. Data typed `unknown` or `any` is accepted as an `UncheckedData` and parsed against the resource schema at run time, as before. `getPermission` and `requirePermission` in `permdock/next`, `usePermission`, `useGate` and `<Protected data>` in React, and `usePermission` in Vue and Solid and `permission` in Svelte take the same `data`. `filter` and `pick` infer the row type from the rows and check the permission against it. The row type of `protect`'s loader stays as the loader returns it.
 
 No template-literal unions are generated from the tree, which keeps TypeScript 7 checking fast and keeps error messages readable. Conditions and field lists are typed from the schema output (`StandardSchemaV1.InferOutput`), not from hand-written flat types.
 

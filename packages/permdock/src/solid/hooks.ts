@@ -11,6 +11,7 @@ import {
 import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
+import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
@@ -61,6 +62,14 @@ export function usePermDock(): ClientPermDock {
   });
 }
 
+export function usePermission<D>(
+  permission: Permission | Accessor<Permission>,
+  data?: Accessor<UncheckedData<D>>,
+): Accessor<PermissionState>;
+export function usePermission<P extends Permission>(
+  permission: P | Accessor<P>,
+  data?: Accessor<RowData<P>>,
+): Accessor<PermissionState>;
 export function usePermission(
   permission: Permission | Accessor<Permission>,
   data?: Accessor<unknown>,
@@ -88,7 +97,7 @@ export function usePermissions(
 }
 
 export function useFilter<T>(
-  permission: Permission<string, T, "instance">,
+  permission: Permission<string, NoInfer<T>, "instance">,
   rows: Accessor<readonly T[]>,
 ): Accessor<FilterResult<T>> {
   const permdock = usePermDock();

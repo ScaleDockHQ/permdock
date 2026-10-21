@@ -136,8 +136,11 @@ export function shadowMode(options: ShadowOptions): PermDockWrap {
         decide: decide as PermDock<V>["decide"],
         // SAFETY: can implements every overload of PermDock["can"] with the same arguments.
         can: can as PermDock<V>["can"],
-        decideEach: (permission, rows, decideOptions) =>
-          rows.map((row) => decide(permission, row, decideOptions)),
+        decideEach: (
+          permission: Permission,
+          rows: readonly unknown[],
+          decideOptions?: DecideOptions,
+        ) => rows.map((row) => decide(permission, row, decideOptions)),
         filter: (permission, rows, decideOptions) =>
           rows.filter((row) => can(permission, row, decideOptions)),
         // SAFETY: assert implements every overload of PermDock["assert"] with the same arguments.

@@ -12,6 +12,7 @@ import {
 import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
+import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
@@ -70,14 +71,24 @@ export function usePermDock(): ClientPermDock {
   return livePermDock(() => permdock.value);
 }
 
-export function usePermission(
-  permission: MaybeRefOrGetter<Permission>,
-  data?: MaybeRefOrGetter<unknown>,
-): {
+type PermissionRefs = {
   readonly allowed: ComputedRef<boolean>;
   readonly status: ComputedRef<PermissionState["status"]>;
   readonly decision: ComputedRef<Decision>;
-} {
+};
+
+export function usePermission<D>(
+  permission: MaybeRefOrGetter<Permission>,
+  data?: MaybeRefOrGetter<UncheckedData<D>>,
+): PermissionRefs;
+export function usePermission<P extends Permission>(
+  permission: MaybeRefOrGetter<P>,
+  data?: MaybeRefOrGetter<RowData<P>>,
+): PermissionRefs;
+export function usePermission(
+  permission: MaybeRefOrGetter<Permission>,
+  data?: MaybeRefOrGetter<unknown>,
+): PermissionRefs {
   const store = useStore();
   const permdock = useTick(store);
   const state = computed(() => {
@@ -104,7 +115,7 @@ export function usePermissions(
 }
 
 export function useFilter<T>(
-  permission: Permission<string, T, "instance">,
+  permission: Permission<string, NoInfer<T>, "instance">,
   rows: MaybeRefOrGetter<readonly T[]>,
 ): ComputedRef<FilterResult<T>> {
   const permdock = useTick(useStore());

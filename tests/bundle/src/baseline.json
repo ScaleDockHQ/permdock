@@ -2,8 +2,8 @@
   ".": 179956,
   "./approvals": 69515,
   "./jwt": 36344,
-  "./react": 72124,
-  "./react-native": 81720,
+  "./react": 71993,
+  "./react-native": 81589,
   "./next": 151059,
   "./server": 170401,
   "./hono": 145941,
@@ -61,8 +61,8 @@
   "./testing/fixtures": 22052,
   "./testing/saas": 152031,
   "./testing/saas/permissions": 142540,
-  "./cli": 751803,
-  "./unplugin": 187943,
-  "./next/plugin": 183516,
+  "./cli": 751815,
+  "./unplugin": 187948,
+  "./next/plugin": 183523,
   "./next/client": 1437
 }
