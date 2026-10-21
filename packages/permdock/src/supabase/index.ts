@@ -77,6 +77,7 @@ export type {
   SupabasePrincipal,
   SupabaseRealtime,
   SupabaseRlsConfig,
+  SupabaseRlsMembershipTable,
   SupabaseSessionLike,
   SupabaseRlsOptions,
   SupabaseStorage,

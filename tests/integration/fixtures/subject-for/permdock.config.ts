@@ -7,7 +7,7 @@ export default {
   rls: {
     dialect: "supabase",
     authorize: "database",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     customRoles: true,
     membershipSources: sources(),
     suspension,

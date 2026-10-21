@@ -164,15 +164,17 @@ export const policy = definePolicy(permissions, {
           policy: "./src/levels.ts",
           rls: {
             dialect: "supabase",
-            tenantType: "text",
+            scopeTypes: { tenant: "text" },
             customRoles: true,
             rowHelpers: true,
             memberships: {
-              tenant: {
-                table: "organization_members",
-                tenant: "organization_id",
-                user: "user_id",
-                role: "role",
+              scopes: {
+                tenant: {
+                  table: "organization_members",
+                  columns: { tenant: "organization_id" },
+                  user: "user_id",
+                  role: "role",
+                },
               },
             },
             ...(seeds === undefined ? {} : { seeds }),

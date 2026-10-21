@@ -1,5 +1,7 @@
+import type { Scope } from "../../core/scopes.ts";
 import type { RlsSqlContext } from "./context.ts";
 
+import { byScope } from "../../conditions/compile.ts";
 import { isRecord } from "../../core/compact.ts";
 import { isForbiddenKey } from "../../core/paths.ts";
 import { configError } from "../core/errors.ts";
@@ -112,18 +114,27 @@ export function tenantTypeOf(ctx: RlsSqlContext): string {
   return sqlType(ctx.tenantType ?? "uuid");
 }
 
-function teamTypeOf(ctx: RlsSqlContext): string {
-  return sqlType(ctx.teamType ?? ctx.tenantType ?? "uuid");
+/**
+ * Postgres type of scope `name`'s id: `scopeTypes` by name or by its `tenant` /
+ * `team` alias, then the tenant type.
+ */
+export function scopeTypeOf(ctx: RlsSqlContext, name: string): string {
+  const declared = byScope(ctx.scopeTypes, ctx.scopes, name);
+  return declared === undefined ? tenantTypeOf(ctx) : sqlType(declared);
 }
 
 /**
- * Postgres type of scope `name`'s id: `scopeTypes`, then the tenant / team type
- * by position.
+ * The tenant type `rls.scopeTypes` gives the first scope, else `uuid`: the type
+ * the tenant claim and the custom-role tenant arguments are cast to.
  */
-export function scopeTypeOf(ctx: RlsSqlContext, name: string): string {
-  const declared = ctx.scopeTypes?.[name];
-  if (declared !== undefined) {
-    return sqlType(declared);
-  }
-  return name === ctx.scopes[1]?.name ? teamTypeOf(ctx) : tenantTypeOf(ctx);
+export function firstScopeType(
+  scopeTypes: Readonly<Record<string, string>> | undefined,
+  scopes: readonly Scope[],
+): string {
+  const first = scopes[0]?.name;
+  return (
+    (first === undefined ? undefined : byScope(scopeTypes, scopes, first)) ??
+    scopeTypes?.["tenant"] ??
+    "uuid"
+  );
 }

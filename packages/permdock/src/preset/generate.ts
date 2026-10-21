@@ -540,10 +540,11 @@ function rlsOption(ctx: Context): string | null {
     return null;
   }
   const table = `{\n      table: "org_members",\n      tenant: "org_id",\n      user: "user_id",\n      role: "role",\n    }`;
+  const scoped = `{\n      scopes: {\n        tenant: {\n          table: "org_members",\n          columns: { tenant: "org_id" },\n          user: "user_id",\n          role: "role",\n        },\n      },\n    }`;
   // Plain Postgres reads the user from a GUC set per transaction; Supabase reads auth.uid().
   return ctx.preset.backend === "supabase"
     ? `supabaseRls({${ctx.has("tenancy") ? `\n    memberships: ${table},\n  ` : ""}})`
-    : `{\n    dialect: "guc",${ctx.has("tenancy") ? `\n    memberships: { tenant: ${table} },` : ""}\n  }`;
+    : `{\n    dialect: "guc",${ctx.has("tenancy") ? `\n    memberships: ${scoped},` : ""}\n  }`;
 }
 
 function configFile(ctx: Context): GeneratedFile {

@@ -230,7 +230,7 @@ create policy "posts_read" on post for select to authenticated using ((select au
       );
       expect(result.code).toBe(0);
       expect(result.stdout).toContain(
-        "rls: { memberships: { tenant: { table: 'workspace_users'",
+        "rls: { memberships: { scopes: { tenant: { table: 'workspace_users'",
       );
     });
 
@@ -253,11 +253,13 @@ create policy "posts_list" on post for select to authenticated using (
   policy: './src/policy.ts',
   rls: {
     memberships: {
-      tenant: {
-        table: 'organization_members',
-        tenant: 'orgId',
-        user: 'user_id',
-        role: 'role',
+      scopes: {
+        tenant: {
+          table: 'organization_members',
+          columns: { tenant: 'orgId' },
+          user: 'user_id',
+          role: 'role',
+        },
       },
     },
   },

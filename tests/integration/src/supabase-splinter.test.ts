@@ -103,7 +103,11 @@ const SCENARIOS: readonly Scenario[] = [
     config: {
       permissions: join(FIXTURES, "rls-fields/permissions.ts"),
       policy: join(FIXTURES, "rls-fields/policy.ts"),
-      rls: { dialect: "supabase", tenantType: "text", fields: "views" },
+      rls: {
+        dialect: "supabase",
+        scopeTypes: { tenant: "text" },
+        fields: "views",
+      },
     },
   },
   {
@@ -114,7 +118,7 @@ const SCENARIOS: readonly Scenario[] = [
       policy: join(FIXTURES, "rls-fields/policy.ts"),
       rls: {
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         fields: "views",
         revokeColumns: true,
       },

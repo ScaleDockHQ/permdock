@@ -3,7 +3,7 @@ export default {
   policy: "../custom-role-writes/policy.ts",
   rls: {
     dialect: "supabase",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     authorize: "database",
     customRoles: true,
     trustedReaders: ["role_reader"],
@@ -18,11 +18,13 @@ export default {
       audit: { function: "public.audit_event", args: { source: "permdock" } },
     },
     memberships: {
-      tenant: {
-        table: "organization_members",
-        tenant: "organization_id",
-        user: "user_id",
-        role: "role",
+      scopes: {
+        tenant: {
+          table: "organization_members",
+          columns: { tenant: "organization_id" },
+          user: "user_id",
+          role: "role",
+        },
       },
     },
   },

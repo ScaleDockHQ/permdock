@@ -13,7 +13,7 @@ permdock codemod 0.5 src apps/web --dry-run # report only, write nothing
 permdock codemod 0.5 src --json           # the report as JSON
 ```
 
-The positional arguments after the version are files or directories; the default is the working directory. The command reads `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue` and `.svelte` files and skips `node_modules`, `dist`, `.git`, `.next`, `.turbo`, `.svelte-kit` and `coverage`. In a Vue or Svelte file it rewrites each `<script>` block. A file that imports no `permdock` entry is never changed.
+The positional arguments after the version are files or directories; the default is the working directory. The command reads `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue` and `.svelte` files and skips `node_modules`, `dist`, `.git`, `.next`, `.turbo`, `.svelte-kit` and `coverage`. In a Vue or Svelte file it rewrites each `<script>` block. A file that imports no `permdock` entry is never changed, except a `permdock.config.*` file.
 
 | Flag        | Meaning                                                                                                                  |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -23,7 +23,7 @@ The positional arguments after the version are files or directories; the default
 
 The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's consent (`rewrite`).
 
-The version is `0.5` (`0.5.0` and `v0.5` are read the same way). Any other version is a usage error that names the supported ones, exit `2`.
+The version is `0.5` or `0.8` (`0.5.0` and `v0.5` are read the same way). Any other version is a usage error that names the supported ones, exit `2`.
 
 ## What it renames
 
@@ -68,6 +68,19 @@ Some 0.5.0 changes move more than a name. The codemod rewrites these where the i
 The same run rewrites `permdock` command lines renamed in 0.5.0 in `package.json`, `Makefile`, `justfile`, `Dockerfile`, `.yml`, `.yaml` and `.sh` files: moved commands (`permdock openapi` becomes `permdock openapi emit`), renamed flags and values (`usage --strict` becomes `usage --fail-on warning`, `catalog --format schema` becomes `catalog --kind json-schema`), and a changed default (`rls migrate` without `--write` or `--retire-out` gains `--dry-run`, since it now writes by default). It matches `permdock`, `npx permdock`, `pnpm exec permdock` and a versioned `permdock@0.4`, and stops a command at `&&`, `||`, `;`, a pipe, a redirect or a comment.
 
 A flag that needs a person's choice is a follow-up, not a rewrite: `cloud push --environment` asks for the project id. In `.md` and `.mdx` files every call is a follow-up, since prose around it may need the same edit. The rows are on the [Naming](/docs/getting-started/naming#renamed-in-050) page.
+
+## Config keys in 0.8
+
+`permdock codemod 0.8` moves the `rls` keys 0.8.0 folded into named scopes. It edits the object passed to `defineConfig` and the default export of a `permdock.config.*` file; the rows live in `packages/permdock/src/cli/codemod/renames-0.8.ts`.
+
+| Source                                                                                      | Result                                          |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `rls.tenantType`                                                                            | `rls.scopeTypes.tenant`                         |
+| `rls.teamType`                                                                              | `rls.scopeTypes.team`                           |
+| `rls.memberships.tenant`, `rls.memberships.team`                                            | `rls.memberships.scopes.tenant`, `.scopes.team` |
+| `tenant` and `team` on a table under `rls.memberships.scopes` or `rls.memberships.resource` | `columns.tenant`, `columns.team`                |
+
+`tenant` and `team` stay valid keys there: they name the first and second declared scope. A key whose target is already set, or sits under a value that is not an object literal, is a follow-up to merge by hand. The options of `supabaseRls()` keep their shape; it normalises them itself.
 
 ## What it reports
 

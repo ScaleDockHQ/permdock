@@ -1,5 +1,5 @@
 export default {
   permissions: "./permissions.ts",
   policy: "./policy.ts",
-  rls: { tenantType: "text" },
+  rls: { scopeTypes: { tenant: "text" } },
 };

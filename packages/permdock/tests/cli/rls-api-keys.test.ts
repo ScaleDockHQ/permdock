@@ -33,7 +33,7 @@ describe("rls api keys", () => {
           permissions: "./src/permissions.ts",
           policy: "./src/policy.ts",
           rls: {
-            tenantType: "text",
+            scopeTypes: { tenant: "text" },
             tables: { post: "posts", note: "notes" },
             ...rls,
           },

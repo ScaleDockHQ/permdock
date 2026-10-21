@@ -264,12 +264,14 @@ describe("powersync streams", () => {
       policy: "p.ts",
       rls: {
         memberships: {
-          tenant: {
-            table: "members",
-            user: "user_id",
-            role: { through: "roles", on: {}, column: "key" },
+          scopes: {
+            tenant: {
+              table: "members",
+              user: "user_id",
+              role: { through: "roles", on: {}, column: "key" },
+            },
+            team: { table: "members", user: "member_id", role: "role" },
           },
-          team: { table: "members", user: "member_id", role: "role" },
         },
         roles: { table: "admins", user: "account_id", role: "level" },
       },

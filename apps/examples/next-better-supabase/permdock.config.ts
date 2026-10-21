@@ -10,7 +10,7 @@ export default {
   rls: {
     dialect: "supabase",
     authorize: "database",
-    tenantType: "uuid",
+    scopeTypes: { tenant: "uuid" },
     tables: { staff: "staff", quotes: "quotes" },
     readOnlyActors: true,
     // Out-of-office covers: a delegate approves for the delegator inside a window.

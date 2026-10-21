@@ -7,7 +7,7 @@ export default {
   policy: "../custom-role-writes/policy.ts",
   rls: {
     dialect: "supabase",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     approvals: true,
     jsonSchema: "auto",
   },

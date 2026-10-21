@@ -78,11 +78,7 @@ export function resolveAuthorize(
     return "database";
   }
   const memberships = flags.memberships ?? rls?.memberships;
-  return memberships?.tenant !== undefined ||
-    memberships?.team !== undefined ||
-    Object.keys(memberships?.scopes ?? {}).length > 0
-    ? "database"
-    : "jwt";
+  return Object.keys(memberships?.scopes ?? {}).length > 0 ? "database" : "jwt";
 }
 
 export function parseRbacAuthorize(

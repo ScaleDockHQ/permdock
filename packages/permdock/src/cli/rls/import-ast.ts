@@ -383,12 +383,6 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
     const mappedScopes: [string, RlsMembershipTable][] = Object.entries(
       memberships?.scopes ?? {},
     );
-    if (memberships?.tenant !== undefined) {
-      mappedScopes.push(["tenant", memberships.tenant]);
-    }
-    if (memberships?.team !== undefined) {
-      mappedScopes.push(["team", memberships.team]);
-    }
     const matches = mappedScopes.filter(([, mapped]) => mapped.table === table);
     if (matches.length > 0) {
       // A mapped membership table imports as memberOf only when its where

@@ -44,7 +44,7 @@ describe("postgres rls", () => {
       `export default {
   permissions: ${JSON.stringify(FIXTURE)},
   policy: ${JSON.stringify(FIXTURE)},
-  rls: { authorize: 'jwt', tenantType: 'text' },
+  rls: { authorize: 'jwt', scopeTypes: { tenant: 'text' } },
 };
 `,
     );

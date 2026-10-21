@@ -394,7 +394,7 @@ function fieldViewHint(view: ImportedFieldView): string {
 function membershipHint(table: string): string {
   return [
     `exists over ${table} stayed opaque; if it holds memberships, map it in permdock.config.ts:`,
-    `// rls: { memberships: { tenant: { table: '${table}', user: 'user_id', tenant: 'tenant_id', role: 'role' } } }`,
+    `// rls: { memberships: { scopes: { tenant: { table: '${table}', user: 'user_id', columns: { tenant: 'tenant_id' }, role: 'role' } } } }`,
   ].join("\n");
 }
 

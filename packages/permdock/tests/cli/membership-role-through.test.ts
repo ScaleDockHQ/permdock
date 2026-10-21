@@ -290,7 +290,7 @@ describe("rls.memberships through a roles table", () => {
         field: "organization_id",
         roles: ["admin"],
       },
-      { ...ctx, memberships: { tenant: table } },
+      { ...ctx, memberships: { scopes: { tenant: table } } },
     );
     expect(sql).toContain(`from "organization_users" m where`);
     expect(sql).toContain(

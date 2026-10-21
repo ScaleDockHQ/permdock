@@ -57,8 +57,6 @@ const RLS = {
   fixtures: STRING,
   verify: OBJECT,
   tenantClaim: STRING,
-  tenantType: STRING,
-  teamType: STRING,
   scopeTypes: OBJECT,
   roleClaim: STRING,
   roleValues: OBJECT,

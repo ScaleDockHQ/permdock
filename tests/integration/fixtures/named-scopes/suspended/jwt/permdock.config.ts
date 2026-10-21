@@ -3,7 +3,7 @@ export default {
   policy: "../../policy.ts",
   rls: {
     dialect: "guc",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     authorize: "jwt",
     suspension: {
       users: { table: "profiles", id: "id", disabledAt: "disabled_at" },

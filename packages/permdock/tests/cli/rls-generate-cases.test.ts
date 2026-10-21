@@ -201,8 +201,7 @@ describe("rls generate cases", () => {
         from: "./roles.ts",
         config: {
           rls: {
-            teamType: "bigint",
-            scopeTypes: { tenant: "text" },
+            scopeTypes: { team: "bigint", tenant: "text" },
             capabilities: true,
           },
           supabase: {

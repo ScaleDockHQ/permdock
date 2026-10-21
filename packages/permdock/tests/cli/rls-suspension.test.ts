@@ -91,7 +91,7 @@ describe("rls suspension", () => {
     it("checks the user and every instance on the chain in database mode", async () => {
       const { code, sql } = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "database",
         memberships: MEMBERSHIPS,
         suspension: SUSPENSION,
@@ -116,7 +116,7 @@ describe("rls suspension", () => {
     it("checks the claim ids against the tables in jwt mode", async () => {
       const { code, sql } = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "jwt",
         suspension: SUSPENSION,
       });
@@ -133,7 +133,7 @@ describe("rls suspension", () => {
     it("resolves scope aliases and leaves the SQL unchanged without suspension", async () => {
       const aliased = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "jwt",
         suspension: {
           scopes: {
@@ -151,7 +151,7 @@ describe("rls suspension", () => {
       );
       const plain = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "jwt",
       });
       expect(plain.sql).not.toContain("disabled_at");
@@ -160,7 +160,7 @@ describe("rls suspension", () => {
     it("refuses a suspension config it cannot compile", async () => {
       const base = {
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "database",
         memberships: MEMBERSHIPS,
       };
@@ -239,7 +239,7 @@ describe("rls suspension", () => {
       async (authorize) => {
         const { code, sql } = await generate({
           dialect: "supabase",
-          tenantType: "text",
+          scopeTypes: { tenant: "text" },
           authorize,
           ...(authorize === "database" ? { memberships: MEMBERSHIPS } : {}),
           suspension: KEEP,
@@ -256,7 +256,7 @@ describe("rls suspension", () => {
     it("keeps the kept permission in authorize()", async () => {
       const { sql } = await generate(
         {
-          tenantType: "text",
+          scopeTypes: { tenant: "text" },
           authorize: "jwt",
           memberships: MEMBERSHIPS,
           suspension: KEEP,
@@ -274,7 +274,7 @@ describe("rls suspension", () => {
     it("refuses a keep that is not a list", async () => {
       const result = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "jwt",
         suspension: {
           scopes: {
@@ -303,7 +303,7 @@ describe("rls suspension", () => {
     it("drops a disabled membership in database mode", async () => {
       const { code, sql } = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "database",
         memberships: DISABLED,
       });
@@ -319,7 +319,7 @@ describe("rls suspension", () => {
     it("counts and lets assign no disabled membership", async () => {
       const { code, sql } = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "database",
         memberships: DISABLED,
       });
@@ -334,7 +334,7 @@ describe("rls suspension", () => {
     it("lets no kept claim membership assign in jwt mode", async () => {
       const { code, sql } = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "jwt",
         suspension: { memberships: { keep: ["invoice.read"] } },
       });
@@ -347,7 +347,7 @@ describe("rls suspension", () => {
     it("lets a kept permission through a disabled membership", async () => {
       const { code, sql } = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "database",
         memberships: DISABLED,
         suspension: { memberships: { keep: ["invoice.read"] } },
@@ -364,7 +364,7 @@ describe("rls suspension", () => {
     it("reads the keep of a claim membership in jwt mode", async () => {
       const { code, sql } = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "jwt",
         suspension: { memberships: { keep: ["invoice.read"] } },
       });
@@ -380,7 +380,7 @@ describe("rls suspension", () => {
     it("refuses a keep that is not a list", async () => {
       const result = await generate({
         dialect: "supabase",
-        tenantType: "text",
+        scopeTypes: { tenant: "text" },
         authorize: "jwt",
         suspension: { memberships: { keep: "x" } },
       });
@@ -395,7 +395,7 @@ describe("rls suspension", () => {
     it("emits no token hook: permdock supabase hook generate writes the claims", async () => {
       const { code, sql, output } = await generate(
         {
-          tenantType: "text",
+          scopeTypes: { tenant: "text" },
           authorize: "jwt",
           memberships: MEMBERSHIPS,
           suspension: SUSPENSION,
@@ -412,7 +412,7 @@ describe("rls suspension", () => {
     it("guards authorize() against suspended users and tenants", async () => {
       const { sql } = await generate(
         {
-          tenantType: "text",
+          scopeTypes: { tenant: "text" },
           authorize: "jwt",
           memberships: MEMBERSHIPS,
           suspension: SUSPENSION,

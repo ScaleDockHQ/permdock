@@ -3,7 +3,7 @@ export default {
   policy: "./policy.ts",
   rls: {
     dialect: "guc",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     authorize: "database",
     memberships: {
       resource: {

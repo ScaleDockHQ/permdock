@@ -12,7 +12,7 @@ export default {
   policy: "../ownership/policy.ts",
   rls: {
     dialect: "guc",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     authorize: "database",
     membershipSources: [
       tableMembershipSource({

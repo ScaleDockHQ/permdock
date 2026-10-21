@@ -16,6 +16,7 @@ import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { configError, describeError } from "../core/errors.ts";
 import { checkSuspension } from "../sql/active.ts";
+import { firstScopeType } from "../sql/columns.ts";
 import { parseMembershipsFlag } from "../sql/context.ts";
 import { assignableRoles, roleNames } from "../sql/grants.ts";
 import { customRolesOn } from "../sql/shared.ts";
@@ -235,8 +236,7 @@ export function buildContext(
     schema,
     authorize,
     roleClaim: rls?.roleClaim ?? "user_role",
-    tenantType: input.tenantType ?? rls?.tenantType ?? "uuid",
-    ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
+    tenantType: input.tenantType ?? firstScopeType(rls?.scopeTypes, scopes),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
     ...(memberships === undefined ? {} : { memberships }),
     ...(sources === undefined || sources.length === 0 ? {} : { sources }),

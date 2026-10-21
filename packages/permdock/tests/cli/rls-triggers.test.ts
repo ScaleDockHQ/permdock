@@ -55,11 +55,13 @@ describe("rls triggers", () => {
           authorize: "database",
           customRoles: true,
           memberships: {
-            tenant: {
-              table: "organization_members",
-              tenant: "organization_id",
-              user: "user_id",
-              role: "role",
+            scopes: {
+              tenant: {
+                table: "organization_members",
+                columns: { tenant: "organization_id" },
+                user: "user_id",
+                role: "role",
+              },
             },
           },
           ...rls,

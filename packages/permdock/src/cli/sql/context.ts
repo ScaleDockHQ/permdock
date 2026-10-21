@@ -96,11 +96,9 @@ export type RlsSqlContext = {
    * `uuid`.
    */
   readonly tenantType?: string;
-  /** Postgres type of the team column. Defaults to `tenantType`. */
-  readonly teamType?: string;
   /**
-   * Postgres type of each scope's id column; overrides `tenantType` /
-   * `teamType`.
+   * Postgres type of each scope's id column, by name or `tenant` / `team`
+   * alias; overrides `tenantType`.
    */
   readonly scopeTypes?: Readonly<Record<string, string>>;
   /**
@@ -286,10 +284,10 @@ export function parseMembershipsFlag(
     .filter((item) => item !== "");
   const tenant: RlsMembershipTable = {
     table,
-    tenant: cols[0] ?? "tenant_id",
+    columns: { tenant: cols[0] ?? "tenant_id" },
     user: cols[1] ?? "user_id",
     role: cols[2] ?? "role",
     ...(cols[3] === undefined ? {} : { expiresAt: cols[3] }),
   };
-  return { tenant };
+  return { scopes: { tenant } };
 }

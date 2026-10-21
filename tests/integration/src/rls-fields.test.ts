@@ -181,7 +181,7 @@ function shapeName(shape: Shape): string {
 function configFor(shape: Shape): string {
   const rls = {
     dialect: shape.dialect,
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     fields: "mask",
     revokeColumns: shape.revoke,
   };

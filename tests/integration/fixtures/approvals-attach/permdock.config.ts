@@ -3,7 +3,7 @@ export default {
   policy: "../custom-role-writes/policy.ts",
   rls: {
     dialect: "supabase",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     approvals: {
       table: "public.approvals",
       token: "permdock_token",

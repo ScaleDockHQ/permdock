@@ -9,16 +9,18 @@ export default {
   rls: {
     dialect: "supabase",
     authorize: "database",
-    tenantType: "uuid",
+    scopeTypes: { tenant: "uuid" },
     customRoles: true,
     shims: true,
     actions: { view: "select", archive: "none", pay: "none" },
     memberships: {
-      tenant: {
-        table: "organization_users",
-        tenant: "organization_id",
-        user: "user_id",
-        role: { through: "roles", on: { role_id: "id" }, column: "key" },
+      scopes: {
+        tenant: {
+          table: "organization_users",
+          columns: { tenant: "organization_id" },
+          user: "user_id",
+          role: { through: "roles", on: { role_id: "id" }, column: "key" },
+        },
       },
     },
     migrate: {

@@ -8,13 +8,20 @@ import {
 import { sqlFunctionNames } from "../../src/cli/sql/conditions.ts";
 
 const memberships = {
-  tenant: {
-    table: "organization_members",
-    tenant: "orgId",
-    user: "user_id",
-    role: "role",
+  scopes: {
+    tenant: {
+      table: "organization_members",
+      columns: { tenant: "orgId" },
+      user: "user_id",
+      role: "role",
+    },
+    team: {
+      table: "team_users",
+      columns: { team: "teamId" },
+      user: "user_id",
+      role: "role",
+    },
   },
-  team: { table: "team_users", team: "teamId", user: "user_id", role: "role" },
 };
 
 describe(conditionFromAst, () => {
