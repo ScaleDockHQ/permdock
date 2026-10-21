@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import { isRecord } from "../../core/compact.ts";
 import { DRAFT_PINS } from "../../openapi/pins.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { packageRoot } from "../project/package-root.ts";
 
 export type OpenapiVersion = "3.1" | "3.2" | "3.3";
@@ -145,7 +146,10 @@ function validatorFor(file: string): ValidateFunction {
 function describeErrors(errors: readonly ErrorObject[] | null | undefined) {
   return (errors ?? [])
     .slice(0, 5)
-    .map((error) => `  ${error.instancePath || "/"} ${error.message ?? ""}`)
+    .map(
+      (error) =>
+        `  ${nonEmptyOr(error.instancePath, "/")} ${error.message ?? ""}`,
+    )
     .join("\n");
 }
 

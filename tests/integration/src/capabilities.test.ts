@@ -19,6 +19,7 @@ import {
   policy,
   quotes,
 } from "../fixtures/capabilities/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -179,7 +180,7 @@ describe("link capabilities through the Supabase exchange", () => {
       { role, settings: { "request.jwt.claims": JSON.stringify(claims) } },
       async () =>
         (
-          await db!.tester.query<{ readonly id: string }>(
+          await defined(db).tester.query<{ readonly id: string }>(
             `select id from public.${table} order by id`,
           )
         ).rows.map((row) => row.id),
@@ -230,12 +231,13 @@ describe("link capabilities through the Supabase exchange", () => {
       [],
     );
     await expect(
-      db!.as(
+      defined(db).as(
         {
           role: "anon",
           settings: { "request.jwt.claims": JSON.stringify(claimsOf(jwt)) },
         },
-        () => db!.tester.query(`update public.quote set status = 'sent'`),
+        () =>
+          defined(db).tester.query(`update public.quote set status = 'sent'`),
       ),
     ).rejects.toMatchObject({ code: "42501" });
   });

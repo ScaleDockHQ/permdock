@@ -23,6 +23,7 @@ import {
   startAgentDb,
   TENANT,
 } from "../support/agents.ts";
+import { defined } from "../support/defined.ts";
 
 type ToolApproval = NonNullable<
   Parameters<typeof streamText>[0]["toolApproval"]
@@ -226,7 +227,7 @@ describe("eve", () => {
           content: [
             {
               type: "tool-approval-response",
-              approvalId: approvalId!,
+              approvalId: defined(approvalId),
               approved: true,
             },
           ],

@@ -15,6 +15,7 @@ import {
 } from "../preset/index.ts";
 import { CliError } from "./core/errors.ts";
 import { applyFiles } from "./core/files.ts";
+import { nonEmptyOr } from "./core/output.ts";
 import { addLine } from "./core/peer.ts";
 
 /** The page a preset code opens in the builder. */
@@ -136,7 +137,7 @@ export function runPreset(
   }
   const rows = Object.entries(preset).map(
     ([key, value]) =>
-      `  ${key.padEnd(12)} ${Array.isArray(value) ? value.join(", ") || "none" : String(value)}`,
+      `  ${key.padEnd(12)} ${Array.isArray(value) ? nonEmptyOr(value.join(", "), "none") : String(value)}`,
   );
   return {
     code: 0,

@@ -173,3 +173,8 @@ export function sarifLog(
     2,
   )}\n`;
 }
+
+/** `text`, or `fallback` when `text` is empty. */
+export function nonEmptyOr<T>(text: string, fallback: T): string | T {
+  return text === "" ? fallback : text;
+}

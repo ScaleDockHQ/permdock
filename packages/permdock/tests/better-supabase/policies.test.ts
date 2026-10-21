@@ -8,6 +8,7 @@ import {
   permissions as fixture,
   policy as fixturePolicy,
 } from "../fixtures/named-scopes.ts";
+import { defined } from "../support/defined.ts";
 
 const read = (path: string): unknown =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -21,8 +22,8 @@ const catalog = read(`${EXAMPLE}permissions.catalog.json`) as {
 const permission = (key: string): Permission => ({
   key,
   scope: key.replace(".", ":"),
-  resource: key.split(".")[0]!,
-  action: key.split(".")[1]!,
+  resource: defined(key.split(".")[0]),
+  action: defined(key.split(".")[1]),
   meta: {},
   kind: "instance",
 });
@@ -68,9 +69,9 @@ describe(bucketPolicy, () => {
       /is not in permissions.catalog.json/u,
     );
     const conditioned = structuredClone(catalog);
-    conditioned.permissions.find(
-      (entry) => entry.key === "quotes.read",
-    )!.rowConditions = true;
+    defined(
+      conditioned.permissions.find((entry) => entry.key === "quotes.read"),
+    ).rowConditions = true;
     expect(() =>
       bucketPolicy(access("quotes.read"), { ...options, catalog: conditioned }),
     ).toThrow(/has row conditions/u);

@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AgentDb } from "../support/agents.ts";
 
 import { owner, projectLoader, startAgentDb } from "../support/agents.ts";
+import { defined } from "../support/defined.ts";
 import { buildAgent, executed } from "../support/openai-agent.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -79,7 +80,7 @@ describe("openai", () => {
         executed: [],
       });
 
-      await resolveApproval(await db.openStore(), pending[0]!.token, {
+      await resolveApproval(await db.openStore(), defined(pending[0]).token, {
         status: "approved",
         by: owner,
       });

@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { visibleIds } from "./support/rls.ts";
 
@@ -58,7 +59,7 @@ describe("membership rows with several role sources", () => {
    * pass.
    */
   const attempt = async (statements: string): Promise<string | null> => {
-    const admin = db!.admin;
+    const admin = defined(db).admin;
     await admin.query("begin");
     try {
       await admin.query(statements);
@@ -110,10 +111,10 @@ describe("membership rows with several role sources", () => {
 
   it("answers permdock_can_assign and the helpers from every source", async () => {
     const ask = <T>(user: string, sql: string, values: unknown[]) =>
-      db!.as(
+      defined(db).as(
         { role: "authenticated", settings: { "app.user_id": user } },
         async () =>
-          (await db!.tester.query<{ ok: T }>(sql, values)).rows[0]?.ok,
+          (await defined(db).tester.query<{ ok: T }>(sql, values)).rows[0]?.ok,
       );
     const can = (user: string, role: string) =>
       ask<boolean>(
@@ -138,7 +139,7 @@ describe("membership rows with several role sources", () => {
   it("compiles a resource membership condition over every source", async () => {
     const visible = (user: string) =>
       visibleIds(
-        db!,
+        defined(db),
         { role: "authenticated", settings: { "app.user_id": user } },
         "select id from ledger order by id",
       );

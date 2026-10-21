@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { membership } from "../fixtures/supabase-role-sources/sources.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -61,8 +62,8 @@ describe("junctionMembershipSource with several role sources", () => {
   });
 
   async function mint(user: string): Promise<unknown> {
-    return db!.as({ role: "supabase_auth_admin" }, async () => {
-      const result = await db!.tester.query<{
+    return defined(db).as({ role: "supabase_auth_admin" }, async () => {
+      const result = await defined(db).tester.query<{
         event: { claims: Record<string, unknown> };
       }>("select permdock.custom_access_token_hook($1::jsonb) as event", [
         JSON.stringify({
@@ -76,7 +77,7 @@ describe("junctionMembershipSource with several role sources", () => {
 
   it("writes the union of every non-null key, as the in-process source loads it", async () => {
     const query: SqlQuery = async (text, values) =>
-      (await db!.admin.query(text, [...values])).rows;
+      (await defined(db).admin.query(text, [...values])).rows;
     const source = membership(query);
     const byId = (list: readonly { readonly id?: string }[]) =>
       list.toSorted((a, b) => (a.id ?? "").localeCompare(b.id ?? ""));
@@ -99,13 +100,15 @@ describe("junctionMembershipSource with several role sources", () => {
   it("bumps the authorization version of every holder when a role key changes", async () => {
     const version = async (user: string) =>
       (
-        await db!.admin.query<{ readonly version: string }>(
+        await defined(db).admin.query<{ readonly version: string }>(
           "select coalesce((select version from permdock.permdock_authz_version where user_id = $1), 0)::text as version",
           [user],
         )
       ).rows[0]?.version;
     const before = await version(BOTH);
-    await db!.admin.query("update public.roles set key = 'owner' where id = 1");
+    await defined(db).admin.query(
+      "update public.roles set key = 'owner' where id = 1",
+    );
     expect(Number(await version(BOTH))).toBeGreaterThan(Number(before));
     expect(await mint(BOTH)).toContainEqual({
       scope: "organization",

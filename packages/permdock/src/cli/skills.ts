@@ -17,6 +17,7 @@ import type { CommandResult } from "./core/result.ts";
 
 import { byCodePoint } from "../core/compare.ts";
 import { didYouMean } from "./core/args.ts";
+import { nonEmptyOr } from "./core/output.ts";
 import { readJsonFile } from "./files.ts";
 import { packageRoot } from "./project/package-root.ts";
 
@@ -121,7 +122,7 @@ export function runSkillsInstall(input: {
   const links = linked.length === 0 ? "" : `; linked ${linked.join(", ")}`;
   return {
     code: 0,
-    output: `installed ${copied.join(", ") || "no skills"}${links} (permdock@${version})`,
+    output: `installed ${nonEmptyOr(copied.join(", "), "no skills")}${links} (permdock@${version})`,
   };
 }
 

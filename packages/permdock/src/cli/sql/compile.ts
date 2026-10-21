@@ -678,7 +678,10 @@ export function compileGrants(
         };
         rows.set(`${row.role}\u0000${row.grantKey}\u0000${row.scope}`, row);
       }
-      if (!rowActions || ctx.tableless?.has(grant.permission.resource)) {
+      if (
+        !rowActions ||
+        ctx.tableless?.has(grant.permission.resource) === true
+      ) {
         continue;
       }
     }

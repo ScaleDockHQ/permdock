@@ -15,6 +15,7 @@ import {
   personas,
   policy,
 } from "../fixtures/named-scopes/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { generateRls } from "./support/rls.ts";
 
@@ -221,7 +222,7 @@ describe.each([
   it("drops a suspended instance even when the memberships still name it", async () => {
     const keysOf = async (scope: string): Promise<string[]> =>
       (
-        await db!.admin.query<{ readonly v: string }>(
+        await defined(db).admin.query<{ readonly v: string }>(
           `select distinct grant_key as v from permdock.role_permissions where permission = 'quote.read' and scope = $1`,
           [scope],
         )

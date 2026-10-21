@@ -21,6 +21,7 @@ import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
 import { requestUrl } from "../fakes/fetch.ts";
 import { memberUser, policy } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 const PRIVATE_JWK = {
   crv: "Ed25519",
@@ -99,7 +100,7 @@ describe(joseTokenSigner, () => {
     expect(encoded).toBeDefined();
     // SAFETY: a JWS protected header is a base64url-encoded JSON object (RFC 7515).
     const header = JSON.parse(
-      atob(encoded!.replaceAll("-", "+").replaceAll("_", "/")),
+      atob(defined(encoded).replaceAll("-", "+").replaceAll("_", "/")),
     ) as Record<string, unknown>;
     expect(Object.keys(header).toSorted()).toStrictEqual(["alg", "kid", "typ"]);
     expect(header).toStrictEqual({
@@ -734,7 +735,7 @@ describe("configuration and remaining causes", () => {
     const crit = await accessToken();
     const [h, p, s] = crit.split(".");
     const critHeader = {
-      ...JSON.parse(atob(h!.replaceAll("-", "+").replaceAll("_", "/"))),
+      ...JSON.parse(atob(defined(h).replaceAll("-", "+").replaceAll("_", "/"))),
       crit: ["jku"],
       jku: "https://evil.example.com",
     };

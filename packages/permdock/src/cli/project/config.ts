@@ -32,11 +32,12 @@ export async function readConfig(
   fromFlag?: string,
   options?: { readonly fresh?: boolean },
 ): Promise<LoadedConfig> {
-  const path = fromFlag
-    ? resolve(cwd, fromFlag)
-    : CONFIG_FILES.map((name) => resolve(cwd, name)).find((file) =>
-        existsSync(file),
-      );
+  const path =
+    fromFlag !== undefined && fromFlag !== ""
+      ? resolve(cwd, fromFlag)
+      : CONFIG_FILES.map((name) => resolve(cwd, name)).find((file) =>
+          existsSync(file),
+        );
   if (path === undefined) {
     return { config: {}, warnings: [], file: undefined };
   }

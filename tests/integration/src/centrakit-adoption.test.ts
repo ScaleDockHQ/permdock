@@ -23,6 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/centrakit-adoption/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { visibleIds, jwtClaims } from "./support/rls.ts";
 
@@ -268,7 +269,7 @@ describe("CentraKit adoption shapes", () => {
       { role: "shim_caller", settings: jwtClaims(ADMIN) },
       async () =>
         (
-          await db!.tester.query<{ ok: boolean }>(
+          await defined(db).tester.query<{ ok: boolean }>(
             `select public.has_org_permission($1::uuid, 'organization.customers.archive') as ok`,
             [ORG_A],
           )

@@ -17,6 +17,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { defined } from "../support/defined.ts";
 
 const at = (seconds: number): Instant => ({
   epochMilliseconds: seconds * 1000,
@@ -343,6 +344,6 @@ describe("grant validity", () => {
     expect(update?.access).toContain(`now() < to_timestamp(${UNTIL})`);
     expect(update?.access).not.toContain("now() >=");
     expect(freeze?.access).toContain(`now() < to_timestamp(${UNTIL})`);
-    expect(branchClauses(read!).using).toContain("to_timestamp");
+    expect(branchClauses(defined(read)).using).toContain("to_timestamp");
   });
 });

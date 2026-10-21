@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { generateRls } from "./support/rls.ts";
 
@@ -82,7 +83,7 @@ describe("break-glass RLS session function (guc)", () => {
   it("plain RLS still denies the restricted row", async () => {
     const ids = await asNurse({}, async () =>
       (
-        await db!.tester.query<{ readonly id: string }>(
+        await defined(db).tester.query<{ readonly id: string }>(
           `select id from public.patient order by id`,
         )
       ).rows.map((row) => row.id),
@@ -93,7 +94,7 @@ describe("break-glass RLS session function (guc)", () => {
   it("the function refuses without a valid session", async () => {
     await expect(
       asNurse({}, () =>
-        db!.tester.query(
+        defined(db).tester.query(
           `select id from permdock.permdock_break_glass_patient('patient.read')`,
         ),
       ),
@@ -103,7 +104,7 @@ describe("break-glass RLS session function (guc)", () => {
       asNurse(
         { "app.break_glass": session({ expires_at: nowSeconds() - 60 }) },
         () =>
-          db!.tester.query(
+          defined(db).tester.query(
             `select id from permdock.permdock_break_glass_patient('patient.read')`,
           ),
       ),
@@ -111,7 +112,7 @@ describe("break-glass RLS session function (guc)", () => {
 
     await expect(
       asNurse({ "app.break_glass": session({ reason: "" }) }, () =>
-        db!.tester.query(
+        defined(db).tester.query(
           `select id from permdock.permdock_break_glass_patient('patient.read')`,
         ),
       ),

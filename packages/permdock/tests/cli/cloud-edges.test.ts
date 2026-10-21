@@ -20,7 +20,8 @@ import { jsonData } from "./envelope.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
 // Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
-vi.mock(import("@napi-rs/keyring"), () => {
+// oxlint-disable-next-line vitest/prefer-import-in-mock -- an optional peer; import() makes Knip count it as a dependency
+vi.mock("@napi-rs/keyring", () => {
   throw new Error("@napi-rs/keyring is not installed");
 });
 

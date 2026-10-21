@@ -19,6 +19,7 @@ import { renamedKeys } from "../../core/permission-registry.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { listPermissions } from "../../index.ts";
 import { describeError } from "../core/errors.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { INDEXES_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { graphHelper, scopeTable } from "../sql/names.ts";
 import { quoteQualified } from "../sql/quote.ts";
@@ -336,7 +337,7 @@ function preambleSql(
         : { trustedReaders: rls.trustedReaders }),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
-    permissionHoldersSql(ctx) || undefined,
+    nonEmptyOr(permissionHoldersSql(ctx), undefined),
     actorKinds === undefined ? undefined : actorMayWriteSql(ctx, actorKinds),
     usesLiveSession ? sessionLiveHelperSql(ctx) : undefined,
     ...sections,

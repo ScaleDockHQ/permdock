@@ -217,7 +217,8 @@ function includeOf(
     (item) => item.key?.name === "include",
   );
   if (property === undefined) {
-    return options.properties?.some((item) => item.type === "SpreadElement")
+    return options.properties?.some((item) => item.type === "SpreadElement") ===
+      true
       ? null
       : undefined;
   }

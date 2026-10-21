@@ -149,7 +149,8 @@ function trustedHelpers(
     ...(readOnlyActorKinds(config.rls?.readOnlyActors) === undefined
       ? []
       : [helperEntry(ACTOR_MAY_WRITE, "", "boolean", client)]),
-    ...(config.rls?.approvals
+    ...(config.rls?.approvals === true ||
+    typeof config.rls?.approvals === "object"
       ? [
           helperEntry(
             IS_APPROVER,

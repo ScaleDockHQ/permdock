@@ -22,6 +22,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 function request(
   path = "https://api.example/posts/p1",
@@ -371,7 +372,7 @@ describe("permdock/server decision endpoint", () => {
           };
         }[];
       };
-      return body.evaluations[0]!;
+      return defined(body.evaluations[0]);
     };
     expect((await evaluate(ownPost)).decision).toBe(true);
     const forged = await evaluate({ id: "p2", authorId: "u9", orgId: "o1" });

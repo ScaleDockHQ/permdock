@@ -21,6 +21,7 @@ import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
 import { mapKey } from "../../src/cli/rls/migrate.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { policy } from "../fixtures/named-scopes.ts";
+import { defined } from "../support/defined.ts";
 
 const roles = {
   table: "public.roles",
@@ -119,7 +120,7 @@ describe("rls backfill", () => {
         {
           ...ctx,
           customRoles: {
-            ...ctx.customRoles!,
+            ...defined(ctx.customRoles),
             table: { ...roles, shared: "shared" },
           },
         },

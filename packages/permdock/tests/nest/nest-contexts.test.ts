@@ -19,6 +19,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 class Gateway {
   public update(): string {
@@ -92,10 +93,9 @@ describe("permdock/nest gateway connections", () => {
         return "ok";
       }
     }
-    const descriptor = Object.getOwnPropertyDescriptor(
-      Posts.prototype,
-      "update",
-    )!;
+    const descriptor = defined(
+      Object.getOwnPropertyDescriptor(Posts.prototype, "update"),
+    );
     Protect(permissions.post.update, (req) =>
       req.params?.["id"] === "p1" ? ownPost : otherPost,
     )(Posts.prototype, "update", descriptor);
@@ -151,7 +151,9 @@ describe("permdock/nest gateway connections", () => {
         return "ok";
       }
     }
-    const descriptor = Object.getOwnPropertyDescriptor(Feed.prototype, "open")!;
+    const descriptor = defined(
+      Object.getOwnPropertyDescriptor(Feed.prototype, "open"),
+    );
     Protect(null, undefined, { oauthScopes: ["posts:read"] })(
       Feed.prototype,
       "open",
@@ -184,10 +186,9 @@ describe("permdock/nest outside HTTP", () => {
     const { PermDockGuard, Protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const descriptor = Object.getOwnPropertyDescriptor(
-      Gateway.prototype,
-      "update",
-    )!;
+    const descriptor = defined(
+      Object.getOwnPropertyDescriptor(Gateway.prototype, "update"),
+    );
     Protect(permissions.post.update, () => ownPost)(
       Gateway.prototype,
       "update",
@@ -231,10 +232,9 @@ describe("permdock/nest outside HTTP", () => {
         return "ok";
       }
     }
-    const descriptor = Object.getOwnPropertyDescriptor(
-      Mapped.prototype,
-      "update",
-    )!;
+    const descriptor = defined(
+      Object.getOwnPropertyDescriptor(Mapped.prototype, "update"),
+    );
     Protect(permissions.post.update, (req) =>
       req.params?.["id"] === "p1" ? ownPost : otherPost,
     )(Mapped.prototype, "update", descriptor);

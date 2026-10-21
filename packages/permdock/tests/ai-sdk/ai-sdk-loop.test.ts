@@ -17,6 +17,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 const usage = {
   inputTokens: {
@@ -163,7 +164,10 @@ describe("permdock/ai-sdk inside generateText", () => {
 
     await generateText({
       model: replies(),
-      messages: approve(first.finalStep.response.messages, request!.approvalId),
+      messages: approve(
+        first.finalStep.response.messages,
+        defined(request).approvalId,
+      ),
       tools,
       toolApproval,
     });
@@ -198,7 +202,7 @@ describe("permdock/ai-sdk inside generateText", () => {
         model: replies(),
         messages: approve(
           first.finalStep.response.messages,
-          request!.approvalId,
+          defined(request).approvalId,
         ),
         tools,
       }),
@@ -224,7 +228,7 @@ describe("permdock/ai-sdk inside generateText", () => {
     const { items } = await store.list({ status: "pending" });
     const [pending] = items;
     expect(pending).toBeDefined();
-    await store.resolve(pending!.token, {
+    await store.resolve(defined(pending).token, {
       status: "approved",
       by: { principal: { id: "u2", roles: ["admin"] }, context: {} },
     });
@@ -232,7 +236,8 @@ describe("permdock/ai-sdk inside generateText", () => {
       model: replies(),
       messages: approve(
         first.finalStep.response.messages,
-        approvalRequestOf(first.finalStep.response.messages)!.approvalId,
+        defined(approvalRequestOf(first.finalStep.response.messages))
+          .approvalId,
       ),
       tools,
       toolApproval,

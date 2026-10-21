@@ -30,6 +30,7 @@ import {
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
 import { testCredentialVerifier } from "../../src/testing/conformance/credentials.ts";
 import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
+import { defined } from "../support/defined.ts";
 
 const org = { organization: { field: "orgId", memberOf: "organization" } };
 const permissions = definePermissions({
@@ -203,11 +204,11 @@ describe(memoryCredentialStore, () => {
     const second = await store.rotate("key_1");
     expect(second).toBeDefined();
     expect(await store.verify(first)).toBeNull();
-    expect(await store.verify(second!)).toMatchObject({ id: "key_1" });
+    expect(await store.verify(defined(second))).toMatchObject({ id: "key_1" });
     expect(await store.rotate("missing")).toBeUndefined();
     expect(store.revoke("key_1")).toBe(true);
     expect(store.revoke("key_1")).toBe(false);
-    expect(await store.verify(second!)).toBeNull();
+    expect(await store.verify(defined(second))).toBeNull();
     expect(
       sink
         .events()

@@ -9,6 +9,7 @@ import {
   ownPost,
   policy,
 } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 const ORIGIN = "https://pdp.example";
 
@@ -365,12 +366,12 @@ describe("permdock/authzen", () => {
       }[];
     };
     expect(body.evaluations).toHaveLength(3);
-    expect(body.evaluations[0]!.decision).toBe(true);
-    expect(body.evaluations[1]!.decision).toBe(false);
-    expect(body.evaluations[1]!.context.permdock.outcome).toBe(
+    expect(defined(body.evaluations[0]).decision).toBe(true);
+    expect(defined(body.evaluations[1]).decision).toBe(false);
+    expect(defined(body.evaluations[1]).context.permdock.outcome).toBe(
       "approval-required",
     );
-    expect(body.evaluations[2]!.decision).toBe(false);
+    expect(defined(body.evaluations[2]).decision).toBe(false);
   });
 
   it("uses the top-level action and resource as batch defaults", async () => {

@@ -29,8 +29,6 @@ export default defineConfig({
     "typescript/no-unsafe-type-assertion": "off",
     // Handlers and timers wrap void calls in arrow shorthand (8 findings).
     "typescript/no-confusing-void-expression": "off",
-    // JSX renders optional strings behind a truthiness check (5 findings).
-    "typescript/strict-boolean-expressions": "off",
     // The copy button takes an async click handler (1 finding).
     "typescript/strict-void-return": "off",
     // Effects return a cleanup only when they start a timer (1 finding).

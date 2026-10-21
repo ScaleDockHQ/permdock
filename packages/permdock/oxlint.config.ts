@@ -77,8 +77,6 @@ export default defineConfig({
         "eslint/no-await-in-loop": "off",
         // pgsql-parser and oxc-parser ASTs arrive untyped (5 findings).
         "typescript/no-unsafe-assignment": "off",
-        // Optional flags and AST fields are checked for presence (2 findings).
-        "typescript/strict-boolean-expressions": "off",
         // CLI internals are not a published API (14 findings).
         "typescript/explicit-function-return-type": "off",
         // Node built-ins are imported by name (34 findings).

@@ -15,6 +15,7 @@ import {
   personas,
   policy,
 } from "../fixtures/named-scopes/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { generateRls } from "./support/rls.ts";
 
@@ -210,11 +211,11 @@ describe.each([
 
   it("answers permdock_can_assign from the assigns graph", async () => {
     const can = (principal: Principal, role: string, id: string) =>
-      db!.as(
+      defined(db).as(
         { role: "authenticated", settings: claimsOf(principal) },
         async () =>
           (
-            await db!.tester.query<{ readonly ok: boolean }>(
+            await defined(db).tester.query<{ readonly ok: boolean }>(
               "select permdock.permdock_can_assign($1, $2) as ok",
               [role, id],
             )
@@ -232,7 +233,7 @@ describe.each([
   it.runIf(mode === "database")(
     "keeps an owner per organization at commit and lets a transfer through",
     async () => {
-      const admin = db!.admin;
+      const admin = defined(db).admin;
       const attempt = async (statements: string): Promise<string | null> => {
         await admin.query("begin");
         try {
@@ -290,8 +291,8 @@ describe.each([
     );
     const keys = rows.map((row) => row.grant_key);
     const ids = async (helper: string): Promise<string[]> =>
-      db!.as({ role: "authenticated", settings: claims }, async () => {
-        const result = await db!.tester.query<{ readonly id: string }>(
+      defined(db).as({ role: "authenticated", settings: claims }, async () => {
+        const result = await defined(db).tester.query<{ readonly id: string }>(
           `select distinct id from unnest($1::text[]) k, permdock.${helper}(k) id`,
           [keys],
         );

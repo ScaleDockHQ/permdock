@@ -389,15 +389,21 @@ export async function referenceCloud(
     }
     if (route === "POST /approvals/cancel") {
       const body = await bodyOf(request);
+      if (store.cancel === undefined) {
+        throw new Error("the reference Cloud store has no cancel");
+      }
       // SAFETY: the filter is an ApprovalListFilter the client serialised; the store reads known fields only.
-      const cancelled = await store.cancel!((body["filter"] ?? {}) as never, {
+      const cancelled = await store.cancel((body["filter"] ?? {}) as never, {
         by: String(body["by"]),
         ...(typeof body["note"] === "string" ? { note: body["note"] } : {}),
       });
       return Response.json({ cancelled });
     }
     if (request.method === "GET" && path.startsWith("/approvals/")) {
-      const record = await store.getById!(
+      if (store.getById === undefined) {
+        throw new Error("the reference Cloud store has no getById");
+      }
+      const record = await store.getById(
         decodeURIComponent(path.slice("/approvals/".length)),
       );
       return record === null

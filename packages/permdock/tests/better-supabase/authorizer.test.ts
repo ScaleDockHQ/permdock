@@ -232,12 +232,12 @@ describe(authorizer, () => {
   });
 
   it("answers a batch in order with one instance per caller", async () => {
-    const outcomes = await pd.evaluations!([
+    const outcomes = await pd.evaluations?.([
       request(quote.read, { claims: claims(), tenant: ORG, properties: row }),
       request(quote.delete, { claims: claims(), tenant: ORG, properties: row }),
       request(quote.read, { tenant: ORG, properties: row }),
     ]);
-    expect(outcomes.map((o) => o.outcome)).toStrictEqual([
+    expect(outcomes?.map((o) => o.outcome)).toStrictEqual([
       "granted",
       "denied",
       "denied",

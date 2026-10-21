@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { SupabasePostgres } from "./support/supabase-postgres.ts";
 
+import { defined } from "./support/defined.ts";
 import { startSupabasePostgres } from "./support/supabase-postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -44,7 +45,7 @@ describe("authorizationProvider against the example's migrations", () => {
   });
 
   it("finds every required function, executable by its role", async () => {
-    const { owner } = db!;
+    const { owner } = defined(db);
     const requires = provider.requires ?? [];
     expect(requires.length).toBeGreaterThan(0);
     for (const { function: fn, args, role } of requires) {
@@ -67,7 +68,7 @@ describe("authorizationProvider against the example's migrations", () => {
   });
 
   it("runs every template at every scope", async () => {
-    const { owner } = db!;
+    const { owner } = defined(db);
     for (const [name, template] of Object.entries(provider.functions)) {
       if (template === undefined) continue;
       for (const { name: scope } of provider.scopes) {
@@ -94,7 +95,7 @@ describe("authorizationProvider against the example's migrations", () => {
         (_: string, key: string) =>
           key === "resource" ? resource : (LITERALS[key] ?? ""),
       );
-      const { rows } = await db!.owner.query<{ permitted: boolean }>(
+      const { rows } = await defined(db).owner.query<{ permitted: boolean }>(
         `select ${sql} as permitted`,
       );
       expect({ resource, permitted: rows[0]?.permitted }).toStrictEqual({
@@ -105,9 +106,9 @@ describe("authorizationProvider against the example's migrations", () => {
   });
 
   it("names the token hook the migrations create", async () => {
-    const { rows } = await db!.owner.query<{ found: boolean }>(
+    const { rows } = await defined(db).owner.query<{ found: boolean }>(
       "select to_regprocedure($1) is not null as found",
-      [`${provider.tokenHook!.function}(jsonb)`],
+      [`${defined(provider.tokenHook).function}(jsonb)`],
     );
     expect(rows[0]?.found).toBe(true);
   });

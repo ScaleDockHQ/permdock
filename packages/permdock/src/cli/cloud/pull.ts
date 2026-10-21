@@ -13,6 +13,7 @@ import { parseSupabaseManifest } from "../../supabase/manifest.ts";
 import { formatCatalogJson } from "../catalog-doc.ts";
 import { catalogPath } from "../catalog-path.ts";
 import { describeError } from "../core/errors.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { cliVersion } from "../core/version.ts";
 import { writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
@@ -146,7 +147,7 @@ export async function runCloudPull(input: PullInput): Promise<CommandResult> {
     restore(before);
     return {
       code: 1,
-      output: `${COMMAND}: catalog fingerprint mismatch (Cloud ${pulled.fingerprint}, catalog ${catalog.fingerprint ?? "none"}, written ${written || "unreadable"}); restored the previous files`,
+      output: `${COMMAND}: catalog fingerprint mismatch (Cloud ${pulled.fingerprint}, catalog ${catalog.fingerprint ?? "none"}, written ${nonEmptyOr(written, "unreadable")}); restored the previous files`,
     };
   }
   const local = cliVersion();

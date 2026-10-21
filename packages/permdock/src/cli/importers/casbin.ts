@@ -5,6 +5,7 @@ import type { CommandResult } from "../core/result.ts";
 import type { ImportedGrant, ImportedRole } from "./policy-module.ts";
 
 import { applyFiles } from "../core/files.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { emitPolicyModule, isIdentifier } from "./policy-module.ts";
 
 /** Why a Casbin policy line did not import. */
@@ -114,7 +115,7 @@ export function readCasbinModel(
   const unsupported = terms.filter((term) => !MATCHER_TERMS.has(term));
   if (terms.length === 0 || unsupported.length > 0) {
     return {
-      refused: `the matcher has terms casbin import cannot read: ${unsupported.join(" && ") || "(empty)"}; it reads g(r.sub, p.sub[, r.dom]), r.dom == p.dom, r.obj == p.obj and r.act == p.act`,
+      refused: `the matcher has terms casbin import cannot read: ${nonEmptyOr(unsupported.join(" && "), "(empty)")}; it reads g(r.sub, p.sub[, r.dom]), r.dom == p.dom, r.obj == p.obj and r.act == p.act`,
     };
   }
   const effect = (model.get("policy_effect")?.get("e") ?? "").replaceAll(

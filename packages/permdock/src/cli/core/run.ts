@@ -610,7 +610,7 @@ export async function run(
       const findings = result.findings ?? [];
       writeOut(
         format === "github"
-          ? githubAnnotations(findings) || ""
+          ? githubAnnotations(findings)
           : sarifLog(name, findings),
       );
       return done(result.code);

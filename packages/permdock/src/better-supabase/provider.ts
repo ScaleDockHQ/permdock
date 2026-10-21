@@ -239,8 +239,9 @@ function tenantScopeOf(
   );
   const [root] = roots;
   if (root === undefined || roots.length > 1) {
+    const listed = roots.map((scope) => scope.name).join(", ");
     throw new TypeError(
-      `PermDock: the manifest has ${roots.length} root scopes (${roots.map((scope) => scope.name).join(", ") || "none"}), so it can't tell which scope tenants are. Pass { scope } with one of ${names.join(", ")}.`,
+      `PermDock: the manifest has ${roots.length} root scopes (${listed === "" ? "none" : listed}), so it can't tell which scope tenants are. Pass { scope } with one of ${names.join(", ")}.`,
     );
   }
   return root.name;

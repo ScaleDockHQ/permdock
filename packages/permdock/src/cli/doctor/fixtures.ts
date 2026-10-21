@@ -11,6 +11,7 @@ import {
   validateCustomRole,
 } from "../../index.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { filesOf, readJson } from "../shared/doctor-files.ts";
 import {
   asMembershipsFixture,
@@ -95,7 +96,7 @@ export async function pd018(
     findings.push({
       code: "PD018",
       severity: "warning",
-      message: `membership ${conflict.principal || "unknown"} holds exclusive roles ${conflict.roles.join(" and ")}`,
+      message: `membership ${nonEmptyOr(conflict.principal, "unknown")} holds exclusive roles ${conflict.roles.join(" and ")}`,
       fix: "remove one of the exclusive roles from the membership fixture",
     });
   }

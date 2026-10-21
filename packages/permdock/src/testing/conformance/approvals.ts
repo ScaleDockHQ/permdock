@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { assert, expect, it } from "vitest";
 
 import type {
   AccessReviewStore,
@@ -135,7 +135,8 @@ export function testApprovalStore(
         status: "approved",
         by: approver,
       });
-      const reopened = await options.reopen!();
+      assert.isDefined(options.reopen);
+      const reopened = await options.reopen();
       expect((await reopened.get("restart-token"))?.status).toBe("approved");
       expect(await reopened.consume("restart-token")).not.toBeNull();
       expect(await store.consume("restart-token")).toBeNull();
@@ -146,7 +147,8 @@ export function testApprovalStore(
     "replaces an expired request on a new ask",
     async () => {
       await store.create(sampleApproval("renew-token"));
-      await options.capabilities!.expire!("renew-token");
+      assert.isDefined(options.capabilities?.expire);
+      await options.capabilities.expire("renew-token");
       const renewed = { ...sampleApproval("renew-token"), id: "apr_renewed" };
       await store.create(renewed);
       const loaded = await store.get("renew-token");
@@ -200,10 +202,11 @@ export function testApprovalStore(
       "page-b",
     ]);
     expect(first.next).toBeTypeOf("string");
+    assert.isDefined(first.next);
     const second = await store.list({
       principalId: "u_pager",
       limit: 2,
-      cursor: first.next!,
+      cursor: first.next,
     });
     expect(second.items.map((item) => item.token)).toStrictEqual(["page-c"]);
     expect(second.next).toBeUndefined();

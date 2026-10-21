@@ -18,6 +18,7 @@ import {
 } from "../../terminal/storage.ts";
 import { CliError } from "../core/errors.ts";
 import { httpRequest } from "../core/http.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import {
   CREDENTIAL_SERVICE,
   cliRuntime,
@@ -268,7 +269,7 @@ export async function runWhoami(input: WhoamiInput): Promise<CommandResult> {
     code: 0,
     output: input.json
       ? JSON.stringify(data)
-      : `${issuer}: logged in (${scopes.join(" ") || "no scopes"})${expired ? "; the login has expired, run permdock login" : ""}`,
+      : `${issuer}: logged in (${nonEmptyOr(scopes.join(" "), "no scopes")})${expired ? "; the login has expired, run permdock login" : ""}`,
     data,
   };
 }

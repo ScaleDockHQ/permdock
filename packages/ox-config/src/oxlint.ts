@@ -221,7 +221,10 @@ export const core: OxlintConfig = defineConfig({
     "typescript/prefer-nullish-coalescing": "error",
     "typescript/prefer-optional-chain": "error",
     "typescript/return-await": "error",
-    "typescript/strict-boolean-expressions": "error",
+    "typescript/strict-boolean-expressions": [
+      "error",
+      { allowString: false, allowNullableObject: true },
+    ],
     "typescript/switch-exhaustiveness-check": "error",
     "typescript/unbound-method": "error",
     "unicorn/prefer-module": "error",
@@ -438,8 +441,6 @@ export const test: OxlintConfig = defineConfig({
     "typescript/no-unsafe-assignment": "off",
     // Assertions pin literal types in fixtures (48 findings).
     "typescript/no-unnecessary-type-assertion": "off",
-    // Assertions follow an expect that proved the value exists (64 findings).
-    "typescript/no-non-null-assertion": "off",
     // Test doubles return untyped JSON and framework handles (31 findings).
     "typescript/no-unsafe-return": "off",
     // Async callbacks match the interface under test (161 findings).

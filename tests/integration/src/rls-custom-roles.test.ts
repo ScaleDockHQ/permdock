@@ -15,6 +15,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { permissions } from "../fixtures/rls-custom-roles/permissions.ts";
 import { policy } from "../fixtures/rls-custom-roles/policy.ts";
 import { runPipingDbUrl } from "./db-url.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres, databaseUri, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -528,21 +529,21 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
         fixtures: [
           {
             name: "plus updates another task",
-            subject: SUBJECTS["plus"]!,
+            subject: defined(SUBJECTS["plus"]),
             permission: permissions.task.update,
             row: ROWS.task[1],
             table: "task",
           },
           {
             name: "plus cannot read projects",
-            subject: SUBJECTS["plus"]!,
+            subject: defined(SUBJECTS["plus"]),
             permission: permissions.project.read,
             row: ROWS.project[0],
             table: "project",
           },
           {
             name: "reviewer reads its team board",
-            subject: SUBJECTS["reviewer"]!,
+            subject: defined(SUBJECTS["reviewer"]),
             permission: permissions.board.read,
             row: ROWS.board[0],
             table: "board",

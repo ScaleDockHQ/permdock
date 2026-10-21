@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const FIXTURE = join(
@@ -64,7 +65,7 @@ describe("ownership triggers over membership sources", () => {
    * pass.
    */
   const attempt = async (statements: string): Promise<string | null> => {
-    const admin = db!.admin;
+    const admin = defined(db).admin;
     await admin.query("begin");
     try {
       await admin.query(statements);

@@ -9,6 +9,7 @@ import { authorizationProvider } from "../../src/better-supabase/index.ts";
 import { anyOf, holder, user } from "../../src/core/approvers.ts";
 import { PermDockValidationError } from "../../src/core/validation-error.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
+import { defined } from "../support/defined.ts";
 
 const read = (path: string): unknown =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -233,13 +234,13 @@ describe(authorizationProvider, () => {
     const catalog = structuredClone(exampleCatalog) as {
       permissions: { key: string; rowConditions: boolean }[];
     };
-    catalog.permissions[0]!.rowConditions = true;
+    defined(catalog.permissions[0]).rowConditions = true;
     const provider = authorizationProvider({
       manifest: exampleManifest,
       catalog,
     });
     expect(provider.permissions?.[0]).toMatchObject({
-      key: catalog.permissions[0]!.key,
+      key: defined(catalog.permissions[0]).key,
       sqlComplete: false,
     });
   });
@@ -735,7 +736,9 @@ describe(authorizationProvider, () => {
     const scoped = (type: string) =>
       authorizationProvider({
         manifest: withRls({
-          scopes: [{ ...supabaseHookManifestFixture.rls.scopes[0]!, type }],
+          scopes: [
+            { ...defined(supabaseHookManifestFixture.rls.scopes[0]), type },
+          ],
         }),
       });
     for (const type of [
@@ -768,7 +771,7 @@ describe(authorizationProvider, () => {
       for (const permission of catalog.permissions) {
         permission.rowConditions = true;
       }
-      catalog.permissions[0]!.rowConditions = false;
+      defined(catalog.permissions[0]).rowConditions = false;
       const ids = (scope: string) =>
         `select ids::text from permdock.permitted_${scope}_ids_by_permission({permission}) as ids`;
       expect(
@@ -777,7 +780,7 @@ describe(authorizationProvider, () => {
       ).toBe(
         `case when {resource} = 'organization' then {id} in (${ids("organization")}) ` +
           `when {resource} = 'customer' then {id} in (${ids("customer")}) ` +
-          `else {permission} in ('${catalog.permissions[0]!.key}') and {tenant} in (${ids("organization")}) end`,
+          `else {permission} in ('${defined(catalog.permissions[0]).key}') and {tenant} in (${ids("organization")}) end`,
       );
     });
 

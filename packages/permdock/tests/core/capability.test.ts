@@ -22,6 +22,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
+import { defined } from "../support/defined.ts";
 
 const JKT = "0ZcOCORZNYy-DWpqq30jZyJGHTN0d2HglBV3uiguA4I";
 
@@ -202,7 +203,7 @@ describe("capabilities", () => {
       expiresAt: future(),
     });
     expect(capability).toBeDefined();
-    expect(capabilitySubject(capability!).principal).toBeNull();
+    expect(capabilitySubject(defined(capability)).principal).toBeNull();
   });
 });
 

@@ -24,6 +24,7 @@ import {
   personas,
   policy,
 } from "../fixtures/named-scopes.ts";
+import { defined } from "../support/defined.ts";
 
 async function permdockFor(
   principal: Principal,
@@ -146,7 +147,7 @@ describe("named scopes: the scenario", () => {
     ]);
     expect(readable(permdock, permissions.quote.update)).toStrictEqual([]);
     expect(
-      permdock.tenant("T").can(permissions.quote.read, documents[0]!),
+      permdock.tenant("T").can(permissions.quote.read, defined(documents[0])),
     ).toBe(false);
   });
 
@@ -165,9 +166,9 @@ describe("named scopes: the scenario", () => {
       "d_c_sent",
     ]);
     expect(readable(portal, permissions.quote.update)).toStrictEqual([]);
-    expect(portal.decide(permissions.quote.read, documents[5]!).outcome).toBe(
-      "denied",
-    );
+    expect(
+      portal.decide(permissions.quote.read, defined(documents[5])).outcome,
+    ).toBe("denied");
   });
 
   it("answers an instance check without a row from the first scope only", async () => {
@@ -181,7 +182,7 @@ describe("named scopes: the scenario", () => {
       parseSnapshot(JSON.stringify(contact.snapshot())),
     );
     expect(client.can(permissions.asset.read, undefined)).toBe(false);
-    expect(contact.can(permissions.asset.read, assets[0]!)).toBe(true);
+    expect(contact.can(permissions.asset.read, defined(assets[0]))).toBe(true);
     expect(contact.team("A").can(permissions.asset.read, undefined)).toBe(true);
     expect(contact.team("G").can(permissions.asset.read, undefined)).toBe(
       false,
@@ -324,7 +325,9 @@ describe("named scopes: snapshot scope list", () => {
     }
     const { scopes: _dropped, ...stripped } = snapshot;
     const client = fromSnapshot(parseSnapshot(JSON.stringify(stripped)));
-    expect(client.can(permissions.quote.read, documents[0]!)).toBe(false);
+    expect(client.can(permissions.quote.read, defined(documents[0]))).toBe(
+      false,
+    );
     expect(client.where(permissions.quote.read).condition).toStrictEqual({
       op: "or",
       conditions: [],
@@ -332,7 +335,7 @@ describe("named scopes: snapshot scope list", () => {
     expect(
       fromSnapshot(parseSnapshot(JSON.stringify(snapshot))).can(
         permissions.quote.read,
-        documents[0]!,
+        defined(documents[0]),
       ),
     ).toBe(true);
   });

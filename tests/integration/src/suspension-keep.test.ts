@@ -19,6 +19,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/named-scopes/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { rlsAndHook } from "./support/rls.ts";
 
@@ -156,7 +157,7 @@ describe.each([
 
   it("reads the same memberships through the in-process source", async () => {
     const query: SqlQuery = (text, params) =>
-      db!.admin.query(text, [...params]);
+      defined(db).admin.query(text, [...params]);
     const permdock = await getPermDock(
       policy,
       { id: OWNER, kind: "user" },

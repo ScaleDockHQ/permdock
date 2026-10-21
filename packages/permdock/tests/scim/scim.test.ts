@@ -50,7 +50,10 @@ function handler(
     store,
     handle: scimHandler({
       directory: store,
-      tenant: (incoming) => tenantFromPath(incoming) || TENANT,
+      tenant: (incoming) => {
+        const tenant = tenantFromPath(incoming);
+        return tenant === "" ? TENANT : tenant;
+      },
       token: tokenOptions(),
       ...extras,
     }),

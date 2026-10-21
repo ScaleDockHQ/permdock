@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "../src/support/postgres.ts";
 
+import { defined } from "../src/support/defined.ts";
 import { startPostgres } from "../src/support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -216,7 +217,7 @@ describe("rls helpers run once per statement (InitPlan)", () => {
   it("calls permitted_tenant_ids once, not once per row", () => {
     const plan = helper?.plans[0]?.Plan;
     expect(plan).toBeDefined();
-    const calls = nodes(plan!).filter((node) =>
+    const calls = nodes(defined(plan)).filter((node) =>
       callsHelper(node, "permitted_tenant_ids"),
     );
     expect(calls.length).toBeGreaterThan(0);
@@ -224,7 +225,7 @@ describe("rls helpers run once per statement (InitPlan)", () => {
       expect(node["Actual Loops"]).toBe(1);
     }
     const perRowPlan = perRow?.plans[0]?.Plan;
-    const correlated = nodes(perRowPlan!).filter(
+    const correlated = nodes(defined(perRowPlan)).filter(
       (node) => (node["Actual Loops"] ?? 0) >= ROWS / TENANTS,
     );
     expect(correlated.length).toBeGreaterThan(0);
@@ -238,11 +239,17 @@ describe("rls helpers run once per statement (InitPlan)", () => {
   it(`is at least ${String(SPEEDUP)}x faster than the per-row shape`, async ({
     annotate,
   }) => {
-    const after = median(helper!.plans.map((plan) => plan["Execution Time"]));
-    const before = median(perRow!.plans.map((plan) => plan["Execution Time"]));
+    const after = median(
+      defined(helper).plans.map((plan) => plan["Execution Time"]),
+    );
+    const before = median(
+      defined(perRow).plans.map((plan) => plan["Execution Time"]),
+    );
     const loops = (explain: Explain | undefined): number =>
       Math.max(
-        ...nodes(explain!.Plan).map((node) => node["Actual Loops"] ?? 0),
+        ...nodes(defined(explain).Plan).map(
+          (node) => node["Actual Loops"] ?? 0,
+        ),
       );
     // Surfaced in the reporter so a PR can quote the numbers.
     await annotate(
@@ -264,7 +271,7 @@ describe("rls helpers run once per statement (InitPlan)", () => {
     `);
     const membership = await measure();
     expect(membership.ids).toStrictEqual(helper?.ids);
-    const calls = nodes(membership.plans[0]!.Plan).filter((node) =>
+    const calls = nodes(defined(membership.plans[0]).Plan).filter((node) =>
       callsHelper(node, "member_tenant_ids"),
     );
     expect(calls.length).toBeGreaterThan(0);

@@ -7,6 +7,7 @@ import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { membershipField } from "../../src/core/tenancy.ts";
 import { memberPrincipal, policy, tree } from "../fixtures/org-tree.ts";
+import { defined } from "../support/defined.ts";
 
 describe("membership and role source edges", () => {
   it("resolves scoped memberships and delegation, and fails closed on throwing sources", async () => {
@@ -74,13 +75,13 @@ describe("membership and role source edges", () => {
     const org = getResource(tree, "org");
     const post = getResource(tree, "post");
     const graph = new Map([
-      ["org", org!],
-      ["post", post!],
+      ["org", defined(org)],
+      ["post", defined(post)],
     ]);
     expect(membershipField(post, "org", graph)).toBe("orgId");
     expect(membershipField(post, "post", graph)).toBe("id");
     expect(membershipField(post, "team", graph)).toBeUndefined();
-    const cycled = post!;
+    const cycled = defined(post);
     const looping = new Map([
       ["post", { ...cycled, parent: { field: "orgId", resource: "post" } }],
     ]);

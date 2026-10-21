@@ -62,7 +62,7 @@ function validator(name: string): (value: unknown) => readonly unknown[] {
   if (check === undefined) {
     throw new Error(`no schema ${name}`);
   }
-  return (value) => (check(value) ? [] : (check.errors ?? []));
+  return (value) => (check(value) === true ? [] : (check.errors ?? []));
 }
 
 const signer = joseTokenSigner({

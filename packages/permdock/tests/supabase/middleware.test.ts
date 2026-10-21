@@ -24,6 +24,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 type FixtureClaimsConfig =
   | { readonly claims: SupabaseJwtClaims | null }
@@ -273,14 +274,14 @@ describe("permdock/supabase/middleware", () => {
     };
     expect(body.type).toBe("https://permdock.com/problems/approval-required");
     expect(body.token).toBeTypeOf("string");
-    await resolveApproval(store, body.token!, {
+    await resolveApproval(store, defined(body.token), {
       status: "approved",
       by: { principal: { id: "u9", roles: ["admin"] }, context: {} },
     });
     const resumed = await fetch(
       request("/posts/p1", {
         method: "DELETE",
-        headers: { [APPROVAL_HEADER]: body.token! },
+        headers: { [APPROVAL_HEADER]: defined(body.token) },
       }),
     );
     expect(resumed.status).toBe(204);

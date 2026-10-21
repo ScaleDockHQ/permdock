@@ -152,7 +152,10 @@ export function sqlFiles(
   for (const entry of entries) {
     const abs = resolve(cwd, entry);
     const isGlob = /[*?[{]/u.test(entry);
-    if (!isGlob && statSync(abs, { throwIfNoEntry: false })?.isFile()) {
+    if (
+      !isGlob &&
+      statSync(abs, { throwIfNoEntry: false })?.isFile() === true
+    ) {
       if (!seen.has(abs)) {
         seen.add(abs);
         ordered.push(abs);

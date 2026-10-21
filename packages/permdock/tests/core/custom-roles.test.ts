@@ -403,8 +403,15 @@ describe("the ceiling", () => {
     const keys = [...leaves.map((leaf) => leaf.key), "nope.read"];
     const names = ["owner", "admin", "billing", "editor", "viewer", "lead"];
     const rows = [invoice, bigInvoice, ownPost, otherPost, board, undefined];
-    const pick = <T>(list: readonly T[]): T =>
-      list[Math.floor(random() * list.length)]!;
+    const pick = <T>(list: readonly T[]): T => {
+      const index = Math.floor(random() * list.length);
+      for (const [at, item] of list.entries()) {
+        if (at === index) {
+          return item;
+        }
+      }
+      throw new RangeError("pick needs a non-empty list");
+    };
     const everyAssignable = await permdockFor(
       [
         {

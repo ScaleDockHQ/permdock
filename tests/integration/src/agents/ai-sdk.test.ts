@@ -24,6 +24,7 @@ import {
   startAgentDb,
   TENANT,
 } from "../support/agents.ts";
+import { defined } from "../support/defined.ts";
 
 type LanguageModelV4StreamPart =
   Awaited<
@@ -171,12 +172,12 @@ describe("ai sdk", () => {
       const [pending] = items;
       expect(pending?.permission).toBe("apiKey.revokeAll");
       await expect(
-        resolveApproval(reviewer, pending!.token, {
+        resolveApproval(reviewer, defined(pending).token, {
           status: "approved",
           by: { principal: saasPrincipal("alice", TENANT), context: {} },
         }),
       ).rejects.toThrow("approver");
-      await resolveApproval(reviewer, pending!.token, {
+      await resolveApproval(reviewer, defined(pending).token, {
         status: "approved",
         by: owner,
       });
@@ -189,7 +190,7 @@ describe("ai sdk", () => {
           content: [
             {
               type: "tool-approval-response",
-              approvalId: approvalId!,
+              approvalId: defined(approvalId),
               approved: true,
             },
           ],

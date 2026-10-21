@@ -23,6 +23,7 @@ import {
   testPolicySource,
   testSnapshotSource,
 } from "../../src/testing/conformance/runtime-stores.ts";
+import { defined } from "../support/defined.ts";
 
 const CLOUD_URL = "https://cloud.permdock.test";
 const CLOUD_ENV = `${CLOUD_URL}/v1/environments/production`;
@@ -463,7 +464,7 @@ describe(cloud, () => {
     const second = await client.approvals.list({
       status: "pending",
       limit: 1,
-      cursor: first.next!,
+      cursor: defined(first.next),
     });
     expect(second.items).toHaveLength(1);
     expect(second.items[0]?.token).not.toBe(first.items[0]?.token);

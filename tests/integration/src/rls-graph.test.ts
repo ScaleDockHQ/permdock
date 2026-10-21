@@ -10,6 +10,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { permissions } from "../fixtures/graph/permissions.ts";
 import { policy } from "../fixtures/graph/policy.ts";
 import { runPipingDbUrl } from "./db-url.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -264,7 +265,7 @@ describe("relationship graph in RLS (closure table)", () => {
       { role: "authenticated", settings: claims(HANA) },
       async () =>
         (
-          await db!.tester.query<{ ancestor: string }>(
+          await defined(db).tester.query<{ ancestor: string }>(
             "select distinct ancestor from permdock.permdock_closure",
           )
         ).rows.map((row) => row.ancestor),
@@ -274,7 +275,7 @@ describe("relationship graph in RLS (closure table)", () => {
       { role: "authenticated", settings: claims(VERA) },
       async () =>
         (
-          await db!.tester.query<{ "QUERY PLAN": string }>(
+          await defined(db).tester.query<{ "QUERY PLAN": string }>(
             "explain (analyze, costs off, timing off, summary off) select id from public.doc",
           )
         ).rows.map((row) => row["QUERY PLAN"]),

@@ -85,8 +85,10 @@ function AccessCell({ cell }: { cell: MatrixAccess | undefined }) {
   return (
     <div className="flex flex-wrap items-center gap-1">
       <Badge variant={access.variant}>{access.label}</Badge>
-      {cell?.approval ? <Badge variant="warning-light">approval</Badge> : null}
-      {cell?.limit ? <Badge variant="outline">limit</Badge> : null}
+      {cell?.approval === true ? (
+        <Badge variant="warning-light">approval</Badge>
+      ) : null}
+      {cell?.limit === true ? <Badge variant="outline">limit</Badge> : null}
     </div>
   );
 }
