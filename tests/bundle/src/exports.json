@@ -252,6 +252,7 @@
     "usePermDock",
     "usePermission",
     "usePermissions",
+    "useProtectedAction",
     "useRoles",
     "useSubject",
     "useTenant"
@@ -285,6 +286,7 @@
     "usePermission",
     "usePermissionGuard",
     "usePermissions",
+    "useProtectedAction",
     "useRoles",
     "useSnapshotReady",
     "useSubject",
@@ -434,6 +436,7 @@
     "usePermission",
     "usePermissionBoundary",
     "usePermissions",
+    "useProtectedAction",
     "useRoles",
     "useSubject",
     "useTenant"
@@ -454,6 +457,7 @@
     "memberships",
     "permission",
     "permissions",
+    "protectedAction",
     "requiredPlans",
     "roles",
     "setPermDock",
@@ -479,6 +483,7 @@
     "usePermission",
     "usePermissionBoundary",
     "usePermissions",
+    "useProtectedAction",
     "useRoles",
     "useSubject",
     "useTenant"

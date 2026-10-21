@@ -2,9 +2,9 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { ReactElement, ReactNode } from "react";
 
 import type { ApprovalStore } from "../approvals/types.ts";
+import type { ActionResult, ProtectedAction } from "../core/action-result.ts";
 import type { Decision, DenialReason } from "../core/decision.ts";
 import type { DescribeMessages } from "../core/describe.ts";
-import type { ProblemDetails } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { RowData, UncheckedData } from "../core/permdock.ts";
@@ -105,11 +105,6 @@ export type PermDockHandler = {
   readonly GET: (request: Request) => Promise<Response>;
 };
 
-/** What a `protectAction` action resolves to; both members cross to the client. */
-export type ActionResult<T> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly problem: ProblemDetails };
-
 export type ProtectActionOptions<TInput, TRow> = {
   /** Validates the action's argument before anything else runs. */
   readonly input: StandardSchemaV1<unknown, TInput>;
@@ -138,14 +133,7 @@ export type ProtectedActionHandler<
   context: ProtectedActionContext<TRow, V>,
 ) => TResult | Promise<TResult>;
 
-/**
- * The server action: `approval` is the token of a granted approval request,
- * which resumes an `approval-required` decision.
- */
-export type ProtectedAction<T> = (
-  input: unknown,
-  options?: { readonly approval?: string },
-) => Promise<ActionResult<T>>;
+export type { ActionResult, ProtectedAction };
 
 export type ProtectAction<V extends PolicyVocabulary> = <
   TInput,

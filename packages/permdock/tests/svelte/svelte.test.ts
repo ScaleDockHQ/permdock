@@ -1,8 +1,11 @@
 import { get } from "svelte/store";
 import { describe, expect, it } from "vitest";
 
+import type { ActionResult } from "../../src/core/action-result.ts";
+
 import { approvalHeaders } from "../../src/client/headers.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { problemType } from "../../src/core/problem-types.ts";
 import { createSvelteStore } from "../../src/svelte/context.ts";
 import { viewFor, scopedFor } from "../../src/svelte/protected.ts";
 import {
@@ -14,6 +17,7 @@ import {
   membershipsFor,
   permissionFor,
   permissionsFor,
+  protectedActionFor,
   rolesFor,
   subjectFor,
   sveltePermDock,
@@ -70,6 +74,48 @@ describe("permdock/svelte", () => {
     );
     expect(`${own.hidden}:${own.disabled}`).toBe("false:false");
     expect(`${other.hidden}:${other.disabled}`).toBe("false:true");
+  });
+
+  it("runs a protected action and retries it with the approval token", async () => {
+    const snapshot = await memberSnapshot();
+    const store = createSvelteStore({ snapshot });
+    const calls: unknown[] = [];
+    const answers: ActionResult<string>[] = [
+      {
+        ok: false,
+        problem: {
+          type: problemType("approval-required"),
+          title: "Approval required",
+          status: 403,
+          detail: "post.update needs an approval.",
+          permission: "post.update",
+          token: "pd1.token/one",
+        },
+      },
+      { ok: true, value: "saved" },
+    ];
+    const action = protectedActionFor<string>(
+      store,
+      (input, options) => {
+        calls.push([input, options]);
+        return Promise.resolve(answers.shift() ?? { ok: true, value: "again" });
+      },
+      defs.post.update,
+      () => ownPost,
+    );
+    const view = (): string => {
+      const current = get(action);
+      return `${current.gate.disabled}:${current.pending}:${current.result?.ok ?? "none"}:${current.approval?.token ?? "none"}`;
+    };
+    expect(view()).toBe("false:false:none:none");
+    await action.run({ title: "Hello" });
+    expect(view()).toBe("false:false:false:pd1.token/one");
+    await action.retry();
+    expect(view()).toBe("false:false:true:none");
+    expect(calls).toStrictEqual([
+      [{ title: "Hello" }, undefined],
+      [{ title: "Hello" }, { approval: "pd1.token/one" }],
+    ]);
   });
 
   it("exposes snapshot introspection through stores", async () => {

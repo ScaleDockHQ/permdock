@@ -24,6 +24,7 @@ export {
 } from "./hooks.ts";
 export { PermDockProvider } from "./provider.tsx";
 export { Protected } from "./protected.tsx";
+export { useProtectedAction } from "./protected-action.ts";
 export type {
   ApprovalHandle,
   ApprovalState,
@@ -32,6 +33,8 @@ export type {
   FilterResult,
   GateMode,
   GateView,
+  ProtectedActionHandle,
+  ProtectedActionView,
   PermDockDefaults,
   PermDockProviderProps,
   PermissionSet,
@@ -44,3 +47,4 @@ export type {
   EventSourceRefreshOptions,
   RefreshTrigger,
 } from "../client/refresh-on.ts";
+export type { ActionResult, ProtectedAction } from "../core/action-result.ts";

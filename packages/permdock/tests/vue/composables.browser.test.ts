@@ -10,11 +10,19 @@ import {
   shallowRef,
 } from "vue";
 
+import type {
+  ActionResult,
+  ProtectedAction,
+} from "../../src/core/action-result.ts";
 import type { Decision } from "../../src/core/decision.ts";
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
-import type { PermDockPluginOptions } from "../../src/vue/types.ts";
+import type {
+  PermDockPluginOptions,
+  ProtectedActionRefs,
+} from "../../src/vue/types.ts";
 
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { problemType } from "../../src/core/problem-types.ts";
 import {
   useApproval,
   useAssignablePermissions,
@@ -22,6 +30,7 @@ import {
   useGate,
   usePermission,
   usePermissions,
+  useProtectedAction,
   useRoles,
   useSubject,
   useTenant,
@@ -54,6 +63,27 @@ async function aliceSnapshot(): Promise<Snapshot> {
   const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
   // SAFETY: snapshot() returns a Snapshot without a signer.
   return server.snapshot({ tenants: "all" }) as Snapshot;
+}
+
+function approvalAction(calls: unknown[]): ProtectedAction<string> {
+  const answers: ActionResult<string>[] = [
+    {
+      ok: false,
+      problem: {
+        type: problemType("approval-required"),
+        title: "Approval required",
+        status: 403,
+        detail: "post.update needs an approval.",
+        permission: "post.update",
+        token: "pd1.token/one",
+      },
+    },
+    { ok: true, value: "saved" },
+  ];
+  return (input, options) => {
+    calls.push([input, options]);
+    return Promise.resolve(answers.shift() ?? { ok: true, value: "again" });
+  };
 }
 
 function mount(
@@ -143,6 +173,43 @@ describe("permdock/vue composables", () => {
       { snapshot: await memberSnapshot() },
     );
     expect(view.root.textContent).toBe("false:true:false:true:denied");
+    view.unmount();
+  });
+
+  it("run a protected action and retry it with the approval token", async () => {
+    const calls: unknown[] = [];
+    let handle: ProtectedActionRefs<string> | undefined;
+    const view = mount(
+      defineComponent({
+        setup() {
+          const current = useProtectedAction(
+            approvalAction(calls),
+            permissions.post.update,
+            ownPost,
+          );
+          handle = current;
+          return () =>
+            [
+              current.gate.value.disabled,
+              current.pending.value,
+              current.result.value?.ok ?? "none",
+              current.approval.value?.token ?? "none",
+            ].join(":");
+        },
+      }),
+      { snapshot: await memberSnapshot(), endpoint: false },
+    );
+    expect(view.root.textContent).toBe("false:false:none:none");
+    await handle?.run({ title: "Hello" });
+    await nextTick();
+    expect(view.root.textContent).toBe("false:false:false:pd1.token/one");
+    await handle?.retry();
+    await nextTick();
+    expect(view.root.textContent).toBe("false:false:true:none");
+    expect(calls).toStrictEqual([
+      [{ title: "Hello" }, undefined],
+      [{ title: "Hello" }, { approval: "pd1.token/one" }],
+    ]);
     view.unmount();
   });
 

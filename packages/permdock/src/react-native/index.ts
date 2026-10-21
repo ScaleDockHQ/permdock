@@ -19,6 +19,7 @@ export {
   useTenant,
 } from "../react/hooks.ts";
 export { Protected } from "../react/protected.tsx";
+export { useProtectedAction } from "../react/protected-action.ts";
 export type {
   ApprovalHandle,
   ApprovalState,
@@ -27,6 +28,8 @@ export type {
   FilterResult,
   GateMode,
   GateView,
+  ProtectedActionHandle,
+  ProtectedActionView,
   PermissionSet,
   PermissionState,
   SubjectView,
@@ -69,3 +72,4 @@ export type {
   EventSourceRefreshOptions,
   RefreshTrigger,
 } from "../client/refresh-on.ts";
+export type { ActionResult, ProtectedAction } from "../core/action-result.ts";

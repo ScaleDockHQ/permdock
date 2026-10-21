@@ -22,6 +22,8 @@ export type {
   GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionHandle,
+  ProtectedActionView,
   SubjectView,
   TenantView,
   RolesOptions,

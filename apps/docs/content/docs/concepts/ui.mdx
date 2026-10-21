@@ -178,6 +178,44 @@ const approval = useApproval(decision);
 
 `request` posts to the `approvals` URL ([approvals adapter](/docs/adapters/approvals)); while a component subscribes, `state` polls `GET <approvals>/<token>` on the `approvalsHandler` every two seconds until the request is `approved`, `rejected` or `expired` (a `404` reads as `expired`), and never during a server render or after logout; when `approved`, the retry helper `approvalHeaders(token)` returns `{ 'PermDock-Approval': token }` for the mutation call ([security: approvals](/docs/security/approvals)). The approver never answers through this hook: approving happens in the inbox or a chat surface, authenticated as the approver. The hook never fabricates a token; it only carries the one the decision returned.
 
+## Protected server actions
+
+`useProtectedAction(action, permission, data?, { mode })` wires a [`protectAction`](/docs/adapters/next#server-actions) Server Action, or any function with its `ProtectedAction` signature, to a control. It returns:
+
+| Field        | Value                                                                                        |
+| ------------ | -------------------------------------------------------------------------------------------- |
+| `gate`       | The `useGate` view for the permission and row                                                |
+| `run(input)` | Calls the action and keeps its `ActionResult`                                                |
+| `result`     | The last `ActionResult`; `undefined` before the first call                                   |
+| `pending`    | A call is in flight                                                                          |
+| `approval`   | On an `approval-required` problem, the `ApprovalHandle` for its token; otherwise `undefined` |
+| `retry()`    | Resends the last input with `{ approval: token }`; `undefined` without a token               |
+
+```tsx
+const approve = useProtectedAction(
+  approveQuote,
+  permissions.quote.approve,
+  quote,
+);
+
+return (
+  <>
+    <Button
+      hidden={approve.gate.hidden}
+      disabled={approve.gate.disabled || approve.pending}
+      onClick={() => approve.run({ org, id: quote.id })}
+    >
+      Approve
+    </Button>
+    {approve.approval?.state === "approved" && (
+      <Button onClick={() => approve.retry()}>Retry</Button>
+    )}
+  </>
+);
+```
+
+The hook decides nothing: the action decides on the server and the hook renders its answer. Only the latest call's result lands. A throw from the action, such as a Next.js `redirect()`, clears `pending` and propagates. Vue and Solid export `useProtectedAction` with computed refs and accessors for the fields; Svelte's is the `protectedAction` store, with `run` and `retry` on it.
+
 ## Impersonation banner
 
 Support access is modelled as the customer being the `principal` and the support engineer the `actor` with a time-bound delegation ([tenancy](/docs/concepts/tenancy) adjacent features). The client can tell:

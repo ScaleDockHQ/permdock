@@ -9,7 +9,9 @@ import {
   toValue,
 } from "vue";
 
+import type { ProtectedActionState } from "../client/protected-action.ts";
 import type { ClientStore } from "../client/store.ts";
+import type { ProtectedAction } from "../core/action-result.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
 import type { RowData, UncheckedData } from "../core/permdock.ts";
@@ -24,12 +26,15 @@ import type {
   GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionRefs,
   SubjectView,
   TenantView,
   RolesOptions,
 } from "./types.ts";
 
 import {
+  actionApproval,
+  actionRunner,
   approvalHandle,
   describeWith,
   filterResult,
@@ -211,4 +216,54 @@ export function useDescribe(): (
   options?: DescribeOptions,
 ) => DecisionDescription {
   return describeWith(inject(permDockUiKey, {}).messages);
+}
+
+/**
+ * A `protectAction` server action wired to a control, as `useProtectedAction`
+ * in React: refs for `gate`, `result`, `pending` and `approval`, plus `run` and
+ * `retry`.
+ */
+export function useProtectedAction<T, D>(
+  action: ProtectedAction<T>,
+  permission: MaybeRefOrGetter<Permission>,
+  data?: MaybeRefOrGetter<UncheckedData<D>>,
+  options?: { readonly mode?: GateMode },
+): ProtectedActionRefs<T>;
+export function useProtectedAction<T, P extends Permission>(
+  action: ProtectedAction<T>,
+  permission: MaybeRefOrGetter<P>,
+  data?: MaybeRefOrGetter<RowData<P>>,
+  options?: { readonly mode?: GateMode },
+): ProtectedActionRefs<T>;
+export function useProtectedAction<T>(
+  action: ProtectedAction<T>,
+  permission: MaybeRefOrGetter<Permission>,
+  data?: MaybeRefOrGetter<unknown>,
+  options: { readonly mode?: GateMode } = {},
+): ProtectedActionRefs<T> {
+  const store = useStore();
+  const permdock = useTick(store);
+  const gate = useGate(permission, data, options);
+  const state = shallowRef<ProtectedActionState<T>>({
+    result: undefined,
+    pending: false,
+  });
+  const runner = actionRunner(
+    () => action,
+    (next) => {
+      state.value = next;
+    },
+  );
+  const approval = computed(() => {
+    void permdock.value;
+    return actionApproval(store, state.value.result);
+  });
+  return {
+    gate,
+    result: computed(() => state.value.result),
+    pending: computed(() => state.value.pending),
+    approval,
+    run: runner.run,
+    retry: runner.retry,
+  };
 }

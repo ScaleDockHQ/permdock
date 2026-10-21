@@ -19,6 +19,7 @@ export {
   assignablePermissions,
   filtered,
   gate,
+  protectedAction,
   getDescribe,
   getPermDock,
   memberships,
@@ -36,6 +37,8 @@ export type {
   FilterResult,
   GateMode,
   GateView,
+  ProtectedActionReadable,
+  ProtectedActionView,
   PermDockDefaults,
   SveltePermDockOptions,
   PermissionSet,
@@ -57,3 +60,4 @@ export type {
   EventSourceRefreshOptions,
   RefreshTrigger,
 } from "../client/refresh-on.ts";
+export type { ActionResult, ProtectedAction } from "../core/action-result.ts";

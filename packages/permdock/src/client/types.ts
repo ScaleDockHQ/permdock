@@ -1,3 +1,4 @@
+import type { ActionResult } from "../core/action-result.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription } from "../core/describe.ts";
 import type { DescribeMessages } from "../core/describe.ts";
@@ -5,6 +6,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Actor, Delegation, Principal } from "../core/subject.ts";
+import type { ProtectedActionState } from "./protected-action.ts";
 import type { RefreshTrigger } from "./refresh-on.ts";
 import type { ClientStoreOptions } from "./store.ts";
 
@@ -42,6 +44,23 @@ export type ApprovalHandle = {
   readonly state: ApprovalState;
   readonly token: string | undefined;
   readonly request: (note?: string) => Promise<void>;
+};
+
+/**
+ * A protected server action wired to a control: the gate for its button, the
+ * last answer, and the approval its `approval-required` problem carries. The
+ * client decides nothing; the action answers.
+ */
+export type ProtectedActionView<T> = ProtectedActionState<T> & {
+  readonly gate: GateView;
+  /** On an `approval-required` problem, the handle for its token. */
+  readonly approval: ApprovalHandle | undefined;
+};
+
+export type ProtectedActionHandle<T> = ProtectedActionView<T> & {
+  readonly run: (input: unknown) => Promise<ActionResult<T>>;
+  /** Resends the last input with the approval token; `undefined` without one. */
+  readonly retry: () => Promise<ActionResult<T> | undefined>;
 };
 
 export type SubjectView = {

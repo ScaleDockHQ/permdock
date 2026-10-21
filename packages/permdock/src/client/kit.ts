@@ -6,6 +6,7 @@
  */
 export { boundaryDigest, boundaryFallback } from "./boundary.ts";
 export { approvalHeaders } from "./headers.ts";
+export { actionApproval, actionRunner } from "./protected-action.ts";
 export { providerStore, switchTenant } from "./provider-store.ts";
 export { eventSourceRefresh } from "./refresh-on.ts";
 export { isPromiseLike } from "./source.ts";

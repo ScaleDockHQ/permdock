@@ -1,10 +1,17 @@
-import { describe, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 
-import { Protected, useGate, usePermission } from "../../src/react/index.ts";
+import type { ActionResult, ProtectedAction } from "../../src/react/index.ts";
+
+import {
+  Protected,
+  useGate,
+  usePermission,
+  useProtectedAction,
+} from "../../src/react/index.ts";
 import { permissions } from "../fixtures/quick-start.ts";
 
 describe("React row types", () => {
-  it("types data on usePermission, useGate and Protected", () => {
+  it("types data on usePermission, useGate, useProtectedAction and Protected", () => {
     function Typed(): null {
       usePermission(permissions.post.update, { authorId: "u1" });
       useGate(permissions.post.update, { published: true }, { mode: "hide" });
@@ -14,6 +21,16 @@ describe("React row types", () => {
       usePermission(permissions.post.update, { published: "yes" });
       // @ts-expect-error authorID is not a Post field
       useGate(permissions.post.update, { authorID: "u1" });
+      const save: ProtectedAction<{ readonly id: string }> = () =>
+        Promise.resolve({ ok: true, value: { id: "p1" } });
+      const saving = useProtectedAction(save, permissions.post.update, {
+        authorId: "u1",
+      });
+      expectTypeOf(saving.result).toEqualTypeOf<
+        ActionResult<{ readonly id: string }> | undefined
+      >();
+      // @ts-expect-error published is a boolean
+      useProtectedAction(save, permissions.post.update, { published: "yes" });
       return null;
     }
     void Typed;

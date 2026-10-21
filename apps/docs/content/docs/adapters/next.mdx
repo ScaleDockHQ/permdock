@@ -105,7 +105,7 @@ The action runs these steps in order and stops at the first refusal:
 | The decision, resumed by `{ approval }`        | `401` for an anonymous subject, `403` for a denial, `403` `approval-required` with a `token`   |
 | `handler(input, { permdock, decision, data })` | `500` with the permission key; the thrown error stays on the server                            |
 
-Next.js interrupts (`redirect()`, `notFound()`, request-time bailouts) from a resolver, the loader or the handler pass through `unstable_rethrow`; nothing else throws. An `approval-required` result carries `problem.token`; once an approver grants it, the client calls the action again with `approveQuote(input, { approval: token })`. The token is bound to the permission, the subject and the row, as on every adapter ([approvals](/docs/security/approvals)).
+Next.js interrupts (`redirect()`, `notFound()`, request-time bailouts) from a resolver, the loader or the handler pass through `unstable_rethrow`; nothing else throws. An `approval-required` result carries `problem.token`; once an approver grants it, the client calls the action again with `approveQuote(input, { approval: token })`. The token is bound to the permission, the subject and the row, as on every adapter ([approvals](/docs/security/approvals)). On the client, [`useProtectedAction`](/docs/concepts/ui#protected-server-actions) from `permdock/react` keeps the result, the approval handle and the retry.
 
 ### PermissionBoundary
 

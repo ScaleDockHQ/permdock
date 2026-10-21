@@ -13,6 +13,7 @@ export {
   useMemberships,
   usePermDock,
   useGate,
+  useProtectedAction,
   usePermission,
   usePermissions,
   useRoles,
@@ -30,6 +31,8 @@ export type {
   FilterResult,
   GateMode,
   GateView,
+  ProtectedActionAccessors,
+  ProtectedActionView,
   PermDockDefaults,
   PermDockProviderProps,
   PermissionBoundaryProps,
@@ -46,3 +49,4 @@ export type {
   EventSourceRefreshOptions,
   RefreshTrigger,
 } from "../client/refresh-on.ts";
+export type { ActionResult, ProtectedAction } from "../core/action-result.ts";
