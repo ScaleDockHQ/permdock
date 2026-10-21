@@ -185,6 +185,12 @@
         "execute": ["authenticated"]
       },
       {
+        "name": "permdock_is_approver",
+        "args": "p_approvers jsonb, p_tenant text, p_requester text, p_resource text",
+        "returns": "boolean",
+        "execute": ["authenticated"]
+      },
+      {
         "name": "permdock_has_for",
         "args": "p_user uuid, p_grant text",
         "returns": "boolean",

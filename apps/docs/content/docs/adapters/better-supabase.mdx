@@ -731,6 +731,9 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 - `src/lib/supabase/server.ts` passes `authorizer({ policy })` to `createNext`, and `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
 - `src/lib/supabase/index.ts` validates sessions with `supabaseClaims().extend(appClaims)`, and `src/lib/access.ts` maps them with `subjectFromBetterSupabase`.
 - `supabase/schemas/public/functions/feature_claims.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `permdock.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim.
+- The share-links block requires better-supabase's `tenant` block. `blocks.tenant` adopts the `public.organization_memberships` view of PermDock's `memberships` table (`mode: "adopt"`), so better-supabase creates no second memberships table.
+- `src/app/[locale]/share/[token]/page.tsx` is the guest quote page. `src/lib/share.ts` resolves the token with `subjectFromShareLink`, checks `quotes.read` for the link-only `guest` role and reads the quote under RLS with the `exchangeCapability` claims (`rls.capabilities`). The seed's link opens at `/en/share/acme-initech-rollout`.
+- `rls.approvals.delegations` writes `approval_delegations`, and the seed gives Mason a 30-day cover for Olivia's Acme approvals.
 - `supabase/tests` holds pgTAP tests over the seeded tenants, and `tests/claims.test.ts` maps every claim fixture through better-supabase's `createServer`.
 
 ## Related

@@ -324,7 +324,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      organization_memberships: {
+        Row: {
+          created_at: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        ComputedFields: never
+        Relationships: []
+      }
     }
     Functions: {
       audit_retention: { Args: { tenant: string }; Returns: string }

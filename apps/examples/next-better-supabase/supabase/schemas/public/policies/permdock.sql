@@ -7,6 +7,7 @@ grant select on table "public"."staff" to authenticated;
 
 alter table "public"."quotes" enable row level security;
 revoke all on table "public"."quotes" from anon, authenticated;
+grant select on table "public"."quotes" to anon;
 grant select, update on table "public"."quotes" to authenticated;
 
 create policy "staff_select"
@@ -22,6 +23,13 @@ create policy "quotes_select"
   for select
   to authenticated
   using ((("organization_id" in (select "permdock".permitted_organization_ids('quotes.read'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.read')))) or (("organization_id" in (select "permdock".permitted_organization_ids('quotes.list'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.list')))));
+
+create policy "quotes_select_anon"
+  on "public"."quotes"
+  as permissive
+  for select
+  to anon
+  using ("id"::text in (select "permdock".permdock_capability_ids('quotes', 'guest', 'quotes.read')));
 
 create policy "quotes_update"
   on "public"."quotes"
