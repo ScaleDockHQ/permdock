@@ -30,6 +30,7 @@ export const CUSTOM_ROLES = {
   keys: "permdock_custom_keys",
   beyond: "permdock_custom_role_beyond",
   guard: "permdock_custom_role_guard",
+  syncGuard: "permdock_sync_custom_role_guard",
   beyondFor: "permdock_custom_role_beyond_for",
   guardFor: "permdock_custom_role_guard_for",
   shape: "permdock_custom_role_shape",

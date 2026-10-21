@@ -24,6 +24,7 @@ export default {
       },
     },
     customRoleWrites: {
+      requires: ["role.manage"],
       roles: {
         table: "app_roles",
         key: "name",

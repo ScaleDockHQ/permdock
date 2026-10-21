@@ -17,9 +17,20 @@ export default {
     approvals: { delegations: true },
     // The guest quote page reads through an exchanged share-link capability.
     capabilities: true,
-    customRoles: true,
+    // The app keeps each custom role's entries in `public.role_permissions`; a trigger copies them.
+    customRoles: {
+      from: {
+        sync: "trigger",
+        permissions: {
+          table: "role_permissions",
+          role: { through: "roles", on: { role_id: "id" }, column: "key" },
+          permission: "permission",
+        },
+      },
+    },
     trustedReaders: ["service_role"],
     customRoleWrites: {
+      requires: ["roles.manage"],
       roles: {
         table: "roles",
         key: "key",

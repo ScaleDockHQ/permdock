@@ -23,4 +23,5 @@ export const permissions = definePermissions({
     collection: ["create"],
     relations: { org: { field: "orgId", memberOf: "tenant" } },
   }),
+  role: resource({ collection: ["manage"] }),
 });

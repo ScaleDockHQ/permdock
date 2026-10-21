@@ -281,6 +281,31 @@ export type Models = {
     ForeignKeys: "quotes_customer_id_fkey" | "quotes_organization_id_fkey";
     Flags: Record<never, never>;
   };
+  role_permissions: {
+    Row: {
+      role_id: string;
+      permission: string;
+      created_at: string;
+    };
+    Insert: {
+      role_id: string;
+      permission: string;
+      created_at?: string;
+    };
+    Update: {
+      role_id?: string;
+      permission?: string;
+      created_at?: string;
+    };
+    Relations: {
+      role: { table: "roles"; kind: "one"; nullable: false };
+    };
+    PrimaryKey: "role_id" | "permission";
+    UniqueKeys: Record<never, never>;
+    Checks: never;
+    ForeignKeys: "role_permissions_role_id_fkey";
+    Flags: Record<never, never>;
+  };
   roles: {
     Row: {
       id: string;
@@ -304,6 +329,7 @@ export type Models = {
       created_at?: string;
     };
     Relations: {
+      role_permissions: { table: "role_permissions"; kind: "many"; nullable: true };
       organization: { table: "organizations"; kind: "one"; nullable: false };
     };
     PrimaryKey: "id";

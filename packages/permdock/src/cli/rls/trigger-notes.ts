@@ -21,6 +21,9 @@ function reasonOf(name: string): string {
   if (name === "permdock_custom_role_cascade") {
     return "customRoleWrites.roles: a rename or delete of a role carries its grants";
   }
+  if (name.startsWith("permdock_sync_custom_role_guard")) {
+    return "customRoles.from.sync: a signed-in caller writes only entries they may hand out";
+  }
   if (name.startsWith("permdock_sync_custom_role")) {
     return "customRoles.from.sync: each write to the legacy table rebuilds the role's grants";
   }
