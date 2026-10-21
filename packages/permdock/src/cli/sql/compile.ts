@@ -596,7 +596,7 @@ export function compileGrants(
     );
     return entry === undefined ? [] : [entry];
   });
-  const keys = assignKeys(entries, ctx.fields === "views");
+  const keys = assignKeys(entries, ctx.fields !== undefined);
   entries.push(
     ...levelEntries(policy, ctx, keys, tables, warnings, skipClosures),
   );

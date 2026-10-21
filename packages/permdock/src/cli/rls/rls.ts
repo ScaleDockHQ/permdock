@@ -355,7 +355,7 @@ async function introspect(
   try {
     const actual = await introspectRls(input.db, expected, input.connect);
     const drift = diffRls(expected, actual, {
-      columnGrants: (input.fields ?? input.config.rls?.fields) === "views",
+      columnGrants: (input.fields ?? input.config.rls?.fields) !== undefined,
     });
     return verifyResult({
       findings: [...drift, ...missingIndexes(expected, actual)],

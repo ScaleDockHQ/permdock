@@ -333,11 +333,13 @@ export type RlsConfig = {
   readonly storage?: RlsStorage;
   /**
    * `'views'`: one `security_invoker` view `<table>_visible` per table with field-limited
-   * read grants, whose restricted columns are `case when <permitted> then col end`. Off by default.
+   * read grants, whose restricted columns are `case when <permitted> then col end`. `'mask'`:
+   * the same views plus `<schema>.<table>_mask(p_row)`, which nulls the restricted columns of
+   * one row by the same masks, for SQL that reads the table without the view. Off by default.
    */
-  readonly fields?: "views";
+  readonly fields?: "views" | "mask";
   /**
-   * With `fields: 'views'`, grant `anon` and `authenticated` only the unrestricted columns of
+   * With `fields: 'views'` or `'mask'`, grant `anon` and `authenticated` only the unrestricted columns of
    * the base table, so restricted columns are read through the view. Breaks `select *`.
    */
   readonly revokeColumns?: boolean;

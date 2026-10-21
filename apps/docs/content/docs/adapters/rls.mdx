@@ -22,7 +22,7 @@ A permission such as `allow(permissions.post.update, { to: relation(permissions.
 ## API
 
 ```bash
-permdock rls generate --target drizzle|sql|prisma --dialect supabase|neon|guc [--rbac supabase] [--authorize database|jwt] [--memberships <table>[:tenant_col,user_col,role_col]] [--tenant-type uuid] [--policy-per-role] [--policy-name '{table}_{op}'] [--fields views [--revoke-columns]] [--out <path>]
+permdock rls generate --target drizzle|sql|prisma --dialect supabase|neon|guc [--rbac supabase] [--authorize database|jwt] [--memberships <table>[:tenant_col,user_col,role_col]] [--tenant-type uuid] [--policy-per-role] [--policy-name '{table}_{op}'] [--fields views|mask [--revoke-columns]] [--out <path>]
 permdock rls import   [--db-url-stdin | --sql schema.sql] --out src/permissions.generated.ts [--validator zod|valibot|arktype]
 permdock rls verify   [--db-url-stdin] [--fixtures rls.fixtures.ts] [--kind pgtap|node] [--tree]
 ```
@@ -285,7 +285,42 @@ left join "permdock"."invoice_visible_fields" f on f."permdock_key" = t."id";
 
 The companion masks every column with the full field decision, denies included, and keeps only rows where some restricted column is readable. Reading it directly therefore shows nothing `pick` would hide: a readable column implies a readable row. `security_barrier` stops a caller's predicate from running before the masks. The companion's owner must see the rows: the table owner without `FORCE ROW LEVEL SECURITY`, or a `BYPASSRLS` role; otherwise every restricted column reads as `null`, which fails closed. Writes are unchanged: `insert`, `update` and `delete` keep their table-level grants and policies, but `returning *` and `select *` on the table now fail with `42501`.
 
-Parity is checked end to end. `rls verify` (with `rls.fields: 'views'`) and `testRlsParity({ fieldViews: true })` read each fixture's row back from `<table>_visible` and compare the columns holding a value with those `pick` keeps, plus the key. `rls import` reads the views back as a `fieldViews` export of per-column grants. `tests/integration/src/rls-fields.test.ts` runs the matrix on Postgres for the `supabase`, `neon` and `guc` dialects, with and without `--revoke-columns`, including `anon` reads through the view.
+### Mask functions
+
+A view covers clients that read through it. SQL that reads the table with its owner's rights does not: a `security definer` RPC, a trigger that copies rows, or a function a backend calls passes RLS and column grants, and returns every column. `--fields mask` (`rls.fields: 'mask'`) writes everything `--fields views` writes, plus one function per field view in the helper schema:
+
+```sql
+create or replace function "permdock"."invoice_mask"(p_row "public"."invoice")
+returns "public"."invoice"
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select pg_catalog.jsonb_populate_record(
+    $1,
+    case when (...amount mask...) then '{}'::jsonb else pg_catalog.jsonb_build_object('amount', null) end
+    || case when (...note mask...) then '{}'::jsonb else pg_catalog.jsonb_build_object('note', null) end
+  )
+  from (select ($1).*) r
+$$;
+```
+
+`<table>_mask(p_row)` returns the row it is given with each restricted column the caller may not read set to `null`, by the same masks as `<table>_visible`, so the helpers still answer for the caller's claims. It reads no rows itself: the query that calls it chooses them, so an RPC keeps its own filter and the mask only shapes columns.
+
+```sql
+create function public.invoice_report() returns setof public.invoice
+language sql stable security definer set search_path = ''
+as $$
+  select m.* from public.invoice i
+  cross join lateral permdock.invoice_mask(i) m
+  where i.title ilike 'Q3%'
+$$;
+```
+
+Call it in `from ... cross join lateral`, as above: `(permdock.invoice_mask(i)).*` in a select list runs the function once per column. The function returns the table's own row type, so columns the resource schema does not list keep their value. It lives in the helper schema, which the Data API does not serve, so it is neither an RPC nor a computed field, and `execute` goes to the roles that read the view. A caller with no subject (a job connected as the owner without claims) gets every restricted column as `null`. With `--revoke-columns`, a `security invoker` caller cannot build the row it would pass, so client SQL reads `<table>_visible` and the function serves owner-rights code.
+
+Parity is checked end to end. `rls verify` (with `rls.fields: 'views'` or `'mask'`) and `testRlsParity({ fieldViews: true })` read each fixture's row back from `<table>_visible` and compare the columns holding a value with those `pick` keeps, plus the key. `rls import` reads the views back as a `fieldViews` export of per-column grants. `tests/integration/src/rls-fields.test.ts` runs the matrix on Postgres for the `supabase`, `neon` and `guc` dialects, with and without `--revoke-columns`, including `anon` reads through the view and a `security definer` RPC that masks every row through `<table>_mask` and agrees with the view on the rows the view returns.
 
 ## Request lifecycle
 
@@ -355,6 +390,7 @@ The in-process side answers with a [Decision](/docs/concepts/decisions), so a `d
 - **Hand-written views are a `doctor` warning, not generated SQL.** Views over application data are application SQL, and some are meant to read past RLS (a public aggregate), so doctor PD022 names each view without `security_invoker` and leaves the choice explicit ([doctor](/docs/cli/doctor)). The only views `generate` writes are the opt-in field views, and it writes them `security_invoker`.
 - **Field security is a per-row view, not Postgres column privileges.** RLS stayed row-level until `--fields views`, and it still is by default. Column privileges belong to a database role, not to a row or a tenant, so `grant select (amount)` cannot say that finance reads `amount` only in its own organization, and a Postgres role per app role and tenant is the design the claims-not-roles rule below rejects. A view with a `case` per restricted column evaluates the same field decision as `pick` for each row, from the same helper calls as the row policy, so it costs one helper call per statement and stays in step with the application. A permission per field (`invoice.read.amount`) would multiply keys and policies for what is one grant option.
 - **`--revoke-columns` is opt-in and uses an owner-rights companion.** Closing the columns breaks `select *` and `returning *` on the table, which existing code relies on, so it is a second flag. Column privileges are the only way to close a column, and a `security_invoker` view cannot read a column its caller lost, so the restricted columns go through `<table>_visible_fields`. The companion is safe to read directly because it masks each column with the whole field decision and keeps only rows with a readable column. The rows of `<table>_visible` still come from the caller's own RLS. PD022 exempts the companion by its `permdock:field-companion` comment.
+- **`--fields mask` adds a row function to the views, never replaces them.** Owner-rights SQL (a `security definer` RPC, a trigger, a backend function) reads past both RLS and column grants, so neither the view nor `--revoke-columns` reaches it; one function per table that masks a row it is handed does, and composes with whatever filter or join the caller already wrote. A set-returning function that read the table itself would either run as the caller, which `--revoke-columns` blocks, or as its owner, which would restate the row policy. Masking the table in place would mean renaming the application's table behind a view with `instead of` triggers, which `generate` never does to application schema. A function alone leaves the table open to direct reads, so `'mask'` is `'views'` plus the function: PD030, `--revoke-columns`, `rls verify` and `rls import` treat both modes alike, and `--fields views` output stays byte-identical, so existing `--check` runs see no drift. The function is `security invoker` because it needs nothing beyond the helpers its masks call, and it has no `_for` form: server code that knows the user redacts with `pick`. It is built with `jsonb_populate_record` over the table's row type, so its signature follows the table and columns outside the resource schema pass through. `rls import` reads the views, which carry the same masks, and ignores the functions.
 - **The row key always passes through.** The view is filtered and joined on it, and a client needs it to address the row it can read. A read grant whose `fields` omit the key still sees it in the database; the command warns, and parity checks count the key as kept.
 - **`REVOKE` / `GRANT` is always emitted, with no `--grants` flag.** The `sql` target revokes table privileges from `anon` and `authenticated` and grants back only the commands the policy uses. A policy without the matching grant fails with `42501`, and a grant without a policy is the open-by-default mistake RLS exists to prevent. Making the pair optional would allow either half to go missing.
 - **The `neon` dialect is pinned to `auth.user_id()`.** That is the helper `pg_session_jwt` installs, and the generated SQL calls it through `(select ...)` so Postgres evaluates it once per statement. Claims go through `auth.session()`. A different helper name is a `guc` dialect with `--guc-prefix`.
