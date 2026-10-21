@@ -189,6 +189,15 @@ function sectionsSql(
   } catch (cause) {
     return { refusal: describeError(cause) };
   }
+  if (
+    typeof rls?.approvals === "object" &&
+    rls.approvals.delegations === true &&
+    ctx.authorize !== "database"
+  ) {
+    warnings.push(
+      "rls.approvals.delegations with --authorize jwt: permdock_is_approver cannot read a delegator's permissions from the caller's token, so in SQL a cover never satisfies a holder() approver; approvalsHandler still does",
+    );
+  }
   const graphed = graphSql(ctx, graph, tableNames(rls?.tables));
   let rowHelpers = "";
   if (rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0) {

@@ -635,6 +635,17 @@ const handler = approvalsHandler(store, {
 
 On Supabase, `rls.approvals: { delegations: true }` writes an `approval_delegations` table that users fill with their own covers, and `tableApprovalDelegationSource({ query })` from `permdock/supabase` reads it. The same rows feed `permdock_is_approver` for an approval decided in SQL ([approval delegation with better-supabase](/docs/adapters/better-supabase#approval-delegation)). `query` runs one parameterised statement as a backend role, like `supabasePostgresQuery(ctx.postgresAdmin)`.
 
+SQL honours fewer covers than the handler:
+
+| Cover                                      | `approvalsHandler` | `permdock_is_approver` in SQL                                                                                       |
+| ------------------------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| No `permissions`                           | Honoured           | Honoured                                                                                                            |
+| With `permissions`                         | Honoured           | Skipped: the covers query requires `permissions is null`                                                            |
+| For a `holder()` approver, `jwt` mode      | Honoured           | Never matches, because the caller's token does not carry the delegator's permissions; `rls generate` warns about it |
+| For a `holder()` approver, `database` mode | Honoured           | Matches through `permdock_has_permission_for` on the delegator                                                      |
+
+An approval decided in SQL therefore needs covers without `permissions`, and `holder()` approvers through a cover need `--authorize database`.
+
 ```ts
 import {
   supabasePostgresQuery,
