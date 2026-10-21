@@ -81,7 +81,7 @@ const member = factories.subject({
 });
 ```
 
-A factory fills every required field with a valid value: the first enum value, the lower bound, a sequential UUID, `text("<field>", min, max)`. `refs.parent` fills the parent field and `refs.<scope>` fills the scope's key, each from an id or a row. Ids restart at `resetFactories()`, so a test reads the same rows on every run.
+A factory fills every required field with a valid value: the first enum value, the lower bound, a sequential UUID, `text("<field>", min, max)`. `refs.parent` fills the parent field and `refs.<scope>` fills the scope's key, each from an id or a row. Ids restart at `resetFactories()`, so a test reads the same rows on every run. `seedRows(query, { project: [project], task_item: [task] })` from [`permdock/testing`](/docs/adapters/testing) inserts them before `testRlsParity` runs.
 
 ## Config
 

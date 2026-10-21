@@ -758,6 +758,7 @@
     "jwtFixtureJwks",
     "jwtFixtureTokens",
     "policyMatrix",
+    "seedRows",
     "snapshotFixture",
     "supabaseClaimFixtures",
     "supabaseClaimVectors",

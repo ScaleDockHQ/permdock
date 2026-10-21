@@ -35,6 +35,8 @@ export type {
   ClientStoreStatus,
 } from "./client-store.ts";
 export { snapshotFixture } from "./snapshot-fixture.ts";
+export { seedRows } from "./seed-rows.ts";
+export type { SeedRows } from "./seed-rows.ts";
 export { testHttpAdapter } from "./http-adapter/scenarios.ts";
 export type {
   HttpAdapterOptions,
