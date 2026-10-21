@@ -2,8 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import type { PowerSyncWatchable } from "../../src/react-native/powersync.ts";
 
+import { principal } from "../../src/conditions/refs.ts";
+import { allow } from "../../src/core/grant-builders.ts";
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
+import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { resource } from "../../src/core/permission-leaf.ts";
+import { definePermissions } from "../../src/core/permissions.ts";
+import { definePolicy } from "../../src/core/policy.ts";
+import { role } from "../../src/core/role-builder.ts";
 import { powerSyncSource } from "../../src/react-native/powersync.ts";
 import { memorySnapshotStorage } from "../../src/react-native/storage.ts";
 import { connectSource, nativeStore } from "../../src/react-native/store.ts";
@@ -126,6 +133,78 @@ describe(powerSyncSource, () => {
     const { post } = permissions;
     expect(store.get().can(post.update, ownPost)).toBe(
       server.can(post.update, ownPost),
+    );
+  });
+
+  it("computes what a tenant member may hand out from the synced rows", async () => {
+    const tenantPermissions = definePermissions({
+      job: resource({
+        id: "id",
+        actions: ["read", "update"],
+        relations: { org: { field: "orgId", memberOf: "tenant" } },
+        levels: { own: { ownerId: principal.id }, all: {} },
+      }),
+    });
+    const { job } = tenantPermissions;
+    const tenantPolicy = definePolicy(tenantPermissions, {
+      scopes: { tenant: { key: "orgId" } },
+      subject: () => null,
+      roles: [
+        role("admin", [allow([job.read, job.update])], { on: "tenant" }),
+        role(
+          "manager",
+          [
+            allow(job.read),
+            allow(job.update, { where: { ownerId: principal.id } }),
+          ],
+          { on: "tenant" },
+        ),
+      ],
+    });
+    const customRoles = [
+      {
+        tenant: "acme",
+        name: "self-service",
+        grants: [{ permission: "job.update", level: "own" }],
+      },
+      {
+        tenant: "acme",
+        name: "editor",
+        grants: [{ permission: "job.update" }],
+      },
+    ];
+    const memberships = [{ tenant: "acme", roles: ["manager"] }];
+    const server = getPermDockSync(
+      tenantPolicy,
+      { principal: { id: "u1", tenant: "acme", memberships }, context: {} },
+      { tenant: "acme", customRoles: memoryCustomRoleSource(customRoles) },
+    );
+    const source = powerSyncSource(fakeDb({}), {
+      manifest: localSnapshotManifest(tenantPolicy),
+      queries: {},
+      read: () => ({
+        principal: { id: "u1", tenant: "acme", memberships },
+        customRoles,
+      }),
+    });
+    const store = nativeStore({
+      storage: memorySnapshotStorage(),
+      subjectId: "u1",
+      snapshot: await source.get(),
+    });
+    const device = store.get();
+    expect(
+      device.assignablePermissions().map((leaf) => leaf.key),
+    ).toStrictEqual(["job.read", "job.update"]);
+    expect(device.assignableLevels(job.update)).toStrictEqual(["own"]);
+    expect(device.assignableRoles().map((leaf) => leaf.key)).toStrictEqual(
+      server.assignableRoles().map((leaf) => leaf.key),
+    );
+    expect(device.assignableRoles().map((leaf) => leaf.key)).toContain(
+      "self-service",
+    );
+    expect(device.assignableRoles().map((leaf) => leaf.key)).not.toContain(
+      "editor",
     );
   });
 });

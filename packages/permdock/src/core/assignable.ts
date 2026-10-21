@@ -43,7 +43,7 @@ import {
  * Declared roles a tenant admin may hand out or compose, before any
  * intersection: `assignable` roles, plus every role some `assigns` lists.
  */
-function assignableCandidates(policy: Policy): readonly Role[] {
+export function assignableCandidates(policy: Policy): readonly Role[] {
   const listed = new Set(
     policy.roles.flatMap((binding) => binding.assigns ?? []),
   );
@@ -82,7 +82,7 @@ export type Assignable = {
  * when it has no row condition, or the levels whose condition equals its
  * condition; with `orderedLevels`, also every narrower level.
  */
-function heldLevels(
+export function heldLevels(
   policy: Policy,
   grant: Grant,
   names: readonly string[],

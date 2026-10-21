@@ -172,6 +172,43 @@ export type LocalSnapshotManifest = {
    * roles from; `permdock powersync generate` adds it.
    */
   readonly rows?: LocalSnapshotRows;
+  /**
+   * What a device needs to compute `Snapshot.assignable` for the active tenant
+   * the way `assignableIn` does on the server.
+   */
+  readonly assignable?: LocalAssignable;
+};
+
+/**
+ * The hand-out rules of a policy, as a device evaluates them over its synced
+ * memberships and custom roles.
+ */
+export type LocalAssignable = {
+  /**
+   * Declared roles a tenant admin may hand out or compose, in rank order, with
+   * the scope each sits on and its allow keys.
+   */
+  readonly roles: readonly {
+    readonly name: string;
+    readonly on: string;
+    readonly allows: readonly string[];
+  }[];
+  /** Declared role names and permission keys with `meta.manageRoles: true`. */
+  readonly manage: {
+    readonly roles: readonly string[];
+    readonly permissions: readonly string[];
+  };
+  /**
+   * Declared role name to the roles it assigns, when any role declares
+   * `assigns`.
+   */
+  readonly assigns?: Readonly<Record<string, readonly string[]>>;
+  /** The first scope's custom-role ceiling, in declaration order. */
+  readonly permissions: readonly Permission[];
+  /** Permission key to its level names, in declaration order. */
+  readonly levels?: Readonly<Record<string, readonly string[]>>;
+  /** Index of an allow in `grants` to the levels a holder of it may hand out. */
+  readonly grants?: Readonly<Record<string, readonly string[]>>;
 };
 
 /** A column of a synced table, or a value every row has. */
@@ -252,9 +289,20 @@ export type LocalCustomRoleTable = {
       {
         readonly all: readonly SnapshotGrant[];
         readonly levels?: Readonly<Record<string, readonly SnapshotGrant[]>>;
+        /** The levels a holder of `all` may hand out. */
+        readonly reach?: readonly string[];
+        /** Level to the levels a holder of `levels[level]` may hand out. */
+        readonly levelReach?: Readonly<Record<string, readonly string[]>>;
       }
     >
   >;
   /** `includes: [role]` per declared role. */
   readonly includes: Readonly<Record<string, readonly SnapshotGrant[]>>;
+  /**
+   * Declared role to permission key to the levels a holder of its included
+   * grants may hand out.
+   */
+  readonly includeReach?: Readonly<
+    Record<string, Readonly<Record<string, readonly string[]>>>
+  >;
 };

@@ -300,6 +300,36 @@ describe(localSnapshot, () => {
     }
   });
 
+  it("computes what the subject may hand out the way the server does", async () => {
+    for (const user of users) {
+      for (const tenant of ["acme", "globex", undefined]) {
+        const serverRaw = await serverSnapshot(user, tenant);
+        const snapshot = parseSnapshot(
+          JSON.stringify(buildLocalSnapshot(manifest, local(user, tenant))),
+        );
+        const active = snapshot.tenants[0];
+        const label = `${user.id} in ${String(tenant)}`;
+        expect(snapshot.assignable ?? [], `${label} assignable`).toStrictEqual(
+          (serverRaw.assignable ?? []).filter(
+            (entry) => entry.tenant === active,
+          ),
+        );
+        const server = fromSnapshot(serverRaw);
+        const device = fromSnapshot(snapshot);
+        expect(
+          device.assignableRoles().map((leaf) => leaf.key),
+          `${label} roles`,
+        ).toStrictEqual(server.assignableRoles().map((leaf) => leaf.key));
+        for (const permission of [job.read, job.update, job.close]) {
+          expect(
+            device.assignableLevels(permission),
+            `${label} ${permission.key}`,
+          ).toStrictEqual(server.assignableLevels(permission));
+        }
+      }
+    }
+  });
+
   it("answers an anonymous user like the server", async () => {
     const server = fromSnapshot(
       parseSnapshot(JSON.stringify(getPermDockSync(policy, null).snapshot())),
@@ -417,6 +447,116 @@ describe(localSnapshot, () => {
     );
     const rank = localSnapshotManifest(ranked).rank ?? [];
     expect(rank.indexOf("admin")).toBeLessThan(rank.indexOf("member"));
+  });
+
+  it("hands out like the server under an assigns graph, manageRoles and ordered levels", async () => {
+    const ladder = definePermissions({
+      task: resource({
+        id: "id",
+        actions: ["read", "close"],
+        relations: { org: { field: "orgId", memberOf: "tenant" } },
+        levels: {
+          own: { ownerId: principal.id },
+          open: { status: "open" },
+          all: {},
+        },
+        orderedLevels: true,
+      }),
+      member: resource({ collection: { assignRole: { manageRoles: true } } }),
+    });
+    const ladderRoles = defineRoles({
+      owner: { on: "tenant", assignable: true },
+      lead: { on: "tenant", assignable: true },
+      staff: { on: "tenant", assignable: true },
+      steward: { on: "tenant", assignable: false },
+    });
+    const { task, member } = ladder;
+    for (const assigns of [false, true]) {
+      const ranked = definePolicy(
+        { permissions: ladder, roles: ladderRoles },
+        {
+          scopes: { tenant: { key: "orgId" } },
+          subject: (user: Principal | null) => user,
+          roles: [
+            role(
+              ladderRoles.owner,
+              [allow([task.read, task.close])],
+              assigns ? { assigns: ["lead", "staff"] } : {},
+            ),
+            role(
+              ladderRoles.lead,
+              [
+                allow(task.read),
+                allow(task.close, { where: { status: "open" } }),
+              ],
+              assigns ? { assigns: ["staff"] } : {},
+            ),
+            role(ladderRoles.staff, [
+              allow(task.read, { where: { ownerId: principal.id } }),
+            ]),
+            role(ladderRoles.steward, [allow(member.assignRole)]),
+          ],
+        },
+      );
+      const ladderCustom: readonly CustomRole[] = [
+        {
+          tenant: "acme",
+          name: "closer",
+          grants: [{ permission: "task.close", level: "open" }],
+        },
+        {
+          tenant: "acme",
+          name: "own-closer",
+          grants: [{ permission: "task.close", level: "own" }],
+        },
+        {
+          tenant: "acme",
+          name: "wide",
+          grants: [{ permission: "task.close" }],
+        },
+        { tenant: "acme", name: "staffish", includes: ["staff"] },
+      ];
+      const ladderManifest = JSON.parse(
+        JSON.stringify(localSnapshotManifest(ranked)),
+      );
+      for (const held of [
+        ["owner"],
+        ["lead"],
+        ["staff"],
+        ["steward"],
+        ["closer"],
+        ["staffish"],
+      ]) {
+        const user: Principal = {
+          id: "u1",
+          memberships: [{ tenant: "acme", roles: held }],
+        };
+        const server = parseSnapshot(
+          JSON.stringify(
+            getPermDockSync(ranked, user, {
+              tenant: "acme",
+              customRoles: memoryCustomRoleSource(ladderCustom),
+            }).snapshot(),
+          ),
+        );
+        const device = parseSnapshot(
+          JSON.stringify(
+            buildLocalSnapshot(ladderManifest, {
+              principal: {
+                id: "u1",
+                tenant: "acme",
+                memberships: user.memberships ?? [],
+              },
+              customRoles: ladderCustom,
+            }),
+          ),
+        );
+        expect(
+          device.assignable,
+          `${held.join(",")} assigns=${String(assigns)}`,
+        ).toStrictEqual(server.assignable);
+      }
+    }
   });
 
   it("keeps the current snapshot when a read fails", async () => {

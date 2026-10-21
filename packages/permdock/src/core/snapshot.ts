@@ -20,7 +20,7 @@ import { wireValidity } from "./validity.ts";
 import { listPlans, listRoles } from "./vocabulary.ts";
 import { toWireDelegation } from "./wire-delegation.ts";
 
-function plainPermission(leaf: Permission): Permission {
+export function plainPermission(leaf: Permission): Permission {
   return {
     key: leaf.key,
     scope: leaf.scope,
