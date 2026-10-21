@@ -31,6 +31,7 @@ describe("invariant 4: permission leaves are plain frozen JSON", () => {
   it("is a plain object with no functions, symbols or accessors", () => {
     for (const leaf of leaves) {
       expect(Object.getPrototypeOf(leaf)).toBe(Object.prototype);
+      expect(Object.getPrototypeOf(leaf.meta)).toBe(Object.prototype);
       expect(Object.getOwnPropertySymbols(leaf)).toEqual([]);
       for (const descriptor of Object.values(
         Object.getOwnPropertyDescriptors(leaf),

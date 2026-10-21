@@ -265,6 +265,8 @@ findPermission(permissions, "organization.customers.view"); // a former key: the
 
 `isPermission(value)` narrows an `unknown` to `Permission` without a cast: it checks for string `key`, `scope`, `resource` and `action` and an object `meta`. It accepts a leaf that crossed `JSON.stringify` (which drops the non-enumerable `kind`), and it does not look the key up, so the check that follows still decides by `key`.
 
+A leaf passed from a Server Component to a Client Component arrives as the same five-field object, without `kind`; `tests/bundle/src/rsc.test.ts` renders one through React Flight. React's development build logs "Only plain objects can be passed to Client Components" for it, because `kind` is a non-enumerable own property; the production build does not. To avoid the warning in development, pass `permission.key` and call `findPermission` in the Client Component.
+
 `listPermissions` is the runtime catalog. `permdock collect` produces the same list at build time and adds usage information; the two agree by construction because both come from the definition. `findPermission` is the only place a string enters the system, and its result is typed as a union of all leaves so the next call is typed again.
 
 `mergePermissions` combines definitions from several files; see [larger apps](/docs/getting-started/larger-apps).
