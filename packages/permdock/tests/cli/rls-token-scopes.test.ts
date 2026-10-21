@@ -162,7 +162,7 @@ describe("rls token scopes", () => {
         tokenScopes: "yes",
       });
       expect(code).not.toBe(0);
-      expect(out).toContain("rls.tokenScopes must be true or false");
+      expect(out).toContain("rls.tokenScopes must be a boolean, not a string");
     });
   });
 });

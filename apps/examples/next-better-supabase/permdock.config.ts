@@ -11,7 +11,7 @@ export default {
     dialect: "supabase",
     authorize: "database",
     tenantType: "uuid",
-    tables: ["staff", "quotes"],
+    tables: { staff: "staff", quotes: "quotes" },
     readOnlyActors: true,
     // Out-of-office covers: a delegate approves for the delegator inside a window.
     approvals: { delegations: true },

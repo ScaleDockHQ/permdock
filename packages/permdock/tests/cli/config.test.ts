@@ -1,7 +1,10 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, expectTypeOf, it } from "vitest";
+
+import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { run } from "../../src/cli/core/run.ts";
 import { parseConfig } from "../../src/cli/project/config-schema.ts";
+import { CONFIG_SHAPE } from "../../src/cli/project/config-shape.ts";
 import { PERMISSIONS, project, removeProjects } from "./doctor-kit.ts";
 import { jsonData } from "./envelope.ts";
 
@@ -54,6 +57,69 @@ describe("config", () => {
       [{ collect: ["./src"] }, "collect must be an object"],
     ])("rejects %j", (value, message) => {
       expect(() => parseConfig(value, "permdock.config.ts")).toThrow(message);
+    });
+
+    it.each([
+      [
+        { rls: { tables: ["staff"] } },
+        "rls.tables must be an object, not an array",
+      ],
+      [
+        { collect: { srcPath: "./src" } },
+        "collect.srcPath must be an array, not a string",
+      ],
+      [
+        { rls: { capabilities: "yes" } },
+        "rls.capabilities must be a boolean, not a string",
+      ],
+      [
+        { rls: { customRoles: "on" } },
+        "rls.customRoles must be a boolean or an object, not a string",
+      ],
+    ])("rejects a value of the wrong kind in %j", (value, message) => {
+      expect(() => parseConfig(value, "permdock.config.ts")).toThrow(
+        expect.objectContaining({
+          message: `PermDock CLI: permdock.config.ts: ${message}`,
+          code: "config_invalid",
+        }),
+      );
+    });
+
+    it("accepts every kind a key lists", () => {
+      expect(
+        parseConfig(
+          {
+            collect: { barrel: "src/generated.ts" },
+            rls: { customRoles: { from: {} }, readOnlyActors: ["agent"] },
+          },
+          "permdock.config.ts",
+        ).warnings,
+      ).toStrictEqual([]);
+    });
+  });
+
+  describe("the config shape registry", () => {
+    it("lists a section for every config key that is not a module path", () => {
+      expectTypeOf<keyof typeof CONFIG_SHAPE>().toEqualTypeOf<
+        Exclude<keyof PermDockConfig, "permissions" | "policy" | "operations">
+      >();
+      expect(Object.keys(CONFIG_SHAPE).toSorted()).toStrictEqual([
+        "catalog",
+        "collect",
+        "doctor",
+        "openapi",
+        "powersync",
+        "rls",
+        "supabase",
+      ]);
+    });
+
+    it("gives every key at least one kind", () => {
+      for (const [section, keys] of Object.entries(CONFIG_SHAPE)) {
+        for (const [key, kinds] of Object.entries(keys)) {
+          expect(kinds.length, `${section}.${key}`).toBeGreaterThan(0);
+        }
+      }
     });
   });
 

@@ -1,131 +1,19 @@
-import type {
-  CatalogConfig,
-  CollectConfig,
-  DoctorConfig,
-  PermDockConfig,
-  PowerSyncConfig,
-  RlsConfig,
-  SupabaseConfig,
-} from "../types.ts";
+import type { PermDockConfig } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
-import { CliError } from "../core/errors.ts";
-
-type Section = Exclude<
-  keyof PermDockConfig,
-  "permissions" | "policy" | "operations"
->;
-
-const COLLECT = {
-  srcPath: true,
-  out: true,
-  barrel: true,
-} as const satisfies Record<keyof CollectConfig, true>;
-
-const CATALOG = { out: true } as const satisfies Record<
-  keyof CatalogConfig,
-  true
->;
-
-const OPENAPI = { doc: true } as const satisfies Record<
-  keyof NonNullable<PermDockConfig["openapi"]>,
-  true
->;
-
-const RLS = {
-  tables: true,
-  dialect: true,
-  memberships: true,
-  membershipSources: true,
-  suspension: true,
-  functions: true,
-  inlineFunctions: true,
-  force: true,
-  fixtures: true,
-  verify: true,
-  tenantClaim: true,
-  tenantType: true,
-  teamType: true,
-  scopeTypes: true,
-  roleClaim: true,
-  roleValues: true,
-  gucPrefix: true,
-  out: true,
-  drizzle: true,
-  prisma: true,
-  schema: true,
-  authorize: true,
-  policyPerRole: true,
-  customRoles: true,
-  triggers: true,
-  audit: true,
-  capabilities: true,
-  anonymousSignIns: true,
-  fields: true,
-  revokeColumns: true,
-  policyName: true,
-  rbac: true,
-  roles: true,
-  actions: true,
-  helpersOnly: true,
-  rowHelpers: true,
-  seeds: true,
-  treeValues: true,
-  trustedReaders: true,
-  migrate: true,
-  shims: true,
-  tenants: true,
-  customRoleWrites: true,
-  anonExecute: true,
-  assignments: true,
-  approvals: true,
-  jsonSchema: true,
-  ownershipTriggers: true,
-  readOnlyActors: true,
-  apiKeys: true,
-  tokenScopes: true,
-  realtime: true,
-  storage: true,
-} as const satisfies Record<keyof RlsConfig, true>;
-
-const SUPABASE = { hook: true, schemas: true } as const satisfies Record<
-  keyof SupabaseConfig,
-  true
->;
-
-const POWERSYNC = {
-  out: true,
-  resources: true,
-  action: true,
-  manifest: true,
-} as const satisfies Record<keyof PowerSyncConfig, true>;
-
-const DOCTOR = {
-  sensitiveActions: true,
-  memberships: true,
-  credentials: true,
-  clientEntries: true,
-  migrations: true,
-  claims: true,
-  srcPath: true,
-  sharedTables: true,
-} as const satisfies Record<keyof DoctorConfig, true>;
-
-const SECTIONS: Readonly<Record<Section, Readonly<Record<string, true>>>> = {
-  collect: COLLECT,
-  catalog: CATALOG,
-  openapi: OPENAPI,
-  rls: RLS,
-  supabase: SUPABASE,
-  powersync: POWERSYNC,
-  doctor: DOCTOR,
-};
+import { CliError, configError } from "../core/errors.ts";
+import {
+  CONFIG_SHAPE,
+  MODULE_KEYS,
+  describeKinds,
+  isModuleKey,
+  isSection,
+  kindOf,
+} from "./config-shape.ts";
 
 const TOP_LEVEL: ReadonlySet<string> = new Set<string>([
-  "permissions",
-  "policy",
-  "operations",
-  ...Object.keys(SECTIONS),
+  ...Object.keys(MODULE_KEYS),
+  ...Object.keys(CONFIG_SHAPE),
 ]);
 
 export type ParsedConfig = {
@@ -134,14 +22,15 @@ export type ParsedConfig = {
   readonly warnings: readonly string[];
 };
 
-function isSection(key: string): key is Section {
-  return Object.hasOwn(SECTIONS, key);
+function invalid(file: string, message: string): CliError {
+  return new CliError("usage", `PermDock CLI: ${file}: ${message}`);
 }
 
 /**
  * Checks the shape a command relies on before it reads the config: module paths
- * are strings and each section is an object. A key PermDock does not read is a
- * warning, so a config written for a newer version still loads.
+ * are strings, each section is an object, and each key PermDock reads holds a
+ * value of a kind it accepts. A key PermDock does not read is a warning, so a
+ * config written for a newer version still loads.
  */
 export function parseConfig(value: unknown, file: string): ParsedConfig {
   if (value === undefined) {
@@ -157,12 +46,9 @@ export function parseConfig(value: unknown, file: string): ParsedConfig {
   const unknown = (path: string, known: Iterable<string>): string =>
     `${file}: unknown key ${path}; PermDock reads ${[...known].join(", ")}`;
   for (const [key, entry] of Object.entries(value)) {
-    if (key === "permissions" || key === "policy" || key === "operations") {
+    if (isModuleKey(key)) {
       if (entry !== undefined && typeof entry !== "string") {
-        throw new CliError(
-          "usage",
-          `PermDock CLI: ${file}: ${key} must be a module path string`,
-        );
+        throw invalid(file, `${key} must be a module path string`);
       }
       continue;
     }
@@ -174,18 +60,26 @@ export function parseConfig(value: unknown, file: string): ParsedConfig {
       continue;
     }
     if (!isRecord(entry)) {
-      throw new CliError(
-        "usage",
-        `PermDock CLI: ${file}: ${key} must be an object`,
-      );
+      throw invalid(file, `${key} must be an object`);
     }
-    const known = SECTIONS[key];
-    for (const child of Object.keys(entry)) {
-      if (!Object.hasOwn(known, child)) {
+    const known = CONFIG_SHAPE[key];
+    for (const [child, childValue] of Object.entries(entry)) {
+      const kinds = Object.hasOwn(known, child) ? known[child] : undefined;
+      if (kinds === undefined) {
         warnings.push(unknown(`${key}.${child}`, Object.keys(known)));
+        continue;
+      }
+      const kind = kindOf(childValue);
+      if (
+        childValue !== undefined &&
+        (kind === undefined || !kinds.includes(kind))
+      ) {
+        throw configError(
+          `PermDock CLI: ${file}: ${key}.${child} must be ${describeKinds(kinds)}, not ${kind === undefined ? "null" : describeKinds([kind])}`,
+        );
       }
     }
   }
-  // SAFETY: the module paths and section shapes were checked above; section values are the project's to type with defineConfig.
+  // SAFETY: module paths, section shapes and the kind of every known key were checked above; deeper values are the project's to type with defineConfig.
   return { config: value as PermDockConfig, warnings };
 }
