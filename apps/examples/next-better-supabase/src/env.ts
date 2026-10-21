@@ -6,6 +6,8 @@ const Jwks = z.object({
 
 const read = (name: string): string | undefined => process.env[name];
 
+const jwks = read("SUPABASE_JWKS");
+
 const LatencyMs = z.coerce.number().int().nonnegative();
 
 function latencyMs(raw = ""): number {
@@ -20,10 +22,12 @@ function latencyMs(raw = ""): number {
 export const env = {
   supabaseUrl: read("SUPABASE_URL") ?? "http://127.0.0.1:54321",
   publishableKey: read("SUPABASE_PUBLISHABLE_KEY") ?? "sb_publishable_example",
-  /** The public JWKS the session token is verified against, inline: no fetch to Auth. */
-  verificationKeys: Jwks.nullable().parse(
-    JSON.parse(read("SUPABASE_JWKS") ?? "null"),
-  ),
+  /**
+   * The public JWKS the session token is verified against, inline: no fetch to Auth.
+   * Unset stays `undefined` so better-supabase fetches `jwksUrl`; `null` would verify against no keys.
+   */
+  verificationKeys:
+    jwks === undefined ? undefined : Jwks.parse(JSON.parse(jwks)),
   /** The pool connects on the first query, so the placeholder never reaches a socket during `next build`. */
   databaseUrl:
     read("DATABASE_URL") ?? "postgres://postgres@127.0.0.1:5432/postgres",

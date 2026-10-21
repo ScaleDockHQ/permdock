@@ -27,7 +27,7 @@ const server = createServer(betterSupabase, {
     publishableKey: "sb_publishable_test",
     jwksUrl: new URL(`${PROJECT_URL}/auth/v1/.well-known/jwks.json`),
   },
-  auth: { jwks: { keys: [...signer.jwks.keys] } },
+  auth: { jwks: signer.jwks },
 });
 
 /** The claims Supabase Auth issues for `user` after the PermDock access-token hook ran; `postgres` owns the hook. */
