@@ -28,6 +28,11 @@ export type {
   ToolPolicy,
   ToolPolicyOptions,
 } from "./mcp.ts";
+export { principalFromMemberships } from "./memberships.ts";
+export type {
+  BetterSupabaseMembershipRow,
+  PrincipalFromMembershipsOptions,
+} from "./memberships.ts";
 export { principalSource } from "./principals.ts";
 export type {
   BetterSupabaseIdentityLink,
