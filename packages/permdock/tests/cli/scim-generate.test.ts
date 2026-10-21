@@ -106,6 +106,11 @@ describe("permdock scim generate", () => {
     const printed = await run(["scim", "generate", "--out", "-"], { cwd });
     expect(printed.stdout).toContain('"identity"."scim_users"');
     expect(printed.stdout).toContain("from public;");
+    const flagged = await run(
+      ["scim", "generate", "--schema", "directory", "--out", "-"],
+      { cwd },
+    );
+    expect(flagged.stdout).toContain('"directory"."scim_users"');
   });
 
   it("reports the files and tables in the --json envelope", async () => {
