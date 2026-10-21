@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -381,6 +387,68 @@ describe("runRls dispatch", () => {
     expect(bound.code).toBe(0);
     expect(bound.output).toContain("post -> public.post");
     expect(bound.output).not.toContain("explain");
+  });
+
+  it("warns about a bound table that no project SQL file creates", async () => {
+    const project = mkdtempSync(path.join(TMP, "rls-run-tables-"));
+    mkdirSync(path.join(project, "supabase/migrations"), { recursive: true });
+    writeFileSync(
+      path.join(project, "supabase/migrations/0001_init.sql"),
+      "create table public.posts (id uuid primary key);",
+    );
+    try {
+      const missing = await runRls(
+        input({
+          cwd: project,
+          rest: ["generate"],
+          dialect: "guc",
+          out: "bind.sql",
+        }),
+      );
+      expect(missing.code).toBe(0);
+      expect(missing.output).toContain(
+        "resource post is bound to public.post, which no SQL file in the migration or schema folders creates; name its table in rls.tables, or set rls.tables.post: false when it has none",
+      );
+      const mapped = await runRls(
+        input({
+          cwd: project,
+          config: { ...config, rls: { tables: { post: "public.posts" } } },
+          rest: ["generate"],
+          dialect: "guc",
+          out: "bind.sql",
+        }),
+      );
+      expect(mapped.code).toBe(0);
+      expect(mapped.output).not.toContain("which no SQL file");
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
+
+  it("writes no policies for a resource rls.tables marks false and still seeds its role grants", async () => {
+    const outcome = await runRlsGenerate({
+      cwd,
+      config: { ...config, rls: { tables: { post: false } } },
+      target: "sql",
+      dialect: "guc",
+      rbac: false,
+      check: false,
+      skipClosures: false,
+      inlineFunctions: false,
+      force: false,
+      io,
+      write: false,
+    });
+    expect(outcome.code).toBe(0);
+    expect(outcome.policies).toEqual([]);
+    expect(outcome.text).not.toMatch(/"public"\."post"/u);
+    expect(outcome.output).not.toContain("table bindings");
+    expect(outcome.seeds?.map((row) => row.permission).toSorted()).toEqual([
+      "post.create",
+      "post.list",
+      "post.read",
+      "post.update",
+    ]);
   });
 
   it("leaves out index suggestions the database already serves with --db-url-stdin", async () => {

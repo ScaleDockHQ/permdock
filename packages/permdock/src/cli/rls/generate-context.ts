@@ -17,7 +17,7 @@ import { type RlsSqlContext, parseMembershipsFlag } from "../sql/context.ts";
 import { assignableRoles, roleNames } from "../sql/grants.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
-import { resolveVias, tableNames } from "../sql/tables.ts";
+import { resolveVias, tableNames, tablelessResources } from "../sql/tables.ts";
 import { apiKeysPlan } from "./api-keys.ts";
 import { customRoleSyncSql } from "./custom-role-sync.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
@@ -211,6 +211,7 @@ export function buildContext(
   } catch (cause) {
     return { refusal: describeError(cause) };
   }
+  const tableless = tablelessResources(rls?.tables);
   let ctx: RlsSqlContext = {
     dialect: input.dialect,
     scopes,
@@ -220,6 +221,7 @@ export function buildContext(
     ...(rls?.tenants === "all" ? { tenants: "all" as const } : {}),
     gucPrefix: input.gucPrefix ?? rls?.gucPrefix ?? "app",
     ...(rls?.actions === undefined ? {} : { actions: rls.actions }),
+    ...(tableless.size === 0 ? {} : { tableless }),
     inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,
     schema,
     authorize,

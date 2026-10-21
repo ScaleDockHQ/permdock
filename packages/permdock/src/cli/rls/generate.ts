@@ -23,7 +23,12 @@ import {
 import { requirePolicy } from "../project/load.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
 import { tableNames } from "../sql/tables.ts";
-import { bindingNotes, missingBindings, tableBindings } from "./bindings.ts";
+import {
+  bindingNotes,
+  missingBindings,
+  tableBindings,
+  unknownTableNotes,
+} from "./bindings.ts";
 import { explainRls } from "./explain.ts";
 import { buildContext } from "./generate-context.ts";
 import {
@@ -34,7 +39,11 @@ import {
 } from "./generate-options.ts";
 import { outputFiles } from "./generate-output.ts";
 import { generateSql } from "./generate-sql.ts";
-import { indexKeysFromProject, withoutServedTargets } from "./index-scan.ts";
+import {
+  indexKeysFromProject,
+  tablesFromProject,
+  withoutServedTargets,
+} from "./index-scan.ts";
 import { pruneIndexTargets, readTableIndexFacts } from "./indexes.ts";
 import { levelKeys } from "./rows.ts";
 import { triggerNotes } from "./trigger-notes.ts";
@@ -193,6 +202,7 @@ export async function runRlsGenerate(
   }
   if (input.db === undefined) {
     indexes = withoutServedTargets(indexes, indexKeysFromProject(input.cwd));
+    warnings.push(...unknownTableNotes(bindings, tablesFromProject(input.cwd)));
   }
   if (input.db !== undefined) {
     try {
@@ -209,7 +219,7 @@ export async function runRlsGenerate(
       const missing = missingBindings(bindings, facts.columns);
       if (missing.length > 0) {
         return refused(
-          `rls generate: ${missing.map((binding) => `resource ${binding.resource} is bound to ${binding.table}, which the database does not have`).join("; ")}; name the table in rls.tables`,
+          `rls generate: ${missing.map((binding) => `resource ${binding.resource} is bound to ${binding.table}, which the database does not have`).join("; ")}; name the table in rls.tables, or set rls.tables.<resource>: false for a resource with no table`,
         );
       }
       const pruned = pruneIndexTargets(indexes, facts);

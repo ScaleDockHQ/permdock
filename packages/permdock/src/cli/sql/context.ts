@@ -55,6 +55,8 @@ export type RlsSqlContext = {
   readonly gucPrefix: string;
   /** `rls.actions`: verb to SQL command overrides. */
   readonly actions?: RlsActions;
+  /** Resources `rls.tables` marks `false`: every action compiles as `'none'`. */
+  readonly tableless?: ReadonlySet<string>;
   readonly inlineFunctions?: boolean;
   /** Schema of `role_permissions` and the RLS helpers (`permdock_has`, `permitted_<scope>_ids`). Default `permdock`, a schema the Data API does not expose. */
   readonly schema?: string;
